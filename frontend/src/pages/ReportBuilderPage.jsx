@@ -8,7 +8,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { reportBuilderApi } from '../services/api'
+import { reportBuilderApi, biReportBuilderV2Api } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
@@ -272,6 +272,93 @@ function PreviewTable({ rows, columns, entityDef }) {
   )
 }
 
+// ── BI presets tab (Report Builder v2) ─────────────────────────────────────
+function BiPresetsTab() {
+  const [selected, setSelected] = useState('finance_revenue_by_client')
+  const [previewData, setPreview] = useState(null)
+  const { data: presets } = useQuery({
+    queryKey: ['rbv2-presets'],
+    queryFn: () => biReportBuilderV2Api.listPresets({ grouped: false }).then(r => r.data).catch(() => ({ items: [] })),
+    staleTime: 60_000,
+  })
+  const items = presets?.items || []
+
+  async function runPreview() {
+    try { const res = await biReportBuilderV2Api.preview(selected, 10); setPreview(res.data) } catch (_) { /* ignore */ }
+  }
+  async function exportJson() {
+    try {
+      const res = await biReportBuilderV2Api.export(selected, 'json')
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = res.data.filename || 'report.json'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (_) { /* ignore */ }
+  }
+
+  return (
+    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <span style={{ fontWeight: 700, fontSize: '1rem' }}>Presets BI</span>
+        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{items.length} presets disponibles</span>
+      </div>
+      <div style={{ padding: '18px 20px' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+          {items.slice(0, 16).map(p => (
+            <button key={p.id} onClick={() => setSelected(p.id)}
+              style={{
+                padding: '5px 14px', borderRadius: 20, fontSize: 'var(--text-xs)', cursor: 'pointer', fontFamily: 'inherit',
+                border: `1.5px solid ${selected === p.id ? 'var(--accent)' : 'var(--surface-4)'}`,
+                background: selected === p.id ? 'var(--accent-muted)' : 'transparent',
+                color: selected === p.id ? 'var(--accent)' : 'var(--text-2)',
+                fontWeight: selected === p.id ? 700 : 400,
+              }}>
+              {p.name}
+            </button>
+          ))}
+          {items.length > 16 && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', alignSelf: 'center' }}>+{items.length - 16} más</span>}
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+          <button onClick={runPreview}
+            style={{ padding: '7px 16px', borderRadius: 8, background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }}>
+            Vista previa
+          </button>
+          <button onClick={exportJson}
+            style={{ padding: '7px 16px', borderRadius: 8, background: 'var(--success)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }}>
+            Exportar JSON
+          </button>
+        </div>
+        {previewData && (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+              <thead>
+                <tr style={{ background: 'var(--surface-3)' }}>
+                  {(previewData.columns || []).map(c => (
+                    <th key={c} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-2)', fontWeight: 700, fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--surface-4)' }}>{c.replace(/_/g, ' ')}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(previewData.rows || []).map((row, ri) => (
+                  <tr key={ri} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                    {(previewData.columns || []).map(c => <td key={c} style={{ padding: '8px 12px', color: 'var(--text-1)' }}>{row[c] ?? '—'}</td>)}
+                  </tr>
+                ))}
+                {!(previewData.rows || []).length && (
+                  <tr><td colSpan={(previewData.columns || []).length || 1} style={{ padding: 16, textAlign: 'center', color: 'var(--text-3)' }}>Sin datos para este preset</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function ReportBuilderPage() {
   const t = useAppT()
@@ -394,7 +481,7 @@ export default function ReportBuilderPage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-        {['builder', 'templates'].map(t => (
+        {['builder', 'templates', 'presets'].map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             background: activeTab === t ? 'var(--accent-glow)' : 'none',
             border: `1px solid ${activeTab === t ? 'var(--info)' : 'var(--surface-5)'}`,
@@ -402,12 +489,16 @@ export default function ReportBuilderPage() {
             color: activeTab === t ? 'var(--info)' : 'var(--text-2)',
             cursor: 'pointer', fontSize: "var(--text-base)", fontFamily: 'inherit',
           }}>
-            {t === 'builder' ? '🔧 Constructor' : `📁 Plantillas (${templates.length})`}
+            {t === 'builder' ? '🔧 Constructor'
+              : t === 'templates' ? `📁 Plantillas (${templates.length})`
+              : '⚡ Presets BI'}
           </button>
         ))}
       </div>
 
-      {activeTab === 'templates' ? (
+      {activeTab === 'presets' ? (
+        <BiPresetsTab />
+      ) : activeTab === 'templates' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {templates.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 48, color: 'var(--surface-5)', fontSize: "var(--text-md)" }}>

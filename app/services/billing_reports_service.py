@@ -265,7 +265,7 @@ def run_capacity_report(db: Session, filters: dict, date_from, date_to, org_id=N
     for u in users:
         user_plans = [p for p in plans if p.user_id == u.id]
         total_assigned = sum(p.allocated_hours or 0 for p in user_plans)
-        capacity = (u.weekly_capacity_hours or 40) * 12
+        capacity = (u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS) * 12
         util_pct = round(total_assigned / capacity * 100, 1) if capacity > 0 else 0
         by_user[u.id] = {
             "user_id": u.id, "user_name": u.full_name, "role": u.role,

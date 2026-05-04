@@ -304,7 +304,7 @@ export default function BIProjectDetailPage() {
               PDF
             </button>
             <button
-              onClick={() => navigate('/bi/dashboard')}
+              onClick={() => navigate('/executive')}
               style={{
                 padding: '8px 12px',
                 borderRadius: 8,

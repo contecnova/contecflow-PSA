@@ -24,7 +24,14 @@ function WeekGrid({ weekData, t }) {
       <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>{t('imputa_page.week_title')}</h3>
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {days.map((d, i) => {
-          const entry = byDay[i]
+          // Compute the ISO date for this weekday from week_start to avoid index-based mapping bugs
+          let dayIso = null
+          if (weekData.week_start) {
+            const base = new Date(weekData.week_start + 'T12:00:00')
+            base.setDate(base.getDate() + i)
+            dayIso = base.toISOString().split('T')[0]
+          }
+          const entry = dayIso ? byDay.find(e => e.date === dayIso) : byDay[i]
           const hasHours = entry && entry.hours > 0
           return (
             <div key={d} style={{ flex: 1, textAlign: 'center' }}>
@@ -110,6 +117,9 @@ export default function ImputarPage() {
       qc.invalidateQueries(['my-week'])
       qc.invalidateQueries(['imputations-today'])
       qc.invalidateQueries(['dash-hours-week'])
+      qc.invalidateQueries(['timesheets-mine'])
+      qc.invalidateQueries(['timesheets-pending'])
+      qc.invalidateQueries(['timesheets-team'])
     },
     onError: e => {
       if (e?.response?.status === 409) {
@@ -139,7 +149,7 @@ export default function ImputarPage() {
   }
 
   const [editingId, setEditingId] = useState(null)
-  const [editForm, setEditForm] = useState({ hours: 0, description: '' })
+  const [editForm, setEditForm] = useState({ hours: 0, description: '', is_billable: false })
 
   const { mutate: updateImp, isPending: updating } = useMutation({
     mutationFn: ({ id, data }) => imputationsApi.update(id, data),
@@ -148,6 +158,9 @@ export default function ImputarPage() {
       qc.invalidateQueries(['my-week'])
       qc.invalidateQueries(['imputations-today'])
       qc.invalidateQueries(['dash-hours-week'])
+      qc.invalidateQueries(['timesheets-mine'])
+      qc.invalidateQueries(['timesheets-pending'])
+      qc.invalidateQueries(['timesheets-team'])
       toast.success(t('imputa_page.updated_ok'))
     },
     onError: e => toast.error(extractErr(e, t('common.error') || 'Error')),  
@@ -159,6 +172,9 @@ export default function ImputarPage() {
       qc.invalidateQueries(['my-week'])
       qc.invalidateQueries(['imputations-today'])
       qc.invalidateQueries(['dash-hours-week'])
+      qc.invalidateQueries(['timesheets-mine'])
+      qc.invalidateQueries(['timesheets-pending'])
+      qc.invalidateQueries(['timesheets-team'])
       toast.success(t('imputa_page.deleted_ok'))
     },
     onError: e => toast.error(extractErr(e, t('common.error') || 'Error')),  
@@ -291,7 +307,7 @@ export default function ImputarPage() {
         </div>
 
         {/* Description */}
-        <div style={{ marginBottom: 'var(--space-6)' }}>
+        <div style={{ marginBottom: 20 }}>
           <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 'var(--space-2)' }}>
             {t('imputa_page.description_label')}
           </label>
@@ -302,6 +318,37 @@ export default function ImputarPage() {
             rows={3}
             style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4) var(--space-4)', color: 'var(--text-1)', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)', resize: 'vertical', boxSizing: 'border-box' }}
           />
+        </div>
+
+        {/* Billable toggle */}
+        <div style={{ marginBottom: 'var(--space-6)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+            <input
+              type="checkbox"
+              checked={form.is_billable}
+              onChange={e => set('is_billable')(e.target.checked)}
+              style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+            />
+            <div aria-hidden="true" style={{
+              width: 42, height: 24, borderRadius: 12, flexShrink: 0,
+              background: form.is_billable ? 'var(--accent)' : 'var(--surface-4)',
+              position: 'relative', transition: 'background 0.2s',
+            }}>
+              <div style={{
+                position: 'absolute', top: 3, left: form.is_billable ? 21 : 3,
+                width: 18, height: 18, borderRadius: '50%',
+                background: 'var(--surface-0)', transition: 'left 0.2s',
+              }} />
+            </div>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: form.is_billable ? 'var(--accent)' : 'var(--text-2)' }}>
+              {t('imputa_page.billable_label')}
+            </span>
+            {form.is_billable && (
+              <span style={{ fontSize: '11px', background: 'var(--accent-glow)', color: 'var(--accent)', borderRadius: 6, padding: '2px 8px', fontWeight: 700 }}>
+                {t('imputa_page.billable_badge')}
+              </span>
+            )}
+          </label>
         </div>
 
         {/* Duplicate error panel */}
@@ -371,9 +418,20 @@ export default function ImputarPage() {
                         padding: '6px 8px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
                     />
                   </div>
+                  <div style={{ alignSelf: 'flex-end', paddingBottom: 4 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-xs)", color: editForm.is_billable ? 'var(--accent)' : 'var(--text-3)', userSelect: 'none' }}>
+                      <input
+                        type="checkbox"
+                        checked={editForm.is_billable}
+                        onChange={e => setEditForm(f => ({ ...f, is_billable: e.target.checked }))}
+                        style={{ accentColor: 'var(--accent)', width: 14, height: 14, cursor: 'pointer' }}
+                      />
+                      {t('imputa_page.billable_label')}
+                    </label>
+                  </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <Button
-                      onClick={() => updateImp({ id: imp.id, data: { hours: editForm.hours, description: editForm.description } })}
+                      onClick={() => updateImp({ id: imp.id, data: { hours: editForm.hours, description: editForm.description, is_billable: editForm.is_billable } })}
                       disabled={updating || editForm.hours <= 0}
                       loading={updating}
                     >{t('common.save')}</Button>
@@ -387,11 +445,16 @@ export default function ImputarPage() {
                     <span style={{ fontWeight: 600 }}>{imp.project?.name || '—'}</span>
                     {imp.task?.title && <span style={{ color: 'var(--text-3)', marginLeft: 6, fontSize: "var(--text-xs)" }}>· {imp.task.title}</span>}
                     {imp.description && <span style={{ color: 'var(--text-2)', marginLeft: 8 }}>· {imp.description}</span>}
+                    {imp.is_billable && (
+                      <span style={{ marginLeft: 8, fontSize: '11px', background: 'var(--accent-glow)', color: 'var(--accent)', borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>
+                        {t('imputa_page.billable_badge')}
+                      </span>
+                    )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{imp.hours}h</span>
                     <button
-                      onClick={() => { setEditingId(imp.id); setEditForm({ hours: imp.hours, description: imp.description || '' }) }}
+                      onClick={() => { setEditingId(imp.id); setEditForm({ hours: imp.hours, description: imp.description || '', is_billable: imp.is_billable ?? false }) }}
                       style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-md)", padding: '2px 4px' }}
                       aria-label={t('imputa_page.edit_aria')}
                       title={t('imputa_page.edit_aria')}>✏</button>

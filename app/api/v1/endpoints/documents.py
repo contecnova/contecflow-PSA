@@ -327,7 +327,7 @@ def submit_for_approval(
 ):
     """Explicitly open an approval request for a document that requires_approval=True but has no active workflow yet."""
     doc = get_document_or_404(db, doc_id)
-    check_document_access(doc, current_user, DocumentAccessLevel.write)
+    check_document_access(doc, current_user, DocumentAccessLevel.editor)
 
     return doc_svc.submit_for_approval(db, doc, current_user)
 

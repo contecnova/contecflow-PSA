@@ -8,6 +8,8 @@ from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel, field_validator
 
+from app.core.config import settings
+
 
 # ── Ticket ────────────────────────────────────────────────────────────────────
 
@@ -266,7 +268,7 @@ class AssetIn(BaseModel):
     lease_expiry: Optional[str] = None
     purchase_price: Optional[float] = None
     current_value: Optional[float] = None
-    currency: str = "EUR"
+    currency: str = settings.DEFAULT_CURRENCY
     po_number: Optional[str] = None
     vendor: Optional[str] = None
     vendor_contract: Optional[str] = None
@@ -326,7 +328,7 @@ class OnCallScheduleIn(BaseModel):
     name: str
     group_id: str
     rotation: str = "weekly"
-    timezone: str = "Europe/Madrid"
+    timezone: str = settings.DEFAULT_TIMEZONE
     description: Optional[str] = None
 
 

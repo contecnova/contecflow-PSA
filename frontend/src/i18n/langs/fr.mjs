@@ -740,6 +740,8 @@ const fr = {
     offline_error: 'Erreur hors ligne: impossible d enregistrer',
     timer_running: 'Minuteur en cours',
     timer_link: 'Aller au minuteur',
+    billable_label: 'Heures facturables',
+    billable_badge: 'Facturable',
     imputar: 'imputer',
     imputaciones: 'imputations',
     horas: 'heures',

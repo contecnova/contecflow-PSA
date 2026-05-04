@@ -577,6 +577,8 @@ const es = {
     offline_error: 'Error sin conexión: no se pudo guardar',
     timer_running: 'Temporizador en marcha',
     timer_link: 'Ir al temporizador',
+    billable_label: 'Horas facturables',
+    billable_badge: 'Facturable',
     imputar: 'imputar',
     imputaciones: 'imputaciones',
     horas: 'horas',

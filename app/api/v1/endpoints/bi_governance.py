@@ -14,6 +14,106 @@ from app.services import bi_governance_service as svc
 
 router = APIRouter()
 
+GOVERNANCE_CONFIG_KEY = "bi.governance.config"
+GOVERNANCE_POLICIES_KEY = "bi.governance.policies"
+
+_DEFAULT_CONFIG = {
+    "require_approval_for_publish": False,
+    "data_retention_days": 90,
+}
+
+
+class GovernanceConfigIn(BaseModel):
+    require_approval_for_publish: Optional[bool] = None
+    data_retention_days: Optional[int] = Field(None, ge=1, le=3650)
+
+
+class PolicyIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    resource_type: str = Field(..., min_length=1, max_length=60)
+    resource_id: str = Field(..., min_length=1, max_length=120)
+    allowed_roles: list[str] = Field(default_factory=list)
+    deny_roles: list[str] = Field(default_factory=list)
+
+
+@router.get('/bi/governance/config', summary='Leer configuración de governance BI')
+@limiter.limit("60/minute")
+def get_governance_config(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, 'organization_id', None)
+    return svc._get_json(db, GOVERNANCE_CONFIG_KEY, org_id, _DEFAULT_CONFIG)
+
+
+@router.put('/bi/governance/config', summary='Actualizar configuración de governance BI')
+@limiter.limit("30/minute")
+def update_governance_config(
+    payload: GovernanceConfigIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, 'organization_id', None)
+    current = svc._get_json(db, GOVERNANCE_CONFIG_KEY, org_id, dict(_DEFAULT_CONFIG))
+    if payload.require_approval_for_publish is not None:
+        current["require_approval_for_publish"] = payload.require_approval_for_publish
+    if payload.data_retention_days is not None:
+        current["data_retention_days"] = payload.data_retention_days
+    svc._set_json(db, GOVERNANCE_CONFIG_KEY, org_id, current, "BI governance config")
+    return current
+
+
+@router.get('/bi/governance/policies', summary='Listar políticas de acceso BI')
+@limiter.limit("60/minute")
+def list_policies(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, 'organization_id', None)
+    policies = svc._get_json(db, GOVERNANCE_POLICIES_KEY, org_id, [])
+    return policies
+
+
+@router.post('/bi/governance/policies', summary='Crear política de acceso BI', status_code=201)
+@limiter.limit("30/minute")
+def create_policy(
+    payload: PolicyIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    import uuid as _uuid
+    org_id = getattr(current_user, 'organization_id', None)
+    policies = svc._get_json(db, GOVERNANCE_POLICIES_KEY, org_id, [])
+    new_policy = {
+        "id": str(_uuid.uuid4()),
+        "name": payload.name,
+        "resource_type": payload.resource_type,
+        "resource_id": payload.resource_id,
+        "allowed_roles": payload.allowed_roles,
+        "deny_roles": payload.deny_roles,
+        "created_at": svc._iso_now(),
+    }
+    policies.append(new_policy)
+    svc._set_json(db, GOVERNANCE_POLICIES_KEY, org_id, policies, "BI governance policies")
+    return new_policy
+
+
+@router.get('/bi/governance/audit-log', summary='Consultar log de auditoría BI governance')
+@limiter.limit("60/minute")
+def get_audit_log(
+    request: Request,
+    days: int = Query(30, ge=1, le=90),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, 'organization_id', None)
+    items = svc.get_access_history(db, organization_id=org_id, days=days)
+    return {"items": items, "count": len(items)}
+
 
 class AuditAccessIn(BaseModel):
     entity_type: str = Field(..., min_length=2, max_length=40)

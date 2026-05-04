@@ -7,6 +7,7 @@ import { Card, Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
+import BiAdvancedViz from '../components/bi/BiAdvancedViz'
 import { fmtCurrency, extractErr } from '../utils/helpers'
 import { CHART_COLORS_EXTENDED } from '../constants/theme'
 import { useAuth } from '../context/AuthContext'
@@ -1130,6 +1131,7 @@ export default function ReportsPage() {
               ['overview',  '🗂 Métricas'],
               ['explorer',  '🔍 Explorador'],
               ['presets',   '⚡ Plantillas'],
+              ['advanced',  '📈 Visualizaciones'],
               ['dashboard', `📌 Guardados${saved.length ? ` (${saved.length})` : ''}`],
               ['scheduled', '📅 Programados'],
             ].map(([m, label]) => (
@@ -1196,6 +1198,9 @@ export default function ReportsPage() {
           <ReportsDashboard saved={saved} onRemove={removeReport} onOpen={openReport} />
         )
       )}
+      {/* Visualizaciones avanzadas (BI) */}
+      {mode === 'advanced' && <BiAdvancedViz />}
+
       {/* Scheduled Reports */}
       {mode === 'scheduled' && <ScheduledReportsTab />}
     </PageShell>

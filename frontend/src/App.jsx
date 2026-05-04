@@ -1,7 +1,7 @@
 import { ToastProvider } from './context/ToastContext'
 import { ConfirmProvider } from './context/ConfirmContext'
 import { Component, Suspense, lazy } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Layout from './components/layout/Layout'
 import AppShell from './components/layout/AppShell'
@@ -115,8 +115,11 @@ const PublicFormsPage        = lazy(() => import('./pages/PublicFormsPage'))
 const IntakeFormPage         = lazy(() => import('./pages/IntakeFormPage'))
 const DeveloperPortalPage    = lazy(() => import('./pages/DeveloperPortalPage'))
 const BIPage                 = lazy(() => import('./pages/BIPage'))
-const BIWorkspacePage        = lazy(() => import('./pages/BIWorkspacePage'))
 const BIProjectDetailPage    = lazy(() => import('./pages/BIProjectDetailPage'))
+const DataExplorerPage       = lazy(() => import('./pages/DataExplorerPage'))
+const PredictionsPage        = lazy(() => import('./pages/PredictionsPage'))
+const DataPlatformPage       = lazy(() => import('./pages/DataPlatformPage'))
+const DataGovernancePage     = lazy(() => import('./pages/DataGovernancePage'))
 const JiraIntegrationPage    = lazy(() => import('./pages/JiraIntegrationPage'))
 const ProjectTemplatesPage   = lazy(() => import('./pages/ProjectTemplatesPage'))
 const ForbiddenPage          = lazy(() => import('./pages/ForbiddenPage'))
@@ -140,7 +143,8 @@ const TABLE_ROUTES = new Set([
 ])
 const FINANCE_ROUTES = new Set([
   '/profitability','/revenue','/budgets','/pipeline','/evm','/portfolio',
-  '/scenarios','/nps','/bi','/report-builder','/milestone-billing',
+  '/scenarios','/nps','/report-builder','/milestone-billing',
+  '/data-explorer','/predictions','/data-platform','/data-governance',
 ])
 
 function SmartPageLoader() {
@@ -261,6 +265,28 @@ function landingPathFor(role) {
     case 'team_lead':          return '/projects-dashboard'
     default:                   return '/tasks'
   }
+}
+
+// ── Redirects para rutas /bi/* legacy ─────────────────────────────────────
+const BI_LEGACY_TARGETS = {
+  explore:        '/data-explorer',
+  analytics:      '/data-explorer',
+  intelligence:   '/predictions',
+  data:           '/data-platform',
+  'data-sources': '/data-platform',
+  govern:         '/data-governance',
+  governance:     '/data-governance',
+  collaboration:  '/data-governance',
+  dashboard:      '/executive',
+  hub:            '/executive',
+}
+function BiLegacyRedirect() {
+  const { section } = useParams()
+  return <Navigate to={BI_LEGACY_TARGETS[section] || '/executive'} replace />
+}
+function BiProjectLegacyRedirect() {
+  const { projectId } = useParams()
+  return <Navigate to={`/projects/${projectId}/analytics`} replace />
 }
 
 function AppRoutes() {
@@ -514,9 +540,16 @@ function AppRoutes() {
       <Route path="/documents" element={<ProtectedRoute><Layout><DocumentsPage /></Layout></ProtectedRoute>} />
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
       <Route path="/gantt" element={<ProtectedRoute roles={['admin','pm','team_lead','employee']}><Layout><GanttPage /></Layout></ProtectedRoute>} />
-      <Route path="/bi" element={<ProtectedRoute roles={['admin','pm']}><Layout><BIWorkspacePage /></Layout></ProtectedRoute>} />
-      <Route path="/bi/:section" element={<ProtectedRoute roles={['admin','pm']}><Layout><BIWorkspacePage /></Layout></ProtectedRoute>} />
-      <Route path="/bi/project/:projectId" element={<ProtectedRoute roles={['admin','pm']}><Layout><BIProjectDetailPage /></Layout></ProtectedRoute>} />
+      {/* Nuevas rutas top-level (sustituyen al antiguo /bi) */}
+      <Route path="/data-explorer"   element={<ProtectedRoute roles={['admin','pm']}><Layout><DataExplorerPage   /></Layout></ProtectedRoute>} />
+      <Route path="/predictions"     element={<ProtectedRoute roles={['admin','pm']}><Layout><PredictionsPage    /></Layout></ProtectedRoute>} />
+      <Route path="/data-platform"   element={<ProtectedRoute roles={['admin']}>     <Layout><DataPlatformPage   /></Layout></ProtectedRoute>} />
+      <Route path="/data-governance" element={<ProtectedRoute roles={['admin']}>     <Layout><DataGovernancePage /></Layout></ProtectedRoute>} />
+      <Route path="/projects/:id/analytics" element={<ProtectedRoute roles={['admin','pm']}><Layout><BIProjectDetailPage /></Layout></ProtectedRoute>} />
+      {/* Redirects legacy */}
+      <Route path="/bi" element={<Navigate to="/executive" replace />} />
+      <Route path="/bi/:section" element={<BiLegacyRedirect />} />
+      <Route path="/bi/project/:projectId" element={<BiProjectLegacyRedirect />} />
       <Route path="/subcontractors" element={<ProtectedRoute roles={['admin','pm']}><Layout><SubcontractorsPage /></Layout></ProtectedRoute>} />
       <Route path="/governance" element={<ProtectedRoute roles={['admin']}><Layout><GovernancePage /></Layout></ProtectedRoute>} />
       <Route path="/finance-dashboard"   element={<ProtectedRoute roles={['admin','pm']}><Layout><FinanceDashboardPage /></Layout></ProtectedRoute>} />

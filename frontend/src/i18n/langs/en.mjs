@@ -528,6 +528,8 @@ const en = {
     offline_error: 'Offline error: could not save',
     timer_running: 'Timer running',
     timer_link: 'Go to timer',
+    billable_label: 'Billable hours',
+    billable_badge: 'Billable',
   },
   import_data: {
     title: 'Bulk Data Import',

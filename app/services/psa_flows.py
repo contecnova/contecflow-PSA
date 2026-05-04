@@ -40,6 +40,7 @@ def approve_imputation_flow(db: Session, imputation_id: str, current_user: User)
     imp.approved_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(imp)
+    sync_timesheet_from_imputations_flow(db, imp.user_id, imp.date - timedelta(days=imp.date.weekday()))
     return imp
 
 
@@ -68,6 +69,7 @@ def reject_imputation_flow(db: Session, imputation_id: str, current_user: User) 
 
     db.commit()
     db.refresh(imp)
+    sync_timesheet_from_imputations_flow(db, imp.user_id, imp.date - timedelta(days=imp.date.weekday()))
     return imp
 
 
@@ -136,10 +138,34 @@ def sync_timesheet_from_imputations_flow(db: Session, user_id: str, week_start: 
             total_cost=cost,
         )
         db.add(ts)
-    elif ts.status in [TimesheetStatus.draft, TimesheetStatus.rejected]:
+    else:
+        previous_total = ts.total_hours or 0
+        previous_billable = ts.billable_hours or 0
+        previous_cost = ts.total_cost or 0
+
+        # Always keep totals current regardless of status.
+        # This ensures new imputations added after submission/approval are always visible.
         ts.total_hours = total
         ts.billable_hours = billable
         ts.total_cost = cost
+
+        # If an approved timesheet changes, its approval is no longer valid.
+        if ts.status == TimesheetStatus.approved:
+            has_pending = any(not i.is_approved for i in imps)
+            totals_changed = any(
+                round(old_value, 2) != round(new_value, 2)
+                for old_value, new_value in (
+                    (previous_total, total),
+                    (previous_billable, billable),
+                    (previous_cost, cost),
+                )
+            )
+            if has_pending or totals_changed:
+                ts.status = TimesheetStatus.draft
+                ts.submitted_at = None
+                ts.reviewed_by = None
+                ts.reviewed_at = None
+                ts.review_notes = None
 
     db.commit()
     db.refresh(ts)

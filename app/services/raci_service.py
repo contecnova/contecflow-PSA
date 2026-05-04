@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.models.task import Task, TaskStatus
+from app.core.config import settings
 from app.models.sprints import Sprint, SprintTask
 from app.models.imputation import Imputation
 from app.models.raci import (
@@ -209,7 +210,7 @@ def compute_user_burnout_risk(user: User, db: Session, today: date) -> dict:
             Imputation.date >= week_start,
             Imputation.date < week_end,
         ).scalar() or 0.0
-        capacity = user.weekly_capacity_hours or 40.0
+        capacity = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
         weeks_data.append({
             "week_start": week_start,
             "hours": hours,

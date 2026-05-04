@@ -3,6 +3,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
+from app.core.config import settings
+
 
 class DependencyCreate(BaseModel):
     predecessor_id: str
@@ -18,7 +20,7 @@ class BookingCreate(BaseModel):
     booking_type: str = "hard"
     start_date: date
     end_date: date
-    hours_per_day: float = 8.0
+    hours_per_day: float = settings.DEFAULT_WORKING_HOURS_PER_DAY
     note: Optional[str] = None
 
 
@@ -34,7 +36,7 @@ class BookingUpdate(BaseModel):
 
 class SLAScheduleCreate(BaseModel):
     name: str
-    timezone: str = "Europe/Madrid"
+    timezone: str = settings.DEFAULT_TIMEZONE
     is_default: bool = False
     work_days: List[int] = [1, 2, 3, 4, 5]
     work_start: Optional[str] = "09:00"
@@ -60,7 +62,7 @@ class RecurringCreate(BaseModel):
     client_email: Optional[str] = None
     client_vat: Optional[str] = None
     amount: float
-    tax_rate: float = 21.0
-    currency: str = "EUR"
+    tax_rate: float = settings.DEFAULT_TAX_RATE
+    currency: str = settings.DEFAULT_CURRENCY
     description: Optional[str] = None
     payment_terms_days: int = 30

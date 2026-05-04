@@ -860,7 +860,7 @@ class OnCallSchedule(Base):
     name        = Column(String(255), nullable=False)
     group_id    = Column(String(36), ForeignKey("sd_agent_groups.id", ondelete="CASCADE"), nullable=False, index=True)
     rotation    = Column(Enum(OnCallRotationType), default=OnCallRotationType.weekly)
-    timezone    = Column(String(50), default="Europe/Madrid")
+    timezone    = Column(String(50), default=settings.DEFAULT_TIMEZONE)
     is_active   = Column(Boolean, default=True)
     description = Column(String(255), nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
@@ -1046,7 +1046,7 @@ class Asset(Base):
     # Financiero
     purchase_price  = Column(Float, nullable=True)
     current_value   = Column(Float, nullable=True)
-    currency        = Column(String(3), default="EUR")
+    currency        = Column(String(3), default=settings.DEFAULT_CURRENCY)
     po_number       = Column(String(100), nullable=True)
     vendor          = Column(String(100), nullable=True)
     vendor_contract = Column(String(100), nullable=True)

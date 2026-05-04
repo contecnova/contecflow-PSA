@@ -48,13 +48,24 @@ function WeekLines({ weekStart, onClose }) {
 
   const { mutate: updateLine, isPending: updating } = useMutation({
     mutationFn: ({ id, data }) => imputationsApi.update(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['timesheet-lines', weekStart] }); setEditingId(null) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['timesheet-lines', weekStart] })
+      qc.invalidateQueries(['timesheets-mine'])
+      qc.invalidateQueries(['timesheets-pending'])
+      qc.invalidateQueries(['timesheets-team'])
+      setEditingId(null)
+    },
     onError: e => toast.error(e?.response?.data?.detail || 'Error al actualizar'),
   })
 
   const { mutate: deleteLine } = useMutation({
     mutationFn: (id) => imputationsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['timesheet-lines', weekStart] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['timesheet-lines', weekStart] })
+      qc.invalidateQueries(['timesheets-mine'])
+      qc.invalidateQueries(['timesheets-pending'])
+      qc.invalidateQueries(['timesheets-team'])
+    },
     onError: e => toast.error(e?.response?.data?.detail || 'Error al eliminar'),
   })
 

@@ -16,7 +16,7 @@ from app.models.resources import UserSkill, Skill
 from app.models.service_desk import Ticket
 from app.models.task import Task
 from app.models.user import User, UserRole
-
+from app.core.config import settings
 
 def _filter_by_org(query, model, org_id):
     """Apply organization filter only when the model actually has organization_id."""
@@ -213,7 +213,7 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
 
     occupancy_next_month = []
     for u in visible_users:
-        weekly_capacity = float(getattr(u, "weekly_capacity_hours", None) or 40)
+        weekly_capacity = float(getattr(u, "weekly_capacity_hours", None) or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
         month_capacity = round(weekly_capacity * month_weeks, 1)
         planned = round(float(plans_by_user.get(u.id, 0.0)), 1)
         load_pct = round((planned / month_capacity) * 100, 1) if month_capacity > 0 else 0.0

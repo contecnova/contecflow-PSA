@@ -1,11 +1,13 @@
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../context/ToastContext'
 import { alertsApi } from '../services/api'
-import { Button, Spinner, EmptyState } from '../components/ui'
+import { Button, Spinner, EmptyState, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Bell, ExternalLink } from 'lucide-react'
+import SmartAlertsPanel from '../components/bi/SmartAlertsPanel'
+import { Bell, ExternalLink, Brain } from 'lucide-react'
 import { fmtRelative, extractErr} from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -41,11 +43,13 @@ export default function AlertsPage() {
   const qc = useQueryClient()
   const toast = useToast()
   const navigate = useNavigate()
+  const [tab, setTab] = useState('operational')
 
   const { data: alerts = [], isLoading } = useQuery({
     queryKey: ['alerts-page'],
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data),
     refetchInterval: 30_000,
+    enabled: tab === 'operational',
   })
 
   const { mutate: runEngine, isPending: running } = useMutation({
@@ -78,9 +82,11 @@ export default function AlertsPage() {
       <PageHeader
         icon={<Bell size={18} />}
         title={t('alerts.title')}
-        subtitle={t('alerts.subtitle_active_unread', { active: alerts.length, unread })}
+        subtitle={tab === 'operational'
+          ? t('alerts.subtitle_active_unread', { active: alerts.length, unread })
+          : 'Alertas inteligentes basadas en forecasting, anomalías y tendencias'}
         actions={
-          hasRole('admin') && (
+          tab === 'operational' && hasRole('admin') && (
             <Button onClick={() => runEngine()} disabled={running} icon="⚡">
               {running ? t('alerts.running_engine') : t('alerts.run_engine')}
             </Button>
@@ -88,6 +94,19 @@ export default function AlertsPage() {
         }
       />
 
+      <Tabs
+        items={[
+          { id: 'operational', label: 'Operativas', icon: <Bell size={14} />, count: alerts.length || undefined },
+          { id: 'smart',       label: 'Inteligentes', icon: <Brain size={14} /> },
+        ]}
+        active={tab}
+        onChange={setTab}
+        ariaLabel="Tipos de alertas"
+      />
+
+      {tab === 'smart' && <SmartAlertsPanel />}
+
+      {tab === 'operational' && <>
       {/* Summary cards */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 28 }}>
         {Object.entries(SEVERITY_CONFIG).map(([sev, cfg]) => (
@@ -178,6 +197,7 @@ export default function AlertsPage() {
           })}
         </div>
       )}
+      </>}
     </PageShell>
   )
 }

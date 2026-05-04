@@ -617,6 +617,8 @@ const de = {
     offline_error: 'Offline-Fehler: konnte nicht speichern',
     timer_running: 'Timer lauft',
     timer_link: 'Zum Timer',
+    billable_label: 'Abrechenbare Stunden',
+    billable_badge: 'Abrechenbar',
     imputar: 'erfassen',
     imputaciones: 'eintrage',
     horas: 'stunden',

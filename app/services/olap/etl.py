@@ -13,8 +13,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-
-def _resolve_duckdb_path() -> str:
+from app.core.config import settings() -> str:
     env_path = os.getenv("DUCKDB_PATH")
     if env_path:
         return env_path
@@ -109,7 +108,7 @@ def _load_dim_users(db, conn) -> None:
             getattr(u, "department", None),
             getattr(u, "organization_id", None),
             getattr(u, "cost_per_hour", None),
-            getattr(u, "weekly_capacity_hours", 40.0),
+            getattr(u, "weekly_capacity_hours", settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
         ])
     logger.debug("dim_user: %d rows", len(rows))
 
@@ -129,7 +128,7 @@ def _load_dim_projects(db, conn) -> None:
             getattr(p, "client_id", None),
             p.start_date, p.end_date,
             getattr(p, "budget", None),
-            getattr(p, "currency", "EUR"),
+            getattr(p, "currency", settings.DEFAULT_CURRENCY),
         ])
     logger.debug("dim_project: %d rows", len(rows))
 

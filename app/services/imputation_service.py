@@ -38,6 +38,7 @@ from app.schemas.time_tracking import TimerSessionOut
 from app.schemas.time_tracking import LockoutStatusOut
 from app.schemas.time_tracking import ImputationAlertOut
 from app.services.notifications import notify_user
+from app.services.psa_flows import sync_timesheet_from_imputations_flow
 from fastapi import HTTPException
 
 
@@ -46,6 +47,11 @@ from fastapi import HTTPException
 def compute_cost(user: User, hours: float) -> float:
     base_rate = user.hourly_rate or 0.0
     return round(base_rate * hours, 2)
+
+
+def sync_imputation_week_timesheet(db: Session, user_id: str, work_date: date) -> Timesheet:
+    week_start = work_date - timedelta(days=work_date.weekday())
+    return sync_timesheet_from_imputations_flow(db, user_id, week_start)
 
 
 # ── Lockout ────────────────────────────────────────────────────────────────────
@@ -265,7 +271,7 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
             Imputation.date <= week_end,
         )
     ).scalar() or 0.0
-    weekly_capacity = current_user.weekly_capacity_hours or 40.0
+    weekly_capacity = current_user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
     if weekly_hours + payload.hours > weekly_capacity:
         raise HTTPException(
             status_code=400,
@@ -305,6 +311,7 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
 
     db.commit()
     db.refresh(imputation)
+    sync_imputation_week_timesheet(db, imputation.user_id, imputation.date)
     return imputation
 
 
@@ -575,6 +582,7 @@ def stop_timer_session(payload, current_user: User, db: Session):
         )
 
     db.commit()
+    sync_imputation_week_timesheet(db, imputation.user_id, imputation.date)
 
     imputation = db.query(Imputation).options(
         joinedload(Imputation.user),
@@ -662,7 +670,7 @@ def update_imputation_fields(imp, payload, db: Session):
             Imputation.id != imp.id
         )
     ).scalar() or 0.0
-    weekly_capacity = user.weekly_capacity_hours or 40.0
+    weekly_capacity = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
     if weekly_hours + new_hours > weekly_capacity:
         raise HTTPException(
             status_code=400,
@@ -678,6 +686,7 @@ def update_imputation_fields(imp, payload, db: Session):
             imp.cost_amount = round(rate * payload.hours, 2)
     db.commit()
     db.refresh(imp)
+    sync_imputation_week_timesheet(db, imp.user_id, imp.date)
     return imp
 
 
@@ -787,7 +796,11 @@ def list_imputations_query(
     page_size: int,
 ):
 
-    q = db.query(Imputation)
+    q = db.query(Imputation).options(
+        joinedload(Imputation.user),
+        joinedload(Imputation.task),
+        joinedload(Imputation.project),
+    )
 
     # Scope: employees and subcontractors only see their own imputations
     if current_user.role in ("employee", "subcontractor"):
@@ -817,9 +830,16 @@ def list_imputations_query(
 
 
 def get_imputation_by_id(db: Session, imputation_id: str):
-    return db.query(Imputation).filter(Imputation.id == imputation_id).first()
+    return db.query(Imputation).options(
+        joinedload(Imputation.user),
+        joinedload(Imputation.task),
+        joinedload(Imputation.project),
+    ).filter(Imputation.id == imputation_id).first()
 
 
 def delete_imputation_record(db: Session, imp) -> None:
+    user_id = imp.user_id
+    work_date = imp.date
     db.delete(imp)
     db.commit()
+    sync_imputation_week_timesheet(db, user_id, work_date)

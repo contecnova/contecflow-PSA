@@ -83,9 +83,28 @@ def _auto_assign_task_on_create(db: Session, task: Task) -> None:
 # usuario un `move_reason` antes de enviar el PATCH.
 
 
+# Valid forward/backward transitions per state.
+# cancelled is terminal; todo cannot jump directly to in_review.
+_TASK_VALID_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
+    TaskStatus.backlog:     {TaskStatus.todo, TaskStatus.cancelled},
+    TaskStatus.todo:        {TaskStatus.in_progress, TaskStatus.backlog, TaskStatus.cancelled},
+    TaskStatus.in_progress: {TaskStatus.in_review, TaskStatus.todo, TaskStatus.done,
+                              TaskStatus.blocked, TaskStatus.cancelled},
+    TaskStatus.in_review:   {TaskStatus.done, TaskStatus.in_progress, TaskStatus.cancelled},
+    TaskStatus.done:        {TaskStatus.in_progress},  # reopen
+    TaskStatus.blocked:     {TaskStatus.in_progress, TaskStatus.todo, TaskStatus.cancelled},
+    TaskStatus.cancelled:   set(),  # terminal
+}
+
+
 def validate_task_transition(current_status: TaskStatus, new_status: TaskStatus) -> None:
-    """No-op: todas las transiciones se permiten. La trazabilidad va al log."""
-    return None
+    """Raise 400 if the transition is not permitted by _TASK_VALID_TRANSITIONS."""
+    allowed = _TASK_VALID_TRANSITIONS.get(current_status, set())
+    if new_status not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Transición inválida: {current_status.value} → {new_status.value}.",
+        )
 
 
 def apply_status_side_effects(task, new_status: TaskStatus) -> None:

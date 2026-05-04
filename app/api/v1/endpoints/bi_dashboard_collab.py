@@ -48,6 +48,10 @@ class ReactionIn(BaseModel):
     emoji: str = Field(..., min_length=1, max_length=10)
 
 
+class CommentReactionIn(BaseModel):
+    emoji: str = Field(..., min_length=1, max_length=10)
+
+
 @router.post("/bi/collab/comments", summary="Añadir comentario en dashboard/widget", status_code=201)
 @limiter.limit("30/minute")
 def add_comment(
@@ -146,6 +150,26 @@ def toggle_reaction(
         org_id=org_id,
         target_id=body.target_id,
         target_type=body.target_type,
+        user_id=current_user.id,
+        emoji=body.emoji,
+    )
+
+
+@router.post("/bi/collab/comments/{comment_id}/reactions", summary="Toggle reaction en comentario", status_code=201)
+@limiter.limit("60/minute")
+def toggle_comment_reaction(
+    request: Request,
+    comment_id: str,
+    body: CommentReactionIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return svc.toggle_reaction(
+        db,
+        org_id=org_id,
+        target_id=comment_id,
+        target_type="comment",
         user_id=current_user.id,
         emoji=body.emoji,
     )

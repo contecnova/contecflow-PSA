@@ -18,6 +18,7 @@ from app.models.bookings import ResourceBooking
 from datetime import timezone
 from fastapi import HTTPException
 from sqlalchemy import func as sqlfunc
+from app.core.config import settings
 from sqlalchemy import case as sa_case
 
 logger = logging.getLogger(__name__)
@@ -85,7 +86,7 @@ class ResourceAnalyticsService:
         if not user:
             return None
 
-        capacity_hours = user.weekly_capacity_hours or 40.0
+        capacity_hours = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
 
         # Get from snapshot if available
         snapshot = db.query(ResourceUtilizationSnapshot).filter(
@@ -493,7 +494,7 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
             1 for i in range(days)
             if (overlap_start + timedelta(days=i)).weekday() < 5
         )
-        h = work_days * (b.hours_per_day or 8)
+        h = work_days * (b.hours_per_day or settings.DEFAULT_WORKING_HOURS_PER_DAY)
         booking_hours += h
         pid = str(b.project_id) if b.project_id else "unassigned"
         booking_projects[pid] = booking_projects.get(pid, 0) + h

@@ -3,6 +3,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
+from app.core.config import settings
+
 
 # ── Invoice output schemas (replaces _invoice_out dict) ───────────────────────
 
@@ -423,8 +425,8 @@ class InvoiceCreate(BaseModel):
     client_email: Optional[str] = None
     issue_date: date
     due_date: Optional[date] = None
-    tax_rate: float = 21.0
-    currency: str = "EUR"
+    tax_rate: float = settings.DEFAULT_TAX_RATE
+    currency: str = settings.DEFAULT_CURRENCY
     notes: Optional[str] = None
     po_reference: Optional[str] = None
     period_from: Optional[date] = None

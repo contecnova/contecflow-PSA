@@ -70,14 +70,16 @@ def _comment_to_dict(c: DashboardComment) -> dict:
 
 
 def _version_to_dict(v: DashboardVersion) -> dict:
+    config = json.loads(v.config) if v.config else {}
     return {
         "id": v.id,
         "dashboard_id": v.dashboard_key,
         "version": v.version,
-        "config": json.loads(v.config) if v.config else {},
+        "name": config.get("name", v.change_log or ""),
+        "config": config,
         "change_log": v.change_log,
         "created_by": v.created_by_name,
-        "is_public": True,
+        "is_public": config.get("is_public", True),
         "created_at": v.created_at.isoformat() if v.created_at else None,
     }
 

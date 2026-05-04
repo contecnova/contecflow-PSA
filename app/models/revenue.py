@@ -18,6 +18,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
+from app.core.config import settings
 
 
 class ASCMethod(str, enum.Enum):
@@ -47,7 +48,7 @@ class RevenueContract(Base):
 
     name            = Column(String(255), nullable=False)
     contract_value  = Column(Float, nullable=False, default=0.0)
-    currency        = Column(String(8), nullable=False, default="EUR")
+    currency        = Column(String(8), nullable=False, default=settings.DEFAULT_CURRENCY)
     method          = Column(Enum(ASCMethod), nullable=False, default=ASCMethod.over_time)
 
     start_date      = Column(Date, nullable=True)
@@ -132,7 +133,7 @@ class RevenueEntry(Base):
 
     entry_type      = Column(Enum(EntryType), nullable=False, default=EntryType.recognized)
     amount          = Column(Float, nullable=False, default=0.0)
-    currency        = Column(String(8), nullable=False, default="EUR")
+    currency        = Column(String(8), nullable=False, default=settings.DEFAULT_CURRENCY)
 
     period_year     = Column(Integer, nullable=False)
     period_month    = Column(Integer, nullable=False)

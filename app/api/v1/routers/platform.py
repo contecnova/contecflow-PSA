@@ -29,7 +29,7 @@ router.include_router(grc.router,                  prefix="/grc",               
 router.include_router(salesforce_sync.router,      prefix="/salesforce-sync",       tags=["Salesforce Sync"])
 router.include_router(slack_block_kit.router,                                   tags=["Slack Block Kit"])
 router.include_router(currency_sync.router,                                      tags=["Currency Sync"])
-router.include_router(currency_rates.router,       prefix="/currency-rates",        tags=["Currency Rates"])
+router.include_router(currency_rates.router,                                     tags=["Currency Rates"])
 
 # ── Identity, access & compliance ─────────────────────────────────────────────
 router.include_router(scim.router,                 tags=["SCIM"])

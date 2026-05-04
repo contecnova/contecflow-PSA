@@ -618,6 +618,8 @@ const it = {
     offline_error: 'Errore offline: impossibile salvare',
     timer_running: 'Timer in corso',
     timer_link: 'Vai al timer',
+    billable_label: 'Ore fatturabili',
+    billable_badge: 'Fatturabile',
     imputar: 'imputare',
     imputaciones: 'imputazioni',
     horas: 'ore',

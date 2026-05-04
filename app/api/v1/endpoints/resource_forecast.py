@@ -369,7 +369,7 @@ def utilization_trend(
     team_by_week: dict = {w: {"actual_h": 0.0, "planned_h": 0.0, "cap_h": 0.0} for w in all_weeks}
 
     for user in users:
-        cap_h = float(user.weekly_capacity_hours or 40)
+        cap_h = float(user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
         series = []
         for wk in all_weeks:
             is_future = wk >= _monday(today)

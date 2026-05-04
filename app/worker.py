@@ -466,7 +466,7 @@ def check_missing_imputations():
         missing = []
         for emp in employees:
             # Daily capacity = weekly_capacity / 5 working days
-            daily_capacity = (emp.weekly_capacity_hours or 40.0) / 5
+            daily_capacity = (emp.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS) / 5
             hours_today = db.query(func.sum(Imputation.hours)).filter(
                 Imputation.user_id == emp.id,
                 Imputation.date == today,
@@ -566,7 +566,7 @@ def generate_retainer_invoices():
                     client_email=client_email,
                     client_address=client_address,
                     total=proj.retainer_amount,
-                    currency=proj.currency or "EUR",
+                    currency=proj.currency or settings.DEFAULT_CURRENCY,
                     issue_date=today,
                     period_from=date(today.year, today.month, 1),
                     period_to=today,

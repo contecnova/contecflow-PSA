@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr
 
 from app.schemas.common_enums import UserRole, UserStatus
+from app.core.config import settings
 
 
 class UserBase(BaseModel):
@@ -16,7 +17,7 @@ class UserBase(BaseModel):
     job_title: Optional[str] = None
     role: UserRole = UserRole.employee
     status: UserStatus = UserStatus.active
-    weekly_capacity_hours: float = 40.0
+    weekly_capacity_hours: float = settings.DEFAULT_WEEKLY_CAPACITY_HOURS
 
 
 class UserCreate(UserBase):

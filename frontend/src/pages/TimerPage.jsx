@@ -8,7 +8,6 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Timer } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
-import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 
@@ -159,8 +158,8 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
   }, [currentTimer?.id, currentTimer?.task_id])
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ['tasks-for-stop-timer', currentTimer?.project_id],
-    queryFn: () => tasksApi.list({ project_id: currentTimer?.project_id, page_size: 200 }).then(r =>
+    queryKey: ['tasks-for-stop-timer', currentTimer?.project_id, 'mine'],
+    queryFn: () => tasksApi.list({ project_id: currentTimer?.project_id, assigned_to_me: true, page_size: 200 }).then(r =>
       Array.isArray(r.data) ? r.data : (r.data.items || [])
     ),
     enabled: !!currentTimer?.project_id,
@@ -255,7 +254,6 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
 }
 
 export default function TimerPage() {
-  const { user } = useAuth()
   const t       = useAppT()
   const toast   = useToast()
   const qc      = useQueryClient()
@@ -336,6 +334,12 @@ export default function TimerPage() {
       toast.success('Sesión guardada como imputación')
       qc.setQueryData(['timer-current'], null)
       qc.invalidateQueries({ queryKey: ['timer-history'] })
+      qc.invalidateQueries(['my-week'])
+      qc.invalidateQueries(['imputations-today'])
+      qc.invalidateQueries(['dash-hours-week'])
+      qc.invalidateQueries(['timesheets-mine'])
+      qc.invalidateQueries(['timesheets-pending'])
+      qc.invalidateQueries(['timesheets-team'])
       setShowStop(false); setElapsed(0)
     },
     onError: (e) => {

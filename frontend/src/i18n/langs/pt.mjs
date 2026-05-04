@@ -543,6 +543,8 @@ const pt = {
     offline_error: 'Erro offline: nao foi possivel salvar',
     timer_running: 'Temporizador em andamento',
     timer_link: 'Ir para o temporizador',
+    billable_label: 'Horas faturáveis',
+    billable_badge: 'Faturável',
     imputar: 'imputar',
     imputaciones: 'imputacoes',
     horas: 'horas',

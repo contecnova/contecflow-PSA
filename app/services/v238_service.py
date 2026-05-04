@@ -189,7 +189,7 @@ def get_booking_conflicts(
         for b in user_bks:
             d = b.start_date
             while d <= b.end_date:
-                daily[d] += (b.hours_per_day or 8.0)
+                daily[d] += (b.hours_per_day or settings.DEFAULT_WORKING_HOURS_PER_DAY)
                 d += timedelta(days=1)
 
         overloaded_days = [
@@ -243,7 +243,7 @@ def get_gantt_leveling(
         for b in sorted_bks:
             d = b.start_date
             while d <= b.end_date:
-                daily[d] += (b.hours_per_day or 8.0)
+                daily[d] += (b.hours_per_day or settings.DEFAULT_WORKING_HOURS_PER_DAY)
                 d += timedelta(days=1)
 
         overloaded = {d for d, h in daily.items() if h / capacity * 100 > 100}

@@ -1,6 +1,8 @@
 from datetime import date, timedelta
 
 from tests.conftest import auth
+from app.models.financial import Timesheet, TimesheetStatus
+from app.models.project import Project, ProjectStatus
 
 
 def _create_project(client, token, code):
@@ -22,6 +24,79 @@ def _create_project(client, token, code):
 def _next_monday():
     today = date.today()
     return today - timedelta(days=today.weekday()) + timedelta(days=7)
+
+
+def _create_task(client, token, project_id, title, assignee_id=None):
+    res = client.post(
+        "/api/v1/tasks",
+        json={
+            "title": title,
+            "project_id": project_id,
+            "status": "todo",
+            "priority": "medium",
+            "assignee_id": assignee_id,
+        },
+        headers=auth(token),
+    )
+    assert res.status_code in (200, 201), res.text
+    return res.json()["id"]
+
+
+def _approve_week_timesheet(client, pm_token, dev_token, db, project_code):
+    project_id = _create_project(client, pm_token, project_code)
+    project = db.query(Project).filter(Project.id == project_id).first()
+    assert project is not None
+    project.status = ProjectStatus.active
+    db.commit()
+
+    add_member = client.post(
+        f"/api/v1/projects/{project_id}/members",
+        json={"user_id": "dev-test-id", "role": "developer"},
+        headers=auth(pm_token),
+    )
+    assert add_member.status_code in (200, 201)
+
+    task_id = _create_task(client, pm_token, project_id, f"Task {project_code}")
+    work_day = date.today()
+    create_imp = client.post(
+        "/api/v1/imputations",
+        json={
+            "project_id": project_id,
+            "task_id": task_id,
+            "date": str(work_day),
+            "hours": 6,
+            "description": "Trabajo inicial",
+            "is_billable": True,
+        },
+        headers=auth(dev_token),
+    )
+    assert create_imp.status_code in (200, 201), create_imp.text
+
+    week_start = work_day - timedelta(days=work_day.weekday())
+    submit = client.post(f"/api/v1/timesheets/my/{week_start}/submit", headers=auth(dev_token))
+    assert submit.status_code == 200, submit.text
+
+    pending = client.get("/api/v1/timesheets/pending", headers=auth(pm_token))
+    assert pending.status_code == 200
+    ts_id = next(ts["id"] for ts in pending.json() if ts["user_id"] == "dev-test-id" and ts["week_start"] == str(week_start))
+
+    review = client.post(
+        f"/api/v1/timesheets/{ts_id}/review",
+        json={"approved": True, "notes": "ok"},
+        headers=auth(pm_token),
+    )
+    assert review.status_code == 200, review.text
+
+    ts = db.query(Timesheet).filter(Timesheet.id == ts_id).first()
+    assert ts is not None
+    assert ts.status == TimesheetStatus.approved
+    return {
+        "project_id": project_id,
+        "timesheet_id": ts_id,
+        "week_start": week_start,
+        "work_day": work_day,
+        "imputation_id": create_imp.json()["id"],
+    }
 
 
 def test_timesheet_approval_to_invoice_preview_flow(client, pm_token, dev_token, db):
@@ -234,3 +309,113 @@ def test_capacity_plan_blocked_by_approved_absence_flow(client, pm_token, db):
     )
     assert blocked.status_code == 409
     assert "ausencia" in blocked.json()["detail"].lower()
+
+
+def test_new_imputation_reopens_approved_timesheet_immediately(client, pm_token, dev_token, db):
+    flow = _approve_week_timesheet(client, pm_token, dev_token, db, "PSA-FLOW-TS-01")
+    second_task_id = _create_task(client, pm_token, flow["project_id"], "Trabajo adicional")
+
+    create_imp = client.post(
+        "/api/v1/imputations",
+        json={
+            "project_id": flow["project_id"],
+            "task_id": second_task_id,
+            "date": str(flow["work_day"]),
+            "hours": 2,
+            "description": "Horas nuevas tras aprobación",
+            "is_billable": True,
+        },
+        headers=auth(dev_token),
+    )
+    assert create_imp.status_code in (200, 201), create_imp.text
+
+    ts = db.query(Timesheet).filter(Timesheet.id == flow["timesheet_id"]).first()
+    assert ts is not None
+    assert ts.status == TimesheetStatus.draft
+    assert ts.total_hours == 8
+    assert ts.billable_hours == 8
+    assert ts.reviewed_at is None
+
+
+def test_timer_stop_reopens_approved_timesheet_immediately(client, pm_token, dev_token, db):
+    flow = _approve_week_timesheet(client, pm_token, dev_token, db, "PSA-FLOW-TS-02")
+    second_task_id = _create_task(client, pm_token, flow["project_id"], "Trabajo por timer", assignee_id="dev-test-id")
+
+    start = client.post(
+        "/api/v1/imputations/timer/start",
+        json={"project_id": flow["project_id"], "task_id": second_task_id},
+        headers=auth(dev_token),
+    )
+    assert start.status_code == 200, start.text
+
+    stop = client.post(
+        "/api/v1/imputations/timer/stop",
+        json={"description": "Timer extra", "is_billable": True},
+        headers=auth(dev_token),
+    )
+    assert stop.status_code == 200, stop.text
+
+    ts = db.query(Timesheet).filter(Timesheet.id == flow["timesheet_id"]).first()
+    assert ts is not None
+    assert ts.status == TimesheetStatus.draft
+    assert ts.total_hours >= 6.25
+    assert ts.billable_hours >= 6.25
+
+
+def test_admin_adjustment_reopens_approved_timesheet_and_updates_totals(client, admin_token, pm_token, dev_token, db):
+    flow = _approve_week_timesheet(client, pm_token, dev_token, db, "PSA-FLOW-TS-03")
+
+    update = client.patch(
+        f"/api/v1/imputations/{flow['imputation_id']}",
+        json={"hours": 7.5, "description": "Ajuste admin"},
+        headers=auth(admin_token),
+    )
+    assert update.status_code == 200, update.text
+
+    ts = db.query(Timesheet).filter(Timesheet.id == flow["timesheet_id"]).first()
+    assert ts is not None
+    assert ts.status == TimesheetStatus.draft
+    assert ts.total_hours == 7.5
+    assert ts.billable_hours == 7.5
+
+
+def test_delete_imputation_updates_draft_timesheet_totals_immediately(client, pm_token, dev_token, db):
+    project_id = _create_project(client, pm_token, "PSA-FLOW-TS-04")
+    add_member = client.post(
+        f"/api/v1/projects/{project_id}/members",
+        json={"user_id": "dev-test-id", "role": "developer"},
+        headers=auth(pm_token),
+    )
+    assert add_member.status_code in (200, 201)
+
+    task_one = _create_task(client, pm_token, project_id, "Trabajo 1")
+    task_two = _create_task(client, pm_token, project_id, "Trabajo 2")
+    work_day = date.today()
+
+    first = client.post(
+        "/api/v1/imputations",
+        json={"project_id": project_id, "task_id": task_one, "date": str(work_day), "hours": 3, "is_billable": True},
+        headers=auth(dev_token),
+    )
+    second = client.post(
+        "/api/v1/imputations",
+        json={"project_id": project_id, "task_id": task_two, "date": str(work_day), "hours": 2, "is_billable": False},
+        headers=auth(dev_token),
+    )
+    assert first.status_code in (200, 201), first.text
+    assert second.status_code in (200, 201), second.text
+
+    week_start = work_day - timedelta(days=work_day.weekday())
+    client.get("/api/v1/timesheets/my", headers=auth(dev_token))
+
+    delete = client.delete(f"/api/v1/imputations/{second.json()['id']}", headers=auth(dev_token))
+    assert delete.status_code in (200, 204), delete.text
+
+    ts = db.query(Timesheet).filter(
+        Timesheet.user_id == "dev-test-id",
+        Timesheet.week_start == week_start,
+    ).first()
+    assert ts is not None
+    assert ts.status == TimesheetStatus.draft
+    assert ts.total_hours == 3
+    assert ts.billable_hours == 3

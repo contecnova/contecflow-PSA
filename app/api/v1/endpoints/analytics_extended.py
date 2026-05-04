@@ -58,7 +58,7 @@ def analytics_drilldown(
 ):
     try:
         if hasattr(v238_service, "run_analytics_drilldown"):
-            result = v238_service.run_analytics_drilldown(metric, dimension, value, page, page_size, date_from, date_to, db)
+            result = v238_service.run_analytics_drilldown(metric, dimension, value, date_from, date_to, page, page_size, db)
             if result:
                 return result
         return {"metric": metric, "dimension": dimension, "value": value, "rows": [], "page": page, "page_size": page_size}
