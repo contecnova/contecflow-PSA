@@ -7,6 +7,7 @@ from app.models.pipeline import Opportunity, OpportunityActivity, OpportunitySta
 from app.models.project import Project, ProjectStatus, ProjectType
 from app.models.user import User
 from app.services.numbering import next_numbered_code
+from app.core.config import settings
 
 STAGE_LABELS = {
     "lead": "Lead", "qualification": "Cualificación", "proposal": "Propuesta",
@@ -221,7 +222,7 @@ def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str)
             client_id=opp.client_id,
             name=f"Contrato: {opp.name}",
             contract_value=opp.expected_revenue or 0.0,
-            currency="EUR",
+            currency=settings.DEFAULT_CURRENCY,
             method=asc_method,
             start_date=opp.expected_start_date,
             end_date=opp.expected_close_date,

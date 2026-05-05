@@ -12,6 +12,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Building2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 
 const fs = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
@@ -38,10 +39,11 @@ export default function OrganizationsPage() {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
+  const { timezone: defaultTimezone } = useOrgSettings()
   const [showCreate, setShowCreate] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [selected, setSelected] = useState(null)
-  const [form, setForm] = useState({ name:'', slug:'', plan:'starter', max_users:25, max_projects:100, admin_email:'', timezone:'Europe/Madrid' })
+  const [form, setForm] = useState({ name:'', slug:'', plan:'starter', max_users:25, max_projects:100, admin_email:'', timezone: defaultTimezone })
   const [editForm, setEditForm] = useState(null)
 
   const { data: orgs = [], isLoading } = useQuery({ queryKey:['orgs'], queryFn:() => organizationsApi.list().then(r=>r.data) })
@@ -85,7 +87,7 @@ export default function OrganizationsPage() {
         max_users: detail.max_users || 25,
         max_projects: detail.max_projects || 100,
         admin_email: detail.admin_email || '',
-        timezone: detail.timezone || 'Europe/Madrid',
+        timezone: detail.timezone || defaultTimezone,
         locale: detail.locale || '',
         primary_color: detail.primary_color || '',
       })

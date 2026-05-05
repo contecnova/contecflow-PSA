@@ -8,6 +8,7 @@ import logging
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_admin_or_hr
+from app.core.config import settings as app_settings
 from app.models.user import User, UserRole
 import app.services.settings_service as _svc
 from app.schemas.settings import (
@@ -35,6 +36,19 @@ def require_admin_or_pm(current_user: User = Depends(get_current_user)):
     return current_user
 
 # ── General settings ──────────────────────────────────────────────────────────
+
+@router.get("/org-defaults", summary="Defaults de organización (moneda, zona horaria, idioma, jornada)")
+def get_org_defaults(_: User = Depends(get_current_user)):
+    """Returns the system-level organisation defaults (read from env / config)."""
+    return {
+        "currency": app_settings.DEFAULT_CURRENCY,
+        "timezone": app_settings.DEFAULT_TIMEZONE,
+        "language": app_settings.DEFAULT_LANGUAGE,
+        "working_hours_per_day": app_settings.DEFAULT_WORKING_HOURS_PER_DAY,
+        "weekly_capacity_hours": app_settings.DEFAULT_WEEKLY_CAPACITY_HOURS,
+        "vacation_days_per_year": app_settings.DEFAULT_VACATION_DAYS_PER_YEAR,
+        "tax_rate": app_settings.DEFAULT_TAX_RATE,
+    }
 
 @router.get("/general", response_model=List[SettingOut])
 def get_general_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

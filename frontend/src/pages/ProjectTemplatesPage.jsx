@@ -27,6 +27,10 @@ function Badge({ color, label }) {
 
 function TemplateCard({ tpl, onInstantiate, t }) {
   const [expanded, setExpanded] = useState(false)
+  const phaseCount = tpl.phases?.length || 0
+  const taskCount = (tpl.phases || []).reduce((acc, p) => acc + (p.tasks?.length || 0), 0)
+  const riskCount = tpl.risk_count || tpl.risks?.length || 0
+  const deliverableCount = tpl.deliverable_count || tpl.deliverables?.length || 0
 
   return (
     <div style={{
@@ -57,10 +61,10 @@ function TemplateCard({ tpl, onInstantiate, t }) {
 
       {/* Stats row */}
       <div style={{ display: 'flex', gap: 14, marginBottom: 14, flexWrap: 'wrap' }}>
-        {tpl.phases?.length > 0     && <Badge color={PHASE_COLOR} label={`${tpl.phases.length} ${t('projects.phases').toLowerCase()}`} />}
-        {tpl.tasks?.length > 0      && <Badge color={TASK_COLOR}  label={`${tpl.tasks.length} ${t('tasks.title').toLowerCase()}`} />}
-        {tpl.risks?.length > 0      && <Badge color={RISK_COLOR}  label={`${tpl.risks.length} ${t('risks.title').toLowerCase()}`} />}
-        {tpl.deliverables?.length > 0 && <Badge color={DELIV_COLOR} label={`${tpl.deliverables.length} ${t('project_templates.deliverables').toLowerCase()}`} />}
+        {phaseCount > 0 && <Badge color={PHASE_COLOR} label={`${phaseCount} ${t('projects.phases').toLowerCase()}`} />}
+        {taskCount > 0 && <Badge color={TASK_COLOR}  label={`${taskCount} ${t('tasks.title').toLowerCase()}`} />}
+        {riskCount > 0 && <Badge color={RISK_COLOR}  label={`${riskCount} ${t('risks.title').toLowerCase()}`} />}
+        {deliverableCount > 0 && <Badge color={DELIV_COLOR} label={`${deliverableCount} ${t('project_templates.deliverables').toLowerCase()}`} />}
       </div>
 
       <div style={{ display: 'flex', gap: 10 }}>
@@ -90,7 +94,7 @@ function TemplateCard({ tpl, onInstantiate, t }) {
           {tpl.phases?.map((phase, i) => (
             <div key={i} style={{ marginBottom: 10 }}>
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: PHASE_COLOR, marginBottom: 4 }}>
-                {t('project_templates.phase')} {phase.phase_order}: {phase.name}
+                {t('project_templates.phase')} {phase.order}: {phase.name}
               </div>
               {phase.tasks?.map((task, j) => (
                 <div key={j} style={{
@@ -130,6 +134,239 @@ function TemplateCard({ tpl, onInstantiate, t }) {
       )}
     </div>
   )
+}
+
+function CreateTemplateModal({ onClose, onDone }) {
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    project_type: 'consulting',
+    estimated_weeks: '',
+    estimated_hours: '',
+    phases: [],
+    risks: [],
+    deliverables: [],
+  })
+  const [phase, setPhase] = useState({ name: '', description: '', estimated_weeks: '', estimated_hours: '', tasks: [] })
+  const [task, setTask] = useState({ title: '', estimated_hours: '', skill_required: '' })
+  const [risk, setRisk] = useState({ title: '', category: '', probability: 'medium', impact: 'moderate', mitigation_plan: '' })
+  const [deliverable, setDeliverable] = useState({ name: '', format: '', week_offset: '', billing_pct: '', acceptance_criteria: '' })
+  const [error, setError] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: (payload) => api.post('/templates', payload),
+    onSuccess: () => onDone(),
+    onError: (err) => setError(err.response?.data?.detail || 'No se pudo crear la plantilla'),
+  })
+
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  const addTaskToPhase = () => {
+    if (!task.title?.trim()) return
+    setPhase(p => ({
+      ...p,
+      tasks: [
+        ...p.tasks,
+        {
+          title: task.title.trim(),
+          estimated_hours: task.estimated_hours ? Number(task.estimated_hours) : null,
+          skill_required: task.skill_required || null,
+        },
+      ],
+    }))
+    setTask({ title: '', estimated_hours: '', skill_required: '' })
+  }
+
+  const addPhase = () => {
+    if (!phase.name?.trim()) return
+    setForm(f => ({
+      ...f,
+      phases: [
+        ...f.phases,
+        {
+          name: phase.name.trim(),
+          description: phase.description || null,
+          estimated_weeks: phase.estimated_weeks ? Number(phase.estimated_weeks) : null,
+          estimated_hours: phase.estimated_hours ? Number(phase.estimated_hours) : null,
+          tasks: phase.tasks,
+        },
+      ],
+    }))
+    setPhase({ name: '', description: '', estimated_weeks: '', estimated_hours: '', tasks: [] })
+    setTask({ title: '', estimated_hours: '', skill_required: '' })
+  }
+
+  const addRisk = () => {
+    if (!risk.title?.trim()) return
+    setForm(f => ({
+      ...f,
+      risks: [
+        ...f.risks,
+        {
+          title: risk.title.trim(),
+          category: risk.category || null,
+          probability: risk.probability,
+          impact: risk.impact,
+          mitigation_plan: risk.mitigation_plan || null,
+        },
+      ],
+    }))
+    setRisk({ title: '', category: '', probability: 'medium', impact: 'moderate', mitigation_plan: '' })
+  }
+
+  const addDeliverable = () => {
+    if (!deliverable.name?.trim()) return
+    setForm(f => ({
+      ...f,
+      deliverables: [
+        ...f.deliverables,
+        {
+          name: deliverable.name.trim(),
+          format: deliverable.format || null,
+          week_offset: deliverable.week_offset ? Number(deliverable.week_offset) : null,
+          billing_pct: deliverable.billing_pct ? Number(deliverable.billing_pct) : null,
+          acceptance_criteria: deliverable.acceptance_criteria || null,
+        },
+      ],
+    }))
+    setDeliverable({ name: '', format: '', week_offset: '', billing_pct: '', acceptance_criteria: '' })
+  }
+
+  const submit = () => {
+    if (!form.name.trim()) {
+      setError('El nombre es obligatorio')
+      return
+    }
+    mutation.mutate({
+      ...form,
+      estimated_weeks: form.estimated_weeks ? Number(form.estimated_weeks) : null,
+      estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
+    })
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 9999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div role="dialog" aria-modal="true" style={{
+        background: 'var(--surface-1)', borderRadius: 14, padding: 24, width: 900,
+        maxWidth: '95vw', maxHeight: '92vh', overflowY: 'auto',
+        boxShadow: '0 20px 60px rgba(0,0,0,.3)',
+      }}>
+        <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, marginBottom: 16 }}>Nueva plantilla desde cero</div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <input value={form.name} onChange={set('name')} placeholder="Nombre *" style={inp} />
+          <input value={form.project_type} onChange={set('project_type')} placeholder="Tipo" style={inp} />
+          <input type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} placeholder="Semanas" style={inp} />
+          <input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} placeholder="Horas" style={inp} />
+        </div>
+        <textarea value={form.description} onChange={set('description')} rows={2} placeholder="Descripción" style={{ ...inp, width: '100%', resize: 'vertical', marginBottom: 14 }} />
+
+        <div style={{ marginBottom: 16 }}>
+          <div style={h3}>Fases ({form.phases.length})</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+            <input value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} placeholder="Nombre fase" style={inp} />
+            <input value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} placeholder="Descripción fase" style={inp} />
+            <input type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} placeholder="Semanas" style={inp} />
+            <input type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="Horas" style={inp} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8 }}>
+            <input value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} placeholder="Título tarea" style={inp} />
+            <input type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="Horas" style={inp} />
+            <input value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} placeholder="Skill" style={inp} />
+            <button onClick={addTaskToPhase} style={btnSecondary}>+ Tarea</button>
+          </div>
+          {phase.tasks.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+              {phase.tasks.map((tk, i) => <span key={`${tk.title}-${i}`} style={chip}>{tk.title}{tk.estimated_hours ? ` (${tk.estimated_hours}h)` : ''}</span>)}
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+            <button onClick={addPhase} style={btnSecondary}>+ Fase</button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <div style={h3}>Riesgos ({form.risks.length})</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8 }}>
+            <input value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} placeholder="Título riesgo" style={inp} />
+            <input value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} placeholder="Categoría" style={inp} />
+            <select value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))} style={inp}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
+            <select value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} style={inp}><option value="minor">minor</option><option value="moderate">moderate</option><option value="major">major</option><option value="critical">critical</option></select>
+            <button onClick={addRisk} style={btnSecondary}>+ Riesgo</button>
+          </div>
+          <textarea value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} placeholder="Mitigación (opcional)" style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <div style={h3}>Entregables ({form.deliverables.length})</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8 }}>
+            <input value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} placeholder="Nombre" style={inp} />
+            <input value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} placeholder="Formato" style={inp} />
+            <input type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} placeholder="Semana" style={inp} />
+            <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} placeholder="% facturación" style={inp} />
+            <button onClick={addDeliverable} style={btnSecondary}>+ Entregable</button>
+          </div>
+          <textarea value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} placeholder="Criterio aceptación (opcional)" style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
+        </div>
+
+        {error && <div style={{ color: 'var(--danger)', marginBottom: 12, fontSize: "var(--text-sm)" }}>{error}</div>}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={btnSecondary}>Cancelar</button>
+          <button onClick={submit} disabled={mutation.isPending} style={btnPrimary}>{mutation.isPending ? 'Creando...' : 'Crear plantilla'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const inp = {
+  background: 'var(--surface-2)',
+  border: '1px solid var(--surface-4)',
+  borderRadius: 8,
+  color: 'var(--text-1)',
+  padding: '8px 10px',
+  fontSize: "var(--text-sm)",
+  fontFamily: 'inherit',
+  boxSizing: 'border-box',
+}
+
+const btnPrimary = {
+  padding: '8px 16px',
+  borderRadius: 8,
+  border: 'none',
+  background: 'var(--accent)',
+  color: '#fff',
+  cursor: 'pointer',
+  fontWeight: 700,
+  fontFamily: 'inherit',
+}
+
+const btnSecondary = {
+  padding: '8px 14px',
+  borderRadius: 8,
+  border: '1px solid var(--surface-4)',
+  background: 'transparent',
+  color: 'var(--text-2)',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+}
+
+const chip = {
+  fontSize: "var(--text-xs)",
+  background: 'var(--surface-2)',
+  border: '1px solid var(--surface-4)',
+  borderRadius: 16,
+  padding: '2px 8px',
+}
+
+const h3 = {
+  fontSize: "var(--text-base)",
+  fontWeight: 700,
+  marginBottom: 8,
 }
 
 // ── Modal: instantiate template ───────────────────────────────────────────────
@@ -261,6 +498,7 @@ export default function ProjectTemplatesPage() {
   const t = useAppT()
   const queryClient = useQueryClient()
   const [selectedTpl, setSelectedTpl] = useState(null)
+  const [showCreate, setShowCreate] = useState(false)
   const [successMsg, setSuccessMsg] = useState(null)
 
   const { data: templates = [], isLoading } = useQuery({
@@ -286,6 +524,10 @@ export default function ProjectTemplatesPage() {
         title={t('project_templates.title')}
         subtitle={t('project_templates.subtitle')}
       />
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+        <button onClick={() => setShowCreate(true)} style={btnPrimary}>+ Crear plantilla desde cero</button>
+      </div>
 
       {/* Success banner */}
       {successMsg && (
@@ -330,6 +572,17 @@ export default function ProjectTemplatesPage() {
           onClose={() => setSelectedTpl(null)}
           onDone={handleInstantiateSuccess}
           t={t}
+        />
+      )}
+      {showCreate && (
+        <CreateTemplateModal
+          onClose={() => setShowCreate(false)}
+          onDone={() => {
+            setShowCreate(false)
+            queryClient.invalidateQueries({ queryKey: ['project-templates'] })
+            setSuccessMsg('Plantilla creada correctamente')
+            setTimeout(() => setSuccessMsg(null), 5000)
+          }}
         />
       )}
     </PageShell>

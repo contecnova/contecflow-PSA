@@ -376,7 +376,7 @@ def notify_approver(
 ) -> None:
     """Create an in-app notification for the current step's approver."""
     try:
-        from app.models.enterprise import Notification
+        from app.models.enterprise import Notification, NotificationType
         approver_id = explicit_user_id
         if not approver_id:
             if step.approver_type == "user" and step.approver_user_id:
@@ -392,14 +392,14 @@ def notify_approver(
             db.add(Notification(
                 id=str(uuid.uuid4()),
                 user_id=approver_id,
-                type="approval_required",
+                type=NotificationType.system,
                 title=f"Aprobación requerida: {request.entity_type}",
-                message=(
+                body=(
                     f"{request.entity_summary or request.entity_id} — "
                     f"Paso {step.step_order}: {step.name}"
                 ),
-                entity_type="approval_request",
-                entity_id=request.id,
+                resource="approval_request",
+                resource_id=request.id,
             ))
     except Exception:
         logger.warning("Failed to create approval notification", exc_info=True)
@@ -737,6 +737,13 @@ def delete_workflow(db: Session, workflow_id: str) -> bool:
     w = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
     if not w:
         return False
+    # Null out FK references that lack ondelete=CASCADE before deleting
+    db.query(ApprovalRequest).filter(
+        ApprovalRequest.workflow_id == workflow_id
+    ).update({"workflow_id": None}, synchronize_session=False)
+    db.query(ApprovalWorkflow).filter(
+        ApprovalWorkflow.chain_on_approval_workflow_id == workflow_id
+    ).update({"chain_on_approval_workflow_id": None}, synchronize_session=False)
     db.delete(w)
     db.commit()
     return True
@@ -1169,15 +1176,15 @@ def _record_sod_violation(req, current_user: User, db: Session) -> None:
 
 def _notify_requester_approved(req, db: Session) -> None:
     try:
-        from app.models.enterprise import Notification
+        from app.models.enterprise import Notification, NotificationType
         db.add(Notification(
             id=str(uuid.uuid4()),
             user_id=req.requested_by,
-            type="approval_completed",
+            type=NotificationType.system,
             title="Solicitud aprobada",
-            message=f"{req.entity_summary or req.entity_id} ha sido aprobada",
-            entity_type="approval_request",
-            entity_id=req.id,
+            body=f"{req.entity_summary or req.entity_id} ha sido aprobada",
+            resource="approval_request",
+            resource_id=req.id,
         ))
         db.commit()
     except Exception:

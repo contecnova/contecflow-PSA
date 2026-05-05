@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSection } from './settings-sections/SettingsAdvancedSections'
 
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
@@ -612,10 +613,20 @@ function CustomFieldsSection() {
 
 // ── Templates section ─────────────────────────────────────────────────────────
 function TemplatesSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const { data: templates = [], isLoading } = useQuery({ queryKey: ['project-templates'], queryFn: () => advancedConfigApi.getTemplates().then(r => r.data) })
   const { mutate: deleteTemplate } = useMutation({ mutationFn: advancedConfigApi.deleteTemplate, onSuccess: () => qc.invalidateQueries(['project-templates']) , onError: e => toast.error(extractErr(e, 'Error'))})
+  const { mutate: createTemplate, isPending: creatingTemplate } = useMutation({
+    mutationFn: advancedConfigApi.createTemplate,
+    onSuccess: () => {
+      qc.invalidateQueries(['project-templates'])
+      setShowCreate(false)
+      toast.success('Plantilla creada')
+    },
+    onError: e => toast.error(extractErr(e, 'No se pudo crear la plantilla')),
+  })
   const [showCreate, setShowCreate] = useState(false)
   const [selected, setSelected] = useState(null)
 
@@ -648,23 +659,105 @@ function TemplatesSection() {
         </div>
       )}
       <button onClick={() => setShowCreate(true)} style={{ width: '100%', padding: '10px', border: '1px dashed var(--surface-4)', borderRadius: 10, background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>＋ Crear plantilla</button>
-      {showCreate && <CreateTemplateModal onClose={() => setShowCreate(false)} onSave={(data) => advancedConfigApi.createTemplate(data).then(() => { qc.invalidateQueries(['project-templates']); setShowCreate(false) })} />}
+      {showCreate && <CreateTemplateModal isSaving={creatingTemplate} onClose={() => setShowCreate(false)} onSave={createTemplate} />}
       {selected && <TemplateDetailModal template={selected} onClose={() => setSelected(null)} />}
     </Section>
   )
 }
 
-function CreateTemplateModal({ onClose, onSave }) {
-  const [form, setForm] = useState({ name: '', description: '', project_type: '', estimated_weeks: '', estimated_hours: '', phases: [], risks: [], deliverables: [] })
-  const [phase, setPhase] = useState({ name: '', estimated_weeks: '', tasks: [] })
-  const [_task, _setTask] = useState({ title: '', estimated_hours: '' })
+function CreateTemplateModal({ onClose, onSave, isSaving = false }) {
+  const [form, setForm] = useState({ name: '', description: '', project_type: 'consulting', estimated_weeks: '', estimated_hours: '', phases: [], risks: [], deliverables: [] })
+  const [phase, setPhase] = useState({ name: '', description: '', estimated_weeks: '', estimated_hours: '', tasks: [] })
+  const [task, setTask] = useState({ title: '', estimated_hours: '', skill_required: '' })
+  const [risk, setRisk] = useState({ title: '', category: '', probability: 'medium', impact: 'moderate', mitigation_plan: '' })
+  const [deliverable, setDeliverable] = useState({ name: '', format: '', week_offset: '', billing_pct: '', acceptance_criteria: '' })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
+  const addTaskToPhase = () => {
+    if (!task.title?.trim()) return
+    setPhase(p => ({
+      ...p,
+      tasks: [
+        ...p.tasks,
+        {
+          title: task.title.trim(),
+          estimated_hours: task.estimated_hours ? Number(task.estimated_hours) : null,
+          skill_required: task.skill_required || null,
+        },
+      ],
+    }))
+    setTask({ title: '', estimated_hours: '', skill_required: '' })
+  }
+
+  const addPhase = () => {
+    if (!phase.name?.trim()) return
+    setForm(f => ({
+      ...f,
+      phases: [
+        ...f.phases,
+        {
+          name: phase.name.trim(),
+          description: phase.description || null,
+          estimated_weeks: phase.estimated_weeks ? Number(phase.estimated_weeks) : null,
+          estimated_hours: phase.estimated_hours ? Number(phase.estimated_hours) : null,
+          tasks: phase.tasks,
+        },
+      ],
+    }))
+    setPhase({ name: '', description: '', estimated_weeks: '', estimated_hours: '', tasks: [] })
+    setTask({ title: '', estimated_hours: '', skill_required: '' })
+  }
+
+  const addRisk = () => {
+    if (!risk.title?.trim()) return
+    setForm(f => ({
+      ...f,
+      risks: [
+        ...f.risks,
+        {
+          title: risk.title.trim(),
+          category: risk.category || null,
+          probability: risk.probability,
+          impact: risk.impact,
+          mitigation_plan: risk.mitigation_plan || null,
+        },
+      ],
+    }))
+    setRisk({ title: '', category: '', probability: 'medium', impact: 'moderate', mitigation_plan: '' })
+  }
+
+  const addDeliverable = () => {
+    if (!deliverable.name?.trim()) return
+    setForm(f => ({
+      ...f,
+      deliverables: [
+        ...f.deliverables,
+        {
+          name: deliverable.name.trim(),
+          format: deliverable.format || null,
+          week_offset: deliverable.week_offset ? Number(deliverable.week_offset) : null,
+          billing_pct: deliverable.billing_pct ? Number(deliverable.billing_pct) : null,
+          acceptance_criteria: deliverable.acceptance_criteria || null,
+        },
+      ],
+    }))
+    setDeliverable({ name: '', format: '', week_offset: '', billing_pct: '', acceptance_criteria: '' })
+  }
+
+  const submit = () => {
+    onSave({
+      ...form,
+      estimated_weeks: form.estimated_weeks ? Number(form.estimated_weeks) : null,
+      estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
+    })
+  }
+
   return (
-    <Modal open title="Nueva plantilla" onClose={onClose} width={660}>
+    <Modal open title="Nueva plantilla" onClose={onClose} width={760}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 12 }}>
           <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder="Nombre de la plantilla" aria-label="Nombre de la plantilla" /></div>
+          <div><label style={ls}>Tipo proyecto</label><select value={form.project_type} onChange={set('project_type')} style={fs}><option value="consulting">consulting</option><option value="development">development</option><option value="maintenance">maintenance</option><option value="internal">internal</option><option value="rd">rd</option></select></div>
           <div><label style={ls}>Semanas estimadas</label><input type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} style={fs} /></div>
           <div><label style={ls}>Horas estimadas</label><input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} /></div>
         </div>
@@ -684,16 +777,59 @@ function CreateTemplateModal({ onClose, onSave }) {
               </div>
             </div>
           ))}
-          <div style={{ display: 'flex', gap: 8, padding: '8px', background: 'var(--surface-3)', borderRadius: 8 }}>
-            <input value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder="Nombre de la fase" aria-label="Nombre de la fase" />
-            <input type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} style={{ ...fs, flex: 1 }} placeholder="Semanas" aria-label="Semanas estimadas" />
-            <Button size="sm" onClick={() => { if (phase.name) { setForm(f => ({ ...f, phases: [...f.phases, { ...phase, tasks: [] }] })); setPhase({ name: '', estimated_weeks: '', tasks: [] }) } }}>+ Fase</Button>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8, marginBottom: 8 }}>
+            <input value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre de la fase" aria-label="Nombre de la fase" />
+            <input value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} style={fs} placeholder="Descripción de fase" aria-label="Descripción de fase" />
+            <input type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} style={fs} placeholder="Semanas" aria-label="Semanas estimadas" />
+            <input type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas estimadas" />
           </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8 }}>
+            <input value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} style={fs} placeholder="Título tarea" aria-label="Título tarea" />
+            <input type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas tarea" />
+            <input value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} style={fs} placeholder="Skill requerida" aria-label="Skill requerida" />
+            <Button size="sm" onClick={addTaskToPhase} disabled={!task.title}>+ Tarea</Button>
+          </div>
+          {phase.tasks.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+              {phase.tasks.map((tk, i) => (
+                <span key={`${tk.title}-${i}`} style={{ fontSize: "var(--text-xs)", background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 16, padding: '2px 8px' }}>{tk.title}{tk.estimated_hours ? ` (${tk.estimated_hours}h)` : ''}</span>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+            <Button size="sm" onClick={addPhase} disabled={!phase.name}>+ Fase</Button>
+          </div>
+        </div>
+
+        {/* Risks */}
+        <div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>Riesgos ({form.risks.length})</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8 }}>
+            <input value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} style={fs} placeholder="Título riesgo" aria-label="Título riesgo" />
+            <input value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} style={fs} placeholder="Categoría" aria-label="Categoría riesgo" />
+            <select value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))} style={fs}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
+            <select value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} style={fs}><option value="minor">minor</option><option value="moderate">moderate</option><option value="major">major</option><option value="critical">critical</option></select>
+            <Button size="sm" onClick={addRisk} disabled={!risk.title}>+ Riesgo</Button>
+          </div>
+          <textarea value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder="Plan de mitigación (opcional)" />
+        </div>
+
+        {/* Deliverables */}
+        <div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>Entregables ({form.deliverables.length})</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8 }}>
+            <input value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre entregable" aria-label="Nombre entregable" />
+            <input value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} style={fs} placeholder="Formato" aria-label="Formato entregable" />
+            <input type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} style={fs} placeholder="Semana" aria-label="Semana entregable" />
+            <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder="% facturación" aria-label="Porcentaje facturación" />
+            <Button size="sm" onClick={addDeliverable} disabled={!deliverable.name}>+ Entregable</Button>
+          </div>
+          <textarea value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder="Criterio de aceptación (opcional)" />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => onSave(form)} disabled={!form.name}>Crear plantilla</Button>
+          <Button onClick={submit} disabled={!form.name || isSaving}>{isSaving ? 'Creando...' : 'Crear plantilla'}</Button>
         </div>
       </div>
     </Modal>
@@ -727,13 +863,14 @@ function TemplateDetailModal({ template, onClose }) {
 function OfficesSection() {
   const toast = useToast()
   const qc = useQueryClient()
+  const { timezone: defaultTimezone } = useOrgSettings()
   const { data: offices = [] } = useQuery({ queryKey: ['offices'], queryFn: () => advancedConfigApi.getOffices().then(r => r.data) })
   const { mutate: create } = useMutation({ mutationFn: advancedConfigApi.createOffice, onSuccess: () => qc.invalidateQueries(['offices']), onError: e => toast.error(extractErr(e, 'Error')) })
   const { mutate: update } = useMutation({ mutationFn: ({ id, data }) => advancedConfigApi.updateOffice(id, data), onSuccess: () => { qc.invalidateQueries(['offices']); setEditingId(null) }, onError: e => toast.error(extractErr(e, 'Error')) })
   const { mutate: del } = useMutation({ mutationFn: advancedConfigApi.deleteOffice, onSuccess: () => qc.invalidateQueries(['offices']), onError: e => toast.error(extractErr(e, 'Error')) })
-  const [form, setForm] = useState({ name: '', country: '', city: '', timezone: 'Europe/Madrid' })
+  const [form, setForm] = useState({ name: '', country: '', city: '', timezone: defaultTimezone })
   const [editingId, setEditingId] = useState(null)
-  const [editForm, setEditForm] = useState({ name: '', country: '', city: '', timezone: 'Europe/Madrid' })
+  const [editForm, setEditForm] = useState({ name: '', country: '', city: '', timezone: defaultTimezone })
   const TIMEZONES = ['Europe/Madrid', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo', 'Asia/Shanghai']
 
   return (
@@ -770,7 +907,7 @@ function OfficesSection() {
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{o.name}</div>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{o.city}{o.country ? `, ${o.country}` : ''} · {o.timezone}</div>
                 </div>
-                <button onClick={() => { setEditingId(o.id); setEditForm({ name:o.name, country:o.country||'', city:o.city||'', timezone:o.timezone||'Europe/Madrid' }) }}
+                <button onClick={() => { setEditingId(o.id); setEditForm({ name:o.name, country:o.country||'', city:o.city||'', timezone:o.timezone||defaultTimezone }) }}
                   style={{ background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'3px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)" }}>✏</button>
                 <button onClick={() => del(o.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
               </div>
@@ -784,7 +921,7 @@ function OfficesSection() {
         <div style={{ flex: 1 }}><label style={ls}>País</label><input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} style={fs} placeholder="Pais" aria-label="Pais" /></div>
         <div style={{ flex: 1 }}><label style={ls}>Ciudad</label><input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} style={fs} /></div>
         <div style={{ flex: 1 }}><label style={ls}>Zona horaria</label><select value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} style={fs}>{TIMEZONES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-        <Button onClick={() => { create(form); setForm({ name: '', country: '', city: '', timezone: 'Europe/Madrid' }) }} disabled={!form.name}>Añadir</Button>
+        <Button onClick={() => { create(form); setForm({ name: '', country: '', city: '', timezone: defaultTimezone }) }} disabled={!form.name}>Añadir</Button>
       </div>
     </Section>
   )

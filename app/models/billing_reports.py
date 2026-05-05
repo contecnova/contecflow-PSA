@@ -400,6 +400,7 @@ class ApprovalRequest(Base):
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
 
     requester = relationship("User", foreign_keys=[requested_by])
+    workflow  = relationship("ApprovalWorkflow", foreign_keys=[workflow_id])
     decisions = relationship("ApprovalDecision", back_populates="request",
                              order_by="ApprovalDecision.step_order",
                              cascade="all, delete-orphan")

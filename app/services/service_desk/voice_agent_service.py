@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
+from app.core.config import settings as app_settings
 
 _SESSIONS_KEY = "sd.voice_agent.sessions"
 _CONFIG_KEY = "sd.voice_agent.config"
@@ -28,7 +29,7 @@ _CONFIG_KEY = "sd.voice_agent.config"
 _DEFAULT_CONFIG: Dict[str, Any] = {
     "greeting": "Bienvenido al servicio de soporte. Diga su solicitud o pulse 1 para incidencias, 2 para consultas, 3 para urgencias.",
     "max_silence_seconds": 10,
-    "language": "es-ES",
+    "language": app_settings.DEFAULT_LANGUAGE,
     "dtmf_menu": {
         "1": {"intent": "incident", "label": "Incidencia"},
         "2": {"intent": "query", "label": "Consulta"},

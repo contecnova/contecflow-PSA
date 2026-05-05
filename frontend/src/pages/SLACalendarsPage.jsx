@@ -9,6 +9,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarClock } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
 const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
@@ -22,11 +23,12 @@ const DAYS_MAP  = {1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:
 function CalendarForm({ cal, onClose }) {
   const qc = useQueryClient()
   const toast = useToast()
+  const { timezone: defaultTimezone } = useOrgSettings()
   const isEdit = !!cal?.id
   const parseDays = s => new Set((s||'1,2,3,4,5').split(',').map(Number))
   const [form, setForm] = useState({
     name:      cal?.name       || '',
-    timezone:  cal?.timezone   || 'Europe/Madrid',
+    timezone:  cal?.timezone   || defaultTimezone,
     work_start:cal?.work_start || '09:00',
     work_end:  cal?.work_end   || '18:00',
     work_days: parseDays(cal?.work_days),

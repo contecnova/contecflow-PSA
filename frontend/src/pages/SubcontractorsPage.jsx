@@ -9,6 +9,7 @@ import PageShell from '../components/layout/PageShell'
 import { Users } from 'lucide-react'
 import { Button, Modal, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
@@ -33,6 +34,7 @@ function onKeyboardActivate(event, action) {
 function WorkerModal({ subId, worker, onClose, onSaved }) {
   const toast = useToast()
   const qc = useQueryClient()
+  const { currency: defaultCurrency } = useOrgSettings()
   const isEdit = !!worker
   const [form, setForm] = useState({
     name: worker?.name || '',
@@ -41,7 +43,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
     phone: worker?.phone || '',
     cost_rate: worker?.cost_rate || '',
     sell_rate: worker?.sell_rate || '',
-    currency: worker?.currency || 'EUR',
+    currency: worker?.currency || defaultCurrency,
     available_from: worker?.available_from || '',
     available_until: worker?.available_until || '',
     notes: worker?.notes || '',
@@ -345,6 +347,8 @@ function WorkersPanel({ subId }) {
 function SubDetail({ sub, onBack }) {
   const toast = useToast()
   const qc = useQueryClient()
+  const { currency } = useOrgSettings()
+  const fmtMoney = (n) => n?.toLocaleString('es-ES', { style: 'currency', currency })
   const [tab, setTab] = useState('workers')
   const [showTimelog, setShowTimelog] = useState(false)
   const [showInvoice, setShowInvoice] = useState(false)
@@ -414,8 +418,8 @@ function SubDetail({ sub, onBack }) {
           { label: 'Personas', value: sub.worker_count ?? '—', color: 'var(--purple, var(--purple))' },
           { label: 'Asignaciones', value: assignments.length, color: 'var(--accent)' },
           { label: 'Horas registradas', value: `${totalHours.toFixed(1)}h`, color: 'var(--success)' },
-          { label: 'Coste acumulado', value: `${totalCost.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}`, color: 'var(--warning)' },
-          { label: 'Facturas pendientes', value: `${pendingAmount.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}`, color: pendingAmount > 0 ? 'var(--danger)' : 'var(--text-2)' },
+          { label: 'Coste acumulado', value: `${totalCost.toLocaleString('es-ES', {style:'currency',currency})}`, color: 'var(--warning)' },
+          { label: 'Facturas pendientes', value: `${pendingAmount.toLocaleString('es-ES', {style:'currency',currency})}`, color: pendingAmount > 0 ? 'var(--danger)' : 'var(--text-2)' },
         ].map(k => (
           <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
             <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>{k.value}</div>
@@ -454,7 +458,7 @@ function SubDetail({ sub, onBack }) {
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{a.project_code} — {a.project_name}</div>
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
                     {a.po_number && `PO: ${a.po_number}`}
-                    {a.po_amount && ` · Techo: ${a.po_amount.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}`}
+                    {a.po_amount && ` · Techo: ${a.po_amount.toLocaleString('es-ES', {style:'currency',currency})}`}
                     {a.hours_contracted && ` · ${a.hours_contracted}h contratadas`}
                   </div>
                   {a.hours_contracted && (
@@ -499,7 +503,7 @@ function SubDetail({ sub, onBack }) {
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--text-1)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.description || '—'}</td>
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{l.task_reference || '—'}</td>
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--warning)', fontFamily: 'var(--font-mono)' }}>
-                        {l.cost_amount ? l.cost_amount.toLocaleString('es-ES', {style:'currency',currency:'EUR'}) : '—'}
+                        {l.cost_amount ? l.cost_amount.toLocaleString('es-ES', {style:'currency',currency}) : '—'}
                       </td>
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{l.project_name || '—'}</td>
                     </tr>
@@ -534,8 +538,8 @@ function SubDetail({ sub, onBack }) {
                     <tr key={inv.id} style={{ borderBottom: '1px solid var(--surface-1)' }}>
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", fontWeight: 600 }}>{inv.invoice_number}</td>
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{inv.issue_date}</td>
-                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{inv.amount.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}</td>
-                      <td style={{ padding: '9px 14px', fontSize: "var(--text-base)", fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{inv.total.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}</td>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{inv.amount.toLocaleString('es-ES', {style:'currency',currency})}</td>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-base)", fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{inv.total.toLocaleString('es-ES', {style:'currency',currency})}</td>
                       <td style={{ padding: '9px 14px' }}>
                         <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: (STATUS_COLOR[inv.status] || 'var(--text-2)') + '20', color: STATUS_COLOR[inv.status] || 'var(--text-2)', fontWeight: 700 }}>
                           {STATUS_LABEL[inv.status] || inv.status}
@@ -617,7 +621,7 @@ function SubDetail({ sub, onBack }) {
             </div>
             {invForm.amount && (
               <div style={{ gridColumn: '1/-1', background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 8, padding: '8px 12px', fontSize: "var(--text-sm)", color: 'var(--accent)' }}>
-                Total con IVA: <strong>{(+invForm.amount * (1 + invForm.tax_pct/100)).toLocaleString('es-ES', {style:'currency',currency:'EUR'})}</strong>
+                Total con IVA: <strong>{(+invForm.amount * (1 + invForm.tax_pct/100)).toLocaleString('es-ES', {style:'currency',currency})}</strong>
               </div>
             )}
             <div style={{ gridColumn: '1/-1' }}>
@@ -675,9 +679,10 @@ export default function SubcontractorsPage() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
+  const { currency } = useOrgSettings()
   const [selected, setSelected] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ name: '', company: '', email: '', phone: '', country: 'España', currency: 'EUR', vat_number: '', notes: '' })
+  const [form, setForm] = useState({ name: '', company: '', email: '', phone: '', country: 'España', currency: currency, vat_number: '', notes: '' })
 
   const { data: dashboard } = useQuery({
     queryKey: ['sub-dashboard'],
@@ -699,7 +704,7 @@ export default function SubcontractorsPage() {
     onSuccess: (res) => {
       qc.invalidateQueries(['subcontractors'])
       setShowCreate(false)
-      setForm({ name: '', company: '', email: '', phone: '', country: 'España', currency: 'EUR', vat_number: '', notes: '' })
+      setForm({ name: '', company: '', email: '', phone: '', country: 'España', currency: currency, vat_number: '', notes: '' })
       setSelected(res.data)
       toast.success('Subcontratista creado')
     },
@@ -781,7 +786,7 @@ export default function SubcontractorsPage() {
                 👥 {s.worker_count || 0} persona{(s.worker_count || 0) !== 1 ? 's' : ''} · {s.assignment_count} asignación{s.assignment_count !== 1 ? 'es' : ''}
               </div>
               <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
-                <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name, company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||'EUR', vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
+                <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name, company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||currency, vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
                   style={{ flex:1, padding: '4px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                   ✏ Editar
                 </button>
@@ -824,7 +829,7 @@ export default function SubcontractorsPage() {
                 {s.is_active ? 'Activo' : 'Inactivo'}
               </span>
               <div style={{ display: 'flex', gap: 4 }}>
-                <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name, company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||'EUR', vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
+                <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name, company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||currency, vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
                   style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏</button>
                 <button onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar a "${s.name}"?`,onConfirm:()=>remove(s.id),danger:true}) }}
                   style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>

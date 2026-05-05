@@ -67,6 +67,7 @@ class Document(Base):
 
     # Metadata
     is_archived = Column(Boolean, default=False, index=True)
+    ai_summary = Column(Text, nullable=True)
     created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True)
     updated_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
@@ -132,13 +133,21 @@ class DocumentVersion(Base):
 
 class DocumentPermission(Base):
     """
-    Granular access control per user. Three-level: viewer, editor, admin.
+    Granular access control. Three subject types (exactly one is set per row):
+      - user_id: a single user
+      - role: a UserRole (e.g. "pm" → all PMs)
+      - department: a free-text department name (matches User.department)
+    Three access levels: viewer, editor, admin.
     """
     __tablename__ = "document_permissions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     document_id = Column(String(36), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Subject — exactly one of these three is populated.
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    role = Column(String(40), nullable=True, index=True)
+    department = Column(String(100), nullable=True, index=True)
 
     # Access level
     access_level = Column(Enum(DocumentAccessLevel), nullable=False)
@@ -155,6 +164,8 @@ class DocumentPermission(Base):
 
     __table_args__ = (
         Index('ix_doc_perm_document_user', 'document_id', 'user_id'),
+        Index('ix_doc_perm_document_role', 'document_id', 'role'),
+        Index('ix_doc_perm_document_department', 'document_id', 'department'),
     )
 
 

@@ -12,6 +12,7 @@ import { fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
 import { sanitizeUrl } from '../utils/security'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const VENDOR_CATS = {
@@ -434,6 +435,7 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
+  const { currency: defaultCurrency } = useOrgSettings()
   const isEdit = !!contract?.id
   const today = new Date().toISOString().slice(0, 10)
   const [form, setForm] = useState({
@@ -449,7 +451,7 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }) {
     total_value: contract?.total_value || '',
     annual_value: contract?.annual_value || '',
     billing_cycle: contract?.billing_cycle || 'annual',
-    currency: contract?.currency || 'EUR',
+    currency: contract?.currency || defaultCurrency,
     payment_method: contract?.payment_method || '',
     po_number: contract?.po_number || '',
     cost_center_id: contract?.cost_center_id || '',
@@ -1197,16 +1199,17 @@ function CostCentersTab() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
+  const { currency: defaultCurrency } = useOrgSettings()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ code: '', name: '', description: '', budget_annual: '', currency: 'EUR' })
+  const [form, setForm] = useState({ code: '', name: '', description: '', budget_annual: '', currency: defaultCurrency })
   const s = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const { data: centers = [], isLoading } = useQuery({ queryKey: ['alm-cost-centers'], queryFn: () => almExtApi.costCenters().then(r => r.data) })
 
   const { mutate: save, isPending } = useMutation({
     mutationFn: d => editing ? almExtApi.updateCostCenter(editing.id, d) : almExtApi.createCostCenter(d),
-    onSuccess: () => { qc.invalidateQueries(['alm-cost-centers']); setShowForm(false); setEditing(null); setForm({ code: '', name: '', description: '', budget_annual: '', currency: 'EUR' }) },
+    onSuccess: () => { qc.invalidateQueries(['alm-cost-centers']); setShowForm(false); setEditing(null); setForm({ code: '', name: '', description: '', budget_annual: '', currency: defaultCurrency }) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   const { mutate: del } = useMutation({
@@ -1215,7 +1218,7 @@ function CostCentersTab() {
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const openEdit = (c) => { setEditing(c); setForm({ code: c.code, name: c.name, description: c.description || '', budget_annual: c.budget_annual || '', currency: c.currency || 'EUR' }); setShowForm(true) }
+  const openEdit = (c) => { setEditing(c); setForm({ code: c.code, name: c.name, description: c.description || '', budget_annual: c.budget_annual || '', currency: c.currency || defaultCurrency }); setShowForm(true) }
 
   return (
     <div>

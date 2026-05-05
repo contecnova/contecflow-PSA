@@ -116,6 +116,14 @@ Crear frontend/.env desde frontend/.env.example.
 - alembic upgrade head
 
 Notas operativas recientes:
+- Se eliminó la duplicidad de gestión de plantillas de proyecto en UI: la administración queda centralizada en `/project-templates` y ya no aparece como pestaña independiente dentro de `Settings`.
+- `/project-templates` permite crear plantillas completas desde cero (fases y tareas, riesgos y entregables) además de instanciar proyectos desde plantilla.
+- `setup.sh` usa ahora modos explícitos sin menú interactivo: `./setup.sh demo` (carga seed y arranca), `./setup.sh clean` (limpia datos y deja solo admin, luego arranca), `./setup.sh start` (solo arranca y preserva la base de datos existente).
+- `setup.bat` queda alineado con la misma semántica: `setup.bat demo`, `setup.bat clean`, `setup.bat start demo`, `setup.bat start clean`, y en no interactivo `SETUP_INIT_MODE=demo|clean` antes de ejecutar `setup.bat start`.
+- Se añadió modo de arranque limpio para pruebas end-to-end desde cero: `./setup.sh admin-only-start`. Este flujo deja la BD sin datos funcionales y conserva solo el usuario `admin` (credenciales tomadas de `SUPERADMIN_EMAIL` y `SUPERADMIN_PASSWORD` en `.env`).
+- Se añadió soporte `HEAD /api/v1/documents/file/{file_key}` en almacenamiento local para devolver metadatos (`Content-Type`, `Content-Length`, `Content-Disposition`) sin descargar el fichero, evitando warnings `405` en comprobaciones previas del navegador/UI.
+- Se corrigió la serialización de `approval_request` en documentos para usar campos reales del modelo (`ApprovalDecision.decided_at`, `approver_id`, `approver`) en lugar de atributos inexistentes; desaparecen los warnings repetitivos al abrir detalles de documentos.
+- Se añadió `pypdf` a dependencias backend para habilitar extracción de texto en PDFs en `ai-summary` sin `ModuleNotFoundError`.
 - El cierre del cronómetro ahora permite cancelar la sesión sin guardar, cambiar la tarea final antes de imputar y forzar una imputación duplicada cuando ya existe otra para la misma tarea y fecha.
 - Si se fuerza una imputación duplicada desde el cronómetro, se genera una notificación in-app al manager responsable para que revise el timesheet y pueda rechazarlo si procede.
 - El módulo de tareas usa estados de workflow por proyecto cuando existen; si un proyecto no tiene workflow configurado, aplica automáticamente los estados base por defecto.
@@ -385,7 +393,7 @@ URL principal:
 - `/settings/approval-workflows`
 
 Capacidades nuevas:
-- Templates: biblioteca de plantillas listas para crear flujos base (legal, engineering, expense high-amount).
+- Templates: biblioteca de plantillas listas para crear flujos base (legal, engineering, expense high-amount) y opcion de crear un flujo completo desde cero (definicion + pasos) directamente desde la misma pestaña.
 - Simulator: simulacion de seleccion de flujo y ruta de pasos antes de publicar.
 - Validate: valida calidad del flujo (pasos, orden, aprobadores requeridos, consistencia).
 - Publish: publicacion segura (solo publica si la validacion no tiene errores bloqueantes).
@@ -535,4 +543,76 @@ Notas:
 **Antes**: `run_outcome_scan()` debía ejecutarse manualmente (vía endpoint o cron) para registrar resultados en `RoutingFeedback`.
 
 **Después**: Resuelto automáticamente por el Fix 1. Cada cierre/resolución de ticket dispara `record_routing_outcome` en background. El backfill manual (`run_outcome_scan`) sigue disponible para datos históricos.
+
+---
+
+## Auditoría hardcode — Eliminación de valores quemados en el código
+
+### Objetivo
+Eliminar todos los valores de configuración quemados directamente en el código (moneda, zona horaria, idioma, horas laborales, capacidad semanal, días de vacaciones, tipo impositivo) y centralizarlos en `app/core/config.py` (backend) y en un nuevo hook de React (frontend).
+
+### Variables de configuración centralizadas (`app/core/config.py`)
+- `DEFAULT_CURRENCY = "EUR"` (sobrescribible con var de entorno)
+- `DEFAULT_TIMEZONE = "Europe/Madrid"`
+- `DEFAULT_LANGUAGE = "es"`
+- `DEFAULT_WORKING_HOURS_PER_DAY = 8.0`
+- `DEFAULT_WEEKLY_CAPACITY_HOURS = 40.0`
+- `DEFAULT_VACATION_DAYS_PER_YEAR = 23`
+- `DEFAULT_TAX_RATE = 21.0`
+
+### Nuevo endpoint backend: `GET /api/v1/settings/org-defaults`
+Devuelve los valores de configuración globales de la organización para consumo del frontend:
+```json
+{"currency":"EUR","timezone":"Europe/Madrid","language":"es","working_hours_per_day":8.0,"weekly_capacity_hours":40.0,"vacation_days_per_year":23,"tax_rate":21.0}
+```
+Archivo: `app/api/v1/endpoints/settings.py`
+
+### Nuevo hook frontend: `useOrgSettings`
+Archivo: `frontend/src/hooks/useOrgSettings.js`  
+Fetches `/settings/org-defaults` con TanStack Query (staleTime 5min). Devuelve los valores con fallback a los defaults.
+
+### Archivos backend modificados
+- `app/schemas/billing_reports.py`: `InvoiceCreate.tax_rate` y `currency` usan `settings.*`
+- `app/schemas/bookings.py`: `BookingCreate.hours_per_day`, `SLAScheduleCreate.timezone`, `RecurringCreate.tax_rate` y `currency` usan `settings.*`
+- `app/schemas/users.py`: `UserBase.weekly_capacity_hours` usa `settings.*`
+- `app/schemas/service_desk.py`: `OnCallScheduleIn.timezone` y `currency` en asset schema usan `settings.*`
+- `app/models/revenue.py`: Column defaults de `currency` en `RevenueContract` y `RevEntry` usan `settings.*`
+- `app/services/imputation_service.py`: `or 40.0` → `settings.DEFAULT_WEEKLY_CAPACITY_HOURS`
+- `app/services/resource_analytics.py`: `or 40.0` y `or 8` → `settings.*`
+- `app/services/olap/etl.py`: `getattr(u,"weekly_capacity_hours",40.0)` y `getattr(p,"currency","EUR")` → `settings.*`
+- `app/services/raci_service.py`: `or 40.0` → `settings.*`
+- `app/services/billing_reports_service.py`: `or 40` → `settings.*`
+- `app/services/ai_chat/context_service.py`: `or 40` → `settings.*`
+- `app/services/v238_service.py`: `or 8.0` → `settings.*`
+- `app/services/pipeline_service.py`: `currency="EUR"` → `settings.*`
+- `app/services/project_service.py`: `"currency":"EUR"` → `settings.*`
+- `app/services/cab_service.py`: `getattr(project,"currency","EUR")` × 5 → `settings.*`
+- `app/services/service_desk/voice_agent_service.py`: `"language":"es-ES"` → `app_settings.DEFAULT_LANGUAGE`
+- `app/services/invoice_pdf.py`: parámetro `currency` sin default hardcode; usa `settings.DEFAULT_CURRENCY` cuando no se informa
+- `app/services/integrations.py`: payload Slack de factura pagada usa `settings.DEFAULT_CURRENCY` en lugar de fallback literal
+- `app/api/v1/endpoints/slack_block_kit.py`: bloque `invoice_paid` usa `settings.DEFAULT_CURRENCY` como fallback
+- `app/api/v1/endpoints/billing_reports.py`: `or "EUR"` → `settings.*`
+- `app/api/v1/endpoints/resource_forecast.py`: `or 40` → `settings.*`
+- `app/api/v1/endpoints/service_desk/voice_agent.py`: `cfg.get("language","es-ES")` → `settings.*`
+- `app/worker.py`: `or "EUR"` → `settings.*`
+
+### Archivos frontend modificados
+- `frontend/src/features/bi/widgets.jsx`: `fmtCur` parametrizado; `KpiGridWidget` usa `useOrgSettings`
+- `frontend/src/pages/SubcontractorsPage.jsx`: todos los `toLocaleString(...currency:'EUR')` usan `currency` del hook
+- `frontend/src/pages/RevenuePage.jsx`: `fmtEur` parametrizado; componente usa `useOrgSettings`; `ObligationsPanel` recibe `currency` como prop
+- `frontend/src/pages/ALMPage.jsx`: `CostCentersTab` usa `defaultCurrency` del hook para init/reset de formulario
+- `frontend/src/components/dashboard/DashKit.jsx`: `fmtCur` acepta `currency` como 3er parámetro
+- `frontend/src/pages/portal-client/PortalAdvancedSections.jsx`: `PortalInvoices` usa `useOrgSettings` para fallback de moneda
+- `frontend/src/pages/ExpensesPage.jsx`: `fmt` y formulario `ExpenseModal` dejan de forzar `'EUR'`; usan moneda externa/hook
+- `frontend/src/pages/SettingsPageSections.jsx`: `OfficesSection` usa `defaultTimezone` del hook
+- `frontend/src/pages/SLACalendarsPage.jsx`: `CalendarForm` usa `defaultTimezone` del hook
+- `frontend/src/pages/OrganizationsPage.jsx`: formulario de creación y edición usan `defaultTimezone` del hook
+- `frontend/src/services/api.js`: añadido `settingsAdminApi.getOrgDefaults`
+- `frontend/src/utils/helpers.js`: `fmtCurrency` deja de forzar `'EUR'` y acepta moneda externa
+
+### Correcciones adicionales en esta sesión
+- `app/api/v1/endpoints/analytics_extended.py`: corregido orden de argumentos en `run_analytics_drilldown` (date params deben ir antes de pagination)
+- `app/api/v1/endpoints/dashboard.py`: `GET /dashboard/kpis` cambiado de `get_current_user` a `require_admin` para que usuarios PM reciban 403 correctamente
+- `frontend/src/pages/RevenuePage.jsx`: corregida regresión en formatter (`const fmt = (n) => fmtEur(n, currency)`) para evitar recursión accidental
+
 

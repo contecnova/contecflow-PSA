@@ -11,7 +11,6 @@ import {
   RolesSection,
   AlertConfigSection,
   TaskTypesSection,
-  TemplatesSection,
   RateTablesSection,
   VacationSection,
   DepartmentsSection,
@@ -40,7 +39,6 @@ const TAB_GROUPS = [
     label: 'Workspace',
     tabs: [
       { id: 'task-types',   label: 'Tipos tarea',    roles: ['admin', 'pm'] },
-      { id: 'templates',    label: 'Plantillas',     roles: ['admin', 'pm'] },
       { id: 'rates',        label: 'Tarifas',        roles: ['admin'] },
       { id: 'numbering',    label: 'Numeración',     roles: ['admin'] },
       { id: 'fields',       label: 'Campos extra',   roles: ['admin'] },
@@ -101,7 +99,6 @@ export default function SettingsPage() {
       {activeTab === 'roles'         && <RolesSection />}
       {activeTab === 'alert-config'  && <AlertConfigSection />}
       {activeTab === 'task-types'    && <TaskTypesSection />}
-      {activeTab === 'templates'     && <TemplatesSection />}
       {activeTab === 'rates'         && <RateTablesSection />}
       {activeTab === 'vacations'     && <VacationSection />}
       {activeTab === 'depts'         && <DepartmentsSection />}

@@ -15,6 +15,7 @@ import PageShell from '../components/layout/PageShell'
 import { Receipt } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer
@@ -61,8 +62,10 @@ function CatBadge({ cat }) {
   )
 }
 
-function fmt(amount, currency = 'EUR') {
-  return `${Number(amount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
+function fmt(amount, currency) {
+  const v = Number(amount)
+  if (!currency) return `${v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `${v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
 }
 
 // ── Expense row ───────────────────────────────────────────────────────────────
@@ -108,6 +111,7 @@ function ExpenseModal({ expense, onClose }) {
   const qc = useQueryClient()
   const toast = useToast()
   const { _invalidate } = useInvalidate()
+  const { currency: defaultCurrency } = useOrgSettings()
   const isEdit = !!expense
   const [ocrLoading, setOcrLoading] = useState(false)
   const [form, setForm] = useState({
@@ -115,7 +119,7 @@ function ExpenseModal({ expense, onClose }) {
     category:    expense?.category    || 'travel',
     description: expense?.description || '',
     amount:      expense?.amount      || '',
-    currency:    expense?.currency    || 'EUR',
+    currency:    expense?.currency    || defaultCurrency,
     expense_date: expense?.expense_date || new Date().toISOString().slice(0, 10),
     is_billable: expense?.is_billable ?? true,
     notes:       expense?.notes       || '',

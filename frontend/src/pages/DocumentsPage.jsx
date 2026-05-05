@@ -4,16 +4,16 @@
  * Funcionalidades: KPIs, grid/tabla, drawer de detalle, carga modal dos columnas,
  * acciones bulk, etiquetas, aprobaciones, historial de versiones, resmenes IA
  */
-import _React, { useState, useRef, useCallback, useMemo } from 'react';
+import _React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { documentsApi, projectsApi } from '../services/api';
+import { documentsApi, projectsApi, usersApi } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useAppT } from '../i18n/AppLangContext'
 import {
   Upload, Search, Grid3X3, List, Plus, Download, Trash2,
   Sparkles, History, X, Check, FolderOpen, Files, FileCheck,
-  FileClock, TrendingUp, Eye, Info,
+  FileClock, FileMinus, TrendingUp, Eye, Info, Share2, Users,
   CheckCircle, XCircle, ExternalLink, Loader
 } from 'lucide-react';
 import PageHeader from '../components/layout/PageHeader';
@@ -515,6 +515,201 @@ function UploadModal({ open, onClose, onSuccess }) {
 
 // ── Document Drawer (panel lateral) ─────────────────────────────────────────
 
+// ── Share panel (per-document permissions) ────────────────────────────────────
+const ROLES_AVAILABLE = ['admin', 'pm', 'team_lead', 'hr', 'employee', 'subcontractor'];
+const ACCESS_LEVELS = [
+  { v: 'viewer', l: 'Lector (abrir y descargar)' },
+  { v: 'editor', l: 'Editor (subir versiones)' },
+  { v: 'admin', l: 'Admin (gestionar permisos)' },
+];
+
+function SharePanel({ documentId }) {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const [subjectType, setSubjectType] = useState('user'); // user | role | department
+  const [userId, setUserId] = useState('');
+  const [roleVal, setRoleVal] = useState('pm');
+  const [deptVal, setDeptVal] = useState('');
+  const [accessLevel, setAccessLevel] = useState('viewer');
+  const [expiresAt, setExpiresAt] = useState('');
+
+  const { data: perms = [] } = useQuery({
+    queryKey: ['document-permissions', documentId],
+    queryFn: () => documentsApi.listPermissions(documentId).then(r => r.data),
+  });
+
+  const { data: users = [] } = useQuery({
+    queryKey: ['users-min'],
+    queryFn: () => usersApi.list().then(r => r.data),
+    staleTime: 60_000,
+  });
+
+  const departments = useMemo(() => {
+    const s = new Set();
+    users.forEach(u => { if (u.department) s.add(u.department); });
+    return [...s].sort();
+  }, [users]);
+
+  const grantMutation = useMutation({
+    mutationFn: (payload) => documentsApi.grantPermission(documentId, payload),
+    onSuccess: () => {
+      toast.success('Permiso concedido');
+      qc.invalidateQueries({ queryKey: ['document-permissions', documentId] });
+      qc.invalidateQueries({ queryKey: ['document', documentId] });
+      setUserId(''); setDeptVal(''); setExpiresAt('');
+    },
+    onError: e => toast.error(e.response?.data?.detail || 'No se pudo conceder el permiso'),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: (permId) => documentsApi.revokePermission(documentId, permId),
+    onSuccess: () => {
+      toast.success('Permiso revocado');
+      qc.invalidateQueries({ queryKey: ['document-permissions', documentId] });
+      qc.invalidateQueries({ queryKey: ['document', documentId] });
+    },
+    onError: e => toast.error(e.response?.data?.detail || 'No se pudo revocar'),
+  });
+
+  const submitGrant = () => {
+    const payload = { access_level: accessLevel };
+    if (expiresAt) payload.expires_at = new Date(expiresAt).toISOString();
+    if (subjectType === 'user') {
+      if (!userId) return toast.error('Selecciona un usuario');
+      payload.user_id = userId;
+    } else if (subjectType === 'role') {
+      payload.role = roleVal;
+    } else if (subjectType === 'department') {
+      const d = (deptVal || '').trim();
+      if (!d) return toast.error('Indica un departamento');
+      payload.department = d;
+    }
+    grantMutation.mutate(payload);
+  };
+
+  const subjectLabel = (p) => {
+    if (p.user_id) return `👤 ${p.user_name || p.user_id}`;
+    if (p.role) return `🛡️ Rol: ${p.role}`;
+    if (p.department) return `🏢 Departamento: ${p.department}`;
+    return '—';
+  };
+
+  const inputStyle = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' };
+  const labelStyle = { fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, display: 'block' };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+        <strong>Por defecto</strong>, el creador del documento y los miembros del proyecto tienen acceso. Aquí puedes conceder accesos adicionales a usuarios concretos, a un rol completo o a un departamento.
+      </div>
+
+      {/* Add grant */}
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 14 }}>
+        <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Share2 size={14} /> Conceder acceso
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
+          {[
+            { v: 'user', l: 'Usuario', icon: Users },
+            { v: 'role', l: 'Rol' },
+            { v: 'department', l: 'Departamento' },
+          ].map(opt => (
+            <button key={opt.v} onClick={() => setSubjectType(opt.v)}
+              style={{
+                padding: '8px 10px', borderRadius: 8,
+                border: `1px solid ${subjectType === opt.v ? 'var(--accent)' : 'var(--surface-4)'}`,
+                background: subjectType === opt.v ? 'var(--accent-muted)' : 'transparent',
+                color: subjectType === opt.v ? 'var(--accent)' : 'var(--text-2)',
+                fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              }}>
+              {opt.l}
+            </button>
+          ))}
+        </div>
+
+        {subjectType === 'user' && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={labelStyle}>Usuario</label>
+            <select value={userId} onChange={e => setUserId(e.target.value)} style={inputStyle}>
+              <option value="">Selecciona un usuario…</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
+            </select>
+          </div>
+        )}
+        {subjectType === 'role' && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={labelStyle}>Rol</label>
+            <select value={roleVal} onChange={e => setRoleVal(e.target.value)} style={inputStyle}>
+              {ROLES_AVAILABLE.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+        )}
+        {subjectType === 'department' && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={labelStyle}>Departamento</label>
+            <input type="text" value={deptVal} onChange={e => setDeptVal(e.target.value)}
+              list="departments-list" placeholder="ej. Finance"
+              style={inputStyle} />
+            <datalist id="departments-list">
+              {departments.map(d => <option key={d} value={d} />)}
+            </datalist>
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+          <div>
+            <label style={labelStyle}>Nivel de acceso</label>
+            <select value={accessLevel} onChange={e => setAccessLevel(e.target.value)} style={inputStyle}>
+              {ACCESS_LEVELS.map(a => <option key={a.v} value={a.v}>{a.l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Caducidad (opcional)</label>
+            <input type="datetime-local" value={expiresAt} onChange={e => setExpiresAt(e.target.value)} style={inputStyle} />
+          </div>
+        </div>
+
+        <button onClick={submitGrant} disabled={grantMutation.isPending}
+          style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'white', fontWeight: 700, fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Check size={13} /> {grantMutation.isPending ? 'Concediendo…' : 'Conceder acceso'}
+        </button>
+      </div>
+
+      {/* Existing grants */}
+      <div>
+        <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 8 }}>
+          Permisos actuales <span style={{ color: 'var(--text-3)', fontWeight: 400, fontSize: 'var(--text-xs)' }}>({perms.length})</span>
+        </div>
+        {perms.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', border: '1px dashed var(--surface-4)', borderRadius: 10 }}>
+            Sin permisos explícitos. Solo el creador y los miembros del proyecto tienen acceso por defecto.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {perms.map(p => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{subjectLabel(p)}</div>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>
+                    {ACCESS_LEVELS.find(a => a.v === p.access_level)?.l || p.access_level}
+                    {p.granted_by_name && ` · concedido por ${p.granted_by_name}`}
+                    {p.expires_at && ` · caduca ${new Date(p.expires_at).toLocaleDateString()}`}
+                  </div>
+                </div>
+                <button onClick={() => revokeMutation.mutate(p.id)} disabled={revokeMutation.isPending}
+                  style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--danger)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Trash2 size={11} /> Revocar
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DocumentDrawer({ documentId, onClose, onRefresh }) {
   const toast = useToast();
   const qc = useQueryClient();
@@ -524,6 +719,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
   const [changeNote, setChangeNote] = useState('');
   const [showUploadVersion, setShowUploadVersion] = useState(false);
   const [previewVersion, setPreviewVersion] = useState(null);
+  const [previewError, setPreviewError] = useState(false);
   const [isEditingMeta, setIsEditingMeta] = useState(false);
   const [metaForm, setMetaForm] = useState(null);
 
@@ -552,7 +748,11 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
 
   const summaryMutation = useMutation({
     mutationFn: () => documentsApi.aiSummary(documentId),
-    onSuccess: () => { toast.success('Resumen IA generado'); qc.invalidateQueries({ queryKey: ['document', documentId] }); },
+    onSuccess: () => {
+      toast.success('Resumen IA generado');
+      qc.invalidateQueries({ queryKey: ['document', documentId] });
+      setTab('meta');
+    },
     onError: e => toast.error(e.response?.data?.detail || 'Error IA'),
   });
 
@@ -581,6 +781,18 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
 
   const activeVer = previewVersion || doc?.versions?.[0] || null;
   const catS = doc ? (CAT_STYLE[doc.category] || CAT_STYLE.other) : null;
+
+  useEffect(() => {
+    if (!activeVer?.download_url) return;
+    setPreviewError(false);
+    // Only validate local API file URLs (S3 presigned URLs embed auth in query params)
+    if (!activeVer.download_url.startsWith('/api/')) return;
+    const fileType = detectFileType(activeVer.file_mime_type, activeVer.file_name);
+    if (fileType !== 'pdf' && fileType !== 'image') return;
+    fetch(activeVer.download_url, { method: 'HEAD', credentials: 'include' })
+      .then(r => { if (!r.ok) setPreviewError(true); })
+      .catch(() => setPreviewError(true));
+  }, [activeVer?.download_url]);
 
   const tabBtnStyle = (id) => ({
     padding: '6px 14px', borderRadius: 7, border: `1px solid ${tab === id ? 'var(--accent)40' : 'var(--surface-4)'}`,
@@ -651,6 +863,16 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                     <FileClock size={13} /> {submitApprovalMutation.isPending ? 'Enviando...' : 'Enviar para aprobación'}
                   </button>
                 )}
+                {doc.requires_approval && doc.approval_status === 'rejected' && (
+                  <button
+                    onClick={() => submitApprovalMutation.mutate()}
+                    disabled={submitApprovalMutation.isPending}
+                    title="Reabre un nuevo flujo de aprobación. El rechazo anterior queda en el histórico."
+                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: '#f59e0b', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}
+                  >
+                    <FileClock size={13} /> {submitApprovalMutation.isPending ? 'Reenviando...' : 'Reenviar a aprobación'}
+                  </button>
+                )}
                 {doc.requires_approval && doc.approval_status === 'pending' && doc.approval_request?.status === 'pending' && (
                   <>
                     <button onClick={() => approveMutation.mutate({ status: 'approved' })} disabled={approveMutation.isPending} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--success)', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -686,6 +908,9 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
               <button style={tabBtnStyle('meta')} onClick={() => setTab('meta')}>
                 <Info size={12} style={{ display: 'inline', marginRight: 4 }} /> Metadatos
               </button>
+              <button style={tabBtnStyle('share')} onClick={() => setTab('share')}>
+                <Share2 size={12} style={{ display: 'inline', marginRight: 4 }} /> Compartir
+              </button>
             </div>
 
             {/* Tab content */}
@@ -701,9 +926,21 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                     </a>
                   </div>
                   {(() => {
+                    if (previewError) return (
+                      <div style={{ padding: 40, textAlign: 'center' }}>
+                        <FileIcon mime={activeVer.file_mime_type} name={activeVer.file_name} size={56} />
+                        <div style={{ marginTop: 14, fontSize: "var(--text-base)", color: 'var(--text-3)' }}>El archivo no está disponible en el servidor</div>
+                        {activeVer.download_url && (
+                          <a href={activeVer.download_url} target="_blank" rel="noreferrer"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '8px 16px', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'white', textDecoration: 'none', fontSize: "var(--text-base)", fontWeight: 700 }}>
+                            <Download size={14} /> Intentar descargar
+                          </a>
+                        )}
+                      </div>
+                    );
                     const type = detectFileType(activeVer.file_mime_type, activeVer.file_name);
-                    if (type === 'pdf') return <iframe src={activeVer.download_url} style={{ width: '100%', height: 480, border: 'none' }} title="Vista previa del PDF" />;
-                    if (type === 'image') return <img src={activeVer.download_url} alt={activeVer.file_name} style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', display: 'block', margin: '0 auto', padding: 16 }} />;
+                    if (type === 'pdf') return <iframe src={activeVer.download_url} style={{ width: '100%', height: 480, border: 'none' }} title="Vista previa del PDF" onError={() => setPreviewError(true)} />;
+                    if (type === 'image') return <img src={activeVer.download_url} alt={activeVer.file_name} style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', display: 'block', margin: '0 auto', padding: 16 }} onError={() => setPreviewError(true)} />;
                     return (
                       <div style={{ padding: 40, textAlign: 'center' }}>
                         <FileIcon mime={activeVer.file_mime_type} name={activeVer.file_name} size={56} />
@@ -797,6 +1034,15 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
               {/* Metadata */}
               {tab === 'meta' && !isEditingMeta && (
                 <div>
+                  {/* AI Summary card */}
+                  {doc.ai_summary && (
+                    <div style={{ background: 'var(--purple)12', border: '1px solid var(--purple)30', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+                      <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--purple)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Sparkles size={12} /> Resumen IA
+                      </div>
+                      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', lineHeight: 1.6 }}>{doc.ai_summary}</div>
+                    </div>
+                  )}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                     {[
                       ['Creado por', doc.created_by_name || '—'],
@@ -942,6 +1188,9 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                   </div>
                 </div>
               )}
+
+              {/* Share */}
+              {tab === 'share' && <SharePanel documentId={documentId} />}
             </div>
           </>
         )}
@@ -986,7 +1235,9 @@ export default function DocumentsPage() {
   const docs = useMemo(() => {
     let d = [...docsRaw];
     if (filterStatus === 'pending') d = d.filter(x => x.requires_approval && (x.approval_status === 'pending' || !x.approval_status));
-    else if (filterStatus === 'approved') d = d.filter(x => x.approval_status === 'approved');
+    else if (filterStatus === 'approved') d = d.filter(x => x.requires_approval && x.approval_status === 'approved');
+    else if (filterStatus === 'rejected') d = d.filter(x => x.requires_approval && x.approval_status === 'rejected');
+    else if (filterStatus === 'no_approval') d = d.filter(x => !x.requires_approval);
     if (activeTags.length) d = d.filter(x => activeTags.every(t => x.tags?.includes(t)));
     if (sortBy === 'date_desc') d.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     else if (sortBy === 'date_asc') d.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
@@ -1000,7 +1251,9 @@ export default function DocumentsPage() {
     return {
       total: docsRaw.length,
       pending: docsRaw.filter(d => d.requires_approval && (d.approval_status === 'pending' || !d.approval_status)).length,
-      approved: docsRaw.filter(d => d.approval_status === 'approved').length,
+      approved: docsRaw.filter(d => d.requires_approval && d.approval_status === 'approved').length,
+      rejected: docsRaw.filter(d => d.requires_approval && d.approval_status === 'rejected').length,
+      noApproval: docsRaw.filter(d => !d.requires_approval).length,
       thisWeek: docsRaw.filter(d => new Date(d.created_at).getTime() > weekAgo).length,
     };
   }, [docsRaw]);
@@ -1051,10 +1304,11 @@ export default function DocumentsPage() {
       />
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 22 }}>
         <KpiCard icon={Files}      label="Total documentos" value={stats.total} color="var(--accent)" sub="en la plataforma" />
         <KpiCard icon={FileClock}  label="Pendientes" value={stats.pending} color="#f59e0b" sub="requieren revision" />
         <KpiCard icon={FileCheck}  label="Aprobados" value={stats.approved} color="var(--success)" sub="documentos validos" />
+        <KpiCard icon={FileMinus}  label="Sin aprobación" value={stats.noApproval} color="var(--text-3)" sub="no requieren revision" />
         <KpiCard icon={TrendingUp} label="Esta semana" value={stats.thisWeek} color="var(--purple)" sub="nuevos documentos" />
       </div>
 
@@ -1070,9 +1324,15 @@ export default function DocumentsPage() {
           {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={ctrlBtn}>
-          <option value="">Todos los estados</option>
-            <option value="pending">Pendiente aprobación</option>
-          <option value="approved">Aprobados</option>
+          <option value="">Todos</option>
+          <optgroup label="Estado de aprobación">
+            <option value="pending">Pendientes</option>
+            <option value="approved">Aprobados</option>
+            <option value="rejected">Rechazados</option>
+          </optgroup>
+          <optgroup label="Otros">
+            <option value="no_approval">Sin aprobación requerida</option>
+          </optgroup>
         </select>
         <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={ctrlBtn}>
           {SORT_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}

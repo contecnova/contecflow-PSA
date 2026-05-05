@@ -13,6 +13,7 @@ import {
   Badge,
 } from './portalClientContext'
 import { ClientGovernedConversationInbox } from '../../components/portal/GovernedConversations'
+import { useOrgSettings } from '../../hooks/useOrgSettings'
 
 export function PortalUAT() {
   const _t = useLang()
@@ -402,6 +403,7 @@ export function PortalInvoices() {
   const t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
+  const { currency: defaultCurrency } = useOrgSettings()
   const [reasonByInvoice, setReasonByInvoice] = useState({})
 
   const { data: invoices = [], isLoading } = useQuery({
@@ -419,8 +421,9 @@ export function PortalInvoices() {
     onError: e => toast.error(extractErr(e, t('invoices_error'))),
   })
 
-  const fmtMoney = (amount, currency = 'EUR') => {
+  const fmtMoney = (amount, currency) => {
     const value = Number(amount || 0)
+    if (!currency) return value.toLocaleString('es-ES')
     return value.toLocaleString('es-ES', { style: 'currency', currency })
   }
 
@@ -452,7 +455,7 @@ export function PortalInvoices() {
                     <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('invoices_issued')}: {inv.issue_date || '—'} · {t('invoices_due')}: {inv.due_date || '—'}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, color: 'var(--text-1)' }}>{fmtMoney(inv.total, inv.currency || 'EUR')}</div>
+                    <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, color: 'var(--text-1)' }}>{fmtMoney(inv.total, inv.currency || defaultCurrency)}</div>
                     <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: statusColor, background: `${statusColor}20`, border: `1px solid ${statusColor}40`, borderRadius: 20, padding: '2px 8px', textTransform: 'uppercase' }}>
                       {inv.status}
                     </span>
@@ -460,7 +463,7 @@ export function PortalInvoices() {
                 </div>
 
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>
-                  Base: {fmtMoney(inv.subtotal, inv.currency || 'EUR')} · IVA: {fmtMoney(inv.tax_amount, inv.currency || 'EUR')}
+                  Base: {fmtMoney(inv.subtotal, inv.currency || defaultCurrency)} · IVA: {fmtMoney(inv.tax_amount, inv.currency || defaultCurrency)}
                 </div>
 
                 <textarea

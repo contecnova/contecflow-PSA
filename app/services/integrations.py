@@ -720,7 +720,7 @@ def build_block_kit_message(event_type: str, payload: dict) -> dict:
                 {"type": "header", "text": {"type": "plain_text", "text": "✅ Invoice Paid"}},
                 {"type": "section", "fields": [
                     {"type": "mrkdwn", "text": f"*Invoice:*\n{payload.get('invoice_number', 'N/A')}"},
-                    {"type": "mrkdwn", "text": f"*Amount:*\n{payload.get('currency', 'EUR')} {payload.get('amount', 0):,.2f}"},
+                    {"type": "mrkdwn", "text": f"*Amount:*\n{payload.get('currency', settings.DEFAULT_CURRENCY)} {payload.get('amount', 0):,.2f}"},
                     {"type": "mrkdwn", "text": f"*Client:*\n{payload.get('client_name', 'N/A')}"},
                     {"type": "mrkdwn", "text": f"*Paid At:*\n{payload.get('paid_at', 'N/A')}"},
                 ]},

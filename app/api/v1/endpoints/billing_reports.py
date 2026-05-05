@@ -319,7 +319,7 @@ def download_invoice_pdf(
         tax_rate=inv.tax_rate or 0,
         tax_amount=inv.tax_amount or 0,
         total=inv.total or 0,
-        currency=inv.currency or "EUR",
+        currency=inv.currency or settings.DEFAULT_CURRENCY,
         notes=inv.notes,
         po_reference=inv.po_reference,
         period_from=inv.period_from,

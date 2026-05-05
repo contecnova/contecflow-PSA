@@ -288,10 +288,11 @@ export function dateRange(days) {
   return { date_from: d_from, date_to: d_to }
 }
 
-export function fmtCur(v, lang = 'es') {
+export function fmtCur(v, lang = 'es', currency) {
   if (v == null) return '—'
+  if (!currency) return new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES', { maximumFractionDigits: 0 }).format(v)
   return new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES', {
-    style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
+    style: 'currency', currency, maximumFractionDigits: 0,
   }).format(v)
 }
 

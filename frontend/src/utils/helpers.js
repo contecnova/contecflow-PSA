@@ -16,8 +16,10 @@ export function getWeekStart(date = new Date()) {
 }
 
 // ── Number helpers ────────────────────────────────────────────────────────────
-export const fmtCurrency = (n, currency = 'EUR') =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n ?? 0)
+export const fmtCurrency = (n, currency) => {
+  if (!currency) return new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(n ?? 0)
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n ?? 0)
+}
 
 export const fmtNumber = (n, decimals = 1) =>
   (n ?? 0).toLocaleString('es-ES', { maximumFractionDigits: decimals })

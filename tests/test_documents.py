@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
 from io import BytesIO
+from urllib.parse import urlparse
 
 from app.models.user import User
 
@@ -203,6 +204,32 @@ def test_document_file_upload_and_versioning(db: Session, doc_client):
     assert response.status_code == 200
     data = response.json()
     assert len(data["versions"]) >= 1
+
+
+def test_document_file_head_returns_metadata_headers(db: Session, doc_client):
+    """HEAD on local file endpoint should return metadata without 405."""
+    client, token = doc_client
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = client.post("/api/v1/documents", json={"title": "HEAD test doc"}, headers=headers)
+    doc_id = create_response.json()["id"]
+
+    files = {
+        "file": ("head_test.txt", BytesIO(b"head endpoint test"), "text/plain"),
+    }
+    upload_response = client.post(
+        f"/api/v1/documents/{doc_id}/versions",
+        files=files,
+        headers=headers,
+    )
+    assert upload_response.status_code == 200
+    download_url = upload_response.json()["download_url"]
+    head_path = urlparse(download_url).path
+
+    head_response = client.head(head_path, headers=headers)
+    assert head_response.status_code == 200
+    assert "content-type" in {k.lower() for k in head_response.headers.keys()}
+    assert "content-length" in {k.lower() for k in head_response.headers.keys()}
 
 
 def test_document_file_size_validation(db: Session, doc_client):

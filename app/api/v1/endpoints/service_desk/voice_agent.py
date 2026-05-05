@@ -32,6 +32,7 @@ from app.services.service_desk.voice_agent_service import (
     create_ticket_from_session,
     list_sessions,
 )
+from app.core.config import settings
 
 router = APIRouter(prefix="/voice", tags=["Service Desk - Voice Agent IVR"])
 
@@ -224,7 +225,7 @@ async def twilio_ivr_webhook(
     # ── Load greeting from config ─────────────────────────────────────────────
     cfg = get_config(db, org_id)
     greeting = cfg.get("greeting", "Gracias por llamar. ¿En qué le podemos ayudar?")
-    language  = cfg.get("language", "es-ES")
+    language  = cfg.get("language", settings.DEFAULT_LANGUAGE)
     dtmf_menu = cfg.get("dtmf_menu", {})
 
     # ── Build TwiML response ──────────────────────────────────────────────────
@@ -268,7 +269,7 @@ async def twilio_gather_webhook(
 
     cfg = get_config(db, org_id)
     dtmf_menu = cfg.get("dtmf_menu", {})
-    language  = cfg.get("language", "es-ES")
+    language  = cfg.get("language", settings.DEFAULT_LANGUAGE)
 
     selected_option = (dtmf_menu or {}).get(digit, {})
     selected_label = selected_option.get("label", "") if isinstance(selected_option, dict) else str(selected_option)

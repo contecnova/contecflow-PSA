@@ -272,7 +272,7 @@ def add_permission(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Grant access to document for a user."""
+    """Grant access to document — by user, role or department (exactly one)."""
     doc = get_document_or_404(db, doc_id)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
@@ -280,12 +280,26 @@ def add_permission(
     return DocumentPermissionOut(
         id=perm.id,
         user_id=perm.user_id,
-        user_name=user.full_name,
+        user_name=user.full_name if user else None,
+        role=perm.role,
+        department=perm.department,
         access_level=perm.access_level,
         granted_by_name=current_user.full_name,
         granted_at=perm.granted_at,
         expires_at=perm.expires_at,
     )
+
+
+@router.get("/{doc_id}/permissions", response_model=list[DocumentPermissionOut], summary="List document permissions")
+def list_permissions(
+    doc_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List explicit grants on this document."""
+    doc = get_document_or_404(db, doc_id)
+    check_document_access(doc, current_user, DocumentAccessLevel.viewer)
+    return doc_svc.list_document_permissions(db, doc_id)
 
 
 @router.delete("/{doc_id}/permissions/{perm_id}", summary="Revoke document access")
@@ -445,6 +459,47 @@ def serve_local_file(
     )
 
 
+@router.head("/file/{file_key:path}", summary="Probe metadata for a locally stored document file")
+def head_local_file(
+    file_key: str,
+    token: Optional[str] = Query(default=None, description="JWT access token (for browser-native requests that cannot set Authorization header)"),
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
+):
+    """Return metadata headers for a locally stored file without streaming the body."""
+    if current_user is None and token:
+        current_user = doc_svc.resolve_user_from_token(db, token)
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    from app.services.s3_service import LocalFileStorage
+    if not isinstance(file_storage, LocalFileStorage):
+        raise HTTPException(404, "Direct file serving only available in local-storage mode")
+
+    version = doc_svc.get_version_by_file_key(db, file_key)
+    if not version:
+        raise HTTPException(404, "File not found")
+    doc = get_document_or_404(db, version.document_id)
+    check_document_access(doc, current_user)
+
+    file_size = file_storage.get_file_size(file_key)
+    if file_size is None:
+        raise HTTPException(404, "File not found")
+
+    mime_type, _ = mimetypes.guess_type(file_key)
+    mime_type = mime_type or "application/octet-stream"
+    filename = file_key.split("/")[-1]
+    disposition = "attachment" if mime_type == "image/svg+xml" else "inline"
+
+    return Response(
+        status_code=200,
+        headers={
+            "Content-Type": mime_type,
+            "Content-Disposition": f'{disposition}; filename="{filename}"',
+            "Content-Length": str(file_size),
+        },
+    )
+
+
 # ── Documents filtered by entity ──────────────────────────────────────────
 
 
@@ -579,11 +634,33 @@ def ai_summary(
     try:
         summary_text = call_ai(
             db,
-            messages=[{"role": "user", "content": f"Genera un resumen ejecutivo conciso (mximo 150 palabras) de este documento:\n\n{text_content}"}],
-            system="Eres un asistente experto en anlisis de documentos empresariales. Responde en el idioma del documento.",
+            messages=[{
+                "role": "user",
+                "content": (
+                    "Genera un resumen panorámico (entre 250 y 400 palabras, en 3-5 párrafos) "
+                    "de este documento, indicando: (1) qué tipo de documento es, "
+                    "(2) cuál es su propósito y a qué área de negocio aplica, "
+                    "(3) qué temas o secciones cubre a alto nivel, "
+                    "(4) por qué tendría utilidad consultarlo. "
+                    "El objetivo es ayudar a alguien a decidir si abrir el documento sin tener que leerlo.\n\n"
+                    "Documento:\n" + text_content
+                ),
+            }],
+            system=(
+                "Eres un asistente experto en análisis de documentos empresariales. "
+                "Responde SIEMPRE en el idioma del documento. "
+                "REGLA DE PRIVACIDAD ESTRICTA: NO incluyas en el resumen ningún dato sensible "
+                "del contenido — específicamente: nombres propios de personas, importes o cifras "
+                "concretas, fechas concretas, números de identificación (NIF/IBAN/IDs), nombres "
+                "comerciales de clientes/proveedores específicos, ni transcribas literalmente "
+                "cláusulas, condiciones o párrafos. Habla siempre a alto nivel y en términos "
+                "genéricos (\"el cliente\", \"el importe pactado\", \"la fecha de vigencia\", etc.). "
+                "Si el documento es muy técnico, describe los temas tratados sin reproducir "
+                "fórmulas, parámetros o configuraciones específicas."
+            ),
             module="document_summary",
             user_id=current_user.id,
-            max_tokens=300,
+            max_tokens=700,
         )
     except Exception as exc:
         raise HTTPException(503, f"AI summary unavailable: {str(exc)[:100]}")

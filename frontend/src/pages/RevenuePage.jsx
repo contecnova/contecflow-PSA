@@ -13,6 +13,7 @@ import PageShell from '../components/layout/PageShell'
 import { TrendingUp, Lock, LockOpen, RefreshCw } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 
 const fs = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
@@ -38,7 +39,7 @@ const ASC_METHOD_CFG = {
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 // ── Obligations panel (per-contract) ─────────────────────────────────────────
-function ObligationsPanel({ contractId, onClose }) {
+function ObligationsPanel({ contractId, onClose, currency }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -81,7 +82,7 @@ function ObligationsPanel({ contractId, onClose }) {
                     <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{ob.name}</div>
                     <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:2 }}>
                       {mCfg.icon} {mCfg.label}
-                      {ob.standalone_price > 0 && <span style={{ marginLeft:8 }}>{fmtEur(ob.standalone_price)}</span>}
+                      {ob.standalone_price > 0 && <span style={{ marginLeft:8 }}>{fmtEur(ob.standalone_price, currency)}</span>}
                       {ob.is_satisfied && <span style={{ marginLeft:8, color:'var(--success)' }}>✓ Completada</span>}
                     </div>
                   </div>
@@ -130,15 +131,18 @@ function ObligationsPanel({ contractId, onClose }) {
   )
 }
 
-function fmtEur(n) {
+function fmtEur(n, currency) {
   if (!n && n !== 0) return '—'
-  return new Intl.NumberFormat('es-ES', { style:'currency', currency:'EUR', minimumFractionDigits:0, maximumFractionDigits:0 }).format(n)
+  if (!currency) return new Intl.NumberFormat('es-ES', { minimumFractionDigits:0, maximumFractionDigits:0 }).format(n)
+  return new Intl.NumberFormat('es-ES', { style:'currency', currency, minimumFractionDigits:0, maximumFractionDigits:0 }).format(n)
 }
 
 export default function RevenuePage() {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
+  const { currency } = useOrgSettings()
+  const fmt = (n) => fmtEur(n, currency)
   const [tab, setTab] = useState('summary')
   const [showCreate, setShowCreate] = useState(false)
   const [showCompute, setShowCompute] = useState(null)
@@ -154,7 +158,7 @@ export default function RevenuePage() {
   const [obligationsFor, setObligationsFor] = useState(null)
   const [entryFilter, setEntryFilter] = useState({ contract_id: '', year: '', month: '' })
   const [closePeriod, setClosePeriod] = useState({ year: currentYear, month: currentMonth, notes: '' })
-  const [contractForm, setContractForm] = useState({ project_id:'', name:'', method:'over_time', contract_value:'', currency:'EUR', start_date:'', end_date:'', duration_months:'', notes:'' })
+  const [contractForm, setContractForm] = useState({ project_id:'', name:'', method:'over_time', contract_value:'', currency, start_date:'', end_date:'', duration_months:'', notes:'' })
 
   // ── Existing queries ───────────────────────────────────────────────────────
   const { data: rules = [], isLoading } = useQuery({ queryKey:['rev-rules'], queryFn:() => revenueApi.rules().then(r=>r.data) })
@@ -205,7 +209,7 @@ export default function RevenuePage() {
     mutationFn: () => revenueApi.autoCompute(computePeriod),
     onSuccess: (res) => {
       qc.invalidateQueries(['revenue-rules'])
-      toast.success(`Auto-compute: ${res.data.total_recognised?.toLocaleString('es-ES', {style:'currency',currency:'EUR'})} reconocidos`)
+      toast.success(`Auto-compute: ${res.data.total_recognised?.toLocaleString('es-ES', {style:'currency',currency})} reconocidos`)
     },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -245,7 +249,7 @@ export default function RevenuePage() {
     onSuccess: (res) => {
       qc.invalidateQueries(['asc606-dashboard', dashYear])
       const r = res.data.recognized
-      toast.success(`Reconocimiento completado: T&M ${fmtEur(r?.over_time)}, Línea recta ${fmtEur(r?.straight_line)}`)
+      toast.success(`Reconocimiento completado: T&M ${fmt(r?.over_time)}, Línea recta ${fmt(r?.straight_line)}`)
     },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -282,8 +286,8 @@ export default function RevenuePage() {
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:28 }}>
         {[
-          { label:'Total reconocido', value:fmtEur(summary?.total_recognised), icon:'✅' },
-          { label:'Total diferido',   value:fmtEur(summary?.total_deferred),   icon:'⏳' },
+          { label:'Total reconocido', value:fmt(summary?.total_recognised), icon:'✅' },
+          { label:'Total diferido',   value:fmt(summary?.total_deferred),   icon:'⏳' },
           { label:'Proyectos activos', value:rules.length,                      icon:'⬡' },
           { label:'Entradas registradas', value:summary?.entry_count || 0,      icon:'📋' },
         ].map((k,i) => (
@@ -315,7 +319,7 @@ export default function RevenuePage() {
                 <BarChart data={chartData}>
                   <XAxis dataKey="mes" tick={{ fontSize: "var(--text-xs)" }} />
                   <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize: "var(--text-xs)" }} />
-                  <Tooltip formatter={(v,n) => [fmtEur(v), n]} />
+                  <Tooltip formatter={(v,n) => [fmt(v), n]} />
                   <Legend />
                   <Bar dataKey="Reconocido" fill="var(--success)" radius={[3,3,0,0]} />
                   <Bar dataKey="Diferido"   fill="var(--warning)" radius={[3,3,0,0]} />
@@ -351,9 +355,9 @@ export default function RevenuePage() {
                           <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>{mCfg.icon} {mCfg.label}</span>
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:10 }}>
-                          <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Valor contrato</div><div style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{fmtEur(r.contract_value)}</div></div>
-                          <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Reconocido</div><div style={{ fontSize: "var(--text-md)", fontWeight:500, color:'var(--success)' }}>{fmtEur(r.total_recognised)}</div></div>
-                          <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Diferido</div><div style={{ fontSize: "var(--text-md)", fontWeight:500, color:'var(--warning)' }}>{fmtEur(r.total_deferred)}</div></div>
+                          <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Valor contrato</div><div style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{fmt(r.contract_value)}</div></div>
+                          <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Reconocido</div><div style={{ fontSize: "var(--text-md)", fontWeight:500, color:'var(--success)' }}>{fmt(r.total_recognised)}</div></div>
+                          <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Diferido</div><div style={{ fontSize: "var(--text-md)", fontWeight:500, color:'var(--warning)' }}>{fmt(r.total_deferred)}</div></div>
                           <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Entradas</div><div style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{r.entry_count}</div></div>
                         </div>
                         {r.contract_value > 0 && (
@@ -400,7 +404,7 @@ export default function RevenuePage() {
           {asc606Dashboard && (
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
               {[
-                { label:'Total reconocido', value: fmtEur(asc606Dashboard.total_recognized), icon:'✅' },
+                { label:'Total reconocido', value: fmt(asc606Dashboard.total_recognized), icon:'✅' },
                 { label:'Contratos activos', value: asc606Dashboard.contracts?.length || 0, icon:'📑' },
                 { label:'Entradas contables', value: asc606Dashboard.entry_count || 0, icon:'📋' },
               ].map((k,i) => (
@@ -421,7 +425,7 @@ export default function RevenuePage() {
                 <BarChart data={asc606ChartData}>
                   <XAxis dataKey="mes" tick={{ fontSize: "var(--text-xs)" }} />
                   <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize: "var(--text-xs)" }} />
-                  <Tooltip formatter={(v,n) => [fmtEur(v), n]} />
+                  <Tooltip formatter={(v,n) => [fmt(v), n]} />
                   <Legend />
                   <Bar dataKey="Reconocido" fill="var(--success)" radius={[3,3,0,0]} />
                   <Bar dataKey="Diferido"   fill="var(--warning)" radius={[3,3,0,0]} />
@@ -476,7 +480,7 @@ export default function RevenuePage() {
                             )}
                           </div>
                           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:10 }}>
-                            <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Valor contrato</div><div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{fmtEur(c.contract_value)}</div></div>
+                            <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Valor contrato</div><div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{fmt(c.contract_value)}</div></div>
                             <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Moneda</div><div style={{ fontSize: "var(--text-base)" }}>{c.currency}</div></div>
                             <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Inicio</div><div style={{ fontSize: "var(--text-base)" }}>{c.start_date || '—'}</div></div>
                             <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Fin</div><div style={{ fontSize: "var(--text-base)" }}>{c.end_date || c.duration_months ? `${c.duration_months}m` : '—'}</div></div>
@@ -560,10 +564,10 @@ export default function RevenuePage() {
                           <span style={{ fontSize: "var(--text-xs)" }}>{mCfg.icon} {mCfg.label}</span>
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center', fontWeight:600, color:'var(--success)' }}>
-                          {fmtEur(e.recognized_amount ?? e.amount)}
+                          {fmt(e.recognized_amount ?? e.amount)}
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center', color:'var(--warning)' }}>
-                          {fmtEur(e.deferred_amount ?? 0)}
+                          {fmt(e.deferred_amount ?? 0)}
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center' }}>
                           {isReversed
@@ -663,7 +667,7 @@ export default function RevenuePage() {
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
             <div style={{ background:'var(--surface-2)', borderRadius:8, padding:'12px 14px', fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
               Método: <strong style={{ color:'var(--text-1)' }}>{METHOD_CFG[showCompute.method]?.label}</strong><br/>
-              Contrato: <strong style={{ color:'var(--text-1)' }}>{fmtEur(showCompute.contract_value)}</strong>
+              Contrato: <strong style={{ color:'var(--text-1)' }}>{fmt(showCompute.contract_value)}</strong>
             </div>
             <div><label style={ls}>Período (mes a calcular)</label>
               <input type="month" value={computePeriod.slice(0,7)} onChange={e=>setComputePeriod(e.target.value+'-01')} style={fs} />
@@ -774,7 +778,7 @@ export default function RevenuePage() {
       )}
 
       {/* ── Modal obligaciones ── */}
-      {obligationsFor && <ObligationsPanel contractId={obligationsFor} onClose={() => setObligationsFor(null)} />}
+      {obligationsFor && <ObligationsPanel contractId={obligationsFor} currency={currency} onClose={() => setObligationsFor(null)} />}
     </PageShell>
   )
 }

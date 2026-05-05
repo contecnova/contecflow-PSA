@@ -55,8 +55,11 @@ class DocumentVersionOut(BaseModel):
 
 class DocumentPermissionOut(BaseModel):
     id: str
-    user_id: str
-    user_name: str
+    # One of these three identifies the subject of the grant
+    user_id: Optional[str] = None
+    user_name: Optional[str] = None
+    role: Optional[str] = None
+    department: Optional[str] = None
     access_level: DocumentAccessLevel
     granted_by_name: Optional[str] = None
     granted_at: datetime
@@ -67,7 +70,10 @@ class DocumentPermissionOut(BaseModel):
 
 
 class DocumentPermissionCreate(BaseModel):
-    user_id: str
+    """Grant access to a document. Provide exactly ONE of user_id / role / department."""
+    user_id: Optional[str] = None
+    role: Optional[str] = None  # UserRole value (e.g. "pm", "team_lead")
+    department: Optional[str] = None
     access_level: DocumentAccessLevel
     expires_at: Optional[datetime] = None
 
@@ -112,6 +118,7 @@ class DocumentOut(DocumentBase):
     approved_at: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    ai_summary: Optional[str] = None
     versions: List[DocumentVersionOut] = []
     permissions: List[DocumentPermissionOut] = []
     tags: List[str] = []
@@ -126,6 +133,7 @@ class DocumentListOut(BaseModel):
     title: str
     category: DocumentCategory
     is_archived: bool
+    requires_approval: bool = False
     approval_status: ApprovalStatus
     created_by_name: str
     created_at: datetime

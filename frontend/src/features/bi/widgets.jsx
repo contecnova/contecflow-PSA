@@ -8,6 +8,7 @@ import {
 import api, { dashboardApi } from '../../services/api'
 import { Spinner, EmptyState } from '../../components/ui'
 import { useAppLang, useAppT } from '../../i18n/AppLangContext'
+import { useOrgSettings } from '../../hooks/useOrgSettings'
 
 const BLUE = 'var(--accent)'
 const GREEN = 'var(--success)'
@@ -18,9 +19,11 @@ const PALETTE = [BLUE, GREEN, AMBER, PURPLE, RED, 'var(--sky-blue)', 'var(--char
 
 const getLocale = (lang) => (lang === 'en' ? 'en-US' : 'es-ES')
 
-const fmtCur = (v, lang = 'es') => v != null
-  ? new Intl.NumberFormat(getLocale(lang), { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
-  : '—'
+const fmtCur = (v, lang = 'es', currency) => {
+  if (v == null) return '—'
+  if (!currency) return new Intl.NumberFormat(getLocale(lang), { maximumFractionDigits: 0 }).format(v)
+  return new Intl.NumberFormat(getLocale(lang), { style: 'currency', currency, maximumFractionDigits: 0 }).format(v)
+}
 const fmtPct = (v) => v != null ? `${v.toFixed(1)}%` : '—'
 
 const buildFilterParams = (filters = {}) => ({
@@ -52,6 +55,7 @@ function CustomTooltip({ active, payload, label, fmt = v => v }) {
 function KpiGridWidget({ filters }) {
   const t = useAppT()
   const { lang } = useAppLang()
+  const { currency } = useOrgSettings()
   const filterParams = useMemo(() => buildFilterParams(filters), [filters])
 
   const { data: kpis } = useQuery({
@@ -76,7 +80,7 @@ function KpiGridWidget({ filters }) {
   const items = [
     { icon: '⬡', label: t('bi.active_projects'), value: health.length, color: BLUE, sub: `${onTrackPct}% ${t('bi.on_time_pct')}` },
     { icon: '▦', label: t('bi.overdue_tasks'), value: kpis?.tasks_overdue ?? 0, color: (kpis?.tasks_overdue ?? 0) > 0 ? RED : GREEN, sub: t('bi.need_attention') },
-    { icon: '💰', label: t('bi.budget_used'), value: kpis?.total_budget > 0 ? `${Math.round((kpis.total_spent / kpis.total_budget) * 100)}%` : '—', color: AMBER, sub: `${fmtCur(kpis?.total_spent ?? 0, lang)} ${t('bi.spent_amount')}` },
+    { icon: '💰', label: t('bi.budget_used'), value: kpis?.total_budget > 0 ? `${Math.round((kpis.total_spent / kpis.total_budget) * 100)}%` : '—', color: AMBER, sub: `${fmtCur(kpis?.total_spent ?? 0, lang, currency)} ${t('bi.spent_amount')}` },
     { icon: '🎫', label: t('bi.open_tickets'), value: kpis?.tasks_open ?? 0, color: PURPLE, sub: t('bi.service_desk_short') },
     { icon: '⏱', label: t('bi.hours_this_week'), value: kpis?.hours_logged_this_week?.toFixed(0) ?? '0', color: 'var(--sky-blue)', sub: `${deltaHours >= 0 ? '▲' : '▼'} ${Math.abs(deltaHours).toFixed(1)}% ${t('bi.previous_period')}` },
     { icon: '🚨', label: t('bi.critical_projects'), value: critProj, color: critProj > 0 ? RED : GREEN, sub: t('bi.out_of_time_budget') },

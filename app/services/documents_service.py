@@ -28,6 +28,7 @@ def serialize_doc_list_item(doc):
         "id": doc.id,
         "title": doc.title,
         "category": doc.category,
+        "requires_approval": doc.requires_approval,
         "approval_status": doc.approval_status,
         "is_archived": doc.is_archived,
         "created_by_name": doc.creator.full_name if doc.creator else "Unknown",
@@ -170,24 +171,40 @@ def check_document_access(doc, user, required_level=None) -> None:
         required_level = DocumentAccessLevel.viewer
     if user.role == UserRole.admin:
         return
-    perm = None
-    for p in doc.permissions:
-        if p.user_id == user.id:
-            perm = p
-            break
     if doc.created_by == user.id:
         return
     if doc.project:
         is_member = any(m.user_id == user.id for m in doc.project.members)
         if is_member and required_level == DocumentAccessLevel.viewer:
             return
-    if perm:
-        perm_exp = perm.expires_at if perm.expires_at is None or perm.expires_at.tzinfo else perm.expires_at.replace(tzinfo=timezone.utc)
-        if perm_exp and perm_exp < datetime.now(timezone.utc):
-            raise HTTPException(403, "Your access to this document has expired")
-        levels = [DocumentAccessLevel.viewer, DocumentAccessLevel.editor, DocumentAccessLevel.admin]
-        if levels.index(perm.access_level) >= levels.index(required_level):
-            return
+
+    levels = [DocumentAccessLevel.viewer, DocumentAccessLevel.editor, DocumentAccessLevel.admin]
+    user_role_value = user.role.value if hasattr(user.role, 'value') else str(user.role)
+    user_dept = (user.department or '').strip().lower() if getattr(user, 'department', None) else ''
+    now = datetime.now(timezone.utc)
+
+    # Pick the strongest matching grant (user > role > department) for this user.
+    best_level_idx = -1
+    for p in doc.permissions:
+        # Subject match: exactly one of user_id / role / department applies.
+        if p.user_id and p.user_id != user.id:
+            continue
+        if p.role and p.role != user_role_value:
+            continue
+        if p.department and p.department.strip().lower() != user_dept:
+            continue
+        if not (p.user_id or p.role or p.department):
+            continue  # malformed grant
+        # Expiration
+        perm_exp = p.expires_at if p.expires_at is None or p.expires_at.tzinfo else p.expires_at.replace(tzinfo=timezone.utc)
+        if perm_exp and perm_exp < now:
+            continue
+        idx = levels.index(p.access_level)
+        if idx > best_level_idx:
+            best_level_idx = idx
+
+    if best_level_idx >= levels.index(required_level):
+        return
     raise HTTPException(403, "Insufficient access level to this document")
 
 
@@ -239,10 +256,13 @@ def serialize_document(db, doc, user, generate_s3_urls: bool = True):
         approved_by_name=doc.approver.full_name if doc.approver else None,
         approved_at=doc.approved_at,
         created_at=doc.created_at, updated_at=doc.updated_at,
+        ai_summary=doc.ai_summary,
         versions=versions_out,
         permissions=[DocumentPermissionOut(
             id=p.id, user_id=p.user_id,
-            user_name=p.user.full_name if p.user else "Unknown",
+            user_name=(p.user.full_name if p.user else None),
+            role=p.role,
+            department=p.department,
             access_level=p.access_level,
             granted_by_name=p.grantor.full_name if p.grantor else None,
             granted_at=p.granted_at, expires_at=p.expires_at,
@@ -264,7 +284,7 @@ def _serialize_approval_request(db, doc) -> Optional[dict]:
         wf = ar.workflow
         steps = sorted(wf.steps, key=lambda s: s.step_order) if wf else []
         current_step_obj = next((s for s in steps if s.step_order == ar.current_step), None)
-        decisions = db.query(ADec).filter(ADec.request_id == ar.id).order_by(ADec.created_at).all()
+        decisions = db.query(ADec).filter(ADec.request_id == ar.id).order_by(ADec.decided_at).all()
         return {
             "id": ar.id,
             "status": ar.status,
@@ -284,11 +304,11 @@ def _serialize_approval_request(db, doc) -> Optional[dict]:
             "decisions": [
                 {
                     "step_order": d.step_order,
-                    "approver_id": d.actor_user_id,
-                    "approver_name": d.actor.full_name if d.actor else None,
+                    "approver_id": d.approver_id,
+                    "approver_name": d.approver.full_name if d.approver else None,
                     "decision": d.decision,
                     "note": d.note,
-                    "decided_at": d.created_at.isoformat() if d.created_at else None,
+                    "decided_at": d.decided_at.isoformat() if d.decided_at else None,
                 }
                 for d in decisions
             ],
@@ -484,20 +504,42 @@ def create_document_version(db, doc, doc_id: str, file: object, content: bytes, 
 
 
 def add_document_permission(db, doc_id: str, payload, current_user):
-    user = db.query(User).filter(User.id == payload.user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    existing = db.query(DocumentPermission).filter(
-        and_(
-            DocumentPermission.document_id == doc_id,
-            DocumentPermission.user_id == payload.user_id,
+    """Grant access to a document. payload must specify exactly ONE of
+    user_id / role / department."""
+    subjects = [bool(payload.user_id), bool(payload.role), bool(payload.department)]
+    if sum(subjects) != 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly one of user_id, role or department",
         )
-    ).first()
-    if existing:
-        raise HTTPException(status_code=409, detail="User already has access to this document")
+
+    user = None
+    if payload.user_id:
+        user = db.query(User).filter(User.id == payload.user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+    if payload.role:
+        valid_roles = {r.value for r in UserRole}
+        if payload.role not in valid_roles:
+            raise HTTPException(status_code=400, detail=f"Invalid role: {payload.role}")
+
+    # Detect duplicate grant (same subject)
+    q = db.query(DocumentPermission).filter(DocumentPermission.document_id == doc_id)
+    if payload.user_id:
+        q = q.filter(DocumentPermission.user_id == payload.user_id)
+    elif payload.role:
+        q = q.filter(DocumentPermission.role == payload.role)
+    elif payload.department:
+        q = q.filter(DocumentPermission.department == payload.department)
+    if q.first():
+        raise HTTPException(status_code=409, detail="A grant already exists for this subject")
+
     perm = DocumentPermission(
         document_id=doc_id,
         user_id=payload.user_id,
+        role=payload.role,
+        department=payload.department,
         access_level=payload.access_level,
         granted_by=current_user.id,
         expires_at=payload.expires_at,
@@ -506,6 +548,31 @@ def add_document_permission(db, doc_id: str, payload, current_user):
     db.commit()
     db.refresh(perm)
     return perm, user
+
+
+def list_document_permissions(db, doc_id: str):
+    """Return all permission rows for a document, with subject names hydrated."""
+    perms = db.query(DocumentPermission).filter(DocumentPermission.document_id == doc_id).all()
+    out = []
+    for p in perms:
+        user_name = None
+        granted_by_name = None
+        if p.user_id and p.user:
+            user_name = p.user.full_name
+        if p.granted_by and p.grantor:
+            granted_by_name = p.grantor.full_name
+        out.append({
+            "id": p.id,
+            "user_id": p.user_id,
+            "user_name": user_name,
+            "role": p.role,
+            "department": p.department,
+            "access_level": p.access_level,
+            "granted_by_name": granted_by_name,
+            "granted_at": p.granted_at,
+            "expires_at": p.expires_at,
+        })
+    return out
 
 
 def remove_document_permission(db, doc_id: str, perm_id: str):
@@ -545,11 +612,32 @@ def approve_document(db, doc, payload, current_user):
 
 
 def submit_for_approval(db, doc, current_user):
-    """Explicitly submit a document for approval when no workflow was found at creation time."""
+    """Submit a document for approval.
+
+    Allowed when:
+      - The document requires approval AND has no current request, OR
+      - The previous request finished as rejected (resubmission case). The old
+        request is preserved as history; the document is reset to pending and a
+        new ApprovalRequest is opened.
+    """
     if not doc.requires_approval:
         raise HTTPException(status_code=400, detail="This document does not require approval")
+
     if doc.approval_request_id:
-        raise HTTPException(status_code=409, detail="Document already has an active approval request")
+        from app.models.billing_reports import ApprovalRequest as ARModel
+        prev = db.get(ARModel, doc.approval_request_id)
+        prev_status = (getattr(prev, "status", None) or "").lower() if prev else None
+        if prev and prev_status not in ("rejected", "cancelled"):
+            raise HTTPException(status_code=409, detail="Document already has an active approval request")
+        # Reset document to allow a fresh submission. The previous request stays
+        # in the DB as audit trail; we just unlink it from the document.
+        doc.approval_request_id = None
+        doc.approval_status = ApprovalStatus.pending
+        doc.approved_by = None
+        doc.approved_at = None
+        db.add(doc)
+        db.flush()
+
     ar_id = _auto_create_approval_request(db, doc, current_user)
     if not ar_id:
         raise HTTPException(
@@ -658,6 +746,5 @@ def remove_tag(db, doc_id: str, tag_name: str):
 
 
 def save_ai_summary(db, doc, summary_text: str):
-    if not doc.description:
-        doc.description = summary_text
-        db.commit()
+    doc.ai_summary = summary_text
+    db.commit()

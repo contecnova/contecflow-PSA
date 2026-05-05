@@ -5,13 +5,18 @@ setlocal EnableDelayedExpansion
 :: Uso:
 ::   setup.bat          - instala todo y arranca
 ::   setup.bat start    - solo arranca
+::   setup.bat start demo^|clean - solo arranca con modo de datos
+::   setup.bat demo^|clean - instala y arranca con modo de datos
 ::   setup.bat stop     - para los servicios
 ::   setup.bat update   - actualiza dependencias
+::   SETUP_INIT_MODE=demo^|clean setup.bat start  - modo no interactivo (CI/CD)
 
 set BACKEND_PORT=8000
 set FRONTEND_PORT=3000
 set SCRIPT_DIR=%~dp0
 set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
+set REQUESTED_MODE=
+set INIT_MODE=
 
 echo.
 echo  ============================================
@@ -25,6 +30,14 @@ if "%1"=="start"  goto :start_only
 if "%1"=="stop"   goto :stop_services
 if "%1"=="update" goto :update_mode
 
+if /I "%1"=="demo"  set "REQUESTED_MODE=demo"
+if /I "%1"=="seed"  set "REQUESTED_MODE=demo"
+if /I "%1"=="clean" set "REQUESTED_MODE=clean"
+if /I "%1"=="zero"  set "REQUESTED_MODE=clean"
+if /I "%1"=="cero"  set "REQUESTED_MODE=clean"
+if /I "%1"=="admin-only" set "REQUESTED_MODE=clean"
+if /I "%1"=="admin_only" set "REQUESTED_MODE=clean"
+
 goto :full_install
 
 :full_install
@@ -32,11 +45,28 @@ call :setup_backend
 if errorlevel 1 goto :error
 call :setup_frontend
 if errorlevel 1 goto :error
+call :resolve_init_mode "%REQUESTED_MODE%"
+if errorlevel 1 goto :error
+call :apply_selected_data_mode
+if errorlevel 1 goto :error
 call :start_services
 goto :end
 
 :start_only
 echo [INFO] Modo: solo arrancar
+set "REQUESTED_MODE=%2"
+if not exist "%SCRIPT_DIR%\.venv\Scripts\python.exe" (
+    call :setup_backend
+    if errorlevel 1 goto :error
+)
+if not exist "%SCRIPT_DIR%\frontend\node_modules\vite\dist\node\cli.js" (
+    call :setup_frontend
+    if errorlevel 1 goto :error
+)
+call :resolve_init_mode "%REQUESTED_MODE%"
+if errorlevel 1 goto :error
+call :apply_selected_data_mode
+if errorlevel 1 goto :error
 call :start_services
 goto :end
 
@@ -49,6 +79,72 @@ if errorlevel 1 goto :error
 echo.
 echo [OK] Actualizacion completada. Ejecuta: setup.bat start
 goto :end
+
+:: -----------------------------------------------------------------------
+:resolve_init_mode
+set "INIT_MODE="
+set "RAW_MODE=%~1"
+
+if "%RAW_MODE%"=="" set "RAW_MODE=%SETUP_INIT_MODE%"
+
+if /I "%RAW_MODE%"=="demo" set "INIT_MODE=demo"
+if /I "%RAW_MODE%"=="seed" set "INIT_MODE=demo"
+if /I "%RAW_MODE%"=="clean" set "INIT_MODE=clean"
+if /I "%RAW_MODE%"=="zero" set "INIT_MODE=clean"
+if /I "%RAW_MODE%"=="cero" set "INIT_MODE=clean"
+if /I "%RAW_MODE%"=="admin-only" set "INIT_MODE=clean"
+if /I "%RAW_MODE%"=="admin_only" set "INIT_MODE=clean"
+
+if "%RAW_MODE%"=="" goto :ask_init_mode
+
+if not "%INIT_MODE%"=="" exit /b 0
+
+echo [ERROR] Modo de inicializacion invalido: %RAW_MODE% ^(usa demo^|clean^)
+exit /b 1
+
+:ask_init_mode
+echo.
+echo Inicializacion de datos
+echo   1^) demo  - carga datos de demo
+echo   2^) clean - base vacia salvo usuario admin
+set /p MODE_CHOICE=Elige [1/2] (default 1): 
+if "%MODE_CHOICE%"=="2" (
+    set "INIT_MODE=clean"
+) else (
+    set "INIT_MODE=demo"
+)
+exit /b 0
+
+:: -----------------------------------------------------------------------
+:apply_selected_data_mode
+if /I "%INIT_MODE%"=="clean" goto :prepare_admin_only_database
+if /I "%INIT_MODE%"=="demo"  goto :prepare_demo_database
+echo [ERROR] INIT_MODE no soportado: %INIT_MODE%
+exit /b 1
+
+:: -----------------------------------------------------------------------
+:prepare_demo_database
+echo.
+echo [INFO] Inicializando base de datos con datos demo...
+.venv\Scripts\python -m app.db.seed
+if errorlevel 1 (
+        echo [ERROR] Fallo al cargar datos demo
+        exit /b 1
+)
+echo [OK] Datos demo cargados
+exit /b 0
+
+:: -----------------------------------------------------------------------
+:prepare_admin_only_database
+echo.
+echo [INFO] Reseteando base de datos ^(solo admin^) ...
+.venv\Scripts\python scripts\reset_to_admin_only.py
+if errorlevel 1 (
+        echo [ERROR] Fallo al resetear base de datos a modo clean
+        exit /b 1
+)
+echo [OK] Base de datos limpia con solo admin
+exit /b 0
 
 :: -----------------------------------------------------------------------
 :setup_backend

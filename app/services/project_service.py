@@ -28,6 +28,7 @@ from app.models.project import ProjectStatus
 from app.models.project import ProjectPhase
 from app.models.task import Task, TaskStatus
 from app.models.task import Task as _Task
+from app.core.config import settings
 from app.models.user import UserRole
 from app.models.user import User as UserModel
 from fastapi import HTTPException
@@ -227,7 +228,7 @@ def calculate_evm(project_id: str, db: Session) -> dict:
     return {
         "project_id": project_id,
         "project_name": proj.name,
-        "currency": "EUR",
+        "currency": settings.DEFAULT_CURRENCY,
         "bac": round(bac, 2),
         "pv": round(pv, 2) if pv is not None else None,
         "ev": round(ev, 2),

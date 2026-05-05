@@ -4,8 +4,10 @@
 #  Contecflow — Script de instalación y arranque
 #  Compatible: macOS y Linux
 #  Uso:
-#    ./setup.sh          → instala todo y arranca
-#    ./setup.sh start    → solo arranca (ya instalado)
+#    ./setup.sh demo     → instala/actualiza y arranca con datos demo
+#    ./setup.sh clean    → instala/actualiza y arranca con BD vacía salvo admin
+#    ./setup.sh start    → solo arranca, preservando la BD existente
+#    ./setup.sh stop     → para servicios
 #    ./setup.sh update   → actualiza dependencias y BD
 # ============================================================
 
@@ -585,6 +587,44 @@ print('ok:' + str(updated))
   fi
 }
 
+# ── Reset DB data and keep only admin ────────────────────────────────────────
+prepare_admin_only_database() {
+  section "Reseteando base de datos (solo admin)"
+  cd "$SCRIPT_DIR"
+  resolve_venv_bins
+
+  if [ ! -f "$PY_BIN" ]; then
+    error "Python del entorno virtual no encontrado. Ejecuta primero ./setup.sh"
+    exit 1
+  fi
+
+  if ! "$PY_BIN" scripts/reset_to_admin_only.py; then
+    error "No se pudo resetear la base de datos a modo admin-only"
+    exit 1
+  fi
+
+  log "BD lista: solo usuario admin disponible"
+}
+
+# ── Seed demo data on demand ────────────────────────────────────────────────
+prepare_demo_database() {
+  section "Inicializando base de datos con datos demo"
+  cd "$SCRIPT_DIR"
+  resolve_venv_bins
+
+  if [ ! -f "$PY_BIN" ]; then
+    error "Python del entorno virtual no encontrado. Ejecuta primero ./setup.sh"
+    exit 1
+  fi
+
+  if ! "$PY_BIN" -m app.db.seed; then
+    error "No se pudieron cargar los datos demo"
+    exit 1
+  fi
+
+  log "Datos demo cargados"
+}
+
 # ── Start services ────────────────────────────────────────────────────────────
 start_services() {
   section "Arrancando Contecflow"
@@ -593,9 +633,8 @@ start_services() {
   preflight_start_checks
 
   if [ ! -f "$PY_BIN" ]; then
-    warn "Entorno virtual no encontrado. Inicializando backend automáticamente..."
-    setup_backend
-    resolve_venv_bins
+    error "Entorno virtual no encontrado. Ejecuta primero ./setup.sh demo o ./setup.sh clean"
+    exit 1
   fi
 
   if [ ! -d "$SCRIPT_DIR/frontend/node_modules" ] || [ ! -f "$SCRIPT_DIR/frontend/node_modules/vite/dist/node/cli.js" ]; then
@@ -756,6 +795,20 @@ stop_services() {
 print_banner
 
 case "${1:-}" in
+  demo)
+    log "Modo: demo"
+    setup_backend
+    setup_frontend
+    prepare_demo_database
+    start_services
+    ;;
+  clean)
+    log "Modo: clean (solo admin)"
+    setup_backend
+    setup_frontend
+    prepare_admin_only_database
+    start_services
+    ;;
   start)
     log "Modo: solo arrancar"
     start_services
@@ -770,9 +823,12 @@ case "${1:-}" in
     log "Actualización completada. Ejecuta ./setup.sh start para arrancar."
     ;;
   *)
-    log "Modo: instalación completa"
-    setup_backend
-    setup_frontend
-    start_services
+    echo "Uso:"
+    echo "  ./setup.sh demo"
+    echo "  ./setup.sh clean"
+    echo "  ./setup.sh start"
+    echo "  ./setup.sh stop"
+    echo "  ./setup.sh update"
+    exit 1
     ;;
 esac

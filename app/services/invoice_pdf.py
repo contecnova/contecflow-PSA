@@ -11,6 +11,7 @@ Genera un PDF de factura profesional con:
 import io
 from datetime import date, datetime
 from typing import List, Optional
+from app.core.config import settings
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 from reportlab.lib.pagesizes import A4
@@ -32,7 +33,7 @@ def generate_invoice_pdf(
     tax_rate: float,
     tax_amount: float,
     total: float,
-    currency: str = "EUR",
+    currency: Optional[str] = None,
     notes: Optional[str] = None,
     po_reference: Optional[str] = None,
     period_from=None,
@@ -44,6 +45,7 @@ def generate_invoice_pdf(
     Genera un PDF de factura y devuelve los bytes en formato PDF.
     """
 
+    currency = currency or settings.DEFAULT_CURRENCY
     W, H = A4
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(

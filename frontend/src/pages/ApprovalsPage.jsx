@@ -246,9 +246,35 @@ function WorkflowDetail({ workflowId, onBack }) {
     onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
+  const { mutate: updateCategory } = useMutation({
+    mutationFn: cat => approvalsApi.updateWorkflow(workflowId, {
+      trigger_conditions: cat ? JSON.stringify({ category: cat }) : '{}'
+    }),
+    onSuccess: () => { qc.invalidateQueries(['approval-workflow', workflowId]); toast.success('Categoría actualizada') },
+    onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
+  })
+
+  const [editingCategory, setEditingCategory] = useState(false)
+
   if (!wf) return null
   const steps = [...(wf.steps || [])].sort((a, b) => a.step_order - b.step_order)
   const entity = entityLabels(t)[wf.entity_type] || { label: wf.entity_type, icon: '○', color: 'var(--text-2)' }
+
+  let parsedConditions = {}
+  try { parsedConditions = JSON.parse(wf.trigger_conditions || '{}') } catch (_) {}
+  const configuredCategory = parsedConditions.category || ''
+
+  const DOC_CATEGORIES = [
+    { value: '', label: '— Fallback (todos los documentos) —' },
+    { value: 'contract', label: 'Contrato' },
+    { value: 'deliverable', label: 'Entregable' },
+    { value: 'proposal', label: 'Propuesta' },
+    { value: 'sop', label: 'SOP / Procedimiento' },
+    { value: 'requirements', label: 'Requisitos' },
+    { value: 'meeting_notes', label: 'Actas de reunión' },
+    { value: 'legal', label: 'Legal' },
+    { value: 'other', label: 'Otro' },
+  ]
 
   return (
     <div>
@@ -260,6 +286,29 @@ function WorkflowDetail({ workflowId, onBack }) {
             <span style={{ color: entity.color }}>{entity.icon} {entity.label}</span>
             {wf.is_default && <span style={{ marginLeft: 8, fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{t('approvals.default_badge')}</span>}
             {!wf.is_active && <span style={{ marginLeft: 8, fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 4, background: 'var(--danger-bg)', color: 'var(--danger)' }}>{t('approvals.inactive_badge')}</span>}
+            {wf.entity_type === 'document' && (
+              <span style={{ marginLeft: 8 }}>
+                {editingCategory ? (
+                  <select
+                    autoFocus
+                    defaultValue={configuredCategory}
+                    onBlur={e => { updateCategory(e.target.value); setEditingCategory(false) }}
+                    onChange={e => { updateCategory(e.target.value); setEditingCategory(false) }}
+                    style={{ fontSize: 'var(--text-2xs)', padding: '1px 4px', borderRadius: 4, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-1)', cursor: 'pointer' }}
+                  >
+                    {DOC_CATEGORIES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                ) : (
+                  <button
+                    title="Cambiar categoría del documento"
+                    onClick={() => setEditingCategory(true)}
+                    style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 4, background: configuredCategory ? 'var(--purple-bg, #ede9fe)' : 'var(--surface-3)', color: configuredCategory ? 'var(--purple, #7c3aed)' : 'var(--text-3)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    {configuredCategory ? `📂 ${DOC_CATEGORIES.find(o => o.value === configuredCategory)?.label || configuredCategory}` : '📂 Todos los documentos'} ✏️
+                  </button>
+                )}
+              </span>
+            )}
           </div>
         </div>
         <button aria-pressed={wf.is_active} onClick={() => toggleActive(!wf.is_active)} style={{
@@ -541,7 +590,28 @@ function MyPendingTab() {
 
 function WorkflowTemplatesTab() {
   const toast = useToast()
+  const idPrefix = useId()
   const qc = useQueryClient()
+  const [showCreateScratch, setShowCreateScratch] = useState(false)
+  const [scratch, setScratch] = useState({
+    name: '',
+    description: '',
+    entity_type: 'document',
+    is_default: false,
+    document_category: '',
+    steps: [
+      {
+        name: 'Aprobacion inicial',
+        approver_type: 'role',
+        approver_role: 'pm',
+        approver_department: '',
+        timeout_hours: 48,
+        on_timeout: 'escalate',
+        is_optional: false,
+      },
+    ],
+  })
+
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['approval-workflow-templates'],
     queryFn: () => approvalsApi.listTemplates().then(r => r.data || []),
@@ -555,20 +625,217 @@ function WorkflowTemplatesTab() {
     onError: e => toast.error(extractErr(e, 'Error creando flujo desde plantilla')),
   })
 
-  if (isLoading) return <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-2)' }}>Cargando plantillas...</div>
-  if (!templates.length) return <EmptyState icon="🧩" title="Sin plantillas" description="No hay plantillas disponibles" />
+  const { mutate: createScratchWorkflow, isPending: isCreatingScratch } = useMutation({
+    mutationFn: async (payload) => {
+      const triggerConditions = payload.entity_type === 'document' && payload.document_category
+        ? JSON.stringify({ category: payload.document_category })
+        : '{}'
+
+      const created = await approvalsApi.createWorkflow({
+        name: payload.name,
+        description: payload.description || null,
+        entity_type: payload.entity_type,
+        is_default: !!payload.is_default,
+        trigger_conditions: triggerConditions,
+      })
+
+      const workflowId = created?.data?.id
+      const normalizedSteps = (payload.steps || [])
+        .filter(s => (s.name || '').trim())
+        .map((s, idx) => ({
+          step_order: idx + 1,
+          name: s.name.trim(),
+          approver_type: s.approver_type,
+          approver_role: s.approver_type === 'role' ? (s.approver_role || null) : null,
+          approver_department: s.approver_type === 'any_in_department' ? (s.approver_department || null) : null,
+          timeout_hours: Number(s.timeout_hours || 48),
+          on_timeout: s.on_timeout || 'escalate',
+          is_optional: !!s.is_optional,
+        }))
+
+      for (const step of normalizedSteps) {
+        await approvalsApi.addStep(workflowId, step)
+      }
+
+      return created
+    },
+    onSuccess: () => {
+      qc.invalidateQueries(['approval-workflows'])
+      setShowCreateScratch(false)
+      setScratch({
+        name: '',
+        description: '',
+        entity_type: 'document',
+        is_default: false,
+        document_category: '',
+        steps: [
+          {
+            name: 'Aprobacion inicial',
+            approver_type: 'role',
+            approver_role: 'pm',
+            approver_department: '',
+            timeout_hours: 48,
+            on_timeout: 'escalate',
+            is_optional: false,
+          },
+        ],
+      })
+      toast.success('Flujo creado desde cero')
+    },
+    onError: e => toast.error(extractErr(e, 'Error creando flujo desde cero')),
+  })
+
+  const addScratchStep = () => {
+    setScratch(s => ({
+      ...s,
+      steps: [
+        ...s.steps,
+        {
+          name: `Paso ${s.steps.length + 1}`,
+          approver_type: 'role',
+          approver_role: 'pm',
+          approver_department: '',
+          timeout_hours: 48,
+          on_timeout: 'escalate',
+          is_optional: false,
+        },
+      ],
+    }))
+  }
+
+  const updateScratchStep = (index, field, value) => {
+    setScratch(s => ({
+      ...s,
+      steps: s.steps.map((step, idx) => (idx === index ? { ...step, [field]: value } : step)),
+    }))
+  }
+
+  const removeScratchStep = (index) => {
+    setScratch(s => ({
+      ...s,
+      steps: s.steps.filter((_, idx) => idx !== index),
+    }))
+  }
+
+  const canCreateScratch = (scratch.name || '').trim().length > 0 && (scratch.steps || []).some(s => (s.name || '').trim().length > 0)
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
-      {templates.map(tpl => (
-        <div key={tpl.id} style={{ ...panel, padding: '14px 16px' }}>
-          <div style={{ fontSize: "var(--text-md)", fontWeight: 800, marginBottom: 6 }}>{tpl.name}</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>{tpl.description || 'Plantilla de flujo lista para usar.'}</div>
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>Entidad: {tpl.entity_type} · Pasos: {(tpl.steps || []).length}</div>
-          <Button size="sm" onClick={() => createFromTemplate({ template_id: tpl.id })} loading={isPending}>Usar plantilla</Button>
+    <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <Button onClick={() => setShowCreateScratch(true)}>Crear desde cero</Button>
+      </div>
+
+      {isLoading && <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-2)' }}>Cargando plantillas...</div>}
+
+      {!isLoading && !templates.length && (
+        <EmptyState icon="🧩" title="Sin plantillas" description="No hay plantillas disponibles" />
+      )}
+
+      {!isLoading && templates.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
+          {templates.map(tpl => (
+            <div key={tpl.id} style={{ ...panel, padding: '14px 16px' }}>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 800, marginBottom: 6 }}>{tpl.name}</div>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>{tpl.description || 'Plantilla de flujo lista para usar.'}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>Entidad: {tpl.entity_type} · Pasos: {(tpl.steps || []).length}</div>
+              <Button size="sm" onClick={() => createFromTemplate({ template_id: tpl.id })} loading={isPending}>Usar plantilla</Button>
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+
+      {showCreateScratch && (
+        <Modal open title="Crear flujo desde cero" onClose={() => setShowCreateScratch(false)} width={760}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div>
+              <label htmlFor={`${idPrefix}-scratch-name`} style={lbl}>Nombre</label>
+              <input id={`${idPrefix}-scratch-name`} value={scratch.name} onChange={e => setScratch(s => ({ ...s, name: e.target.value }))} style={inp} placeholder="Ej: Aprobacion legal express" />
+            </div>
+            <div>
+              <label htmlFor={`${idPrefix}-scratch-entity`} style={lbl}>Entidad</label>
+              <select id={`${idPrefix}-scratch-entity`} value={scratch.entity_type} onChange={e => setScratch(s => ({ ...s, entity_type: e.target.value }))} style={inp}>
+                {Object.entries(entityLabels(() => '')).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+              </select>
+            </div>
+            {scratch.entity_type === 'document' && (
+              <div style={{ gridColumn: '1/-1' }}>
+                <label htmlFor={`${idPrefix}-scratch-category`} style={lbl}>Categoria documento (opcional)</label>
+                <input id={`${idPrefix}-scratch-category`} value={scratch.document_category} onChange={e => setScratch(s => ({ ...s, document_category: e.target.value }))} style={inp} placeholder="legal, deliverable, proposal..." />
+              </div>
+            )}
+            <div style={{ gridColumn: '1/-1' }}>
+              <label htmlFor={`${idPrefix}-scratch-description`} style={lbl}>Descripcion</label>
+              <input id={`${idPrefix}-scratch-description`} value={scratch.description} onChange={e => setScratch(s => ({ ...s, description: e.target.value }))} style={inp} placeholder="Flujo creado manualmente desde plantillas" />
+            </div>
+            <label htmlFor={`${idPrefix}-scratch-default`} style={{ gridColumn: '1/-1', display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
+              <input id={`${idPrefix}-scratch-default`} type="checkbox" checked={scratch.is_default} onChange={e => setScratch(s => ({ ...s, is_default: e.target.checked }))} style={{ accentColor: 'var(--accent)' }} />
+              Marcar como flujo por defecto
+            </label>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>Pasos de aprobacion</div>
+            <button onClick={addScratchStep} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>+ Anadir paso</button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 330, overflowY: 'auto', paddingRight: 4 }}>
+            {scratch.steps.map((step, idx) => (
+              <div key={`${idx}-${step.name}`} style={{ border: '1px solid var(--surface-4)', borderRadius: 10, padding: 10, background: 'var(--surface-3)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 0.7fr 0.9fr auto', gap: 8, alignItems: 'end' }}>
+                  <div>
+                    <label htmlFor={`${idPrefix}-step-name-${idx}`} style={lbl}>Paso {idx + 1}</label>
+                    <input id={`${idPrefix}-step-name-${idx}`} value={step.name} onChange={e => updateScratchStep(idx, 'name', e.target.value)} style={inp} placeholder="Nombre del paso" />
+                  </div>
+                  <div>
+                    <label htmlFor={`${idPrefix}-step-type-${idx}`} style={lbl}>Aprobador</label>
+                    <select id={`${idPrefix}-step-type-${idx}`} value={step.approver_type} onChange={e => updateScratchStep(idx, 'approver_type', e.target.value)} style={inp}>
+                      <option value="role">Rol</option>
+                      <option value="manager">Manager</option>
+                      <option value="any_in_department">Departamento</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor={`${idPrefix}-step-timeout-${idx}`} style={lbl}>Timeout(h)</label>
+                    <input id={`${idPrefix}-step-timeout-${idx}`} type="number" min="1" value={step.timeout_hours} onChange={e => updateScratchStep(idx, 'timeout_hours', e.target.value)} style={inp} />
+                  </div>
+                  <div>
+                    <label htmlFor={`${idPrefix}-step-ontimeout-${idx}`} style={lbl}>On timeout</label>
+                    <select id={`${idPrefix}-step-ontimeout-${idx}`} value={step.on_timeout} onChange={e => updateScratchStep(idx, 'on_timeout', e.target.value)} style={inp}>
+                      <option value="escalate">Escalar</option>
+                      <option value="auto_approve">Auto aprobar</option>
+                      <option value="reject">Rechazar</option>
+                    </select>
+                  </div>
+                  <button onClick={() => removeScratchStep(idx)} disabled={scratch.steps.length === 1} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--danger)', cursor: scratch.steps.length === 1 ? 'not-allowed' : 'pointer', opacity: scratch.steps.length === 1 ? 0.5 : 1 }}>Eliminar</button>
+                </div>
+
+                {step.approver_type === 'role' && (
+                  <div style={{ marginTop: 8 }}>
+                    <label htmlFor={`${idPrefix}-step-role-${idx}`} style={lbl}>Rol requerido</label>
+                    <select id={`${idPrefix}-step-role-${idx}`} value={step.approver_role || ''} onChange={e => updateScratchStep(idx, 'approver_role', e.target.value)} style={inp}>
+                      <option value="">Seleccionar rol...</option>
+                      {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {step.approver_type === 'any_in_department' && (
+                  <div style={{ marginTop: 8 }}>
+                    <label htmlFor={`${idPrefix}-step-dept-${idx}`} style={lbl}>Departamento</label>
+                    <input id={`${idPrefix}-step-dept-${idx}`} value={step.approver_department || ''} onChange={e => updateScratchStep(idx, 'approver_department', e.target.value)} style={inp} placeholder="Finance, IT..." />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14 }}>
+            <button onClick={() => setShowCreateScratch(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 14px', color: 'var(--text-2)', cursor: 'pointer' }}>Cancelar</button>
+            <Button onClick={() => createScratchWorkflow(scratch)} loading={isCreatingScratch} disabled={!canCreateScratch}>Crear flujo</Button>
+          </div>
+        </Modal>
+      )}
+    </>
   )
 }
 
@@ -1077,7 +1344,7 @@ export default function ApprovalsPage({ mode = 'inbox' }) {
   const [tab, setTab]           = useState(isConfigMode ? 'workflows' : 'pending')
   const [selected, setSelected] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ name: '', description: '', entity_type: 'timesheet', is_default: false, chain_on_approval_workflow_id: '', sla_block_on_breach: false, auto_approval_rules: '' })
+  const [form, setForm] = useState({ name: '', description: '', entity_type: 'timesheet', is_default: false, document_category: '', chain_on_approval_workflow_id: '', sla_block_on_breach: false, auto_approval_rules: '' })
   const canQueryProtected = !loading && !!user
 
   const { data: workflows = [], isLoading } = useQuery({
@@ -1299,6 +1566,23 @@ export default function ApprovalsPage({ mode = 'inbox' }) {
                 {Object.entries(entityLabels(t)).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
               </select>
             </div>
+            {form.entity_type === 'document' && (
+              <div>
+                <label htmlFor={`${createIdPrefix}-doc-category`} style={lbl}>Categoría del documento</label>
+                <select id={`${createIdPrefix}-doc-category`} value={form.document_category} onChange={e => setForm(f=>({...f,document_category:e.target.value}))} style={inp}>
+                  <option value="">— Fallback: aplica a todos los documentos —</option>
+                  <option value="contract">Contrato</option>
+                  <option value="deliverable">Entregable</option>
+                  <option value="proposal">Propuesta</option>
+                  <option value="sop">SOP / Procedimiento</option>
+                  <option value="requirements">Requisitos</option>
+                  <option value="meeting_notes">Actas de reunión</option>
+                  <option value="legal">Legal</option>
+                  <option value="other">Otro</option>
+                </select>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4 }}>Si no se especifica categoría, este flujo actúa como fallback para cualquier documento sin flujo específico.</div>
+              </div>
+            )}
             <div>
               <label htmlFor={`${createIdPrefix}-description`} style={lbl}>{t('approvals.description')}</label>
               <input id={`${createIdPrefix}-description`} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} placeholder={t('approvals.description_placeholder')} />
@@ -1330,7 +1614,13 @@ export default function ApprovalsPage({ mode = 'inbox' }) {
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
-            <Button onClick={() => create(form)} loading={creating} disabled={!form.name || creating}>{t('approvals.create_workflow')}</Button>
+            <Button onClick={() => {
+              const { document_category, ...rest } = form
+              const trigger_conditions = (form.entity_type === 'document' && document_category)
+                ? JSON.stringify({ category: document_category })
+                : '{}'
+              create({ ...rest, trigger_conditions })
+            }} loading={creating} disabled={!form.name || creating}>{t('approvals.create_workflow')}</Button>
           </div>
         </Modal>
       )}

@@ -400,7 +400,13 @@ async def security_headers_middleware(request: Request, call_next):
         response.headers["deprecation"] = "true"
 
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
+    # Document file/preview endpoints need to render inside the SPA's iframe (same origin).
+    # Everything else stays DENY for click-jacking protection.
+    is_doc_file_route = (
+        path.startswith(f"{docs_base}/documents/file/")
+        or (path.startswith(f"{docs_base}/documents/") and path.endswith("/preview"))
+    )
+    response.headers["X-Frame-Options"] = "SAMEORIGIN" if is_doc_file_route else "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     if settings.ENVIRONMENT == "production":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"

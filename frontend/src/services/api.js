@@ -789,9 +789,13 @@ export const documentsApi = {
   update:    (id, data) => api.patch(`/documents/${id}`, data),
   delete:    (id)       => api.delete(`/documents/${id}`),
   approve:   (id, data) => api.post(`/documents/${id}/approve`, data),
-    submitApproval: (id) => api.post(`/documents/${id}/submit-approval`),
+  submitApproval: (id)  => api.post(`/documents/${id}/submit-approval`),
   aiSummary: (id)       => api.post(`/documents/${id}/ai-summary`),
   addVersion:(id, fd)   => api.post(`/documents/${id}/versions`, fd),
+  // Permisos
+  listPermissions:   (id)              => api.get(`/documents/${id}/permissions`),
+  grantPermission:   (id, data)        => api.post(`/documents/${id}/permissions`, data),
+  revokePermission:  (id, permId)      => api.delete(`/documents/${id}/permissions/${permId}`),
 }
 
 // ── Custom Fields ─────────────────────────────────────────────────────────────
@@ -1587,6 +1591,7 @@ export const gitApi = {
 export const settingsAdminApi = {
   getLogLevel: () => api.get('/settings/log-level'),
   setLogLevel: (data) => api.post('/settings/log-level', data),
+  getOrgDefaults: () => api.get('/settings/org-defaults'),
 }
 
 // ── Billing Smart Match ───────────────────────────────────────────────────────
