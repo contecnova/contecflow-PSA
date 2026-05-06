@@ -25,13 +25,40 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user, get_db, require_admin
 from app.models.esign import ESignEnvelope, ESignProvider, ESignStatus
 from app.models.user import User
+from app.models.settings import AppSetting
 from app.services import esign_service
 
 router = APIRouter()
 _logger = logging.getLogger(__name__)
+
+# ── E-sign config keys stored in AppSetting KV store ──────────────────────────
+_ESIGN_KEYS = [
+    "esign.docusign_integration_key",
+    "esign.docusign_secret_key",
+    "esign.docusign_account_id",
+    "esign.docusign_base_url",
+    "esign.adobe_sign_client_id",
+    "esign.adobe_sign_client_secret",
+    "esign.adobe_sign_base_url",
+]
+_SECRET_KEYS = {"esign.docusign_secret_key", "esign.adobe_sign_client_secret"}
+
+
+def _get_esign_setting(db: Session, key: str) -> Optional[str]:
+    row = db.query(AppSetting).filter(AppSetting.key == key).first()
+    return row.value if row and row.value else None
+
+
+def _set_esign_setting(db: Session, key: str, value: str) -> None:
+    row = db.query(AppSetting).filter(AppSetting.key == key).first()
+    if row:
+        row.value = value
+    else:
+        db.add(AppSetting(key=key, value=value, description=f"E-firma config: {key}"))
+    db.commit()
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -146,6 +173,89 @@ def create_envelope(
         provider_result=provider_result,
     )
 
+
+# ── Static sub-routes (must come BEFORE /{envelope_id} to avoid capture) ─────
+
+# ── Summary ───────────────────────────────────────────────────────────────────
+
+@router.get("/summary/stats", summary="Resumen de firma electrónica")
+def esign_stats(
+    db: Session = Depends(get_db),
+    _:  User    = Depends(get_current_user),
+):
+    stats = esign_service.get_stats(db)
+    # Check DB config override first, then fall back to env vars
+    ds_key = _get_esign_setting(db, "esign.docusign_integration_key")
+    ds_acc = _get_esign_setting(db, "esign.docusign_account_id")
+    ab_key = _get_esign_setting(db, "esign.adobe_sign_client_id")
+    docusign_ok = bool(ds_key and ds_acc) or _docusign_configured()
+    adobe_ok    = bool(ab_key) or _adobe_configured()
+    return {
+        **stats,
+        "providers": {
+            "docusign_configured": docusign_ok,
+            "adobe_configured":    adobe_ok,
+        },
+    }
+
+
+# ── E-firma provider configuration ───────────────────────────────────────────
+
+class ESignConfigIn(BaseModel):
+    docusign_integration_key: Optional[str] = None
+    docusign_secret_key:      Optional[str] = None
+    docusign_account_id:      Optional[str] = None
+    docusign_base_url:        Optional[str] = None
+    adobe_sign_client_id:     Optional[str] = None
+    adobe_sign_client_secret: Optional[str] = None
+    adobe_sign_base_url:      Optional[str] = None
+
+
+@router.get("/config", summary="Leer configuración de proveedores de firma")
+def get_esign_config(
+    db: Session = Depends(get_db),
+    _:  User    = Depends(require_admin),
+):
+    result = {}
+    for key in _ESIGN_KEYS:
+        short = key.replace("esign.", "")
+        val = _get_esign_setting(db, key)
+        if key in _SECRET_KEYS:
+            result[short] = "***" if val else ""
+        else:
+            result[short] = val or ""
+    ds_key = _get_esign_setting(db, "esign.docusign_integration_key")
+    ds_acc = _get_esign_setting(db, "esign.docusign_account_id")
+    ab_key = _get_esign_setting(db, "esign.adobe_sign_client_id")
+    result["docusign_configured"] = bool(ds_key and ds_acc) or _docusign_configured()
+    result["adobe_configured"]    = bool(ab_key) or _adobe_configured()
+    return result
+
+
+@router.patch("/config", summary="Guardar configuración de proveedores de firma")
+def update_esign_config(
+    payload: ESignConfigIn,
+    db:  Session = Depends(get_db),
+    _:   User    = Depends(require_admin),
+):
+    field_key_map = {
+        "docusign_integration_key": "esign.docusign_integration_key",
+        "docusign_secret_key":      "esign.docusign_secret_key",
+        "docusign_account_id":      "esign.docusign_account_id",
+        "docusign_base_url":        "esign.docusign_base_url",
+        "adobe_sign_client_id":     "esign.adobe_sign_client_id",
+        "adobe_sign_client_secret": "esign.adobe_sign_client_secret",
+        "adobe_sign_base_url":      "esign.adobe_sign_base_url",
+    }
+    data = payload.model_dump(exclude_none=True)
+    for field, db_key in field_key_map.items():
+        val = data.get(field)
+        if val is not None and val != "***":
+            _set_esign_setting(db, db_key, val)
+    return {"ok": True}
+
+
+# ── Per-envelope endpoints ────────────────────────────────────────────────────
 
 @router.get("/{envelope_id}", response_model=EnvelopeOut, summary="Detalle de solicitud")
 def get_envelope(
@@ -280,20 +390,3 @@ async def adobe_webhook(
         _logger.warning(f"[eSign] Adobe webhook parse error: {e}")
 
     return {"status": "ok"}
-
-
-# ── Summary ───────────────────────────────────────────────────────────────────
-
-@router.get("/summary/stats", summary="Resumen de firma electrónica")
-def esign_stats(
-    db: Session = Depends(get_db),
-    _:  User    = Depends(get_current_user),
-):
-    stats = esign_service.get_stats(db)
-    return {
-        **stats,
-        "providers": {
-            "docusign_configured": _docusign_configured(),
-            "adobe_configured":    _adobe_configured(),
-        },
-    }

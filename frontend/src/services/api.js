@@ -1432,11 +1432,13 @@ export const permissionsApi = {
 
 // ── eSign ─────────────────────────────────────────────────────────────────────
 export const esignApi = {
-  list:   () => api.get('/esign'),
-  stats:  () => api.get('/esign/summary/stats'),
-  create: (data) => api.post('/esign', data),
-  delete: (id) => api.delete(`/esign/${id}`),
-  sign:   (envelopeId, signerId) => api.patch(`/esign/${envelopeId}/signers/${signerId}/signed`),
+  list:        () => api.get('/esign'),
+  stats:       () => api.get('/esign/summary/stats'),
+  create:      (data) => api.post('/esign', data),
+  delete:      (id) => api.delete(`/esign/${id}`),
+  sign:        (envelopeId, signerId) => api.patch(`/esign/${envelopeId}/signers/${signerId}/signed`),
+  getConfig:   () => api.get('/esign/config'),
+  saveConfig:  (data) => api.patch('/esign/config', data),
 }
 
 // ── Public Forms ──────────────────────────────────────────────────────────────
@@ -1600,6 +1602,22 @@ export const settingsAdminApi = {
 // ── Billing Smart Match ───────────────────────────────────────────────────────
 export const billingSmartMatchApi = {
   match: (data) => api.post('/billing-reports/smartmatch', data),
+}
+
+// ── BPMN Processes ────────────────────────────────────────────────────────────
+export const bpmnProcessesApi = {
+  list:        (params)        => api.get('/bpmn-processes', { params }),
+  catalogue:   ()              => api.get('/bpmn-processes/catalogue'),
+  seed:        (force = false) => api.post('/bpmn-processes/seed', { force }),
+  get:         (id)            => api.get(`/bpmn-processes/${id}`),
+  create:      (data)          => api.post('/bpmn-processes', data),
+  update:      (id, data)      => api.patch(`/bpmn-processes/${id}`, data),
+  delete:      (id)            => api.delete(`/bpmn-processes/${id}`),
+  duplicate:   (id, name)      => api.post(`/bpmn-processes/${id}/duplicate`, { new_name: name }),
+  saveVersion: (id, xml, n)    => api.post(`/bpmn-processes/${id}/versions`, { bpmn_xml: xml, notes: n }),
+  versions:    (id)            => api.get(`/bpmn-processes/${id}/versions`),
+  getVersion:  (id, v)         => api.get(`/bpmn-processes/${id}/versions/${v}`),
+  publish:     (id, v)         => api.post(`/bpmn-processes/${id}/versions/${v}/publish`),
 }
 
 // ── Nexus AI Agent ────────────────────────────────────────────────────────────

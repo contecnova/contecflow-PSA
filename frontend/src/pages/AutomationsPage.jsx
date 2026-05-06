@@ -568,6 +568,7 @@ function WorkflowModal({ workflow, onClose }) {
 
 // ── Workflows Tab ─────────────────────────────────────────────────────────────
 function WorkflowsTab() {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showModal, setShowModal] = useState(false)

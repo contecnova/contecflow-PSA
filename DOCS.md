@@ -157,6 +157,11 @@ Notas operativas recientes:
 - La state machine de tareas ahora es explícita: `cancelled` es terminal (no se puede salir), y `todo → in_review` es una transición inválida (requiere pasar por `in_progress` primero). El resto de transiciones siguen permitidas para el kanban. El mapa `_TASK_VALID_TRANSITIONS` en `task_service.py` documenta el grafo completo.
 - Añadido `POST /api/v1/invoices` para crear facturas manualmente con líneas, tax_rate y datos del cliente. El endpoint calcula `subtotal`, `tax_amount` y `total` automáticamente y genera número secuencial anual (INV-YYYY-NNN).
 - Añadido `GET /api/v1/invoices/{id}/pdf` que devuelve un PDF válido (ReportLab) con cabecera `%PDF`, `content-type: application/pdf` y `content-disposition: attachment; filename=factura_NNN.pdf`. Empleados y subcontratistas reciben 403.
+- En `/automations`, se corrigió un fallo de render en la pestaña Workflows: `WorkflowsTab` ya inicializa `t` con `useAppT()`, evitando `ReferenceError: t is not defined` al cargar la página.
+- Se corrigió una clave de traducción faltante en Tareas: `tasks.no_tasks` se añadió al bloque activo de `tasks` en `es` y `en`, eliminando el warning `[i18n-missing] tasks.no_tasks` en tiempo de ejecución.
+- En `/automations`, se completaron traducciones faltantes en el bloque activo (`act_*`, `param_*`, `cat_*`) para `es` y `en`, eliminando warnings `[i18n-missing]` al abrir `WorkflowModal` y configurar pasos/acciones.
+- En `/automations`, se añadió cobertura completa de `trig_*` (catálogo total de disparadores) en `es` y `en`, eliminando warnings masivos `[i18n-missing] automations.trig_*` en RuleModal y listados.
+- En `/settings`, los inputs sensibles (`type=password`) de "Nuevo Usuario" y de proveedores eSign ahora están dentro de formularios reales (`<form onSubmit=...>`), eliminando el warning del navegador "Password field is not contained in a form" sin cambiar el flujo de guardado.
 
 ### Seed
 - python scripts/seed_full_data.py
@@ -616,3 +621,20 @@ Fetches `/settings/org-defaults` con TanStack Query (staleTime 5min). Devuelve l
 - `frontend/src/pages/RevenuePage.jsx`: corregida regresión en formatter (`const fmt = (n) => fmtEur(n, currency)`) para evitar recursión accidental
 
 
+
+## Settings → E-firma (nueva sección)
+
+### Descripción
+Sección de configuración de credenciales para proveedores de firma electrónica (DocuSign y Adobe Sign) accesible desde Settings → Sistema → E-firma (solo rol admin).
+
+### Backend
+- `app/api/v1/endpoints/esign.py`: añadidos endpoints `GET /esign/config` y `PATCH /esign/config` que persisten las credenciales en la tabla `app_settings` (KV store existente, sin nueva migración).
+- Helper `_get_esign_setting` / `_set_esign_setting` para leer/escribir por clave `esign.*`.
+- Secretos (`docusign_secret_key`, `adobe_sign_client_secret`) se enmascaran como `"***"` en la respuesta GET; PATCH ignora el valor `"***"` para no sobreescribir con el placeholder.
+- `GET /esign/summary/stats` ahora consulta primero las claves DB y hace fallback a env vars para determinar `docusign_configured` / `adobe_configured`.
+
+### Frontend
+- `frontend/src/services/api.js`: `esignApi` ampliado con `getConfig` y `saveConfig`.
+- `frontend/src/pages/SettingsPageSections.jsx`: nuevo componente `ESignSettingsSection` con dos tarjetas (DocuSign / Adobe Sign), badge de estado configurado/no configurado, campos de credenciales (secretos tipo password), botón Guardar por proveedor, y nota sobre modo manual.
+- `frontend/src/pages/SettingsPage.jsx`: importado `ESignSettingsSection`; añadida pestaña `{ id: 'esign', label: 'E-firma', roles: ['admin'] }` en el grupo Sistema.
+- `frontend/src/pages/ESignPage.jsx`: el texto estático "Configura las credenciales en Settings → E-firma para habilitar las integraciones." reemplazado por un enlace clicable a `/settings`.

@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, advancedConfigApi } from '../services/settingsApi'
-import { usersApi, biSmartAlertsApi } from '../services/api'
+import { usersApi, biSmartAlertsApi, esignApi } from '../services/api'
 import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Settings } from 'lucide-react'
@@ -177,9 +177,14 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
   const isEdit = !!user
   const [form, setForm] = useState({ username: user?.username || '', email: user?.email || '', full_name: user?.full_name || '', role: user?.role || 'employee', department: user?.department || '', job_title: user?.job_title || '', weekly_capacity_hours: user?.weekly_capacity_hours || 40, hourly_rate: user?.hourly_rate || '', timezone: user?.timezone || '', password: '' })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSave(form)
+  }
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? `Editar — ${user.full_name}` : 'Nuevo Usuario'} width={580}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <form onSubmit={handleSubmit}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}><label style={ls}>Nombre completo *</label><input value={form.full_name} onChange={set('full_name')} style={fs} /></div>
         <div><label style={ls}>Usuario *</label><input value={form.username} onChange={set('username')} style={fs} /></div>
         <div><label style={ls}>Email *</label><input type="email" value={form.email} onChange={set('email')} style={fs} /></div>
@@ -205,12 +210,13 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         </div>
         {!isEdit && <div style={{ gridColumn: '1/-1' }}><label style={ls}>Contraseña *</label><input type="password" value={form.password} onChange={set('password')} style={fs} /></div>}
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => onSave(form)} disabled={isPending || !form.full_name || !form.username || !form.email || (!isEdit && !form.password)}>
+          <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={isPending || !form.full_name || !form.username || !form.email || (!isEdit && !form.password)}>
             {isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear'}
           </Button>
         </div>
-      </div>
+        </div>
+      </form>
     </Modal>
   )
 }
@@ -1367,6 +1373,155 @@ function MetricsSection() {
 }
 
 
+// ── E-firma (Electronic Signature) settings ───────────────────────────────────
+
+const ESIGN_PROVIDERS = [
+  {
+    id: 'docusign',
+    label: 'DocuSign',
+    icon: '🖊',
+    configKey: 'docusign_configured',
+    fields: [
+      { key: 'docusign_integration_key', label: 'Integration Key (Client ID)', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', secret: false },
+      { key: 'docusign_account_id',      label: 'Account ID',                  placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', secret: false },
+      { key: 'docusign_secret_key',      label: 'Secret Key',                  placeholder: '••••••••••••••••',                     secret: true  },
+      { key: 'docusign_base_url',        label: 'Base URL',                    placeholder: 'https://demo.docusign.net/restapi',   secret: false },
+    ],
+  },
+  {
+    id: 'adobe',
+    label: 'Adobe Sign',
+    icon: '📝',
+    configKey: 'adobe_configured',
+    fields: [
+      { key: 'adobe_sign_client_id',     label: 'Client ID',     placeholder: 'CBJCH…',                                         secret: false },
+      { key: 'adobe_sign_client_secret', label: 'Client Secret', placeholder: '••••••••••••••••',                               secret: true  },
+      { key: 'adobe_sign_base_url',      label: 'Base URL',      placeholder: 'https://api.na1.adobesign.com/api/rest/v6',     secret: false },
+    ],
+  },
+]
+
+function ProviderCard({ provider, config, form, onChange, onSave, isSaving }) {
+  const isConfigured = config?.[provider.configKey]
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSave(provider)
+  }
+  return (
+    <div style={{ border: `1px solid ${isConfigured ? 'var(--success)' : 'var(--surface-4)'}`, borderRadius: 12, padding: '18px 20px', background: 'var(--surface-2)', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 20 }}>{provider.icon}</span>
+          <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{provider.label}</span>
+        </div>
+        <span style={{
+          fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+          background: isConfigured ? 'var(--success-bg)' : 'var(--surface-4)',
+          color: isConfigured ? 'var(--success)' : 'var(--text-3)',
+        }}>
+          {isConfigured ? '✓ Configurado' : 'No configurado'}
+        </span>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+        {provider.fields.map(f => (
+          <div key={f.key}>
+            <label style={ls}>{f.label}</label>
+            <input
+              type={f.secret ? 'password' : 'text'}
+              value={form[f.key] ?? ''}
+              onChange={e => onChange(f.key, e.target.value)}
+              placeholder={f.secret && form[f.key] === '***' ? 'Guardado — introduce para cambiar' : f.placeholder}
+              style={fs}
+              autoComplete="off"
+            />
+          </div>
+        ))}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button size="sm" type="submit" loading={isSaving}>Guardar {provider.label}</Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function ESignSettingsSection() {
+  const toast = useToast()
+  const qc = useQueryClient()
+
+  const { data: config, isLoading } = useQuery({
+    queryKey: ['esign-config'],
+    queryFn: () => esignApi.getConfig().then(r => r.data),
+  })
+
+  const [form, setForm] = useState({})
+  React.useEffect(() => {
+    if (config) setForm({ ...config })
+  }, [config])
+
+  const { mutate: save, isPending: isSaving } = useMutation({
+    mutationFn: (data) => esignApi.saveConfig(data),
+    onSuccess: () => {
+      qc.invalidateQueries(['esign-config'])
+      qc.invalidateQueries(['esign-stats'])
+      toast.success('Configuración guardada')
+    },
+    onError: e => toast.error(extractErr(e, 'Error guardando configuración')),
+  })
+
+  const handleChange = (key, value) => setForm(f => ({ ...f, [key]: value }))
+
+  const handleSave = (provider) => {
+    const payload = {}
+    provider.fields.forEach(f => {
+      const val = form[f.key]
+      if (val !== undefined) payload[f.key] = val
+    })
+    save(payload)
+  }
+
+  return (
+    <Section icon="✍" title="Firma Electrónica" description="Configura las credenciales de los proveedores de firma electrónica. Los cambios se aplican inmediatamente.">
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <>
+          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, marginBottom: 6 }}>Modo manual siempre disponible</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+              Sin credenciales, las solicitudes se gestionan en modo manual: NexusPM registra el estado internamente sin enviar sobres a proveedores externos. Configura DocuSign o Adobe Sign para el flujo completo.
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Webhooks de sincronización de estado</div>
+            <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px' }}>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>Configura en el panel de tu proveedor las siguientes URLs de webhook:</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--accent)', marginBottom: 2 }}>DocuSign Connect: <span style={{ color: 'var(--text-1)' }}>/api/v1/esign/webhooks/docusign</span></div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--accent)' }}>Adobe Sign: <span style={{ color: 'var(--text-1)' }}>/api/v1/esign/webhooks/adobe</span></div>
+            </div>
+          </div>
+
+          {ESIGN_PROVIDERS.map(provider => (
+            <ProviderCard
+              key={provider.id}
+              provider={provider}
+              config={config}
+              form={form}
+              onChange={handleChange}
+              onSave={handleSave}
+              isSaving={isSaving}
+            />
+          ))}
+        </>
+      )}
+    </Section>
+  )
+}
+
 export {
   GeneralSection,
   UsersSection,
@@ -1385,4 +1540,5 @@ export {
   EmailInboundSection,
   LogLevelSection,
   SystemStateSection,
+  ESignSettingsSection,
 }

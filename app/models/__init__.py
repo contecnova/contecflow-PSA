@@ -132,6 +132,9 @@ from app.models.jira_integration import (  # noqa: F401
 from app.models.workflow_designer import (  # noqa: F401
     WorkflowBlueprint, WorkflowBlueprintVersion, WorkflowBlueprintStatus,
 )
+from app.models.bpmn_process import (  # noqa: F401
+    BPMNProcess, BPMNProcessVersion, BPMNProcessStatus,
+)
 from app.models.service_desk_ai_governance import (  # noqa: F401
     SDAIEvaluationRun, SDAIDriftSnapshot,
 )

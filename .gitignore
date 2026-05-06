@@ -69,3 +69,6 @@ reports/qa/*structured_summary*.md
 .mypy_cache/
 htmlcov/
 .coverage.*
+
+# Playwright MCP browser snapshots
+.playwright-mcp/

@@ -211,9 +211,13 @@ export default function ESignPage() {
         <ProviderBadge label="DocuSign" ok={docusignOk} />
         <ProviderBadge label="Adobe Sign" ok={adobeOk} />
         {!docusignOk && !adobeOk && (
-          <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', alignSelf: 'center' }}>
-            Configura las credenciales en Settings → E-firma para habilitar las integraciones.
-          </span>
+          <a
+            href="/settings"
+            onClick={e => { e.preventDefault(); window.location.href = '/settings#esign' }}
+            style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', alignSelf: 'center', textDecoration: 'underline' }}
+          >
+            Configura las credenciales en Settings → E-firma
+          </a>
         )}
       </div>
 
