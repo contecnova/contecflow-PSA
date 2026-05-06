@@ -427,6 +427,7 @@ export default function WorkflowDesignerPage() {
         title="Workflow Designer"
         subtitle="Diseña procesos de Service Desk de forma visual"
         actions={<Button onClick={() => setShowCreate(true)}>+ Nuevo blueprint</Button>}
+      showListExport={false}
       />
 
       {showCreate && (

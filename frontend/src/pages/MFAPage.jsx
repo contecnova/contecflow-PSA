@@ -55,7 +55,7 @@ export default function MFAPage() {
 
   return (
     <PageShell style={{ maxWidth: 640, margin: '0 auto' }}>
-      <PageHeader icon={<Lock size={18} />} title={t('mfa.title')} subtitle={t('mfa.subtitle')} />
+      <PageHeader icon={<Lock size={18} />} title={t('mfa.title')} subtitle={t('mfa.subtitle')} showListExport={false} />
 
       {/* Status card */}
       <div style={{ ...card, padding:'20px 24px', marginBottom:24 }}>

@@ -530,6 +530,7 @@ export default function KanbanAdvancedPage() {
               ⚙ {t('kanban.settings_btn')}
             </Button>
           }
+        showListExport={false}
         />
       </div>
 

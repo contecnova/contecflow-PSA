@@ -70,6 +70,8 @@ export default function ServiceDeskPage() {
         icon={<MessageSquare size={18} />}
         title={t('service_desk.title')}
         subtitle={t('service_desk.subtitle')}
+        exportTargetSelector='[data-export-table="service-desk-export"]'
+        exportFilePrefix='service_desk'
         actions={
           <Button onClick={() => setShowCreate(true)}>+ {t('service_desk.ticket_create_btn')}</Button>
         }/>

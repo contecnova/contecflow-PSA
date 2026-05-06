@@ -182,7 +182,7 @@ export default function MentionsPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<AtSign size={18} />} title={t('mentions.title')} subtitle={t('mentions.subtitle')}/>
+      <PageHeader icon={<AtSign size={18} />} title={t('mentions.title')} subtitle={t('mentions.subtitle')}showListExport={false} />
 
       {/* Tabs */}
       <div style={{display:'flex',gap:6,marginBottom:20}}>

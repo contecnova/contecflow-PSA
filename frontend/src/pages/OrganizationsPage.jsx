@@ -97,7 +97,7 @@ export default function OrganizationsPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<Building2 size={18} />} title={t('organizations.title')} subtitle={t('organizations.subtitle')} />
+      <PageHeader icon={<Building2 size={18} />} title={t('organizations.title')} subtitle={t('organizations.subtitle')} showListExport={false} />
       <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:24, fontSize: "var(--text-base)", color:'var(--accent)' }}>
         Cada organización tiene sus propios usuarios, proyectos y datos aislados. Esta arquitectura permite ofrecer Contecflow como SaaS multi-empresa.
       </div>

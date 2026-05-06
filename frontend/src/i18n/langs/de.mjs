@@ -65,6 +65,11 @@ const de = {
     group_team: 'Team & Personen', group_business: 'Kunden & Finanzen',
     group_support: 'Support & ITSM', group_analytics: 'Analytics & BI',
     group_ai: 'KI & Automatisierung', group_settings: 'Einstellungen',
+    user_costs: 'Kostenstruktur',
+    data_explorer: 'Datenexplorer',
+    predictions: 'Vorhersagen',
+    data_platform: 'Datenplattform',
+    data_governance: 'Datenverwaltung',
   },
   login: {
     brand_title: 'Willkommen in der neuen Ära des Managements',
@@ -177,7 +182,10 @@ const de = {
     total_requests: 'Total requests',
     usage: 'Usage'
   },
-  resource_scheduler: {},
+  resource_scheduler: {
+    project: 'Projekt',
+    person_drag_hint: 'Auf den Plan ziehen, um zuzuweisen',
+  },
   dashboard: {},
   projects: {
     title: 'Projektportfolio',
@@ -217,6 +225,8 @@ const de = {
     no_department: 'Ohne Abteilung',
     no_billing: 'Nicht angegeben',
     no_phases: 'Keine Phasen in diesem Projekt definiert',
+    empty: 'Keine Projekte zum Anzeigen',
+
   },
   tasks: {
     title: 'Aufgaben',

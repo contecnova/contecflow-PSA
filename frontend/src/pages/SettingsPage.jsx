@@ -70,7 +70,7 @@ export default function SettingsPage() {
 
   return (
     <PageShell>
-      <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} icon={<Settings size={18} />} />
+      <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} icon={<Settings size={18} />} showListExport={false} />
 
       <div style={{ marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 14 }}>
         {TAB_GROUPS.map((group, gi) => {

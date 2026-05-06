@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { currencyApi, unwrapList } from '../services/api'
+import api, { currencyApi, userCostsApi, unwrapList } from '../services/api'
 import { DollarSign } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
@@ -54,6 +54,14 @@ export default function FinanceDashboardPage() {
     queryKey: ['currency-rates'],
     queryFn: () => currencyApi.rates().then(r => r.data).catch(() => []),
     staleTime: 300_000,
+  })
+
+  // True cost-per-hour summary (admin/hr only — endpoint returns 403 otherwise)
+  const { data: costSummary } = useQuery({
+    queryKey: ['fin-dash-cost-summary'],
+    queryFn: () => userCostsApi.summary().then(r => r.data).catch(() => null),
+    staleTime: 5 * 60_000,
+    retry: false,
   })
   const { mutate: upsertRate, isPending: savingRate } = useMutation({
     mutationFn: d => currencyApi.upsert(d),
@@ -140,6 +148,27 @@ export default function FinanceDashboardPage() {
           sub={overdueAmount > 0 ? `${fmtCur(overdueAmount, lang)} vencidas` : `${pendingInvoices.length} por cobrar`} />
         </>}
       </div>
+
+      {/* Cost-structure KPIs (admin/hr only) */}
+      {costSummary && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>
+          <KpiCard icon="🧮" label="Coste/hora medio"
+            value={fmtCur(costSummary.avg_cost_per_hour, lang)}
+            color={COLOR.accent} accentBar={COLOR.accent}
+            sub={`${costSummary.users_with_cost} de ${costSummary.total_users} personas`} />
+          <KpiCard icon="⚠️" label="Sin estructura de coste"
+            value={costSummary.users_missing_cost}
+            color={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
+            accentBar={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
+            sub={costSummary.users_missing_cost > 0 ? 'Margen real incompleto' : 'Margen real fiable'} />
+          {revenue > 0 && costSummary.avg_cost_per_hour > 0 && (
+            <KpiCard icon="📐" label="Margen real estimado"
+              value={`${Math.round(((revenue - costs) / revenue) * 100)}%`}
+              color={COLOR.purple} accentBar={COLOR.purple}
+              sub="Snapshots actualizados con coste real al imputar" />
+          )}
+        </div>
+      )}
 
       {/* Gauges */}
       {!lp && marginPct != null && (

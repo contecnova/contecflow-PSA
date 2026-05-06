@@ -1358,6 +1358,7 @@ export default function ALMPage() {
         icon={<Layers size={18} />}
         title={t('alm.title')}
         subtitle={t('alm.subtitle')}
+      showListExport={false}
       />
 
       {/* Tab bar */}

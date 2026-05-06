@@ -418,6 +418,7 @@ export default function AIHubPage() {
             <Button onClick={() => setModal({})} icon="＋">{t('ai.add_provider')}</Button>
           </div>
         )}
+      showListExport={false}
       />
 
       {/* Tabs */}

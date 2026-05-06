@@ -366,6 +366,7 @@ export default function OKRsPage() {
             </Button>
           </div>
         }
+      showListExport={false}
       />
 
       {/* KPI cards */}

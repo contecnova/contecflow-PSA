@@ -53,6 +53,20 @@ SUPPORTED_METRICS = {
     "imputations_invoiced_count": "Imputaciones facturadas (nº)",
     "imputations_cost_total":     "Coste imputaciones (€)",
     "hourly_rate_avg":            "Tarifa horaria media (€/h)",
+    # ── Estructura de coste (perfiles versionados, multi-país) ──────────────────
+    "cost_profile_avg_per_hour":         "Coste/hora medio org (perfiles)",
+    "cost_profile_max_per_hour":         "Coste/hora máximo (perfiles)",
+    "cost_profile_p95_per_hour":         "Coste/hora P95 (perfiles)",
+    "cost_profile_dept_max_per_hour":    "Coste/hora máximo por departamento",
+    "cost_profile_country_max_per_hour": "Coste/hora máximo por país",
+    "cost_profile_total_annual":         "Coste empresa anual total (€)",
+    "cost_profile_top_person_annual":    "Coste anual mayor — persona top (€)",
+    "cost_profile_top_country_annual":   "Coste anual mayor — país top (€)",
+    "cost_profile_users_with":           "Personas con perfil de coste (nº)",
+    "cost_profile_users_legacy":         "Personas sólo con tarifa legacy (nº)",
+    "cost_profile_users_missing":        "Personas sin datos de coste (nº)",
+    "cost_profile_employer_pct_avg":     "% Coste empresa medio (países)",
+    "cost_profile_employer_pct_max":     "% Coste empresa máximo (países)",
     # ── Resource / Capacity ────────────────────────────────────────────────────
     "utilization":                "Utilización del equipo (%)",
     "billable_pct":               "% Horas facturables",
@@ -618,6 +632,111 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                         k = f"{d.year:04d}-{d.month:02d}"; bkt_s[k] += r; bkt_c[k] += 1.0
                 return [round(bkt_s[m["month"]]/bkt_c[m["month"]],2)
                         if bkt_c.get(m["month"],0) > 0 else 0.0 for m in series]
+        except Exception:
+            return _empty_like()
+
+    # ── Cost structure (UserCostProfile snapshots end-of-month) ────────────────
+    COST_PROFILE_KEYS = {
+        "cost_profile_avg_per_hour", "cost_profile_max_per_hour",
+        "cost_profile_p95_per_hour", "cost_profile_dept_max_per_hour",
+        "cost_profile_country_max_per_hour",
+        "cost_profile_total_annual", "cost_profile_top_person_annual",
+        "cost_profile_top_country_annual",
+        "cost_profile_users_with", "cost_profile_users_legacy",
+        "cost_profile_users_missing",
+        "cost_profile_employer_pct_avg", "cost_profile_employer_pct_max",
+    }
+    if metric_key in COST_PROFILE_KEYS:
+        try:
+            from datetime import date as _D, timedelta as _T
+            from sqlalchemy import or_ as _or
+            from app.models.user_cost import UserCostProfile, CountryEmployerCost
+            from app.models.user import User as _User
+
+            def _eom(year: int, month: int) -> _D:
+                if month == 12:
+                    return _D(year, 12, 31)
+                return _D(year, month + 1, 1) - _T(days=1)
+
+            def _percentile(vals: list[float], pct: float) -> float:
+                if not vals:
+                    return 0.0
+                ordered = sorted(vals)
+                k = (len(ordered) - 1) * (pct / 100.0)
+                lo = int(k)
+                hi = min(lo + 1, len(ordered) - 1)
+                frac = k - lo
+                return ordered[lo] * (1 - frac) + ordered[hi] * frac
+
+            # Active users count (snapshot-independent — current state used as proxy)
+            active_users = db.query(_User).filter(_User.status == "active").all()
+            total_active = len(active_users)
+            users_by_id = {u.id: u for u in active_users}
+            legacy_user_ids = {u.id for u in active_users if (u.hourly_rate or 0) > 0}
+
+            # Country presets (used for employer_pct metrics — stable across snapshots)
+            country_presets = db.query(CountryEmployerCost).all()
+            employer_pcts = [c.employer_cost_pct for c in country_presets if c.employer_cost_pct is not None]
+
+            out: list[float] = []
+            for m in series:
+                yyyy, mm = m["month"].split("-")
+                snap = _eom(int(yyyy), int(mm))
+                profiles = (db.query(UserCostProfile)
+                              .filter(UserCostProfile.valid_from <= snap,
+                                      _or(UserCostProfile.valid_to.is_(None),
+                                          UserCostProfile.valid_to >= snap))
+                              .all())
+                rates = [p.cost_per_hour for p in profiles if p.cost_per_hour]
+
+                if metric_key == "cost_profile_avg_per_hour":
+                    out.append(round(sum(rates) / len(rates), 2) if rates else 0.0)
+                elif metric_key == "cost_profile_max_per_hour":
+                    out.append(round(max(rates), 2) if rates else 0.0)
+                elif metric_key == "cost_profile_p95_per_hour":
+                    out.append(round(_percentile(rates, 95), 2))
+                elif metric_key == "cost_profile_dept_max_per_hour":
+                    bucket: dict[str, list[float]] = {}
+                    for p in profiles:
+                        u = users_by_id.get(p.user_id)
+                        if u and p.cost_per_hour:
+                            bucket.setdefault(u.department or "—", []).append(p.cost_per_hour)
+                    dept_avgs = [sum(v) / len(v) for v in bucket.values() if v]
+                    out.append(round(max(dept_avgs), 2) if dept_avgs else 0.0)
+                elif metric_key == "cost_profile_country_max_per_hour":
+                    bucket = {}
+                    for p in profiles:
+                        if p.country_code and p.cost_per_hour:
+                            bucket.setdefault(p.country_code, []).append(p.cost_per_hour)
+                    country_avgs = [sum(v) / len(v) for v in bucket.values() if v]
+                    out.append(round(max(country_avgs), 2) if country_avgs else 0.0)
+                elif metric_key == "cost_profile_total_annual":
+                    out.append(round(sum(p.total_annual_cost or 0 for p in profiles), 2))
+                elif metric_key == "cost_profile_top_person_annual":
+                    annuals = [p.total_annual_cost for p in profiles if p.total_annual_cost]
+                    out.append(round(max(annuals), 2) if annuals else 0.0)
+                elif metric_key == "cost_profile_top_country_annual":
+                    bucket_a: dict[str, float] = {}
+                    for p in profiles:
+                        if p.country_code:
+                            bucket_a[p.country_code] = bucket_a.get(p.country_code, 0) + (p.total_annual_cost or 0)
+                    out.append(round(max(bucket_a.values()), 2) if bucket_a else 0.0)
+                elif metric_key == "cost_profile_users_with":
+                    out.append(float(len({p.user_id for p in profiles})))
+                elif metric_key == "cost_profile_users_legacy":
+                    with_ids = {p.user_id for p in profiles}
+                    out.append(float(len(legacy_user_ids - with_ids)))
+                elif metric_key == "cost_profile_users_missing":
+                    with_ids = {p.user_id for p in profiles}
+                    legacy_only = legacy_user_ids - with_ids
+                    out.append(float(max(total_active - len(with_ids) - len(legacy_only), 0)))
+                elif metric_key == "cost_profile_employer_pct_avg":
+                    out.append(round(sum(employer_pcts) / len(employer_pcts) * 100, 2) if employer_pcts else 0.0)
+                elif metric_key == "cost_profile_employer_pct_max":
+                    out.append(round(max(employer_pcts) * 100, 2) if employer_pcts else 0.0)
+                else:
+                    out.append(0.0)
+            return out
         except Exception:
             return _empty_like()
 

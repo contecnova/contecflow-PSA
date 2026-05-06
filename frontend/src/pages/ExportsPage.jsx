@@ -64,7 +64,7 @@ export default function ExportsPage() {
 
   return (
     <PageShell style={{ maxWidth: 760, margin: '0 auto' }}>
-      <PageHeader icon={<Download size={18} />} title={t('exports.title')} subtitle={t('exports.subtitle')} />
+      <PageHeader icon={<Download size={18} />} title={t('exports.title')} subtitle={t('exports.subtitle')} showListExport={false} />
 
       {message && (
         <div style={{

@@ -212,6 +212,7 @@ export default function DeveloperPortalPage() {
         title={t('developer.portal_title')}
         subtitle={t('developer.portal_subtitle')}
         actions={<Button onClick={() => setShowCreate(true)}>{t('developer.new_app_btn')}</Button>}
+      showListExport={false}
       />
 
       {isLoading ? <Spinner /> : apps.length === 0 ? (

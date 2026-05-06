@@ -206,7 +206,7 @@ export default function SprintPlanningPage() {
   return (
     <PageShell>
       <PageHeader icon={<ListTodo size={18} />} title={t('sprint_planning.title')} subtitle={t('sprint_planning.subtitle')}
-        actions={project && <Button onClick={() => setShowGenerate(true)}>✨ {t('sprint_planning.generate_plan_action')}</Button>} />
+        actions={project && <Button onClick={() => setShowGenerate(true)}>✨ {t('sprint_planning.generate_plan_action')}</Button>} showListExport={false} />
 
       <div style={{...ps,marginBottom:20}}>
         <label style={ls}>{t('sprint_planning.project_label')}</label>

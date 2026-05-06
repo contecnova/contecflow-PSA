@@ -196,6 +196,7 @@ export default function ImputarPage() {
         icon={<Clock size={18} />}
         title={t('imputa_page.title')}
         subtitle={t('imputa_page.subtitle', { date: fmtDate(today), hours: todayHours.toFixed(1) })}
+      showListExport={false}
       />
 
       {activeTimer && (

@@ -538,60 +538,62 @@ function MyPendingTab() {
           </Button>
         )}
       </div>
-      {queue.map(req => {
-        const entity = entityLabels(t)[req.entity_type] || { label: req.entity_type, icon: '○', color: 'var(--text-2)' }
-        const ageHours = Math.max(0, Math.floor((Date.now() - new Date(req.created_at || Date.now()).getTime()) / 3600000))
-        const isUrgent = ageHours >= 24
-        return (
-          <div key={req.id} style={{ background: selectedIds.has(req.id) ? 'var(--surface-3)' : 'var(--surface-2)', border: `1px solid ${selectedIds.has(req.id) ? 'var(--accent)' : isUrgent ? 'rgba(245,158,11,0.35)' : 'var(--surface-4)'}`, borderRadius: 12, padding: '16px 20px', marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-              <input
-                type="checkbox"
-                aria-label={t('approvals.select_request_aria', { name: req.entity_summary || req.entity_id })}
-                checked={selectedIds.has(req.id)}
-                onChange={() => toggleSelect(req.id)}
-                style={{ width: 15, height: 15, marginTop: 4, cursor: 'pointer', flexShrink: 0, accentColor: 'var(--accent)' }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: "var(--text-sm)", padding: '2px 8px', borderRadius: 20, background: entity.color + '20', color: entity.color, fontWeight: 700 }}>
-                    {entity.icon} {entity.label}
-                  </span>
-                  {req.step_name && (
-                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('approvals.step_n', { order: req.step_order })}: {req.step_name}</span>
+      <div data-export-table="approvals-export">
+        {queue.map(req => {
+          const entity = entityLabels(t)[req.entity_type] || { label: req.entity_type, icon: '○', color: 'var(--text-2)' }
+          const ageHours = Math.max(0, Math.floor((Date.now() - new Date(req.created_at || Date.now()).getTime()) / 3600000))
+          const isUrgent = ageHours >= 24
+          return (
+            <div key={req.id} style={{ background: selectedIds.has(req.id) ? 'var(--surface-3)' : 'var(--surface-2)', border: `1px solid ${selectedIds.has(req.id) ? 'var(--accent)' : isUrgent ? 'rgba(245,158,11,0.35)' : 'var(--surface-4)'}`, borderRadius: 12, padding: '16px 20px', marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <input
+                  type="checkbox"
+                  aria-label={t('approvals.select_request_aria', { name: req.entity_summary || req.entity_id })}
+                  checked={selectedIds.has(req.id)}
+                  onChange={() => toggleSelect(req.id)}
+                  style={{ width: 15, height: 15, marginTop: 4, cursor: 'pointer', flexShrink: 0, accentColor: 'var(--accent)' }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontSize: "var(--text-sm)", padding: '2px 8px', borderRadius: 20, background: entity.color + '20', color: entity.color, fontWeight: 700 }}>
+                      {entity.icon} {entity.label}
+                    </span>
+                    {req.step_name && (
+                      <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('approvals.step_n', { order: req.step_order })}: {req.step_name}</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>
+                    {req.entity_summary || req.entity_id}
+                  </div>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+                    {t('approvals.request_by')}: {req.requester_name} · {req.created_at}
+                  </div>
+                  {isUrgent && (
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--warning)', marginTop: 4, fontWeight: 700 }}>
+                      {t('approvals.pending_since', { hours: ageHours })}
+                    </div>
                   )}
                 </div>
-                <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>
-                  {req.entity_summary || req.entity_id}
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button
+                    aria-label={t('approvals.reject_request_aria', { name: req.entity_summary || req.entity_id })}
+                    onClick={() => decide({ id: req.id, decision: 'rejected', note: '' })}
+                    disabled={deciding}
+                    style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '7px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
+                    {t('approvals.reject_action')}
+                  </button>
+                  <Button
+                    size="sm"
+                    onClick={() => decide({ id: req.id, decision: 'approved' })}
+                    loading={deciding}>
+                    {t('approvals.approve_action')}
+                  </Button>
                 </div>
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                  {t('approvals.request_by')}: {req.requester_name} · {req.created_at}
-                </div>
-                {isUrgent && (
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--warning)', marginTop: 4, fontWeight: 700 }}>
-                    {t('approvals.pending_since', { hours: ageHours })}
-                  </div>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                <button
-                  aria-label={t('approvals.reject_request_aria', { name: req.entity_summary || req.entity_id })}
-                  onClick={() => decide({ id: req.id, decision: 'rejected', note: '' })}
-                  disabled={deciding}
-                  style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '7px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
-                  {t('approvals.reject_action')}
-                </button>
-                <Button
-                  size="sm"
-                  onClick={() => decide({ id: req.id, decision: 'approved' })}
-                  loading={deciding}>
-                  {t('approvals.approve_action')}
-                </Button>
               </div>
             </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -1443,6 +1445,8 @@ export default function ApprovalsPage({ mode = 'inbox' }) {
         icon={<CheckCircle size={18} />}
         title={isConfigMode ? t('approvals.page_title_config') : t('approvals.page_title_inbox')}
         subtitle={isConfigMode ? t('approvals.page_subtitle_config') : t('approvals.page_subtitle_inbox')}
+        exportTargetSelector='[data-export-table="approvals-export"]'
+        exportFilePrefix='approvals'
       />
 
       <div style={{ ...panel, padding: '10px 14px', marginBottom: 14 }}>
@@ -1505,7 +1509,7 @@ export default function ApprovalsPage({ mode = 'inbox' }) {
             <EmptyState icon="✅" title={t('approvals.no_workflows')}
               description={t('approvals.workflows_description')} />
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
+            <div data-export-table="approvals-export" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
               {Object.entries(entityLabels(t)).map(([entityType, cfg]) => {
                 const entityFlows = workflows.filter(w => w.entity_type === entityType)
                 if (entityFlows.length === 0 && tab === 'workflows') return null

@@ -21,6 +21,7 @@ export default function PredictionsPage() {
         icon={<Brain size={18} />}
         title="Predictions"
         subtitle="Forecasting con ML, detección de anomalías y entrega condicional"
+      showListExport={false}
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

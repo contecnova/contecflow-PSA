@@ -343,6 +343,7 @@ export default function NotificationsPage() {
             )}
           </div>
         }
+      showListExport={false}
       />
 
       {/* KPI row */}

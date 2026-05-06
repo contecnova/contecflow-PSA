@@ -243,7 +243,7 @@ export default function EpicGanttPage() {
       <PageHeader icon={<BarChart2 size={18} />} title={t('epics.gantt_title')} subtitle={t('epics.subtitle')}
         actions={project && epics.length > 0 && (
           <Button onClick={() => setShowForm(true)}>+ Dependencia</Button>
-        )} />
+        )} showListExport={false} />
 
       <div style={{...ps, marginBottom:20}}>
         <label style={ls}>Proyecto</label>

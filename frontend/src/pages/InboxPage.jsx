@@ -54,6 +54,7 @@ export default function InboxPage() {
         icon={<Inbox size={18} />}
         title={t('inbox.title')}
         subtitle={t('inbox.subtitle')}
+      showListExport={false}
       />
       <Tabs
         items={items}

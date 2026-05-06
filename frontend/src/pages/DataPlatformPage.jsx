@@ -176,6 +176,7 @@ export default function DataPlatformPage() {
         icon={<Database size={18} />}
         title="Data Platform"
         subtitle="ETL, conectores, embed SDK, streaming y snapshots versionados"
+      showListExport={false}
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

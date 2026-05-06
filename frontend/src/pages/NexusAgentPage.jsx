@@ -170,6 +170,7 @@ export default function ContecflowAgentPage() {
         icon={<Bot size={18} />}
         title={t('ai.agent_title')}
         subtitle="Ejecuta instrucciones en lenguaje natural sobre tus proyectos y datos"
+      showListExport={false}
       />
 
       {/* Provider indicator */}

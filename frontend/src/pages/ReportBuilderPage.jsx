@@ -477,6 +477,7 @@ export default function ReportBuilderPage() {
         icon={<BarChart2 size={18} />}
         title={t('report_builder.title')}
         subtitle={t('report_builder.subtitle')}
+      showListExport={false}
       />
 
       {/* Tabs */}

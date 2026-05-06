@@ -162,6 +162,12 @@ Notas operativas recientes:
 - En `/automations`, se completaron traducciones faltantes en el bloque activo (`act_*`, `param_*`, `cat_*`) para `es` y `en`, eliminando warnings `[i18n-missing]` al abrir `WorkflowModal` y configurar pasos/acciones.
 - En `/automations`, se añadió cobertura completa de `trig_*` (catálogo total de disparadores) en `es` y `en`, eliminando warnings masivos `[i18n-missing] automations.trig_*` en RuleModal y listados.
 - En `/settings`, los inputs sensibles (`type=password`) de "Nuevo Usuario" y de proveedores eSign ahora están dentro de formularios reales (`<form onSubmit=...>`), eliminando el warning del navegador "Password field is not contained in a form" sin cambiar el flujo de guardado.
+- En `/tasks`, se añadieron las claves de traducción faltantes `tasks.filter_status` y `common.no_results` en los diccionarios activos de `es` y `en`, eliminando warnings `[i18n-missing]` en filtros y estados vacíos de la vista.
+- Se añadió exportación global de listados a Excel compatible (`.xls`) en `PageHeader`: ahora cualquier pantalla con cabecera puede exportar la lista visible (tabla HTML o grid tabular) desde el botón `📊 Exportar Excel` sin implementar lógica específica por página. En `/expenses` se mantiene el botón dedicado backend y se desactiva el export genérico para evitar duplicidad.
+- El exportador global de `PageHeader` ahora soporta selección explícita del listado (`exportTargetSelector`) y prefijo de nombre (`exportFilePrefix`), además de limpieza de columnas de acción/checkbox en celdas exportadas. `TasksPage` ya usa este modo (`data-export-table="tasks-list"`) para exportar siempre la tabla correcta de la vista Lista.
+- Se extendió el modo explícito de exportación a `Projects`, `Invoices`, `Approvals` y `Service Desk` usando `exportTargetSelector` + `data-export-table`, de forma que `Exportar Excel` toma de forma determinista el listado visible de cada módulo.
+- El exportador global añade fallback para listas tipo tarjetas (`div` repetidos): si no hay tabla HTML ni grid tabular, exporta cada tarjeta como fila en una columna `Detalle` (caso útil para bandejas como `Approvals > Pendientes`).
+- La exportación de listas permite también estado vacío: si una tabla/listado no tiene filas pero sí cabeceras visibles, se genera igualmente el `.xls` con cabeceras para mantener comportamiento consistente de `Exportar Excel`.
 
 ### Seed
 - python scripts/seed_full_data.py
@@ -638,3 +644,15 @@ Sección de configuración de credenciales para proveedores de firma electrónic
 - `frontend/src/pages/SettingsPageSections.jsx`: nuevo componente `ESignSettingsSection` con dos tarjetas (DocuSign / Adobe Sign), badge de estado configurado/no configurado, campos de credenciales (secretos tipo password), botón Guardar por proveedor, y nota sobre modo manual.
 - `frontend/src/pages/SettingsPage.jsx`: importado `ESignSettingsSection`; añadida pestaña `{ id: 'esign', label: 'E-firma', roles: ['admin'] }` en el grupo Sistema.
 - `frontend/src/pages/ESignPage.jsx`: el texto estático "Configura las credenciales en Settings → E-firma para habilitar las integraciones." reemplazado por un enlace clicable a `/settings`.
+
+
+## Exportar a Excel: limpieza global por pantalla
+
+### Descripción
+Se ha aplicado `showListExport={false}` a todas las pantallas que no tienen una lista exportable real (dashboards, vistas Gantt/Kanban, herramientas, formularios, configuración, integraciones). El botón "Exportar lista a Excel" solo queda visible en las pantallas con tablas o listas de datos exportables.
+
+### Páginas con export desactivado (55 pantallas)
+AIHubPage, ALMPage, AgentDashboardPage, AlertsPage, BPMPage, CalendarPage, ChangelogPage, ChangesPage, ClientPortalPage, DataExplorerPage, DataGovernancePage, DataPlatformPage, DeveloperPortalPage, EnterprisePage, EpicGanttPage, EpicsPage, ExportsPage, GanttPage, GovernancePage, ImportPage, ImputarPage, InboxPage, InternalCommentsPage, JiraIntegrationPage, KanbanAdvancedPage, MFAPage, MeetingsAIPage, MentionsPage, MilestoneBillingPage, NPSPage, NexusAgentPage, NotificationsPage, OKRsPage, OraclePage, OrganizationsPage, PerformanceReviewsPage, PipelinePage, PredictionsPage, ProfitabilityPage, ProjectTemplatesPage, ReportBuilderPage, RiskScoresPage, ScenariosPage, SearchPage, SemanticEnginePage, SettingsPage, SprintChartsPage, SprintPlanningPage, SprintsPage, TimesheetsPage, UATPage, WikiPage, WorkflowsPage, WorkflowDesignerPage (service-desk).
+
+### Páginas con export habilitado (listas reales)
+ProjectsPage, InvoicesPage, ApprovalsPage, ServiceDeskPage, TasksPage, AbsencesPage, AutomationsPage, BudgetsPage, CMDBPage, CapacityPage, ClientsPage, ContractsPage, CumulativeFlowPage, CustomFieldsPage, DeliverablesPage, DependenciesPage, DocumentsPage, ESignPage, EVMPage, ExpensesPage (export backend), BIPage, BIProjectDetailPage, GitPage, GrcPage, IssueTypesPage, M365Page, OrgChartPage, PortfolioPage, ProjectPermissionsPage, PublicFormsPage, RACIPage, RateCardsPage, ReportsPage, ResourceForecastPage, ResourcesPage, RevenuePage, RisksPage, SkillsPage, SubcontractorsPage, TimerPage, TrainingPage, UserCostsPage, WebhookLogPage.

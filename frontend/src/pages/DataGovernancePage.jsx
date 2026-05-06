@@ -211,6 +211,7 @@ export default function DataGovernancePage() {
         icon={<Shield size={18} />}
         title="Data Governance"
         subtitle="GDPR, auditoría, linaje, clasificación de campos y colaboración en dashboards"
+      showListExport={false}
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

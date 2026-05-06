@@ -65,6 +65,11 @@ const it = {
     group_team: 'Team & Persone', group_business: 'Clienti & Finanza',
     group_support: 'Supporto & ITSM', group_analytics: 'Analytics & BI',
     group_ai: 'IA & Automazione', group_settings: 'Impostazioni',
+    user_costs: 'Struttura dei costi',
+    data_explorer: 'Esploratore dati',
+    predictions: 'Previsioni',
+    data_platform: 'Piattaforma dati',
+    data_governance: 'Governance dei dati',
   },
   login: {
     brand_title: 'Benvenuto nella nuova era della gestione',
@@ -178,7 +183,10 @@ const it = {
     usage: 'Usage'
   },
   intake_form: {},
-  resource_scheduler: {},
+  resource_scheduler: {
+    project: 'Progetto',
+    person_drag_hint: 'Trascina nel planning per assegnare',
+  },
   dashboard: {},
   projects: {
     title: 'Portafoglio progetti',
@@ -218,6 +226,8 @@ const it = {
     no_department: 'Senza dipartimento',
     no_billing: 'Non specificato',
     no_phases: 'Nessuna fase definita in questo progetto',
+    empty: 'Nessun progetto da mostrare',
+
   },
   tasks: {
     title: 'Attivita',

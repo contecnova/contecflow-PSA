@@ -1429,6 +1429,11 @@ const es = {
     uat: 'UAT — Aceptación de usuario',
     approval_flows: 'Flujos de aprobación',
     project_issue_flows: 'Flujos de estado de proyecto',
+    user_costs: 'Estructura de coste',
+    data_explorer: 'Explorador de datos',
+    predictions: 'Predicciones',
+    data_platform: 'Plataforma de datos',
+    data_governance: 'Gobierno del dato',
   },
   login: {
     brand_title: 'Bienvenido a la nueva era de la gestión',
@@ -1512,6 +1517,7 @@ const es = {
     title: 'Tareas',
     subtitle: 'Panel de tareas',
     no_tasks: 'Sin tareas',
+    filter_status: 'Estado',
     status_backlog: 'Pendiente',
     status_todo: 'Por hacer',
     status_in_progress: 'En progreso',
@@ -1545,6 +1551,8 @@ const es = {
     priority_medium: 'Media',
     priority_high: 'Alta',
     priority_critical: 'Crítica',
+    empty: 'No hay tareas para mostrar',
+
   },
   document_viewer: {
     uploaded_version: 'Versión subida',
@@ -1640,6 +1648,7 @@ const es = {
     days: 'días',
     new: 'Nuevo',
     are_you_sure: '¿Estás seguro?',
+    no_results: 'Sin resultados',
     priority: 'Prioridad',
     completed: 'Completado',
   },
@@ -1681,6 +1690,8 @@ const es = {
     no_department: 'Sin departamento',
     no_billing: 'Sin especificar',
     no_phases: 'No hay fases definidas en este proyecto',
+    empty: 'No hay proyectos para mostrar',
+
   },
 
   timesheet: {
@@ -2970,6 +2981,8 @@ const es = {
     legend_overloaded: 'Sobrecargado',
     legend_shortcuts: 'Esc cancela · Supr elimina la selección',
     people: 'Personas',
+    project: 'Proyecto',
+    person_drag_hint: 'Arrastra al planificador para asignar',
   },
   project_templates: {
     title: 'Plantillas de Proyecto',
@@ -2981,6 +2994,15 @@ const es = {
     preview: 'Vista previa',
     view_detail: 'Ver detalle',
     create_from_template: 'Crear proyecto desde plantilla',
+    hide_detail: 'Ocultar detalle',
+    create_project_from: 'Crear proyecto desde',
+    project_name_label: 'Nombre del proyecto',
+    project_name_placeholder: 'Ej.: Implantación CRM',
+    client_label: 'Cliente',
+    client_placeholder: 'Selecciona un cliente',
+    start_date_label: 'Fecha de inicio',
+    cancel: 'Cancelar',
+    create_project: 'Crear proyecto',
   },
 
   dashboard: {

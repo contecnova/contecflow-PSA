@@ -149,6 +149,7 @@ export default function MeetingsAIPage() {
         title={_t('meetings_ai.title')}
         subtitle={_t('meetings_ai.subtitle')}
         actions={<Button onClick={() => setShowProcess(true)}>＋ {_t('meetings_ai.process_meeting')}</Button>}
+      showListExport={false}
       />
 
       {meetings.length > 0 && (

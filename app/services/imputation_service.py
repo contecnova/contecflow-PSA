@@ -2,7 +2,8 @@
 imputation_service.py — Lógica de negocio para imputaciones y cronómetros.
 
 Funciones exportadas:
-  compute_cost(user, hours)
+  compute_cost(user, hours, db=None, on_date=None)
+  resolve_user_rate(db, user, on_date=None)
   validate_and_create_imputation(payload, current_user, db)
   validate_imputation_edit_allowed(imp, current_user, db)
   start_timer_session(payload, current_user, db)
@@ -43,10 +44,26 @@ from fastapi import HTTPException
 
 
 # ── Cost ───────────────────────────────────────────────────────────────────────
+import app.services.cost_service as _cost_svc
 
-def compute_cost(user: User, hours: float) -> float:
-    base_rate = user.hourly_rate or 0.0
-    return round(base_rate * hours, 2)
+
+def resolve_user_rate(db: Session, user: User, on_date: Optional[date] = None) -> float:
+    """Cost per hour for `user` on `on_date`. Versioned UserCostProfile takes precedence,
+    legacy `User.hourly_rate` is the fallback. Returns 0.0 when neither has data."""
+    return _cost_svc.cost_per_hour(db, user, on_date) or 0.0
+
+
+def compute_cost(user: User, hours: float, db: Optional[Session] = None,
+                 on_date: Optional[date] = None) -> float:
+    """Compute cost for the given user and hours using the canonical cost service.
+
+    A db session is required to consult versioned cost profiles; callers without
+    one fall back to `user.hourly_rate` for backward compatibility.
+    """
+    if db is None:
+        base_rate = user.hourly_rate or 0.0
+        return round(base_rate * hours, 2)
+    return _cost_svc.cost_amount(db, user, hours, on_date)
 
 
 def sync_imputation_week_timesheet(db: Session, user_id: str, work_date: date) -> Timesheet:
@@ -207,8 +224,8 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
             detail=f"No puedes imputar horas a un proyecto en estado '{project.status}'. Contacta con el PM si necesitas registrar horas históricas.",
         )
 
-    # Hourly rate required
-    if (not current_user.hourly_rate or current_user.hourly_rate <= 0) and current_user.role != UserRole.subcontractor:
+    # Hourly cost required (cost profile or legacy hourly_rate)
+    if (not resolve_user_rate(db, current_user, payload.date)) and current_user.role != UserRole.subcontractor:
         raise HTTPException(
             status_code=400,
             detail="No puedes imputar horas sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.",
@@ -278,8 +295,8 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
             detail=f"Excederías la capacidad semanal ({weekly_capacity}h). Semana actual: {weekly_hours}h, nueva imputación: {payload.hours}h.",
         )
 
-    rate = current_user.hourly_rate
-    cost = compute_cost(current_user, payload.hours)
+    rate = resolve_user_rate(db, current_user, payload.date)
+    cost = round(rate * payload.hours, 2)
 
     imputation = Imputation(
         user_id=current_user.id,
@@ -373,7 +390,7 @@ def start_timer_session(payload, current_user: User, db: Session):
     if existing:
         raise HTTPException(status_code=409, detail="User already has an active timer")
 
-    if not current_user.hourly_rate or current_user.hourly_rate <= 0:
+    if not resolve_user_rate(db, current_user):
         raise HTTPException(
             status_code=400,
             detail="No puedes iniciar el cronómetro sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.",
@@ -468,7 +485,7 @@ def stop_timer_session(payload, current_user: User, db: Session):
     if not timer:
         raise HTTPException(status_code=404, detail="No active timer found")
 
-    if not current_user.hourly_rate or current_user.hourly_rate <= 0:
+    if not resolve_user_rate(db, current_user):
         raise HTTPException(
             status_code=400,
             detail="No puedes registrar horas sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.",
@@ -553,6 +570,7 @@ def stop_timer_session(payload, current_user: User, db: Session):
             if not payload.force_duplicate:
                 raise HTTPException(status_code=409, detail="Ya existe una imputación sin tarea para este proyecto en esa fecha.")
 
+    timer_rate = resolve_user_rate(db, current_user, imputation_date)
     imputation = Imputation(
         user_id=current_user.id,
         task_id=selected_task_id,
@@ -561,8 +579,8 @@ def stop_timer_session(payload, current_user: User, db: Session):
         hours=hours,
         description=payload.description,
         is_billable=payload.is_billable,
-        hourly_rate_snapshot=current_user.hourly_rate,
-        cost_amount=round((current_user.hourly_rate or 0) * hours, 2),
+        hourly_rate_snapshot=timer_rate,
+        cost_amount=round(timer_rate * hours, 2),
         timer_session_id=timer.id,
     )
     db.add(imputation)

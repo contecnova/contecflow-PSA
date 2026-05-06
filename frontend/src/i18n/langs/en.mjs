@@ -1356,6 +1356,11 @@ const en = {
     time: 'Time',
     approval_flows: 'Approval Flows',
     project_issue_flows: 'Project Issue Flows',
+    user_costs: 'Cost structure',
+    data_explorer: 'Data Explorer',
+    predictions: 'Predictions',
+    data_platform: 'Data Platform',
+    data_governance: 'Data Governance',
   },
   login: {
     brand_title: 'Welcome to the new era of management',
@@ -1430,6 +1435,7 @@ const en = {
     days: 'days',
     new: 'New',
     are_you_sure: 'Are you sure?',
+    no_results: 'No results',
   },
   projects: {
     title: 'Projects',
@@ -1469,6 +1475,8 @@ const en = {
     no_department: 'No department',
     no_billing: 'Unspecified',
     no_phases: 'No phases defined for this project',
+    empty: 'No projects to display',
+
   },
   nps: {
     title: 'NPS & Customer Health',
@@ -1499,6 +1507,9 @@ const en = {
     title: 'Tasks',
     subtitle: 'Team task management',
     no_tasks: 'No tasks',
+    filter_status: 'Status',
+    empty: 'No tasks to display',
+
   },
   esign: {
     title: 'Digital Signature',
@@ -1527,6 +1538,8 @@ const en = {
   resource_scheduler: {
     title: 'Resource Scheduler',
     subtitle: 'Visual resource assignment calendar by project',
+    project: 'Project',
+    person_drag_hint: 'Drag onto the schedule to assign',
   },
   search: {
     title: 'Global Search',
@@ -1632,6 +1645,15 @@ const en = {
     created_ok: 'Project "{project_name}" ({project_code}) created successfully',
     use_template: 'Use template',
     preview: 'Preview',
+    hide_detail: 'Hide detail',
+    create_project_from: 'Create project from',
+    project_name_label: 'Project name',
+    project_name_placeholder: 'E.g. CRM rollout',
+    client_label: 'Client',
+    client_placeholder: 'Select a client',
+    start_date_label: 'Start date',
+    cancel: 'Cancel',
+    create_project: 'Create project',
   },
 
   calendar: {

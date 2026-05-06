@@ -353,7 +353,7 @@ export default function ChangesPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<ArrowLeftRight size={18} />} title={t('changes.title')} subtitle={t('changes.subtitle')} />
+      <PageHeader icon={<ArrowLeftRight size={18} />} title={t('changes.title')} subtitle={t('changes.subtitle')} showListExport={false} />
       <Tabs
         items={[
           { id: 'changes', label: '🔀 Control de cambios' },

@@ -2,7 +2,7 @@
  * Cmdb3dGraph.jsx — CMDB dependency graph (D3 force-directed) + blast radius lookup.
  * Connects to /api/v1/sd/cmdb/3d-graph and /api/v1/sd/cmdb/blast-radius/*.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import * as d3 from 'd3'
 import api from '../../services/api'
@@ -43,6 +43,7 @@ const inputBase = {
 export default function Cmdb3dGraph({ className = '' }) {
   const t = useAppT()
   const svgRef = useRef(null)
+  const simulationRef = useRef(null)
   const [blastCiId, setBlastCiId] = useState('')
   const [blastResult, setBlastResult] = useState(null)
   const [maxNodes, setMaxNodes] = useState(80)
@@ -62,16 +63,18 @@ export default function Cmdb3dGraph({ className = '' }) {
     }
   }
 
-  useEffect(() => {
-    if (!data || !svgRef.current) return
-    const nodes = (data.nodes ?? []).map(n => ({ ...n }))
-    const links = (data.edges ?? []).map(e => ({ ...e }))
+  const renderGraph = useCallback((graphData, width) => {
+    if (!graphData || !svgRef.current) return
+    const nodes = (graphData.nodes ?? []).map(n => ({ ...n }))
+    const links = (graphData.edges ?? []).map(e => ({ ...e }))
     if (!nodes.length) return
+
+    if (simulationRef.current) simulationRef.current.stop()
 
     const svg = d3.select(svgRef.current)
     svg.selectAll('*').remove()
 
-    const w = svgRef.current.clientWidth || 700
+    const w = width || svgRef.current.getBoundingClientRect().width || svgRef.current.clientWidth || 700
     const h = 420
 
     const g = svg.append('g')
@@ -97,6 +100,8 @@ export default function Cmdb3dGraph({ className = '' }) {
       .force('charge', d3.forceManyBody().strength(-200))
       .force('center', d3.forceCenter(w / 2, h / 2))
       .force('collision', d3.forceCollide(22))
+
+    simulationRef.current = simulation
 
     const link = g.append('g').selectAll('line')
       .data(links).enter().append('line')
@@ -125,7 +130,7 @@ export default function Cmdb3dGraph({ className = '' }) {
       .attr('font-size', 10)
       .attr('fill', 'var(--text-2)')
       .attr('font-family', 'var(--font-sans)')
-      .text(d => (d.label ?? d.id ?? '').slice(0, 16))
+      .text(d => (d.name ?? d.label ?? d.id ?? '').slice(0, 18))
 
     simulation.on('tick', () => {
       link
@@ -133,9 +138,19 @@ export default function Cmdb3dGraph({ className = '' }) {
         .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
       nodeG.attr('transform', d => `translate(${d.x},${d.y})`)
     })
+  }, [])
 
-    return () => simulation.stop()
-  }, [data])
+  useEffect(() => {
+    if (!data || !svgRef.current) return
+    // Use rAF to ensure the SVG has been painted and has real dimensions
+    const raf = requestAnimationFrame(() => {
+      renderGraph(data, svgRef.current?.getBoundingClientRect().width)
+    })
+    return () => {
+      cancelAnimationFrame(raf)
+      if (simulationRef.current) simulationRef.current.stop()
+    }
+  }, [data, renderGraph])
 
   return (
     <Card className={className} style={{ padding: '20px 22px' }}>

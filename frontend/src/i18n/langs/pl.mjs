@@ -61,6 +61,11 @@ const pl = {
     group_team: 'Zespół & Ludzie', group_business: 'Klienci & Finanse',
     group_support: 'Wsparcie & ITSM', group_analytics: 'Analytics & BI',
     group_ai: 'AI & Automatyzacja', group_settings: 'Ustawienia',
+    user_costs: 'Struktura kosztów',
+    data_explorer: 'Eksplorator danych',
+    predictions: 'Prognozy',
+    data_platform: 'Platforma danych',
+    data_governance: 'Zarządzanie danymi',
   },
   login: {
     brand_title: 'Witamy w nowej erze zarządzania',
@@ -212,6 +217,7 @@ const pl = {
     booking_created: 'Rezerwacja utworzona', booking_updated: 'Rezerwacja zaktualizowana', booking_deleted: 'Rezerwacja usunięta',
     create_error: 'Błąd podczas tworzenia rezerwacji', update_error: 'Błąd podczas aktualizacji rezerwacji', delete_error: 'Błąd podczas usuwania rezerwacji',
     no_project_short: 'Brak projektu',
+    person_drag_hint: 'Przeciągnij na harmonogram, aby przypisać',
   },
   dashboard: {
     title: 'Pulpit', welcome: 'Witamy',
@@ -265,6 +271,8 @@ const pl = {
     type_software: 'Oprogramowanie', type_infrastructure: 'Infrastruktura',
     type_consulting: 'Konsulting', type_internal: 'Wewnętrzny',
     subtitle: '{total} projektów · {active} aktywnych · {atRisk} zagrożonych',
+    empty: 'Brak projektów do wyświetlenia',
+
   },
   tasks: {
     title: 'Zadania', new_task: 'Nowe zadanie', task_title: 'Tytuł',
@@ -299,6 +307,8 @@ const pl = {
     date_start: 'Data rozpoczęcia', no_comments: 'Brak komentarzy.', send_comment: 'Wyślij',
     send_hint: '⌘+Enter, aby wysłać', created_label: 'Utworzono', completed_label: 'Zakończono',
     selected: 'wybrano',
+    empty: 'Brak zadań do wyświetlenia',
+
   },
   timesheet: {
     title: 'Imputacja godzin', week_summary: 'Podsumowanie tygodnia',

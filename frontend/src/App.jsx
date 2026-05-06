@@ -132,6 +132,7 @@ const TeamDashboardPage      = lazy(() => import('./pages/TeamDashboardPage'))
 const FinanceDashboardPage   = lazy(() => import('./pages/FinanceDashboardPage'))
 const SupportDashboardPage   = lazy(() => import('./pages/SupportDashboardPage'))
 const BPMPage                = lazy(() => import('./pages/BPMPage'))
+const UserCostsPage          = lazy(() => import('./pages/UserCostsPage'))
 
 // ── Fallback de carga para lazy pages — skeleton por tipo de módulo ───────────
 const TABLE_ROUTES = new Set([
@@ -575,6 +576,7 @@ function AppRoutes() {
       <Route path="/jira-integration"   element={<ProtectedRoute roles={['admin','pm']}><Layout><JiraIntegrationPage /></Layout></ProtectedRoute>} />
         <Route path="/project-templates"   element={<ProtectedRoute roles={['admin','pm']}><Layout><ProjectTemplatesPage /></Layout></ProtectedRoute>} />
       <Route path="/bpm" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><BPMPage /></Layout></ProtectedRoute>} />
+      <Route path="/user-costs" element={<ProtectedRoute roles={['admin','hr']}><Layout><UserCostsPage /></Layout></ProtectedRoute>} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
     </Suspense>

@@ -355,7 +355,7 @@ export default function SprintsPage() {
 
   return (
     <PageShell>
-      <PageHeader title={t('sprints.title')} subtitle={t('sprints.subtitle')} icon={<RefreshCw size={18} />} />
+      <PageHeader title={t('sprints.title')} subtitle={t('sprints.subtitle')} icon={<RefreshCw size={18} />} showListExport={false} />
 
       {/* Project selector */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>

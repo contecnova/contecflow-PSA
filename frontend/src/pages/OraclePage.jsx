@@ -82,6 +82,7 @@ export default function OraclePage() {
             </Button>
           </div>
         }
+      showListExport={false}
       />
 
       {/* Analysis result banner */}

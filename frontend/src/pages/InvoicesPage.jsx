@@ -166,7 +166,7 @@ function InvoicesTab() {
       {isLoading ? <Spinner /> : invoices.length === 0 ? (
         <EmptyState icon="📄" title={t('invoices.empty_title')} description={t('invoices.empty_description')} />
       ) : (
-        <div style={{...card,overflow:'hidden'}}>
+        <div data-export-table="invoices-list" style={{...card,overflow:'hidden'}}>
           <div style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'10px 18px',borderBottom:'1px solid var(--surface-4)',fontSize: "var(--text-2xs)",fontWeight:700,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'0.07em',alignItems:'center'}}>
             <SortableTH col="number" sort={invSort} onSort={setInvSort}>{t('invoices.number')}</SortableTH>
             <SortableTH col="project_code" sort={invSort} onSort={setInvSort}>{t('invoices.project')}</SortableTH>
@@ -284,7 +284,7 @@ export default function InvoicesPage() {
   const t = useAppT()
   return (
     <PageShell>
-      <PageHeader icon={<CreditCard size={18} />} title={t('invoices.title')} subtitle={t('invoices.subtitle')} />
+      <PageHeader icon={<CreditCard size={18} />} title={t('invoices.title')} subtitle={t('invoices.subtitle')} exportTargetSelector='[data-export-table="invoices-list"]' exportFilePrefix='invoices' />
       <InvoicesTab />
     </PageShell>
   )

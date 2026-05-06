@@ -150,6 +150,7 @@ export default function JiraIntegrationPage() {
         title={t('jira_integration.title')}
         subtitle={t('jira_integration.subtitle')}
         actions={<StatusBadge ok={connStatus} t={t} />}
+      showListExport={false}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20 }}>

@@ -11,7 +11,7 @@ from app.api.v1.endpoints import (
     alerts, settings, timesheets, capacity, profitability, pipeline,
     contracts, risks, skills, absences, changes, deliverables,
     advanced_config, analytics, client_portal, portal_conversations, service_desk, sprints,
-    expenses, automations, enterprise, bpmn_processes,
+    expenses, automations, enterprise, bpmn_processes, user_costs,
 )
 
 router = APIRouter()
@@ -46,3 +46,4 @@ router.include_router(automations.router,     prefix="/automation-workflows", ta
 router.include_router(automations.router,     prefix="/automations",          tags=["Automatizaciones"])
 router.include_router(enterprise.router,      prefix="/enterprise",      tags=["Enterprise"])
 router.include_router(bpmn_processes.router,  prefix="/bpmn-processes",  tags=["BPMN Processes"])
+router.include_router(user_costs.router,      prefix="/user-costs",      tags=["User Costs"])

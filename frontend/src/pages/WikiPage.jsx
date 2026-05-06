@@ -511,7 +511,7 @@ export default function WikiPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<BookOpen size={18} />} title={t('wiki.title')} subtitle={t('wiki.subtitle')}
+       <PageHeader icon={<BookOpen size={18} />} title={t('wiki.title')} subtitle={t('wiki.subtitle')}
         actions={
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
             <div style={{display:'flex',gap:4,background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:10,padding:4}}>
@@ -527,7 +527,7 @@ export default function WikiPage() {
             </div>
             {wikiMode==='wiki' && <Button onClick={()=>setSpaceModal(true)}>+ Nuevo espacio</Button>}
           </div>
-        }/>
+} showListExport={false}/>
 
       {wikiMode === 'tags' ? <WikiTagsInline /> : <div style={{display:'none'}} />}
       {wikiMode === 'wiki' && <div style={{display:'flex',gap:8,marginBottom:20}}>

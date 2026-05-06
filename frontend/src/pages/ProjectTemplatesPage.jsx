@@ -523,6 +523,7 @@ export default function ProjectTemplatesPage() {
         icon={<LayoutTemplate size={18} />}
         title={t('project_templates.title')}
         subtitle={t('project_templates.subtitle')}
+      showListExport={false}
       />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>

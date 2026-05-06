@@ -953,6 +953,7 @@ export default function ClientPortalPage() {
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         }
+      showListExport={false}
       />
 
       {selectedProject && <StatsPanel projectId={selectedProject} />}

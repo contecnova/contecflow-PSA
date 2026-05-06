@@ -155,7 +155,7 @@ export function TicketList({ queueOnly, onSelect }) {
 
       {isLoading ? <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div> :
        filtered.length === 0 ? <EmptyState icon="🎫" title={t('service_desk.no_tickets')} description={t('service_desk.no_matching')} /> :
-      <div style={{ overflowX: 'auto' }}>
+      <div data-export-table="service-desk-export" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
@@ -225,40 +225,42 @@ export function MajorIncidents() {
       </div>
 
       {isLoading ? <Spinner /> : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={miSort} onSort={setMiSort}>{t('service_desk.col_number')}</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={miSort} onSort={setMiSort}>{t('service_desk.ticket_title')}</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="severity" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_severity')}</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={miSort} onSort={setMiSort}>{t('service_desk.ticket_status')}</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="commander" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_commander')}</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="declared_at" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_declared_at')}</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="resolved_at" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_resolved_at')}</SortableTH></th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedMis.map(m => (
-              <tr key={m.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: COLOR.danger, fontWeight: 700 }}>{m.number}</td>
-                <td style={{ padding: '10px 8px', fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{m.title}</td>
-                <td style={{ padding: '10px 8px' }}>
-                  <span style={{ fontSize: "var(--text-sm)", fontWeight: 700,
-                    color: m.severity === 'P1' ? COLOR.danger : 'var(--orange)' }}>{m.severity}</span>
-                </td>
-                <td style={{ padding: '10px 8px' }}>
-                  <span style={{ fontSize: "var(--text-xs)", fontWeight: 600,
-                    color: m.status === 'active' ? COLOR.danger : COLOR.success,
-                    background: m.status === 'active' ? `${COLOR.danger}15` : `${COLOR.success}15`,
-                    padding: '2px 8px', borderRadius: 4 }}>{m.status}</span>
-                </td>
-                <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{m.commander || '—'}</td>
-                <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{fmtDate(m.declared_at)}</td>
-                <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{m.resolved_at ? fmtDate(m.resolved_at) : '—'}</td>
+        <div data-export-table="service-desk-export" style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
+                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={miSort} onSort={setMiSort}>{t('service_desk.col_number')}</SortableTH></th>
+                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={miSort} onSort={setMiSort}>{t('service_desk.ticket_title')}</SortableTH></th>
+                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="severity" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_severity')}</SortableTH></th>
+                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={miSort} onSort={setMiSort}>{t('service_desk.ticket_status')}</SortableTH></th>
+                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="commander" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_commander')}</SortableTH></th>
+                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="declared_at" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_declared_at')}</SortableTH></th>
+                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="resolved_at" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_resolved_at')}</SortableTH></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {sortedMis.map(m => (
+                <tr key={m.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                  <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: COLOR.danger, fontWeight: 700 }}>{m.number}</td>
+                  <td style={{ padding: '10px 8px', fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{m.title}</td>
+                  <td style={{ padding: '10px 8px' }}>
+                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 700,
+                      color: m.severity === 'P1' ? COLOR.danger : 'var(--orange)' }}>{m.severity}</span>
+                  </td>
+                  <td style={{ padding: '10px 8px' }}>
+                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 600,
+                      color: m.status === 'active' ? COLOR.danger : COLOR.success,
+                      background: m.status === 'active' ? `${COLOR.danger}15` : `${COLOR.success}15`,
+                      padding: '2px 8px', borderRadius: 4 }}>{m.status}</span>
+                  </td>
+                  <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{m.commander || '—'}</td>
+                  <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{fmtDate(m.declared_at)}</td>
+                  <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{m.resolved_at ? fmtDate(m.resolved_at) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {showDeclare && (

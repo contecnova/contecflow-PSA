@@ -278,6 +278,7 @@ export default function ProfitabilityPage() {
             <option value="closed">Cerrados</option>
           </select>
         }
+      showListExport={false}
       />
 
       {/* Portfolio KPIs */}

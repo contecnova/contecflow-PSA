@@ -293,7 +293,7 @@ export default function TimesheetsPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<Clock size={18} />} title={t('timesheets.title')} subtitle={t('timesheets.subtitle')} />
+      <PageHeader icon={<Clock size={18} />} title={t('timesheets.title')} subtitle={t('timesheets.subtitle')} showListExport={false} />
 
       <Tabs
         items={tabs}

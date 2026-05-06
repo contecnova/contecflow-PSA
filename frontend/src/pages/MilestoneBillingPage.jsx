@@ -276,6 +276,7 @@ export default function MilestoneBillingPage() {
         icon={<Flag size={18} />}
         title={_t('milestone_billing.title')}
         subtitle={_t('milestone_billing.subtitle')}
+      showListExport={false}
       />
 
       <Tabs

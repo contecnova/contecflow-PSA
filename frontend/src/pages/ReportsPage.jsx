@@ -54,6 +54,15 @@ const PRESETS = [
   { id: 'p27', label: 'Coste por proyecto',      icon: '📂', metric: 'cost_by_project',            chart: 'bar',         color: '#fb923c', cat: 'Costes' },
   { id: 'p28', label: 'Coste por persona',       icon: '👤', metric: 'cost_by_person',             chart: 'bar',         color: '#fb923c', cat: 'Costes' },
   { id: 'p29', label: 'Coste mensual',           icon: '📆', metric: 'cost_by_month',              chart: 'line',        color: '#f87171', cat: 'Costes' },
+  // Estructura de coste (perfiles versionados, multi-país)
+  { id: 'pc1', label: 'Coste/hora por persona',     icon: '🧮', metric: 'cost_per_hour_by_person',     chart: 'bar',  color: '#fb923c', cat: 'Costes' },
+  { id: 'pc2', label: 'Coste/hora por departamento',icon: '🏢', metric: 'cost_per_hour_by_department', chart: 'bar',  color: '#f59e0b', cat: 'Costes' },
+  { id: 'pc3', label: 'Coste/hora por país',        icon: '🌍', metric: 'cost_per_hour_by_country',    chart: 'bar',  color: '#fbbf24', cat: 'Costes' },
+  { id: 'pc4', label: 'Coste empresa anual / persona', icon: '💼', metric: 'annual_cost_by_person',    chart: 'bar',  color: '#f87171', cat: 'Costes' },
+  { id: 'pc5', label: 'Coste empresa anual / país', icon: '🌐', metric: 'annual_cost_by_country',      chart: 'bar',  color: '#dc2626', cat: 'Costes' },
+  { id: 'pc6', label: 'Cobertura perfiles de coste',icon: '📋', metric: 'cost_profile_coverage',       chart: 'pie',  color: '#34d399', cat: 'Costes' },
+  { id: 'pc7', label: '% Coste empresa por país',   icon: '🧾', metric: 'employer_cost_pct_by_country',chart: 'bar',  color: '#a78bfa', cat: 'Costes' },
+  { id: 'pc8', label: 'Evolución coste/hora medio', icon: '📈', metric: 'cost_per_hour_drift',         chart: 'line', color: '#60a5fa', cat: 'Costes' },
   // Proyectos y agilidad
   { id: 'p9',  label: 'Tareas por estado',        icon: '▦',  metric: 'tasks_by_status',            chart: 'pie',         color: '#4f8ef7', cat: 'Proyectos' },
   { id: 'p10', label: 'Velocity de sprint',       icon: '🏃', metric: 'sprint_velocity',            chart: 'bar',         color: '#a78bfa', cat: 'Agilidad' },

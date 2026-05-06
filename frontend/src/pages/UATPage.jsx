@@ -235,6 +235,7 @@ export default function UATPage() {
             </div>
           ) : null
         }
+      showListExport={false}
       />
 
       {/* Selector de proyecto */}

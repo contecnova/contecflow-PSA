@@ -52,7 +52,7 @@ export default function ScenariosPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<GitBranch size={18} />} title={t('scenarios.title')} subtitle={t('scenarios.subtitle')} />
+      <PageHeader icon={<GitBranch size={18} />} title={t('scenarios.title')} subtitle={t('scenarios.subtitle')} showListExport={false} />
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:20 }}>
         <Button onClick={()=>setShowCreate(true)}>+ Nuevo escenario</Button>
       </div>

@@ -23,6 +23,7 @@ export default function DataExplorerPage() {
         icon={<Search size={18} />}
         title="Data Explorer"
         subtitle="Pregunta a tus datos en lenguaje natural y construye consultas visuales"
+      showListExport={false}
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

@@ -61,6 +61,11 @@ const fr = {
     group_team: '\u00c9quipe & Personnes', group_business: 'Clients & Finances',
     group_support: 'Support & ITSM', group_analytics: 'Analytique & BI',
     group_ai: 'IA & Automatisation', group_settings: 'Param\u00e8tres',
+    user_costs: 'Structure de coût',
+    data_explorer: 'Explorateur de données',
+    predictions: 'Prédictions',
+    data_platform: 'Plateforme de données',
+    data_governance: 'Gouvernance des données',
   },
   login: {
     brand_title: 'Bienvenue dans la nouvelle \u00e8re de la gestion',
@@ -174,7 +179,10 @@ const fr = {
     usage: 'Usage'
   },
   intake_form: {},
-  resource_scheduler: {},
+  resource_scheduler: {
+    project: 'Projet',
+    person_drag_hint: 'Glissez sur le planning pour affecter',
+  },
   dashboard: {},
   projects: {
     title: 'Portefeuille de projets',
@@ -214,6 +222,8 @@ const fr = {
     no_department: 'Sans departement',
     no_billing: 'Sans specifie',
     no_phases: 'Aucune phase definie dans ce projet',
+    empty: 'Aucun projet à afficher',
+
   },
   tasks: {
     title: 'Taches',

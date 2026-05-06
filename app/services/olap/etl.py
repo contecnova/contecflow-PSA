@@ -13,7 +13,10 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-from app.core.config import settings() -> str:
+from app.core.config import settings
+
+
+def _resolve_duckdb_path() -> str:
     env_path = os.getenv("DUCKDB_PATH")
     if env_path:
         return env_path

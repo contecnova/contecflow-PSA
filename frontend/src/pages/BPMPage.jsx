@@ -1576,6 +1576,7 @@ export default function BPMPage() {
             <Plus size={14} style={{ marginRight: 4 }} />Nuevo proceso
           </Button>
         }
+      showListExport={false}
       />
 
       <div style={{ display: 'flex', gap: 16, height: 'calc(100vh - 180px)', minHeight: 600 }}>

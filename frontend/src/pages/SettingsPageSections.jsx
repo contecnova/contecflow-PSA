@@ -263,7 +263,7 @@ function RolesSection() {
 }
 
 function RoleFormModal({ role, modules, onClose, onSave }) {
-  const [form, setForm] = useState({ name: role?.name || '', description: role?.description || '', color: role?.color || 'var(--text-2)', module_access: role?.module_access || {} })
+  const [form, setForm] = useState({ name: role?.name || '', description: role?.description || '', color: /^#[0-9a-fA-F]{6}$/.test(role?.color) ? role.color : '#7a8aaa', module_access: role?.module_access || {} })
   const toggleModule = (m) => setForm(f => ({ ...f, module_access: { ...f.module_access, [m]: !f.module_access[m] } }))
   const allOn = modules.every(m => form.module_access[m.id])
   return (
@@ -271,7 +271,7 @@ function RoleFormModal({ role, modules, onClose, onSave }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
           <div><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} disabled={role?.is_system} /></div>
-          <div><label style={ls}>Color</label><div style={{ display: 'flex', gap: 8 }}><input type="color" value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 40, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, flex: 1 }} /></div></div>
+          <div><label style={ls}>Color</label><div style={{ display: 'flex', gap: 8 }}><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7a8aaa'} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 40, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, flex: 1 }} /></div></div>
         </div>
         <div><label style={ls}>Descripción</label><input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} /></div>
         <div>
@@ -1104,9 +1104,9 @@ function TaskTypesSection() {
   const { mutate: create } = useMutation({ mutationFn: advancedConfigApi.createTaskType, onSuccess: () => qc.invalidateQueries(['task-types-config']), onError: e => toast.error(extractErr(e, 'Error')) })
   const { mutate: update } = useMutation({ mutationFn: ({ id, data }) => advancedConfigApi.updateTaskType(id, data), onSuccess: () => { qc.invalidateQueries(['task-types-config']); setEditingId(null) }, onError: e => toast.error(extractErr(e, 'Error')) })
   const { mutate: del } = useMutation({ mutationFn: advancedConfigApi.deleteTaskType, onSuccess: () => qc.invalidateQueries(['task-types-config']), onError: e => toast.error(extractErr(e, 'Error')) })
-  const [form, setForm] = useState({ name: '', value: '', icon: '📋', color: 'var(--text-2)', is_billable_default: true })
+  const [form, setForm] = useState({ name: '', value: '', icon: '📋', color: '#7a8aaa', is_billable_default: true })
   const [editingId, setEditingId] = useState(null)
-  const [editForm, setEditForm] = useState({ name: '', icon: '📋', color: 'var(--text-3)', is_billable_default: true })
+  const [editForm, setEditForm] = useState({ name: '', icon: '📋', color: '#7a8aaa', is_billable_default: true })
 
   return (
     <Section icon="🏷️" title="Tipos de tarea" description="Gestiona etiquetas y tipos facturables">
@@ -1131,7 +1131,7 @@ function TaskTypesSection() {
           border:'1px solid var(--accent-glow)', borderRadius:10, marginBottom:8, flexWrap:'wrap', alignItems:'flex-end' }}>
           <div><label style={ls}>Nombre *</label><input value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={{...fs,width:130}} autoFocus /></div>
           <div><label style={ls}>Icono</label><input value={editForm.icon} onChange={e => setEditForm(f=>({...f,icon:e.target.value}))} style={{...fs,width:55}} /></div>
-          <div><label style={ls}>Color</label><input type="color" value={editForm.color.startsWith('#')?editForm.color:'var(--text-3)'} onChange={e=>setEditForm(f=>({...f,color:e.target.value}))} style={{width:38,height:35,border:'none',background:'transparent',cursor:'pointer'}} /></div>
+          <div><label style={ls}>Color</label><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(editForm.color)?editForm.color:'#7a8aaa'} onChange={e=>setEditForm(f=>({...f,color:e.target.value}))} style={{width:38,height:35,border:'none',background:'transparent',cursor:'pointer'}} /></div>
           <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize: "var(--text-sm)",paddingBottom:4}}><input type="checkbox" checked={editForm.is_billable_default} onChange={e=>setEditForm(f=>({...f,is_billable_default:e.target.checked}))} />Facturable</label>
           <button onClick={() => update({ id: editingId, data: editForm })} disabled={!editForm.name} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'6px 14px',color:'#fff',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>✓ Guardar</button>
           <button onClick={() => setEditingId(null)} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'6px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>Cancelar</button>
@@ -1141,9 +1141,9 @@ function TaskTypesSection() {
         <div><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') }))} style={{ ...fs, width: 140 }} placeholder="Nombre" aria-label="Nombre" /></div>
         <div><label style={ls}>Clave</label><input value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} style={{ ...fs, width: 110 }} placeholder="Clave" aria-label="Clave" /></div>
         <div><label style={ls}>Icono</label><input value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} style={{ ...fs, width: 60 }} placeholder="Icono" aria-label="Icono" /></div>
-        <div><label style={ls}>Color</label><div style={{ display: 'flex', gap: 6 }}><input type="color" value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 38, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, width: 90 }} /></div></div>
+        <div><label style={ls}>Color</label><div style={{ display: 'flex', gap: 6 }}><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7a8aaa'} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 38, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, width: 90 }} /></div></div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", paddingBottom: 4 }}><input type="checkbox" checked={form.is_billable_default} onChange={e => setForm(f => ({ ...f, is_billable_default: e.target.checked }))} />Facturable</label>
-        <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '📋', color: 'var(--text-2)', is_billable_default: true }) }} disabled={!form.name || !form.value}>Añadir</Button>
+        <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '📋', color: '#7a8aaa', is_billable_default: true }) }} disabled={!form.name || !form.value}>Añadir</Button>
       </div>
     </Section>
   )

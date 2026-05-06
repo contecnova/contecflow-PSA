@@ -92,6 +92,7 @@ export default function AlertsPage() {
             </Button>
           )
         }
+      showListExport={false}
       />
 
       <Tabs

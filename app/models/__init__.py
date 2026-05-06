@@ -135,6 +135,9 @@ from app.models.workflow_designer import (  # noqa: F401
 from app.models.bpmn_process import (  # noqa: F401
     BPMNProcess, BPMNProcessVersion, BPMNProcessStatus,
 )
+from app.models.user_cost import (  # noqa: F401
+    CountryEmployerCost, UserCostProfile,
+)
 from app.models.service_desk_ai_governance import (  # noqa: F401
     SDAIEvaluationRun, SDAIDriftSnapshot,
 )

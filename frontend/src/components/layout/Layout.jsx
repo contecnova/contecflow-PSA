@@ -27,7 +27,7 @@ import {
   Search, LogOut, ChevronRight, ChevronLeft, Menu, X, Activity,
   Timer, Flag, Layers, Shield, Keyboard, BarChart, LayoutGrid,
   Wrench, GitMerge, FolderOpen, ScrollText, ClipboardCheck,
-  CalendarRange, Plus, Inbox, Database,
+  CalendarRange, Plus, Inbox, Database, Wallet,
 } from 'lucide-react'
 
 const ROUTE_LABELS = {
@@ -313,6 +313,7 @@ const NAV_GROUPS = [
     { to: '/revenue',           icon: <DollarSign size={SZ} />,  label: 'Revenue Recognition',  roles: ['admin','pm'] },
     { to: '/budgets',           icon: <Briefcase size={SZ} />,   label: 'Budgets',              roles: ['admin','pm'] },
     { to: '/rate-cards',        icon: <Tag size={SZ} />,         label: 'Rate Cards',           roles: ['admin','pm'] },
+    { to: '/user-costs',        icon: <Wallet size={SZ} />,      label: 'Estructura de coste',  roles: ['admin','hr'] },
     { to: '/subcontractors',    icon: <HardHat size={SZ} />,     label: 'Subcontractors',       roles: ['admin','pm'] },
     { to: '/scenarios',         icon: <Calculator size={SZ} />,  label: 'What-If Scenarios',    roles: ['admin','pm'] },
     { to: '/nps',               icon: <ThumbsUp size={SZ} />,    label: 'NPS & Health',         roles: ['admin','pm'] },

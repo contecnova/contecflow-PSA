@@ -65,6 +65,11 @@ const pt = {
     group_team: 'Equipe & Pessoas', group_business: 'Clientes & Finanças',
     group_support: 'Suporte & ITSM', group_analytics: 'Analytics & BI',
     group_ai: 'IA & Automação', group_settings: 'Configurações',
+    user_costs: 'Estrutura de custo',
+    data_explorer: 'Explorador de dados',
+    predictions: 'Previsões',
+    data_platform: 'Plataforma de dados',
+    data_governance: 'Governança de dados',
   },
   login: {
      brand_title: 'Bem-vindo à nova era da gestão',
@@ -178,7 +183,10 @@ const pt = {
     usage: 'Usage'
   },
   intake_form: {},
-  resource_scheduler: {},
+  resource_scheduler: {
+    project: 'Projeto',
+    person_drag_hint: 'Arraste para o planeamento para atribuir',
+  },
   dashboard: {},
   projects: {
     title: 'Portifolio de projetos',
@@ -218,6 +226,8 @@ const pt = {
     no_department: 'Sem departamento',
     no_billing: 'Nao especificado',
     no_phases: 'Nao ha fases definidas neste projeto',
+    empty: 'Nenhum projeto para mostrar',
+
   },
   tasks: {
     title: 'Tarefas',

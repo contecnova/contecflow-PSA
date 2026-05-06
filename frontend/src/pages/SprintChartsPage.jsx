@@ -65,6 +65,7 @@ export default function SprintChartsPage() {
         icon={<BarChart2 size={18} />}
         title="Graficas de sprint"
         subtitle={_t('sprint_charts.subtitle')}
+      showListExport={false}
       />
 
       {/* Project + Sprint selectors */}

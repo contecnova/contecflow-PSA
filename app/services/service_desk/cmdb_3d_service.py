@@ -69,33 +69,47 @@ def get_3d_graph(
     Return 3D graph data for the CMDB dependency map.
     Nodes have x,y,z positions based on layer and cluster layout.
     """
+    # Layer mapping: ci_type -> layer index for visualization
+    _CI_TYPE_LAYER = {
+        "server": 0, "database": 0,
+        "network": 1, "integration": 1,
+        "application": 2, "module": 2,
+        "service": 3, "other": 3,
+    }
+
     # Try to load from CMDB models if available
     try:
-        from app.models.service_desk import ConfigurationItem, CIRelationship
+        from app.models.service_desk import ConfigurationItem, CIRelation
         cis = db.query(ConfigurationItem).limit(max_nodes).all()
-        rels = db.query(CIRelationship).limit(max_nodes * 2).all()
+        rels = db.query(CIRelation).limit(max_nodes * 2).all()
 
         nodes = []
         for i, ci in enumerate(cis):
-            layer = ci.layer if hasattr(ci, "layer") else (i % 4)
+            ci_type_val = ci.ci_type.value if hasattr(ci.ci_type, 'value') else str(ci.ci_type)
+            layer = _CI_TYPE_LAYER.get(ci_type_val, i % 4)
             angle = (i / max(len(cis), 1)) * 2 * math.pi
             r = 50 + layer * 30
             nodes.append({
                 "id": ci.id,
-                "name": ci.name if hasattr(ci, "name") else ci.id,
-                "type": ci.ci_type if hasattr(ci, "ci_type") else "unknown",
+                "name": ci.name,
+                "type": ci_type_val,
                 "layer": layer,
                 "layer_label": LAYER_LABELS.get(layer, "Unknown"),
                 "x": round(r * math.cos(angle), 2),
                 "y": round(layer * 60 - 90, 2),
                 "z": round(r * math.sin(angle), 2),
-                "status": ci.status if hasattr(ci, "status") else "active",
+                "status": ci.status.value if hasattr(ci.status, 'value') else str(ci.status),
             })
 
         edges = [
-            {"source": r.source_ci_id, "target": r.target_ci_id, "type": r.relationship_type if hasattr(r, "relationship_type") else "depends_on"}
+            {"source": r.source_ci_id, "target": r.target_ci_id, "type": r.relation_type.value if hasattr(r.relation_type, 'value') else str(r.relation_type)}
             for r in rels
         ]
+
+        # If no real CIs exist, fall back to demo data so the map is never blank
+        if not nodes:
+            nodes = _generate_demo_nodes()
+            edges = _generate_demo_edges(nodes)
 
     except Exception:
         # Fallback demo data

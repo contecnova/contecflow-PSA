@@ -158,7 +158,7 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }) {
           <div><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
         </div>
           <div><label style={LS}>Icon</label><input value={form.icon} onChange={set('icon')} style={{...IS, width:60, textAlign:'center'}} /></div>
-          <div><label style={LS}>Color</label><input type="color" value={form.color} onChange={set('color')} style={{...IS, width:60, padding:'4px'}} /></div>
+          <div><label style={LS}>Color</label><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#4f8ef7'} onChange={set('color')} style={{...IS, width:60, padding:'4px'}} /></div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('common.new')}</Button>

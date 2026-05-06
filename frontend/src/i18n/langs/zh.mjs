@@ -61,6 +61,11 @@ const zh = {
     group_team: '团队与人员', group_business: '客户与财务',
     group_support: '支持与ITSM', group_analytics: '分析与BI',
     group_ai: 'AI与自动化', group_settings: '设置',
+    user_costs: '成本结构',
+    data_explorer: '数据浏览器',
+    predictions: '预测',
+    data_platform: '数据平台',
+    data_governance: '数据治理',
   },
   login: {
     brand_title: '欢迎来到管理新时代',
@@ -212,6 +217,7 @@ const zh = {
     booking_created: '预订已创建', booking_updated: '预订已更新', booking_deleted: '预订已删除',
     create_error: '创建预订时出错', update_error: '更新预订时出错', delete_error: '删除预订时出错',
     no_project_short: '无项目',
+    person_drag_hint: '拖拽至日程以分配',
   },
   dashboard: {
     title: '仪表盘', welcome: '欢迎',
@@ -265,6 +271,8 @@ const zh = {
     type_software: '软件', type_infrastructure: '基础设施',
     type_consulting: '咨询', type_internal: '内部',
     subtitle: '{total} 个项目 · {active} 个活跃 · {atRisk} 个有风险',
+    empty: '没有项目可显示',
+
   },
   tasks: {
     title: '任务', new_task: '新任务', task_title: '标题',
@@ -299,6 +307,8 @@ const zh = {
     date_start: '开始日期', no_comments: '暂无评论。', send_comment: '发送',
     send_hint: '⌘+Enter 发送', created_label: '已创建', completed_label: '已完成',
     selected: '已选择',
+    empty: '没有任务可显示',
+
   },
   timesheet: {
     title: '工时登记', week_summary: '每周摘要',

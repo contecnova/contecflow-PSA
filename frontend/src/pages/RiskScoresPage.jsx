@@ -225,7 +225,7 @@ export default function RiskScoresPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<AlertOctagon size={18} />} title={t('risk_scores.title')} subtitle={t('risk_scores.subtitle')} />
+      <PageHeader icon={<AlertOctagon size={18} />} title={t('risk_scores.title')} subtitle={t('risk_scores.subtitle')} showListExport={false} />
 
       {/* Tab nav */}
       <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--surface-4)', paddingBottom:0 }}>

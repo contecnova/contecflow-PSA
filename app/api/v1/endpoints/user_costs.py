@@ -1,0 +1,314 @@
+"""
+user_costs.py — REST API for the user cost-profile registry and country presets.
+
+Endpoints:
+  GET    /user-costs/countries                  — list country presets (org + global)
+  POST   /user-costs/countries                  — create/update org-specific country preset
+  POST   /user-costs/countries/seed             — seed default global presets
+  PATCH  /user-costs/countries/{id}             — update preset
+  DELETE /user-costs/countries/{id}             — delete preset (org-scoped only)
+
+  GET    /user-costs/users/{user_id}/profiles                — list versions of a user
+  POST   /user-costs/users/{user_id}/profiles                — create new profile
+  GET    /user-costs/users/{user_id}/active                  — active profile + cost/hr today
+  GET    /user-costs/users/{user_id}/preview                 — derive total + cost/hr from inputs
+  PATCH  /user-costs/profiles/{profile_id}                   — update one profile
+  DELETE /user-costs/profiles/{profile_id}                   — delete one profile
+
+  GET    /user-costs/summary                                 — bulk cost/hr for all users (admin/hr)
+
+All endpoints require admin or hr role — this is confidential information.
+"""
+from datetime import date as Date
+from typing import Optional
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.core.deps import get_current_user, require_admin_or_hr
+from app.db.session import get_db
+from app.models.user import User
+from app.models.user_cost import CountryEmployerCost, UserCostProfile
+import app.services.cost_service as svc
+
+router = APIRouter(tags=["User Costs"])
+
+
+# ── Schemas ───────────────────────────────────────────────────────────────────
+class CountryPresetIn(BaseModel):
+    country_code: str
+    country_name: str
+    currency: str = "EUR"
+    employer_cost_pct: float = 0.32
+    productive_hours_year: float = 1700
+    notes: Optional[str] = None
+
+
+class CountryPresetUpdate(BaseModel):
+    country_name: Optional[str] = None
+    currency: Optional[str] = None
+    employer_cost_pct: Optional[float] = None
+    productive_hours_year: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class ProfileIn(BaseModel):
+    valid_from: Date
+    gross_annual_salary: float
+    employer_cost_pct: float = 0.32
+    extra_annual_costs: float = 0.0
+    productive_hours_year: float = 1700
+    country_code: Optional[str] = None
+    currency: str = "EUR"
+    notes: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    valid_from: Optional[Date] = None
+    valid_to: Optional[Date] = None
+    gross_annual_salary: Optional[float] = None
+    employer_cost_pct: Optional[float] = None
+    extra_annual_costs: Optional[float] = None
+    productive_hours_year: Optional[float] = None
+    country_code: Optional[str] = None
+    currency: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class PreviewIn(BaseModel):
+    gross_annual_salary: float
+    employer_cost_pct: float
+    extra_annual_costs: float = 0.0
+    productive_hours_year: float = 1700
+
+
+# ── Country presets ──────────────────────────────────────────────────────────
+@router.get("/countries", summary="List country presets")
+def list_countries(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_hr),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    rows = svc.list_country_presets(db, organization_id=org_id)
+    return [svc.serialize_country(c) for c in rows]
+
+
+@router.post("/countries", summary="Create or override an org-specific country preset")
+def create_country(
+    payload: CountryPresetIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_hr),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    code = payload.country_code.upper()
+    existing = (db.query(CountryEmployerCost)
+                  .filter(CountryEmployerCost.country_code == code,
+                          CountryEmployerCost.organization_id == org_id)
+                  .first())
+    if existing:
+        for k, v in payload.model_dump().items():
+            if k == "country_code":
+                continue
+            setattr(existing, k, v)
+        db.commit()
+        db.refresh(existing)
+        return svc.serialize_country(existing)
+    row = CountryEmployerCost(
+        organization_id=org_id,
+        country_code=code,
+        country_name=payload.country_name,
+        currency=payload.currency,
+        employer_cost_pct=payload.employer_cost_pct,
+        productive_hours_year=payload.productive_hours_year,
+        notes=payload.notes,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return svc.serialize_country(row)
+
+
+@router.post("/countries/seed", summary="Seed default global country presets")
+def seed_countries(
+    force: bool = Query(False),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin_or_hr),
+):
+    return svc.seed_country_presets(db, force=force)
+
+
+@router.patch("/countries/{preset_id}", summary="Update a country preset")
+def update_country(
+    preset_id: str,
+    payload: CountryPresetUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_hr),
+):
+    row = db.query(CountryEmployerCost).filter(CountryEmployerCost.id == preset_id).first()
+    if not row:
+        raise HTTPException(404, "Preset not found")
+    org_id = getattr(current_user, "organization_id", None)
+    if row.organization_id is not None and row.organization_id != org_id:
+        raise HTTPException(403, "Cannot edit another org's preset")
+    for k, v in payload.model_dump(exclude_none=True).items():
+        setattr(row, k, v)
+    db.commit()
+    db.refresh(row)
+    return svc.serialize_country(row)
+
+
+@router.delete("/countries/{preset_id}", summary="Delete a country preset (org-scoped only)")
+def delete_country(
+    preset_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_hr),
+):
+    row = db.query(CountryEmployerCost).filter(CountryEmployerCost.id == preset_id).first()
+    if not row:
+        raise HTTPException(404, "Preset not found")
+    if row.organization_id is None:
+        raise HTTPException(400, "Global presets cannot be deleted; override per-org instead.")
+    org_id = getattr(current_user, "organization_id", None)
+    if row.organization_id != org_id:
+        raise HTTPException(403, "Cannot delete another org's preset")
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
+
+
+# ── User cost profiles ───────────────────────────────────────────────────────
+@router.get("/users/{user_id}/profiles", summary="List a user's cost profile history")
+def list_user_profiles(
+    user_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin_or_hr),
+):
+    profiles = svc.list_profiles(db, user_id)
+    return [svc.serialize_profile(p) for p in profiles]
+
+
+@router.post("/users/{user_id}/profiles", summary="Create a new cost profile for a user")
+def create_user_profile(
+    user_id: str,
+    payload: ProfileIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_hr),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    org_id = getattr(current_user, "organization_id", None)
+    profile = svc.create_profile(
+        db,
+        user_id=user_id,
+        valid_from=payload.valid_from,
+        gross_annual_salary=payload.gross_annual_salary,
+        employer_cost_pct=payload.employer_cost_pct,
+        extra_annual_costs=payload.extra_annual_costs,
+        productive_hours_year=payload.productive_hours_year,
+        country_code=payload.country_code,
+        currency=payload.currency,
+        notes=payload.notes,
+        organization_id=org_id,
+        created_by_user_id=current_user.id,
+    )
+    return svc.serialize_profile(profile)
+
+
+@router.get("/users/{user_id}/active", summary="Get the user's active cost profile + cost/hour")
+def get_active(
+    user_id: str,
+    on: Optional[Date] = Query(None, description="Resolve as of this date (default: today)"),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin_or_hr),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    profile = svc.get_active_profile(db, user_id, on)
+    rate = svc.cost_per_hour(db, user, on)
+    return {
+        "user_id": user_id,
+        "as_of": (on or Date.today()).isoformat(),
+        "profile": svc.serialize_profile(profile) if profile else None,
+        "cost_per_hour": rate,
+        "source": "profile" if profile else ("legacy_hourly_rate" if rate else "none"),
+        "legacy_hourly_rate": user.hourly_rate,
+    }
+
+
+@router.post("/users/{user_id}/preview", summary="Preview total annual cost + cost/hour from inputs")
+def preview_cost(
+    user_id: str,
+    payload: PreviewIn,
+    _: User = Depends(require_admin_or_hr),
+):
+    total, per_hour = svc.derive_cost(
+        payload.gross_annual_salary,
+        payload.employer_cost_pct,
+        payload.extra_annual_costs,
+        payload.productive_hours_year,
+    )
+    return {"total_annual_cost": total, "cost_per_hour": per_hour}
+
+
+@router.patch("/profiles/{profile_id}", summary="Update a cost profile")
+def update_profile(
+    profile_id: str,
+    payload: ProfileUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin_or_hr),
+):
+    p = svc.update_profile(db, profile_id, **payload.model_dump(exclude_none=True))
+    if not p:
+        raise HTTPException(404, "Profile not found")
+    return svc.serialize_profile(p)
+
+
+@router.delete("/profiles/{profile_id}", summary="Delete a cost profile")
+def delete_profile(
+    profile_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin_or_hr),
+):
+    if not svc.delete_profile(db, profile_id):
+        raise HTTPException(404, "Profile not found")
+    return {"ok": True}
+
+
+# ── Bulk summary for dashboards ──────────────────────────────────────────────
+@router.get("/summary", summary="Bulk cost/hour and totals for all users")
+def cost_summary(
+    on: Optional[Date] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_hr),
+):
+    on = on or Date.today()
+    users = db.query(User).filter(User.status == "active").all()
+    user_ids = [u.id for u in users]
+    rates = svc.cost_per_hour_bulk(db, user_ids, on)
+    items = []
+    total_users_with_cost = 0
+    sum_hourly = 0.0
+    for u in users:
+        rate = rates.get(u.id)
+        has_profile = svc.get_active_profile(db, u.id, on) is not None
+        items.append({
+            "user_id": u.id,
+            "full_name": u.full_name,
+            "department": u.department,
+            "cost_per_hour": rate,
+            "source": "profile" if has_profile else ("legacy_hourly_rate" if rate else "none"),
+        })
+        if rate:
+            total_users_with_cost += 1
+            sum_hourly += rate
+    return {
+        "as_of": on.isoformat(),
+        "users": items,
+        "total_users": len(users),
+        "users_with_cost": total_users_with_cost,
+        "users_missing_cost": len(users) - total_users_with_cost,
+        "avg_cost_per_hour": round(sum_hourly / total_users_with_cost, 2) if total_users_with_cost else 0,
+    }

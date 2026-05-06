@@ -315,6 +315,7 @@ export default function PerformanceReviewsPage() {
             <Button onClick={() => setShowNewCycle(true)}>+ {t('performance.new_cycle') || 'Nuevo ciclo'}</Button>
           )
         }
+      showListExport={false}
       />
 
       {/* Tabs */}

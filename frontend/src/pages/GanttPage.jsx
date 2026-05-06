@@ -137,6 +137,7 @@ export default function GanttPage() {
               </Button>
             </div>
           }
+          showListExport={false}
         />
       </div>
 

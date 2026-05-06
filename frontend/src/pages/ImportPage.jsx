@@ -239,7 +239,7 @@ export default function ImportPage() {
   const t = useAppT()
   return (
     <PageShell>
-      <PageHeader icon={<Upload size={18} />} title={t('import_data.title')} subtitle={t('import_data.subtitle')} />
+      <PageHeader icon={<Upload size={18} />} title={t('import_data.title')} subtitle={t('import_data.subtitle')} showListExport={false} />
       <ImportTab />
     </PageShell>
   )

@@ -59,5 +59,6 @@ from . import sprints_tasks
 from . import portfolio_performance
 from . import invoices_alerts
 from . import automations_cmdb
+from . import user_costs
 
 __all__ = ["METRICS_REGISTRY", "register_metric"]

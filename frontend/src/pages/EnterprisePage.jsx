@@ -800,6 +800,7 @@ export default function EnterprisePage() {
         icon={<Building2 size={18} />}
         title={_t('enterprise.title')}
         subtitle={_t('enterprise.subtitle')}
+      showListExport={false}
       />
 
       {/* Tabs */}

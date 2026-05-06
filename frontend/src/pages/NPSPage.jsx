@@ -155,6 +155,7 @@ export default function NPSPage() {
         icon={<Star size={18} />}
         title={t('nps.title')}
         subtitle={t('nps.subtitle')}
+      showListExport={false}
       />
       <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
         {/* Leaderboard sidebar */}

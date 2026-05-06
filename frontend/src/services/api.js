@@ -1604,6 +1604,25 @@ export const billingSmartMatchApi = {
   match: (data) => api.post('/billing-reports/smartmatch', data),
 }
 
+// ── User Costs (cost-per-hour, salary, employer cost) ────────────────────────
+export const userCostsApi = {
+  // Country presets
+  listCountries:    ()         => api.get('/user-costs/countries'),
+  upsertCountry:    (data)     => api.post('/user-costs/countries', data),
+  seedCountries:    (force)    => api.post('/user-costs/countries/seed', null, { params: { force: !!force } }),
+  updateCountry:    (id, d)    => api.patch(`/user-costs/countries/${id}`, d),
+  deleteCountry:    (id)       => api.delete(`/user-costs/countries/${id}`),
+  // User profiles
+  listProfiles:     (uid)      => api.get(`/user-costs/users/${uid}/profiles`),
+  createProfile:    (uid, d)   => api.post(`/user-costs/users/${uid}/profiles`, d),
+  active:           (uid, on)  => api.get(`/user-costs/users/${uid}/active`, { params: { on } }),
+  preview:          (uid, d)   => api.post(`/user-costs/users/${uid}/preview`, d),
+  updateProfile:    (id, d)    => api.patch(`/user-costs/profiles/${id}`, d),
+  deleteProfile:    (id)       => api.delete(`/user-costs/profiles/${id}`),
+  // Bulk summary
+  summary:          (on)       => api.get('/user-costs/summary', { params: { on } }),
+}
+
 // ── BPMN Processes ────────────────────────────────────────────────────────────
 export const bpmnProcessesApi = {
   list:        (params)        => api.get('/bpmn-processes', { params }),

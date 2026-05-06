@@ -171,6 +171,7 @@ export default function AgentDashboardPage() {
             {snapping ? '...' : `📸 ${t('agent_dashboard.snapshot_today')}`}
           </Button>
         }
+      showListExport={false}
       />
 
       {/* Filters */}

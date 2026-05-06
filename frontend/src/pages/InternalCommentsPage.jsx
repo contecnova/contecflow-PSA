@@ -157,7 +157,7 @@ export default function InternalCommentsPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<MessageSquare size={18} />} title={t('internal_comments.title')} subtitle={t('internal_comments.subtitle')} />
+      <PageHeader icon={<MessageSquare size={18} />} title={t('internal_comments.title')} subtitle={t('internal_comments.subtitle')} showListExport={false} />
 
       <div style={{...ps, marginBottom:20}}>
         <div style={{display:'grid', gridTemplateColumns:'1fr', gap:12}}>

@@ -1,3 +1,15 @@
+// Patch HTMLCanvasElement.getContext so Plotly 3D charts don't trigger the
+// "willReadFrequently" browser warning on repeated getImageData calls.
+;(function patchCanvasGetContext() {
+  const _orig = HTMLCanvasElement.prototype.getContext
+  HTMLCanvasElement.prototype.getContext = function (type, attrs) {
+    if (type === '2d') {
+      attrs = { willReadFrequently: true, ...attrs }
+    }
+    return _orig.call(this, type, attrs)
+  }
+})()
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'

@@ -655,6 +655,7 @@ export default function ExpensesPage() {
         icon={<Receipt size={18} />}
         title={t('expenses.title')}
         subtitle={t('expenses.subtitle')}
+        showListExport={false}
         actions={
           <button
             onClick={() => {

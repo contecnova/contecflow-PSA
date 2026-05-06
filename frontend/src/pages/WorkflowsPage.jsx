@@ -236,6 +236,7 @@ export default function WorkflowsPage() {
             <Button onClick={() => { setEditingState(null); setShowStateForm(true) }}>+ Estado</Button>
           </div>
         )}
+      showListExport={false}
       />
 
       {/* Selector de proyecto */}

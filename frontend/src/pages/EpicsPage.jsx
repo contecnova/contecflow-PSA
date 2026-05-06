@@ -218,7 +218,7 @@ export default function EpicsPage() {
             <button onClick={()=>setView('roadmap')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:view==='roadmap'?'var(--accent-muted)':'transparent',color:view==='roadmap'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>🗺 {t('epics.roadmap')}</button>
             <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.new_epic')}</Button>
           </div>
-        )}/>
+        )} showListExport={false}/>
 
       {/* Selector proyecto */}
       <div style={{...ps,marginBottom:20}}>

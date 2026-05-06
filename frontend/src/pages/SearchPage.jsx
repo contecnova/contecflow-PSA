@@ -240,6 +240,7 @@ export default function SearchPage() {
             ))}
           </div>
         }
+      showListExport={false}
       />
       {mode === 'fts' ? <FTSMode /> : <NQLMode />}
     </PageShell>

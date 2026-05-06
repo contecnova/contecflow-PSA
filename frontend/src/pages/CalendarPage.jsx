@@ -108,7 +108,7 @@ export default function CalendarPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<Calendar size={18} />} title={t('calendar.title')} subtitle={t('calendar.subtitle')} />
+      <PageHeader icon={<Calendar size={18} />} title={t('calendar.title')} subtitle={t('calendar.subtitle')} showListExport={false} />
 
       {/* Controles */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>

@@ -236,7 +236,7 @@ export default function ChangelogPage() {
 
   return (
     <PageShell>
-      <PageHeader title={t('changelog.title')} subtitle={t('changelog.subtitle')} icon={<ScrollText size={18} />} />
+      <PageHeader title={t('changelog.title')} subtitle={t('changelog.subtitle')} icon={<ScrollText size={18} />} showListExport={false} />
 
       {/* Project selector + actions */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}>
