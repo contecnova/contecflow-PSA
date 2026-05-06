@@ -161,7 +161,7 @@ def get_imputation_analytics(
 ):
     """Get imputation analytics for user or team."""
     # Permission: employees see only their own, managers see their projects, admins see all
-    query_user_id = user_id if user_id and current_user.role.value in ["admin", "pm"] else current_user.id
+    query_user_id = user_id if user_id and current_user.role in ["admin", "pm"] else current_user.id
 
     cutoff_date = date.today() - timedelta(days=days_back)
 
@@ -364,7 +364,7 @@ def export_imputations_csv(
     current_user: User = Depends(get_current_user),
 ):
     """Export imputations to CSV."""
-    query_user_id = user_id if user_id and current_user.role.value in ["admin"] else current_user.id
+    query_user_id = user_id if user_id and current_user.role in ["admin"] else current_user.id
 
     imputations = analytics_service.get_imputations_for_export(db, query_user_id, date_from, date_to)
 

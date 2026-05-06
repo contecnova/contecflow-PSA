@@ -41,7 +41,7 @@ class User(Base):
     phone = Column(String(50))
 
     # Role and status
-    role = Column(Enum(UserRole), default=UserRole.employee, nullable=False, index=True)
+    role = Column(String(100), default="employee", nullable=False, index=True)
     status = Column(Enum(UserStatus), default=UserStatus.active, nullable=False, index=True)
 
     # Capacity and cost (confidential — visible only to admin/hr)

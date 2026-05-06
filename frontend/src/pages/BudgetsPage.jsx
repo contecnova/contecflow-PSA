@@ -6,6 +6,7 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
+import { settingsApi } from '../services/settingsApi'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -51,6 +52,7 @@ export default function BudgetsPage() {
 
   const { data: budgets = [], isLoading } = useQuery({ queryKey:['budgets', year], queryFn:()=>api.get(`/budgets?year=${year}`).then(r=>r.data) })
   const { data: summary } = useQuery({ queryKey:['budget-summary', year], queryFn:()=>api.get(`/budgets/summary?year=${year}`).then(r=>r.data) })
+  const { data: departments = [] } = useQuery({ queryKey:['departments-select'], queryFn:()=>settingsApi.getDepartments().then(r=>r.data) })
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => api.post('/budgets', d),
@@ -219,7 +221,7 @@ export default function BudgetsPage() {
                 <input type="number" value={form.year} onChange={setCreateField('year')} style={createValidation.inputStyle(fs, 'year')} />
                 {createValidation.errors.year && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.year}</div>}
               </div>
-              <div><label style={ls}>{t('budgets.department')}</label><input value={form.department} onChange={setCreateField('department')} style={fs} /></div>
+              <div><label style={ls}>{t('budgets.department')}</label><select value={form.department} onChange={setCreateField('department')} style={fs}><option value="">— Sin departamento —</option>{departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}</select></div>
             </div>
             <div>
               <label style={ls}>{t('budgets.total_amount')}</label>

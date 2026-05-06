@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr
 
-from app.schemas.common_enums import UserRole, UserStatus
+from app.schemas.common_enums import UserStatus
 from app.core.config import settings
 
 
@@ -15,7 +15,7 @@ class UserBase(BaseModel):
     last_name: Optional[str] = None
     department: Optional[str] = None
     job_title: Optional[str] = None
-    role: UserRole = UserRole.employee
+    role: str = "employee"
     status: UserStatus = UserStatus.active
     weekly_capacity_hours: float = settings.DEFAULT_WEEKLY_CAPACITY_HOURS
 
@@ -31,7 +31,7 @@ class UserUpdate(BaseModel):
     last_name: Optional[str] = None
     department: Optional[str] = None
     job_title: Optional[str] = None
-    role: Optional[UserRole] = None
+    role: Optional[str] = None
     status: Optional[UserStatus] = None
     weekly_capacity_hours: Optional[float] = None
     hourly_rate: Optional[float] = None  # Only admin can set this

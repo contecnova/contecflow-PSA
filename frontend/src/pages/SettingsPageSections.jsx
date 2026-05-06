@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, advancedConfigApi } from '../services/settingsApi'
-import { usersApi } from '../services/api'
+import { usersApi, biSmartAlertsApi } from '../services/api'
 import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Settings } from 'lucide-react'
@@ -119,6 +119,9 @@ function UsersSection() {
   const [editUser, setEditUser] = useState(null)
   const [search, setSearch] = useState('')
   const { data: users = [], isLoading } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
+  const { data: roles = [] } = useQuery({ queryKey: ['custom-roles'], queryFn: () => advancedConfigApi.getRoles().then(r => r.data) })
+  const { data: departments = [] } = useQuery({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
+  const roleMap = Object.fromEntries(roles.map(r => [r.name, r]))
   const { mutate: createUser, isPending: creating } = useMutation({ mutationFn: usersApi.create, onSuccess: () => { qc.invalidateQueries(['users']); setShowCreate(false) } , onError: e => toast.error(extractErr(e, 'Error'))})
   const { mutate: updateUser, isPending: updating } = useMutation({ mutationFn: ({ id, data }) => usersApi.update(id, data), onSuccess: () => { qc.invalidateQueries(['users']); setEditUser(null) } , onError: e => toast.error(extractErr(e, 'Error'))})
   const { mutate: deactivate } = useMutation({ mutationFn: usersApi.deactivate, onSuccess: () => qc.invalidateQueries(['users']) , onError: e => toast.error(extractErr(e, 'Error'))})
@@ -132,16 +135,19 @@ function UsersSection() {
       </div>
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {filtered.map(u => (
+          {filtered.map(u => {
+            const roleColor = roleMap[u.role]?.color || ROLE_COLORS[u.role] || 'var(--text-2)'
+            const roleLabel = roleMap[u.role]?.description || ROLE_LABELS[u.role] || u.role
+            return (
             <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${u.is_active ? 'var(--surface-4)' : 'var(--danger-border)'}`, borderRadius: 10, opacity: u.is_active ? 1 : 0.6 }}>
-              <div style={{ width: 34, height: 34, borderRadius: '50%', background: `linear-gradient(135deg, ${ROLE_COLORS[u.role] || 'var(--text-2)'}, var(--surface-0))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0 }}>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: `linear-gradient(135deg, ${roleColor}, var(--surface-0))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0 }}>
                 {u.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{u.full_name}</div>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{u.username} · {u.email}</div>
               </div>
-              <span style={{ fontSize: "var(--text-xs)", background: `${ROLE_COLORS[u.role]}15`, color: ROLE_COLORS[u.role], border: `1px solid ${ROLE_COLORS[u.role]}30`, borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>{ROLE_LABELS[u.role] || u.role}</span>
+              <span style={{ fontSize: "var(--text-xs)", background: `${roleColor}15`, color: roleColor, border: `1px solid ${roleColor}30`, borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>{roleLabel}</span>
               {u.department && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{u.department}</span>}
               {!u.is_active && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>Inactivo</span>}
               <button onClick={() => setEditUser(u)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️ Editar</button>
@@ -149,11 +155,11 @@ function UsersSection() {
                 : <button onClick={() => deactivate(u.id)} style={{ background: 'none', border: '1px solid var(--success-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>▶ Activar</button>}
               <button onClick={() => openConfirmGlobal({ title: '⚠️ Eliminar permanentemente', message: `¿Eliminar permanentemente a "${u.full_name}"? Esta acción no se puede deshacer.`, onConfirm: () => deletePermanent(u.id), danger: true })} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑 Eliminar</button>
             </div>
-          ))}
+          )})}
         </div>
       )}
-      <UserFormModal open={showCreate} onClose={() => setShowCreate(false)} onSave={createUser} isPending={creating} />
-      {editUser && <UserFormModal open user={editUser} onClose={() => setEditUser(null)} onSave={(data) => updateUser({ id: editUser.id, data })} isPending={updating} />}
+      <UserFormModal open={showCreate} roles={roles} departments={departments} onClose={() => setShowCreate(false)} onSave={createUser} isPending={creating} />
+      {editUser && <UserFormModal open roles={roles} departments={departments} user={editUser} onClose={() => setEditUser(null)} onSave={(data) => updateUser({ id: editUser.id, data })} isPending={updating} />}
     </Section>
   )
 }
@@ -167,7 +173,7 @@ const COMMON_TIMEZONES = [
   'Australia/Sydney', 'Pacific/Auckland',
 ]
 
-function UserFormModal({ open, onClose, user, onSave, isPending }) {
+function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], departments = [] }) {
   const isEdit = !!user
   const [form, setForm] = useState({ username: user?.username || '', email: user?.email || '', full_name: user?.full_name || '', role: user?.role || 'employee', department: user?.department || '', job_title: user?.job_title || '', weekly_capacity_hours: user?.weekly_capacity_hours || 40, hourly_rate: user?.hourly_rate || '', timezone: user?.timezone || '', password: '' })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -177,8 +183,16 @@ function UserFormModal({ open, onClose, user, onSave, isPending }) {
         <div style={{ gridColumn: '1/-1' }}><label style={ls}>Nombre completo *</label><input value={form.full_name} onChange={set('full_name')} style={fs} /></div>
         <div><label style={ls}>Usuario *</label><input value={form.username} onChange={set('username')} style={fs} /></div>
         <div><label style={ls}>Email *</label><input type="email" value={form.email} onChange={set('email')} style={fs} /></div>
-        <div><label style={ls}>Rol</label><select value={form.role} onChange={set('role')} style={fs}>{Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
-        <div><label style={ls}>Departamento</label><input value={form.department} onChange={set('department')} style={fs} /></div>
+        <div><label style={ls}>Rol</label><select value={form.role} onChange={set('role')} style={fs}>
+          {roles.length > 0
+            ? roles.map(r => <option key={r.name} value={r.name}>{r.description || r.name}</option>)
+            : Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)
+          }
+        </select></div>
+        <div><label style={ls}>Departamento</label><select value={form.department} onChange={set('department')} style={fs}>
+          <option value="">— Sin departamento —</option>
+          {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+        </select></div>
         <div><label style={ls}>Cargo</label><input value={form.job_title} onChange={set('job_title')} style={fs} /></div>
         <div><label style={ls}>Horas semanales</label><input type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} style={fs} /></div>
         <div><label style={ls}>Tarifa €/hora</label><input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={fs} /></div>
@@ -280,14 +294,61 @@ function RoleFormModal({ role, modules, onClose, onSave }) {
 }
 
 // ── Alert configs section ─────────────────────────────────────────────────────
+const CONDITION_LABELS = {
+  threshold_above: 'Supera umbral',
+  threshold_below: 'Por debajo del umbral',
+  trend_up: 'Tendencia al alza',
+  trend_down: 'Tendencia a la baja',
+  anomaly: 'Anomalía detectada',
+}
+const THRESHOLD_CONDITIONS = ['threshold_above', 'threshold_below']
+
 function AlertConfigSection() {
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: configs = [], isLoading } = useQuery({ queryKey: ['alert-configs'], queryFn: () => advancedConfigApi.getAlertConfigs().then(r => r.data) })
-  const { mutate: update } = useMutation({ mutationFn: ({ type, data }) => advancedConfigApi.updateAlertConfig(type, data), onSuccess: () => qc.invalidateQueries(['alert-configs']) , onError: e => toast.error(extractErr(e, 'Error'))})
   const SEV_CFG = { info: 'var(--accent)', warning: 'var(--warning)', critical: 'var(--danger)' }
+
+  // — system alert configs (fixed 8 types) —
+  const { data: configs = [], isLoading } = useQuery({ queryKey: ['alert-configs'], queryFn: () => advancedConfigApi.getAlertConfigs().then(r => r.data) })
+  const { mutate: update } = useMutation({ mutationFn: ({ type, data }) => advancedConfigApi.updateAlertConfig(type, data), onSuccess: () => qc.invalidateQueries(['alert-configs']), onError: e => toast.error(extractErr(e, 'Error')) })
+
+  // — BI custom alert rules —
+  const { data: rulesData = { items: [] } } = useQuery({ queryKey: ['bi-alert-rules'], queryFn: () => biSmartAlertsApi.listRules().then(r => r.data) })
+  const { data: metricsData = { metrics: [], conditions: [] } } = useQuery({ queryKey: ['bi-alert-metrics'], queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data) })
+  const rules = rulesData.items ?? []
+  const metrics = metricsData.metrics ?? []
+
+  const { mutate: createRule, isPending: isCreating } = useMutation({
+    mutationFn: biSmartAlertsApi.createRule,
+    onSuccess: () => { qc.invalidateQueries(['bi-alert-rules']); setShowCreate(false); setRuleForm(EMPTY_RULE) },
+    onError: e => toast.error(extractErr(e, 'Error')),
+  })
+  const { mutate: toggleRule } = useMutation({
+    mutationFn: ({ id, enabled }) => biSmartAlertsApi.updateRule(id, { enabled }),
+    onSuccess: () => qc.invalidateQueries(['bi-alert-rules']),
+    onError: e => toast.error(extractErr(e, 'Error')),
+  })
+  const { mutate: deleteRule } = useMutation({
+    mutationFn: biSmartAlertsApi.deleteRule,
+    onSuccess: () => qc.invalidateQueries(['bi-alert-rules']),
+    onError: e => toast.error(extractErr(e, 'Error')),
+  })
+
+  const EMPTY_RULE = { name: '', metric_key: '', condition: 'threshold_above', threshold: '', severity: 'warning', cooldown_minutes: 60 }
+  const [showCreate, setShowCreate] = useState(false)
+  const [ruleForm, setRuleForm] = useState(EMPTY_RULE)
+  const setR = k => e => setRuleForm(f => ({ ...f, [k]: e.target.value }))
+
+  const submitRule = () => {
+    if (!ruleForm.name.trim() || !ruleForm.metric_key) return toast.error('Nombre y métrica son obligatorios')
+    const payload = { ...ruleForm, cooldown_minutes: +ruleForm.cooldown_minutes }
+    if (THRESHOLD_CONDITIONS.includes(ruleForm.condition)) payload.threshold = +ruleForm.threshold
+    else delete payload.threshold
+    createRule(payload)
+  }
+
   return (
-    <Section icon="🔔" title="Alertas" description="Configura notificaciones y umbrales">
+    <Section icon="🔔" title="Alertas" description="Configura notificaciones, umbrales y reglas personalizadas">
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {configs.map(cfg => (
@@ -328,6 +389,93 @@ function AlertConfigSection() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* ── Custom BI alert rules ─────────────────── */}
+      <div style={{ marginTop: 28 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>Reglas personalizadas</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Alertas basadas en métricas del sistema</div>
+          </div>
+          <Button onClick={() => setShowCreate(true)}>+ Nueva alerta</Button>
+        </div>
+        {rules.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>No hay reglas personalizadas. Crea la primera.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {rules.map(rule => (
+              <div key={rule.id} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: `1px solid ${rule.enabled ? SEV_CFG[rule.severity] + '30' : 'var(--surface-4)'}`, borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, opacity: rule.enabled ? 1 : 0.6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2 }}>
+                    <span style={{ fontWeight: 600, fontSize: "var(--text-base)" }}>{rule.name}</span>
+                    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: SEV_CFG[rule.severity], background: SEV_CFG[rule.severity] + '20', borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{rule.severity}</span>
+                  </div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                    {metrics.find(m => m.key === rule.metric_key)?.label ?? rule.metric_key} · {CONDITION_LABELS[rule.condition] ?? rule.condition}{rule.threshold != null ? ` · umbral: ${rule.threshold}` : ''}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                    <input type="checkbox" checked={!!rule.enabled} onChange={e => toggleRule({ id: rule.id, enabled: e.target.checked })} />
+                    {rule.enabled ? 'Activa' : 'Inactiva'}
+                  </label>
+                  <Button variant="danger" style={{ padding: '4px 10px', fontSize: "var(--text-xs)" }} onClick={() => openConfirmGlobal({ title: 'Eliminar regla', message: `¿Eliminar "${rule.name}"?`, onConfirm: () => deleteRule(rule.id) })}>Eliminar</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {showCreate && (
+        <Modal open title="Nueva regla de alerta" onClose={() => { setShowCreate(false); setRuleForm(EMPTY_RULE) }} width={480}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={ls}>Nombre</label>
+              <input value={ruleForm.name} onChange={setR('name')} style={fs} placeholder="Ej: Ingresos por debajo del objetivo" />
+            </div>
+            <div>
+              <label style={ls}>Métrica</label>
+              <select value={ruleForm.metric_key} onChange={setR('metric_key')} style={fs}>
+                <option value="">— Selecciona una métrica —</option>
+                {metrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={ls}>Condición</label>
+                <select value={ruleForm.condition} onChange={setR('condition')} style={fs}>
+                  {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              {THRESHOLD_CONDITIONS.includes(ruleForm.condition) && (
+                <div>
+                  <label style={ls}>Umbral</label>
+                  <input type="number" value={ruleForm.threshold} onChange={setR('threshold')} style={fs} placeholder="0" />
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={ls}>Severidad</label>
+                <select value={ruleForm.severity} onChange={setR('severity')} style={fs}>
+                  <option value="info">Info</option>
+                  <option value="warning">Warning</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+              <div>
+                <label style={ls}>Cooldown (minutos)</label>
+                <input type="number" value={ruleForm.cooldown_minutes} onChange={setR('cooldown_minutes')} style={fs} min={5} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+              <Button variant="secondary" onClick={() => { setShowCreate(false); setRuleForm(EMPTY_RULE) }}>Cancelar</Button>
+              <Button onClick={submitRule} disabled={isCreating}>{isCreating ? 'Creando…' : 'Crear alerta'}</Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </Section>
   )
@@ -543,7 +691,22 @@ function CustomFieldsSection() {
   const [editingFieldId, setEditingFieldId] = useState(null)
   const [editFieldForm, setEditFieldForm] = useState({ name: '', is_required: false, placeholder: '' })
   const [form, setForm] = useState({ entity: 'project', name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' })
-  const ENTITIES = [{ value: 'project', label: 'Proyecto' }, { value: 'task', label: 'Tarea' }, { value: 'user', label: 'Usuario' }]
+  const ENTITIES = [
+    { value: 'project',     label: 'Proyecto' },
+    { value: 'task',        label: 'Tarea' },
+    { value: 'user',        label: 'Usuario' },
+    { value: 'client',      label: 'Cliente' },
+    { value: 'contract',    label: 'Contrato' },
+    { value: 'invoice',     label: 'Factura' },
+    { value: 'absence',     label: 'Ausencia' },
+    { value: 'document',    label: 'Documento' },
+    { value: 'risk',        label: 'Riesgo' },
+    { value: 'deliverable', label: 'Entregable' },
+    { value: 'imputation',  label: 'Imputación' },
+    { value: 'expense',     label: 'Gasto' },
+    { value: 'opportunity', label: 'Oportunidad' },
+    { value: 'ticket',      label: 'Ticket' },
+  ]
   const TYPES = [{ value: 'text', label: 'Texto' }, { value: 'number', label: 'Número' }, { value: 'date', label: 'Fecha' }, { value: 'select', label: 'Selector' }, { value: 'boolean', label: 'Sí/No' }, { value: 'url', label: 'URL' }]
   const TYPE_ICONS = { text: '📝', number: '🔢', date: '📅', select: '📋', boolean: '☑️', url: '🔗' }
   const byEntity = fields.reduce((a, f) => { if (!a[f.entity]) a[f.entity] = []; a[f.entity].push(f); return a }, {})
@@ -1040,11 +1203,176 @@ function DepartmentsSection() {
 
 
 
+// ── Metrics section ───────────────────────────────────────────────────────────
+const OPERATOR_LABELS = { '+': 'Suma', '-': 'Resta', '*': 'Multiplica', '/': 'Divide' }
+const EMPTY_METRIC = { label: '', description: '', operand_a: '', operator: '/', operand_b_type: 'metric', operand_b: '', scale: 1 }
+
+function MetricsSection() {
+  const toast = useToast()
+  const qc = useQueryClient()
+
+  const { data: metricsData = { metrics: [] } } = useQuery({ queryKey: ['bi-alert-metrics'], queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data) })
+  const { data: customData = { items: [] } } = useQuery({ queryKey: ['bi-custom-metrics'], queryFn: () => biSmartAlertsApi.listCustomMetrics().then(r => r.data) })
+  const builtinMetrics = (metricsData.metrics ?? []).filter(m => !m.is_custom)
+  const customMetrics = customData.items ?? []
+
+  const { mutate: createMetric, isPending: isCreating } = useMutation({
+    mutationFn: biSmartAlertsApi.createCustomMetric,
+    onSuccess: () => { qc.invalidateQueries(['bi-custom-metrics']); qc.invalidateQueries(['bi-alert-metrics']); setShowCreate(false); setForm(EMPTY_METRIC) },
+    onError: e => toast.error(extractErr(e, 'Error')),
+  })
+  const { mutate: deleteMetric } = useMutation({
+    mutationFn: biSmartAlertsApi.deleteCustomMetric,
+    onSuccess: () => { qc.invalidateQueries(['bi-custom-metrics']); qc.invalidateQueries(['bi-alert-metrics']) },
+    onError: e => toast.error(extractErr(e, 'Error')),
+  })
+
+  const [showCreate, setShowCreate] = useState(false)
+  const [form, setForm] = useState(EMPTY_METRIC)
+  const setF = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  const preview = (() => {
+    const la = builtinMetrics.find(m => m.key === form.operand_a)?.label ?? form.operand_a
+    const lb = form.operand_b_type === 'metric'
+      ? (builtinMetrics.find(m => m.key === form.operand_b)?.label ?? form.operand_b)
+      : form.operand_b
+    if (!form.operand_a) return ''
+    const scaled = parseFloat(form.scale) !== 1 ? ` × ${form.scale}` : ''
+    return `(${la} ${form.operator} ${lb})${scaled}`
+  })()
+
+  const submit = () => {
+    if (!form.label.trim() || !form.operand_a) return toast.error('Nombre y operando A son obligatorios')
+    if (form.operand_b_type === 'metric' && !form.operand_b) return toast.error('Selecciona la métrica B')
+    createMetric({ ...form, scale: parseFloat(form.scale) || 1 })
+  }
+
+  return (
+    <Section icon="📊" title="Métricas" description="Métricas del sistema disponibles para alertas y análisis">
+      {/* Built-in metrics */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>Métricas del sistema ({builtinMetrics.length})</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+          {builtinMetrics.map(m => (
+            <div key={m.key} style={{ padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{m.label}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'monospace', marginTop: 2 }}>{m.key}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Custom metrics */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em' }}>Métricas personalizadas ({customMetrics.length})</div>
+          <Button onClick={() => setShowCreate(true)}>+ Nueva métrica</Button>
+        </div>
+        {customMetrics.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>No hay métricas personalizadas. Crea la primera combinando métricas existentes.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {customMetrics.map(cm => {
+              const f = cm.formula ?? {}
+              const la = builtinMetrics.find(m => m.key === f.operand_a)?.label ?? f.operand_a
+              const lb = f.operand_b_type === 'metric'
+                ? (builtinMetrics.find(m => m.key === f.operand_b)?.label ?? f.operand_b)
+                : f.operand_b
+              const scale = parseFloat(f.scale) !== 1 ? ` × ${f.scale}` : ''
+              return (
+                <div key={cm.key} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: "var(--text-base)", marginBottom: 2 }}>{cm.label}</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'monospace' }}>({la} {f.operator} {lb}){scale}</div>
+                    {cm.description && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>{cm.description}</div>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontFamily: 'monospace' }}>{cm.key}</span>
+                    <Button variant="danger" style={{ padding: '4px 10px', fontSize: "var(--text-xs)" }} onClick={() => openConfirmGlobal({ title: 'Eliminar métrica', message: `¿Eliminar "${cm.label}"? Las reglas de alerta que la usen dejarán de funcionar.`, onConfirm: () => deleteMetric(cm.key) })}>Eliminar</Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {showCreate && (
+        <Modal open title="Nueva métrica personalizada" onClose={() => { setShowCreate(false); setForm(EMPTY_METRIC) }} width={500}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={ls}>Nombre</label>
+              <input value={form.label} onChange={setF('label')} style={fs} placeholder="Ej: Ratio coste-ingreso" />
+            </div>
+            <div>
+              <label style={ls}>Descripción (opcional)</label>
+              <input value={form.description} onChange={setF('description')} style={fs} placeholder="Para qué sirve esta métrica" />
+            </div>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 12 }}>Fórmula: (A operador B) × escala</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 10, alignItems: 'end', marginBottom: 12 }}>
+                <div>
+                  <label style={ls}>Métrica A</label>
+                  <select value={form.operand_a} onChange={setF('operand_a')} style={fs}>
+                    <option value="">— Selecciona —</option>
+                    {builtinMetrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={ls}>Op.</label>
+                  <select value={form.operator} onChange={setF('operator')} style={{ ...fs, width: 70 }}>
+                    {Object.entries(OPERATOR_LABELS).map(([k, v]) => <option key={k} value={k}>{k} ({v})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={ls}>Tipo B</label>
+                  <select value={form.operand_b_type} onChange={setF('operand_b_type')} style={fs}>
+                    <option value="metric">Otra métrica</option>
+                    <option value="constant">Constante</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={ls}>{form.operand_b_type === 'metric' ? 'Métrica B' : 'Valor constante'}</label>
+                  {form.operand_b_type === 'metric' ? (
+                    <select value={form.operand_b} onChange={setF('operand_b')} style={fs}>
+                      <option value="">— Selecciona —</option>
+                      {builtinMetrics.filter(m => m.key !== form.operand_a).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+                    </select>
+                  ) : (
+                    <input type="number" value={form.operand_b} onChange={setF('operand_b')} style={fs} placeholder="0" />
+                  )}
+                </div>
+                <div>
+                  <label style={ls}>Escala (× resultado)</label>
+                  <input type="number" value={form.scale} onChange={setF('scale')} style={fs} placeholder="1" step="any" />
+                </div>
+              </div>
+              {preview && (
+                <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--surface-3)', borderRadius: 6, fontSize: "var(--text-xs)", color: 'var(--accent)', fontFamily: 'monospace' }}>
+                  Vista previa: {preview}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <Button variant="secondary" onClick={() => { setShowCreate(false); setForm(EMPTY_METRIC) }}>Cancelar</Button>
+              <Button onClick={submit} disabled={isCreating}>{isCreating ? 'Creando…' : 'Crear métrica'}</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </Section>
+  )
+}
+
+
 export {
   GeneralSection,
   UsersSection,
   RolesSection,
   AlertConfigSection,
+  MetricsSection,
   TaskTypesSection,
   TemplatesSection,
   RateTablesSection,

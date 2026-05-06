@@ -67,7 +67,7 @@ def serialize_perm(p) -> dict:
         "granted_at": p.granted_at.isoformat() if p.granted_at else None,
         "user": {
             "id": p.user.id, "full_name": p.user.full_name,
-            "role": p.user.role.value, "job_title": p.user.job_title,
+            "role": p.user.role, "job_title": p.user.job_title,
             "department": p.user.department,
         } if p.user else None,
     }
@@ -340,8 +340,8 @@ def transition_task(project_id: str, task_id: str, payload, current_user, db: Se
         raise HTTPException(400, "Esta transición requiere un comentario")
     if (
         transition.required_role
-        and current_user.role.value != transition.required_role
-        and current_user.role.value != "admin"
+        and current_user.role != transition.required_role
+        and current_user.role != "admin"
     ):
         raise HTTPException(
             403,

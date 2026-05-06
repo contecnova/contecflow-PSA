@@ -13,6 +13,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import { grcApi, approvalsApi } from '../services/api'
+import { advancedConfigApi } from '../services/settingsApi'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ShieldCheck } from 'lucide-react'
@@ -42,13 +43,14 @@ const MODULES = [
 const ACTIONS = ['ver', 'crear', 'editar', 'eliminar', 'aprobar', 'exportar']
 const ACTION_LABEL = { ver: 'Ver', crear: 'Crear', editar: 'Editar', eliminar: 'Eliminar', aprobar: 'Aprobar', exportar: 'Exportar' }
 
-const ROLES = [
+// ROLES se carga dinámicamente desde la API — ver useRoles() en GrcPage
+const FALLBACK_ROLES = [
   { id: 'admin',     label: 'Admin',      color: 'var(--accent)' },
   { id: 'pm',        label: 'PM',         color: '#a78bfa' },
   { id: 'team_lead', label: 'Team Lead',  color: '#0891b2' },
   { id: 'employee',  label: 'Employee',   color: '#34d399' },
   { id: 'hr',        label: 'HR',         color: '#f59e0b' },
-  { id: 'client',    label: 'Cliente',    color: '#7a8aaa' },
+  { id: 'subcontractor', label: 'Subcontratado', color: '#f97316' },
 ]
 
 const RISK_COLOR = { critical: '#f87171', high: '#fb923c', medium: '#f59e0b', low: '#34d399' }
@@ -62,7 +64,7 @@ const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)'
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. MATRIZ DE PERMISOS (wired to API)
 // ═══════════════════════════════════════════════════════════════════════════════
-function MatrixTab() {
+function MatrixTab({ roles }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -94,7 +96,7 @@ function MatrixTab() {
     }
   }
 
-  const displayRoles = selRole === 'all' ? ROLES : ROLES.filter(r => r.id === selRole)
+  const displayRoles = selRole === 'all' ? roles : roles.filter(r => r.id === selRole)
 
   if (isLoading) return <Spinner />
 
@@ -107,7 +109,7 @@ function MatrixTab() {
             style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${selRole === 'all' ? 'var(--accent)' : 'var(--surface-4)'}`, background: selRole === 'all' ? 'var(--accent-muted)' : 'transparent', color: selRole === 'all' ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {t('grc.all')}
           </button>
-          {ROLES.map(r => (
+          {roles.map(r => (
             <button key={r.id} onClick={() => setSelRole(r.id)}
               style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${selRole === r.id ? r.color : 'var(--surface-4)'}`, background: selRole === r.id ? `${r.color}15` : 'transparent', color: selRole === r.id ? r.color : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
               {r.label}
@@ -191,7 +193,7 @@ function MatrixTab() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 2. SEGREGACIÓN SoD (wired to API + CRUD)
 // ═══════════════════════════════════════════════════════════════════════════════
-function SodRuleModal({ rule, workflows, onClose }) {
+function SodRuleModal({ rule, workflows, onClose, roles }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -279,7 +281,7 @@ function SodRuleModal({ rule, workflows, onClose }) {
         <div>
           <label style={ls}>{t('grc.conflicting_roles')}</label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-            {ROLES.map(r => (
+            {roles.map(r => (
               <button key={r.id} onClick={() => toggleRole(r.id)}
                 style={{ padding: '4px 12px', borderRadius: 6, border: `1px solid ${form.roles_conflict.includes(r.id) ? r.color : 'var(--surface-4)'}`, background: form.roles_conflict.includes(r.id) ? `${r.color}20` : 'transparent', color: form.roles_conflict.includes(r.id) ? r.color : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 {r.label}
@@ -299,7 +301,7 @@ function SodRuleModal({ rule, workflows, onClose }) {
   )
 }
 
-function SodTab() {
+function SodTab({ roles }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -404,8 +406,8 @@ function SodTab() {
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>Roles con conflicto:</span>
                     {rule.roles_conflict.map(r => {
-                      const role = ROLES.find(x => x.id === r)
-                      return role ? <span key={r} style={{ fontSize: "var(--text-xs)", background: `${role.color}20`, color: role.color, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{role.label}</span> : null
+                      const role = roles.find(x => x.id === r)
+                      return role ? <span key={r} style={{ fontSize: "var(--text-xs)", background: `${role.color}20`, color: role.color, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{role.label}</span> : <span key={r} style={{ fontSize: "var(--text-xs)", background: 'var(--surface-3)', color: 'var(--text-2)', padding: '2px 8px', borderRadius: 4 }}>{r}</span>
                     })}
                   </div>
                 )}
@@ -416,7 +418,7 @@ function SodTab() {
       )}
 
       {(showModal || editingRule) && (
-        <SodRuleModal rule={editingRule} workflows={workflows} onClose={() => { setShowModal(false); setEditingRule(null) }} />
+        <SodRuleModal rule={editingRule} workflows={workflows} roles={roles} onClose={() => { setShowModal(false); setEditingRule(null) }} />
       )}
     </div>
   )
@@ -625,6 +627,14 @@ export default function GrcPage() {
   const _t = useAppT()
   const [tab, setTab] = useState('matrix')
 
+  const { data: rawRoles = [] } = useQuery({
+    queryKey: ['custom-roles'],
+    queryFn: () => advancedConfigApi.getRoles().then(r => r.data),
+  })
+  const roles = rawRoles.length > 0
+    ? rawRoles.map(r => ({ id: r.name, label: r.description || r.name, color: r.color }))
+    : FALLBACK_ROLES
+
   const TABS = [
     { id: 'matrix',     label: 'Matriz de permisos' },
     { id: 'sod',        label: 'Segregación SoD' },
@@ -656,8 +666,8 @@ export default function GrcPage() {
 
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
         borderRadius: 12, padding: '20px 22px' }}>
-        {tab === 'matrix'     && <MatrixTab />}
-        {tab === 'sod'        && <SodTab />}
+        {tab === 'matrix'     && <MatrixTab roles={roles} />}
+        {tab === 'sod'        && <SodTab roles={roles} />}
         {tab === 'violations' && <ViolationsTab />}
         {tab === 'approvals'  && <ApprovalsTab />}
         {tab === 'auditlog'   && <AuditLogTab />}

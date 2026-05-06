@@ -10,6 +10,7 @@ import {
   UsersSection,
   RolesSection,
   AlertConfigSection,
+  MetricsSection,
   TaskTypesSection,
   RateTablesSection,
   VacationSection,
@@ -43,6 +44,7 @@ const TAB_GROUPS = [
       { id: 'numbering',    label: 'Numeración',     roles: ['admin'] },
       { id: 'fields',       label: 'Campos extra',   roles: ['admin'] },
       { id: 'alert-config', label: 'Alertas',        roles: ['admin'] },
+      { id: 'metrics',      label: 'Métricas',       roles: ['admin'] },
     ],
   },
   {
@@ -98,6 +100,7 @@ export default function SettingsPage() {
       {activeTab === 'users'         && <UsersSection />}
       {activeTab === 'roles'         && <RolesSection />}
       {activeTab === 'alert-config'  && <AlertConfigSection />}
+      {activeTab === 'metrics'       && <MetricsSection />}
       {activeTab === 'task-types'    && <TaskTypesSection />}
       {activeTab === 'rates'         && <RateTablesSection />}
       {activeTab === 'vacations'     && <VacationSection />}

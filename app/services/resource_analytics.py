@@ -191,7 +191,7 @@ class ResourceAnalyticsService:
                 scoring.append({
                     "user_id": user.id,
                     "user_name": user.full_name,
-                    "role": user.role.value,
+                    "role": user.role,
                     "load_pct": avail["load_pct"],
                     "capacity_hours": avail["capacity_hours"],
                     "allocated_hours": avail["planned_hours"] + avail["actual_hours"],

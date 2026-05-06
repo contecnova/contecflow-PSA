@@ -75,11 +75,12 @@ DEFAULT_MODULES = [
 ]
 
 DEFAULT_SYSTEM_ROLES = [
-    ("admin", "Dirección / Admin", "#ff4757", True),
-    ("pm", "Project Manager", "#00d4ff", True),
-    ("hr", "RRHH", "#00e5a0", True),
-    ("team_lead", "Team Lead", "#7c3aed", True),
-    ("employee", "Empleado", "#7a8aaa", True),
+    ("admin",          "Dirección / Admin",         "#ff4757", True),
+    ("pm",             "Project Manager",            "#00d4ff", True),
+    ("hr",             "RRHH",                       "#00e5a0", True),
+    ("team_lead",      "Team Lead",                  "#7c3aed", True),
+    ("employee",       "Empleado",                   "#7a8aaa", True),
+    ("subcontractor",  "Subcontratado",              "#f59e0b", True),
 ]
 
 
@@ -122,14 +123,14 @@ def seed_numbering(db: Session):
 
 
 def seed_system_roles(db: Session):
-    if db.query(CustomRole).filter(CustomRole.is_system == True).count() > 0:
-        return
     all_modules = {m: True for m in DEFAULT_MODULES}
     for name, description, color, is_system in DEFAULT_SYSTEM_ROLES:
-        db.add(CustomRole(
-            name=name, description=description, color=color,
-            is_system=is_system, module_access=json.dumps(all_modules),
-        ))
+        if not db.query(CustomRole).filter(CustomRole.name == name).first():
+            db.add(CustomRole(
+                name=name, description=description, color=color,
+                is_system=is_system, is_active=True,
+                module_access=json.dumps(all_modules),
+            ))
     db.commit()
 
 

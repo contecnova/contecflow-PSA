@@ -126,7 +126,7 @@ def get_org_chart_payload(db: Session, current_user) -> dict:
     users = scope_users_query(db.query(User).filter(User.is_active == True), current_user).all()
     user_map = {u.id: {
         "id": u.id, "full_name": u.full_name, "job_title": u.job_title,
-        "department": u.department, "role": u.role.value, "email": u.email,
+        "department": u.department, "role": u.role, "email": u.email,
         "manager_id": u.manager_id, "avatar_url": u.avatar_url,
         "children": []
     } for u in users}
@@ -158,7 +158,7 @@ def approval_chain_for_user(user, db: Session, requesting_user) -> list:
             "full_name": manager.full_name,
             "job_title": manager.job_title,
             "department": manager.department,
-            "role": manager.role.value,
+            "role": manager.role,
             "level": len(chain) + 1,
         })
         current = manager

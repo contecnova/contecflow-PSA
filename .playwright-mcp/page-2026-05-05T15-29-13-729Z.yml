@@ -1,0 +1,65 @@
+- generic [ref=e3]:
+  - progressbar "Cargando página"
+  - generic [ref=e4]:
+    - generic [ref=e6]:
+      - button "Español" [ref=e7] [cursor=pointer]: 🇪🇸
+      - button "English" [ref=e8] [cursor=pointer]: 🇬🇧
+      - button "Français — traducción parcial" [ref=e9] [cursor=pointer]:
+        - text: 🇫🇷
+        - generic: β
+      - button "Deutsch — traducción parcial" [ref=e10] [cursor=pointer]:
+        - text: 🇩🇪
+        - generic: β
+      - button "Português — traducción parcial" [ref=e11] [cursor=pointer]:
+        - text: 🇵🇹
+        - generic: β
+      - button "Italiano — traducción parcial" [ref=e12] [cursor=pointer]:
+        - text: 🇮🇹
+        - generic: β
+      - button "Polski — traducción parcial" [ref=e13] [cursor=pointer]:
+        - text: 🇵🇱
+        - generic: β
+      - button "中文 — traducción parcial" [ref=e14] [cursor=pointer]:
+        - text: 🇨🇳
+        - generic: β
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - img [ref=e19]
+        - generic [ref=e23]: Contecflow
+      - heading "Bienvenido a la nueva era de la gestión Contecflow revoluciona tu productividad" [level=2] [ref=e24]:
+        - text: Bienvenido a la nueva era de la gestión
+        - text: Contecflow revoluciona tu productividad
+      - paragraph [ref=e25]: La plataforma profesional para equipos que buscan eficiencia, control y crecimiento. Descubre la experiencia de gestión más avanzada, segura y flexible del mercado.
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - generic [ref=e28]: 🚀
+          - generic [ref=e29]: Impulsa tu negocio con tecnología de vanguardia
+        - generic [ref=e30]:
+          - generic [ref=e31]: 🔒
+          - generic [ref=e32]: Seguridad y privacidad de nivel empresarial
+        - generic [ref=e33]:
+          - generic [ref=e34]: 💡
+          - generic [ref=e35]: Automatización inteligente y analítica avanzada
+        - generic [ref=e36]:
+          - generic [ref=e37]: 🌎
+          - generic [ref=e38]: Multilingüe, global y siempre disponible
+      - generic [ref=e39]:
+        - generic [ref=e40]: v26
+        - generic [ref=e41]: Enterprise · SOC2 · ISO27001
+    - generic [ref=e43]:
+      - heading "Accede a tu espacio profesional" [level=3] [ref=e44]
+      - paragraph [ref=e45]: Gestiona proyectos, equipos y clientes desde una única plataforma
+      - generic [ref=e46]:
+        - generic [ref=e47]:
+          - generic [ref=e48]: Usuario o correo electrónico
+          - textbox "Usuario o correo electrónico" [active] [ref=e49]:
+            - /placeholder: Tu usuario o correo electrónico
+        - generic [ref=e50]:
+          - generic [ref=e51]: Contraseña
+          - textbox "Contraseña" [ref=e52]:
+            - /placeholder: Tu contraseña
+        - button "Acceder a Contecflow" [ref=e53] [cursor=pointer]
+        - button "¿Olvidaste tu contraseña?" [ref=e55] [cursor=pointer]
+      - paragraph [ref=e56]:
+        - text: Contecflow es una marca registrada. Todos los derechos reservados.
+        - text: ¿Necesitas ayuda? Contacta con soporte.

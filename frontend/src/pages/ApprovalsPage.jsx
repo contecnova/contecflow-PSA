@@ -7,6 +7,7 @@ import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { approvalsApi } from '../services/api'
 import _api, { usersApi } from '../services/api'
+import { settingsApi } from '../services/settingsApi'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CheckCircle } from 'lucide-react'
@@ -83,6 +84,10 @@ function StepModal({ workflowId, step, onClose }) {
     queryKey: ['approval-groups'],
     queryFn: () => approvalsApi.listGroups().then(r => r.data),
   })
+  const { data: depts = [] } = useQuery({
+    queryKey: ['departments-select'],
+    queryFn: () => settingsApi.getDepartments().then(r => r.data),
+  })
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
@@ -137,7 +142,10 @@ function StepModal({ workflowId, step, onClose }) {
         {form.approver_type === 'any_in_department' && (
           <div style={{ gridColumn: '1/-1' }}>
             <label htmlFor={`${idPrefix}-approver-department`} style={lbl}>{t('approvals.department')}</label>
-            <input id={`${idPrefix}-approver-department`} value={form.approver_department} onChange={e => setForm(f=>({...f,approver_department:e.target.value}))} style={inp} placeholder={t('approvals.department_placeholder')} />
+            <select id={`${idPrefix}-approver-department`} value={form.approver_department} onChange={e => setForm(f=>({...f,approver_department:e.target.value}))} style={inp}>
+              <option value="">— Sin departamento —</option>
+              {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+            </select>
           </div>
         )}
 
@@ -616,6 +624,10 @@ function WorkflowTemplatesTab() {
     queryKey: ['approval-workflow-templates'],
     queryFn: () => approvalsApi.listTemplates().then(r => r.data || []),
   })
+  const { data: depts = [] } = useQuery({
+    queryKey: ['departments-select'],
+    queryFn: () => settingsApi.getDepartments().then(r => r.data),
+  })
   const { mutate: createFromTemplate, isPending } = useMutation({
     mutationFn: (payload) => approvalsApi.createFromTemplate(payload),
     onSuccess: () => {
@@ -822,7 +834,10 @@ function WorkflowTemplatesTab() {
                 {step.approver_type === 'any_in_department' && (
                   <div style={{ marginTop: 8 }}>
                     <label htmlFor={`${idPrefix}-step-dept-${idx}`} style={lbl}>Departamento</label>
-                    <input id={`${idPrefix}-step-dept-${idx}`} value={step.approver_department || ''} onChange={e => updateScratchStep(idx, 'approver_department', e.target.value)} style={inp} placeholder="Finance, IT..." />
+                    <select id={`${idPrefix}-step-dept-${idx}`} value={step.approver_department || ''} onChange={e => updateScratchStep(idx, 'approver_department', e.target.value)} style={inp}>
+                      <option value="">— Sin departamento —</option>
+                      {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                    </select>
                   </div>
                 )}
               </div>
@@ -847,6 +862,10 @@ function WorkflowSimulatorTab() {
   const [requestedByUserId, setRequestedByUserId] = useState('')
   const [result, setResult] = useState(null)
   const toast = useToast()
+  const { data: depts = [] } = useQuery({
+    queryKey: ['departments-select'],
+    queryFn: () => settingsApi.getDepartments().then(r => r.data),
+  })
 
   const { mutate: simulate, isPending } = useMutation({
     mutationFn: (payload) => approvalsApi.simulate(payload),
@@ -875,7 +894,10 @@ function WorkflowSimulatorTab() {
           </div>
           <div>
             <label style={lbl}>Department</label>
-            <input value={department} onChange={e => setDepartment(e.target.value)} style={inp} placeholder="IT, Finance..." />
+            <select value={department} onChange={e => setDepartment(e.target.value)} style={inp}>
+              <option value="">— Sin departamento —</option>
+              {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+            </select>
           </div>
           <div>
             <label style={lbl}>Amount</label>

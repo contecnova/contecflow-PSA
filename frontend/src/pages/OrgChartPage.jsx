@@ -10,6 +10,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
+import { settingsApi } from '../services/settingsApi'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Network } from 'lucide-react'
@@ -34,6 +35,11 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }) {
   const [jobTitle, setJobTitle]     = useState(user.job_title || '')
   const [department, setDepartment] = useState(user.department || '')
   const [saving, setSaving]         = useState(false)
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments-select'],
+    queryFn: () => settingsApi.getDepartments().then(r => r.data),
+  })
 
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
     borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
@@ -76,8 +82,10 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }) {
         </div>
         <div>
           <label style={LS}>Departamento</label>
-          <input value={department} onChange={e => setDepartment(e.target.value)} style={IS}
-            placeholder="Ej: Tecnologia" />
+          <select value={department} onChange={e => setDepartment(e.target.value)} style={IS}>
+            <option value="">— Sin departamento —</option>
+            {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+          </select>
         </div>
         <div>
           <label style={LS}>Reporta a / Aprobador directo</label>

@@ -42,17 +42,65 @@ class AlertRulePatchIn(BaseModel):
     notification_channels: Optional[list[str]] = None
 
 
+class CustomMetricIn(BaseModel):
+    label: str = Field(..., min_length=2, max_length=100)
+    description: str = Field("", max_length=255)
+    operand_a: str = Field(..., min_length=1, max_length=80)
+    operator: str = Field("+", pattern=r"^[+\-*/]$")
+    operand_b_type: str = Field("constant", pattern="^(metric|constant)$")
+    operand_b: str = Field("0", max_length=80)
+    scale: float = Field(1.0)
+
+
 @router.get("/bi/alerts/supported-metrics", summary="Métricas soportadas por el motor de alertas")
 def get_supported_metrics(
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    org_id = getattr(current_user, "organization_id", None)
+    customs = svc.list_custom_metrics(db, organization_id=org_id)
+    builtin = [{"key": k, "label": v, "is_custom": False} for k, v in svc.SUPPORTED_METRICS.items()]
+    custom_items = [{"key": c["key"], "label": c["label"], "is_custom": True} for c in customs]
     return {
-        "metrics": [
-            {"key": k, "label": v}
-            for k, v in svc.SUPPORTED_METRICS.items()
-        ],
+        "metrics": builtin + custom_items,
         "conditions": svc.SUPPORTED_CONDITIONS,
     }
+
+
+@router.get("/bi/alerts/custom-metrics", summary="Listar métricas personalizadas")
+def list_custom_metrics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    items = svc.list_custom_metrics(db, organization_id=org_id)
+    return {"items": items, "count": len(items)}
+
+
+@router.post("/bi/alerts/custom-metrics", summary="Crear métrica personalizada", status_code=201)
+def create_custom_metric(
+    body: CustomMetricIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        metric = svc.create_custom_metric(db, organization_id=org_id, payload=body.model_dump(), current_user=current_user)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return metric
+
+
+@router.delete("/bi/alerts/custom-metrics/{key}", summary="Eliminar métrica personalizada", status_code=204)
+def delete_custom_metric(
+    key: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    deleted = svc.delete_custom_metric(db, organization_id=org_id, key=key)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="metric_not_found")
 
 
 @router.get("/bi/alerts/rules", summary="Listar reglas de alertas BI")

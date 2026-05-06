@@ -821,7 +821,7 @@ def cancel_approval_request(db: Session, request_id: str, current_user: User):
     ).filter(ApprovalRequest.id == request_id).first()
     if not req:
         raise HTTPException(404)
-    if req.requested_by != current_user.id and current_user.role.value not in ("admin", "pm"):
+    if req.requested_by != current_user.id and current_user.role not in ("admin", "pm"):
         raise HTTPException(403)
     req.status = "cancelled"
     req.completed_at = datetime.now(timezone.utc)
@@ -1135,9 +1135,8 @@ def _is_authorized(step, current_user: User, requested_by: str, db: Session) -> 
     # Solo autoriza si el usuario está explícitamente configurado como aprobador
     if step.approver_type == "user" and step.approver_user_id == current_user.id:
         return True
-    if step.approver_type == "role" and hasattr(current_user.role, "value"):
-        if current_user.role.value == step.approver_role:
-            return True
+    if step.approver_type == "role" and current_user.role == step.approver_role:
+        return True
     if step.approver_type == "manager":
         requester = db.query(User).filter(User.id == requested_by).first()
         if requester and requester.manager_id == current_user.id:

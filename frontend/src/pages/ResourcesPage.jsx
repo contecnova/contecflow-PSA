@@ -4,6 +4,7 @@ import ResourceHeatmap from '../components/ResourceHeatmap'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { usersApi, unwrapList } from '../services/api'
+import { settingsApi } from '../services/settingsApi'
 import { Avatar, LoadBar, Button, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -227,6 +228,10 @@ function EditUserModal({ user, open, onClose }) {
   })
   const { hasRole } = useAuth()
   const userId = user?.user?.id || user?.id
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments-select'],
+    queryFn: () => settingsApi.getDepartments().then(r => r.data),
+  })
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => usersApi.update(userId, data),
     onSuccess: () => { qc.invalidateQueries(['resources']); qc.invalidateQueries(['users']); qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); onClose() },
@@ -247,7 +252,8 @@ function EditUserModal({ user, open, onClose }) {
         <Input label="Email" type="email" value={form.email} onChange={set('email')} />
         <Input label="Nombre completo" value={form.full_name} onChange={set('full_name')} />
         <Input label="Cargo" value={form.job_title} onChange={set('job_title')} />
-        <Input label="Departamento" value={form.department} onChange={set('department')} />
+        <Select label="Departamento" value={form.department} onChange={set('department')}
+          options={[{ value: '', label: '— Sin departamento —' }, ...departments.filter(d => d.is_active !== false).map(d => ({ value: d.name, label: d.name }))]} />
         <Select label="Rol" value={form.role} onChange={set('role')} options={ROLES} />
         <Input label="Capacidad semanal" type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} />
         {hasRole('admin') && <Input label="Tarifa por hora" type="number" value={form.hourly_rate} onChange={set('hourly_rate')} />}

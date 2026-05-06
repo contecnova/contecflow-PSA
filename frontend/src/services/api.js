@@ -341,6 +341,9 @@ export const biSmartAlertsApi = {
   getHistory: (limit = 100)            => api.get('/bi/alerts/history', { params: { limit } }),
   acknowledge: (alertId)               => api.post(`/bi/alerts/history/${alertId}/acknowledge`),
   seedDefaults: ()                     => api.post('/bi/alerts/seed-defaults'),
+  listCustomMetrics: ()                => api.get('/bi/alerts/custom-metrics'),
+  createCustomMetric: (payload)        => api.post('/bi/alerts/custom-metrics', payload),
+  deleteCustomMetric: (key)            => api.delete(`/bi/alerts/custom-metrics/${key}`),
 }
 
 export const biBookmarksApi = {
