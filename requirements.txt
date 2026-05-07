@@ -162,4 +162,4 @@ twilio>=8.0.0
 # ── Optional: Apache Iceberg table format ─────────────────────────────────────
 # Enables create_iceberg_snapshot() in bi_data_versioning_service.py
 #   pip install "pyiceberg>=0.7.0"
-# pyiceberg>=0.7.0
+pyiceberg>=0.7.0
