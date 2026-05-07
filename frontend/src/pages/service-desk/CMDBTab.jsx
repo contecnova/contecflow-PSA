@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { extractErr } from '../../utils/helpers'
 import { useToast } from '../../context/ToastContext'
-import api from '../../services/api'
+import { cmdbApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 
 function onKeyboardActivate(event, action) {
@@ -17,12 +17,12 @@ function CMDBDetail({ ci, onClose }) {
   const [tab, setTab] = useState('info')
   const { data: relations = [] } = useQuery({
     queryKey: ['sd-cmdb-relations', ci.id],
-    queryFn: () => api.get(`/sd/cmdb/${ci.id}/relations`).then(r => r.data),
+    queryFn: () => cmdbApi.sdRelations(ci.id).then(r => r.data),
     enabled: tab === 'relations',
   })
   const { data: impact } = useQuery({
     queryKey: ['sd-cmdb-impact', ci.id],
-    queryFn: () => api.get(`/sd/cmdb/${ci.id}/impact`).then(r => r.data),
+    queryFn: () => cmdbApi.sdImpact(ci.id).then(r => r.data),
     enabled: tab === 'impact',
   })
 
@@ -90,11 +90,11 @@ export default function CMDBTab() {
 
   const { data: cis = [], isLoading } = useQuery({
     queryKey: ['sd-cmdb', typeFilter],
-    queryFn: () => api.get('/sd/cmdb', { params: typeFilter ? { ci_type: typeFilter } : {} }).then(r => r.data),
+    queryFn: () => cmdbApi.sdList(typeFilter ? { ci_type: typeFilter } : {}).then(r => r.data),
   })
 
   const { mutate: create, isPending: creating } = useMutation({
-    mutationFn: d => api.post('/sd/cmdb', d),
+    mutationFn: d => cmdbApi.sdCreate(d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-cmdb'] })
       setShowCreate(false)
@@ -105,7 +105,7 @@ export default function CMDBTab() {
   })
 
   const { mutate: update } = useMutation({
-    mutationFn: ({ id, ...d }) => api.patch(`/sd/cmdb/${id}`, d),
+    mutationFn: ({ id, ...d }) => cmdbApi.sdUpdate(id, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-cmdb'] }); toast.success('CI actualizado') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })

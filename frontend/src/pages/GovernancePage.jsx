@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { governanceApi, aiProvidersApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Shield } from 'lucide-react'
@@ -31,24 +31,24 @@ export default function GovernancePage() {
 
   const { data: configs = [], isLoading: _loadingConfigs } = useQuery({
     queryKey: ['gov-config'],
-    queryFn: () => api.get('/governance/config').then(r => r.data),
+    queryFn: () => governanceApi.config().then(r => r.data),
   })
   const { data: stats } = useQuery({
     queryKey: ['gov-stats'],
-    queryFn: () => api.get('/governance/stats').then(r => r.data),
+    queryFn: () => governanceApi.stats().then(r => r.data),
   })
   const { data: logs = [] } = useQuery({
     queryKey: ['gov-logs'],
-    queryFn: () => api.get('/governance/logs?limit=100').then(r => r.data),
+    queryFn: () => governanceApi.logs().then(r => r.data),
     enabled: tab === 'audit',
   })
   const { data: providers = [] } = useQuery({
     queryKey: ['ai-providers'],
-    queryFn: () => api.get('/ai-providers').then(r => r.data),
+    queryFn: () => aiProvidersApi.list().then(r => r.data),
   })
 
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ module, is_enabled }) => api.patch(`/governance/config/${module}`, { is_enabled }),
+    mutationFn: ({ module, is_enabled }) => governanceApi.update(module, { is_enabled }),
     onSuccess: () => qc.invalidateQueries(['gov-config']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })

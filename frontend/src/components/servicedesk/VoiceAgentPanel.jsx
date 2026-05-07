@@ -22,7 +22,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import api from '../../services/api'
+import { voiceAgentApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Phone, Mic, StopCircle, Plus, ExternalLink, Edit2, Trash2 } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState, Modal } from '../ui'
@@ -613,13 +613,13 @@ export default function VoiceAgentPanel() {
 
   const { data: sessionsData, isLoading } = useQuery({
     queryKey: ['voice-sessions', historyFilter],
-    queryFn: () => api.get('/sd/voice/sessions', { params: historyFilter ? { status: historyFilter } : {} }).then(r => r.data),
+    queryFn: () => voiceAgentApi.listSessions(historyFilter ? { status: historyFilter } : {}).then(r => r.data),
     refetchInterval: 15_000,
   })
 
   const { data: config } = useQuery({
     queryKey: ['voice-config'],
-    queryFn: () => api.get('/sd/voice/config').then(r => r.data),
+    queryFn: () => voiceAgentApi.getConfig().then(r => r.data),
     enabled: tab === 'config',
   })
 
@@ -630,7 +630,7 @@ export default function VoiceAgentPanel() {
   )
 
   const createSessionMutation = useMutation({
-    mutationFn: (payload) => api.post('/sd/voice/sessions', payload).then(r => r.data),
+    mutationFn: (payload) => voiceAgentApi.createSession(payload).then(r => r.data),
     onSuccess: (data) => {
       setActiveSessionId(data.session?.id)
       toast.success(`Sesión iniciada · greeting: "${(data.greeting || '').slice(0, 60)}..."`)
@@ -640,13 +640,13 @@ export default function VoiceAgentPanel() {
   })
 
   const addTurnMutation = useMutation({
-    mutationFn: ({ id, text }) => api.post(`/sd/voice/sessions/${id}/turn`, { speaker: 'user', text }).then(r => r.data),
+    mutationFn: ({ id, text }) => voiceAgentApi.addTurn(id, { speaker: 'user', text }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['voice-sessions'] }),
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al añadir turno'),
   })
 
   const closeMutation = useMutation({
-    mutationFn: ({ id, resolution }) => api.post(`/sd/voice/sessions/${id}/close`, { resolution }).then(r => r.data),
+    mutationFn: ({ id, resolution }) => voiceAgentApi.closeSession(id, { resolution }).then(r => r.data),
     onSuccess: (data) => {
       const r = data?.resolution
       toast.success(`Sesión cerrada · ${RESOLUTION_LABEL[r] || r}`)
@@ -657,7 +657,7 @@ export default function VoiceAgentPanel() {
   })
 
   const createTicketMutation = useMutation({
-    mutationFn: (id) => api.post(`/sd/voice/sessions/${id}/ticket`).then(r => r.data),
+    mutationFn: (id) => voiceAgentApi.createTicket(id).then(r => r.data),
     onSuccess: (data) => {
       toast.success(`Ticket ${data.number} creado desde la sesión`)
       qc.invalidateQueries({ queryKey: ['voice-sessions'] })
@@ -666,7 +666,7 @@ export default function VoiceAgentPanel() {
   })
 
   const saveConfigMutation = useMutation({
-    mutationFn: (cfg) => api.put('/sd/voice/config', cfg).then(r => r.data),
+    mutationFn: (cfg) => voiceAgentApi.updateConfig(cfg).then(r => r.data),
     onSuccess: () => {
       toast.success('Configuración guardada')
       qc.invalidateQueries({ queryKey: ['voice-config'] })

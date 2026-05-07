@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import ResourceHeatmap from '../components/ResourceHeatmap'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
-import { usersApi, unwrapList } from '../services/api'
+import { usersApi, skillsApi, burnoutRiskApi, billingSmartMatchApi, unwrapList } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
 import { Avatar, LoadBar, Button, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -85,13 +84,13 @@ function BurnoutMonitorTab() {
   const [filter, setFilter] = useState('all')
   const { data, isLoading } = useQuery({
     queryKey: ['burnout-risk', filter],
-    queryFn: () => api.get('/resources/burnout-risk', {
-      params: filter !== 'all' ? { min_risk_level: filter } : undefined
-    }).then(r => r.data),
+    queryFn: () => burnoutRiskApi.get(
+      filter !== 'all' ? { min_risk_level: filter } : undefined
+    ).then(r => r.data),
     staleTime: 5 * 60 * 1000,
   })
   const { mutate: recompute, isPending } = useMutation({
-    mutationFn: () => api.post('/resources/burnout-risk/compute'),
+    mutationFn: () => burnoutRiskApi.compute(),
     onSuccess: () => {},
   })
 
@@ -274,11 +273,11 @@ function SmartMatchTab() {
 
   const { data: allSkills = [] } = useQuery({
     queryKey: ['skills-sm'],
-    queryFn: () => api.get('/skills/catalog').then(unwrapList),
+    queryFn: () => skillsApi.catalog().then(unwrapList),
   })
 
   const { mutate: search, isPending } = useMutation({
-    mutationFn: d => api.post('/billing-reports/smartmatch', d).then(r => r.data),
+    mutationFn: d => billingSmartMatchApi.match(d).then(r => r.data),
     onSuccess: data => setResults(data),
     onError: e => toast.error(extractErr(e, 'Error')),
   })

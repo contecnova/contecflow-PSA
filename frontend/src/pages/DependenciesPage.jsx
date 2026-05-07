@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { projectsApi, tasksApi, taskDependenciesApi } from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -39,7 +39,7 @@ function DepForm({ projectId, tasks, onClose }) {
   const selType = DEP_TYPES.find(d => d.value === form.dependency_type);
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => api.post('/tasks/dependencies', {
+    mutationFn: () => taskDependenciesApi.create({
       predecessor_id: form.predecessor_id,
       successor_id: form.successor_id,
       dependency_type: form.dependency_type,
@@ -213,13 +213,13 @@ export default function DependenciesPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => api.get('/projects').then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
   // Usar siempre el endpoint correcto y nunca llamar sin projectId
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks-list', project],
     queryFn: () => project
-      ? api.get('/tasks', { params: { project_id: project, limit: 500 } })
+      ? tasksApi.list({ project_id: project, limit: 500 })
           .then(r => Array.isArray(r.data) ? r.data : (r.data?.items ?? []))
           .catch(() => [])
       : Promise.resolve([]),
@@ -229,13 +229,13 @@ export default function DependenciesPage() {
   const { data: deps = [], isLoading } = useQuery({
     queryKey: ['task-deps', project],
     queryFn: () => project
-      ? api.get(`/tasks/dependencies/${project}`).then(r => Array.isArray(r.data) ? r.data : []).catch(() => [])
+      ? taskDependenciesApi.getByProject(project).then(r => Array.isArray(r.data) ? r.data : []).catch(() => [])
       : Promise.resolve([]),
     enabled: !!project,
   })
 
   const { mutate: deleteEdge } = useMutation({
-    mutationFn: id => api.delete(`/tasks/dependencies/${id}`),
+    mutationFn: id => taskDependenciesApi.delete(id),
     onSuccess: () => qc.invalidateQueries(['task-deps', project]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })

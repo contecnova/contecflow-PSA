@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
+import logging
 from pydantic import BaseModel
 
 from app.db.session import get_db
@@ -10,6 +11,8 @@ from app.core.config import settings
 from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager
 from app.models.user import User
 import app.services.cmdb_service as svc
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 sd_router = APIRouter()
@@ -225,7 +228,11 @@ def list_cmdb_items(
     category_id: Optional[str] = None, q: Optional[str] = None,
     db: Session = Depends(get_db), cu: User = Depends(get_current_user),
 ):
-    return svc.list_cmdb_items(ci_type, status, category_id, q, cu.organization_id, db)
+    try:
+        return svc.list_cmdb_items(ci_type, status, category_id, q, cu.organization_id, db)
+    except Exception:
+        logger.exception("/cmdb/items failed for user_id=%s", getattr(cu, "id", None))
+        return []
 
 
 @router.post("/items")

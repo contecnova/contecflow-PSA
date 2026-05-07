@@ -10,7 +10,7 @@
  */
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import api from '../../services/api'
+import { predictionsApi } from '../../services/api'
 
 const RISK_CFG = {
   low:      { color: 'var(--success)', bg: 'var(--success-bg)',                                          label: 'Bajo riesgo',     dot: 'var(--success)' },
@@ -25,7 +25,7 @@ export default function ProjectRiskBadge({ projectId, hasData = true }) {
   // Skip prediction if project has insufficient data
   const { data, isError } = useQuery({
     queryKey: ['ml-risk', projectId],
-    queryFn: () => api.post('/predictions/overrun-risk', { project_id: projectId }).then(r => r.data),
+    queryFn: () => predictionsApi.overrunRisk(projectId).then(r => r.data),
     staleTime: 5 * 60 * 1000,   // 5 min — don't hammer the endpoint
     retry: false,
     enabled: !!projectId && hasData,  // Skip call if hasData=false

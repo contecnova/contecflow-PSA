@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import * as d3 from 'd3'
-import api from '../../services/api'
+import { cmdb3dApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Card, Button, Spinner } from '../ui'
 
@@ -50,13 +50,13 @@ export default function Cmdb3dGraph({ className = '' }) {
 
   const { data, isLoading } = useQuery({
     queryKey: ['cmdb-3d-graph', maxNodes],
-    queryFn: () => api.get('/sd/cmdb/3d-graph', { params: { max_nodes: maxNodes } }).then(r => r.data),
+    queryFn: () => cmdb3dApi.getGraph({ max_nodes: maxNodes }).then(r => r.data),
   })
 
   const handleBlastRadius = async () => {
     if (!blastCiId.trim()) return
     try {
-      const res = await api.get(`/sd/cmdb/blast-radius/${encodeURIComponent(blastCiId.trim())}`)
+      const res = await cmdb3dApi.blastRadius(encodeURIComponent(blastCiId.trim()))
       setBlastResult(res.data)
     } catch {
       setBlastResult({ error: 'CI no encontrado o error al calcular' })

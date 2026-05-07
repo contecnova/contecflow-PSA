@@ -117,6 +117,8 @@ from app.services.esign_service import (
     docusign_configured as _docusign_configured,
     adobe_configured as _adobe_configured,
     create_provider_envelope as _create_provider_envelope,
+    _get_db_setting,
+    _set_db_setting,
 )
 
 
@@ -158,8 +160,18 @@ def create_envelope(
         document_id=body.document_id,
         provider=body.provider,
         subject=body.subject,
+        message=body.message,
     )
-    provider_result = _create_provider_envelope(_tmp, doc)
+    # Attach signers to temp envelope so provider can use them
+    from app.models.esign import ESignSigner as _ESignSigner  # noqa: PLC0415
+    _tmp.signers = [
+        _ESignSigner(name=s.name, email=s.email, routing_order=s.routing_order)
+        for s in body.signers
+    ]
+    try:
+        provider_result = _create_provider_envelope(_tmp, doc, db)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
 
     return esign_service.create_envelope(
         db,
@@ -390,3 +402,144 @@ async def adobe_webhook(
         _logger.warning(f"[eSign] Adobe webhook parse error: {e}")
 
     return {"status": "ok"}
+
+
+# ── OAuth 2.0 flows for DocuSign and Adobe Sign ───────────────────────────────
+
+@router.get("/auth/docusign/authorize", summary="Iniciar OAuth con DocuSign")
+def docusign_oauth_authorize(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """
+    Return the DocuSign OAuth authorization URL. Admin opens this URL to grant access.
+    After consent DocuSign redirects to /esign/auth/docusign/callback with ?code=...
+    """
+    from app.services.esign_providers import docusign_auth_url  # noqa: PLC0415
+    from app.core.config import settings as _s  # noqa: PLC0415
+
+    integration_key = _get_esign_setting(db, "esign.docusign_integration_key") or _s.DOCUSIGN_INTEGRATION_KEY
+    if not integration_key:
+        raise HTTPException(400, "DocuSign integration_key no configurado. Guárdalo en /esign/config primero.")
+
+    is_demo = (_get_esign_setting(db, "esign.docusign_is_demo") or "true").lower() == "true"
+    redirect_uri = f"{_s.FRONTEND_URL or 'http://localhost:8000'}/api/v1/esign/auth/docusign/callback"
+
+    url = docusign_auth_url(integration_key, redirect_uri, is_demo=is_demo)
+    return {"authorization_url": url, "redirect_uri": redirect_uri}
+
+
+@router.get("/auth/docusign/callback", summary="Callback OAuth DocuSign — intercambio de código")
+def docusign_oauth_callback(
+    code: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Exchange authorization code for DocuSign access + refresh tokens and store them."""
+    from app.services.esign_providers import docusign_exchange_code  # noqa: PLC0415
+    from app.core.config import settings as _s  # noqa: PLC0415
+
+    integration_key = _get_esign_setting(db, "esign.docusign_integration_key") or _s.DOCUSIGN_INTEGRATION_KEY
+    secret_key = _get_esign_setting(db, "esign.docusign_secret_key") or _s.DOCUSIGN_SECRET_KEY
+    is_demo = (_get_esign_setting(db, "esign.docusign_is_demo") or "true").lower() == "true"
+    redirect_uri = f"{_s.FRONTEND_URL or 'http://localhost:8000'}/api/v1/esign/auth/docusign/callback"
+
+    if not integration_key or not secret_key:
+        raise HTTPException(400, "DocuSign integration_key o secret_key no configurados.")
+
+    result = docusign_exchange_code(integration_key, secret_key, code, redirect_uri, is_demo=is_demo)
+    if not result["ok"]:
+        raise HTTPException(400, f"Error en intercambio de código DocuSign: {result.get('error')}")
+
+    _set_esign_setting(db, "esign.docusign_access_token", result["access_token"])
+    if result.get("refresh_token"):
+        _set_esign_setting(db, "esign.docusign_refresh_token", result["refresh_token"])
+
+    _logger.info("[eSign] DocuSign OAuth completed; tokens stored")
+    return {"ok": True, "message": "DocuSign autorizado correctamente. Tokens almacenados."}
+
+
+@router.get("/auth/adobe/authorize", summary="Iniciar OAuth con Adobe Sign")
+def adobe_oauth_authorize(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Return the Adobe Sign OAuth authorization URL."""
+    from app.services.esign_providers import adobe_sign_auth_url  # noqa: PLC0415
+    from app.core.config import settings as _s  # noqa: PLC0415
+
+    client_id = _get_esign_setting(db, "esign.adobe_sign_client_id") or _s.ADOBE_SIGN_CLIENT_ID
+    if not client_id:
+        raise HTTPException(400, "Adobe Sign client_id no configurado. Guárdalo en /esign/config primero.")
+
+    base_url = _get_esign_setting(db, "esign.adobe_sign_base_url") or _s.ADOBE_SIGN_BASE_URL
+    redirect_uri = f"{_s.FRONTEND_URL or 'http://localhost:8000'}/api/v1/esign/auth/adobe/callback"
+
+    url = adobe_sign_auth_url(client_id, redirect_uri, base_url=base_url)
+    return {"authorization_url": url, "redirect_uri": redirect_uri}
+
+
+@router.get("/auth/adobe/callback", summary="Callback OAuth Adobe Sign — intercambio de código")
+def adobe_oauth_callback(
+    code: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Exchange authorization code for Adobe Sign access + refresh tokens and store them."""
+    from app.services.esign_providers import adobe_sign_exchange_code  # noqa: PLC0415
+    from app.core.config import settings as _s  # noqa: PLC0415
+
+    client_id = _get_esign_setting(db, "esign.adobe_sign_client_id") or _s.ADOBE_SIGN_CLIENT_ID
+    client_secret = _get_esign_setting(db, "esign.adobe_sign_client_secret") or _s.ADOBE_SIGN_CLIENT_SECRET
+    base_url = _get_esign_setting(db, "esign.adobe_sign_base_url") or _s.ADOBE_SIGN_BASE_URL
+    redirect_uri = f"{_s.FRONTEND_URL or 'http://localhost:8000'}/api/v1/esign/auth/adobe/callback"
+
+    if not client_id or not client_secret:
+        raise HTTPException(400, "Adobe Sign client_id o client_secret no configurados.")
+
+    result = adobe_sign_exchange_code(client_id, client_secret, code, redirect_uri, base_url=base_url)
+    if not result["ok"]:
+        raise HTTPException(400, f"Error en intercambio de código Adobe Sign: {result.get('error')}")
+
+    _set_esign_setting(db, "esign.adobe_sign_access_token", result["access_token"])
+    if result.get("refresh_token"):
+        _set_esign_setting(db, "esign.adobe_sign_refresh_token", result["refresh_token"])
+    if result.get("api_access_point"):
+        _set_esign_setting(db, "esign.adobe_sign_base_url", result["api_access_point"])
+
+    _logger.info("[eSign] Adobe Sign OAuth completed; tokens stored")
+    return {"ok": True, "message": "Adobe Sign autorizado correctamente. Tokens almacenados."}
+
+
+@router.post("/auth/docusign/store-token", summary="Almacenar token DocuSign manualmente")
+def store_docusign_token(
+    payload: dict,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Allow admin to paste an access_token (and optionally refresh_token) obtained externally."""
+    access_token = payload.get("access_token", "").strip()
+    refresh_token = payload.get("refresh_token", "").strip()
+    if not access_token:
+        raise HTTPException(400, "access_token requerido")
+    _set_esign_setting(db, "esign.docusign_access_token", access_token)
+    if refresh_token:
+        _set_esign_setting(db, "esign.docusign_refresh_token", refresh_token)
+    return {"ok": True, "message": "Token DocuSign almacenado."}
+
+
+@router.post("/auth/adobe/store-token", summary="Almacenar token Adobe Sign manualmente")
+def store_adobe_token(
+    payload: dict,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Allow admin to paste an access_token (and optionally refresh_token) obtained externally."""
+    access_token = payload.get("access_token", "").strip()
+    refresh_token = payload.get("refresh_token", "").strip()
+    if not access_token:
+        raise HTTPException(400, "access_token requerido")
+    _set_esign_setting(db, "esign.adobe_sign_access_token", access_token)
+    if refresh_token:
+        _set_esign_setting(db, "esign.adobe_sign_refresh_token", refresh_token)
+    return {"ok": True, "message": "Token Adobe Sign almacenado."}

@@ -58,12 +58,18 @@ def _serialize_model(model) -> bytes:
 
 def _deserialize_model(data: bytes):
     if len(data) < 33:
-        # Legacy unsigned model bytes — allow load but log warning
+        # Legacy unsigned model bytes — reject in production, warn in development
         import logging as _logging
         _logging.getLogger(__name__).warning(
             "ML model bytes have no HMAC signature (legacy). "
             "Retrain to apply integrity protection."
         )
+        from app.core.config import settings as _settings
+        if _settings.ENVIRONMENT != "development":
+            raise ValueError(
+                "ML model integrity check failed — unsigned legacy models are not allowed "
+                "in non-development environments. Retrain the model to apply HMAC protection."
+            )
         return joblib.load(io.BytesIO(data))
 
     sig, raw = data[:32], data[32:]

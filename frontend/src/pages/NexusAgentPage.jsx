@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { aiProvidersApi, nexusAgentApi } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -75,17 +75,17 @@ export default function ContecflowAgentPage() {
 
   const { data: providers = [] } = useQuery({
     queryKey: ['ai-providers'],
-    queryFn: () => api.get('/ai-providers').then(r => r.data),
+    queryFn: () => aiProvidersApi.list().then(r => r.data),
   })
   const defaultProvider = providers.find(p => p.is_default) || providers[0]
 
   const { data: history = [], refetch } = useQuery({
     queryKey: ['agent-history'],
-    queryFn: () => api.get('/ai/agent/history').then(r => r.data),
+    queryFn: () => nexusAgentApi.history().then(r => r.data),
   })
 
   const { mutate: run, isPending } = useMutation({
-    mutationFn: inst => api.post('/ai/agent', { instruction: inst, auto_approve: true }).then(r => r.data),
+    mutationFn: inst => nexusAgentApi.run(inst).then(r => r.data),
     onSuccess: data => { setResult(data); refetch() },
     onError: e => toast.error(extractErr(e, 'Error al ejecutar el agente')),
   })

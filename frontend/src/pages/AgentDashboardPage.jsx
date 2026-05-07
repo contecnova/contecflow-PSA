@@ -3,7 +3,7 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import api from '../services/api'
+import { usersApi, cmdbApi } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -57,16 +57,16 @@ export default function AgentDashboardPage() {
 
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => api.get('/users').then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => usersApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
   const { data: dash, isLoading } = useQuery({
     queryKey: ['agent-dash', agentId, days],
-    queryFn: () => api.get(`/cmdb/agent-dashboard/${agentId}?days=${days}`).then(r => r.data).catch(() => null),
+    queryFn: () => cmdbApi.agentDashboard(agentId, days).then(r => r.data).catch(() => null),
     enabled: !!agentId,
   })
 
   const { mutate: snapshot, isPending: snapping } = useMutation({
-    mutationFn: () => api.post(`/cmdb/agent-dashboard/${agentId}/snapshot`).then(r => r.data),
+    mutationFn: () => cmdbApi.agentSnapshot(agentId).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['agent-dash', agentId, days]); toast.info(t('agent_dashboard.snapshot_created')) },
     onError: e => toast.error(extractErr(e, t('agent_dashboard.snapshot_create_error'))),
   })

@@ -4,7 +4,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { templatesApi } from '../services/api'
 import { Spinner } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
@@ -154,7 +154,7 @@ function CreateTemplateModal({ onClose, onDone }) {
   const [error, setError] = useState('')
 
   const mutation = useMutation({
-    mutationFn: (payload) => api.post('/templates', payload),
+    mutationFn: (payload) => templatesApi.create(payload),
     onSuccess: () => onDone(),
     onError: (err) => setError(err.response?.data?.detail || 'No se pudo crear la plantilla'),
   })
@@ -378,7 +378,7 @@ function InstantiateModal({ tpl, onClose, onDone, t }) {
   const [error, setError] = useState(null)
 
   const mutation = useMutation({
-    mutationFn: (data) => api.post(`/templates/${tpl.id}/instantiate`, data),
+    mutationFn: (data) => templatesApi.instantiate(tpl.id, data),
     onSuccess: (res) => {
       onDone(res.data)
     },
@@ -503,7 +503,7 @@ export default function ProjectTemplatesPage() {
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['project-templates'],
-    queryFn: () => api.get('/templates').then(r => r.data),
+    queryFn: () => templatesApi.list().then(r => r.data),
   })
 
   const handleInstantiateSuccess = (result) => {
@@ -523,7 +523,9 @@ export default function ProjectTemplatesPage() {
         icon={<LayoutTemplate size={18} />}
         title={t('project_templates.title')}
         subtitle={t('project_templates.subtitle')}
-      showListExport={false}
+        showListExport={templates.length > 0}
+        exportTargetSelector='[data-export-table="project-templates-list"]'
+        exportFilePrefix='project_templates'
       />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
@@ -555,7 +557,7 @@ export default function ProjectTemplatesPage() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div data-export-table="project-templates-list" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {templates.map(tpl => (
             <TemplateCard
               key={tpl.id}

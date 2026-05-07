@@ -10,7 +10,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
-import api, { projectsApi } from '../services/api'
+import { tasksApi, projectsApi, sprintsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { LayoutGrid, History, X } from 'lucide-react'
 import { Button, Spinner, EmptyState } from '../components/ui'
@@ -178,7 +178,7 @@ function QuickAdd({ status, projectId, onCreated }) {
   const submit = async () => {
     if (!title.trim()) return
     try {
-      await api.post('/tasks', { title: title.trim(), status, project_id: projectId || undefined })
+      await tasksApi.create({ title: title.trim(), status, project_id: projectId || undefined })
       setTitle('')
       setOpen(false)
       onCreated()
@@ -335,11 +335,8 @@ export default function KanbanAdvancedPage() {
 
   const { data: rawTasks = [], isLoading } = useQuery({
     queryKey: ['kanban-tasks', projectId],
-    queryFn:  () => {
-      const params = { page_size: 500, ...(projectId ? { project_id: projectId } : {}) }
-      return api.get('/tasks', { params })
-        .then(r => Array.isArray(r.data) ? r.data : (r.data?.items || []))
-    },
+    queryFn:  () => tasksApi.list({ page_size: 500, ...(projectId ? { project_id: projectId } : {}) })
+      .then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
     staleTime: 15000,
   })
 
@@ -347,7 +344,7 @@ export default function KanbanAdvancedPage() {
     queryKey: ['sprints', projectId],
     queryFn:  () => {
       if (!projectId) return []
-      return api.get('/sprints', { params: { project_id: projectId } })
+      return sprintsApi.list(projectId)
         .then(r => Array.isArray(r.data) ? r.data : (r.data?.items || []))
         .catch(() => [])
     },
@@ -356,7 +353,7 @@ export default function KanbanAdvancedPage() {
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status, move_reason }) =>
-      api.patch(`/tasks/${id}`, { status, ...(move_reason ? { move_reason } : {}) }),
+      tasksApi.update(id, { status, ...(move_reason ? { move_reason } : {}) }),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['kanban-tasks'] }),
     onError:    (e) => toast.error(e?.response?.data?.detail || t('kanban.error_move_task')),
   })
@@ -518,9 +515,9 @@ export default function KanbanAdvancedPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 52px)', background: 'var(--surface-0)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 52px)', background: 'var(--surface-0)', maxWidth: 'var(--page-max-w)', width: '100%' }}>
       {/* Header */}
-      <div style={{ padding: '16px 24px 8px', flexShrink: 0 }}>
+      <div style={{ padding: '16px 32px 8px', flexShrink: 0 }}>
         <PageHeader
         icon={<LayoutGrid size={18} />}
           title={t('kanban.title')}
@@ -535,7 +532,7 @@ export default function KanbanAdvancedPage() {
       </div>
 
       {/* Filter bar */}
-      <div style={{ padding: '0 24px 12px', display: 'flex', gap: 8, flexWrap: 'wrap', flexShrink: 0, alignItems: 'center' }}>
+      <div style={{ padding: '0 32px 12px', display: 'flex', gap: 8, flexWrap: 'wrap', flexShrink: 0, alignItems: 'center' }}>
         <input
           ref={searchRef}
           value={search}
@@ -622,7 +619,7 @@ export default function KanbanAdvancedPage() {
 
       {/* Settings panel */}
       {showSettings && (
-        <div style={{ padding: '12px 24px', background: 'var(--surface-1)', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
+        <div style={{ padding: '12px 32px', background: 'var(--surface-1)', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 10 }}>{t('kanban.wip_limits')}</div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {defaultColumns.map(col => (
@@ -656,7 +653,7 @@ export default function KanbanAdvancedPage() {
           <EmptyState icon="📋" title={t('kanban.empty_title')} description={t('kanban.empty_desc')} />
         </div>
       ) : (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 24px' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '0 32px 24px' }}>
           {swimlanes.map(lane => (
             swimlaneBy === 'none' ? (
               <div key={lane.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', paddingTop: 4 }}>
@@ -729,7 +726,7 @@ function StatusBadge({ status }) {
 function TaskMovementLogDrawer({ task, onClose }) {
   const { data: log = [], isLoading } = useQuery({
     queryKey: ['task-movement-log', task.id],
-    queryFn: () => api.get(`/tasks/${task.id}/movement-log`).then(r => r.data),
+    queryFn: () => tasksApi.movementLog(task.id).then(r => r.data),
     staleTime: 0,
     retry: false,
   })

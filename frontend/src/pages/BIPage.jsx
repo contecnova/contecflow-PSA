@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
+import { analyticsApi, dashboardApi } from '../services/api'
 import { cacheBiKpis, getCachedBiKpis, cacheBiProjects, getCachedBiProjects, purgeExpiredBiCache } from '../services/biOfflineDb'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -92,7 +92,7 @@ export default function BIPage() {
     queryKey: ['bi-kpis', params],
     queryFn: async () => {
       try {
-        const data = await api.get('/analytics/olap/kpis', { params }).then((r) => r.data)
+        const data = await analyticsApi.olapKpis(params).then((r) => r.data)
         await cacheBiKpis(periodKey, data)
         return data
       } catch {
@@ -106,7 +106,7 @@ export default function BIPage() {
     queryKey: ['bi-projects-health', params],
     queryFn: async () => {
       try {
-        const data = await api.get('/dashboard/projects-health', { params }).then((r) => r.data)
+        const data = await dashboardApi.projectsHealth(params).then((r) => r.data)
         await cacheBiProjects(periodKey, data)
         return data ?? []
       } catch {

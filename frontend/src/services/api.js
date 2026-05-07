@@ -198,6 +198,7 @@ export const authApi = {
   resetPassword:  (payload)     => api.post('/auth/password/reset', payload),
   me:             ()            => api.get('/auth/me'),
   syncLdap:       ()            => api.post('/auth/ldap/sync'),
+  changePassword: (data)        => api.post('/auth/change-password', data),
 }
 
 export const usersApi = {
@@ -212,6 +213,9 @@ export const usersApi = {
   productivity:   (id, params) => api.get(`/users/${id}/productivity`, { params }),
   orgChart:       () => api.get('/users/org-chart'),
   updateManager:  (id, data) => api.patch(`/users/${id}/manager`, data),
+  updateMe:       (data) => api.patch('/users/me', data),
+  approvalChain:  (userId)   => api.get(`/users/${userId}/approval-chain`),
+  myApprovalChain: ()        => api.get('/users/me/approval-chain'),
 }
 
 export const projectsApi = {
@@ -237,14 +241,15 @@ export const projectsApi = {
 }
 
 export const tasksApi = {
-  list:       (params) => api.get('/tasks', { params }),
-  kanban:     (projectId) => api.get(`/tasks/kanban/${projectId}`),
-  get:        (id) => api.get(`/tasks/${id}`),
-  create:     (data) => api.post('/tasks', data),
-  update:     (id, data) => api.patch(`/tasks/${id}`, data),
-  delete:     (id) => api.delete(`/tasks/${id}`),
-  comment:    (id, data) => api.post(`/tasks/${id}/comments`, data),
-  bulkUpdate: (data) => api.post('/tasks/bulk-update', data),
+  list:        (params)    => api.get('/tasks', { params }),
+  kanban:      (projectId) => api.get(`/tasks/kanban/${projectId}`),
+  get:         (id)        => api.get(`/tasks/${id}`),
+  create:      (data)      => api.post('/tasks', data),
+  update:      (id, data)  => api.patch(`/tasks/${id}`, data),
+  delete:      (id)        => api.delete(`/tasks/${id}`),
+  comment:     (id, data)  => api.post(`/tasks/${id}/comments`, data),
+  bulkUpdate:  (data)      => api.post('/tasks/bulk-update', data),
+  movementLog: (id)        => api.get(`/tasks/${id}/movement-log`),
 }
 
 export const imputationsApi = {
@@ -292,6 +297,16 @@ export const biCollaborationApi = {
   updateGovernanceRules: (payload)     => api.patch('/bi/governance/rules', payload),
   runGovernanceChecks: ()              => api.post('/bi/governance/run-checks'),
   lastGovernanceRun: ()                => api.get('/bi/governance/last-run'),
+  // Dashboard shares
+  listDashboardShares:    (key)              => api.get(`/bi/collaboration/dashboards/${key}/shares`),
+  shareDashboard:         (key, data)        => api.post(`/bi/collaboration/dashboards/${key}/shares`, data),
+  revokeShare:            (key, shareId)     => api.delete(`/bi/collaboration/dashboards/${key}/shares/${shareId}`),
+  // Dashboard versions
+  listDashboardVersions:  (key)              => api.get(`/bi/collaboration/dashboards/${key}/versions`),
+  restoreDashboardVersion:(key, versionId)   => api.post(`/bi/collaboration/dashboards/${key}/versions/${versionId}/restore`),
+  // Notifications
+  listNotifications:      (params)           => api.get('/bi/collaboration/notifications', { params }),
+  patchNotification:      (id, data)         => api.patch(`/bi/collaboration/notifications/${id}`, data),
 }
 
 export const biIntelligenceApi = {
@@ -430,6 +445,7 @@ export const epicsApi = {
   update:          (id, data)  => api.patch(`/epics/${id}`, data),
   delete:          (id)        => api.delete(`/epics/${id}`),
   roadmap:         (projectId) => api.get('/roadmap', { params: { project_id: projectId } }),
+  roadmapByProject:(projectId) => api.get('/epics/roadmap', { params: { project_id: projectId } }),
   cfd:             (params)    => api.get('/epics/cfd', { params }),
   cfdSnapshot:     (projectId) => api.post('/epics/cfd/snapshot', null, { params: { project_id: projectId } }),
   nqlSearch:       (data)      => api.post('/projects/epics/nql/search', data),
@@ -624,6 +640,8 @@ export const ticketsApi = {
   createInternalComment: (id, data)   => api.post(`/sd/tickets/${id}/internal-comments`, data),
   updateInternalComment: (id, cid, data) => api.patch(`/sd/tickets/${id}/internal-comments/${cid}`, data),
   deleteInternalComment: (id, cid)    => api.delete(`/sd/tickets/${id}/internal-comments/${cid}`),
+  recommendAssignment:   (id, data)   => api.post(`/sd/tickets/${id}/recommend-assignment`, data),
+  autoResolutionFeedback:(id, data)   => api.post(`/sd/tickets/${id}/auto-resolution/feedback`, data),
 }
 
 export const problemsApi = {
@@ -633,6 +651,12 @@ export const problemsApi = {
   update: (id, data) => api.patch(`/sd/problems/${id}`, data),
   delete:             (id)       => api.delete(`/sd/problems/${id}`),
   promoteKnownError:  (id)       => api.post(`/sd/problems/${id}/promote-known-error`),
+  // RCA Wizard
+  rcaWizardGet:      (id)        => api.get(`/sd/problems/${id}/rca-wizard`),
+  rcaWizardStart:    (id, data)  => api.post(`/sd/problems/${id}/rca-wizard/start`, data),
+  rcaWizardStep:     (id, data)  => api.post(`/sd/problems/${id}/rca-wizard/step`, data),
+  rcaWizardComplete: (id)        => api.post(`/sd/problems/${id}/rca-wizard/complete`),
+  rcaWizardAiAssist: (id, data)  => api.post(`/sd/problems/${id}/rca-wizard/ai-assist`, data),
 }
 
 export const changesApi = {
@@ -771,7 +795,7 @@ export const cmdbApi = {
   deleteAgent:    (id)       => api.delete(`/sd/cmdb/agents/${id}`),
   agentDashboard: (agentId, days) => api.get(`/cmdb/agent-dashboard/${agentId}?days=${days}`),
   agentSnapshot:  (agentId)  => api.post(`/cmdb/agent-dashboard/${agentId}/snapshot`),
-  assetsByCI:     (ciId)     => api.get(`/assets/by-ci/${ciId}`),
+  assetsByCI:     (ciId)     => api.get(`/sd/assets/by-ci/${ciId}`),
 }
 
 // ── Timesheets ────────────────────────────────────────────────────────────────
@@ -799,6 +823,10 @@ export const documentsApi = {
   listPermissions:   (id)              => api.get(`/documents/${id}/permissions`),
   grantPermission:   (id, data)        => api.post(`/documents/${id}/permissions`, data),
   revokePermission:  (id, permId)      => api.delete(`/documents/${id}/permissions/${permId}`),
+  // By context
+  byTask:    (taskId, params)    => api.get(`/documents/by-task/${taskId}`, { params }),
+  byTicket:  (ticketId, params)  => api.get(`/documents/by-ticket/${ticketId}`, { params }),
+  byProject: (projectId, params) => api.get(`/documents/by-project/${projectId}`, { params }),
 }
 
 // ── Custom Fields ─────────────────────────────────────────────────────────────
@@ -958,6 +986,9 @@ export const biForecastingApi = {
   getMetrics:     ()                   => api.get('/bi/forecasting/metrics'),
   forecast:       (metric, params)     => api.get(`/bi/forecasting/${metric}`, { params }),
   multiForecast:  (data)               => api.post('/bi/forecasting/multi', data),
+  // Legacy endpoints used by BiForecastingPanel
+  listMetrics:    ()                   => api.get('/bi/forecast/metrics'),
+  run:            (data)               => api.post('/bi/forecast', data),
 }
 
 // ── BI Anomaly / Churn ────────────────────────────────────────────────────────
@@ -965,6 +996,7 @@ export const biAnomalyApi = {
   getInfo:        ()                   => api.get('/bi/anomaly/info'),
   detect:         (data)               => api.post('/bi/anomaly/detect', data),
   predictChurn:   (data)               => api.post('/bi/anomaly/churn', data),
+  churnPredict:   (data)               => api.post('/bi/churn/predict', data),
 }
 
 // ── BI GDPR ───────────────────────────────────────────────────────────────────
@@ -1058,6 +1090,8 @@ export const changeRolloutApi = {
   approvePlan:    (id)                 => api.post(`/sd/changes/rollout-plans/${id}/approve`),
   advancePhase:   (id, data)           => api.post(`/sd/changes/rollout-plans/${id}/advance-phase`, data),
   simulate:       (data)               => api.post('/sd/changes/rollout-plans/simulate', data),
+  simulatePlan:   (changeId, planId)   => api.post(`/sd/changes/${changeId}/rollout-plans/${planId}/simulate`, {}),
+  rollback:       (changeId, data)     => api.post(`/sd/changes/${changeId}/rollback`, data),
 }
 
 // ── CMDB 3D Graph ─────────────────────────────────────────────────────────────
@@ -1089,6 +1123,29 @@ export const projectSprintsApi = {
   retrospective:      (projectId, sprintId)       => api.get(`/projects/${projectId}/sprints/${sprintId}/retrospective`),
   saveRetrospective:  (projectId, sprintId, data) => api.put(`/projects/${projectId}/sprints/${sprintId}/retrospective`, data),
   burnup:             (projectId, sprintId)       => api.get(`/sprints/${projectId}/sprints/${sprintId}/burnup`),
+}
+
+// ── Portal Clients ────────────────────────────────────────────────────────────
+export const portalClientsApi = {
+  list:         (params)   => api.get('/portal/clients', { params }),
+  create:       (data)     => api.post('/portal/clients', data),
+  update:       (id, data) => api.patch(`/portal/clients/${id}`, data),
+  translations: ()         => api.get('/portal/translations'),
+  saveTranslations: (data) => api.post('/portal/translations', data),
+}
+
+// ── Service Desk — Major Incidents ────────────────────────────────────────────
+export const majorIncidentsApi = {
+  list:   ()      => api.get('/sd/major-incidents'),
+  create: (data)  => api.post('/sd/major-incidents', data),
+}
+
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+export const settingsApi = {
+  general:      ()      => api.get('/settings/general'),
+  logLevel:     ()      => api.get('/settings/log-level'),
+  setLogLevel:  (data)  => api.post('/settings/log-level', data),
 }
 
 // ── Semantic ──────────────────────────────────────────────────────────────────
@@ -1170,7 +1227,13 @@ export const aiProvidersApi = {
 }
 
 // ── Service Desk Config ───────────────────────────────────────────────────────
+export const sdMetricsApi = {
+  itil:             (params) => api.get('/sd/metrics/itil', { params }),
+  agentPerformance: (params) => api.get('/sd/metrics/agent-performance', { params }),
+}
+
 export const sdCatalogApi = {
+  list:           ()         => api.get('/sd/catalog'),
   get:            ()         => api.get('/sd/catalog'),
   createCategory: (data)     => api.post('/sd/catalog/categories', data),
   updateCategory: (id, data) => api.patch(`/sd/catalog/categories/${id}`, data),
@@ -1273,6 +1336,7 @@ export const enterpriseApi = {
   notifications:           (params) => api.get('/enterprise/notifications', { params }),
   markNotificationRead:    (id)     => api.post(`/enterprise/notifications/${id}/read`),
   markAllNotificationsRead:()       => api.post('/enterprise/notifications/read-all'),
+  clearOldNotifications:  (params)  => api.delete('/enterprise/notifications/clear-old', { params }),
 }
 
 export const integrationsHubApi = {
@@ -1518,12 +1582,6 @@ export const sdMajorIncidentsApi = {
   create: (data) => api.post('/sd/major-incidents', data),
 }
 
-// ── SD Metrics ────────────────────────────────────────────────────────────────
-export const sdMetricsApi = {
-  itil:             (params) => api.get('/sd/metrics/itil', { params }),
-  agentPerformance: (params) => api.get('/sd/metrics/agent-performance', { params }),
-}
-
 // ── Risk Scores ───────────────────────────────────────────────────────────────
 export const riskScoresApi = {
   list:    (params) => api.get('/risk-scores', { params }),
@@ -1641,9 +1699,62 @@ export const bpmnProcessesApi = {
 
 // ── Nexus AI Agent ────────────────────────────────────────────────────────────
 export const nexusAgentApi = {
-  history: () => api.get('/ai/agent/history'),
-  run:     (instruction, autoApprove = true) => api.post('/ai/agent', { instruction, auto_approve: autoApprove }),
-  chat:    (data) => api.post('/ai/chat', data),
+  history:              () => api.get('/ai/agent/history'),
+  run:                  (instruction, autoApprove = true) => api.post('/ai/agent', { instruction, auto_approve: autoApprove }),
+  chat:                 (data) => api.post('/ai/chat', data),
+  listConversations:    () => api.get('/ai/conversations'),
+  getConversation:      (id) => api.get(`/ai/conversations/${id}`),
+  deleteConversations:  () => api.delete('/ai/conversations'),
+}
+
+// ── Resources ─────────────────────────────────────────────────────────────────
+export const resourcesApi = {
+  loadScoring: (params) => api.get('/resources/load-scoring', { params }),
+  teamHealth:  (params) => api.get('/resources/team-health', { params }),
+}
+
+// ── Global Search ─────────────────────────────────────────────────────────────
+export const searchApi = {
+  search: (params) => api.get('/global-search', { params }),
+}
+
+// ── Onboarding ────────────────────────────────────────────────────────────────
+export const onboardingApi = {
+  get:           () => api.get('/onboarding'),
+  completeStep:  (data) => api.post('/onboarding/complete-step', data),
+  dismiss:       () => api.post('/onboarding/dismiss'),
+}
+
+// ── SLA Schedules ─────────────────────────────────────────────────────────────
+export const slaSchedulesApi = {
+  list:   (params) => api.get('/sla-schedules', { params }),
+  create: (data)   => api.post('/sla-schedules', data),
+  update: (id, data) => api.patch(`/sla-schedules/${id}`, data),
+  delete: (id)     => api.delete(`/sla-schedules/${id}`),
+}
+
+// ── Auto-Resolution ───────────────────────────────────────────────────────────
+export const autoResolutionApi = {
+  getConfig:    ()          => api.get('/sd/auto-resolution/config'),
+  getStats:     ()          => api.get('/sd/auto-resolution/stats'),
+  patchConfig:  (data)      => api.patch('/sd/auto-resolution/config', data),
+  runJob:       (params)    => api.post('/sd/auto-resolution/run-job', null, { params }),
+  runCloseJob:  ()          => api.post('/sd/auto-resolution/run-close-job'),
+}
+
+// ── Alert Clusters ────────────────────────────────────────────────────────────
+export const alertClustersApi = {
+  list:     ()      => api.get('/sd/alert-clusters'),
+  stats:    ()      => api.get('/sd/alert-clusters/stats'),
+  merge:    (data)  => api.post('/sd/alert-clusters/merge', data),
+  runScan:  ()      => api.post('/sd/alert-clusters/run-scan'),
+}
+
+// ── Portal Conversation Policies ──────────────────────────────────────────────
+export const portalConversationsApi = {
+  getPolicies:    ()                      => api.get('/portal/conversations/team/policies'),
+  updatePolicy:   (topicType, data)       => api.put(`/portal/conversations/team/policies/${topicType}`, data),
+  reviewMessage:  (convId, msgId, data)   => api.post(`/portal/conversations/team/${convId}/messages/${msgId}/review`, data),
 }
 
 /** Normalise a Pydantic v2 / FastAPI error detail to a plain string.

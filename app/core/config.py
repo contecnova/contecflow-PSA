@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     TRUSTED_PROXY_CIDRS: str = Field(default="127.0.0.1/32,::1/128", env="TRUSTED_PROXY_CIDRS")
 
     # ── Git integration (GitHub/GitLab webhook secrets) ───────────────────────
+    # When non-empty, webhook requests are verified with HMAC-SHA256 (GitHub) or
+    # token comparison (GitLab). When empty, all webhook requests are REJECTED.
+    # Configure these in staging/production to receive git events securely.
     GITHUB_WEBHOOK_SECRET: str = Field(default="", env="GITHUB_WEBHOOK_SECRET")
     GITLAB_WEBHOOK_SECRET: str = Field(default="", env="GITLAB_WEBHOOK_SECRET")
 

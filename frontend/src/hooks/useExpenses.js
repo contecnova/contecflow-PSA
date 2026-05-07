@@ -58,3 +58,44 @@ export function useDeleteExpense() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses'] }),
   })
 }
+
+export function useRejectExpense() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => expensesApi.reject(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses'] }),
+  })
+}
+
+export function useReimburseExpense() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => expensesApi.reimburse(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses'] }),
+  })
+}
+
+export function useSubmitExpense() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => expensesApi.submitMy(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['expenses-my'] })
+      qc.invalidateQueries({ queryKey: ['expenses-pending'] })
+    },
+  })
+}
+
+export function useRecallExpense() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => expensesApi.recall(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses-my'] }),
+  })
+}
+
+export function useExpenseOCR() {
+  return useMutation({
+    mutationFn: (fd) => expensesApi.ocr(fd),
+  })
+}

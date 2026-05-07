@@ -15,6 +15,7 @@ export default function useNotificationBadges() {
     queryKey: ['alerts-count'],
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data),
     refetchInterval: 60_000,
+    staleTime: 30 * 1000,
     enabled: hasRole('admin', 'pm', 'hr'),
   })
 
@@ -25,6 +26,7 @@ export default function useNotificationBadges() {
         .then(r => r.data || { unread_count: 0 })
         .catch(() => ({ unread_count: 0 })),
     refetchInterval: 60_000,
+    staleTime: 30 * 1000,
     enabled: canQueryProtected,
   })
 
@@ -33,6 +35,7 @@ export default function useNotificationBadges() {
     queryFn: () =>
       api.get('/approvals/requests/pending-my-action').then(r => r.data || []).catch(() => []),
     refetchInterval: 60_000,
+    staleTime: 30 * 1000,
     enabled: canQueryProtected,
   })
 
@@ -41,6 +44,7 @@ export default function useNotificationBadges() {
     queryFn: () =>
       mentionsApi.mentions(true).then(r => r.data || []).catch(() => []),
     refetchInterval: 60_000,
+    staleTime: 30 * 1000,
     enabled: canQueryProtected,
   })
 

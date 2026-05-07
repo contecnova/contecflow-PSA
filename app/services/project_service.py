@@ -1,7 +1,7 @@
 """
 project_service.py — Lógica de negocio para proyectos.
 
-Funciones exportadas:
+Funciones exportadas (backward-compat wrappers around ProjectService):
   build_project_code(db)
   empty_enrichment()
   enrich_projects_batch(project_ids, db)
@@ -34,31 +34,263 @@ from app.models.user import User as UserModel
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
+from app.services.base import ServiceBase
 
 
-# ── Code generation ────────────────────────────────────────────────────────────
+# ── ProjectService class ───────────────────────────────────────────────────────
 
-def build_project_code(db: Session) -> str:
-    """Generate a unique project code (PRJ-NNNN) with optimistic locking on Postgres."""
+class ProjectService(ServiceBase):
+    """Service class encapsulating all project business logic."""
 
-    if is_postgres():
-        row = db.execute(
-            select(func.max(Project.code)).with_for_update()
-        ).scalar()
-    else:
-        row = db.query(func.max(Project.code)).scalar()
+    # ── Code generation ────────────────────────────────────────────────────────
 
-    if row:
-        m = re.search(r"(\d+)$", row)
-        next_num = (int(m.group(1)) + 1) if m else 1
-    else:
-        next_num = 1
-    return f"PRJ-{next_num:04d}"
+    def build_code(self) -> str:
+        """Generate a unique project code (PRJ-NNNN) with optimistic locking on Postgres."""
+        if is_postgres():
+            row = self.db.execute(
+                select(func.max(Project.code)).with_for_update()
+            ).scalar()
+        else:
+            row = self.db.query(func.max(Project.code)).scalar()
+
+        if row:
+            m = re.search(r"(\d+)$", row)
+            next_num = (int(m.group(1)) + 1) if m else 1
+        else:
+            next_num = 1
+        return f"PRJ-{next_num:04d}"
+
+    # ── Batch enrichment ───────────────────────────────────────────────────────
+
+    def enrich_batch(self, project_ids: list) -> dict:
+        """Return enrichment metrics for multiple projects in a minimal set of queries."""
+        if not project_ids:
+            return {}
+
+        imp_rows = self.db.query(
+            Imputation.project_id,
+            func.sum(Imputation.hours).label("total_hours"),
+            func.sum(Imputation.cost_amount).label("total_cost"),
+            func.count(func.distinct(Imputation.user_id)).label("imp_team"),
+        ).filter(Imputation.project_id.in_(project_ids)).group_by(Imputation.project_id).all()
+        imp_by_project = {r.project_id: r for r in imp_rows}
+
+        task_total_rows = self.db.query(
+            Task.project_id,
+            func.count(Task.id).label("cnt"),
+        ).filter(Task.project_id.in_(project_ids)).group_by(Task.project_id).all()
+
+        task_done_rows = self.db.query(
+            Task.project_id,
+            func.count(Task.id).label("cnt"),
+        ).filter(Task.project_id.in_(project_ids), Task.status == TaskStatus.done).group_by(Task.project_id).all()
+
+        task_total = {r.project_id: r.cnt for r in task_total_rows}
+        task_done = {r.project_id: r.cnt for r in task_done_rows}
+
+        member_rows = self.db.query(
+            ProjectMember.project_id,
+            func.count(ProjectMember.id).label("cnt"),
+        ).filter(ProjectMember.project_id.in_(project_ids)).group_by(ProjectMember.project_id).all()
+        member_count = {r.project_id: r.cnt for r in member_rows}
+
+        result: dict = {}
+        for pid in project_ids:
+            imp = imp_by_project.get(pid)
+            total_hours = float(imp.total_hours or 0) if imp else 0.0
+            total_cost = float(imp.total_cost or 0) if imp else 0.0
+            imp_team = int(imp.imp_team or 0) if imp else 0
+            t_total = task_total.get(pid, 0)
+            t_done = task_done.get(pid, 0)
+            members = member_count.get(pid, 0) or imp_team
+            progress = round((t_done / t_total) * 100, 1) if t_total > 0 else 0.0
+
+            result[pid] = {
+                "total_hours_spent": total_hours,
+                "total_cost_spent": total_cost,
+                "budget_used_pct": 0.0,
+                "progress_pct": progress,
+                "tasks_total": t_total,
+                "tasks_done": t_done,
+                "team_size": members,
+                "_total_hours": total_hours,
+                "_total_cost": total_cost,
+            }
+        return result
+
+    def enrich_single(self, project) -> dict:
+        return self.enrich_batch([project.id]).get(project.id, _empty_enrichment())
+
+    def budget_used_pct(self, project, enrichment: dict) -> float:
+        total_cost = enrichment["_total_cost"]
+        total_hours = enrichment["_total_hours"]
+        if project.budget_amount and project.budget_amount > 0:
+            return round((total_cost / project.budget_amount) * 100, 1)
+        elif project.budget_hours and project.budget_hours > 0:
+            return round((total_hours / project.budget_hours) * 100, 1)
+        return 0.0
+
+    # ── EVM ────────────────────────────────────────────────────────────────────
+
+    def evm(self, project_id: str) -> dict:
+        """
+        Calcula indicadores EVM completos para un proyecto:
+        BAC, PV, EV, AC, CPI, SPI, CV, SV, EAC, ETC, VAC, TCPI.
+        """
+        proj = self.db.query(Project).filter(Project.id == project_id).first()
+        if not proj:
+            return None  # caller raises 404
+
+        today = date.today()
+
+        bac = proj.budget_amount or 0.0
+        if bac == 0:
+            total_est = self.db.query(func.sum(Task.estimated_hours)).filter(
+                Task.project_id == project_id
+            ).scalar() or 0.0
+            avg_rate = self.db.query(func.avg(Imputation.hourly_rate_snapshot)).filter(
+                Imputation.project_id == project_id,
+                Imputation.hourly_rate_snapshot.isnot(None),
+            ).scalar() or 0.0
+            bac = total_est * avg_rate
+
+        ac_cost = self.db.query(func.sum(Imputation.cost_amount)).filter(
+            Imputation.project_id == project_id,
+            Imputation.cost_amount.isnot(None),
+        ).scalar() or 0.0
+        if ac_cost == 0:
+            rows = self.db.query(Imputation.hours, Imputation.hourly_rate_snapshot).filter(
+                Imputation.project_id == project_id
+            ).all()
+            ac_cost = sum((r.hours * r.hourly_rate_snapshot) for r in rows if r.hourly_rate_snapshot) or 0.0
+        ac = ac_cost
+
+        tasks_total = self.db.query(
+            func.count(Task.id).label("cnt"),
+            func.sum(Task.estimated_hours).label("est"),
+        ).filter(Task.project_id == project_id).first()
+        tasks_done = self.db.query(
+            func.count(Task.id).label("cnt"),
+            func.sum(Task.estimated_hours).label("est"),
+        ).filter(Task.project_id == project_id, Task.status == TaskStatus.done).first()
+
+        total_est_hours = tasks_total.est or 0.0
+        done_est_hours = tasks_done.est or 0.0
+        pct_complete = (done_est_hours / total_est_hours) if total_est_hours > 0 else 0.0
+        ev = bac * pct_complete
+
+        start = proj.start_date
+        end = proj.end_date_planned
+        if start and end and end > start:
+            total_days = (end - start).days
+            elapsed_days = max(0, (today - start).days)
+            pct_time = min(elapsed_days / total_days, 1.0)
+        else:
+            pct_time = None
+
+        pv = bac * pct_time if pct_time is not None else None
+
+        cpi = round(ev / ac, 4) if ac > 0 else None
+        spi = round(ev / pv, 4) if (pv is not None and pv > 0) else None
+        cv = round(ev - ac, 2)
+        sv = round(ev - pv, 2) if pv is not None else None
+        eac = round(bac / cpi, 2) if cpi and cpi > 0 else None
+        etc = round(eac - ac, 2) if eac is not None else None
+        vac = round(bac - eac, 2) if eac is not None else None
+        tcpi_denom = bac - ac
+        tcpi = round((bac - ev) / tcpi_denom, 4) if tcpi_denom != 0 else None
+
+        return {
+            "project_id": project_id,
+            "project_name": proj.name,
+            "currency": settings.DEFAULT_CURRENCY,
+            "bac": round(bac, 2),
+            "pv": round(pv, 2) if pv is not None else None,
+            "ev": round(ev, 2),
+            "ac": round(ac, 2),
+            "cpi": cpi,
+            "spi": spi,
+            "cv": cv,
+            "sv": sv,
+            "eac": eac,
+            "etc": etc,
+            "vac": vac,
+            "tcpi": tcpi,
+            "pct_complete": round(pct_complete * 100, 1),
+            "pct_time_elapsed": round(pct_time * 100, 1) if pct_time is not None else None,
+            "has_schedule": pct_time is not None,
+            "total_tasks": tasks_total.cnt or 0,
+            "done_tasks": tasks_done.cnt or 0,
+            "health": _evm_health(cpi, spi),
+            "start_date": proj.start_date.isoformat() if proj.start_date else None,
+            "planned_end": proj.end_date_planned.isoformat() if proj.end_date_planned else None,
+        }
+
+    def evm_portfolio(self) -> list:
+        """EVM summary for all active/on-hold projects."""
+        active = self.db.query(Project).filter(
+            Project.status.in_([ProjectStatus.active, ProjectStatus.on_hold])
+        ).all()
+
+        results = []
+        today = date.today()
+        for proj in active:
+            bac = proj.budget_amount or 0.0
+            if bac == 0:
+                total_est = self.db.query(func.sum(Task.estimated_hours)).filter(
+                    Task.project_id == proj.id
+                ).scalar() or 0.0
+                avg_rate = self.db.query(func.avg(Imputation.hourly_rate_snapshot)).filter(
+                    Imputation.project_id == proj.id,
+                    Imputation.hourly_rate_snapshot.isnot(None),
+                ).scalar() or 0.0
+                bac = total_est * avg_rate
+
+            ac = self.db.query(func.sum(Imputation.cost_amount)).filter(
+                Imputation.project_id == proj.id,
+                Imputation.cost_amount.isnot(None),
+            ).scalar() or 0.0
+
+            total_est_h = self.db.query(func.sum(Task.estimated_hours)).filter(
+                Task.project_id == proj.id
+            ).scalar() or 0.0
+            done_est_h = self.db.query(func.sum(Task.estimated_hours)).filter(
+                Task.project_id == proj.id, Task.status == TaskStatus.done
+            ).scalar() or 0.0
+            pct = (done_est_h / total_est_h) if total_est_h > 0 else 0.0
+            ev = bac * pct
+
+            start, end = proj.start_date, proj.end_date_planned
+            if start and end and end > start:
+                pct_t = min((today - start).days / (end - start).days, 1.0)
+            else:
+                pct_t = pct
+            pv = bac * max(pct_t, 0)
+
+            cpi = round(ev / ac, 3) if ac > 0 else None
+            spi = round(ev / pv, 3) if pv > 0 else None
+            eac = round(bac / cpi, 2) if cpi and cpi > 0 else None
+
+            results.append({
+                "project_id": proj.id,
+                "project_name": proj.name,
+                "bac": round(bac, 2),
+                "ac": round(ac, 2),
+                "ev": round(ev, 2),
+                "pv": round(pv, 2),
+                "cpi": cpi,
+                "spi": spi,
+                "eac": eac,
+                "pct_complete": round(pct * 100, 1),
+                "health": _evm_health(cpi, spi),
+            })
+
+        return sorted(results, key=lambda r: r["health"] == "red", reverse=True)
 
 
-# ── Batch enrichment ───────────────────────────────────────────────────────────
+# ── Module-level helper (used by ProjectService and standalone code) ───────────
 
-def empty_enrichment() -> dict:
+def _empty_enrichment() -> dict:
     return {
         "total_hours_spent": 0.0,
         "total_cost_spent": 0.0,
@@ -72,69 +304,45 @@ def empty_enrichment() -> dict:
     }
 
 
+def _evm_health(cpi: Optional[float], spi: Optional[float]) -> str:
+    if cpi is None or spi is None:
+        return "grey"
+    if cpi >= 0.9 and spi >= 0.9:
+        return "green"
+    if cpi < 0.85 or spi < 0.85:
+        return "red"
+    return "yellow"
+
+
+# ── Backward-compat standalone functions ──────────────────────────────────────
+
+# Code generation ──────────────────────────────────────────────────────────────
+
+def build_project_code(db: Session) -> str:
+    """Generate a unique project code (PRJ-NNNN). Backward-compat wrapper."""
+    return ProjectService(db).build_code()
+
+
+# ── Batch enrichment ───────────────────────────────────────────────────────────
+
+def empty_enrichment() -> dict:
+    """Return a zeroed enrichment dict. Backward-compat wrapper."""
+    return _empty_enrichment()
+
+
 def enrich_projects_batch(project_ids: list, db: Session) -> dict:
-    """Return enrichment metrics for multiple projects in a minimal set of queries."""
-
-    if not project_ids:
-        return {}
-
-    imp_rows = db.query(
-        Imputation.project_id,
-        func.sum(Imputation.hours).label("total_hours"),
-        func.sum(Imputation.cost_amount).label("total_cost"),
-        func.count(func.distinct(Imputation.user_id)).label("imp_team"),
-    ).filter(Imputation.project_id.in_(project_ids)).group_by(Imputation.project_id).all()
-    imp_by_project = {r.project_id: r for r in imp_rows}
-
-    task_total_rows = db.query(
-        Task.project_id,
-        func.count(Task.id).label("cnt"),
-    ).filter(Task.project_id.in_(project_ids)).group_by(Task.project_id).all()
-
-    task_done_rows = db.query(
-        Task.project_id,
-        func.count(Task.id).label("cnt"),
-    ).filter(Task.project_id.in_(project_ids), Task.status == TaskStatus.done).group_by(Task.project_id).all()
-
-    task_total = {r.project_id: r.cnt for r in task_total_rows}
-    task_done = {r.project_id: r.cnt for r in task_done_rows}
-
-    member_rows = db.query(
-        ProjectMember.project_id,
-        func.count(ProjectMember.id).label("cnt"),
-    ).filter(ProjectMember.project_id.in_(project_ids)).group_by(ProjectMember.project_id).all()
-    member_count = {r.project_id: r.cnt for r in member_rows}
-
-    result: dict = {}
-    for pid in project_ids:
-        imp = imp_by_project.get(pid)
-        total_hours = float(imp.total_hours or 0) if imp else 0.0
-        total_cost = float(imp.total_cost or 0) if imp else 0.0
-        imp_team = int(imp.imp_team or 0) if imp else 0
-        t_total = task_total.get(pid, 0)
-        t_done = task_done.get(pid, 0)
-        members = member_count.get(pid, 0) or imp_team
-        progress = round((t_done / t_total) * 100, 1) if t_total > 0 else 0.0
-
-        result[pid] = {
-            "total_hours_spent": total_hours,
-            "total_cost_spent": total_cost,
-            "budget_used_pct": 0.0,
-            "progress_pct": progress,
-            "tasks_total": t_total,
-            "tasks_done": t_done,
-            "team_size": members,
-            "_total_hours": total_hours,
-            "_total_cost": total_cost,
-        }
-    return result
+    """Return enrichment metrics for multiple projects. Backward-compat wrapper."""
+    return ProjectService(db).enrich_batch(project_ids)
 
 
 def enrich_project(project, db: Session) -> dict:
-    return enrich_projects_batch([project.id], db).get(project.id, empty_enrichment())
+    """Return enrichment for a single project. Backward-compat wrapper."""
+    return ProjectService(db).enrich_single(project)
 
 
 def compute_budget_used_pct(project, enrichment: dict) -> float:
+    """Compute budget used percentage. Backward-compat wrapper."""
+    # Stateless — no need to instantiate service with DB
     total_cost = enrichment["_total_cost"]
     total_hours = enrichment["_total_hours"]
     if project.budget_amount and project.budget_amount > 0:
@@ -146,173 +354,16 @@ def compute_budget_used_pct(project, enrichment: dict) -> float:
 
 # ── EVM ────────────────────────────────────────────────────────────────────────
 
-def _evm_health(cpi: Optional[float], spi: Optional[float]) -> str:
-    if cpi is None or spi is None:
-        return "grey"
-    if cpi >= 0.9 and spi >= 0.9:
-        return "green"
-    if cpi < 0.85 or spi < 0.85:
-        return "red"
-    return "yellow"
-
-
 def calculate_evm(project_id: str, db: Session) -> dict:
     """
-    Calcula indicadores EVM completos para un proyecto:
-    BAC, PV, EV, AC, CPI, SPI, CV, SV, EAC, ETC, VAC, TCPI.
+    Calcula indicadores EVM completos para un proyecto. Backward-compat wrapper.
     """
-
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        return None  # caller raises 404
-
-    today = date.today()
-
-    bac = proj.budget_amount or 0.0
-    if bac == 0:
-        total_est = db.query(func.sum(Task.estimated_hours)).filter(
-            Task.project_id == project_id
-        ).scalar() or 0.0
-        avg_rate = db.query(func.avg(Imputation.hourly_rate_snapshot)).filter(
-            Imputation.project_id == project_id,
-            Imputation.hourly_rate_snapshot.isnot(None),
-        ).scalar() or 0.0
-        bac = total_est * avg_rate
-
-    ac_cost = db.query(func.sum(Imputation.cost_amount)).filter(
-        Imputation.project_id == project_id,
-        Imputation.cost_amount.isnot(None),
-    ).scalar() or 0.0
-    if ac_cost == 0:
-        rows = db.query(Imputation.hours, Imputation.hourly_rate_snapshot).filter(
-            Imputation.project_id == project_id
-        ).all()
-        ac_cost = sum((r.hours * r.hourly_rate_snapshot) for r in rows if r.hourly_rate_snapshot) or 0.0
-    ac = ac_cost
-
-    tasks_total = db.query(
-        func.count(Task.id).label("cnt"),
-        func.sum(Task.estimated_hours).label("est"),
-    ).filter(Task.project_id == project_id).first()
-    tasks_done = db.query(
-        func.count(Task.id).label("cnt"),
-        func.sum(Task.estimated_hours).label("est"),
-    ).filter(Task.project_id == project_id, Task.status == TaskStatus.done).first()
-
-    total_est_hours = tasks_total.est or 0.0
-    done_est_hours = tasks_done.est or 0.0
-    pct_complete = (done_est_hours / total_est_hours) if total_est_hours > 0 else 0.0
-    ev = bac * pct_complete
-
-    start = proj.start_date
-    end = proj.end_date_planned
-    if start and end and end > start:
-        total_days = (end - start).days
-        elapsed_days = max(0, (today - start).days)
-        pct_time = min(elapsed_days / total_days, 1.0)
-    else:
-        pct_time = None
-
-    pv = bac * pct_time if pct_time is not None else None
-
-    cpi = round(ev / ac, 4) if ac > 0 else None
-    spi = round(ev / pv, 4) if (pv is not None and pv > 0) else None
-    cv = round(ev - ac, 2)
-    sv = round(ev - pv, 2) if pv is not None else None
-    eac = round(bac / cpi, 2) if cpi and cpi > 0 else None
-    etc = round(eac - ac, 2) if eac is not None else None
-    vac = round(bac - eac, 2) if eac is not None else None
-    tcpi_denom = bac - ac
-    tcpi = round((bac - ev) / tcpi_denom, 4) if tcpi_denom != 0 else None
-
-    return {
-        "project_id": project_id,
-        "project_name": proj.name,
-        "currency": settings.DEFAULT_CURRENCY,
-        "bac": round(bac, 2),
-        "pv": round(pv, 2) if pv is not None else None,
-        "ev": round(ev, 2),
-        "ac": round(ac, 2),
-        "cpi": cpi,
-        "spi": spi,
-        "cv": cv,
-        "sv": sv,
-        "eac": eac,
-        "etc": etc,
-        "vac": vac,
-        "tcpi": tcpi,
-        "pct_complete": round(pct_complete * 100, 1),
-        "pct_time_elapsed": round(pct_time * 100, 1) if pct_time is not None else None,
-        "has_schedule": pct_time is not None,
-        "total_tasks": tasks_total.cnt or 0,
-        "done_tasks": tasks_done.cnt or 0,
-        "health": _evm_health(cpi, spi),
-        "start_date": proj.start_date.isoformat() if proj.start_date else None,
-        "planned_end": proj.end_date_planned.isoformat() if proj.end_date_planned else None,
-    }
+    return ProjectService(db).evm(project_id)
 
 
 def calculate_evm_portfolio(db: Session) -> list:
-    """EVM summary for all active/on-hold projects."""
-
-    active = db.query(Project).filter(
-        Project.status.in_([ProjectStatus.active, ProjectStatus.on_hold])
-    ).all()
-
-    results = []
-    today = date.today()
-    for proj in active:
-        bac = proj.budget_amount or 0.0
-        if bac == 0:
-            total_est = db.query(func.sum(Task.estimated_hours)).filter(
-                Task.project_id == proj.id
-            ).scalar() or 0.0
-            avg_rate = db.query(func.avg(Imputation.hourly_rate_snapshot)).filter(
-                Imputation.project_id == proj.id,
-                Imputation.hourly_rate_snapshot.isnot(None),
-            ).scalar() or 0.0
-            bac = total_est * avg_rate
-
-        ac = db.query(func.sum(Imputation.cost_amount)).filter(
-            Imputation.project_id == proj.id,
-            Imputation.cost_amount.isnot(None),
-        ).scalar() or 0.0
-
-        total_est_h = db.query(func.sum(Task.estimated_hours)).filter(
-            Task.project_id == proj.id
-        ).scalar() or 0.0
-        done_est_h = db.query(func.sum(Task.estimated_hours)).filter(
-            Task.project_id == proj.id, Task.status == TaskStatus.done
-        ).scalar() or 0.0
-        pct = (done_est_h / total_est_h) if total_est_h > 0 else 0.0
-        ev = bac * pct
-
-        start, end = proj.start_date, proj.end_date_planned
-        if start and end and end > start:
-            pct_t = min((today - start).days / (end - start).days, 1.0)
-        else:
-            pct_t = pct
-        pv = bac * max(pct_t, 0)
-
-        cpi = round(ev / ac, 3) if ac > 0 else None
-        spi = round(ev / pv, 3) if pv > 0 else None
-        eac = round(bac / cpi, 2) if cpi and cpi > 0 else None
-
-        results.append({
-            "project_id": proj.id,
-            "project_name": proj.name,
-            "bac": round(bac, 2),
-            "ac": round(ac, 2),
-            "ev": round(ev, 2),
-            "pv": round(pv, 2),
-            "cpi": cpi,
-            "spi": spi,
-            "eac": eac,
-            "pct_complete": round(pct * 100, 1),
-            "health": _evm_health(cpi, spi),
-        })
-
-    return sorted(results, key=lambda r: r["health"] == "red", reverse=True)
+    """EVM summary for all active/on-hold projects. Backward-compat wrapper."""
+    return ProjectService(db).evm_portfolio()
 
 
 # ── Project scoped query ───────────────────────────────────────────────────────

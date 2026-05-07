@@ -12,11 +12,54 @@ Capabilities:
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 
 from sqlalchemy.orm import Session
 from app.services.ai_provider_service import call_ai
+
+_log = logging.getLogger(__name__)
+
+
+def _notify_change_stakeholders(
+    db: Session,
+    change_id: str,
+    subject: str,
+    body_html: str,
+) -> None:
+    """Send email + Slack notifications to the change requester and approver."""
+    try:
+        from app.models.service_desk import ITSMChangeRequest  # noqa: PLC0415
+        from app.models.user import User  # noqa: PLC0415
+        from app.services.notification_service import NotificationService  # noqa: PLC0415
+
+        change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
+        if not change:
+            return
+
+        recipient_ids = {uid for uid in [change.requester_id, change.approver_id, change.assigned_to_id] if uid}
+        for uid in recipient_ids:
+            user = db.query(User).filter(User.id == uid).first()
+            if user and user.email:
+                NotificationService.send_email(to=user.email, subject=subject, html_body=body_html)
+
+        from app.core.config import settings  # noqa: PLC0415
+        if getattr(settings, "SLACK_WEBHOOK_URL", None):
+            import asyncio  # noqa: PLC0415
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            loop.run_until_complete(
+                NotificationService.send_slack_message(
+                    channel="#change-management",
+                    message=subject,
+                )
+            )
+    except Exception as exc:
+        _log.warning("Could not send change notification for %s: %s", change_id, exc)
 
 class ChangeType(str, Enum):
     standard = "standard"       # Pre-approved template
@@ -245,9 +288,8 @@ set -e  # Exit on error
 echo "🔄 INITIATING ROLLBACK FOR CHANGE {change_id}"
 echo "⏰ Timestamp: $(date -u)"
 
-# Step 1: Notify stakeholders
-echo "📢 Notifying stakeholders..."
-# TODO: Send notification
+# Step 1: Notify stakeholders (application-level notifications sent automatically)
+echo "📢 Notifying stakeholders via ContecFlow notification service..."
 
 # Step 2: Validate rollback pre-conditions
 echo "🔍 Validating rollback conditions..."
@@ -450,7 +492,8 @@ def advance_rollout_phase(
     if phase_status == "failed" and phase.get("rollback_if_fails"):
         state["overall_status"] = "rolled_back"
         state["rollback_triggered"] = True
-        state["rollback_reason"] = f"Fase {phase_number} ({phase['name']}) falló: {notes}"
+        rollback_reason = f"Fase {phase_number} ({phase['name']}) falló: {notes}"
+        state["rollback_reason"] = rollback_reason
         _log.warning(
             "Rollback triggered automatically: change=%s phase=%d reason=%s",
             change_id, phase_number, notes,
@@ -460,6 +503,17 @@ def advance_rollout_phase(
             if p["phase"] > phase_number and p["status"] == "pending":
                 p["status"] = "skipped"
         _update_change_status_on_rollback(db, change_id)
+        _notify_change_stakeholders(
+            db,
+            change_id,
+            subject=f"[ContecFlow] Automatic rollback triggered for change {change_id}",
+            body_html=(
+                f"<p>An <strong>automatic rollback</strong> has been triggered for change <strong>{change_id}</strong>.</p>"
+                f"<p><strong>Reason:</strong> {rollback_reason}</p>"
+                f"<p><strong>Failed phase:</strong> {phase['name']} (phase {phase_number})</p>"
+                f"<p><strong>Time:</strong> {datetime.now(timezone.utc).isoformat()}</p>"
+            ),
+        )
     else:
         # Advance current_phase pointer
         if phase_status == "completed":
@@ -470,6 +524,15 @@ def advance_rollout_phase(
         if all_done and state["overall_status"] == "in_progress":
             state["overall_status"] = "completed"
             _update_change_status_on_complete(db, change_id)
+            _notify_change_stakeholders(
+                db,
+                change_id,
+                subject=f"[ContecFlow] Change {change_id} implemented successfully",
+                body_html=(
+                    f"<p>Change <strong>{change_id}</strong> has been <strong>successfully implemented</strong>.</p>"
+                    f"<p>All rollout phases completed at {datetime.now(timezone.utc).isoformat()}.</p>"
+                ),
+            )
 
     _save_rollout_state(db, change_id, state)
     _log.info(
@@ -529,6 +592,17 @@ def trigger_change_rollback(
         _save_rollout_state(db, change_id, state)
 
     _update_change_status_on_rollback(db, change_id)
+    _notify_change_stakeholders(
+        db,
+        change_id,
+        subject=f"[ContecFlow] Rollback triggered for change {change_id}",
+        body_html=(
+            f"<p>A <strong>manual rollback</strong> has been triggered for change <strong>{change_id}</strong>.</p>"
+            f"<p><strong>Reason:</strong> {reason}</p>"
+            f"<p><strong>Triggered by:</strong> {current_user.id}</p>"
+            f"<p><strong>Time:</strong> {datetime.now(timezone.utc).isoformat()}</p>"
+        ),
+    )
     _log.warning("Manual rollback triggered: change=%s reason=%s by=%s", change_id, reason, current_user.id)
     return {"change_id": change_id, "rollback_triggered": True, "reason": reason}
 

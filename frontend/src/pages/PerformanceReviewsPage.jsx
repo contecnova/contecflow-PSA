@@ -315,7 +315,9 @@ export default function PerformanceReviewsPage() {
             <Button onClick={() => setShowNewCycle(true)}>+ {t('performance.new_cycle') || 'Nuevo ciclo'}</Button>
           )
         }
-      showListExport={false}
+        showListExport={tab === 'cycles' ? cycles.length > 0 : myReviews.length > 0}
+        exportTargetSelector={tab === 'cycles' ? '[data-export-table="performance-cycles-list"]' : '[data-export-table="performance-pending-list"]'}
+        exportFilePrefix={tab === 'cycles' ? 'performance_cycles' : 'performance_reviews'}
       />
 
       {/* Tabs */}
@@ -338,11 +340,13 @@ export default function PerformanceReviewsPage() {
           <EmptyState icon="📋" title="Sin ciclos de evaluacion"
             description="Crea el primer ciclo para iniciar evaluaciones" />
         ) : (
-          cycles.map(c => (
-            <CycleCard key={c.id} cycle={c}
-              onActivate={id => activate(id)}
-              onClose={id => closeCycle(id)} />
-          ))
+          <div data-export-table="performance-cycles-list" style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {cycles.map(c => (
+              <CycleCard key={c.id} cycle={c}
+                onActivate={id => activate(id)}
+                onClose={id => closeCycle(id)} />
+            ))}
+          </div>
         )
       )}
 
@@ -352,7 +356,7 @@ export default function PerformanceReviewsPage() {
           <EmptyState icon="✅" title="Sin evaluaciones pendientes"
             description="Las evaluaciones apareceran aqui cuando se inicien ciclos" />
         ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          <div data-export-table="performance-pending-list" style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {myReviews.map(r => (
               <div key={r.id} style={{ display:'flex', alignItems:'center', gap:12,
                 padding:'12px 16px', background:'var(--surface-2)',

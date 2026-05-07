@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
+import { dashboardApi, analyticsApi, risksApi } from '../services/api'
+import { useAllProjects } from '../hooks/useProjects'
 import { Spinner } from '../components/ui'
 import { FolderOpen } from 'lucide-react'
 import {
@@ -36,31 +37,28 @@ export default function ProjectsDashboardPage() {
 
   const { data: health = [], isLoading: lh } = useQuery({
     queryKey: ['proj-dash-health', days],
-    queryFn: () => api.get('/dashboard/projects-health', { params }).then(r => r.data).catch(() => []),
+    queryFn: () => dashboardApi.projectsHealth(params).then(r => r.data).catch(() => []),
     staleTime: 60_000,
   })
 
-  const { data: allProjects = [] } = useQuery({
-    queryKey: ['proj-dash-all-projects'],
-    queryFn: () => api.get('/projects', { params: { page_size: 200 } }).then(r => r.data || []).catch(() => []),
-    staleTime: 60_000,
-  })
+  const { data: allProjects = [] } = useAllProjects()
 
-  const { data: byType = [], isLoading: lt } = useQuery({
+  const { data: byTypeRaw, isLoading: lt } = useQuery({
     queryKey: ['proj-dash-type', days],
-    queryFn: () => api.get('/analytics/query/projects_by_type', { params }).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('projects_by_type', params).then(r => r.data?.rows || []).catch(() => []),
     staleTime: 60_000,
   })
+  const byType = byTypeRaw ?? []
 
   const { data: kpis } = useQuery({
     queryKey: ['proj-dash-kpis', days],
-    queryFn: () => api.get('/dashboard/kpis', { params }).then(r => r.data).catch(() => ({})),
+    queryFn: () => dashboardApi.kpis().then(r => r.data).catch(() => ({})),
     staleTime: 60_000,
   })
 
   const { data: risks = [] } = useQuery({
     queryKey: ['proj-dash-risks'],
-    queryFn: () => api.get('/risks/all/portfolio').then(r => {
+    queryFn: () => risksApi.portfolioAll().then(r => {
       const d = r.data; return Array.isArray(d) ? d : []
     }).catch(() => []),
     staleTime: 60_000,

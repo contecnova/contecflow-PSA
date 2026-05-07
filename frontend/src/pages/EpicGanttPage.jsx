@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { projectsApi, epicsApi, epicDependenciesApi } from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -142,7 +142,7 @@ function EpicDepForm({ projectId, epics, onClose }) {
   const _selType = DEP_TYPES.find(d => d.value === form.dep_type)
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => api.post('/epic-dependencies', form).then(r => r.data),
+    mutationFn: () => epicDependenciesApi.create(form).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['epic-deps', projectId]); qc.invalidateQueries(['epic-gantt', projectId]); onClose() },
     onError: e => toast.error(extractErr(e, 'Error al crear dependencia')),
   })
@@ -216,21 +216,21 @@ export default function EpicGanttPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => api.get('/projects').then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
   const { data: roadmap, isLoading: lRoadmap } = useQuery({
     queryKey: ['epic-gantt', project],
-    queryFn: () => api.get('/epics/roadmap', { params: { project_id: project } }).then(r => r.data).catch(() => null),
+    queryFn: () => epicsApi.roadmapByProject(project).then(r => r.data).catch(() => null),
     enabled: !!project,
   })
   const { data: epicDeps = [], isLoading: lDeps } = useQuery({
     queryKey: ['epic-deps', project],
-    queryFn: () => api.get(`/epic-dependencies/${project}`).then(r => r.data).catch(() => []),
+    queryFn: () => epicDependenciesApi.get(project).then(r => r.data).catch(() => []),
     enabled: !!project,
   })
 
   const { mutate: deleteDep } = useMutation({
-    mutationFn: id => api.delete(`/epic-dependencies/${id}`),
+    mutationFn: id => epicDependenciesApi.delete(id),
     onSuccess: () => { qc.invalidateQueries(['epic-deps', project]); qc.invalidateQueries(['epic-gantt', project]) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })

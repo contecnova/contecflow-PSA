@@ -6,7 +6,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { scenariosApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -27,21 +27,21 @@ export default function ScenariosPage() {
   const [form, setForm] = useState({ name:'', description:'', horizon_weeks:12, projects:[] })
   const [newProject, setNewProject] = useState({ name:'', start_date:'', end_date:'', total_hours:0 })
 
-  const { data: scenarios = [], isLoading } = useQuery({ queryKey:['scenarios'], queryFn:()=>api.get('/scenarios').then(r=>r.data) })
-  const { data: detail } = useQuery({ queryKey:['scenario-detail', selected], queryFn:()=>api.get(`/scenarios/${selected}`).then(r=>r.data), enabled:!!selected })
+  const { data: scenarios = [], isLoading } = useQuery({ queryKey:['scenarios'], queryFn:()=>scenariosApi.list().then(r=>r.data) })
+  const { data: detail } = useQuery({ queryKey:['scenario-detail', selected], queryFn:()=>scenariosApi.get(selected).then(r=>r.data), enabled:!!selected })
 
   const { mutate: create, isPending:creating } = useMutation({
-    mutationFn: d => api.post('/scenarios', d),
+    mutationFn: d => scenariosApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['scenarios']); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: compute, isPending:computing } = useMutation({
-    mutationFn: id => api.post(`/scenarios/${id}/compute`).then(r=>r.data),
+    mutationFn: id => scenariosApi.compute(id).then(r=>r.data),
     onSuccess: () => qc.invalidateQueries(['scenario-detail', selected]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/scenarios/${id}`),
+    mutationFn: id => scenariosApi.delete(id),
     onSuccess: () => { setSelected(null); qc.invalidateQueries(['scenarios']) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })

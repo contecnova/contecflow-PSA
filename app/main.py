@@ -84,17 +84,21 @@ def _scheduler_mode() -> str:
 
 
 def _enforce_scheduler_mode_safety() -> None:
-    """Prevent unsafe dual scheduling in stage/prod unless explicitly overridden."""
+    """Prevent unsafe dual scheduling in ALL environments unless explicitly overridden.
+
+    In production/staging the default is to fail immediately.  In development the
+    default is also to fail so that dual-scheduler bugs are caught early; the check
+    can be bypassed by setting FAIL_ON_DUAL_SCHEDULER=0 explicitly.
+    """
     if _scheduler_mode() != "dual":
         return
-    fail_on_dual = os.getenv(
-        "FAIL_ON_DUAL_SCHEDULER",
-        "1" if settings.ENVIRONMENT in {"production", "staging"} else "0",
-    ) == "1"
+    # Default to fail in every environment — dev included.
+    fail_on_dual = os.getenv("FAIL_ON_DUAL_SCHEDULER", "1") == "1"
     if fail_on_dual:
         raise RuntimeError(
             "Dual scheduler mode detected (APScheduler + Celery Beat). "
-            "Disable one scheduler (ENABLE_APSCHEDULER=0 or ENABLE_CELERY_BEAT=0)."
+            "Disable one scheduler (ENABLE_APSCHEDULER=0 or ENABLE_CELERY_BEAT=0). "
+            f"[env={settings.ENVIRONMENT}]"
         )
 
 
@@ -234,11 +238,6 @@ async def lifespan(_app: FastAPI):
     # Scheduler (optional): keep disabled when Celery beat is active in deployment.
     _scheduler = None
     _enable_apscheduler, _celery_beat_enabled = _scheduler_flags()
-    if _enable_apscheduler and _celery_beat_enabled:
-        logger.warning(
-            "⚠️  APScheduler y Celery Beat parecen estar activos a la vez. "
-            "Esto puede duplicar tareas programadas (informes/rotación)."
-        )
     try:
         _enforce_scheduler_mode_safety()
     except RuntimeError as _sched_exc:
@@ -297,9 +296,13 @@ async def lifespan(_app: FastAPI):
             )
             _scheduler.start()
             logger.info("   ✅ Scheduler activo (informes + rotación + motor de alertas)")
+            logger.info("✅ Modo scheduler: APScheduler")
         except Exception as e:
             logger.warning(f"   ⚠️  Scheduler no iniciado: {e}")
+    elif _celery_beat_enabled:
+        logger.info("✅ Modo scheduler: Celery Beat")
     else:
+        logger.info("✅ Modo scheduler: Ninguno (modo manual)")
         logger.info("⏭️  APScheduler deshabilitado (ENABLE_APSCHEDULER=0)")
 
     # Contar endpoints registrados
@@ -377,6 +380,11 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Request-ID", "X-Requested-With"],
 )
+
+# ABAC middleware — opt-in route-level ABAC enforcement via ABAC_ROUTE_REGISTRY.
+# Must be added AFTER the auth middleware so request.state.user is populated.
+from app.core.abac_middleware import ABACMiddleware
+app.add_middleware(ABACMiddleware)
 
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):

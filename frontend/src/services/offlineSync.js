@@ -47,6 +47,8 @@ try {
 const _syncSubscribers = new Set()
 let _globalConflictStrategy = 'server-wins'
 
+export const MAX_RETRY_ATTEMPTS = 3
+
 export function setSyncConflictStrategy(strategy) {
   _globalConflictStrategy = strategy // 'server-wins' | 'client-wins' | 'merge' | 'manual'
 }
@@ -418,15 +420,15 @@ export async function syncPendingOps(apiFn) {
         continue
       }
       
-      if ((op.retries ?? 0) >= 5) {
-        // Give up after 5 retries
+      if ((op.retries ?? 0) >= MAX_RETRY_ATTEMPTS) {
+        // Give up after MAX_RETRY_ATTEMPTS retries
         await offlineDb.pendingOps.delete(op.id)
         failed++
         details.push({
           opId: op.idempotencyKey,
           url: op.url,
           error: err?.message,
-          retries: 5,
+          retries: MAX_RETRY_ATTEMPTS,
           result: 'max_retries_exceeded',
         })
       } else {
@@ -581,6 +583,120 @@ export function useOfflineSync(apiInstance, options = {}) {
     refreshCounts,
     resolveConflict,
   }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Supported offline operations — high-level helpers
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns the list of operation identifiers that are supported for offline
+ * queuing. Useful for UI components that need to show which actions are
+ * available when the device is offline.
+ * @returns {string[]}
+ */
+export function getSupportedOfflineOperations() {
+  return [
+    'tasks.create',
+    'tasks.update',
+    'tasks.updateStatus',
+    'imputations.create',
+    'imputations.update',
+    'expenses.create',
+  ]
+}
+
+/**
+ * Queue a task creation for offline execution.
+ * @param {object} taskData - Task payload
+ */
+export async function queueTaskCreate(taskData) {
+  return queueOperation({
+    method: 'POST',
+    url: '/api/v1/tasks',
+    body: taskData,
+    priority: 'normal',
+    conflictStrategy: 'client-wins',
+    idempotencyKey: `tasks.create:${Date.now()}:${Math.random().toString(36).slice(2)}`,
+  })
+}
+
+/**
+ * Queue a task update for offline execution.
+ * @param {string|number} taskId - Task ID
+ * @param {object} taskData - Updated task fields
+ */
+export async function queueTaskUpdate(taskId, taskData) {
+  return queueOperation({
+    method: 'PATCH',
+    url: `/api/v1/tasks/${taskId}`,
+    body: taskData,
+    priority: 'normal',
+    conflictStrategy: 'server-wins',
+    idempotencyKey: `tasks.update:${taskId}:${Date.now()}`,
+  })
+}
+
+/**
+ * Queue a task status change for offline execution (e.g. Kanban drag & drop).
+ * @param {string|number} taskId - Task ID
+ * @param {string} status - New status value
+ */
+export async function queueTaskUpdateStatus(taskId, status) {
+  return queueOperation({
+    method: 'PATCH',
+    url: `/api/v1/tasks/${taskId}`,
+    body: { status },
+    priority: 'normal',
+    conflictStrategy: 'server-wins',
+    idempotencyKey: `tasks.updateStatus:${taskId}:${Date.now()}`,
+  })
+}
+
+/**
+ * Queue a time imputation creation for offline execution.
+ * @param {object} imputationData - Imputation payload
+ */
+export async function queueImputationCreate(imputationData) {
+  return queueOperation({
+    method: 'POST',
+    url: '/api/v1/imputations',
+    body: imputationData,
+    priority: 'critical',
+    conflictStrategy: 'client-wins',
+    idempotencyKey: `imputations.create:${Date.now()}:${Math.random().toString(36).slice(2)}`,
+  })
+}
+
+/**
+ * Queue a time imputation update for offline execution.
+ * @param {string|number} imputationId - Imputation ID
+ * @param {object} imputationData - Updated imputation fields
+ */
+export async function queueImputationUpdate(imputationId, imputationData) {
+  return queueOperation({
+    method: 'PATCH',
+    url: `/api/v1/imputations/${imputationId}`,
+    body: imputationData,
+    priority: 'critical',
+    conflictStrategy: 'server-wins',
+    idempotencyKey: `imputations.update:${imputationId}:${Date.now()}`,
+  })
+}
+
+/**
+ * Queue an expense creation for offline execution.
+ * @param {object} expenseData - Expense payload
+ */
+export async function queueExpenseCreate(expenseData) {
+  return queueOperation({
+    method: 'POST',
+    url: '/api/v1/expenses',
+    body: expenseData,
+    priority: 'normal',
+    conflictStrategy: 'client-wins',
+    idempotencyKey: `expenses.create:${Date.now()}:${Math.random().toString(36).slice(2)}`,
+  })
 }
 
 /**

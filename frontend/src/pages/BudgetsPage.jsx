@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { budgetsApi } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -50,22 +50,22 @@ export default function BudgetsPage() {
   const createValidation = useFormValidation(budgetSchema)
   const entryValidation = useFormValidation(budgetEntrySchema)
 
-  const { data: budgets = [], isLoading } = useQuery({ queryKey:['budgets', year], queryFn:()=>api.get(`/budgets?year=${year}`).then(r=>r.data) })
-  const { data: summary } = useQuery({ queryKey:['budget-summary', year], queryFn:()=>api.get(`/budgets/summary?year=${year}`).then(r=>r.data) })
+  const { data: budgets = [], isLoading } = useQuery({ queryKey:['budgets', year], queryFn:()=>budgetsApi.list(year).then(r=>r.data) })
+  const { data: summary } = useQuery({ queryKey:['budget-summary', year], queryFn:()=>budgetsApi.summary(year).then(r=>r.data) })
   const { data: departments = [] } = useQuery({ queryKey:['departments-select'], queryFn:()=>settingsApi.getDepartments().then(r=>r.data) })
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => api.post('/budgets', d),
+    mutationFn: d => budgetsApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['budgets']); setShowCreate(false); createValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: updateEntry } = useMutation({
-    mutationFn: ({ id, month, data }) => api.patch(`/budgets/${id}/entry`, { month, ...data }),
+    mutationFn: ({ id, month, data }) => budgetsApi.updateEntry(id, month, data),
     onSuccess: () => { qc.invalidateQueries(['budgets']); setEditEntry(null); entryValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: approve } = useMutation({
-    mutationFn: id => api.post(`/budgets/${id}/approve`),
+    mutationFn: id => budgetsApi.approve(id),
     onSuccess: () => qc.invalidateQueries(['budgets']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })

@@ -418,7 +418,9 @@ export default function AIHubPage() {
             <Button onClick={() => setModal({})} icon="＋">{t('ai.add_provider')}</Button>
           </div>
         )}
-      showListExport={false}
+        showListExport={tab === 'providers' && providers.length > 0}
+        exportTargetSelector='[data-export-table="ai-providers-list"]'
+        exportFilePrefix='ai_providers'
       />
 
       {/* Tabs */}
@@ -498,7 +500,7 @@ export default function AIHubPage() {
               <Button onClick={() => setModal({})}>＋ {t('ai.add_first_provider')}</Button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+            <div data-export-table="ai-providers-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
               {providers.map(p => {
                 const meta = PROVIDER_META[p.provider] || { icon: '🤖', color: 'var(--text-2)' }
                 const st   = statusCfg[p.status] || statusCfg.inactive

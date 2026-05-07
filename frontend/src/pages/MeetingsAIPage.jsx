@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { meetingsAIApi } from '../services/api'
 import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -64,7 +64,7 @@ function ProcessModal({ onClose }) {
   const s = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const { mutate: process, isPending } = useMutation({
-    mutationFn: d => api.post('/ai-modules/meetings/process', d).then(r => r.data),
+    mutationFn: d => meetingsAIApi.process(d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['ai-meetings']); onClose() },
     onError: e => toast.error(extractErr(e, t('meetings_ai.error_process'))),
   })
@@ -127,15 +127,15 @@ export default function MeetingsAIPage() {
 
   const { data: meetings = [], isLoading } = useQuery({
     queryKey: ['ai-meetings'],
-    queryFn: () => api.get('/ai-modules/meetings').then(r => r.data),
+    queryFn: () => meetingsAIApi.list().then(r => r.data),
   })
   const { data: detail } = useQuery({
     queryKey: ['ai-meeting', selected],
-    queryFn: () => api.get(`/ai-modules/meetings/${selected}`).then(r => r.data),
+    queryFn: () => meetingsAIApi.get(selected).then(r => r.data),
     enabled: !!selected,
   })
   const { mutate: createTasks, isPending: creating } = useMutation({
-    mutationFn: id => api.post(`/ai-modules/meetings/${id}/create-tasks`, {}).then(r => r.data),
+    mutationFn: id => meetingsAIApi.createTasks(id).then(r => r.data),
     onSuccess: data => { qc.invalidateQueries(['ai-meeting', selected]); toast.success(`✅ ${data.tasks_created} tareas creadas en Contecflow`) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })

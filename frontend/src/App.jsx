@@ -1,6 +1,7 @@
 import { ToastProvider } from './context/ToastContext'
 import { ConfirmProvider } from './context/ConfirmContext'
 import { Component, Suspense, lazy } from 'react'
+import ErrorBoundary from './components/ErrorBoundary'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Layout from './components/layout/Layout'
@@ -588,16 +589,18 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <ToastProvider>
-      <ConfirmProvider>
-        <AppShell>
-          <OfflineBanner />
-          <OfflineIndicator />
-          <OfflineConflictResolver />
-          <AppRoutes />
-        </AppShell>
-      </ConfirmProvider>
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <ConfirmProvider>
+          <AppShell>
+            <OfflineBanner />
+            <OfflineIndicator />
+            <OfflineConflictResolver />
+            <AppRoutes />
+          </AppShell>
+        </ConfirmProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   )
 }
 

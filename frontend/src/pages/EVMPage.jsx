@@ -5,7 +5,7 @@
  */
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import api from '../services/api';
+import { projectsApi } from '../services/api';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, DollarSign, Target, BarChart2, ChevronRight } from 'lucide-react';
 import PageHeader from '../components/layout/PageHeader';
 import PageShell from '../components/layout/PageShell'
@@ -62,7 +62,7 @@ function ProgressBar({ pct, color = 'var(--accent)', label }) {
 function EVMDetail({ projectId, onClose }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['evm', projectId],
-    queryFn: () => api.get(`/projects/${projectId}/evm`).then(r => r.data),
+    queryFn: () => projectsApi.evm(projectId).then(r => r.data),
     enabled: !!projectId,
   });
 
@@ -165,7 +165,7 @@ export default function EVMPage() {
 
   const { data: portfolio = [], isLoading } = useQuery({
     queryKey: ['evm-portfolio'],
-    queryFn: () => api.get('/projects/evm/portfolio').then(r => r.data),
+    queryFn: () => projectsApi.evmPortfolio().then(r => r.data),
     staleTime: 60000,
   });
 

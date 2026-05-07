@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import api from '../../services/api'
+import { usersApi, portalClientsApi, portalConversationsApi, sdGroupsApi } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { resolveWsBase } from '../../utils/wsUtils'
@@ -309,14 +309,14 @@ export function GovernedConversationInbox({
 
   const { data: teamUsersData } = useQuery({
     queryKey: ['users', 'portal-conversations'],
-    queryFn: () => api.get('/users').then((response) => Array.isArray(response.data) ? response.data : (response.data?.items || [])).catch(() => []),
+    queryFn: () => usersApi.list().then((response) => Array.isArray(response.data) ? response.data : (response.data?.items || [])).catch(() => []),
     enabled: mode === 'team' && showCreate,
   })
   const teamUsers = teamUsersData || EMPTY_LIST
 
   const { data: portalClientsData } = useQuery({
     queryKey: ['portal-clients', 'portal-conversations', selectedProject || 'all', clientOrgId || 'all'],
-    queryFn: () => api.get('/portal/clients', { params: { project_id: selectedProject || undefined, client_org_id: clientOrgId || undefined } }).then((response) => response.data).catch(() => []),
+    queryFn: () => portalClientsApi.list({ project_id: selectedProject || undefined, client_org_id: clientOrgId || undefined }).then((response) => response.data).catch(() => []),
     enabled: mode === 'team' && showCreate && Boolean(selectedProject || clientOrgId),
   })
   const portalClients = portalClientsData || EMPTY_LIST
@@ -371,7 +371,7 @@ export function GovernedConversationInbox({
   })
 
   const reviewMessage = useMutation({
-    mutationFn: ({ messageId, decision }) => api.post(`/portal/conversations/team/${selectedConversationId}/messages/${messageId}/review`, { decision }),
+    mutationFn: ({ messageId, decision }) => portalConversationsApi.reviewMessage(selectedConversationId, messageId, { decision }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [queryPrefix] })
       toast.success('Revisión aplicada')
@@ -528,13 +528,13 @@ export function ConversationPoliciesPanel() {
 
   const { data: agentGroupsData } = useQuery({
     queryKey: ['sd-agent-groups', 'portal-conversations'],
-    queryFn: () => api.get('/sd/groups').then((response) => response.data || []).catch(() => []),
+    queryFn: () => sdGroupsApi.list().then((response) => response.data || []).catch(() => []),
   })
   const agentGroups = agentGroupsData || EMPTY_LIST
 
   const { data: policiesData, isLoading } = useQuery({
     queryKey: ['portal-conversation-policies'],
-    queryFn: () => api.get('/portal/conversations/team/policies').then((response) => response.data).catch(() => []),
+    queryFn: () => portalConversationsApi.getPolicies().then((response) => response.data).catch(() => []),
   })
   const policies = policiesData || EMPTY_LIST
 
@@ -563,7 +563,7 @@ export function ConversationPoliciesPanel() {
   }, [policies])
 
   const savePolicy = useMutation({
-    mutationFn: ({ topicType, payload }) => api.put(`/portal/conversations/team/policies/${topicType}`, payload),
+    mutationFn: ({ topicType, payload }) => portalConversationsApi.updatePolicy(topicType, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-conversation-policies'] })
       toast.success('Política guardada')

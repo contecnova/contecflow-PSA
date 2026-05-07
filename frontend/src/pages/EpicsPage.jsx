@@ -218,7 +218,11 @@ export default function EpicsPage() {
             <button onClick={()=>setView('roadmap')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:view==='roadmap'?'var(--accent-muted)':'transparent',color:view==='roadmap'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>🗺 {t('epics.roadmap')}</button>
             <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.new_epic')}</Button>
           </div>
-        )} showListExport={false}/>
+        )}
+        showListExport={view==='list' && epics.length > 0}
+        exportTargetSelector='[data-export-table="epics-list"]'
+        exportFilePrefix='epics'
+      />
 
       {/* Selector proyecto */}
       <div style={{...ps,marginBottom:20}}>
@@ -264,7 +268,7 @@ export default function EpicsPage() {
           </div>
 
           {/* Lista de épicas */}
-          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div data-export-table="epics-list" style={{display:'flex',flexDirection:'column',gap:10}}>
             {epics.map(epic=>{
               const st  = STATUS_CFG[epic.status]  || STATUS_CFG.open
               const pri = PRIORITY_CFG[epic.priority] || PRIORITY_CFG.medium

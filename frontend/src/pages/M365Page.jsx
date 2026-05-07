@@ -7,7 +7,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
+import { m365Api } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { LayoutGrid } from 'lucide-react'
@@ -46,7 +46,7 @@ function CalendarTab() {
   const pullCalendar = async () => {
     setSyncLoading(true)
     try {
-      const res = await api.post(`/m365/calendar/sync?user_upn=${encodeURIComponent(upn)}&days=${days}`)
+      const res = await m365Api.syncCalendar(upn, days)
       setSynced(res.data)
     } catch (e) {
       setSynced({ error: e?.response?.data?.detail || 'Error al conectar con Microsoft Graph' })
@@ -58,7 +58,7 @@ function CalendarTab() {
   const pushMilestones = async () => {
     setMsLoading(true)
     try {
-      const res = await api.post('/m365/calendar/sync-milestones', { user_upn: msUpn, days_ahead: msDays })
+      const res = await m365Api.syncMilestones({ user_upn: msUpn, days_ahead: msDays })
       setMsResult(res.data)
     } catch (e) {
       setMsResult({ error: e?.response?.data?.detail || 'Error al sincronizar milestones' })
@@ -147,7 +147,7 @@ function TeamsTab() {
     setSending(true)
     setResult(null)
     try {
-      await api.post('/m365/teams/notify', { title, text, color })
+      await m365Api.teamsNotify({ title, text, color })
       setResult({ ok: true })
     } catch (e) {
       setResult({ error: e?.response?.data?.detail || 'Error enviando a Teams' })
@@ -289,7 +289,7 @@ export default function M365Page() {
 
   const { data: status } = useQuery({
     queryKey: ['m365-status'],
-    queryFn: () => api.get('/m365/status').then(r => r.data),
+    queryFn: () => m365Api.status().then(r => r.data),
     refetchInterval: 30000,
   })
 

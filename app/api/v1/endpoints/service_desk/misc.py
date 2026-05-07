@@ -4,6 +4,7 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 import json
+import logging
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
@@ -65,6 +66,7 @@ from app.services.service_desk.status_page_service import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _json_default_serializer(value):
@@ -158,7 +160,11 @@ def get_group_workload(group_id: str, db: Session = Depends(get_db), _: User = D
 
 @router.get("/problems", summary="Listar problemas")
 def list_problems(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return list_problems_payload(db, current_user, page, page_size)
+    try:
+        return list_problems_payload(db, current_user, page, page_size)
+    except Exception:
+        logger.exception("/sd/problems failed for user_id=%s", getattr(current_user, "id", None))
+        return []
 
 @router.post("/problems", summary="Crear problema")
 @limiter.limit("30/minute")

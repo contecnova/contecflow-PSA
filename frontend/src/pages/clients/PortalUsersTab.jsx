@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { portalClientsApi, clientsApi } from '../../services/api'
 import { Button, EmptyState, Modal } from '../../components/ui'
 import { extractErr } from '../../utils/helpers'
 
@@ -27,17 +27,17 @@ export function PortalUsersTab({ cid, clientName }) {
 
   const { data: users = [] } = useQuery({
     queryKey: ['portal-clients-org', cid],
-    queryFn: () => api.get('/portal/clients', { params: { client_org_id: cid } }).then(r => r.data),
+    queryFn: () => portalClientsApi.list({ client_org_id: cid }).then(r => r.data),
   })
   const { data: clientDetail } = useQuery({
     queryKey: ['client-detail-projects', cid],
-    queryFn: () => api.get(`/clients/${cid}`).then(r => r.data),
+    queryFn: () => clientsApi.get(cid).then(r => r.data),
   })
   const projects = clientDetail?.projects || []
   const projectLabelById = new Map(projects.map(p => [p.id, `${p.code} — ${p.name}`]))
 
   const { mutate: add, isPending } = useMutation({
-    mutationFn: d => api.post('/portal/clients', d).then(r => r.data),
+    mutationFn: d => portalClientsApi.create(d).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries(['portal-clients-org', cid])
       setShowAdd(false)
@@ -48,19 +48,19 @@ export function PortalUsersTab({ cid, clientName }) {
   })
 
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ id, active }) => api.patch(`/portal/clients/${id}`, { is_active: active }),
+    mutationFn: ({ id, active }) => portalClientsApi.update(id, { is_active: active }),
     onSuccess: () => qc.invalidateQueries(['portal-clients-org', cid]),
     onError: e => toast.error(extractErr(e, 'Error'))
   })
 
   const { mutate: resetPwd, isPending: resetting } = useMutation({
-    mutationFn: ({ id, password }) => api.patch(`/portal/clients/${id}`, { password }),
+    mutationFn: ({ id, password }) => portalClientsApi.update(id, { password }),
     onSuccess: () => { qc.invalidateQueries(['portal-clients-org', cid]); setShowReset(null); setNewPassword('') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate: updateUser, isPending: updating } = useMutation({
-    mutationFn: ({ id, data }) => api.patch(`/portal/clients/${id}`, data).then(r => r.data),
+    mutationFn: ({ id, data }) => portalClientsApi.update(id, data).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries(['portal-clients-org', cid])
       setEditUser(null)

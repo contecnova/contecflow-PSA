@@ -293,7 +293,7 @@ export default function TimesheetsPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<Clock size={18} />} title={t('timesheets.title')} subtitle={t('timesheets.subtitle')} showListExport={false} />
+      <PageHeader icon={<Clock size={18} />} title={t('timesheets.title')} subtitle={t('timesheets.subtitle')} showListExport={true} exportTargetSelector='[data-export-table="timesheets-list"]' exportFilePrefix="timesheets" />
 
       <Tabs
         items={tabs}
@@ -307,7 +307,7 @@ export default function TimesheetsPage() {
           {loadingMine ? <Spinner /> : mySheets.length === 0 ? (
             <EmptyState icon="📋" title="Sin timesheets" description="Aun no has generado ningun parte semanal" />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div data-export-table="timesheets-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <select value={mineStatusFilter} onChange={e => setMineStatusFilter(e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
                   <option value="">Estado: todos</option>

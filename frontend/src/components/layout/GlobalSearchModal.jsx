@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import api from '../../services/api'
+import { projectsApi, tasksApi, clientsApi, ticketsApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 
 const ENTITY_CFG = {
@@ -45,19 +45,19 @@ export default function GlobalSearchModal({ open, onClose }) {
     queryFn: async () => {
       if (q.trim().length < 2) return []
       const [projects, tasks, clients, tickets] = await Promise.allSettled([
-        api.get('/projects', { params: { search: q, limit: 5 } }).then(r =>
+        projectsApi.list({ search: q, limit: 5 }).then(r =>
           (r.data?.items || r.data || []).slice(0,4).map(p => ({
             id: p.id, type: 'project', title: p.name, subtitle: p.code, status: p.status
           }))),
-        api.get('/tasks', { params: { search: q, limit: 5 } }).then(r =>
+        tasksApi.list({ search: q, limit: 5 }).then(r =>
           (r.data?.items || r.data || []).slice(0,4).map(t => ({
             id: t.id, type: 'task', title: t.title, subtitle: t.project_name, status: t.status
           }))),
-        api.get('/clients', { params: { q, limit: 5 } }).then(r =>
+        clientsApi.list({ q, limit: 5 }).then(r =>
           (r.data || []).slice(0,4).map(c => ({
             id: c.id, type: 'client', title: c.name, subtitle: c.industry, status: c.status
           }))),
-        api.get('/sd/tickets', { params: { search: q, limit: 5 } }).then(r =>
+        ticketsApi.list({ search: q, limit: 5 }).then(r =>
           (r.data?.items || r.data || []).slice(0,4).map(t => ({
             id: t.id, type: 'ticket', title: t.title, subtitle: t.ticket_type, status: t.status
           }))),

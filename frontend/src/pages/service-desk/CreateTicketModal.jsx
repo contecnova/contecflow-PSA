@@ -6,7 +6,7 @@ import { extractErr } from '../../utils/helpers'
 import { Button, Modal } from '../../components/ui'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import { useFormValidation } from '../../hooks/useFormValidation'
-import api from '../../services/api'
+import { sdCatalogApi, usersApi, clientsApi, ticketsApi } from '../../services/api'
 import { z } from 'zod'
 import { PBadge, PRIORITY_LABEL, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
 
@@ -32,15 +32,15 @@ export default function CreateTicketModal({ onClose, onCreated }) {
 
   const { data: catalog = [] } = useQuery({
     queryKey: ['sd-catalog'],
-    queryFn: () => api.get('/sd/catalog').then(r => r.data),
+    queryFn: () => sdCatalogApi.list().then(r => r.data),
   })
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => api.get('/users').then(r => r.data),
+    queryFn: () => usersApi.list().then(r => r.data),
   })
   const { data: clients = [] } = useQuery({
     queryKey: ['clients'],
-    queryFn: () => api.get('/clients').then(r => r.data),
+    queryFn: () => clientsApi.list().then(r => r.data),
   })
 
   const [form, setForm] = useState({
@@ -81,7 +81,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
   }
 
   const { mutate, isPending } = useMutation({
-    mutationFn: data => api.post('/sd/tickets', data),
+    mutationFn: data => ticketsApi.create(data),
     onSuccess: res => {
       validation.setErrors({})
       qc.invalidateQueries({ queryKey: ['sd-tickets'] })

@@ -54,3 +54,56 @@ export function useCommentTicket() {
     onSuccess: (_, { id }) => qc.invalidateQueries({ queryKey: ['sd-ticket', id] }),
   })
 }
+
+// NOTE: SD tickets do not have a hard-delete endpoint — use useCloseTicket to close them.
+
+export function useTicketMyQueue() {
+  return useQuery({
+    queryKey: ['sd-tickets-my-queue'],
+    queryFn: () => ticketsApi.myQueue().then(r => r.data),
+    staleTime: STALE,
+    refetchInterval: 60 * 1000,
+  })
+}
+
+export function useEscalateTicket() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, level }) => ticketsApi.escalate(id, level),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sd-tickets'] })
+      qc.invalidateQueries({ queryKey: ['sd-ticket'] })
+    },
+  })
+}
+
+export function useTicketInternalComments(ticketId) {
+  return useQuery({
+    queryKey: ['sd-ticket-internal-comments', ticketId],
+    queryFn: () => ticketsApi.internalComments(ticketId).then(r => r.data),
+    enabled: !!ticketId,
+    staleTime: STALE,
+  })
+}
+
+export function useAddTicketInternalComment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => ticketsApi.createInternalComment(id, data),
+    onSuccess: (_, { id }) => qc.invalidateQueries({ queryKey: ['sd-ticket-internal-comments', id] }),
+  })
+}
+
+export function useTicketTimelog() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => ticketsApi.timelog(id, data),
+    onSuccess: (_, { id }) => qc.invalidateQueries({ queryKey: ['sd-ticket', id] }),
+  })
+}
+
+export function useAiSuggestTicket() {
+  return useMutation({
+    mutationFn: ({ id, data }) => ticketsApi.aiSuggest(id, data),
+  })
+}

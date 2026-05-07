@@ -4,7 +4,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { biConditionalDeliveryApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Bell, Play, ToggleLeft, ToggleRight } from 'lucide-react'
 
@@ -24,21 +24,21 @@ export default function BiConditionalDeliveryPanel() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['bi-delivery-rules'],
-    queryFn:  () => api.get('/bi/delivery/rules').then(r => r.data),
+    queryFn:  () => biConditionalDeliveryApi.listRules().then(r => r.data),
   })
 
   const createMutation = useMutation({
-    mutationFn: (payload) => api.post('/bi/delivery/rules', payload).then(r => r.data),
+    mutationFn: (payload) => biConditionalDeliveryApi.createRule(payload).then(r => r.data),
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ['bi-delivery-rules'] }); setForm({ name: '', report_id: '', diff_threshold_pct: 10, recipients: '' }) },
   })
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, enabled }) => api.patch(`/bi/delivery/rules/${id}`, { enabled }).then(r => r.data),
+    mutationFn: ({ id, enabled }) => biConditionalDeliveryApi.updateRule(id, { enabled }).then(r => r.data),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-delivery-rules'] }),
   })
 
   const evaluateMutation = useMutation({
-    mutationFn: (id) => api.post(`/bi/delivery/rules/${id}/evaluate`, { current_data: {} }).then(r => r.data),
+    mutationFn: (id) => biConditionalDeliveryApi.evaluate(id, { current_data: {} }).then(r => r.data),
     onSuccess:  (data, id) => setEvaluateResult(prev => ({ ...prev, [id]: data })),
   })
 

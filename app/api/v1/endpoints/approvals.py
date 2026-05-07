@@ -240,14 +240,18 @@ def pending_my_action(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    pairs = get_pending_for_user(db, current_user)
-    result = []
-    for req, step in pairs:
-        r = _request_out(req)
-        r["step_name"] = step.name
-        r["step_order"] = step.step_order
-        result.append(r)
-    return result
+    try:
+        pairs = get_pending_for_user(db, current_user)
+        result = []
+        for req, step in pairs:
+            r = _request_out(req)
+            r["step_name"] = step.name
+            r["step_order"] = step.step_order
+            result.append(r)
+        return result
+    except Exception:
+        logger.exception("pending-my-action failed for user_id=%s", getattr(current_user, "id", None))
+        return []
 
 
 @router.post("/requests", summary="Crear solicitud de aprobación")

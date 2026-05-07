@@ -1,14 +1,28 @@
 """
-task_service.py — Lógica de negocio para tareas.
+task_service.py — kept for backward compatibility.
 
-Funciones exportadas:
-  validate_task_transition(current_status, new_status) -> no-op (siempre permite)
-  apply_status_side_effects(task, new_status)
-  cascade_reschedule(task_id, new_end_date, db) -> dict
-  bulk_update_tasks(task_ids, updates, current_user, db) -> dict
+All core logic has been moved to app/services/tasks/ sub-package.
+This file re-exports the new class-based API AND preserves all original
+procedural functions so that every existing import continues to work.
 """
 from __future__ import annotations
 
+# ── Re-export from the tasks sub-package ─────────────────────────────────────
+# These imports make `from app.services.task_service import X` work even for
+# names that now live in the sub-package.
+from app.services.tasks.core import (
+    TaskService,
+    validate_task_transition,
+    apply_status_side_effects,
+    _TASK_VALID_TRANSITIONS,
+)
+from app.services.tasks.bulk import bulk_update_tasks  # noqa: F811 (overrides below)
+from app.services.tasks.scheduling import cascade_reschedule  # noqa: F811
+from app.services.tasks.queries import build_task_list_query  # noqa: F401
+
+# ─────────────────────────────────────────────────────────────────────────────
+# All original imports kept verbatim so the procedural wrappers below compile.
+# ─────────────────────────────────────────────────────────────────────────────
 from collections import deque
 from datetime import datetime, timezone, timedelta, date
 from typing import Optional, TYPE_CHECKING
@@ -21,6 +35,7 @@ from sqlalchemy.orm import Session
 from app.models.task import TaskStatus
 from app.db.session import SessionLocal
 from app.models.bookings import TaskDependency, DependencyType
+from app.models.epics import ThreadedComment
 from app.models.project import Project, ProjectMember
 from app.models.semantic_engine import SemConfig
 from app.models.task import Task, TaskComment
@@ -703,3 +718,89 @@ def delete_task_dependency(db: Session, dep_id: str) -> dict:
     db.delete(dep)
     db.commit()
     return {"ok": True}
+
+
+# ── Extracted query helpers (moved from endpoint layer) ───────────────────────
+
+
+def get_task_by_id(
+    task_id: str,
+    db: Session,
+    org_id: Optional[str] = None,
+) -> Optional[Task]:
+    """Return a Task by id, optionally scoped to an organisation.
+
+    The org scope is applied via a join on Project when org_id is provided,
+    mirroring the behaviour of task_query_for_user() without requiring a full
+    user object.
+    """
+    q = db.query(Task)
+    if org_id:
+        q = q.join(Project, Task.project_id == Project.id).filter(
+            Project.organization_id == org_id
+        )
+    return q.filter(Task.id == task_id).first()
+
+
+def get_project_member_ids(project_id: str, db: Session) -> list[str]:
+    """Return user_ids of all members of a project."""
+    members = (
+        db.query(ProjectMember)
+        .filter(ProjectMember.project_id == project_id)
+        .all()
+    )
+    return [m.user_id for m in members if getattr(m, "user_id", None)]
+
+
+def get_tasks_for_project(
+    project_id: str,
+    db: Session,
+    status: Optional[str] = None,
+) -> list[Task]:
+    """Return all tasks for a project, optionally filtered by status."""
+    q = db.query(Task).filter(Task.project_id == project_id)
+    if status:
+        q = q.filter(Task.status == status)
+    return q.all()
+
+
+def get_tasks_for_sprint(sprint_id: str, db: Session) -> list[Task]:
+    """Return all tasks assigned to a sprint."""
+    return db.query(Task).filter(Task.sprint_id == sprint_id).all()
+
+
+def get_threaded_comments_for_task(
+    task_id: str,
+    db: Session,
+) -> list[ThreadedComment]:
+    """Return threaded comments linked to a task, ordered oldest-first."""
+    return (
+        db.query(ThreadedComment)
+        .filter(
+            ThreadedComment.entity_type == "task",
+            ThreadedComment.entity_id == task_id,
+        )
+        .order_by(ThreadedComment.created_at.asc())
+        .all()
+    )
+
+
+def get_task_movement_log(
+    task_id: str,
+    db: Session,
+    limit: int = 50,
+) -> list[TaskMovementLog]:
+    """Return movement-log entries for a task, newest-first, up to *limit* rows."""
+    return (
+        db.query(TaskMovementLog)
+        .options(joinedload(TaskMovementLog.moved_by))
+        .filter(TaskMovementLog.task_id == task_id)
+        .order_by(TaskMovementLog.moved_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def get_sem_config(db: Session) -> Optional[SemConfig]:
+    """Return the first (global) SemConfig row, or None if not configured."""
+    return db.query(SemConfig).first()

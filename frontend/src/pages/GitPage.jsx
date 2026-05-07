@@ -5,7 +5,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
+import { gitApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { GitBranch } from 'lucide-react'
@@ -60,12 +60,12 @@ export default function GitPage() {
 
   const { data: prs = [], isLoading: loadPR } = useQuery({
     queryKey: ['git-prs'],
-    queryFn: () => api.get('/git/pull-requests').then(r => r.data),
+    queryFn: () => gitApi.pullRequests().then(r => r.data),
   })
 
   const { data: deploys = [], isLoading: loadDep } = useQuery({
     queryKey: ['git-deploys'],
-    queryFn: () => api.get('/git/deployments').then(r => r.data),
+    queryFn: () => gitApi.deployments().then(r => r.data),
   })
 
   const fmtDate = (d) => d ? new Date(d).toLocaleString('es-ES', {

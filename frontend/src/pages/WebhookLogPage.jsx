@@ -4,7 +4,7 @@
  */
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
+import { webhooksApi } from '../services/api'
 import { Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -18,7 +18,7 @@ export default function WebhookLogPage() {
   // Obtener los webhooks configurados
   const { data: webhooks = [] } = useQuery({
     queryKey: ['webhooks-list'],
-    queryFn: () => api.get('/webhooks').then(r => r.data).catch(() => []),
+    queryFn: () => webhooksApi.list().then(r => r.data).catch(() => []),
   })
 
   // Obtener logs de todos los webhooks
@@ -28,7 +28,7 @@ export default function WebhookLogPage() {
       const validWebhooks = webhooks.filter(w => w && w.id)
       const results = await Promise.all(
         validWebhooks.map(w =>
-          api.get(`/webhooks/${w.id}/logs`)
+          webhooksApi.logs(w.id)
             .then(r => (r.data || []).map(l => ({
               ...l,
               webhook_name: w.name,

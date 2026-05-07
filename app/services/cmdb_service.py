@@ -195,10 +195,18 @@ def list_cmdb_items(
 ) -> list:
     query = db.query(CMDBItem).options(joinedload(CMDBItem.category))
     if organization_id:
-        org_project_ids = [r.id for r in db.query(Project.id).filter(
-            Project.organization_id == organization_id
-        ).all()]
-        query = query.filter(CMDBItem.project_id.in_(org_project_ids))
+        # Some environments/models do not expose project_id on CMDBItem yet.
+        # Avoid hard-failing list endpoints due to partial schema/domain rollout.
+        if hasattr(CMDBItem, "project_id"):
+            org_project_ids = [r.id for r in db.query(Project.id).filter(
+                Project.organization_id == organization_id
+            ).all()]
+            query = query.filter(CMDBItem.project_id.in_(org_project_ids))
+        else:
+            logger.warning(
+                "CMDBItem has no project_id; skipping organization filter for org_id=%s",
+                organization_id,
+            )
     if ci_type:     query = query.filter(CMDBItem.ci_type == ci_type)
     if status:      query = query.filter(CMDBItem.status == status)
     if category_id: query = query.filter(CMDBItem.category_id == category_id)

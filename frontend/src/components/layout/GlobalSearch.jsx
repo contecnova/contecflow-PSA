@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import api from '../../services/api'
+import { searchApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 
 const ICON_MAP = { project:'⬡', task:'▦', ticket:'🎫', user:'👤', invoice:'🧾', opportunity:'🎪' }
@@ -47,7 +47,7 @@ export default function GlobalSearch({ onClose }) {
 
   const { data, isLoading } = useQuery({
     queryKey: ['global-search', debouncedQ],
-    queryFn: () => api.get('/global-search', { params: { q: debouncedQ } }).then(r => r.data),
+    queryFn: () => searchApi.search({ q: debouncedQ }).then(r => r.data),
     enabled: debouncedQ.length >= 2,
   })
 

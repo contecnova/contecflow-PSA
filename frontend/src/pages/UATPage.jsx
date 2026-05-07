@@ -235,7 +235,9 @@ export default function UATPage() {
             </div>
           ) : null
         }
-      showListExport={false}
+        showListExport={Boolean(selectedProject && cases.length)}
+        exportTargetSelector='[data-export-table="uat-list"]'
+        exportFilePrefix='uat'
       />
 
       {/* Selector de proyecto */}
@@ -299,7 +301,7 @@ export default function UATPage() {
           action={<Button onClick={() => setShowCreate(true)} style={{ marginTop: 12 }}>＋ Crear primer caso UAT</Button>}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div data-export-table="uat-list" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {cases.map(c => {
             const st = STATUS_META[c.status] || STATUS_META.pending
             const pr = PRIORITY_META[c.priority] || PRIORITY_META.medium

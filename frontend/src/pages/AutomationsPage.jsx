@@ -2,7 +2,7 @@
  * AutomationsPage — Visual no-code rule builder + Workflows multi-paso + RPA
  * SI [trigger] [condiciones] ENTONCES [acciones]
  */
-import { useId, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
@@ -166,8 +166,36 @@ const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-
 const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
+function escapeRegExp(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function highlightText(text, term) {
+  const value = String(text || '')
+  const q = String(term || '').trim()
+  if (!q || !value) return value
+  const re = new RegExp(`(${escapeRegExp(q)})`, 'ig')
+  return value.split(re).map((part, idx) => (
+    part.toLowerCase() === q.toLowerCase()
+      ? <mark
+          key={idx}
+          style={{
+            background: 'var(--accent-muted)',
+            color: 'var(--accent)',
+            border: '1px solid var(--accent-border)',
+            padding: '0 3px',
+            borderRadius: 4,
+            fontWeight: 700,
+          }}
+        >
+          {part}
+        </mark>
+      : <span key={idx}>{part}</span>
+  ))
+}
+
 // ── Rule card ─────────────────────────────────────────────────────────────────
-function RuleCard({ rule, onEdit, onDelete, onTest, onToggle }) {
+function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, highlightTerm }) {
   const t = useAppT()
   const trigger = TRIGGERS[rule.trigger_type] || { label: rule.trigger_type, icon: '⚙️' }
   const actions = Array.isArray(rule.actions) ? rule.actions : []
@@ -178,11 +206,11 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle }) {
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4 }}>
             <span style={{ fontSize: "var(--text-lg)" }}>{trigger.icon}</span>
-            <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{rule.name}</span>
+            <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{highlightText(rule.name, highlightTerm)}</span>
             {rule.is_global && <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: 'var(--purple-bg)', color: 'var(--purple)' }}>GLOBAL</span>}
-            {rule.project_name && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>· {rule.project_name}</span>}
+            {rule.project_name && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>· {highlightText(rule.project_name, highlightTerm)}</span>}
           </div>
-          {rule.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>{rule.description}</div>}
+          {rule.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>{highlightText(rule.description, highlightTerm)}</div>}
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }}>
           <button aria-pressed={rule.is_active} aria-label={`${rule.is_active ? t('automations.pause_btn') : t('automations.activate_btn')} ${rule.name}`} onClick={() => onToggle(rule)}
@@ -204,7 +232,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle }) {
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border-strong)', borderRadius: 8, padding: '6px 12px', fontSize: "var(--text-sm)" }}>
           <span style={{ color: 'var(--purple)', fontWeight: 700 }}>{t('automations.si_label')} </span>
-          <span style={{ color: 'var(--text-1)' }}>{trigger.icon} {t('automations.trig_' + rule.trigger_type, trigger.label)}</span>
+          <span style={{ color: 'var(--text-1)' }}>{trigger.icon} {highlightText(t('automations.trig_' + rule.trigger_type, trigger.label), highlightTerm)}</span>
           {rule.trigger_conditions && (
             <span style={{ color: 'var(--text-2)' }}>
               {' '}· {rule.trigger_conditions.field} {t('automations.op_' + rule.trigger_conditions.operator)} <strong style={{ color: 'var(--text-1)' }}>{rule.trigger_conditions.value}</strong>
@@ -218,7 +246,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle }) {
             return (
               <div key={i} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 8, padding: '6px 12px', fontSize: "var(--text-sm)" }}>
                 <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{t('automations.entonces_label')}</span>
-                <span style={{ color: 'var(--text-1)' }}>{aCfg.icon} {t('automations.act_' + a.type, aCfg.label)}</span>
+                <span style={{ color: 'var(--text-1)' }}>{aCfg.icon} {highlightText(t('automations.act_' + a.type, aCfg.label), highlightTerm)}</span>
                 {a.params?.message && <span style={{ color: 'var(--text-2)' }}> · &quot;{a.params.message.slice(0, 40)}&quot;</span>}
               </div>
             )
@@ -573,6 +601,7 @@ function WorkflowsTab() {
   const qc = useQueryClient()
   const [showModal, setShowModal] = useState(false)
   const [editingWf, setEditingWf] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const { data: workflows = [], isLoading } = useQuery({
     queryKey: ['workflows'],
@@ -590,6 +619,24 @@ function WorkflowsTab() {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
+  const searchedWorkflows = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase()
+    if (!q) return workflows
+    return workflows.filter((wf) => {
+      const inSteps = (Array.isArray(wf.steps) ? wf.steps : []).some((s) => (
+        String(s?.name || '').toLowerCase().includes(q) ||
+        String(s?.step_type || '').toLowerCase().includes(q)
+      ))
+      return (
+        String(wf.name || '').toLowerCase().includes(q) ||
+        String(wf.description || '').toLowerCase().includes(q) ||
+        String(wf.trigger_type || '').toLowerCase().includes(q) ||
+        String(wf.status || '').toLowerCase().includes(q) ||
+        inSteps
+      )
+    })
+  }, [workflows, searchTerm])
+
   const STATUS_CFG = { draft:{ label:'Borrador', color:'var(--text-2)' }, active:{ label:'Activo', color:'var(--success)' }, paused:{ label:'Pausado', color:'var(--warning)' }, archived:{ label:'Archivado', color:'var(--text-3)' } }
 
   return (
@@ -604,15 +651,24 @@ function WorkflowsTab() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <Button onClick={() => setShowModal(true)}>+ {t('automations.new_workflow_btn')}</Button>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, marginBottom: 16 }}>
+        <input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder={t('automations.search_workflows_placeholder', 'Buscar workflows (nombre, trigger, estado, paso...)')}
+          aria-label={t('automations.search_workflows_aria', 'Buscar workflows')}
+          style={fs}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button onClick={() => setShowModal(true)}>+ {t('automations.new_workflow_btn')}</Button>
+        </div>
       </div>
 
-      {isLoading ? <Spinner /> : workflows.length === 0 ? (
+      {isLoading ? <Spinner /> : searchedWorkflows.length === 0 ? (
         <EmptyState icon="⚡" title={t('automations.no_workflows_title')} description={t('automations.no_workflows_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {workflows.map(wf => {
+          {searchedWorkflows.map(wf => {
             const cfg = STATUS_CFG[wf.status] || { label: wf.status, color: 'var(--text-2)' }
             const triggerCfg = TRIGGERS[wf.trigger_type] || { icon: '⚙️', label: wf.trigger_type }
             return (
@@ -620,13 +676,13 @@ function WorkflowsTab() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                   <div>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4 }}>
-                      <span style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{wf.name}</span>
+                      <span style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{highlightText(wf.name, searchTerm)}</span>
                       <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color }}>{t('automations.status_' + wf.status, cfg.label)}</span>
                       {wf.is_global && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', background: 'var(--purple-bg)', color: 'var(--purple)', borderRadius: 4 }}>GLOBAL</span>}
                     </div>
-                    {wf.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{wf.description}</div>}
+                    {wf.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{highlightText(wf.description, searchTerm)}</div>}
                     <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 4 }}>
-                      {triggerCfg.icon} {triggerCfg.label} · {wf.steps?.length || 0} pasos · {wf.run_count || 0} ejecuciones
+                      {triggerCfg.icon} {highlightText(triggerCfg.label, searchTerm)} · {wf.steps?.length || 0} pasos · {wf.run_count || 0} ejecuciones
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -646,7 +702,7 @@ function WorkflowsTab() {
                   {wf.steps?.map((s, i) => (
                     <div key={s.id || i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <div style={{ background: 'var(--surface-4)', borderRadius: 6, padding: '4px 10px', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
-                        {STEP_ICONS[s.step_type] || '⚡'} {s.name || s.step_type}
+                        {STEP_ICONS[s.step_type] || '⚡'} {highlightText(s.name || s.step_type, searchTerm)}
                       </div>
                       {i < wf.steps.length - 1 && <span style={{ color: 'var(--text-3)', fontSize: "var(--text-md)" }}>→</span>}
                     </div>
@@ -675,6 +731,7 @@ export default function AutomationsPage() {
   const [showTemplates, setShowTemplates] = useState(false)
   const [execHistory, setExecHistory] = useState(null)
   const [filterActive, setFilterActive] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
   const [testResult, setTestResult] = useState(null)
 
   const { data: raw = [], isLoading } = useQuery({
@@ -718,6 +775,22 @@ export default function AutomationsPage() {
   })
 
   const filtered = filterActive === null ? rules : rules.filter(r => r.is_active === filterActive)
+  const searched = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase()
+    if (!q) return filtered
+    return filtered.filter((rule) => {
+      const inActions = (Array.isArray(rule.actions) ? rule.actions : []).some((a) =>
+        String(a?.type || '').toLowerCase().includes(q)
+      )
+      return (
+        String(rule.name || '').toLowerCase().includes(q) ||
+        String(rule.description || '').toLowerCase().includes(q) ||
+        String(rule.trigger_type || '').toLowerCase().includes(q) ||
+        String(rule.project_name || '').toLowerCase().includes(q) ||
+        inActions
+      )
+    })
+  }, [filtered, searchTerm])
   const active = rules.filter(r => r.is_active).length
 
   return (
@@ -769,7 +842,15 @@ export default function AutomationsPage() {
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, marginBottom: 20 }}>
+        <input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder={t('automations.search_placeholder', 'Buscar automatizaciones (nombre, trigger, accion...)')}
+          aria-label={t('automations.search_aria', 'Buscar automatizaciones')}
+          style={fs}
+        />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
         {[
           [null, t('automations.filter_all')],
           [true, t('automations.filter_active')],
@@ -780,10 +861,11 @@ export default function AutomationsPage() {
             {label}
           </button>
         ))}
+        </div>
       </div>
 
       {/* Rules list */}
-      {isLoading ? <Spinner /> : filtered.length === 0 ? (
+      {isLoading ? <Spinner /> : searched.length === 0 ? (
         <EmptyState
           icon="⚙️"
           title={t('automations.no_rules_title')}
@@ -792,12 +874,13 @@ export default function AutomationsPage() {
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {filtered.map(rule => (
+          {searched.map(rule => (
             <RuleCard key={rule.id} rule={rule}
               onEdit={r => setEditing(r)}
               onDelete={id => del(id)}
               onTest={r => test(r.id)}
               onToggle={r => toggle({ id: r.id, active: !r.is_active })}
+              highlightTerm={searchTerm}
             />
           ))}
         </div>

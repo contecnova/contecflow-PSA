@@ -8,7 +8,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { biEtlApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { RefreshCw, CheckCircle, AlertCircle, Clock, ChevronDown, ChevronUp, Database } from 'lucide-react'
 import { Card, Button, Spinner, EmptyState } from '../ui'
@@ -175,19 +175,19 @@ export default function BiEtlPanel() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['bi-etl-connectors'],
-    queryFn: () => api.get('/bi/etl/connectors').then(r => r.data),
+    queryFn: () => biEtlApi.listConnectors().then(r => r.data),
     refetchInterval: 30_000,
   })
 
   const { data: logData, isLoading: logLoading } = useQuery({
     queryKey: ['bi-etl-connector-log', expandedId],
-    queryFn: () => api.get(`/bi/etl/connectors/${expandedId}/log`).then(r => r.data),
+    queryFn: () => biEtlApi.getLog(expandedId).then(r => r.data),
     enabled: !!expandedId,
   })
 
   const syncMutation = useMutation({
     mutationFn: (connectorId) =>
-      api.post(`/bi/etl/connectors/${connectorId}/sync`, { extra_config: {} }).then(r => r.data),
+      biEtlApi.triggerSync(connectorId, { extra_config: {} }).then(r => r.data),
     onMutate: (id) => setSyncingIds(s => new Set([...s, id])),
     onSuccess: (res, id) => {
       const queue = res?.queue ? ` (queue ${res.queue})` : ''

@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { ticketsApi } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -23,24 +23,24 @@ function InternalCommentThread({ ticketId }) {
 
   const { data: comments = [], isLoading } = useQuery({
     queryKey: ['internal-comments', ticketId],
-    queryFn: () => api.get(`/sd/tickets/${ticketId}/internal-comments`).then(r => r.data).catch(() => []),
+    queryFn: () => ticketsApi.internalComments(ticketId).then(r => r.data).catch(() => []),
     enabled: !!ticketId,
   })
 
   const { mutate: addComment, isPending: adding } = useMutation({
-    mutationFn: () => api.post(`/sd/tickets/${ticketId}/internal-comments`, { content }).then(r => r.data),
+    mutationFn: () => ticketsApi.createInternalComment(ticketId, { content }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['internal-comments', ticketId]); setContent('') },
     onError: e => toast.error(extractErr(e, t('internal_comments.error_add'))),
   })
 
   const { mutate: updateComment, isPending: updating } = useMutation({
-    mutationFn: ({ id, content: c }) => api.patch(`/sd/tickets/${ticketId}/internal-comments/${id}`, { content: c }).then(r => r.data),
+    mutationFn: ({ id, content: c }) => ticketsApi.updateInternalComment(ticketId, id, { content: c }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['internal-comments', ticketId]); setEditing(null) },
     onError: e => toast.error(extractErr(e, t('internal_comments.error_update'))),
   })
 
   const { mutate: deleteComment } = useMutation({
-    mutationFn: id => api.delete(`/sd/tickets/${ticketId}/internal-comments/${id}`),
+    mutationFn: id => ticketsApi.deleteInternalComment(ticketId, id),
     onSuccess: () => qc.invalidateQueries(['internal-comments', ticketId]),
     onError: e => toast.error(extractErr(e, t('internal_comments.error_delete'))),
   })
@@ -131,7 +131,7 @@ export default function InternalCommentsPage() {
   // Cargar tickets del SD para búsqueda
   const { data: ticketsData } = useQuery({
     queryKey: ['sd-tickets', { page_size: 200 }],
-    queryFn: () => api.get('/sd/tickets', { params: { page_size: 200 } }).then(r => {
+    queryFn: () => ticketsApi.list({ page_size: 200 }).then(r => {
       const d = r.data
       return Array.isArray(d) ? d : (d?.tickets || d?.items || [])
     }),

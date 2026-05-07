@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { projectsApi, customFieldsApi } from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -40,8 +40,8 @@ function FieldForm({ field, projectId, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
-      ? api.patch(`/custom-fields/${projectId}/${field.id}`, d).then(r => r.data)
-      : api.post(`/custom-fields/${projectId}`, d).then(r => r.data),
+      ? customFieldsApi.update(projectId, field.id, d).then(r => r.data)
+      : customFieldsApi.create(projectId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['custom-fields', projectId]); onClose() },
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al guardar el campo'),
   })
@@ -149,17 +149,17 @@ export default function CustomFieldsPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => api.get('/projects').then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
 
   const { data: fields = [], isLoading } = useQuery({
     queryKey: ['custom-fields', selectedProject],
-    queryFn: () => api.get(`/custom-fields/${selectedProject}`).then(r => r.data).catch(() => []),
+    queryFn: () => customFieldsApi.list(selectedProject).then(r => r.data).catch(() => []),
     enabled: !!selectedProject,
   })
 
   const { mutate: deleteField } = useMutation({
-    mutationFn: fid => api.delete(`/custom-fields/${selectedProject}/${fid}`),
+    mutationFn: fid => customFieldsApi.delete(selectedProject, fid),
     onSuccess: () => qc.invalidateQueries(['custom-fields', selectedProject]),
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al eliminar el campo'),
   })

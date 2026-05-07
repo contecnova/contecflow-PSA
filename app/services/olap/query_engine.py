@@ -89,7 +89,7 @@ def get_utilization_by_user(
     """Actual vs capacity utilisation per user."""
     conn = _try_olap()
     if conn is None:
-        return []
+        return _pg_utilization_by_user(org_id)
     try:
         date_filter = ""
         if since_key:
@@ -123,7 +123,7 @@ def get_portfolio_health(org_id: Optional[str] = None) -> list[dict]:
     """Project health snapshot: margin%, task completion%, risk level."""
     conn = _try_olap()
     if conn is None:
-        return []
+        return _pg_portfolio_health(org_id)
     try:
         org_f = _org_filter(org_id)
         sql = f"""
@@ -157,7 +157,7 @@ def get_pipeline_funnel(org_id: Optional[str] = None) -> list[dict]:
     """Pipeline funnel: count and weighted revenue by stage."""
     conn = _try_olap()
     if conn is None:
-        return []
+        return _pg_pipeline_funnel(org_id)
     try:
         org_f = _org_filter(org_id)
         sql = f"""
@@ -240,9 +240,181 @@ def get_kpi_summary(org_id: Optional[str] = None) -> dict:
 # ── PostgreSQL fallbacks ──────────────────────────────────────────────────────
 
 def _pg_margin_evolution(org_id: Optional[str], months: int) -> list[dict]:
-    """Simple fallback — returns empty list; caller should handle gracefully."""
     logger.info("OLAP unavailable — margin_evolution using PostgreSQL fallback (stub)")
     return []
+
+
+def _pg_utilization_by_user(org_id: Optional[str]) -> list[dict]:
+    """Utilization per user from PostgreSQL when DuckDB is not ready."""
+    logger.info("OLAP unavailable — utilization_by_user using PostgreSQL fallback")
+    try:
+        from app.db.session import SessionLocal
+        from app.models.user import User
+        from app.models.imputation import Imputation
+        from app.models.resources import Resource
+        from sqlalchemy import func
+        from datetime import date
+
+        db = SessionLocal()
+        try:
+            today = date.today()
+            month_start = today.replace(day=1)
+
+            query = (
+                db.query(
+                    User.id.label("user_id"),
+                    func.concat(User.first_name, " ", User.last_name).label("full_name"),
+                    User.department.label("department"),
+                    func.round(func.sum(Imputation.hours), 1).label("logged_hours"),
+                )
+                .join(Imputation, Imputation.user_id == User.id)
+                .filter(
+                    Imputation.date >= month_start,
+                    Imputation.date <= today,
+                )
+            )
+            if org_id:
+                query = query.filter(User.organization_id == org_id)
+            rows = query.group_by(User.id, User.first_name, User.last_name, User.department).all()
+
+            result = []
+            for r in rows:
+                resource = db.query(Resource).filter(Resource.user_id == r.user_id).first()
+                weekly_capacity = float(getattr(resource, "weekly_capacity", 40) or 40)
+                monthly_capacity = round(weekly_capacity * 52 / 12, 1)
+                logged = float(r.logged_hours or 0)
+                utilization_pct = round(logged / monthly_capacity * 100, 1) if monthly_capacity else 0.0
+                result.append({
+                    "user_id": r.user_id,
+                    "full_name": r.full_name,
+                    "department": r.department,
+                    "logged_hours": logged,
+                    "monthly_capacity": monthly_capacity,
+                    "utilization_pct": utilization_pct,
+                })
+            result.sort(key=lambda x: x["utilization_pct"], reverse=True)
+            return result
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.warning("PostgreSQL utilization fallback failed: %s", exc)
+        return []
+
+
+def _pg_pipeline_funnel(org_id: Optional[str]) -> list[dict]:
+    """Pipeline funnel from PostgreSQL when DuckDB is not ready."""
+    logger.info("OLAP unavailable — pipeline_funnel using PostgreSQL fallback")
+    try:
+        from app.db.session import SessionLocal
+        from app.models.pipeline import Opportunity
+        from sqlalchemy import func, case
+
+        db = SessionLocal()
+        try:
+            STAGE_ORDER = {"lead": 1, "qualification": 2, "proposal": 3, "negotiation": 4}
+            filters = [Opportunity.stage.notin_(["won", "lost", "cancelled"])]
+            if org_id:
+                filters.append(Opportunity.organization_id == org_id)
+
+            rows = (
+                db.query(
+                    Opportunity.stage.label("stage"),
+                    func.count(Opportunity.id).label("count"),
+                    func.round(func.sum(Opportunity.expected_revenue), 0).label("total_revenue"),
+                    func.round(
+                        func.sum(
+                            Opportunity.expected_revenue
+                            * func.coalesce(Opportunity.probability, 0.0)
+                            / 100.0
+                        ),
+                        0,
+                    ).label("weighted_revenue"),
+                    func.round(func.avg(Opportunity.probability), 1).label("avg_probability"),
+                )
+                .filter(*filters)
+                .group_by(Opportunity.stage)
+                .all()
+            )
+
+            result = [
+                {
+                    "stage": r.stage,
+                    "count": int(r.count or 0),
+                    "total_revenue": float(r.total_revenue or 0),
+                    "weighted_revenue": float(r.weighted_revenue or 0),
+                    "avg_probability": float(r.avg_probability or 0),
+                    "avg_days": None,
+                }
+                for r in rows
+            ]
+            result.sort(key=lambda x: STAGE_ORDER.get(x["stage"], 99))
+            return result
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.warning("PostgreSQL pipeline fallback failed: %s", exc)
+        return []
+
+
+def _pg_portfolio_health(org_id: Optional[str]) -> list[dict]:
+    """Portfolio health from PostgreSQL when DuckDB is not ready."""
+    logger.info("OLAP unavailable — portfolio_health using PostgreSQL fallback")
+    try:
+        from app.db.session import SessionLocal
+        from app.models.project import Project, ProjectStatus
+        from app.models.task import Task
+        from app.models.imputation import Imputation
+        from sqlalchemy import func
+
+        db = SessionLocal()
+        try:
+            filters = [Project.status.notin_(["cancelled", "archived"])]
+            if org_id:
+                filters.append(Project.organization_id == org_id)
+
+            projects = db.query(Project).filter(*filters).all()
+            result = []
+            for proj in projects:
+                tasks_total = db.query(func.count(Task.id)).filter(Task.project_id == proj.id).scalar() or 0
+                tasks_done = (
+                    db.query(func.count(Task.id))
+                    .filter(Task.project_id == proj.id, Task.status == "done")
+                    .scalar() or 0
+                )
+                completion_pct = round(tasks_done / tasks_total * 100, 1) if tasks_total else 0.0
+
+                total_cost = (
+                    db.query(func.sum(Imputation.cost_amount))
+                    .filter(Imputation.project_id == proj.id)
+                    .scalar() or 0.0
+                )
+                budget = float(proj.budget_amount or 0)
+                if budget > 0:
+                    revenue_est = budget
+                    margin_pct = round((revenue_est - float(total_cost)) / revenue_est * 100, 1)
+                else:
+                    margin_pct = 0.0
+
+                result.append({
+                    "project_id": proj.id,
+                    "code": proj.code,
+                    "name": proj.name,
+                    "status": proj.status.value if hasattr(proj.status, "value") else str(proj.status),
+                    "budget": budget,
+                    "total_cost": float(total_cost),
+                    "margin_pct": margin_pct,
+                    "tasks_total": tasks_total,
+                    "tasks_done": tasks_done,
+                    "completion_pct": completion_pct,
+                    "risk_level": proj.risk_level.value if hasattr(proj.risk_level, "value") else str(proj.risk_level or "low"),
+                })
+            result.sort(key=lambda x: x["margin_pct"])
+            return result
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.warning("PostgreSQL portfolio fallback failed: %s", exc)
+        return []
 
 
 def _pg_kpi_summary(org_id: Optional[str]) -> dict:
