@@ -537,8 +537,6 @@ from .sprints_tasks import (
     metric_tasks_by_assignee,
     metric_epics_by_status,
     metric_milestones_on_time_rate,
-    metric_absences_by_type as metric_absences_by_type_v2,  # noqa: F811
-    metric_absences_by_person as metric_absences_by_person_v2,  # noqa: F811
 )
 
 # === PORTFOLIO & PERFORMANCE ===
