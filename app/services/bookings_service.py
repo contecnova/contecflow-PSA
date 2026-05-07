@@ -1286,16 +1286,27 @@ def process_workflow_queue_record(db, workflow_id: str | None = None) -> dict:
                     step_result["condition_met"] = condition_met
                 elif step.step_type == "webhook":
                     try:
-                        import httpx
+                        import httpx as _httpx
                         url = config.get("url")
-                        method = str(config.get("method", "POST")).upper()
-                        headers = _render_step_value(config.get("headers") or {}, context)
-                        payload = _render_step_value(config.get("payload") or {"event": config.get("event"), "context": context}, context)
-                        if url:
-                            with httpx.Client(timeout=5.0) as client:
-                                resp = client.request(method, url, headers=headers, json=payload)
+                        if not url:
+                            step_result["ok"] = False
+                            step_result["error"] = "webhook step requires 'url'"
+                        else:
+                            # SSRF protection: block requests to internal/private networks
+                            _validate_provision_url(url)
+                            method = str(config.get("method", "POST")).upper()
+                            headers = _render_step_value(config.get("headers") or {}, context)
+                            payload_wh = _render_step_value(
+                                config.get("payload") or {"event": config.get("event"), "context": context},
+                                context,
+                            )
+                            with _httpx.Client(timeout=5.0) as client:
+                                resp = client.request(method, url, headers=headers, json=payload_wh)
                             step_result["http_status"] = resp.status_code
                             step_result["response"] = resp.text[:1000]
+                    except ValueError as _ssrf_exc:
+                        step_result["ok"] = False
+                        step_result["error"] = f"SSRF protection blocked URL: {_ssrf_exc}"
                     except Exception as e:
                         step_result["ok"] = False; step_result["error"] = str(e)[:100]
                 step_finished_at = datetime.now(timezone.utc)

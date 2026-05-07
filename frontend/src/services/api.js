@@ -795,7 +795,7 @@ export const cmdbApi = {
   deleteAgent:    (id)       => api.delete(`/sd/cmdb/agents/${id}`),
   agentDashboard: (agentId, days) => api.get(`/cmdb/agent-dashboard/${agentId}?days=${days}`),
   agentSnapshot:  (agentId)  => api.post(`/cmdb/agent-dashboard/${agentId}/snapshot`),
-  assetsByCI:     (ciId)     => api.get(`/assets/by-ci/${ciId}`),
+  assetsByCI:     (ciId)     => api.get(`/sd/assets/by-ci/${ciId}`),
 }
 
 // ── Timesheets ────────────────────────────────────────────────────────────────
@@ -1140,16 +1140,6 @@ export const majorIncidentsApi = {
   create: (data)  => api.post('/sd/major-incidents', data),
 }
 
-// ── Service Desk — Metrics ────────────────────────────────────────────────────
-export const sdMetricsApi = {
-  itil:             (params) => api.get('/sd/metrics/itil', { params }),
-  agentPerformance: (params) => api.get('/sd/metrics/agent-performance', { params }),
-}
-
-// ── Service Desk — Catalog ────────────────────────────────────────────────────
-export const sdCatalogApi = {
-  list: () => api.get('/sd/catalog'),
-}
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 export const settingsApi = {
@@ -1237,7 +1227,13 @@ export const aiProvidersApi = {
 }
 
 // ── Service Desk Config ───────────────────────────────────────────────────────
+export const sdMetricsApi = {
+  itil:             (params) => api.get('/sd/metrics/itil', { params }),
+  agentPerformance: (params) => api.get('/sd/metrics/agent-performance', { params }),
+}
+
 export const sdCatalogApi = {
+  list:           ()         => api.get('/sd/catalog'),
   get:            ()         => api.get('/sd/catalog'),
   createCategory: (data)     => api.post('/sd/catalog/categories', data),
   updateCategory: (id, data) => api.patch(`/sd/catalog/categories/${id}`, data),
@@ -1584,12 +1580,6 @@ export const budgetsApi = {
 export const sdMajorIncidentsApi = {
   list:   () => api.get('/sd/major-incidents'),
   create: (data) => api.post('/sd/major-incidents', data),
-}
-
-// ── SD Metrics ────────────────────────────────────────────────────────────────
-export const sdMetricsApi = {
-  itil:             (params) => api.get('/sd/metrics/itil', { params }),
-  agentPerformance: (params) => api.get('/sd/metrics/agent-performance', { params }),
 }
 
 // ── Risk Scores ───────────────────────────────────────────────────────────────

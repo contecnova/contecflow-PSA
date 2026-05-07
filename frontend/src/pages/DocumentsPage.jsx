@@ -1092,7 +1092,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                           Flujo de aprobación — {doc.approval_request.workflow_name}
                         </div>
                         {/* Step indicator */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 12, flexWrap: 'wrap', gap: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 4 }}>
                           {Array.from({ length: doc.approval_request.total_steps || 1 }, (_, i) => {
                             const stepNum = i + 1;
                             const isDone = stepNum < (doc.approval_request.current_step || 1);

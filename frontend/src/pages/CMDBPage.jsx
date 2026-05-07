@@ -282,7 +282,7 @@ function ChangelogModal({ item, onClose }) {
 function CILinkedAssets({ ciId }) {
   const { data: assets, isLoading } = useQuery({
     queryKey: ['ci-assets', ciId],
-    queryFn: () => api.get(`/assets/by-ci/${ciId}`).then(r => r.data).catch(() => []),
+    queryFn: () => cmdbApi.assetsByCI(ciId).then(r => r.data?.assets || []).catch(() => []),
     staleTime: 30000,
   })
   if (isLoading) return null
