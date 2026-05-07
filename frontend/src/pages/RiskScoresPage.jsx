@@ -225,7 +225,14 @@ export default function RiskScoresPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<AlertOctagon size={18} />} title={t('risk_scores.title')} subtitle={t('risk_scores.subtitle')} showListExport={false} />
+      <PageHeader
+        icon={<AlertOctagon size={18} />}
+        title={t('risk_scores.title')}
+        subtitle={t('risk_scores.subtitle')}
+        showListExport={tab === 'rules' && filtered.length > 0}
+        exportTargetSelector='[data-export-table="risk-scores-list"]'
+        exportFilePrefix='risk_scores'
+      />
 
       {/* Tab nav */}
       <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--surface-4)', paddingBottom:0 }}>
@@ -283,7 +290,7 @@ export default function RiskScoresPage() {
           {isLoading ? <Spinner /> : filtered.length === 0 ? (
             <EmptyState icon="🛡" title="Sin datos de riesgo" description="Los proyectos con calculos de riesgo apareceran aqui" />
           ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <div data-export-table="risk-scores-list" style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {filtered.map(p => {
                 const cfg = LEVEL_CFG[p.level] || LEVEL_CFG.low
                 const isSelected = selected === p.project_id

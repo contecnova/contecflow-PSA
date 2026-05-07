@@ -11,8 +11,9 @@ Capacidades:
      cambios de emergencia sin PIR, etc.
   3. audit_incident_management()    — P1s sin Major Incident vinculado,
      incidentes recurrentes sin Problem asociado, etc.
-  4. audit_access_reviews()         — detecta usuarios con tickets de acceso
-     pendientes de revisión periódica (placeholder — extensible).
+  4. audit_access_reviews()         — detecta usuarios con accesos sin revisión
+     periódica, tickets de acceso pendientes más de 30 días, y cuentas inactivas
+     con acceso activo.
   5. get_executive_dashboard()      — KPIs de alto nivel para CIO/CISO.
   6. schedule_compliance_check()    — Celery entrypoint que ejecuta todas las
      auditorías y persiste el resultado en la BD.
@@ -25,7 +26,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import (
@@ -47,11 +48,12 @@ logger = logging.getLogger(__name__)
 # Each dimension scored 0-100 → weighted average → maps to CMM level 1-5
 
 _MATURITY_DIMENSIONS = {
-    "incident_management":  0.25,
-    "change_management":    0.20,
-    "problem_management":   0.20,
-    "sla_compliance":       0.20,
-    "asset_cmdb":           0.15,
+    "incident_management":  0.22,
+    "change_management":    0.18,
+    "problem_management":   0.18,
+    "sla_compliance":       0.18,
+    "access_reviews":       0.12,
+    "asset_cmdb":           0.12,
 }
 
 def _cmm_level(score: float) -> int:
@@ -325,6 +327,134 @@ def audit_problem_management(db: Session, days: int = 90) -> dict:
     return {"score": score, "findings": findings, "summary": summary}
 
 
+# ── Access reviews audit ──────────────────────────────────────────────────────
+
+def audit_access_reviews(db: Session, days: int = 90) -> dict:
+    """Audit access management practices.
+
+    Checks:
+      - Access request tickets open longer than 30 days without resolution
+      - Users inactive for 90+ days that still have an active account
+      - Privileged access tickets (admin/elevated) without review within the period
+
+    Returns same structure as other audit functions::
+
+        {
+          "score": int (0-100),
+          "findings": [{"severity", "title", "count", "details"}],
+          "summary": str,
+        }
+    """
+    since = datetime.now(tz=timezone.utc) - timedelta(days=days)
+    thirty_days_ago = datetime.now(tz=timezone.utc) - timedelta(days=30)
+    ninety_days_ago = datetime.now(tz=timezone.utc) - timedelta(days=90)
+
+    findings = []
+    score = 100
+
+    # ── Finding 1: Access request tickets open longer than 30 days ───────────
+    try:
+        access_tickets = (
+            db.query(Ticket)
+            .filter(
+                Ticket.ticket_type == TicketType.service_request,
+                Ticket.created_at >= since,
+                Ticket.status.notin_([TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled]),
+                Ticket.title.ilike("%access%"),
+            )
+            .all()
+        )
+        stale_access = [t for t in access_tickets if t.created_at and t.created_at <= thirty_days_ago]
+        if stale_access:
+            pct = round(len(stale_access) / max(len(access_tickets), 1) * 100)
+            penalty = min(25, pct // 3)
+            score -= penalty
+            findings.append({
+                "severity": "high" if pct >= 50 else "medium",
+                "title": "Access request tickets unresolved for 30+ days",
+                "count": len(stale_access),
+                "details": (
+                    f"{len(stale_access)} access request tickets have been open for over 30 days "
+                    f"({pct}% of access tickets in period)."
+                ),
+                "sample": [t.number for t in stale_access[:5]],
+            })
+    except Exception as exc:
+        logger.debug("Access ticket audit skipped: %s", exc)
+
+    # ── Finding 2: Inactive users with active accounts ────────────────────────
+    try:
+        from app.models.user import User  # noqa: PLC0415
+
+        inactive_users = (
+            db.query(User)
+            .filter(
+                User.is_active.is_(True),
+                User.last_login.isnot(None),
+                User.last_login <= ninety_days_ago,
+            )
+            .all()
+        )
+        if inactive_users:
+            score -= min(20, len(inactive_users) * 2)
+            findings.append({
+                "severity": "high" if len(inactive_users) > 10 else "medium",
+                "title": "Active accounts with no login in 90+ days",
+                "count": len(inactive_users),
+                "details": (
+                    f"{len(inactive_users)} user accounts are marked active but have not logged in "
+                    "for 90 or more days. Consider disabling or reviewing these accounts."
+                ),
+                "sample": [u.email for u in inactive_users[:5]],
+            })
+    except Exception as exc:
+        logger.debug("Inactive user audit skipped: %s", exc)
+
+    # ── Finding 3: Privileged access tickets without timely review ─────────────
+    try:
+        privileged_tickets = (
+            db.query(Ticket)
+            .filter(
+                Ticket.ticket_type == TicketType.service_request,
+                Ticket.created_at >= since,
+                or_(
+                    Ticket.title.ilike("%admin%"),
+                    Ticket.title.ilike("%privilege%"),
+                    Ticket.title.ilike("%elevated%"),
+                ),
+            )
+            .all()
+        )
+        _closed_statuses = {TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled}
+        unreviewed = [
+            t for t in privileged_tickets
+            if t.status not in _closed_statuses
+            and t.created_at and t.created_at <= thirty_days_ago
+        ]
+        if unreviewed:
+            score -= min(20, len(unreviewed) * 5)
+            findings.append({
+                "severity": "high",
+                "title": "Privileged access tickets without timely review",
+                "count": len(unreviewed),
+                "details": (
+                    f"{len(unreviewed)} privileged access tickets (admin/elevated) remain unresolved "
+                    "beyond the 30-day review window. Privileged access should be time-bound and reviewed."
+                ),
+                "sample": [t.number for t in unreviewed[:5]],
+            })
+    except Exception as exc:
+        logger.debug("Privileged access audit skipped: %s", exc)
+
+    score = max(0, score)
+    summary = (
+        f"Access reviews score: {score}/100 (CMM Level {_cmm_level(score)} — "
+        f"{_CMM_LABELS[_cmm_level(score)]}). "
+        f"Analysed access management over {days} days."
+    )
+    return {"score": score, "findings": findings, "summary": summary}
+
+
 # ── Full compliance report ────────────────────────────────────────────────────
 
 def generate_compliance_report(
@@ -353,6 +483,7 @@ def generate_compliance_report(
     incident_audit = audit_incident_management(db, days)
     change_audit = audit_change_management(db, days)
     problem_audit = audit_problem_management(db, days=max(days, 90))
+    access_audit = audit_access_reviews(db, days=max(days, 90))
 
     # SLA score from incident audit (reuse breach findings)
     sla_score = 100
@@ -376,6 +507,7 @@ def generate_compliance_report(
         "change_management":   {"score": change_audit["score"],   "findings": change_audit["findings"]},
         "problem_management":  {"score": problem_audit["score"],  "findings": problem_audit["findings"]},
         "sla_compliance":      {"score": sla_score,               "findings": []},
+        "access_reviews":      {"score": access_audit["score"],   "findings": access_audit["findings"]},
         "asset_cmdb":          {"score": cmdb_score,              "findings": []},
     }
 
@@ -408,6 +540,8 @@ def generate_compliance_report(
         recommendations.append("Revisar políticas SLA — breach rate supera el umbral aceptable del 10%.")
     if cmdb_score < 60:
         recommendations.append("Aumentar cobertura de auto-discovery CMDB — menos del 60% de CIs están descubiertos.")
+    if access_audit["score"] < 70:
+        recommendations.append("Revisar cuentas de usuario inactivas y tickets de acceso sin resolver — implementar revisión periódica de accesos (Access Review Campaign).")
 
     report = {
         "generated_at": datetime.now(tz=timezone.utc).isoformat(),

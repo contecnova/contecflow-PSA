@@ -92,7 +92,9 @@ export default function AlertsPage() {
             </Button>
           )
         }
-      showListExport={false}
+        showListExport={tab === 'operational' && alerts.length > 0}
+        exportTargetSelector='[data-export-table="alerts-list"]'
+        exportFilePrefix='alerts'
       />
 
       <Tabs
@@ -131,7 +133,7 @@ export default function AlertsPage() {
       ) : alerts.length === 0 ? (
         <EmptyState icon="✅" title={t('alerts.no_alerts')} description={t('alerts.empty_description')} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div data-export-table="alerts-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {alerts.map(alert => {
             const cfg = SEVERITY_CONFIG[alert.severity] || SEVERITY_CONFIG.info
             const sourceUrl = alertSourceUrl(alert)

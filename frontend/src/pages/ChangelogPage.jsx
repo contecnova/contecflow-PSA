@@ -236,7 +236,14 @@ export default function ChangelogPage() {
 
   return (
     <PageShell>
-      <PageHeader title={t('changelog.title')} subtitle={t('changelog.subtitle')} icon={<ScrollText size={18} />} showListExport={false} />
+      <PageHeader
+        title={t('changelog.title')}
+        subtitle={t('changelog.subtitle')}
+        icon={<ScrollText size={18} />}
+        showListExport={Boolean(selectedProject && entries.length)}
+        exportTargetSelector='[data-export-table="changelog-list"]'
+        exportFilePrefix='changelog'
+      />
 
       {/* Project selector + actions */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -282,7 +289,7 @@ export default function ChangelogPage() {
           action={<button className="btn-primary" onClick={() => setShowGenerate(true)} style={{ fontSize: "var(--text-base)", padding: '8px 20px' }}>{t('changelog.generate')}</button>}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div data-export-table="changelog-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {entries.map(e => <EntryCard key={e.id} entry={e} onDelete={deleteEntry} />)}
         </div>
       )}

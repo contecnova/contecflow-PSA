@@ -212,7 +212,9 @@ export default function DeveloperPortalPage() {
         title={t('developer.portal_title')}
         subtitle={t('developer.portal_subtitle')}
         actions={<Button onClick={() => setShowCreate(true)}>{t('developer.new_app_btn')}</Button>}
-      showListExport={false}
+        showListExport={apps.length > 0}
+        exportTargetSelector='[data-export-table="developer-apps-list"]'
+        exportFilePrefix='developer_apps'
       />
 
       {isLoading ? <Spinner /> : apps.length === 0 ? (
@@ -222,7 +224,7 @@ export default function DeveloperPortalPage() {
           action={<Button onClick={() => setShowCreate(true)}>{t('developer.create_app_btn')}</Button>}
         />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, marginTop: 8 }}>
+        <div data-export-table="developer-apps-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, marginTop: 8 }}>
           {apps.map(app => (
             <div key={app.id} style={{
               background: 'var(--surface-2)', border: '1px solid var(--surface-4)',

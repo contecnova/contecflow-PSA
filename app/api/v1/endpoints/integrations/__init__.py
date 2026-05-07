@@ -1,70 +1,68 @@
 from fastapi import APIRouter, status, Depends, Body, HTTPException
-from app.api.deps import get_current_user
-import threading
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user, get_current_org_id, get_db, require_admin
+from app.services import marketplace_service
 
 router = APIRouter()
-
-_CONNECTORS_CATALOG = [
-    {"slug": slug, "category": "crm" if slug in ["salesforce", "jira"] else "other",
-     "is_certified": slug in ["salesforce", "jira", "slack", "stripe"]}
-    for slug in ["salesforce", "jira", "slack", "stripe", "xero", "github", "aws_s3"]
-    + [f"connector_{i}" for i in range(1, 16)]
-]
-
-_instances: list = []
-_instances_lock = threading.Lock()
-_instances_counter = 0
 
 
 @router.get("/marketplace", status_code=status.HTTP_200_OK)
 def list_marketplace(
     category: str = None,
     certified_only: bool = False,
+    org_id: str = Depends(get_current_org_id),
+    db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    connectors = _CONNECTORS_CATALOG
-    if category:
-        connectors = [c for c in connectors if c["category"] == category]
-    if certified_only:
-        connectors = [c for c in connectors if c["is_certified"]]
-    return connectors
+    return marketplace_service.list_marketplace_connectors(
+        category=category,
+        certified_only=certified_only,
+        organization_id=org_id,
+        db=db,
+    )
 
 
 @router.post("/instances", status_code=status.HTTP_201_CREATED)
-def install_connector(payload: dict = Body(...), user=Depends(get_current_user)):
-    global _instances_counter
+def install_connector(
+    payload: dict = Body(...),
+    org_id: str = Depends(get_current_org_id),
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
     slug = payload.get("connector_slug")
-    if not slug or slug == "nonexistent-slug":
-        raise HTTPException(status_code=404, detail="Connector not found")
-    if payload.get("sync_direction") == "sideways":
-        raise HTTPException(status_code=422, detail="Invalid sync direction")
-    role = getattr(user, "role", None)
-    if role and role != "admin":
-        raise HTTPException(status_code=403, detail="Forbidden")
-    with _instances_lock:
-        _instances_counter += 1
-        instance = {
-            "id": _instances_counter,
-            "connector": slug,
-            "created": True,
-            "name": payload.get("name"),
-        }
-        _instances.append(instance)
-    return instance
+    if not slug:
+        raise HTTPException(status_code=400, detail="connector_slug is required")
+
+    return marketplace_service.install_integration_connector(
+        connector_slug=slug,
+        name=payload.get("name") or slug,
+        config=payload.get("config") or {},
+        sync_direction=payload.get("sync_direction", "bidirectional"),
+        sync_frequency=payload.get("sync_frequency", "hourly"),
+        organization_id=org_id,
+        user_id=str(user.id),
+        db=db,
+    )
 
 
 @router.get("/instances", status_code=status.HTTP_200_OK)
-def list_instances(user=Depends(get_current_user)):
-    with _instances_lock:
-        return list(_instances)
+def list_instances(
+    org_id: str = Depends(get_current_org_id),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    return marketplace_service.list_integration_instances(organization_id=org_id, db=db)
 
 
 @router.delete("/instances/{instance_id}", status_code=status.HTTP_204_NO_CONTENT)
-def uninstall_integration(instance_id: int, user=Depends(get_current_user)):
-    with _instances_lock:
-        original_len = len(_instances)
-        _instances[:] = [i for i in _instances if i["id"] != instance_id]
-        if len(_instances) == original_len:
-            raise HTTPException(status_code=404, detail="Instance not found")
+def uninstall_integration(
+    instance_id: str,
+    org_id: str = Depends(get_current_org_id),
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    marketplace_service.uninstall_integration_connector(
+        instance_id=instance_id, organization_id=org_id, db=db
+    )
     return None
-

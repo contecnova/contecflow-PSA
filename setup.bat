@@ -126,6 +126,7 @@ exit /b 1
 :prepare_demo_database
 echo.
 echo [INFO] Inicializando base de datos con datos demo...
+cd /d "%SCRIPT_DIR%"
 .venv\Scripts\python -m app.db.seed
 if errorlevel 1 (
         echo [ERROR] Fallo al cargar datos demo
@@ -138,6 +139,7 @@ exit /b 0
 :prepare_admin_only_database
 echo.
 echo [INFO] Reseteando base de datos ^(solo admin^) ...
+cd /d "%SCRIPT_DIR%"
 .venv\Scripts\python scripts\reset_to_admin_only.py
 if errorlevel 1 (
         echo [ERROR] Fallo al resetear base de datos a modo clean
@@ -216,31 +218,61 @@ if not exist ".venv" (
     )
 )
 
-echo [INFO] Instalando dependencias Python...
-.venv\Scripts\python -m ensurepip --upgrade >nul 2>&1
-.venv\Scripts\python -m pip install --quiet --upgrade pip || (
-    echo [WARN] No se pudo actualizar pip directamente. Reinstalando pip desde ensurepip...
-    .venv\Scripts\python -m ensurepip --default-pip >nul 2>&1 || (
-        echo [ERROR] No se pudo instalar pip. Abortando.
-        exit /b 1
-    )
-    .venv\Scripts\python -m pip install --quiet --upgrade pip || (
-        echo [ERROR] No se pudo actualizar pip tras ensurepip.
-        exit /b 1
-    )
+set "REQ_HASH_FILE=.venv\.req_hash"
+set "REQ_HASH="
+for /f "delims=" %%H in ('powershell -NoProfile -Command "if(Test-Path 'requirements.txt'){ (Get-FileHash -Algorithm SHA256 -Path 'requirements.txt').Hash.ToLower() }"') do set "REQ_HASH=%%H"
+
+set "NEED_PIP_INSTALL=1"
+if exist "!REQ_HASH_FILE!" (
+    set /p STORED_REQ_HASH=<"!REQ_HASH_FILE!"
+    if /I "!STORED_REQ_HASH!"=="!REQ_HASH!" set "NEED_PIP_INSTALL=0"
 )
-.venv\Scripts\python -m pip install --quiet -r requirements.txt
-if errorlevel 1 (
-    echo [ERROR] Fallo al instalar dependencias
-    exit /b 1
+
+if "!NEED_PIP_INSTALL!"=="1" (
+    echo [INFO] Instalando dependencias Python...
+    .venv\Scripts\python -m ensurepip --upgrade >nul 2>&1
+    .venv\Scripts\python -m pip install --quiet --upgrade pip || (
+        echo [WARN] No se pudo actualizar pip directamente. Reinstalando pip desde ensurepip...
+        .venv\Scripts\python -m ensurepip --default-pip >nul 2>&1 || (
+            echo [ERROR] No se pudo instalar pip. Abortando.
+            exit /b 1
+        )
+        .venv\Scripts\python -m pip install --quiet --upgrade pip || (
+            echo [ERROR] No se pudo actualizar pip tras ensurepip.
+            exit /b 1
+        )
+    )
+    .venv\Scripts\python -m pip install --quiet -r requirements.txt
+    if errorlevel 1 (
+        echo [ERROR] Fallo al instalar dependencias
+        exit /b 1
+    )
+    >"!REQ_HASH_FILE!" echo !REQ_HASH!
+) else (
+    echo [INFO] Dependencias Python sin cambios, omitiendo pip install
 )
 
 if exist "requirements-ml.txt" (
-    echo [INFO] Instalando dependencias ML ^(requirements-ml.txt^)...
-    .venv\Scripts\python -m pip install --quiet -r requirements-ml.txt
-    if errorlevel 1 (
-        echo [ERROR] Fallo al instalar dependencias ML
-        exit /b 1
+    set "REQ_ML_HASH_FILE=.venv\.req_ml_hash"
+    set "REQ_ML_HASH="
+    for /f "delims=" %%H in ('powershell -NoProfile -Command "if(Test-Path 'requirements-ml.txt'){ (Get-FileHash -Algorithm SHA256 -Path 'requirements-ml.txt').Hash.ToLower() }"') do set "REQ_ML_HASH=%%H"
+
+    set "NEED_ML_INSTALL=1"
+    if exist "!REQ_ML_HASH_FILE!" (
+        set /p STORED_REQ_ML_HASH=<"!REQ_ML_HASH_FILE!"
+        if /I "!STORED_REQ_ML_HASH!"=="!REQ_ML_HASH!" set "NEED_ML_INSTALL=0"
+    )
+
+    if "!NEED_ML_INSTALL!"=="1" (
+        echo [INFO] Instalando dependencias ML ^(requirements-ml.txt^)...
+        .venv\Scripts\python -m pip install --quiet -r requirements-ml.txt
+        if errorlevel 1 (
+            echo [ERROR] Fallo al instalar dependencias ML
+            exit /b 1
+        )
+        >"!REQ_ML_HASH_FILE!" echo !REQ_ML_HASH!
+    ) else (
+        echo [INFO] Dependencias ML sin cambios, omitiendo pip install
     )
 )
 
@@ -327,12 +359,29 @@ if /I "!SECRET_STATUS!"=="ROTATED" (
     echo [WARN] SECRET_KEY insegura detectada en .env - regenerada automaticamente
 )
 
-echo [INFO] Aplicando migraciones de base de datos...
-.venv\Scripts\python -m app.db.migrate
-if errorlevel 1 (
-    echo [ERROR] Fallo al aplicar migraciones.
-    echo [ERROR] Revisa tu archivo .env ^(especialmente SECRET_KEY^) y vuelve a ejecutar setup.bat
-    exit /b 1
+set "MODELS_HASH_FILE=.venv\.models_hash"
+set "MODELS_HASH="
+for /f "delims=" %%H in ('powershell -NoProfile -Command "$files=Get-ChildItem -Path 'app/models' -Recurse -Filter '*.py' -File -ErrorAction SilentlyContinue ^| Sort-Object FullName; if(-not $files){ 'nohash'; exit 0 }; $joined=($files ^| ForEach-Object { $h=(Get-FileHash -Algorithm SHA256 -Path $_.FullName).Hash.ToLower(); $_.FullName + '|' + $h }) -join \"`n\"; $bytes=[Text.Encoding]::UTF8.GetBytes($joined); $sha=[Security.Cryptography.SHA256]::Create(); (($sha.ComputeHash($bytes) ^| ForEach-Object { $_.ToString('x2') }) -join '')"') do set "MODELS_HASH=%%H"
+
+set "NEED_MIGRATE=0"
+if not exist "contecflow.db" set "NEED_MIGRATE=1"
+if not exist "!MODELS_HASH_FILE!" set "NEED_MIGRATE=1"
+if exist "!MODELS_HASH_FILE!" (
+    set /p STORED_MODELS_HASH=<"!MODELS_HASH_FILE!"
+    if /I not "!STORED_MODELS_HASH!"=="!MODELS_HASH!" set "NEED_MIGRATE=1"
+)
+
+if "!NEED_MIGRATE!"=="1" (
+    echo [INFO] Aplicando migraciones de base de datos...
+    .venv\Scripts\python -m app.db.migrate
+    if errorlevel 1 (
+        echo [ERROR] Fallo al aplicar migraciones.
+        echo [ERROR] Revisa tu archivo .env ^(especialmente SECRET_KEY^) y vuelve a ejecutar setup.bat
+        exit /b 1
+    )
+    >"!MODELS_HASH_FILE!" echo !MODELS_HASH!
+) else (
+    echo [INFO] Modelos sin cambios, omitiendo migracion
 )
 
 :: Comprobar si la BD tiene usuarios
@@ -414,25 +463,39 @@ if errorlevel 1 (
 for /f "tokens=*" %%v in ('node --version 2^>nul') do echo [INFO] Node.js %%v
 for /f "tokens=*" %%v in ('npm --version 2^>nul') do echo [INFO] npm %%v
 
+set "NODE_MAJOR="
+for /f "delims=" %%V in ('powershell -NoProfile -Command "$v=(node --version 2^>$null); if($v){ [int](($v.TrimStart(\"v\").Split(\".\"))[0]) }"') do set "NODE_MAJOR=%%V"
+if defined NODE_MAJOR if !NODE_MAJOR! LSS 18 (
+    echo [WARN] Node.js !NODE_MAJOR! detectado. Se recomienda v18+.
+)
+
 cd /d "%SCRIPT_DIR%\frontend"
-if not exist "node_modules" (
+set "PKG_HASH_FILE=node_modules\.pkg_hash"
+set "PKG_HASH="
+for /f "delims=" %%H in ('powershell -NoProfile -Command "if(Test-Path 'package.json'){ (Get-FileHash -Algorithm SHA256 -Path 'package.json').Hash.ToLower() }"') do set "PKG_HASH=%%H"
+
+set "NEED_NPM_INSTALL=0"
+if not exist "node_modules" set "NEED_NPM_INSTALL=1"
+if not exist "!PKG_HASH_FILE!" set "NEED_NPM_INSTALL=1"
+if exist "!PKG_HASH_FILE!" (
+    set /p STORED_PKG_HASH=<"!PKG_HASH_FILE!"
+    if /I not "!STORED_PKG_HASH!"=="!PKG_HASH!" set "NEED_NPM_INSTALL=1"
+)
+if not exist "node_modules\vite\dist\node\cli.js" (
+    echo [WARN] Vite no encontrado en node_modules. Ejecutando npm install...
+    set "NEED_NPM_INSTALL=1"
+)
+
+if "!NEED_NPM_INSTALL!"=="1" (
     echo [INFO] Instalando dependencias npm ^(puede tardar unos minutos^)...
     npm install --no-fund --no-audit --prefer-offline --legacy-peer-deps
     if errorlevel 1 (
         echo [ERROR] Fallo npm install
         exit /b 1
     )
+    >"!PKG_HASH_FILE!" echo !PKG_HASH!
 ) else (
-    if not exist "node_modules\vite\dist\node\cli.js" (
-        echo [WARN] Vite no encontrado en node_modules. Reinstalando dependencias...
-        npm install --no-fund --no-audit --prefer-offline --legacy-peer-deps
-        if errorlevel 1 (
-            echo [ERROR] Fallo npm install
-            exit /b 1
-        )
-    ) else (
-        echo [INFO] node_modules ya existe - omitiendo instalación
-    )
+    echo [INFO] Dependencias npm sin cambios, omitiendo npm install
 )
 
 cd /d "%SCRIPT_DIR%"
@@ -503,6 +566,51 @@ if NOT "%ERRORLEVEL%"=="0" (
     goto :wait_backend
 )
 echo [INFO] Backend listo
+
+if not exist "frontend\node_modules" mkdir "frontend\node_modules" >nul 2>&1
+
+set "VITE_HASH="
+for /f "delims=" %%H in ('powershell -NoProfile -Command "$files=Get-ChildItem -Path 'frontend/src' -Recurse -File -Include '*.js','*.jsx' -ErrorAction SilentlyContinue ^| Sort-Object FullName; if(-not $files){ 'nohash'; exit 0 }; $joined=($files ^| ForEach-Object { $h=(Get-FileHash -Algorithm SHA256 -Path $_.FullName).Hash.ToLower(); $_.FullName + '|' + $h }) -join \"`n\"; $bytes=[Text.Encoding]::UTF8.GetBytes($joined); $sha=[Security.Cryptography.SHA256]::Create(); (($sha.ComputeHash($bytes) ^| ForEach-Object { $_.ToString('x2') }) -join '')"') do set "VITE_HASH=%%H"
+set "VITE_HASH_FILE=frontend\node_modules\.vite_src_hash"
+set "REFRESH_VITE_CACHE=0"
+if not exist "!VITE_HASH_FILE!" set "REFRESH_VITE_CACHE=1"
+if exist "!VITE_HASH_FILE!" (
+    set /p STORED_VITE_HASH=<"!VITE_HASH_FILE!"
+    if /I not "!STORED_VITE_HASH!"=="!VITE_HASH!" set "REFRESH_VITE_CACHE=1"
+)
+if "!REFRESH_VITE_CACHE!"=="1" (
+    if exist "frontend\node_modules\.vite" rmdir /s /q "frontend\node_modules\.vite" >nul 2>&1
+    >"!VITE_HASH_FILE!" echo !VITE_HASH!
+)
+
+if exist "frontend\node_modules\@babel\parser\lib\index.js" (
+    set "JSX_HASH="
+    for /f "delims=" %%H in ('powershell -NoProfile -Command "$files=Get-ChildItem -Path 'frontend/src' -Recurse -Filter '*.jsx' -File -ErrorAction SilentlyContinue ^| Sort-Object FullName; if(-not $files){ 'nohash'; exit 0 }; $joined=($files ^| ForEach-Object { $h=(Get-FileHash -Algorithm SHA256 -Path $_.FullName).Hash.ToLower(); $_.FullName + '|' + $h }) -join \"`n\"; $bytes=[Text.Encoding]::UTF8.GetBytes($joined); $sha=[Security.Cryptography.SHA256]::Create(); (($sha.ComputeHash($bytes) ^| ForEach-Object { $_.ToString('x2') }) -join '')"') do set "JSX_HASH=%%H"
+    set "JSX_HASH_FILE=frontend\node_modules\.jsx_hash"
+    set "RUN_JSX_VALIDATE=0"
+    if not exist "!JSX_HASH_FILE!" set "RUN_JSX_VALIDATE=1"
+    if exist "!JSX_HASH_FILE!" (
+        set /p STORED_JSX_HASH=<"!JSX_HASH_FILE!"
+        if /I not "!STORED_JSX_HASH!"=="!JSX_HASH!" set "RUN_JSX_VALIDATE=1"
+    )
+
+    if "!RUN_JSX_VALIDATE!"=="1" (
+        if exist "frontend\validate.cjs" (
+            echo [INFO] Validando JSX con Babel...
+            node frontend\validate.cjs
+            if errorlevel 1 (
+                echo [ERROR] Errores en JSX detectados. Corrige los archivos marcados.
+                exit /b 1
+            )
+            >"!JSX_HASH_FILE!" echo !JSX_HASH!
+            echo [INFO] JSX validado correctamente
+        ) else (
+            echo [WARN] frontend\validate.cjs no encontrado - omitiendo validacion JSX
+        )
+    ) else (
+        echo [INFO] JSX sin cambios, omitiendo validacion Babel
+    )
+)
 
 :: Arrancar frontend
 echo [INFO] Arrancando frontend en puerto %FRONTEND_PORT%...

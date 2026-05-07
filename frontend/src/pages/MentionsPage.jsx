@@ -127,7 +127,7 @@ function ThreadedCommentSection({ entityType, entityId, title }) {
   if(!entityId) return null
 
   return (
-    <div>
+    <div data-export-table="mention-comments-list">
       <div style={{fontSize: "var(--text-base)",fontWeight:600,marginBottom:12}}>💬 {t('mentions.comments_title', { title })}</div>
       {isLoading?<Spinner/>:(
         comments.length===0
@@ -182,7 +182,14 @@ export default function MentionsPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<AtSign size={18} />} title={t('mentions.title')} subtitle={t('mentions.subtitle')}showListExport={false} />
+      <PageHeader
+        icon={<AtSign size={18} />}
+        title={t('mentions.title')}
+        subtitle={t('mentions.subtitle')}
+        showListExport={tab === 'mentions' ? mentions.length > 0 : Boolean(normalizedEntityId && comments.length > 0)}
+        exportTargetSelector={tab === 'mentions' ? '[data-export-table="mentions-list"]' : '[data-export-table="mention-comments-list"]'}
+        exportFilePrefix={tab === 'mentions' ? 'mentions' : 'thread_comments'}
+      />
 
       {/* Tabs */}
       <div style={{display:'flex',gap:6,marginBottom:20}}>
@@ -199,7 +206,7 @@ export default function MentionsPage() {
 
       {/* TAB: Menciones */}
       {tab==='mentions'&&(
-        <div>
+        <div data-export-table="mentions-list">
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize: "var(--text-base)"}}>

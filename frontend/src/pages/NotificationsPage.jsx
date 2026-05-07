@@ -140,7 +140,7 @@ function GroupedNotifList({ notifications, onMarkRead }) {
   })
 
   return (
-    <div>
+    <div data-export-table="notifications-list">
       {sortedGroups.map(([type, notifs]) => {
         const isAlertGroup = type.startsWith('alert_')
         const baseKey = isAlertGroup ? type.replace('alert_', '') : type
@@ -343,7 +343,9 @@ export default function NotificationsPage() {
             )}
           </div>
         }
-      showListExport={false}
+        showListExport={filtered.length > 0}
+        exportTargetSelector='[data-export-table="notifications-list"]'
+        exportFilePrefix='notifications'
       />
 
       {/* KPI row */}

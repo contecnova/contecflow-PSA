@@ -523,7 +523,9 @@ export default function ProjectTemplatesPage() {
         icon={<LayoutTemplate size={18} />}
         title={t('project_templates.title')}
         subtitle={t('project_templates.subtitle')}
-      showListExport={false}
+        showListExport={templates.length > 0}
+        exportTargetSelector='[data-export-table="project-templates-list"]'
+        exportFilePrefix='project_templates'
       />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
@@ -555,7 +557,7 @@ export default function ProjectTemplatesPage() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div data-export-table="project-templates-list" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {templates.map(tpl => (
             <TemplateCard
               key={tpl.id}

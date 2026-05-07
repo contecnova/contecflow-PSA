@@ -353,7 +353,14 @@ export default function ChangesPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<ArrowLeftRight size={18} />} title={t('changes.title')} subtitle={t('changes.subtitle')} showListExport={false} />
+      <PageHeader
+        icon={<ArrowLeftRight size={18} />}
+        title={t('changes.title')}
+        subtitle={t('changes.subtitle')}
+        showListExport={mainTab === 'changes' && ((tab === 'project' && crs.length > 0) || (tab === 'pending' && allPending.length > 0))}
+        exportTargetSelector='[data-export-table="changes-list"]'
+        exportFilePrefix='changes'
+      />
       <Tabs
         items={[
           { id: 'changes', label: '🔀 Control de cambios' },
@@ -408,7 +415,7 @@ export default function ChangesPage() {
           ) : isLoading ? <Spinner /> : crs.length === 0 ? (
             <EmptyState icon="✅" title="Sin solicitudes de cambio" description="Este proyecto no tiene CRs registradas" />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div data-export-table="changes-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {crs.map(cr => {
                 const impact = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
                 return (
@@ -457,7 +464,7 @@ export default function ChangesPage() {
         allPending.length === 0 ? (
           <EmptyState icon="✅" title="Sin pendientes" description="No hay solicitudes de cambio pendientes de revision" />
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div data-export-table="changes-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {allPending.map(cr => {
               const impact = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
               return (

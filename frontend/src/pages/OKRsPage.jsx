@@ -366,7 +366,9 @@ export default function OKRsPage() {
             </Button>
           </div>
         }
-      showListExport={false}
+        showListExport={objectives.length > 0}
+        exportTargetSelector='[data-export-table="okrs-list"]'
+        exportFilePrefix='okrs'
       />
 
       {/* KPI cards */}
@@ -388,14 +390,16 @@ export default function OKRsPage() {
       {isLoading ? <Spinner /> : objectives.length === 0 ? (
         <EmptyState icon="🎯" title="Sin objetivos" description="Crea tu primer OKR para alinear al equipo" />
       ) : (
-        objectives.map(obj => (
-          <ObjectiveCard key={obj.id} obj={obj}
-            onEdit={o => { setEditingObj(o); setShowObjModal(true) }}
-            onAddKR={setAddKRFor}
-            onDeleteObj={id => { openConfirmGlobal({ message: '¿Eliminar este objetivo y todos sus KRs?', onConfirm: () => deleteObj(id), danger: true }) }}
-            onDeleteKR={id => { openConfirmGlobal({ message: '¿Eliminar este KR?', onConfirm: () => deleteKR(id), danger: true }) }}
-          />
-        ))
+        <div data-export-table="okrs-list" style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {objectives.map(obj => (
+            <ObjectiveCard key={obj.id} obj={obj}
+              onEdit={o => { setEditingObj(o); setShowObjModal(true) }}
+              onAddKR={setAddKRFor}
+              onDeleteObj={id => { openConfirmGlobal({ message: '¿Eliminar este objetivo y todos sus KRs?', onConfirm: () => deleteObj(id), danger: true }) }}
+              onDeleteKR={id => { openConfirmGlobal({ message: '¿Eliminar este KR?', onConfirm: () => deleteKR(id), danger: true }) }}
+            />
+          ))}
+        </div>
       )}
 
       {showObjModal && (

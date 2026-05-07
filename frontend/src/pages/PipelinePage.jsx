@@ -437,7 +437,14 @@ export default function PipelinePage() {
 
   return (
     <PageShell style={{ display: 'grid', gap: 18 }}>
-      <PageHeader icon={<Megaphone size={18} />} title={t('pipeline.title')} subtitle={t('pipeline.subtitle')} showListExport={false} />
+      <PageHeader
+        icon={<Megaphone size={18} />}
+        title={t('pipeline.title')}
+        subtitle={t('pipeline.subtitle')}
+        showListExport={filtered.length > 0}
+        exportTargetSelector='[data-export-table="pipeline-list"]'
+        exportFilePrefix='pipeline'
+      />
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <SummaryCard label={t('pipeline.total_pipeline')} value={fmtCurrency(summary.totalRevenue)} tone="var(--accent)" />
@@ -496,7 +503,7 @@ export default function PipelinePage() {
       ) : null}
 
       {!isLoading && !isError && filtered.length > 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, alignItems: 'start' }}>
+        <div data-export-table="pipeline-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, alignItems: 'start' }}>
           {STAGES.map((stage) => {
             const opportunities = grouped[stage] || []
             const totalStageRevenue = opportunities.reduce((acc, item) => acc + (item.expected_revenue || 0), 0)

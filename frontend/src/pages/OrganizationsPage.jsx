@@ -97,7 +97,14 @@ export default function OrganizationsPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<Building2 size={18} />} title={t('organizations.title')} subtitle={t('organizations.subtitle')} showListExport={false} />
+      <PageHeader
+        icon={<Building2 size={18} />}
+        title={t('organizations.title')}
+        subtitle={t('organizations.subtitle')}
+        showListExport={orgs.length > 0}
+        exportTargetSelector='[data-export-table="organizations-list"]'
+        exportFilePrefix='organizations'
+      />
       <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:24, fontSize: "var(--text-base)", color:'var(--accent)' }}>
         Cada organización tiene sus propios usuarios, proyectos y datos aislados. Esta arquitectura permite ofrecer Contecflow como SaaS multi-empresa.
       </div>
@@ -110,7 +117,7 @@ export default function OrganizationsPage() {
           {isLoading ? <Spinner /> : orgs.length === 0 ? (
             <EmptyState icon="🏢" title="Sin organizaciones" description="Crea la primera organizacion para gestionar entornos aislados" />
           ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <div data-export-table="organizations-list" style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {orgs.map(o => (
                 <div key={o.id} onClick={() => setSelected(selected===o.id?null:o.id)}
                   role="button" tabIndex={0}
