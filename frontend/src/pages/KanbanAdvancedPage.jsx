@@ -518,9 +518,9 @@ export default function KanbanAdvancedPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 52px)', background: 'var(--surface-0)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 52px)', background: 'var(--surface-0)', maxWidth: 'var(--page-max-w)', width: '100%' }}>
       {/* Header */}
-      <div style={{ padding: '16px 24px 8px', flexShrink: 0 }}>
+      <div style={{ padding: '16px 32px 8px', flexShrink: 0 }}>
         <PageHeader
         icon={<LayoutGrid size={18} />}
           title={t('kanban.title')}
@@ -535,7 +535,7 @@ export default function KanbanAdvancedPage() {
       </div>
 
       {/* Filter bar */}
-      <div style={{ padding: '0 24px 12px', display: 'flex', gap: 8, flexWrap: 'wrap', flexShrink: 0, alignItems: 'center' }}>
+      <div style={{ padding: '0 32px 12px', display: 'flex', gap: 8, flexWrap: 'wrap', flexShrink: 0, alignItems: 'center' }}>
         <input
           ref={searchRef}
           value={search}
@@ -622,7 +622,7 @@ export default function KanbanAdvancedPage() {
 
       {/* Settings panel */}
       {showSettings && (
-        <div style={{ padding: '12px 24px', background: 'var(--surface-1)', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
+        <div style={{ padding: '12px 32px', background: 'var(--surface-1)', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 10 }}>{t('kanban.wip_limits')}</div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {defaultColumns.map(col => (
@@ -656,7 +656,7 @@ export default function KanbanAdvancedPage() {
           <EmptyState icon="📋" title={t('kanban.empty_title')} description={t('kanban.empty_desc')} />
         </div>
       ) : (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 24px' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '0 32px 24px' }}>
           {swimlanes.map(lane => (
             swimlaneBy === 'none' ? (
               <div key={lane.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', paddingTop: 4 }}>

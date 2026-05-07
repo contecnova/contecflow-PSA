@@ -213,6 +213,7 @@ export function DashPageShell({
             ))}
           </div>
         ) : undefined}
+        showListExport={false}
       />
       {children}
     </PageShell>

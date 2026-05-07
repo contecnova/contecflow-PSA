@@ -61,7 +61,7 @@ export default function CumulativeFlowPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<TrendingUp size={18} />} title={t('cumulative_flow.title')} subtitle={t('cumulative_flow.subtitle')}/>
+      <PageHeader icon={<TrendingUp size={18} />} title={t('cumulative_flow.title')} subtitle={t('cumulative_flow.subtitle')} showListExport={Boolean(project && data.length > 0)}/>
 
       {/* Controles */}
       <div style={{...ps,marginBottom:20}}>

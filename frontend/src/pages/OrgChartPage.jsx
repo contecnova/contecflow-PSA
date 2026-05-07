@@ -692,6 +692,7 @@ export default function OrgChartPage() {
         icon={<Network size={18} />}
         title="Organigrama"
         subtitle={_t('org_chart.subtitle', { total })}
+        showListExport={tab !== 'arbol'}
       />
 
       {/* Tabs */}
