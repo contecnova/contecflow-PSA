@@ -26,6 +26,8 @@ DEFAULT_SETTINGS = {
     "work_days_per_week": ("5", "Días laborales por semana"),
     "budget_alert_threshold": ("90", "% presupuesto para alertas"),
     "overload_threshold": ("100", "% carga para alerta de sobrecarga"),
+    "idle_timeout_enabled": ("false", "Cierre de sesión por inactividad (true/false)"),
+    "idle_timeout_minutes": ("30", "Minutos de inactividad antes de cerrar sesión"),
 }
 
 DEFAULT_PROJECT_TYPES = [

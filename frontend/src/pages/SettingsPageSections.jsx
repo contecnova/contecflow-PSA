@@ -46,7 +46,7 @@ const LABELS = {
 // Settings cuya key empieza por estos prefijos son estado interno de servicios BI/ITSM
 // (no deben aparecer en la página de Configuración general porque son JSON serializado).
 const INTERNAL_KEY_PREFIXES = [
-  'bi.', 'sd.', 'olap.', 'ml_', '_', 'cache_', 'feedback_', 'lineage_', 'embed_',
+  'bi.', 'sd.', 'olap.', 'ml_', '_', 'cache_', 'feedback_', 'lineage_', 'embed_', 'idle_timeout_',
 ]
 const isUserFacingSetting = (key) => {
   if (!key) return false
@@ -1522,8 +1522,105 @@ function ESignSettingsSection() {
   )
 }
 
+// ── Session security ──────────────────────────────────────────────────────────
+const IDLE_TIMEOUT_OPTIONS = [5, 10, 15, 30, 60, 120, 240]
+
+function SessionSecuritySection() {
+  const qc = useQueryClient()
+  const toast = useToast()
+
+  const { data: settings = [] } = useQuery({
+    queryKey: ['settings-general'],
+    queryFn: () => settingsApi.getGeneral().then(r => r.data),
+  })
+  const { mutate: update } = useMutation({
+    mutationFn: ({ key, value }) => settingsApi.updateSetting(key, value),
+    onSuccess: () => qc.invalidateQueries(['settings-general']),
+    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+  })
+
+  const find = (k) => settings.find(s => s.key === k)?.value
+  const idleEnabled = find('idle_timeout_enabled') === 'true'
+  const idleMinutes = parseInt(find('idle_timeout_minutes') || '30', 10)
+
+  return (
+    <Section icon="🔒" title="Seguridad de sesión" description="Controla el cierre automático por inactividad">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 520 }}>
+
+        {/* Toggle idle timeout */}
+        <div style={{
+          background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+          borderRadius: 10, padding: '16px 20px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+        }}>
+          <div>
+            <div style={{ fontWeight: 700, color: 'var(--text-1)', fontSize: 'var(--text-sm)' }}>
+              Cierre de sesión por inactividad
+            </div>
+            <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)', marginTop: 2 }}>
+              Cierra la sesión automáticamente si el usuario no tiene actividad
+            </div>
+          </div>
+          <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, flexShrink: 0, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={idleEnabled}
+              onChange={e => update({ key: 'idle_timeout_enabled', value: e.target.checked ? 'true' : 'false' })}
+              style={{ opacity: 0, width: 0, height: 0 }}
+            />
+            <span style={{
+              position: 'absolute', inset: 0, borderRadius: 24, cursor: 'pointer', transition: '.2s',
+              background: idleEnabled ? 'var(--accent)' : 'var(--surface-4)',
+            }}>
+              <span style={{
+                position: 'absolute', left: idleEnabled ? 22 : 2, top: 2,
+                width: 20, height: 20, borderRadius: '50%',
+                background: 'var(--surface-0)', transition: '.2s',
+              }} />
+            </span>
+          </label>
+        </div>
+
+        {/* Timeout duration selector */}
+        <div style={{
+          background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+          borderRadius: 10, padding: '16px 20px',
+          opacity: idleEnabled ? 1 : 0.45,
+          pointerEvents: idleEnabled ? 'auto' : 'none',
+        }}>
+          <label style={ls}>Minutos de inactividad antes de cerrar sesión</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+            {IDLE_TIMEOUT_OPTIONS.map(m => (
+              <button
+                key={m}
+                onClick={() => update({ key: 'idle_timeout_minutes', value: String(m) })}
+                style={{
+                  padding: '6px 16px', borderRadius: 8, cursor: 'pointer',
+                  fontWeight: m === idleMinutes ? 700 : 400,
+                  fontSize: 'var(--text-sm)',
+                  background: m === idleMinutes ? 'var(--accent)' : 'var(--surface-3)',
+                  color: m === idleMinutes ? 'var(--surface-0)' : 'var(--text-2)',
+                  border: m === idleMinutes ? '1px solid var(--accent)' : '1px solid var(--surface-4)',
+                  transition: 'all .15s',
+                }}
+              >
+                {m < 60 ? `${m} min` : `${m / 60}h`}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 10 }}>
+            Se mostrará un aviso 60 segundos antes de cerrar la sesión.
+          </div>
+        </div>
+
+      </div>
+    </Section>
+  )
+}
+
 export {
   GeneralSection,
+  SessionSecuritySection,
   UsersSection,
   RolesSection,
   AlertConfigSection,

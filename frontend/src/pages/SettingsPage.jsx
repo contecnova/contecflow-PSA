@@ -7,6 +7,7 @@ import { useAppLang } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 import {
   GeneralSection,
+  SessionSecuritySection,
   UsersSection,
   RolesSection,
   AlertConfigSection,
@@ -30,6 +31,7 @@ const TAB_GROUPS = [
     label: 'Personal',
     tabs: [
       { id: 'general',      label: 'General',        roles: ['admin'] },
+      { id: 'session',      label: 'Sesión',         roles: ['admin'] },
       { id: 'users',        label: 'Usuarios',       roles: ['admin', 'hr'] },
       { id: 'vacations',    label: 'Vacaciones',     roles: ['admin', 'hr'] },
       { id: 'depts',        label: 'Departamentos',  roles: ['admin', 'hr'] },
@@ -99,6 +101,7 @@ export default function SettingsPage() {
       </div>
 
       {activeTab === 'general'       && <GeneralSection />}
+      {activeTab === 'session'       && <SessionSecuritySection />}
       {activeTab === 'users'         && <UsersSection />}
       {activeTab === 'roles'         && <RolesSection />}
       {activeTab === 'alert-config'  && <AlertConfigSection />}
