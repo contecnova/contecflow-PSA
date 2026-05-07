@@ -3,7 +3,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { developerAppsApi } from '../services/api'
 import { Button, Modal, EmptyState, Spinner } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -48,8 +48,8 @@ function AppModal({ app, onClose }) {
     mutationFn: (data) => {
       const payload = { ...data, redirect_uris: data.redirect_uris.split('\n').map(u => u.trim()).filter(Boolean) }
       return isEdit
-        ? api.patch(`/developer/apps/${app.id}`, payload).then(r => r.data)
-        : api.post('/developer/apps', payload).then(r => r.data)
+        ? developerAppsApi.update(app.id, payload).then(r => r.data)
+        : developerAppsApi.create(payload).then(r => r.data)
     },
     onSuccess: (saved) => {
       qc.invalidateQueries(['developer-apps'])
@@ -132,7 +132,7 @@ function AppDetail({ app, onClose, onRotated }) {
   const toast = useToast()
   const t = useAppT()
   const { mutate: rotate, isPending: rotating } = useMutation({
-    mutationFn: () => api.post(`/developer/apps/${app.id}/rotate-secret`).then(r => r.data),
+    mutationFn: () => developerAppsApi.rotateSecret(app.id).then(r => r.data),
     onSuccess: (data) => onRotated(data),
     onError: e => toast.error(extractErr(e, t('developer.secret_rotated_error'))),
   })
@@ -196,11 +196,11 @@ export default function DeveloperPortalPage() {
 
   const { data: apps = [], isLoading } = useQuery({
     queryKey: ['developer-apps'],
-    queryFn: () => api.get('/developer/apps').then(r => r.data),
+    queryFn: () => developerAppsApi.list().then(r => r.data),
   })
 
   const { mutate: deleteApp } = useMutation({
-    mutationFn: (id) => api.delete(`/developer/apps/${id}`),
+    mutationFn: (id) => developerAppsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries(['developer-apps']); toast.success(t('developer.app_deleted')) },
     onError: e => toast.error(extractErr(e, t('developer.app_delete_error'))),
   })

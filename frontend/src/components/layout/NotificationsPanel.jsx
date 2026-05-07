@@ -4,7 +4,7 @@
  */
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { enterpriseApi } from '../../services/api'
 
 export default function NotificationsPanel() {
   const [open, setOpen] = useState(false)
@@ -13,7 +13,7 @@ export default function NotificationsPanel() {
 
   const { data, refetch } = useQuery({
     queryKey: ['notifications'],
-    queryFn: () => api.get('/enterprise/notifications', { params: { page_size: 15 } }).then(r => r.data),
+    queryFn: () => enterpriseApi.notifications({ page_size: 15 }).then(r => r.data),
     refetchInterval: 30000,
   })
 
@@ -21,11 +21,11 @@ export default function NotificationsPanel() {
   const unreadCount = data?.unread_count || 0
 
   const { mutate: markRead } = useMutation({
-    mutationFn: id => api.post(`/enterprise/notifications/${id}/read`),
+    mutationFn: id => enterpriseApi.markNotificationRead(id),
     onSuccess: () => qc.invalidateQueries(['notifications']),
   })
   const { mutate: markAll } = useMutation({
-    mutationFn: () => api.post('/enterprise/notifications/read-all'),
+    mutationFn: () => enterpriseApi.markAllNotificationsRead(),
     onSuccess: () => qc.invalidateQueries(['notifications']),
   })
 
@@ -181,7 +181,7 @@ export default function NotificationsPanel() {
           {notifications.length > 0 && (
             <div style={{ padding: '10px 18px', borderTop: '1px solid var(--surface-4)', textAlign: 'center' }}>
               <button
-                onClick={() => { api.delete('/enterprise/notifications/clear-old', { params: { days: 90 } }).then(() => qc.invalidateQueries(['notifications'])) }}
+                onClick={() => { enterpriseApi.clearOldNotifications({ days: 90 }).then(() => qc.invalidateQueries(['notifications'])) }}
                 style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 Limpiar notificaciones leídas (+90d)
               </button>

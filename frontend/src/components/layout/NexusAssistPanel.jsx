@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { nexusAgentApi } from '../../services/api'
 import { useConfirm } from '../../context/ConfirmContext'
 
 const LAST_CONV_KEY = 'nexusassist_last_conversation_id'
@@ -38,12 +38,12 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
 
   const { data: conversations = [] } = useQuery({
     queryKey: ['ai-conversations'],
-    queryFn: () => api.get('/ai/conversations').then(r => r.data),
+    queryFn: () => nexusAgentApi.listConversations().then(r => r.data),
     enabled: open,
   })
 
   const { mutate: clearHistory, isPending: isClearingHistory } = useMutation({
-    mutationFn: () => api.delete('/ai/conversations').then(r => r.data),
+    mutationFn: () => nexusAgentApi.deleteConversations().then(r => r.data),
     onSuccess: () => {
       localStorage.removeItem(LAST_CONV_KEY)
       setConvId(null)
@@ -82,7 +82,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
 
     const restore = async () => {
       try {
-        const { data } = await api.get(`/ai/conversations/${storedId}`)
+        const { data } = await nexusAgentApi.getConversation(storedId)
         setConvId(storedId)
         setMessages(data.messages || [])
       } catch {
@@ -100,7 +100,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
     const userText = text.trim(); setInput(''); setLoading(true)
     setMessages(prev => [...prev, { role: 'user', content: userText }])
     try {
-      const { data } = await api.post('/ai/chat', { message: userText, conversation_id: convId, context: context || undefined })
+      const { data } = await nexusAgentApi.chat({ message: userText, conversation_id: convId, context: context || undefined })
       setConvId(data.conversation_id)
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
       qc.invalidateQueries(['ai-conversations'])
@@ -111,7 +111,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
   }
 
   const loadConv = async (id) => {
-    const { data } = await api.get(`/ai/conversations/${id}`)
+    const { data } = await nexusAgentApi.getConversation(id)
     setConvId(id); setMessages(data.messages || [])
   }
 

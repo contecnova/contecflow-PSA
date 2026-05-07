@@ -4,7 +4,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { biO365Api } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { Cloud, RefreshCw, Settings } from 'lucide-react'
@@ -36,7 +36,7 @@ export default function BiO365Panel() {
 
   const { data: config } = useQuery({
     queryKey: ['bi-o365-config'],
-    queryFn:  () => api.get('/bi/o365/config').then(r => r.data),
+    queryFn:  () => biO365Api.getConfig().then(r => r.data),
     onSuccess: (d) => {
       if (!configLoaded) {
         setConfigForm({ tenant_id: d.tenant_id ?? '', client_id: d.client_id ?? '', client_secret: '', enabled: d.enabled ?? true })
@@ -47,23 +47,23 @@ export default function BiO365Panel() {
 
   const { data: reportData } = useQuery({
     queryKey: ['bi-o365-report', selectedReport],
-    queryFn:  () => api.get(`/bi/o365/reports/${selectedReport}`).then(r => r.data),
+    queryFn:  () => biO365Api.getReport(selectedReport).then(r => r.data),
     enabled:  tab === 'reports',
   })
 
   const { data: adoptionData } = useQuery({
     queryKey: ['bi-o365-adoption'],
-    queryFn:  () => api.get('/bi/o365/adoption').then(r => r.data),
+    queryFn:  () => biO365Api.getAdoption().then(r => r.data),
     enabled:  tab === 'adoption',
   })
 
   const saveConfigMutation = useMutation({
-    mutationFn: (data) => api.put('/bi/o365/config', data).then(r => r.data),
+    mutationFn: (data) => biO365Api.saveConfig(data).then(r => r.data),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-o365-config'] }),
   })
 
   const syncMutation = useMutation({
-    mutationFn: () => api.post('/bi/o365/sync', { client_secret: configForm.client_secret }).then(r => r.data),
+    mutationFn: () => biO365Api.triggerSync({ client_secret: configForm.client_secret }).then(r => r.data),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-o365-report', selectedReport] }),
   })
 

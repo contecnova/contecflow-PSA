@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Spinner, EmptyState, useSort, SortableTH } from '../../components/ui'
-import api from '../../services/api'
+import { ticketsApi } from '../../services/api'
 import { COLOR } from '../../constants/theme'
 import { PBadge, SBadge, fmtDate, PRIORITY_LABEL } from './sdUtils'
 
@@ -49,14 +49,12 @@ export default function TicketListTab({ queueOnly, onSelect }) {
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['sd-tickets', queueOnly, filterPrio, filterStatus, filterType],
     queryFn: () => {
-      if (queueOnly) return api.get('/sd/tickets/my-queue').then(r => r.data)
-      return api.get('/sd/tickets', {
-        params: {
-          priority: filterPrio || undefined,
-          status: filterStatus || undefined,
-          ticket_type: filterType || undefined,
-          page_size: 100,
-        },
+      if (queueOnly) return ticketsApi.myQueue().then(r => r.data)
+      return ticketsApi.list({
+        priority: filterPrio || undefined,
+        status: filterStatus || undefined,
+        ticket_type: filterType || undefined,
+        page_size: 100,
       }).then(r => {
         const d = r.data
         return Array.isArray(d) ? d : (d?.tickets || d?.items || [])

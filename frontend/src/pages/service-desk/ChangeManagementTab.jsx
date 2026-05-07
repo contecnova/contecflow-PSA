@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { extractErr } from '../../utils/helpers'
 import { useToast } from '../../context/ToastContext'
-import api from '../../services/api'
+import { changesApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
 
@@ -29,7 +29,7 @@ function fmtDate(d) {
 function ChangeDetailPanel({ change, onClose, onEdit, onAction, statusActions }) {
   const { data: detail, isLoading } = useQuery({
     queryKey: ['sd-change-detail', change.id],
-    queryFn: () => api.get(`/sd/changes/${change.id}`).then(r => r.data),
+    queryFn: () => changesApi.get(change.id).then(r => r.data),
   })
 
   const c = detail || change
@@ -122,7 +122,7 @@ function ChangeEditModal({ change, onClose, onSaved }) {
     downtime_minutes: change.downtime_minutes || 0,
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: data => api.patch(`/sd/changes/${change.id}`, data),
+    mutationFn: data => changesApi.update(change.id, data),
     onSuccess: onSaved,
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
@@ -158,7 +158,7 @@ function NewChangeModal({ onClose, onSaved }) {
     title: '', description: '', change_type: 'normal', risk: 'medium', priority: 'p3_medium', business_justification: '', implementation_plan: '', rollback_plan: '', test_plan: '', planned_start: '', planned_end: '',
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: data => api.post('/sd/changes', data),
+    mutationFn: data => changesApi.create(data),
     onSuccess: onSaved,
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -194,11 +194,11 @@ export default function ChangeManagementTab() {
 
   const { data: changes = [], isLoading } = useQuery({
     queryKey: ['sd-changes', filterStatus],
-    queryFn: () => api.get('/sd/changes', { params: { status: filterStatus || undefined } }).then(r => r.data),
+    queryFn: () => changesApi.list({ status: filterStatus || undefined }).then(r => r.data),
   })
 
   const { mutate: approve } = useMutation({
-    mutationFn: ({ id, approved }) => api.post(`/sd/changes/${id}/approve`, { approved }),
+    mutationFn: ({ id, approved }) => changesApi.approve(id, { approved }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-changes'] }); toast.success('Change actualizado') },
     onError: e => toast.error(extractErr(e, 'Error al actualizar')),
   })
@@ -220,7 +220,7 @@ export default function ChangeManagementTab() {
   const handleAction = (c, action) => {
     if (action.action === 'approve') { approve({ id: c.id, approved: true }); return }
     if (action.action === 'reject') { approve({ id: c.id, approved: false }); return }
-    api.patch(`/sd/changes/${c.id}`, { status: action.next })
+    changesApi.update(c.id, { status: action.next })
       .then(() => { qc.invalidateQueries({ queryKey: ['sd-changes'] }); toast.success('Estado actualizado') })
       .catch(e => toast.error(extractErr(e, 'Error')))
   }

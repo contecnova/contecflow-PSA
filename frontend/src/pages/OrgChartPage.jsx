@@ -9,7 +9,7 @@ import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
-import api from '../services/api'
+import { usersApi } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -52,11 +52,11 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }) {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await api.patch(`/users/${user.id}`, {
+      await usersApi.update(user.id, {
         job_title: jobTitle || undefined,
         department: department || undefined,
       })
-      await api.patch(`/users/${user.id}/manager`, { manager_id: managerId || null })
+      await usersApi.updateManager(user.id, { manager_id: managerId || null })
       toast.success('Posición actualizada')
       onSaved()
     } catch (e) {
@@ -453,10 +453,10 @@ function AprobacionesTab({ allUsers }) {
 
   const { data: chain } = useQuery({
     queryKey: ['approval-chain', selectedUserId],
-    queryFn: () => api.get(
+    queryFn: () => (
       selectedUserId
-        ? `/users/${selectedUserId}/approval-chain`
-        : '/users/me/approval-chain'
+        ? usersApi.approvalChain(selectedUserId)
+        : usersApi.myApprovalChain()
     ).then(r => r.data),
     enabled: true,
     staleTime: 10000,
@@ -667,13 +667,13 @@ export default function OrgChartPage() {
 
   const { data: chartData, isLoading: loadingChart } = useQuery({
     queryKey: ['org-chart'],
-    queryFn: () => api.get('/users/org-chart').then(r => r.data),
+    queryFn: () => usersApi.orgChart().then(r => r.data),
     staleTime: 30000,
   })
 
   const { data: allUsers = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => api.get('/users').then(r => r.data),
+    queryFn: () => usersApi.list().then(r => r.data),
     staleTime: 30000,
   })
 

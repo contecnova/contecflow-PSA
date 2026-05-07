@@ -5,7 +5,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { Button, Spinner, Modal, useSort, SortableTH } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
-import api from '../../services/api'
+import { majorIncidentsApi } from '../../services/api'
 import { fmtDate } from './sdUtils'
 
 function DeclareMIModal({ onClose, onSaved }) {
@@ -14,7 +14,7 @@ function DeclareMIModal({ onClose, onSaved }) {
   const idPrefix = useId()
   const [form, setForm] = useState({ title: '', severity: 'P1', impact_statement: '' })
   const { mutate, isPending } = useMutation({
-    mutationFn: data => api.post('/sd/major-incidents', data),
+    mutationFn: data => majorIncidentsApi.create(data),
     onSuccess: onSaved,
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -71,7 +71,7 @@ export default function MajorIncidentsTab() {
 
   const { data: mis = [], isLoading } = useQuery({
     queryKey: ['sd-major-incidents'],
-    queryFn: () => api.get('/sd/major-incidents').then(r => r.data),
+    queryFn: () => majorIncidentsApi.list().then(r => r.data),
     refetchInterval: 30000,
   })
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { oracleApi, aiProvidersApi } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -37,16 +37,16 @@ export default function OraclePage() {
 
   const { data: preds = [], isLoading } = useQuery({
     queryKey: ['oracle-preds'],
-    queryFn: () => api.get('/oracle/predictions?only_unacked=false').then(r => r.data),
+    queryFn: () => oracleApi.predictions({ only_unacked: false }).then(r => r.data),
   })
   const { data: providers = [] } = useQuery({
     queryKey: ['ai-providers'],
-    queryFn: () => api.get('/ai-providers').then(r => r.data),
+    queryFn: () => aiProvidersApi.list().then(r => r.data),
   })
   const defaultProvider = providers.find(p => p.is_default) || providers[0]
 
   const { mutate: runOracle, isPending: running } = useMutation({
-    mutationFn: () => api.post('/oracle/run').then(r => r.data),
+    mutationFn: () => oracleApi.run().then(r => r.data),
     onSuccess: data => {
       qc.invalidateQueries(['oracle-preds'])
       setAnalysis(data)
@@ -54,7 +54,7 @@ export default function OraclePage() {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: ack } = useMutation({
-    mutationFn: id => api.post(`/oracle/predictions/${id}/acknowledge`),
+    mutationFn: id => oracleApi.acknowledge(id),
     onSuccess: () => qc.invalidateQueries(['oracle-preds']),
     onError: e => toast.error(extractErr(e, 'Error'))
   })

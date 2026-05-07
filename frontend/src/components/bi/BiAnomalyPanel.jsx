@@ -4,7 +4,7 @@
  */
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import api from '../../services/api'
+import { biAnomalyApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { AlertTriangle, TrendingDown } from 'lucide-react'
 
@@ -43,16 +43,16 @@ export default function BiAnomalyPanel() {
 
   const { data: infoData } = useQuery({
     queryKey: ['bi-anomaly-info'],
-    queryFn: () => api.get('/bi/anomaly/info').then(r => r.data),
+    queryFn: () => biAnomalyApi.getInfo().then(r => r.data),
   })
 
   const anomalyMutation = useMutation({
-    mutationFn: (payload) => api.post('/bi/anomaly/detect', payload).then(r => r.data),
+    mutationFn: (payload) => biAnomalyApi.detect(payload).then(r => r.data),
     onSuccess: setAnomalyResult,
   })
 
   const churnMutation = useMutation({
-    mutationFn: (payload) => api.post('/bi/churn/predict', payload).then(r => r.data),
+    mutationFn: (payload) => biAnomalyApi.churnPredict(payload).then(r => r.data),
     onSuccess: setChurnResult,
   })
 

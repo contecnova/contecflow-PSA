@@ -5,7 +5,7 @@
 import _React, { useState, useRef, useCallback } from 'react';
 import { openConfirmGlobal } from '../context/ConfirmContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../services/api';
+import { documentsApi } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { extractErr } from '../utils/helpers';
 import { Upload, Download, Trash2, Plus, Sparkles, Loader, X } from 'lucide-react';
@@ -66,10 +66,10 @@ function resolveQueryKey(projectId, taskId, ticketId) {
   return ['docs-project', projectId];
 }
 
-function resolveApiPath(projectId, taskId, ticketId) {
-  if (taskId) return `/documents/by-task/${taskId}`;
-  if (ticketId) return `/documents/by-ticket/${ticketId}`;
-  return `/documents/by-project/${projectId}`;
+function resolveApiFn(projectId, taskId, ticketId) {
+  if (taskId) return () => documentsApi.byTask(taskId);
+  if (ticketId) return () => documentsApi.byTicket(ticketId);
+  return () => documentsApi.byProject(projectId);
 }
 
 export default function DocumentsPanel({ projectId, taskId, ticketId, _compact = false }) {
@@ -84,11 +84,11 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
   const [dragOver, setDragOver] = useState(false);
 
   const qKey = resolveQueryKey(projectId, taskId, ticketId);
-  const apiPath = resolveApiPath(projectId, taskId, ticketId);
+  const apiFn = resolveApiFn(projectId, taskId, ticketId);
 
   const { data: docs = [], isLoading } = useQuery({
     queryKey: qKey,
-    queryFn: () => api.get(apiPath).then(r => r.data),
+    queryFn: () => apiFn().then(r => r.data),
     enabled: !!(projectId || taskId || ticketId),
   });
 
@@ -101,7 +101,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
       if (projectId) fd.append('project_id', String(projectId));
       if (taskId)    fd.append('task_id',    String(taskId));
       if (ticketId)  fd.append('ticket_id',  String(ticketId));
-      return api.post('/documents/upload', fd);
+      return documentsApi.upload(fd);
     },
     onSuccess: () => {
       toast.success(t('documents_panel.uploaded_ok'));
@@ -112,13 +112,13 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
   });
 
   const deleteMutation = useMutation({
-    mutationFn: id => api.delete(`/documents/${id}`),
+    mutationFn: id => documentsApi.delete(id),
     onSuccess: () => { toast.success(t('documents_panel.deleted_ok')); qc.invalidateQueries({ queryKey: qKey }); },
     onError: e => toast.error(extractErr(e, t('documents_panel.delete_error'))),
   });
 
   const summaryMutation = useMutation({
-    mutationFn: id => api.post(`/documents/${id}/ai-summary`),
+    mutationFn: id => documentsApi.aiSummary(id),
     onSuccess: () => { toast.success(t('documents_panel.ai_summary_saved')); qc.invalidateQueries({ queryKey: qKey }); },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   });

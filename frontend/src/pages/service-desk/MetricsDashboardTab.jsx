@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import api from '../../services/api'
+import { sdMetricsApi } from '../../services/api'
 import { Spinner, useSort, SortableTH } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
 import PageShell from '../../components/layout/PageShell'
@@ -301,7 +301,7 @@ export default function MetricsDashboardTab() {
     queryKey: ['sd-itil-metrics', days],
     queryFn: () => {
       const { d_from, d_to } = dateRange(days)
-      return api.get('/sd/metrics/itil', { params: { date_from: d_from, date_to: d_to } }).then(r => r.data)
+      return sdMetricsApi.itil({ date_from: d_from, date_to: d_to }).then(r => r.data)
     },
     staleTime: 60_000,
   })
@@ -310,7 +310,7 @@ export default function MetricsDashboardTab() {
     queryKey: ['sd-agent-perf', days],
     queryFn: () => {
       const { d_from, d_to } = dateRange(days)
-      return api.get('/sd/metrics/agent-performance', { params: { date_from: d_from, date_to: d_to } }).then(r => r.data)
+      return sdMetricsApi.agentPerformance({ date_from: d_from, date_to: d_to }).then(r => r.data)
     },
     staleTime: 60_000,
   })

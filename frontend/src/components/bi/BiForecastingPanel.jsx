@@ -4,7 +4,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import api from '../../services/api'
+import { biForecastingApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { TrendingUp } from 'lucide-react'
@@ -32,11 +32,11 @@ export default function BiForecastingPanel() {
 
   const { data: metricsData } = useQuery({
     queryKey: ['bi-forecast-metrics'],
-    queryFn:  () => api.get('/bi/forecast/metrics').then(r => r.data),
+    queryFn:  () => biForecastingApi.listMetrics().then(r => r.data),
   })
 
   const forecastMutation = useMutation({
-    mutationFn: (payload) => api.post('/bi/forecast', payload).then(r => r.data),
+    mutationFn: (payload) => biForecastingApi.run(payload).then(r => r.data),
     onSuccess:  (data) => setForecastData(data),
   })
 

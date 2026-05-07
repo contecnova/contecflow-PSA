@@ -13,7 +13,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { problemsApi } from '../../services/api'
 import { Button, Spinner, Modal } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { COLOR } from '../../constants/theme'
@@ -67,13 +67,13 @@ function WizardStep({ problemId, state, onRefresh, onComplete }) {
   const [aiLoading, setAiLoading] = useState(false)
 
   const { mutate: submitStep, isPending: submitting } = useMutation({
-    mutationFn: () => api.post(`/sd/problems/${problemId}/rca-wizard/step`, { step: currentStep, answer }),
+    mutationFn: () => problemsApi.rcaWizardStep(problemId, { step: currentStep, answer }),
     onSuccess: () => { setAnswer(''); setAiHint(null); onRefresh() },
     onError: () => toast.error('Error al guardar respuesta'),
   })
 
   const { mutate: completeWizard, isPending: completing } = useMutation({
-    mutationFn: () => api.post(`/sd/problems/${problemId}/rca-wizard/complete`),
+    mutationFn: () => problemsApi.rcaWizardComplete(problemId),
     onSuccess: (res) => { toast.success('RCA completado y aplicado al problema'); onComplete(res.data) },
     onError: () => toast.error('Error al completar el wizard'),
   })
@@ -81,7 +81,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }) {
   const getAiHint = async () => {
     setAiLoading(true)
     try {
-      const res = await api.post(`/sd/problems/${problemId}/rca-wizard/ai-assist`, { step: currentStep })
+      const res = await problemsApi.rcaWizardAiAssist(problemId, { step: currentStep })
       setAiHint(res.data?.suggestion ?? res.data?.hint ?? 'Sin sugerencia disponible')
     } catch {
       toast.error('Error al obtener sugerencia IA')
@@ -174,13 +174,13 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }) {
 
   const { data: wizardState, isLoading, refetch } = useQuery({
     queryKey: ['rca-wizard', problem.id],
-    queryFn: () => api.get(`/sd/problems/${problem.id}/rca-wizard`).then(r => r.data).catch(() => ({ wizard: null })),
+    queryFn: () => problemsApi.rcaWizardGet(problem.id).then(r => r.data).catch(() => ({ wizard: null })),
     staleTime: 0,
     retry: false,
   })
 
   const { mutate: startWizard, isPending: starting } = useMutation({
-    mutationFn: (template) => api.post(`/sd/problems/${problem.id}/rca-wizard/start`, { template }),
+    mutationFn: (template) => problemsApi.rcaWizardStart(problem.id, { template }),
     onSuccess: () => refetch(),
     onError: () => toast.error('Error al iniciar el wizard'),
   })

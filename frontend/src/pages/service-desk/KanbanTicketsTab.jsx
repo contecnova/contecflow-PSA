@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { Spinner } from '../../components/ui'
-import api from '../../services/api'
+import { ticketsApi } from '../../services/api'
 
 const PRIO_COLOR = { p1_critical: '#f87171', p2_high: '#fb923c', p3_medium: '#4f8ef7', p4_low: '#34d399' }
 const PRIO_LABEL = { p1_critical: 'P1', p2_high: 'P2', p3_medium: 'P3', p4_low: 'P4' }
@@ -25,7 +25,7 @@ export default function KanbanTicketsTab({ onSelect }) {
 
   const { data: raw = {}, isLoading } = useQuery({
     queryKey: ['sd-tickets-kanban'],
-    queryFn: () => api.get('/sd/tickets', { params: { page_size: 200 } }).then(r => {
+    queryFn: () => ticketsApi.list({ page_size: 200 }).then(r => {
       const tickets = Array.isArray(r.data) ? r.data : (r.data?.tickets || [])
       const cols = {}
       KANBAN_COLS.forEach(c => { cols[c.id] = [] })
@@ -40,7 +40,7 @@ export default function KanbanTicketsTab({ onSelect }) {
   })
 
   const { mutate: moveTicket } = useMutation({
-    mutationFn: ({ id, status }) => api.patch(`/sd/tickets/${id}`, { status }),
+    mutationFn: ({ id, status }) => ticketsApi.update(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sd-tickets-kanban'] }),
     onError: e => toast.error(e?.response?.data?.detail || 'Error al mover ticket'),
   })

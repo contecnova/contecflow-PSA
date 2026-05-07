@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { X, ChevronRight, ChevronLeft, CheckCircle, ExternalLink, RefreshCw } from 'lucide-react'
-import api from '../../services/api'
+import { projectsApi, usersApi, slaSchedulesApi, sprintsApi, imputationsApi, onboardingApi } from '../../services/api'
 
 // ── Per-step rich metadata ────────────────────────────────────────────────────
 const STEP_META = {
@@ -23,7 +23,7 @@ const STEP_META = {
       'Asigna un PM — puede ser tú mismo para empezar.',
     ],
     verify: async () => {
-      const r = await api.get('/projects', { params: { page_size: 1 } })
+      const r = await projectsApi.list({ page_size: 1 })
       const data = r.data
       return Array.isArray(data) ? data.length > 0 : (data?.total || 0) > 0
     },
@@ -37,7 +37,7 @@ const STEP_META = {
       'Los empleados sólo ven sus propias tareas e imputaciones.',
     ],
     verify: async () => {
-      const r = await api.get('/users', { params: { page_size: 5 } })
+      const r = await usersApi.list({ page_size: 5 })
       const data = r.data
       const count = Array.isArray(data) ? data.length : (data?.total || 0)
       return count > 1  // más de 1 usuario = equipo configurado
@@ -53,7 +53,7 @@ const STEP_META = {
     ],
     verify: async () => {
       try {
-        const r = await api.get('/sla-schedules', { params: { page_size: 1 } })
+        const r = await slaSchedulesApi.list({ page_size: 1 })
         const data = r.data
         return Array.isArray(data) ? data.length > 0 : (data?.items?.length || 0) > 0
       } catch { return false }
@@ -69,7 +69,7 @@ const STEP_META = {
     ],
     verify: async () => {
       try {
-        const r = await api.get('/sprints', { params: { page_size: 1 } })
+        const r = await sprintsApi.list(undefined, { page_size: 1 })
         const data = r.data
         return Array.isArray(data) ? data.length > 0 : (data?.total || 0) > 0
       } catch { return false }
@@ -85,7 +85,7 @@ const STEP_META = {
     ],
     verify: async () => {
       try {
-        const r = await api.get('/imputations', { params: { page_size: 1 } })
+        const r = await imputationsApi.list({ page_size: 1 })
         const data = r.data
         return Array.isArray(data) ? data.length > 0 : (data?.total || 0) > 0
       } catch { return false }
@@ -102,17 +102,17 @@ export default function OnboardingWizard() {
 
   const { data: state, refetch } = useQuery({
     queryKey: ['onboarding'],
-    queryFn: () => api.get('/onboarding').then(r => r.data),
+    queryFn: () => onboardingApi.get().then(r => r.data),
     staleTime: 5000,
   })
 
   const { mutate: completeStep } = useMutation({
-    mutationFn: step_id => api.post('/onboarding/complete-step', { step_id }),
+    mutationFn: step_id => onboardingApi.completeStep({ step_id }),
     onSuccess: () => qc.invalidateQueries(['onboarding']),
   })
 
   const { mutate: dismiss } = useMutation({
-    mutationFn: () => api.post('/onboarding/dismiss'),
+    mutationFn: () => onboardingApi.dismiss(),
     onSuccess: () => qc.invalidateQueries(['onboarding']),
   })
 

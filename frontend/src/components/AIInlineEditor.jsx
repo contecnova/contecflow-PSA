@@ -19,7 +19,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import api from '../services/api';
+import { nexusAgentApi } from '../services/api';
 import { useAppT } from '../hooks/useAppT';
 
 const COMMANDS = [
@@ -131,7 +131,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
 
     setLoading(true);
     try {
-      const res = await api.post('/ai/chat', {
+      const res = await nexusAgentApi.chat({
         message: PROMPT_MAP[cmd](contextText || ''),
         context_type: 'inline_editor',
       });

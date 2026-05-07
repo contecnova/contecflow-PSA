@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import api from '../services/api'
+import { projectsApi, epicsApi } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -36,15 +36,15 @@ export default function CumulativeFlowPage() {
   const [project, setProject] = useState('')
   const [days,    setDays]    = useState(30)
 
-  const { data:projects=[] } = useQuery({queryKey:['projects'],queryFn:()=>api.get('/projects').then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
+  const { data:projects=[] } = useQuery({queryKey:['projects'],queryFn:()=>projectsApi.list().then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
   const { data:cfd,isLoading } = useQuery({
     queryKey:['cfd',project,days],
-    queryFn:()=>api.get('/epics/cfd', { params: { project_id: project, days } }).then(r=>r.data).catch(()=>null),
+    queryFn:()=>epicsApi.cfd({ project_id: project, days }).then(r=>r.data).catch(()=>null),
     enabled:!!project,
   })
 
   const { mutate:snapshot, isPending:snapping } = useMutation({
-    mutationFn: ()=>api.post('/epics/cfd/snapshot', null, { params: { project_id: project } }).then(r=>r.data),
+    mutationFn: ()=>epicsApi.cfdSnapshot(project).then(r=>r.data),
     onSuccess: ()=>{ qc.invalidateQueries(['cfd',project,days]); toast.info(t('cumulative_flow.snapshot_created')) },
     onError: e => toast.error(extractErr(e, t('cumulative_flow.snapshot_create_error'))),
   })

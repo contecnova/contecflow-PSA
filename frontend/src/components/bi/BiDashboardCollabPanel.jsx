@@ -18,7 +18,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { biCollaborationApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { MessageCircle, Eye, Share2, Plus, Trash2, Lock, CheckCircle, Clock, Bell, History } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
@@ -78,40 +78,36 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }) {
 
   const { data: commentsData, isLoading: commentsLoading } = useQuery({
     queryKey: ['bi-collab-comments', dashboardKey],
-    queryFn: () => api.get('/bi/collaboration/comments', {
-      params: { dashboard_key: dashboardKey, include_resolved: false },
-    }).then(r => r.data),
+    queryFn: () => biCollaborationApi.listComments({ dashboard_key: dashboardKey, include_resolved: false }).then(r => r.data),
   })
 
   const { data: viewsData, isLoading: viewsLoading } = useQuery({
     queryKey: ['bi-collab-views', dashboardKey],
-    queryFn: () => api.get('/bi/collaboration/shared-views').then(r => r.data),
+    queryFn: () => biCollaborationApi.listSharedViews().then(r => r.data),
     enabled: tab === 'views',
   })
 
   const { data: sharesData, isLoading: sharesLoading } = useQuery({
     queryKey: ['bi-collab-shares', dashboardKey],
-    queryFn: () => api.get(`/bi/collaboration/dashboards/${dashboardKey}/shares`).then(r => r.data),
+    queryFn: () => biCollaborationApi.listDashboardShares(dashboardKey).then(r => r.data),
     enabled: tab === 'shares',
   })
 
   const { data: versionsData, isLoading: versionsLoading } = useQuery({
     queryKey: ['bi-collab-versions', dashboardKey],
-    queryFn: () => api.get(`/bi/collaboration/dashboards/${dashboardKey}/versions`).then(r => r.data),
+    queryFn: () => biCollaborationApi.listDashboardVersions(dashboardKey).then(r => r.data),
     enabled: tab === 'versions',
   })
 
   const { data: notificationsData, isLoading: notificationsLoading } = useQuery({
     queryKey: ['bi-collab-notifications', dashboardKey],
-    queryFn: () => api.get('/bi/collaboration/notifications', {
-      params: { dashboard_key: dashboardKey, include_read: false },
-    }).then(r => r.data),
+    queryFn: () => biCollaborationApi.listNotifications({ dashboard_key: dashboardKey, include_read: false }).then(r => r.data),
     enabled: tab === 'notifications',
     refetchInterval: 15_000,
   })
 
   const addCommentMutation = useMutation({
-    mutationFn: (data) => api.post('/bi/collaboration/comments', data).then(r => r.data),
+    mutationFn: (data) => biCollaborationApi.createComment(data).then(r => r.data),
     onSuccess: () => {
       setNewComment('')
       qc.invalidateQueries({ queryKey: ['bi-collab-comments', dashboardKey] })
@@ -121,7 +117,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }) {
   })
 
   const resolveCommentMutation = useMutation({
-    mutationFn: (id) => api.patch(`/bi/collaboration/comments/${id}/resolve`).then(r => r.data),
+    mutationFn: (id) => biCollaborationApi.resolveComment(id).then(r => r.data),
     onSuccess: () => {
       toast.success('Comentario resuelto')
       qc.invalidateQueries({ queryKey: ['bi-collab-comments', dashboardKey] })
@@ -130,7 +126,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }) {
   })
 
   const saveViewMutation = useMutation({
-    mutationFn: (data) => api.post('/bi/collaboration/shared-views', data).then(r => r.data),
+    mutationFn: (data) => biCollaborationApi.createSharedView(data).then(r => r.data),
     onSuccess: () => {
       setViewName('')
       toast.success('Vista compartida guardada')
@@ -141,13 +137,13 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }) {
   })
 
   const toggleViewMutation = useMutation({
-    mutationFn: ({ id, active }) => api.patch(`/bi/collaboration/shared-views/${id}`, { active }).then(r => r.data),
+    mutationFn: ({ id, active }) => biCollaborationApi.patchSharedView(id, { active }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-collab-views', dashboardKey] }),
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al actualizar vista'),
   })
 
   const shareDashboardMutation = useMutation({
-    mutationFn: (data) => api.post(`/bi/collaboration/dashboards/${dashboardKey}/shares`, data).then(r => r.data),
+    mutationFn: (data) => biCollaborationApi.shareDashboard(dashboardKey, data).then(r => r.data),
     onSuccess: () => {
       setShareUserId('')
       setShareUserName('')
@@ -160,7 +156,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }) {
 
   const revokeShareMutation = useMutation({
     mutationFn: (shareId) =>
-      api.delete(`/bi/collaboration/dashboards/${dashboardKey}/shares/${shareId}`).then(r => r.data),
+      biCollaborationApi.revokeShare(dashboardKey, shareId).then(r => r.data),
     onSuccess: () => {
       toast.success('Acceso revocado')
       qc.invalidateQueries({ queryKey: ['bi-collab-shares', dashboardKey] })
@@ -170,7 +166,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }) {
 
   const restoreVersionMutation = useMutation({
     mutationFn: (versionId) =>
-      api.post(`/bi/collaboration/dashboards/${dashboardKey}/versions/${versionId}/restore`).then(r => r.data),
+      biCollaborationApi.restoreDashboardVersion(dashboardKey, versionId).then(r => r.data),
     onSuccess: () => {
       toast.success('Versión restaurada')
       qc.invalidateQueries({ queryKey: ['bi-collab-versions', dashboardKey] })
@@ -181,7 +177,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }) {
 
   const markNotificationReadMutation = useMutation({
     mutationFn: (notificationId) =>
-      api.patch(`/bi/collaboration/notifications/${notificationId}`, { is_read: true }).then(r => r.data),
+      biCollaborationApi.patchNotification(notificationId, { is_read: true }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] }),
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al marcar leída'),
   })

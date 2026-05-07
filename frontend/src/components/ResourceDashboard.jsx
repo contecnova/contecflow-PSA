@@ -3,7 +3,7 @@
  * Shows team availability, load scoring, and team health
  */
 import _React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import { resourcesApi } from '../services/api';
 
 const ResourceDashboard = () => {
   const [loadScoring, setLoadScoring] = useState([]);
@@ -19,8 +19,8 @@ const ResourceDashboard = () => {
     setLoading(true);
     try {
       const [loadRes, healthRes] = await Promise.all([
-        api.get('/resources/load-scoring'),
-        api.get('/resources/team-health'),
+        resourcesApi.loadScoring(),
+        resourcesApi.teamHealth(),
       ]);
       setLoadScoring(loadRes.data);
       setTeamHealth(healthRes.data);

@@ -9,7 +9,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { biCollaborationApi, biGovernanceAuditApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Shield, Plus, RefreshCw, ToggleLeft, ToggleRight, Trash2, Database, MessageCircle, Calendar, Zap, Clock } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
@@ -213,20 +213,18 @@ export default function BiGovernancePanel() {
 
   const { data: policiesData, isLoading: policiesLoading } = useQuery({
     queryKey: ['bi-gov-policies'],
-    queryFn: () => api.get('/bi/governance/rules').then(r => r.data).catch(() => ({})),
+    queryFn: () => biCollaborationApi.governanceRules().then(r => r.data).catch(() => ({})),
   })
 
   const { data: auditData, isLoading: auditLoading, refetch: refetchAudit } = useQuery({
     queryKey: ['bi-gov-audit', auditDays, auditUserFilter],
-    queryFn: () => api.get('/bi/governance/audit/access', {
-      params: { days: auditDays, ...(auditUserFilter ? { user_id: auditUserFilter } : {}) },
-    }).then(r => r.data).catch(() => ({ items: [] })),
+    queryFn: () => biGovernanceAuditApi.getAccessHistory({ days: auditDays, ...(auditUserFilter ? { user_id: auditUserFilter } : {}) }).then(r => r.data).catch(() => ({ items: [] })),
     enabled: tab === 'audit',
   })
 
   const { data: overviewData, isLoading: overviewLoading } = useQuery({
     queryKey: ['bi-gov-overview'],
-    queryFn: () => api.get('/bi/governance/overview').then(r => r.data).catch(() => null),
+    queryFn: () => biCollaborationApi.governanceOverview().then(r => r.data).catch(() => null),
     enabled: tab === 'overview',
   })
 
@@ -258,7 +256,7 @@ export default function BiGovernancePanel() {
           enabled: true,
         },
       }
-      return api.patch('/bi/governance/rules', next).then(r => r.data)
+      return biCollaborationApi.updateGovernanceRules(next).then(r => r.data)
     },
     onSuccess: () => {
       toast.success('Política creada')
@@ -275,7 +273,7 @@ export default function BiGovernancePanel() {
         ...rulesObject,
         [name]: { ...(rulesObject[name] || {}), enabled },
       }
-      return api.patch('/bi/governance/rules', next).then(r => r.data)
+      return biCollaborationApi.updateGovernanceRules(next).then(r => r.data)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-gov-policies'] }),
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al cambiar estado'),
@@ -284,7 +282,7 @@ export default function BiGovernancePanel() {
   const deletePolicyMutation = useMutation({
     mutationFn: (name) => {
       const { [name]: _removed, ...rest } = rulesObject
-      return api.patch('/bi/governance/rules', rest).then(r => r.data)
+      return biCollaborationApi.updateGovernanceRules(rest).then(r => r.data)
     },
     onSuccess: () => {
       toast.success('Política eliminada')

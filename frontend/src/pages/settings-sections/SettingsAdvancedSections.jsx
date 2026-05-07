@@ -6,7 +6,7 @@ import { APP_LANGUAGES, loadLanguage, getAllKeys, es } from '../../i18n/appTrans
 import { PORTAL_TRANSLATIONS, PORTAL_LANGUAGES, getPortalKeys } from '../../i18n/portalTranslations'
 import { extractErr } from '../../utils/helpers'
 import { Card } from '../../components/ui'
-import api from '../../services/api'
+import { portalClientsApi, settingsApi } from '../../services/api'
 
 function Section({ icon, title, description, children }) {
   return (
@@ -27,10 +27,10 @@ export function IdiomasSection() {
 
   const { data: _portalTrans = {} } = useQuery({
     queryKey: ['portal-translations'],
-    queryFn: () => api.get('/portal/translations').then(r => r.data).catch(() => ({})),
+    queryFn: () => portalClientsApi.translations().then(r => r.data).catch(() => ({})),
   })
   const { mutate: savePortalTrans, isPending: savingPortal } = useMutation({
-    mutationFn: d => api.post('/portal/translations', d),
+    mutationFn: d => portalClientsApi.saveTranslations(d),
     onSuccess: () => { qc.invalidateQueries(['portal-translations']); toast.success(t('i18n.saved_ok')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -414,7 +414,7 @@ export function LogLevelSection() {
 
   const { data: serverLevel, isLoading } = useQuery({
     queryKey: ['log-level'],
-    queryFn: () => api.get('/settings/log-level').then(r => r.data),
+    queryFn: () => settingsApi.logLevel().then(r => r.data),
   })
 
   useEffect(() => {
@@ -428,7 +428,7 @@ export function LogLevelSection() {
     try {
       const lvl = String(level).toUpperCase()
       setBackendLevel(lvl)
-      await api.post('/settings/log-level', { level: lvl })
+      await settingsApi.setLogLevel({ level: lvl })
       toast.success(`Nivel backend cambiado a ${lvl}`)
       qc.invalidateQueries(['log-level'])
     } catch {
@@ -728,7 +728,7 @@ function SystemSettingItem({ setting }) {
 export function SystemStateSection() {
   const { data: settings = [], isLoading } = useQuery({
     queryKey: ['settings-general'],
-    queryFn: () => api.get('/settings/general').then(r => r.data),
+    queryFn: () => settingsApi.general().then(r => r.data),
   })
 
   const internal = (settings || []).filter(s => isInternalKey(s.key))

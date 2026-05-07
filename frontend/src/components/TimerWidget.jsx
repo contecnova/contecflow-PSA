@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { imputationsApi, projectsApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
 function fmt(s) {
@@ -42,14 +42,14 @@ const TimerWidget = () => {
 
   const { data: timer = null } = useQuery({
     queryKey: ['timer-current'],
-    queryFn: () => api.get('/imputations/timer/current').then(r => r.data).catch(() => null),
+    queryFn: () => imputationsApi.timerCurrent().then(r => r.data).catch(() => null),
     refetchInterval: 5_000,
     retry: false,
     staleTime: 1_000,
   })
 
   useEffect(() => {
-    api.get('/projects?page_size=100').then(r => {
+    projectsApi.list({ page_size: 100 }).then(r => {
       setProjects(Array.isArray(r.data) ? r.data : (r.data.items || []))
     }).catch(() => {})
   }, [])
@@ -78,7 +78,7 @@ const TimerWidget = () => {
 
   const stopTimer = () => call(async () => {
     const payload = { description: 'Sesión', is_billable: true }
-    const response = await api.post('/imputations/timer/stop', payload)
+    const response = await imputationsApi.timerStop(payload)
     queryClient.setQueryData(['timer-current'], null)
     return response
   }, { syncTimerFromResponse: false })
@@ -125,11 +125,11 @@ const TimerWidget = () => {
           <div style={{ display: 'flex', gap: 6 }}>
             {isPaused
               ? <button style={btnStyle('var(--accent)')} disabled={loading}
-                  onClick={() => call(() => api.post('/imputations/timer/resume'))}>
+                  onClick={() => call(() => imputationsApi.timerResume())}>
                   {'\u25b6'} Reanudar
                 </button>
               : <button style={btnStyle('var(--warning)')} disabled={loading}
-                  onClick={() => call(() => api.post('/imputations/timer/pause'))}>
+                  onClick={() => call(() => imputationsApi.timerPause())}>
                   {'\u23f8'} Pausar
                 </button>
             }
@@ -148,7 +148,7 @@ const TimerWidget = () => {
             </select>
             <button
               disabled={!projectId || loading}
-              onClick={() => call(() => api.post('/imputations/timer/start', { project_id: projectId }))}
+              onClick={() => call(() => imputationsApi.timerStart({ project_id: projectId }))}
               style={{ ...btnStyle('var(--accent)'), width: '100%', opacity: (!projectId || loading) ? 0.5 : 1 }}>
               {loading ? 'Iniciando…' : '▶ Iniciar'}
             </button>

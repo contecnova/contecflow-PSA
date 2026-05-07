@@ -3,7 +3,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { formsApi } from '../services/api'
 import { Button, Modal, EmptyState, Spinner } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -41,8 +41,8 @@ function FormModal({ form, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => isEdit
-      ? api.patch(`/forms/${form.id}`, data).then(r => r.data)
-      : api.post('/forms', data).then(r => r.data),
+      ? formsApi.update(form.id, data).then(r => r.data)
+      : formsApi.create(data).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries(['public-forms'])
       toast.success(isEdit ? t('public_forms.form_updated') : t('public_forms.form_created'))
@@ -108,7 +108,7 @@ function SubmissionsModal({ form, onClose }) {
   const t = useAppT()
   const { data: subs = [], isLoading } = useQuery({
     queryKey: ['form-submissions', form.id],
-    queryFn: () => api.get(`/forms/${form.id}/submissions`).then(r => r.data),
+    queryFn: () => formsApi.submissions(form.id).then(r => r.data),
   })
 
   return (
@@ -155,11 +155,11 @@ export default function PublicFormsPage() {
 
   const { data: forms = [], isLoading } = useQuery({
     queryKey: ['public-forms'],
-    queryFn: () => api.get('/forms').then(r => r.data),
+    queryFn: () => formsApi.list().then(r => r.data),
   })
 
   const { mutate: deleteForm } = useMutation({
-    mutationFn: (id) => api.delete(`/forms/${id}`),
+    mutationFn: (id) => formsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries(['public-forms']); toast.success(t('public_forms.form_deleted')) },
     onError: e => toast.error(extractErr(e, t('public_forms.delete_error'))),
   })
