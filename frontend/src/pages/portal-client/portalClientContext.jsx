@@ -169,14 +169,14 @@ export function LoginScreen({ _changeLang, _currentLang }) {
           <h1 style={{ fontSize: "var(--text-2xl-em)", fontWeight: 800, margin: '0 0 6px' }}>{t('login_title')}</h1>
           <p style={{ color: 'var(--text-2)', margin: 0 }}>{t('login_subtitle')}</p>
         </div>
-        <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div><label htmlFor={`${idPrefix}-email`} style={S.label}>{t('login_email')}</label><input id={`${idPrefix}-email`} type="email" value={email} onChange={e => setEmail(e.target.value)} style={S.input} placeholder={t('login_email')} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
-          <div><label htmlFor={`${idPrefix}-password`} style={S.label}>{t('login_password')}</label><input id={`${idPrefix}-password`} type="password" value={password} onChange={e => setPassword(e.target.value)} style={S.input} placeholder={t('login_password')} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
+        <form onSubmit={e => { e.preventDefault(); handleLogin() }} style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div><label htmlFor={`${idPrefix}-email`} style={S.label}>{t('login_email')}</label><input id={`${idPrefix}-email`} type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} style={S.input} placeholder={t('login_email')} /></div>
+          <div><label htmlFor={`${idPrefix}-password`} style={S.label}>{t('login_password')}</label><input id={`${idPrefix}-password`} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} style={S.input} placeholder={t('login_password')} /></div>
           {error && <div style={{ fontSize: "var(--text-base)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 8, padding: '8px 12px' }}>{error}</div>}
-          <button onClick={handleLogin} disabled={loading || !email || !password} style={{ ...S.btn, width: '100%', padding: '13px', fontSize: "var(--text-md-em)", opacity: loading ? 0.6 : 1 }}>
+          <button type="submit" disabled={loading || !email || !password} style={{ ...S.btn, width: '100%', padding: '13px', fontSize: "var(--text-md-em)", opacity: loading ? 0.6 : 1 }}>
             {loading ? t('login_loading') : t('login_btn')}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   )

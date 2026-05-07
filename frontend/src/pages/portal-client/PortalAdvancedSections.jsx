@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../../context/ToastContext'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
@@ -13,7 +13,6 @@ import {
   Badge,
 } from './portalClientContext'
 import { ClientGovernedConversationInbox } from '../../components/portal/GovernedConversations'
-import { useOrgSettings } from '../../hooks/useOrgSettings'
 
 export function PortalUAT() {
   const _t = useLang()
@@ -403,7 +402,7 @@ export function PortalInvoices() {
   const t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const { currency: defaultCurrency } = useOrgSettings()
+  const defaultCurrency = 'EUR'
   const [reasonByInvoice, setReasonByInvoice] = useState({})
 
   const { data: invoices = [], isLoading } = useQuery({
@@ -504,7 +503,7 @@ export function PortalRoadmap() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['portal-project'],
     queryFn: () => CLIENT_API.get('/portal/project').then(r => r.data).catch(e => {
-      if (e?.response?.status === 404) return null
+      if (e?.response?.status === 404 || e?.response?.status === 403) return null
       throw e
     }),
   })
@@ -617,7 +616,7 @@ export function PortalDocuments() {
   })
   const CAT_ICONS = { contract: '📋', deliverable: '📦', meeting_notes: '📝', report: '📊', other: '📄' }
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (signedPdfB64) {
       const bytes = atob(signedPdfB64.b64)
       const arr = new Uint8Array(bytes.length)
@@ -859,10 +858,10 @@ export function PortalStats() {
   const uatPending = uats.filter(u => ['pending', 'in_progress'].includes(u.status)).length
 
   const KPI = ({ icon, label, value, sub, color = 'var(--accent)' }) => (
-    <div style={{ ...S.card, textAlign: 'center', padding: '24px 20px' }}>
-      <div style={{ fontSize: "var(--text-3xl)", marginBottom: 8 }}>{icon}</div>
-      <div style={{ fontSize: "var(--text-3xl)", fontWeight: 800, color, marginBottom: 4 }}>{value}</div>
-      <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>{label}</div>
+    <div style={{ ...S.card, padding: '16px 18px' }}>
+      <div style={{ fontSize: "var(--text-xl-em)", marginBottom: 8 }}>{icon}</div>
+      <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color, marginBottom: 2, fontFamily: 'var(--font-mono)' }}>{value}</div>
+      <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, marginBottom: 2 }}>{label}</div>
       {sub && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{sub}</div>}
     </div>
   )
@@ -875,9 +874,9 @@ export function PortalStats() {
 
   return (
     <div>
-      <h2 style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, marginBottom: 4 }}>{t('nav_stats')}</h2>
-      <p style={{ color: 'var(--text-2)', fontSize: "var(--text-md)", marginBottom: 28 }}>{t('stats_subtitle')}</p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
+      <h2 style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, marginBottom: 4 }}>{t('nav_stats')}</h2>
+      <p style={{ color: 'var(--text-2)', fontSize: "var(--text-sm)", marginBottom: 20 }}>{t('stats_subtitle')}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14, marginBottom: 24 }}>
         <KPI icon="📈" label={t('stats_progress')} value={`${progress}%`} color="#4f8ef7" sub={`${tasks_done}/${tasks_total} tareas`} />
         <KPI icon="💰" label={t('stats_budget')} value={`${budget_used}%`} color={budget_used > 90 ? 'var(--danger)' : budget_used > 75 ? 'var(--warning)' : 'var(--success)'} sub={t('stats_budget_used')} />
         <KPI icon="🧪" label={t('nav_uat')} value={uatPassed} color="var(--success)" sub={`${uatFailed} rechazadas`} />
@@ -885,17 +884,17 @@ export function PortalStats() {
         <KPI icon="📄" label={t('nav_documents')} value={docs.length} color="var(--warning)" sub={`${docs.filter(d => d.is_signed).length} firmados`} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 32 }}>
-        <div style={S.card}>
-          <h3 style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 16 }}>Avance del proyecto</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+        <div style={{ ...S.card, padding: '20px 22px' }}>
+          <h3 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>Avance del proyecto</h3>
           <div style={{ marginBottom: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)", marginBottom: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-sm)", marginBottom: 6 }}>
               <span>Progreso general</span><span style={{ color: 'var(--accent)', fontWeight: 700 }}>{progress}%</span>
             </div>
             <ProgressBar value={progress} />
           </div>
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)", marginBottom: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-sm)", marginBottom: 6 }}>
               <span>Presupuesto consumido</span>
               <span style={{ color: budget_used > 90 ? 'var(--danger)' : 'var(--warning)', fontWeight: 700 }}>{budget_used}%</span>
             </div>
@@ -903,15 +902,15 @@ export function PortalStats() {
           </div>
         </div>
 
-        <div style={S.card}>
-          <h3 style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 16 }}>Estado UATs</h3>
+        <div style={{ ...S.card, padding: '20px 22px' }}>
+          <h3 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>Estado UATs</h3>
           {[
             { label: 'Aprobadas', value: uatPassed, total: uats.length, color: 'var(--success)' },
             { label: 'En progreso', value: uatPending, total: uats.length, color: 'var(--accent)' },
             { label: 'Rechazadas', value: uatFailed, total: uats.length, color: 'var(--danger)' },
           ].map(row => (
             <div key={row.label} style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)", marginBottom: 5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-sm)", marginBottom: 5 }}>
                 <span>{row.label}</span>
                 <span style={{ color: row.color, fontWeight: 700 }}>{row.value}/{uats.length}</span>
               </div>

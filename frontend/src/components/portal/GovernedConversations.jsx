@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { usersApi, portalClientsApi, portalConversationsApi, sdGroupsApi } from '../../services/api'
+import api, { usersApi, portalClientsApi, portalConversationsApi, sdGroupsApi } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { resolveWsBase } from '../../utils/wsUtils'
@@ -383,20 +383,32 @@ export function GovernedConversationInbox({
     if (!enableRealtime || !wsTicketPath || !wsEndpoint) return undefined
     let socket = null
     let pingInterval = null
+    let reconnectTimer = null
     let closed = false
+    let attempt = 0
+    const MAX_ATTEMPTS = 5
 
     async function connect() {
+      if (closed || attempt >= MAX_ATTEMPTS) return
+      attempt++
       try {
         const response = await apiClient.get(wsTicketPath)
         const ticket = response?.data?.ticket
         if (!ticket || closed) return
         const wsBase = resolveWsBase()
         socket = new window.WebSocket(`${wsBase}${wsEndpoint}?ticket=${encodeURIComponent(ticket)}`)
+        socket.onopen = () => { attempt = 0 }
         socket.onmessage = () => {
           qc.invalidateQueries({ queryKey: [queryPrefix] })
         }
         socket.onerror = () => {
           if (socket) socket.close()
+        }
+        socket.onclose = (ev) => {
+          if (closed) return
+          if (ev.code === 1000 || ev.code === 1001) return
+          const delay = Math.min(1000 * 2 ** (attempt - 1), 30000)
+          reconnectTimer = window.setTimeout(connect, delay)
         }
         pingInterval = window.setInterval(() => {
           if (socket && socket.readyState === window.WebSocket.OPEN) {
@@ -405,12 +417,17 @@ export function GovernedConversationInbox({
         }, 25000)
       } catch {
         // Polling remains as fallback.
+        if (!closed && attempt < MAX_ATTEMPTS) {
+          const delay = Math.min(1000 * 2 ** (attempt - 1), 30000)
+          reconnectTimer = window.setTimeout(connect, delay)
+        }
       }
     }
 
     connect()
     return () => {
       closed = true
+      if (reconnectTimer) window.clearTimeout(reconnectTimer)
       if (pingInterval) window.clearInterval(pingInterval)
       if (socket && socket.readyState === window.WebSocket.OPEN) socket.close()
     }

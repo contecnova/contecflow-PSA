@@ -726,10 +726,11 @@ const postWithFallback = async (paths, data, config) => {
 }
 
 export const currencyApi = {
-  rates:   (params)        => getWithFallback(['/currency-rates/currency/rates', '/bookings/currency/rates', '/currency/rates'], { params }),
-  upsert:  (data)          => postWithFallback(['/currency-rates/currency/rates', '/bookings/currency/rates', '/currency/rates'], data),
-  convert: (params)        => getWithFallback(['/currency-rates/currency/convert', '/currency/convert'], { params }),
-  report:  (params)        => getWithFallback(['/currency-rates/currency/report', '/currency/report'], { params }),
+  // Canonical platform routes go first to avoid dev-console 404 noise from legacy probes.
+  rates:   (params)        => getWithFallback(['/currency/rates', '/currency-rates/currency/rates', '/bookings/currency/rates'], { params }),
+  upsert:  (data)          => postWithFallback(['/currency/rates', '/currency-rates/currency/rates', '/bookings/currency/rates'], data),
+  convert: (params)        => getWithFallback(['/currency/convert', '/currency-rates/currency/convert'], { params }),
+  report:  (params)        => getWithFallback(['/currency/report', '/currency-rates/currency/report'], { params }),
 }
 
 // ── Predictive Observability ──────────────────────────────────────────────────

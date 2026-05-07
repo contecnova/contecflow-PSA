@@ -160,8 +160,9 @@ async def _consume_portal_ws_ticket(ticket: str) -> Optional[str]:
             )
             return consumed if consumed else None
         except Exception as exc:
-            log.error("Portal WS ticket Redis consume failed — rejecting ticket: %s", exc)
-            return None
+            log.warning("Portal WS ticket Redis consume failed — falling back to in-memory: %s", exc)
+            # Redis unavailable (e.g. local dev without Redis) — use in-memory store
+            return _consume_portal_ws_ticket_local(ticket)
     return _consume_portal_ws_ticket_local(ticket)
 
 # Shared async Redis client (initialised lazily on first use, reused thereafter)

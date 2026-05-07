@@ -934,9 +934,48 @@ def process_oidc_callback(payload: dict, db) -> dict:
     if not state_obj: raise HTTPException(400, "Estado OIDC inválido o expirado")
     config = db.query(SSOConfig).filter(SSOConfig.id == state_obj.sso_config_id).first()
     state_obj.used = True
-    user_email    = payload.get("email")
-    user_name     = payload.get("name") or user_email
-    user_role_sso = payload.get("role")
+
+    # SEC-007 — Never trust email from the raw POST payload.
+    # The frontend must pass the signed id_token received from the IdP.
+    # We verify the JWT signature using the IdP's JWKS before extracting claims.
+    id_token = payload.get("id_token")
+    if id_token:
+        try:
+            import urllib.request as _ureq, json as _json
+            from jose import jwt as _jose_jwt, jwk as _jose_jwk, exceptions as _jose_exc  # type: ignore
+
+            # Fetch JWKS from the IdP (issuer derived from discovery or config)
+            issuer = getattr(config, "issuer", None) or ""
+            jwks_uri = getattr(config, "jwks_uri", None)
+            if not jwks_uri and issuer:
+                # OpenID Connect standard discovery endpoint
+                disc_url = issuer.rstrip("/") + "/.well-known/openid-configuration"
+                with _ureq.urlopen(disc_url, timeout=5) as _r:
+                    jwks_uri = _json.loads(_r.read())["jwks_uri"]
+            if not jwks_uri:
+                raise HTTPException(502, "No se pudo obtener JWKS del IdP OIDC")
+
+            with _ureq.urlopen(jwks_uri, timeout=5) as _r:
+                jwks = _json.loads(_r.read())
+
+            client_id = getattr(config, "client_id", None) or ""
+            claims = _jose_jwt.decode(
+                id_token,
+                jwks,
+                algorithms=["RS256", "ES256"],
+                audience=client_id or None,
+                issuer=issuer or None,
+                options={"verify_aud": bool(client_id), "verify_iss": bool(issuer)},
+            )
+            user_email = claims.get("email")
+            user_name  = claims.get("name") or claims.get("preferred_username") or user_email
+            user_role_sso = payload.get("role")  # role claim mapping remains app-level
+        except (_jose_exc.JWTError, _jose_exc.ExpiredSignatureError, Exception) as _e:
+            raise HTTPException(401, f"id_token OIDC inválido o no verificable: {_e}")
+    else:
+        # No id_token provided — reject to prevent email spoofing (SEC-007)
+        raise HTTPException(400, "Se requiere id_token firmado por el IdP para completar el login OIDC")
+
     if not user_email: raise HTTPException(400, "No se pudo obtener el email del usuario desde el IdP OIDC")
     return sso_create_or_login_user(db, user_email, user_name, user_role_sso, config, state_obj.redirect_to)
 

@@ -197,18 +197,20 @@ export function PortalUsersTab({ cid, clientName }) {
 
       {showReset && (
         <Modal open title="Cambiar contrasena" onClose={() => { setShowReset(null); setNewPassword('') }} width={420}>
-          <div style={{ marginBottom: 6, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Usuario: <strong style={{ color: 'var(--text-1)' }}>{showReset.email}</strong></div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={lbl}>Nueva contraseña</label>
-            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-              style={inp} placeholder="Nueva contrasena" aria-label="Nueva contrasena" />
-          </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => { setShowReset(null); setNewPassword('') }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
-            <Button onClick={() => resetPwd({ id: showReset.id, password: newPassword })} disabled={newPassword.length < 6 || resetting}>
-              {resetting ? '⟳ Guardando...' : '✓ Cambiar contraseña'}
-            </Button>
-          </div>
+          <form onSubmit={e => { e.preventDefault(); resetPwd({ id: showReset.id, password: newPassword }) }}>
+            <div style={{ marginBottom: 6, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Usuario: <strong style={{ color: 'var(--text-1)' }}>{showReset.email}</strong></div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={lbl}>Nueva contraseña</label>
+              <input type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                style={inp} placeholder="Nueva contrasena" aria-label="Nueva contrasena" />
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => { setShowReset(null); setNewPassword('') }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+              <Button type="submit" disabled={newPassword.length < 6 || resetting}>
+                {resetting ? '⟳ Guardando...' : '✓ Cambiar contraseña'}
+              </Button>
+            </div>
+          </form>
         </Modal>
       )}
 
@@ -301,14 +303,15 @@ export function PortalUsersTab({ cid, clientName }) {
 
       {showAdd && (
         <Modal open title="Nuevo usuario de portal" onClose={() => setShowAdd(false)} width={560}>
+          <form onSubmit={e => { e.preventDefault(); add({ ...form, client_org_id: cid, project_ids: form.project_ids && form.project_ids.length > 0 ? form.project_ids : undefined }) }}>
           <div style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
             🔐 Crea las credenciales que el cliente usará para entrar en <strong style={{ color: 'var(--text-1)' }}>{portalUrl}</strong>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div><label style={lbl}>Nombre completo *</label><input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inp} /></div>
             <div><label style={lbl}>Email * (será el usuario de login)</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} placeholder="Email de acceso" aria-label="Email de acceso" /></div>
-            <div><label style={lbl}>Contraseña *</label><input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} style={inp} placeholder="Contrasena temporal" aria-label="Contrasena temporal" /></div>
-            <div><label style={lbl}>Confirmar contraseña</label><input type="password" value={form.confirm_password} onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))} style={inp} /></div>
+            <div><label style={lbl}>Contraseña *</label><input type="password" autoComplete="new-password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} style={inp} placeholder="Contrasena temporal" aria-label="Contrasena temporal" /></div>
+            <div><label style={lbl}>Confirmar contraseña</label><input type="password" autoComplete="new-password" value={form.confirm_password} onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))} style={inp} /></div>
             <div><label style={lbl}>Cargo</label><input value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={inp} placeholder="Cargo" aria-label="Cargo" /></div>
             <div>
               <label style={lbl}>Asociar a proyectos (opcional)</label>
@@ -349,11 +352,12 @@ export function PortalUsersTab({ cid, clientName }) {
           )}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowAdd(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
-            <Button onClick={() => add({ ...form, client_org_id: cid, project_ids: form.project_ids && form.project_ids.length > 0 ? form.project_ids : undefined })}
+            <Button type="submit"
               disabled={!form.full_name || !form.email || !form.password || form.password !== form.confirm_password || isPending}>
               {isPending ? '⟳ Creando...' : '🔐 Crear acceso al portal'}
             </Button>
           </div>
+          </form>
         </Modal>
       )}
     </div>

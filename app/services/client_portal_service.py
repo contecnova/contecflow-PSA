@@ -29,6 +29,7 @@ from app.models.project import Project as ProjectModel
 from app.models.resources import Deliverable, DeliverableStatus
 from app.models.resources import ChangeRequest, ChangeRequestStatus
 from app.models.resources import ChangeRequestImpact
+from app.models.service_desk import Ticket, TicketStatus
 from app.services.approval_workflows import find_default_workflow
 from app.services.realtime_notifications import publish_user_notification
 from sqlalchemy import func
@@ -661,12 +662,12 @@ def get_client_dashboard(project_id: Optional[str], current_client, db: Session)
     ).order_by(ProjectMilestone.sort_order).all()
     milestones_done = sum(1 for m in milestones if m.is_completed)
     deliverables = db.query(Deliverable).filter(Deliverable.project_id == project.id).all()
+    uat_sessions = db.query(UATSession).filter(UATSession.project_id == project.id).all()
     del_accepted = sum(1 for d in deliverables if d.status == DeliverableStatus.accepted)
     del_pending_uat = sum(1 for d in deliverables if d.status == DeliverableStatus.delivered)
-    uat_pending = db.query(UATSession).filter(
-        UATSession.project_id == project.id,
-        UATSession.status.in_([UATStatus.pending, UATStatus.in_progress])
-    ).count()
+    uat_total = len(uat_sessions)
+    uat_passed = sum(1 for session in uat_sessions if session.status in [UATStatus.passed, UATStatus.conditional])
+    uat_pending = sum(1 for session in uat_sessions if session.status in [UATStatus.pending, UATStatus.in_progress])
     fr_open = db.query(FeatureRequest).filter(
         FeatureRequest.project_id == project.id,
         FeatureRequest.status.in_([
@@ -681,6 +682,54 @@ def get_client_dashboard(project_id: Optional[str], current_client, db: Session)
         ClientMessage.sender_client_id == None,
         ClientMessage.is_internal == False,
     ).count()
+    open_ticket_statuses = [
+        TicketStatus.new,
+        TicketStatus.assigned,
+        TicketStatus.in_progress,
+        TicketStatus.pending_client,
+        TicketStatus.pending_third,
+    ]
+    ticket_query = db.query(Ticket).filter(
+        Ticket.requester_client_id == current_client.id,
+        Ticket.project_id == project.id,
+    )
+    tickets_open = ticket_query.filter(Ticket.status.in_(open_ticket_statuses)).count()
+    tickets_pending_client = ticket_query.filter(Ticket.status == TicketStatus.pending_client).count()
+    tickets_resolved = ticket_query.filter(Ticket.status.in_([TicketStatus.resolved, TicketStatus.closed])).count()
+    avg_first_response_minutes = db.query(func.avg(Ticket.first_response_minutes)).filter(
+        Ticket.requester_client_id == current_client.id,
+        Ticket.project_id == project.id,
+        Ticket.first_response_minutes.isnot(None),
+        Ticket.first_response_minutes > 0,
+    ).scalar()
+    avg_resolution_minutes = db.query(func.avg(Ticket.resolution_minutes)).filter(
+        Ticket.requester_client_id == current_client.id,
+        Ticket.project_id == project.id,
+        Ticket.resolution_minutes.isnot(None),
+        Ticket.resolution_minutes > 0,
+    ).scalar()
+    resolved_ticket_count = ticket_query.filter(
+        Ticket.status.in_([TicketStatus.resolved, TicketStatus.closed]),
+        Ticket.resolution_minutes.isnot(None),
+    ).count()
+    breached_ticket_count = ticket_query.filter(
+        Ticket.status.in_([TicketStatus.resolved, TicketStatus.closed]),
+        Ticket.sla_resolution_breached == True,
+    ).count()
+    response_breached_open = ticket_query.filter(
+        Ticket.status.in_(open_ticket_statuses),
+        Ticket.sla_response_breached == True,
+    ).count()
+    resolution_breached_open = ticket_query.filter(
+        Ticket.status.in_(open_ticket_statuses),
+        Ticket.sla_resolution_breached == True,
+    ).count()
+    csat_avg = db.query(func.avg(Ticket.csat_score)).filter(
+        Ticket.requester_client_id == current_client.id,
+        Ticket.project_id == project.id,
+        Ticket.csat_score.isnot(None),
+    ).scalar()
+    sla_compliance_pct = round(((resolved_ticket_count - breached_ticket_count) / resolved_ticket_count) * 100, 1) if resolved_ticket_count else None
     next_milestone = next((m for m in milestones if not m.is_completed and m.due_date), None)
     days_elapsed = (date.today() - project.start_date).days if project.start_date else 0
     days_total = (
@@ -697,14 +746,40 @@ def get_client_dashboard(project_id: Optional[str], current_client, db: Session)
             "progress_pct": min(progress_pct, 100),
         },
         "kpis": {
-            "budget_hours": project.budget_hours, "hours_consumed": round(total_hours, 1),
-            "budget_pct": budget_pct, "milestones_total": len(milestones),
-            "milestones_done": milestones_done, "deliverables_accepted": del_accepted,
-            "deliverables_pending_uat": del_pending_uat, "uat_pending": uat_pending,
-            "feature_requests_open": fr_open, "unread_messages": unread,
+            "budget_hours": project.budget_hours,
+            "hours_consumed": round(total_hours, 1),
+            "budget_pct": budget_pct,
+            "budget_total": project.budget_hours,
+            "budget_spent": round(total_hours, 1),
+            "milestones_total": len(milestones),
+            "milestones_done": milestones_done,
+            "deliverables_accepted": del_accepted,
+            "deliverables_approved": del_accepted,
+            "deliverables_total": len(deliverables),
+            "deliverables_pending_uat": del_pending_uat,
+            "uat_total": uat_total,
+            "uat_passed": uat_passed,
+            "uat_pending": uat_pending,
+            "feature_requests_open": fr_open,
+            "tickets_open": tickets_open,
+            "tickets_pending_client": tickets_pending_client,
+            "tickets_resolved": tickets_resolved,
+            "unread_messages": unread,
+        },
+        "service_desk": {
+            "tickets_open": tickets_open,
+            "tickets_pending_client": tickets_pending_client,
+            "tickets_resolved": tickets_resolved,
+            "avg_first_response_minutes": round(float(avg_first_response_minutes), 1) if avg_first_response_minutes is not None else None,
+            "avg_resolution_minutes": round(float(avg_resolution_minutes), 1) if avg_resolution_minutes is not None else None,
+            "sla_compliance_pct": sla_compliance_pct,
+            "response_breached_open": response_breached_open,
+            "resolution_breached_open": resolution_breached_open,
+            "csat_avg": round(float(csat_avg), 1) if csat_avg is not None else None,
         },
         "next_milestone": {
             "name": next_milestone.name,
+            "title": next_milestone.name,
             "due_date": str(next_milestone.due_date),
             "days_remaining": (next_milestone.due_date - date.today()).days,
         } if next_milestone else None,
