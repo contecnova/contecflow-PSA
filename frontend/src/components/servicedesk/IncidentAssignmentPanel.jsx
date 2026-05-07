@@ -18,7 +18,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import api from '../../services/api'
+import { incidentAssignmentApi, ticketsApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { UserCheck, BarChart2 } from 'lucide-react'
@@ -59,7 +59,7 @@ export default function IncidentAssignmentPanel() {
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ['incident-assign-stats'],
-    queryFn: () => api.get('/sd/assignment/stats').then(r => r.data),
+    queryFn: () => incidentAssignmentApi.stats().then(r => r.data),
     refetchInterval: 30_000,
   })
 
@@ -75,7 +75,7 @@ export default function IncidentAssignmentPanel() {
         specializations: Array.isArray(a.specializations) ? a.specializations : [],
         is_on_call: Boolean(a.is_on_call ?? false),
       }))
-      return api.post(`/sd/tickets/${id}/recommend-assignment`, {
+      return ticketsApi.recommendAssignment(id, {
         title: ticketTitle || `Incident ${id}`,
         description: ticketDescription || '',
         priority,
@@ -92,7 +92,7 @@ export default function IncidentAssignmentPanel() {
 
   const applyMutation = useMutation({
     mutationFn: ({ ticketId, userId }) =>
-      api.patch(`/sd/tickets/${ticketId}`, { assigned_to_user_id: userId }),
+      ticketsApi.update(ticketId, { assigned_to_user_id: userId }),
     onSuccess: () => {
       setApplySuccess(true)
       refetchStats()

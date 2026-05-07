@@ -9,7 +9,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { autoResolutionApi, ticketsApi } from '../../services/api'
 import { Card, Button, Spinner, Modal, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 
@@ -53,7 +53,7 @@ function FeedbackModal({ ticketId, onClose }) {
   const [success, setSuccess] = useState(true)
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => api.post(`/sd/tickets/${ticketId}/auto-resolution/feedback`, { success }),
+    mutationFn: () => ticketsApi.autoResolutionFeedback(ticketId, { success }),
     onSuccess: () => {
       toast.success('Feedback registrado en el bucket de la ticket.')
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
@@ -157,7 +157,7 @@ export default function AutoResolutionPanel() {
 
   const { data: config, isLoading: configLoading } = useQuery({
     queryKey: ['sd-auto-resolution-config'],
-    queryFn: () => api.get('/sd/auto-resolution/config').then(r => r.data),
+    queryFn: () => autoResolutionApi.getConfig().then(r => r.data),
   })
 
   useEffect(() => {
@@ -168,12 +168,12 @@ export default function AutoResolutionPanel() {
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['sd-auto-resolution-stats'],
-    queryFn: () => api.get('/sd/auto-resolution/stats').then(r => r.data),
+    queryFn: () => autoResolutionApi.getStats().then(r => r.data),
     refetchInterval: 30_000,
   })
 
   const { mutate: runJob, isPending: runningJob } = useMutation({
-    mutationFn: () => api.post(`/sd/auto-resolution/run-job?run_async=true&limit=${cfgDraft?.default_job_limit ?? 25}`),
+    mutationFn: () => autoResolutionApi.runJob({ run_async: true, limit: cfgDraft?.default_job_limit ?? 25 }),
     onSuccess: (res) => {
       const r = res.data || {}
       if (r.status === 'queued') {
@@ -191,7 +191,7 @@ export default function AutoResolutionPanel() {
   })
 
   const { mutate: runCloseJob, isPending: runningClose } = useMutation({
-    mutationFn: () => api.post('/sd/auto-resolution/run-close-job'),
+    mutationFn: () => autoResolutionApi.runCloseJob(),
     onSuccess: (res) => {
       const r = res.data || {}
       toast.success(
@@ -203,7 +203,7 @@ export default function AutoResolutionPanel() {
   })
 
   const { mutate: saveConfig, isPending: savingConfig } = useMutation({
-    mutationFn: () => api.patch('/sd/auto-resolution/config', {
+    mutationFn: () => autoResolutionApi.patchConfig({
       threshold_auto: Number(cfgDraft?.threshold_auto ?? 0.85),
       threshold_suggest: Number(cfgDraft?.threshold_suggest ?? 0.65),
       auto_close_hours_after_resolution: Number(cfgDraft?.auto_close_hours_after_resolution ?? 72),

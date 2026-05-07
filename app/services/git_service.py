@@ -52,7 +52,8 @@ def find_task_by_ref(db: Session, ref_text: str) -> Optional[str]:
 def verify_github_signature(body: bytes, sig_header: str) -> bool:
     """HMAC-SHA256 verification for GitHub webhooks."""
     if not settings.GITHUB_WEBHOOK_SECRET:
-        return True
+        # Reject all requests when no secret is configured — do not allow unauthenticated access
+        return False
     if not sig_header or not sig_header.startswith("sha256="):
         return False
     expected = "sha256=" + hmac.new(
@@ -64,7 +65,8 @@ def verify_github_signature(body: bytes, sig_header: str) -> bool:
 def verify_gitlab_token(token_header: str) -> bool:
     """Token-based verification for GitLab webhooks."""
     if not settings.GITLAB_WEBHOOK_SECRET:
-        return True
+        # Reject all requests when no secret is configured — do not allow unauthenticated access
+        return False
     if not token_header:
         return False
     return hmac.compare_digest(settings.GITLAB_WEBHOOK_SECRET, token_header)

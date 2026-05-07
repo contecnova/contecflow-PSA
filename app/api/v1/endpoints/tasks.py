@@ -19,6 +19,7 @@ from app.services.task_service import (
     cascade_reschedule as svc_cascade_reschedule,
     bulk_update_tasks as svc_bulk_update_tasks,
     task_query_for_user,
+    build_task_list_query,
     get_kanban_payload,
     get_task_record,
     create_task_record,
@@ -105,43 +106,20 @@ def list_tasks(
 ):
     enforce_abac(db, current_user, "task", action="read")
 
-    q = task_query_for_user(db, current_user).options(
-        joinedload(Task.assignee),
-        joinedload(Task.reporter),
-    )
-
-    # assigned_to_me, employees y subcontractors ven solo sus tareas
-    if assigned_to_me or current_user.role in (UserRole.employee, UserRole.subcontractor):
-        q = q.filter(Task.assignee_id == current_user.id)
-    elif assignee_id:
-        q = q.filter(Task.assignee_id == assignee_id)
-
-    if project_id:
-        q = q.filter(Task.project_id == project_id)
-    if phase_id:
-        q = q.filter(Task.phase_id == phase_id)
-    if status:
-        # Aceptar CSV: "in_progress,todo" o valor único
-        status_vals = [s.strip() for s in status.split(",") if s.strip()]
-        if len(status_vals) == 1:
-            q = q.filter(Task.status == status_vals[0])
-        elif status_vals:
-            q = q.filter(Task.status.in_(status_vals))
     # limit como alias de page_size
     effective_page_size = limit if limit and limit < page_size else page_size
-    if priority:
-        q = q.filter(Task.priority == priority)
-    if search:
-        q = q.filter(
-            (Task.title.ilike(f"%{search}%")) |
-            (Task.code.ilike(f"%{search}%"))
-        )
-    if overdue_only:
-        from datetime import date as _date
-        q = q.filter(
-            Task.due_date < _date.today(),
-            Task.status.not_in([TaskStatus.done, TaskStatus.cancelled]),
-        )
+
+    q = build_task_list_query(
+        db, current_user,
+        assigned_to_me=assigned_to_me,
+        assignee_id=assignee_id,
+        project_id=project_id,
+        phase_id=phase_id,
+        status=status,
+        priority=priority,
+        search=search,
+        overdue_only=overdue_only,
+    )
 
     total = q.count()
     tasks = q.offset((page - 1) * effective_page_size).limit(effective_page_size).all()

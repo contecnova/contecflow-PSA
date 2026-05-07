@@ -829,17 +829,42 @@ def get_wallboard_data(db) -> dict:
 
 # ── SSO ───────────────────────────────────────────────────────────────────────
 
+def _validate_redirect_to(redirect_to: str) -> str:
+    """Validate SSO redirect_to to prevent open redirect attacks.
+
+    Only allows relative paths (starting with '/') or paths within the
+    configured BACKEND_URL / FRONTEND_URL. External URLs are rejected.
+    """
+    if not redirect_to:
+        return "/dashboard"
+    # Allow relative paths
+    if redirect_to.startswith("/") and not redirect_to.startswith("//"):
+        return redirect_to
+    # Reject anything with a scheme (external URLs)
+    from urllib.parse import urlparse as _urlparse
+    parsed = _urlparse(redirect_to)
+    if parsed.scheme:
+        logger.warning("SSO redirect_to rejected (external URL): %s", redirect_to)
+        return "/dashboard"
+    return "/dashboard"
+
+
 def initiate_sso_record(config_id: str, redirect_to: str, db) -> dict:
     config = db.query(SSOConfig).filter(SSOConfig.id == config_id, SSOConfig.is_active == True).first()
     if not config: raise HTTPException(404, "Configuración SSO no encontrada o inactiva")
+    safe_redirect = _validate_redirect_to(redirect_to)
     state = secrets.token_urlsafe(32)
     oauth_state = OAuthState(
-        state=state, sso_config_id=config_id, redirect_to=redirect_to,
+        state=state, sso_config_id=config_id, redirect_to=safe_redirect,
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
     )
     db.add(oauth_state); db.commit()
     if config.provider == "saml":
-        redirect_url = f"{config.saml_sso_url}?SAMLRequest=DEMO_ENCODED_REQUEST&RelayState={state}"
+        raise HTTPException(
+            503,
+            "La autenticación SAML 2.0 no está habilitada en esta instalación. "
+            "Configure un proveedor OIDC o contacte con soporte.",
+        )
     elif config.provider in ["google", "azure_ad", "okta", "oidc"]:
         discovery_url = config.oidc_discovery_url or {
             "google": settings.GOOGLE_OAUTH_BASE,
@@ -890,26 +915,13 @@ def sso_create_or_login_user(db, email, name, role_from_sso, config, redirect_to
 
 
 def process_saml_callback(payload: dict, db) -> dict:
-    relay_state = payload.get("RelayState") or payload.get("state")
-    state_obj = db.query(OAuthState).filter(
-        OAuthState.state == relay_state,
-        OAuthState.used == False,
-        OAuthState.expires_at > datetime.now(timezone.utc),
-    ).first()
-    if not state_obj: raise HTTPException(400, "Estado SSO inválido o expirado")
-    config = db.query(SSOConfig).filter(SSOConfig.id == state_obj.sso_config_id).first()
-    if not config: raise HTTPException(400, "Configuración SSO no encontrada")
-    state_obj.used = True
-    user_email    = payload.get("email") or payload.get("attributes", {}).get(config.saml_attribute_email)
-    user_name     = payload.get("name") or payload.get("attributes", {}).get(config.saml_attribute_name, user_email)
-    user_role_sso = payload.get("role") or payload.get("attributes", {}).get(config.saml_attribute_role)
-    if not user_email: raise HTTPException(400, "El IdP no proporcionó un email en la respuesta SAML")
-    if config.allowed_domains:
-        allowed = [d.strip() for d in config.allowed_domains.split(",")]
-        domain  = user_email.split("@")[-1] if "@" in user_email else ""
-        if domain not in allowed:
-            raise HTTPException(403, f"Dominio {domain} no autorizado para este SSO")
-    return sso_create_or_login_user(db, user_email, user_name, user_role_sso, config, state_obj.redirect_to)
+    # SAML 2.0 signature verification is not implemented.
+    # Accepting unverified SAML assertions would allow any caller to impersonate any user.
+    raise HTTPException(
+        503,
+        "La autenticación SAML 2.0 no está habilitada en esta instalación. "
+        "Configure un proveedor OIDC o contacte con soporte.",
+    )
 
 
 def process_oidc_callback(payload: dict, db) -> dict:
@@ -982,12 +994,63 @@ def _run_cli(cmd: list[str], cwd: str | None = None, timeout_seconds: int = 1200
     }
 
 
+def _validate_provision_url(url: str) -> None:
+    """Validate provisioning URL to prevent SSRF attacks against internal networks."""
+    import ipaddress as _ipaddress
+    import socket as _socket
+    from urllib.parse import urlparse as _urlparse
+
+    parsed = _urlparse(url or "")
+    if parsed.scheme.lower() != "https" or not parsed.netloc:
+        raise ValueError("Provision URL must be a valid HTTPS URL")
+
+    hostname = (parsed.hostname or "").strip().lower()
+    if not hostname:
+        raise ValueError("Provision URL must include a hostname")
+
+    if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(".local"):
+        raise ValueError("Provision URL cannot target local hosts")
+
+    try:
+        ip_obj = _ipaddress.ip_address(hostname)
+    except ValueError:
+        ip_obj = None
+
+    if ip_obj is not None and (
+        ip_obj.is_private
+        or ip_obj.is_loopback
+        or ip_obj.is_link_local
+        or ip_obj.is_multicast
+        or ip_obj.is_reserved
+        or ip_obj.is_unspecified
+    ):
+        raise ValueError("Provision URL targets a disallowed network range")
+
+    try:
+        addrinfo = _socket.getaddrinfo(hostname, parsed.port or 443, proto=_socket.IPPROTO_TCP)
+    except Exception:
+        addrinfo = []
+
+    for entry in addrinfo:
+        ip_raw = entry[4][0]
+        resolved_ip = _ipaddress.ip_address(ip_raw)
+        if (
+            resolved_ip.is_private
+            or resolved_ip.is_loopback
+            or resolved_ip.is_link_local
+            or resolved_ip.is_multicast
+            or resolved_ip.is_reserved
+            or resolved_ip.is_unspecified
+        ):
+            raise ValueError("Provision URL resolves to a disallowed network range")
+
+
 def _execute_provision_action(config: dict, context: dict) -> dict:
     """Execute real provisioning call against external IdM/IAM APIs.
 
     Expected config keys:
       - operation: create_ad_user|disable_ad_user|assign_license|revoke_license
-      - url: endpoint URL
+      - url: endpoint URL (must be HTTPS and must not target internal networks)
       - method: POST|PATCH|PUT|DELETE (default POST)
       - headers: dict (optional)
       - payload: dict/list/string template rendered from context (optional)
@@ -999,6 +1062,9 @@ def _execute_provision_action(config: dict, context: dict) -> dict:
     url = config.get("url")
     if not url:
         raise ValueError("Provision action requires 'url'")
+
+    # SSRF protection: block requests to internal/private networks
+    _validate_provision_url(url)
 
     method = str(config.get("method") or "POST").upper()
     headers = _render_step_value(config.get("headers") or {}, context)

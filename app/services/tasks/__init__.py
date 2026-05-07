@@ -18,6 +18,7 @@ from app.services.tasks.queries import (
     get_project_member_ids,
     task_query_for_user,
     project_for_user,
+    build_task_list_query,
 )
 
 __all__ = [
@@ -36,4 +37,5 @@ __all__ = [
     "get_project_member_ids",
     "task_query_for_user",
     "project_for_user",
+    "build_task_list_query",
 ]

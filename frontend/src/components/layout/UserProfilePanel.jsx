@@ -10,7 +10,7 @@
  */
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { usersApi, authApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import useUserPreferences from '../../hooks/useUserPreferences'
@@ -79,7 +79,7 @@ export default function UserProfilePanel({ onClose }) {
   })
 
   const { mutate: saveProfile, isPending: savingProfile } = useMutation({
-    mutationFn: (data) => api.patch('/users/me', data),
+    mutationFn: (data) => usersApi.updateMe(data),
     onSuccess: (res) => {
       setUser(res.data)
       qc.invalidateQueries({ queryKey: ['auth-me'] })
@@ -123,7 +123,7 @@ export default function UserProfilePanel({ onClose }) {
   // ── Contraseña ──────────────────────────────────────────────────────────────
   const [pwForm, setPwForm] = useState({ current: '', new: '', confirm: '' })
   const { mutate: changePassword, isPending: changingPw } = useMutation({
-    mutationFn: (data) => api.post('/auth/change-password', data),
+    mutationFn: (data) => authApi.changePassword(data),
     onSuccess: () => { toast.success('Contraseña actualizada'); setPwForm({ current:'', new:'', confirm:'' }) },
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al cambiar contraseña'),
   })

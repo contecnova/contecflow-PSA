@@ -18,6 +18,7 @@ from app.services.tasks.core import (
 )
 from app.services.tasks.bulk import bulk_update_tasks  # noqa: F811 (overrides below)
 from app.services.tasks.scheduling import cascade_reschedule  # noqa: F811
+from app.services.tasks.queries import build_task_list_query  # noqa: F401
 
 # ─────────────────────────────────────────────────────────────────────────────
 # All original imports kept verbatim so the procedural wrappers below compile.

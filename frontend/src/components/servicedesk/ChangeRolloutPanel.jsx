@@ -12,7 +12,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { changeRolloutApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { GitBranch, ChevronRight, CheckCircle, AlertTriangle, RotateCcw, Play, Plus } from 'lucide-react'
 import { Card, Button, Spinner, EmptyState } from '../ui'
@@ -130,7 +130,7 @@ export default function ChangeRolloutPanel() {
 
   const { data: plansData, isLoading } = useQuery({
     queryKey: ['change-rollout-plans', changeRequestFilter],
-    queryFn: () => api.get(`/sd/changes/${changeRequestFilter}/rollout-plans`).then(r => r.data),
+    queryFn: () => changeRolloutApi.listPlans(changeRequestFilter).then(r => r.data),
     enabled: Boolean(changeRequestFilter.trim()),
   })
 
@@ -140,7 +140,7 @@ export default function ChangeRolloutPanel() {
   const createMutation = useMutation({
     mutationFn: (data) => {
       const phases = buildPhases(data.strategy, data.phases)
-      return api.post(`/sd/changes/${data.change_request_id}/rollout-plans`, {
+      return changeRolloutApi.createPlan(data.change_request_id, {
         title: data.name?.trim() || `Plan ${STRATEGY_LABEL[data.strategy] || data.strategy}`,
         rollout_phases: phases,
         rollback_steps: [
@@ -161,7 +161,7 @@ export default function ChangeRolloutPanel() {
   })
 
   const approveMutation = useMutation({
-    mutationFn: (id) => api.post(`/sd/changes/rollout-plans/${id}/approve`).then(r => r.data),
+    mutationFn: (id) => changeRolloutApi.approvePlan(id).then(r => r.data),
     onSuccess: () => {
       toast.success('Plan aprobado')
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
@@ -171,7 +171,7 @@ export default function ChangeRolloutPanel() {
 
   const advanceMutation = useMutation({
     mutationFn: ({ id, notes }) =>
-      api.post(`/sd/changes/rollout-plans/${id}/advance-phase`, { phase_notes: notes || null }).then(r => r.data),
+      changeRolloutApi.advancePhase(id, { phase_notes: notes || null }).then(r => r.data),
     onSuccess: (data) => {
       const status = data?.status || 'in_progress'
       toast.success(status === 'completed' ? 'Rollout completado 🎉' : 'Fase avanzada')
@@ -182,7 +182,7 @@ export default function ChangeRolloutPanel() {
 
   const rollbackMutation = useMutation({
     mutationFn: ({ changeId, reason }) =>
-      api.post(`/sd/changes/${changeId}/rollback`, { reason }).then(r => r.data),
+      changeRolloutApi.rollback(changeId, { reason }).then(r => r.data),
     onSuccess: () => {
       toast.success('Rollback ejecutado')
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
@@ -192,10 +192,7 @@ export default function ChangeRolloutPanel() {
 
   const handleSimulate = async (plan) => {
     try {
-      const res = await api.post(
-        `/sd/changes/${plan.change_request_id}/rollout-plans/${plan.id}/simulate`,
-        {},
-      )
+      const res = await changeRolloutApi.simulatePlan(plan.change_request_id, plan.id)
       setSimulate(res.data?.simulation ?? res.data?.impact ?? res.data)
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Error al simular')

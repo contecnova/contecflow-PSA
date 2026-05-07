@@ -9,7 +9,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { alertClustersApi } from '../../services/api'
 import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 
@@ -163,7 +163,7 @@ export default function AlertCorrelationPanel() {
 
   const { data: clustersData, isLoading: clustersLoading } = useQuery({
     queryKey: ['sd-alert-clusters'],
-    queryFn: () => api.get('/sd/alert-clusters').then(r => r.data),
+    queryFn: () => alertClustersApi.list().then(r => r.data),
     refetchInterval: 60_000,
   })
 
@@ -172,12 +172,12 @@ export default function AlertCorrelationPanel() {
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['sd-alert-clusters-stats'],
-    queryFn: () => api.get('/sd/alert-clusters/stats').then(r => r.data),
+    queryFn: () => alertClustersApi.stats().then(r => r.data),
     refetchInterval: 60_000,
   })
 
   const { mutate: mergeMutate, variables: mergeVars, isPending: isMerging } = useMutation({
-    mutationFn: ({ ticket_ids }) => api.post('/sd/alert-clusters/merge', { ticket_ids, auto_rca: true }),
+    mutationFn: ({ ticket_ids }) => alertClustersApi.merge({ ticket_ids, auto_rca: true }),
     onSuccess: (res) => {
       const num = res.data?.problem_number || res.data?.problem_id || ''
       toast.success(`Problema ${num} creado desde el cluster`)
@@ -189,7 +189,7 @@ export default function AlertCorrelationPanel() {
   })
 
   const { mutate: runScan, isPending: scanning } = useMutation({
-    mutationFn: () => api.post('/sd/alert-clusters/run-scan'),
+    mutationFn: () => alertClustersApi.runScan(),
     onSuccess: (res) => {
       const found = res.data?.clusters_detected ?? res.data?.clusters_found ?? 0
       const created = res.data?.problems_auto_created ?? res.data?.created_problems ?? 0

@@ -1090,6 +1090,8 @@ export const changeRolloutApi = {
   approvePlan:    (id)                 => api.post(`/sd/changes/rollout-plans/${id}/approve`),
   advancePhase:   (id, data)           => api.post(`/sd/changes/rollout-plans/${id}/advance-phase`, data),
   simulate:       (data)               => api.post('/sd/changes/rollout-plans/simulate', data),
+  simulatePlan:   (changeId, planId)   => api.post(`/sd/changes/${changeId}/rollout-plans/${planId}/simulate`, {}),
+  rollback:       (changeId, data)     => api.post(`/sd/changes/${changeId}/rollback`, data),
 }
 
 // ── CMDB 3D Graph ─────────────────────────────────────────────────────────────
