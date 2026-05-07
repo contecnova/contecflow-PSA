@@ -44,3 +44,68 @@ export function useUpdateProject() {
     },
   })
 }
+
+export function useDeleteProject() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => projectsApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
+  })
+}
+
+export function useProjectTeam(projectId) {
+  return useQuery({
+    queryKey: ['project-team', projectId],
+    queryFn: () => projectsApi.team(projectId).then(r => r.data),
+    enabled: !!projectId,
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export function useProjectMembers(projectId) {
+  return useQuery({
+    queryKey: ['project-members', projectId],
+    queryFn: () => projectsApi.members(projectId).then(r => r.data),
+    enabled: !!projectId,
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export function useProjectEVM(projectId) {
+  return useQuery({
+    queryKey: ['project-evm', projectId],
+    queryFn: () => projectsApi.evm(projectId).then(r => r.data),
+    enabled: !!projectId,
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export function useProjectEVMPortfolio() {
+  return useQuery({
+    queryKey: ['project-evm-portfolio'],
+    queryFn: () => projectsApi.evmPortfolio().then(r => r.data),
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export function useAddProjectMember() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => projectsApi.addMember(id, data),
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: ['project-members', id] })
+      qc.invalidateQueries({ queryKey: ['project-team', id] })
+    },
+  })
+}
+
+export function useRemoveProjectMember() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, memberId }) => projectsApi.removeMember(id, memberId),
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: ['project-members', id] })
+      qc.invalidateQueries({ queryKey: ['project-team', id] })
+    },
+  })
+}

@@ -237,14 +237,15 @@ export const projectsApi = {
 }
 
 export const tasksApi = {
-  list:       (params) => api.get('/tasks', { params }),
-  kanban:     (projectId) => api.get(`/tasks/kanban/${projectId}`),
-  get:        (id) => api.get(`/tasks/${id}`),
-  create:     (data) => api.post('/tasks', data),
-  update:     (id, data) => api.patch(`/tasks/${id}`, data),
-  delete:     (id) => api.delete(`/tasks/${id}`),
-  comment:    (id, data) => api.post(`/tasks/${id}/comments`, data),
-  bulkUpdate: (data) => api.post('/tasks/bulk-update', data),
+  list:        (params)    => api.get('/tasks', { params }),
+  kanban:      (projectId) => api.get(`/tasks/kanban/${projectId}`),
+  get:         (id)        => api.get(`/tasks/${id}`),
+  create:      (data)      => api.post('/tasks', data),
+  update:      (id, data)  => api.patch(`/tasks/${id}`, data),
+  delete:      (id)        => api.delete(`/tasks/${id}`),
+  comment:     (id, data)  => api.post(`/tasks/${id}/comments`, data),
+  bulkUpdate:  (data)      => api.post('/tasks/bulk-update', data),
+  movementLog: (id)        => api.get(`/tasks/${id}/movement-log`),
 }
 
 export const imputationsApi = {

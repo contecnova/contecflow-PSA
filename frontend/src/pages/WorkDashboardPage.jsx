@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
+import { tasksApi, analyticsApi, approvalsApi, expensesApi, absencesApi } from '../services/api'
 import { Clock, Plus, Timer, Ticket } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -111,27 +111,9 @@ export default function WorkDashboardPage() {
     queryKey: ['work-dash-task-stats', userId],
     queryFn: async () => {
       const [openRes, overdueRes, doneRes] = await Promise.all([
-        api.get('/tasks', {
-          params: {
-            assigned_to_me: true,
-            status: 'backlog,todo,in_progress,blocked,in_review,review',
-            page_size: 500,
-          },
-        }),
-        api.get('/tasks', {
-          params: {
-            assigned_to_me: true,
-            overdue_only: true,
-            page_size: 500,
-          },
-        }),
-        api.get('/tasks', {
-          params: {
-            assigned_to_me: true,
-            status: 'done',
-            page_size: 1,
-          },
-        }),
+        tasksApi.list({ assigned_to_me: true, status: 'backlog,todo,in_progress,blocked,in_review,review', page_size: 500 }),
+        tasksApi.list({ assigned_to_me: true, overdue_only: true, page_size: 500 }),
+        tasksApi.list({ assigned_to_me: true, status: 'done', page_size: 1 }),
       ])
 
       const openItems = Array.isArray(openRes?.data) ? openRes.data : []
@@ -154,25 +136,23 @@ export default function WorkDashboardPage() {
 
   const { data: myWeekHours = 0 } = useQuery({
     queryKey: ['work-dash-my-week', userId],
-    queryFn: () => api.get('/analytics/query/hours_by_week', {
-      params: { user_id: userId, date_from: startOfWeekIso(), date_to: new Date().toISOString().slice(0, 10) },
-    }).then(r => (r.data?.rows || []).reduce((s, x) => s + (x.value || 0), 0)).catch(() => 0),
+    queryFn: () => analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfWeekIso(), date_to: new Date().toISOString().slice(0, 10) })
+      .then(r => (r.data?.rows || []).reduce((s, x) => s + (x.value || 0), 0)).catch(() => 0),
     enabled: !!userId,
     staleTime: 60_000,
   })
 
   const { data: myMonthHours = null } = useQuery({
     queryKey: ['work-dash-my-month', userId],
-    queryFn: () => api.get('/analytics/query/hours_by_week', {
-      params: { user_id: userId, date_from: startOfMonthIso(), date_to: new Date().toISOString().slice(0, 10) },
-    }).then(r => (r.data?.rows || []).reduce((s, x) => s + (x.value || 0), 0)).catch(() => null),
+    queryFn: () => analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfMonthIso(), date_to: new Date().toISOString().slice(0, 10) })
+      .then(r => (r.data?.rows || []).reduce((s, x) => s + (x.value || 0), 0)).catch(() => null),
     enabled: !!userId,
     staleTime: 60_000,
   })
 
   const { data: approvals = [], isLoading: la } = useQuery({
     queryKey: ['work-dash-approvals'],
-    queryFn: () => api.get('/approvals/requests/pending-my-action').then(r => {
+    queryFn: () => approvalsApi.pendingMyAction().then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(e => { console.error('Error loading approvals:', e); return [] }),
     staleTime: 60_000,
@@ -180,7 +160,7 @@ export default function WorkDashboardPage() {
 
   const { data: expenses = [], isLoading: le } = useQuery({
     queryKey: ['work-dash-expenses'],
-    queryFn: () => api.get('/expenses/my', { params: { status: 'pending' } }).then(r => {
+    queryFn: () => expensesApi.my({ status: 'pending' }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(e => { console.error('Error loading expenses:', e); return [] }),
     staleTime: 60_000,
@@ -188,18 +168,17 @@ export default function WorkDashboardPage() {
 
   const { data: hoursData = [] } = useQuery({
     queryKey: ['work-dash-hours-trend', userId],
-    queryFn: () => api.get('/analytics/query/hours_by_month', {
-      params: { ...dateRange(180), ...(userId ? { user_id: userId } : {}) },
-    }).then(r => r.data?.rows || []).catch(e => {
-      console.error('Error loading hours data:', e); return []
-    }),
+    queryFn: () => analyticsApi.query('hours_by_month', { ...dateRange(180), ...(userId ? { user_id: userId } : {}) })
+      .then(r => r.data?.rows || []).catch(e => {
+        console.error('Error loading hours data:', e); return []
+      }),
     enabled: !!userId,
     staleTime: 60_000,
   })
 
   const { data: absences = [], isLoading: lab } = useQuery({
     queryKey: ['work-dash-absences'],
-    queryFn: () => api.get('/absences/my').then(r => {
+    queryFn: () => absencesApi.my().then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(e => { console.error('Error loading absences:', e); return [] }),
     staleTime: 60_000,

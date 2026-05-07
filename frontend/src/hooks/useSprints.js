@@ -52,3 +52,37 @@ export function useDeleteSprint() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sprints'] }),
   })
 }
+
+export function useStartSprint() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => sprintsApi.start(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sprints'] }),
+  })
+}
+
+export function useCompleteSprint() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => sprintsApi.complete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sprints'] }),
+  })
+}
+
+export function useSprintBurndown(sprintId) {
+  return useQuery({
+    queryKey: ['sprint-burndown', sprintId],
+    queryFn: () => sprintsApi.burndown(sprintId).then(r => r.data),
+    enabled: !!sprintId,
+    staleTime: STALE,
+  })
+}
+
+export function useSprintVelocity(projectId) {
+  return useQuery({
+    queryKey: ['sprint-velocity', projectId],
+    queryFn: () => sprintsApi.velocity(projectId).then(r => r.data),
+    enabled: !!projectId,
+    staleTime: STALE,
+  })
+}

@@ -32,6 +32,7 @@ export function useClient(id) {
     queryKey: ['client', id],
     queryFn: () => clientsApi.get(id).then(r => r.data),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   })
 }
 

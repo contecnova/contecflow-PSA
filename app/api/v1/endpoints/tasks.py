@@ -11,12 +11,10 @@ from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.models.user import User, UserRole
 from app.models.task import Task, TaskStatus, TaskPriority
-from app.models.epics import ThreadedComment
 from app.schemas import (
     TaskCreate, TaskUpdate, TaskOut, TaskCommentCreate, TaskCommentOut, BulkTaskUpdatePayload
 )
 from app.schemas.tasks import TaskMovementLogOut
-from app.models.task_movement_log import TaskMovementLog
 from app.services.task_service import (
     cascade_reschedule as svc_cascade_reschedule,
     bulk_update_tasks as svc_bulk_update_tasks,
@@ -33,10 +31,13 @@ from app.services.task_service import (
     list_task_dependencies as svc_list_task_dependencies,
     create_task_dependency as svc_create_task_dependency,
     delete_task_dependency as svc_delete_task_dependency,
+    get_project_member_ids as svc_get_project_member_ids,
+    get_threaded_comments_for_task,
+    get_task_movement_log,
+    get_sem_config,
 )
-from app.services.semantic_engine_service import enrich_suggestion, get_project_member_ids
+from app.services.semantic_engine_service import enrich_suggestion
 from app.services.semantic_classifier import SemanticAssigner
-from app.models.semantic_engine import SemConfig
 
 router = APIRouter()
 
@@ -65,7 +66,7 @@ def suggest_task_assignee(
     candidate_user_ids = payload.get("candidate_user_ids")
 
     if not candidate_user_ids and project_id:
-        candidate_user_ids = get_project_member_ids(db, project_id)
+        candidate_user_ids = svc_get_project_member_ids(project_id, db)
 
     suggestion = SemanticAssigner(db).suggest_for_task(
         title,
@@ -74,7 +75,7 @@ def suggest_task_assignee(
         priority=priority,
     )
     suggestion = enrich_suggestion(db, suggestion)
-    sem_cfg = db.query(SemConfig).first()
+    sem_cfg = get_sem_config(db)
     semantic_auto_assign_enabled = bool(getattr(sem_cfg, "auto_assign_tasks", False)) if sem_cfg else False
 
     return {
@@ -173,15 +174,7 @@ def get_task(
     # Merge threaded comments (Mentions page) into the same payload consumed
     # by task detail so users see a single unified conversation history.
     task_out = TaskOut.model_validate(task).model_dump(mode="python")
-    threaded = (
-        db.query(ThreadedComment)
-        .filter(
-            ThreadedComment.entity_type == "task",
-            ThreadedComment.entity_id == task_id,
-        )
-        .order_by(ThreadedComment.created_at.asc())
-        .all()
-    )
+    threaded = get_threaded_comments_for_task(task_id, db)
     if threaded:
         merged = list(task_out.get("comments") or [])
         for c in threaded:
@@ -242,16 +235,7 @@ def get_movement_log(
     current_user: User = Depends(get_current_user),
 ):
     """Devuelve el historial de movimientos (cambios de estado) de una tarea, ordenado del más reciente al más antiguo."""
-    from sqlalchemy.orm import joinedload as jl
-    entries = (
-        db.query(TaskMovementLog)
-        .options(jl(TaskMovementLog.moved_by))
-        .filter(TaskMovementLog.task_id == task_id)
-        .order_by(TaskMovementLog.moved_at.desc())
-        .limit(limit)
-        .all()
-    )
-    return entries
+    return get_task_movement_log(task_id, db, limit=limit)
 
 
 @router.delete("/{task_id}", summary="Eliminar tarea")

@@ -4,7 +4,7 @@
  */
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import api, { unwrapList } from '../services/api'
+import { tasksApi, projectsApi, sprintsApi, absencesApi, unwrapList } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Calendar } from 'lucide-react'
@@ -47,7 +47,7 @@ export default function CalendarPage() {
   // Tareas con fecha de vencimiento
   const { data: tasks = [] } = useQuery({
     queryKey: ['cal-tasks', year, month],
-    queryFn: () => api.get('/tasks', { params: { due_date_from: dateFrom, due_date_to: dateTo, limit: 100 } })
+    queryFn: () => tasksApi.list({ due_date_from: dateFrom, due_date_to: dateTo, limit: 100 })
       .then(r => unwrapList(r).map(t => ({
         date: t.due_date, type: 'task', title: t.title, id: t.id, status: t.status,
       }))).catch(() => []),
@@ -56,7 +56,7 @@ export default function CalendarPage() {
   // Milestones
   const { data: milestones = [] } = useQuery({
     queryKey: ['cal-milestones', year, month],
-    queryFn: () => api.get('/projects/milestones', { params: { date_from: dateFrom, date_to: dateTo } })
+    queryFn: () => projectsApi.milestones({ date_from: dateFrom, date_to: dateTo })
       .then(r => unwrapList(r).map(m => ({
         date: m.due_date, type: 'milestone', title: m.title, id: m.id,
       }))).catch(() => []),
@@ -65,7 +65,7 @@ export default function CalendarPage() {
   // Sprints
   const { data: sprints = [] } = useQuery({
     queryKey: ['cal-sprints', year, month],
-    queryFn: () => api.get('/sprints', { params: { limit: 20 } })
+    queryFn: () => sprintsApi.list(undefined, { limit: 20 })
       .then(r => unwrapList(r).flatMap(s => [
         s.start_date ? { date: s.start_date, type: 'sprint', title: `${s.name} (inicio)`, id: s.id + '_s' } : null,
         s.end_date   ? { date: s.end_date,   type: 'sprint', title: `${s.name} (fin)`,   id: s.id + '_e' } : null,
@@ -75,7 +75,7 @@ export default function CalendarPage() {
   // Ausencias
   const { data: absences = [] } = useQuery({
     queryKey: ['cal-absences', year, month],
-    queryFn: () => api.get('/absences', { params: { date_from: dateFrom, date_to: dateTo, limit: 50 } })
+    queryFn: () => absencesApi.list({ date_from: dateFrom, date_to: dateTo, limit: 50 })
       .then(r => unwrapList(r).map(a => ({
         date: a.start_date, type: 'absence', title: `${a.user_name || 'Equipo'}: ${a.type || 'Ausencia'}`, id: a.id,
       }))).catch(() => []),

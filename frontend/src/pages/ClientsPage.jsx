@@ -53,7 +53,7 @@ const SLA_COLOR = {
 import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { unwrapList } from '../services/api'
+import { clientsApi, unwrapList } from '../services/api'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH, ViewToggle } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -90,19 +90,19 @@ export default function ClientsPage() {
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ['clients', search, statusF],
-    queryFn: () => api.get('/clients', { params: { q: search || undefined, status: statusF || undefined } }).then(unwrapList),
+    queryFn: () => clientsApi.list({ q: search || undefined, status: statusF || undefined }).then(r => unwrapList(r)),
   })
 
   const { sort: clientSort, setSort: setClientSort, sortedData: sortedClients } = useSort(clients, sortBy)
 
   const { data: detail } = useQuery({
     queryKey: ['client-detail', selected?.id],
-    queryFn: () => api.get(`/clients/${selected.id}`).then(r => r.data),
+    queryFn: () => clientsApi.get(selected.id).then(r => r.data),
     enabled: !!selected,
   })
 
   const { mutate: create, isPending: creating } = useMutation({
-    mutationFn: d => api.post('/clients', d),
+    mutationFn: d => clientsApi.create(d),
     onSuccess: (_res) => {
       qc.invalidateQueries(['clients'])
       setShowCreate(false)
@@ -113,7 +113,7 @@ export default function ClientsPage() {
   })
 
   const { mutate: updateClient, isPending: updatingClient } = useMutation({
-    mutationFn: ({ id, data }) => api.patch(`/clients/${id}`, data),
+    mutationFn: ({ id, data }) => clientsApi.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries(['clients'])
       qc.invalidateQueries(['client-detail', selected?.id])

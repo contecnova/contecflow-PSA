@@ -10,6 +10,8 @@ const DB_NAME   = 'contecflow_offline';
 const DB_VERSION = 1;
 const STORE     = 'imputations_queue';
 
+export const MAX_RETRY_ATTEMPTS = 3;
+
 // ── Open DB ──────────────────────────────────────────────────────────────────
 
 function openDB() {
@@ -31,7 +33,7 @@ function openDB() {
 
 export async function queueImputation(payload) {
   const db    = await openDB();
-  const entry = { ...payload, queued_at: new Date().toISOString(), synced: false };
+  const entry = { ...payload, queued_at: new Date().toISOString(), synced: false, retries: 0 };
   return new Promise((resolve, reject) => {
     const tx   = db.transaction(STORE, 'readwrite');
     const req  = tx.objectStore(STORE).add(entry);
@@ -76,26 +78,55 @@ async function deleteEntry(id) {
   });
 }
 
+// ── Update retry count for an entry ──────────────────────────────────────────
+
+async function updateRetries(db, id, retries) {
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    const getReq = store.get(id);
+    getReq.onsuccess = () => {
+      const entry = getReq.result;
+      if (!entry) { resolve(); return; }
+      const putReq = store.put({ ...entry, retries });
+      putReq.onsuccess = () => resolve();
+      putReq.onerror   = (e) => reject(e.target.error);
+    };
+    getReq.onerror = (e) => reject(e.target.error);
+  });
+}
+
 // ── Sync all pending to the API ───────────────────────────────────────────────
 
 export async function syncPending(apiInstance) {
-  if (!navigator.onLine) return { synced: 0, failed: 0 };
+  if (!navigator.onLine) return { synced: 0, failed: 0, abandoned: 0 };
 
+  const db = await openDB();
   const pending = await getAllPending();
-  let synced = 0, failed = 0;
+  let synced = 0, failed = 0, abandoned = 0;
 
   for (const entry of pending) {
-    const { id, _queued_at, synced: _s, ...payload } = entry; // strip queue-only fields
+    const { id, queued_at: _queued_at, synced: _s, retries: _r, ...payload } = entry; // strip queue-only fields
+    const currentRetries = entry.retries ?? 0;
+
+    if (currentRetries >= MAX_RETRY_ATTEMPTS) {
+      // Exceeded max retries — remove to avoid blocking the queue indefinitely
+      await deleteEntry(id);
+      abandoned++;
+      continue;
+    }
+
     try {
       await apiInstance.post('/imputations', payload);
       await deleteEntry(id);
       synced++;
     } catch {
+      await updateRetries(db, id, currentRetries + 1);
       failed++;
     }
   }
 
-  return { synced, failed };
+  return { synced, failed, abandoned };
 }
 
 // ── Auto-sync on reconnect ────────────────────────────────────────────────────

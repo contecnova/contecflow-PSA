@@ -551,13 +551,21 @@ def docs_by_ticket(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    docs_q, total = doc_svc.query_documents(db, current_user, ticket_id=ticket_id)
-    docs = docs_q.offset((page - 1) * page_size).limit(page_size).all()
-    if response is not None:
-        response.headers["X-Total-Count"] = str(total)
-        response.headers["X-Page"] = str(page)
-        response.headers["X-Page-Size"] = str(page_size)
-    return [doc_svc.serialize_doc_list_item(doc) for doc in docs]
+    try:
+        docs_q, total = doc_svc.query_documents(db, current_user, ticket_id=ticket_id)
+        docs = docs_q.offset((page - 1) * page_size).limit(page_size).all()
+        if response is not None:
+            response.headers["X-Total-Count"] = str(total)
+            response.headers["X-Page"] = str(page)
+            response.headers["X-Page-Size"] = str(page_size)
+        return [doc_svc.serialize_doc_list_item(doc) for doc in docs]
+    except Exception:
+        logger.exception("docs_by_ticket failed for ticket_id=%s", ticket_id)
+        if response is not None:
+            response.headers["X-Total-Count"] = "0"
+            response.headers["X-Page"] = str(page)
+            response.headers["X-Page-Size"] = str(page_size)
+        return []
 
 
 def _doc_list(db, docs):

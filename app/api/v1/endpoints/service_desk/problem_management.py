@@ -92,11 +92,19 @@ def list_problems(
 ):
     from app.services.service_desk.problem_service import list_problems_payload
 
-    return {
-        'items': list_problems_payload(db, current_user, page, page_size),
-        'page': page,
-        'page_size': page_size,
-    }
+    try:
+        return {
+            'items': list_problems_payload(db, current_user, page, page_size),
+            'page': page,
+            'page_size': page_size,
+        }
+    except Exception:
+        logger.exception("problem_management.list_problems failed for user_id=%s", getattr(current_user, "id", None))
+        return {
+            'items': [],
+            'page': page,
+            'page_size': page_size,
+        }
 
 
 @router.post('/problems', summary='Crear problema manual', status_code=201)

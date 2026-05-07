@@ -6,7 +6,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi } from '../services/api'
+import { tasksApi, taskDependenciesApi, projectsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { BarChart2 } from 'lucide-react'
 import { Button, Spinner, EmptyState } from '../components/ui'
@@ -34,7 +34,7 @@ export default function GanttPage() {
     queryKey: ['gantt-tasks', projectId],
     queryFn:  () => {
       const params = { page_size: 300, ...(projectId ? { project_id: projectId } : {}) }
-      return api.get('/tasks', { params })
+      return tasksApi.list(params)
         .then(r => Array.isArray(r.data) ? r.data : (r.data?.items || []))
     },
     staleTime: 15000,
@@ -44,7 +44,7 @@ export default function GanttPage() {
     queryKey: ['task-deps', projectId],
     queryFn: () =>
       projectId
-        ? api.get(`/tasks/dependencies/${projectId}`)
+        ? taskDependenciesApi.getByProject(projectId)
             .then(r => (Array.isArray(r.data) ? r.data : []))
             .catch(() => [])
         : Promise.resolve([]),
@@ -68,13 +68,13 @@ export default function GanttPage() {
 
   // ── mutations ───────────────────────────────────────────────────────────────
   const { mutate: saveDates } = useMutation({
-    mutationFn: updates => api.post('/tasks/bulk-dates', { updates }),
+    mutationFn: updates => taskDependenciesApi.bulkDates(updates),
     onSuccess:  () => { invalidate('tasks'); setLocalDates({}); toast.success(t('gantt.dates_saved')) },
     onError:    (e) => { setLocalDates({}); toast.error(e?.response?.data?.detail || t('gantt.error_save')) },
   })
 
   const { mutate: createDep } = useMutation({
-    mutationFn: dep => api.post('/tasks/dependencies', {
+    mutationFn: dep => taskDependenciesApi.create({
       predecessor_id: dep.predecessor_id,
       successor_id: dep.successor_id,
       dependency_type: dep.dependency_type || 'FS',

@@ -31,6 +31,7 @@ export function useUser(id) {
     queryKey: ['user', id],
     queryFn: () => usersApi.get(id).then(r => r.data),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   })
 }
 

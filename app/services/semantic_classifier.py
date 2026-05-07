@@ -28,6 +28,7 @@ from app.models.semantic_engine import SemConfig, SemEmbeddingCache, SemFeedback
 from app.models.service_desk import Ticket
 from app.models.task import Task
 from app.models.user import User
+from app.services.base import ServiceBase
 from app.services.resource_analytics import ResourceAnalyticsService
 from datetime import date
 from datetime import datetime, timezone
@@ -167,7 +168,7 @@ MULTI_ROLE_FACTOR = _cfg.SEM_MULTI_ROLE_FACTOR
 
 
 # ── Motor de asignacion semantica ─────────────────────────────────────────────
-class SemanticAssigner:
+class SemanticAssigner(ServiceBase):
     """
     Motor principal de asignacion semantica.
     Equivalente a RequirementClassifier de Ficosa pero orientado a
@@ -177,6 +178,8 @@ class SemanticAssigner:
 
     Donde sem_score = 0.40 * sim(desc_perfil) + 0.60 * mean(top-3 historial)
     (misma formula que Ficosa)
+
+    Extends ServiceBase for a consistent service-layer interface.
     """
 
     WEIGHT_PROFILE   = _cfg.SEM_WEIGHT_PROFILE
@@ -201,8 +204,10 @@ class SemanticAssigner:
             return "transformer", "all-MiniLM-L6-v2"
         return "tfidf", "all-MiniLM-L6-v2"
 
-    def __init__(self, db, config=None):
-        self.db = db
+    def __init__(self, db, config=None, current_user=None):
+        # ServiceBase stores db and current_user; we pass None for current_user
+        # by default since this service is called without authentication context.
+        super().__init__(db, current_user)
         self.config = config or db.query(SemConfig).first()
         if not self.config:
             self.config = SemConfig()

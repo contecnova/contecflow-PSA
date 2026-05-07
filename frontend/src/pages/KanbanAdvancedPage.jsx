@@ -10,7 +10,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
-import api, { projectsApi } from '../services/api'
+import { tasksApi, projectsApi, sprintsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { LayoutGrid, History, X } from 'lucide-react'
 import { Button, Spinner, EmptyState } from '../components/ui'
@@ -178,7 +178,7 @@ function QuickAdd({ status, projectId, onCreated }) {
   const submit = async () => {
     if (!title.trim()) return
     try {
-      await api.post('/tasks', { title: title.trim(), status, project_id: projectId || undefined })
+      await tasksApi.create({ title: title.trim(), status, project_id: projectId || undefined })
       setTitle('')
       setOpen(false)
       onCreated()
@@ -335,11 +335,8 @@ export default function KanbanAdvancedPage() {
 
   const { data: rawTasks = [], isLoading } = useQuery({
     queryKey: ['kanban-tasks', projectId],
-    queryFn:  () => {
-      const params = { page_size: 500, ...(projectId ? { project_id: projectId } : {}) }
-      return api.get('/tasks', { params })
-        .then(r => Array.isArray(r.data) ? r.data : (r.data?.items || []))
-    },
+    queryFn:  () => tasksApi.list({ page_size: 500, ...(projectId ? { project_id: projectId } : {}) })
+      .then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
     staleTime: 15000,
   })
 
@@ -347,7 +344,7 @@ export default function KanbanAdvancedPage() {
     queryKey: ['sprints', projectId],
     queryFn:  () => {
       if (!projectId) return []
-      return api.get('/sprints', { params: { project_id: projectId } })
+      return sprintsApi.list(projectId)
         .then(r => Array.isArray(r.data) ? r.data : (r.data?.items || []))
         .catch(() => [])
     },
@@ -356,7 +353,7 @@ export default function KanbanAdvancedPage() {
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status, move_reason }) =>
-      api.patch(`/tasks/${id}`, { status, ...(move_reason ? { move_reason } : {}) }),
+      tasksApi.update(id, { status, ...(move_reason ? { move_reason } : {}) }),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['kanban-tasks'] }),
     onError:    (e) => toast.error(e?.response?.data?.detail || t('kanban.error_move_task')),
   })
@@ -729,7 +726,7 @@ function StatusBadge({ status }) {
 function TaskMovementLogDrawer({ task, onClose }) {
   const { data: log = [], isLoading } = useQuery({
     queryKey: ['task-movement-log', task.id],
-    queryFn: () => api.get(`/tasks/${task.id}/movement-log`).then(r => r.data),
+    queryFn: () => tasksApi.movementLog(task.id).then(r => r.data),
     staleTime: 0,
     retry: false,
   })

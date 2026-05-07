@@ -1,0 +1,51 @@
+/**
+ * Hooks index — re-exports all React Query hooks for the application.
+ * Import from here: `import { useTasks, useCreateTask } from '../hooks'`
+ */
+
+export * from './useAbsences'
+export * from './useAlerts'
+export * from './useAnalytics'
+export * from './useApprovals'
+export * from './useAssets'
+export * from './useChanges'
+export * from './useClients'
+export * from './useContracts'
+export * from './useDashboard'
+export * from './useDeliverables'
+export * from './useEpics'
+export * from './useExpenses'
+export * from './useForecasts'
+export * from './useImputations'
+export * from './useLicenses'
+export * from './useMilestones'
+export * from './useOKRs'
+export * from './useProblems'
+export * from './useProjects'
+export * from './useRateCards'
+export * from './useRisks'
+export * from './useSprints'
+export * from './useSubcontractors'
+export * from './useTasks'
+export * from './useTickets'
+export * from './useTraining'
+export * from './useUsers'
+export * from './useVendors'
+
+// Pipeline / other multi-export hooks
+export * from './usePipeline'
+
+// Utility / UI hooks (not query-related) — exported for convenience
+export { useInvalidate } from './useInvalidate'
+export { useFormValidation } from './useFormValidation'
+export { useCountUp } from './useCountUp'
+export { useIdleTimeout } from './useIdleTimeout'
+export { useMediaQuery } from './useMediaQuery'
+export { useNotificationBadges } from './useNotificationBadges'
+export { useOfflineSync } from './useOfflineSync'
+export { useOnlineStatus } from './useOnlineStatus'
+export { useOrgSettings } from './useOrgSettings'
+export { useSwipeGesture } from './useSwipeGesture'
+export { useUserPreferences } from './useUserPreferences'
+export { useDocCollab } from './useDocCollab'
+export { useAppT } from './useAppT'

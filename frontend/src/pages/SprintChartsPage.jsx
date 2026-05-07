@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
+import { projectsApi, projectSprintsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
@@ -26,12 +26,12 @@ export default function SprintChartsPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-list'],
-    queryFn: () => api.get('/projects').then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
+    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
   })
 
   const { data: sprintsData } = useQuery({
-    queryKey: ['sprints', projectId],
-    queryFn: () => api.get(`/sprints/${projectId}/sprints`).then(r => r.data),
+    queryKey: ['project-sprints-list', projectId],
+    queryFn: () => projectSprintsApi.list(projectId).then(r => r.data),
     enabled: !!projectId,
   })
 
@@ -39,13 +39,13 @@ export default function SprintChartsPage() {
 
   const { data: burnupData, isLoading: loadBU } = useQuery({
     queryKey: ['burnup', projectId, sprintId],
-    queryFn: () => api.get(`/sprints/${projectId}/sprints/${sprintId}/burnup`).then(r => r.data),
+    queryFn: () => projectSprintsApi.burnup(projectId, sprintId).then(r => r.data),
     enabled: !!projectId && !!sprintId,
   })
 
   const { data: velocityData, isLoading: loadVel } = useQuery({
     queryKey: ['velocity', projectId],
-    queryFn: () => api.get(`/sprints/${projectId}/velocity`).then(r => r.data),
+    queryFn: () => projectSprintsApi.velocity(projectId).then(r => r.data),
     enabled: !!projectId,
   })
 
