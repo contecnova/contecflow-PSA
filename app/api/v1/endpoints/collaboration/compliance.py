@@ -205,6 +205,26 @@ def ediscovery_export(payload: EDiscoveryRequest, current_user: User = Depends(g
 
 
 # ── Audit ────────────────────────────────────────────────────────────────────
+@router.get("/decisions", summary="Listado de decisiones gobernadas")
+def list_decisions(limit: int = 100, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Decisiones registradas con `/decision <texto>` extraídas del audit log."""
+    rows = db.query(CollaborationAuditEvent).filter(
+        CollaborationAuditEvent.organization_id == _org(current_user),
+        CollaborationAuditEvent.action == "decision.recorded",
+    ).order_by(CollaborationAuditEvent.created_at.desc()).limit(min(limit, 500)).all()
+    out = []
+    for r in rows:
+        payload = r.payload or {}
+        out.append({
+            "id": r.id,
+            "text": payload.get("text", ""),
+            "actor_user_id": r.actor_user_id,
+            "conversation_id": r.entity_id,
+            "created_at": r.created_at,
+        })
+    return out
+
+
 @router.get("/audit", response_model=List[AuditEventOut], summary="Eventos de auditoría",
             dependencies=[Depends(require_admin)])
 def list_audit(limit: int = 200, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

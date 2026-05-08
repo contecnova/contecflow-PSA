@@ -66,6 +66,9 @@ export const collabApi = {
 
   // Search
   search: (params) => api.get(`${root}/search`, { params }).then(r => r.data),
+  mentionSuggestions: (params) => api.get(`${root}/mention-suggestions`, { params }).then(r => r.data),
+  linkMessage: (id, body) => api.post(`${root}/messages/${id}/link`, body).then(r => r.data),
+  linkCandidates: (id, params) => api.get(`${root}/messages/${id}/link/candidates`, { params }).then(r => r.data),
 
   // Attachments
   uploadAttachment: (form) => api.post(`${root}/attachments`, form).then(r => r.data),
@@ -92,6 +95,12 @@ export const collabApi = {
   deleteIntegration: (id) => api.delete(`${root}/integrations/${id}`).then(r => r.data),
   listWebhooks:     () => api.get(`${root}/webhooks`).then(r => r.data),
   createWebhook:    (d) => api.post(`${root}/webhooks`, d).then(r => r.data),
+
+  // Calendar
+  calendarEvents: (days = 7) => api.get(`${root}/calendar/events`, { params: { days } }).then(r => r.data),
+
+  // Decisions
+  listDecisions: (limit = 100) => api.get(`${root}/decisions`, { params: { limit } }).then(r => r.data),
 
   // Compliance
   listRetention:     () => api.get(`${root}/retention`).then(r => r.data),

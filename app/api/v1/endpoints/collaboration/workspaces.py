@@ -457,6 +457,56 @@ def run_saved_search(saved_id: str, current_user: User = Depends(get_current_use
     return SearchResponse(hits=[SearchHit(**h) for h in hits], total=len(hits))
 
 
+@router.get("/mention-suggestions", summary="Sugerencias para autocomplete @")
+def mention_suggestions(
+    q: str = Query("", max_length=80),
+    conversation_id: Optional[str] = None,
+    limit: int = Query(8, le=20),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Devuelve users mencionables (limitados a la org y a los miembros del canal
+    si se pasa conversation_id) + grupos `everyone`/`channel`/`here`."""
+    from app.models.collaboration import CollaborationChannel
+    org = _org(current_user)
+    user_ids: set[str] | None = None
+    if conversation_id:
+        ch = db.query(CollaborationChannel).filter(CollaborationChannel.conversation_id == conversation_id).first()
+        if ch:
+            tm_q = db.query(CollaborationTeamMember.user_id).filter(
+                CollaborationTeamMember.team_id == ch.team_id,
+            )
+            user_ids = {r[0] for r in tm_q.all()}
+
+    qx = db.query(User).filter(User.organization_id == org)
+    if q:
+        ql = q.lstrip("@").lower()
+        from sqlalchemy import or_, func
+        qx = qx.filter(or_(
+            func.lower(User.username).like(f"{ql}%"),
+            func.lower(User.full_name).like(f"%{ql}%"),
+            func.lower(User.email).like(f"{ql}%"),
+        ))
+    rows = qx.limit(50).all()
+    if user_ids is not None:
+        rows = [u for u in rows if u.id in user_ids]
+    out = [{
+        "id": u.id,
+        "username": getattr(u, "username", None),
+        "full_name": getattr(u, "full_name", None) or getattr(u, "username", None),
+        "email": u.email,
+    } for u in rows[:limit]]
+    # Grupos especiales si encajan en el query
+    extras = []
+    qm = (q or "").lstrip("@").lower()
+    for tag, label in (("here", "@here · personas online"),
+                       ("channel", "@channel · todo el canal"),
+                       ("everyone", "@everyone · toda la conversación")):
+        if not qm or tag.startswith(qm):
+            extras.append({"id": tag, "username": tag, "full_name": label, "is_group": True})
+    return {"users": out, "groups": extras}
+
+
 @router.get("/search", response_model=SearchResponse, summary="Búsqueda global")
 def search(
     q: str = Query("", min_length=0, max_length=500),

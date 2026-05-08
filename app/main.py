@@ -313,7 +313,21 @@ async def lifespan(_app: FastAPI):
     logger.info(f"   🔍 Health: {settings.BACKEND_URL}/health")
     logger.info("━" * 54)
 
+    # Collaboration: scheduled message dispatcher
+    if not _is_testing:
+        try:
+            from app.services.collaboration._scheduler import start as _collab_start
+            _collab_start()
+        except Exception as _exc:
+            logger.warning("Collab scheduler no inicializado: %s", _exc)
+
     yield
+
+    try:
+        from app.services.collaboration._scheduler import stop as _collab_stop
+        _collab_stop()
+    except Exception:
+        pass
 
     logger.info("🛑 Apagando Contecflow PSA...")
     if _scheduler:

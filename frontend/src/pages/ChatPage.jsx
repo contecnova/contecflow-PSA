@@ -29,6 +29,7 @@ export default function ChatPage() {
   const [activeConv, setActiveConv] = useState(null) // {id, kind, title, ...}
   const [showSlashMenu, setShowSlashMenu] = useState(false)
   const [draft, setDraft] = useState('')
+  const [searchModalOpen, setSearchModalOpen] = useState(false)
   const wsRef = useRef(null)
 
   // ── Data ───────────────────────────────────────────────────────────────────
@@ -87,6 +88,28 @@ export default function ChatPage() {
     registerCollabPush().catch(() => { /* ignore */ })
   }, [])
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handler = (e) => {
+      const isMac = navigator.platform.toUpperCase().includes('MAC')
+      const cmd = isMac ? e.metaKey : e.ctrlKey
+      if (!cmd) return
+      if (e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSearchModalOpen(true)
+      } else if (e.key === '/') {
+        e.preventDefault()
+        const ta = document.querySelector('[data-chat-composer]')
+        if (ta) { ta.focus(); ta.value = '/'; ta.dispatchEvent(new Event('input', { bubbles: true })) }
+      } else if (e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault()
+        setActiveTab('activity')
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
   // ── WebSocket ──────────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false
@@ -136,8 +159,17 @@ export default function ChatPage() {
         if (ev.conversation_id) qc.invalidateQueries(['collab-messages', ev.conversation_id])
       } else if (ev.type === 'notification.new') {
         qc.invalidateQueries(['collab-notifications'])
+        // Native browser notification cuando la pestaña no está activa
+        try {
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
+            new Notification('Contecflow Chat', { body: 'Nueva actividad en tu chat', icon: '/favicon.ico', tag: 'collab' })
+          }
+        } catch { /* noop */ }
       } else if (ev.type === 'presence.updated') {
         qc.invalidateQueries(['collab-presence'])
+      } else if (ev.type === 'typing') {
+        // Re-emit como evento DOM para que el ConversationPane lo consuma sin acoplarse al WS
+        window.dispatchEvent(new CustomEvent('collab:typing', { detail: ev }))
       }
     }
 
@@ -177,9 +209,21 @@ export default function ChatPage() {
         setDraft={setDraft}
         showSlashMenu={showSlashMenu}
         setShowSlashMenu={setShowSlashMenu}
+        wsRef={wsRef}
       />
 
       {activeConv && <ContextPanel conv={activeConv} />}
+
+      {searchModalOpen && (
+        <SearchModal
+          onClose={() => setSearchModalOpen(false)}
+          onJump={(conversationId) => {
+            const c = conversations.find(c => c.id === conversationId)
+            if (c) setActiveConv(c)
+            setSearchModalOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -416,13 +460,17 @@ function NewConversationButton() {
 }
 
 // ── Conversation pane ────────────────────────────────────────────────────────
-function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlashMenu, setShowSlashMenu }) {
+function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlashMenu, setShowSlashMenu, wsRef }) {
   const qc = useQueryClient()
   const toast = useToast()
   const fileRef = useRef(null)
   const composerRef = useRef(null)
   const messagesEndRef = useRef(null)
   const [editing, setEditing] = useState(null) // { id, body }
+  const [mentionState, setMentionState] = useState(null) // { query, anchor, items }
+  const [activeThreadRoot, setActiveThreadRoot] = useState(null)
+  const [linkPicker, setLinkPicker] = useState(null) // { kind: 'task'|'ticket', items }
+  const [typingUsers, setTypingUsers] = useState({})  // { user_id: ts }
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['collab-messages', conv?.id],
@@ -431,8 +479,36 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
     refetchInterval: 5_000, // fallback polling alongside websocket
   })
 
+  // Parse @mentions from raw text → { mention_user_ids, is_everyone }
+  const parseMentions = (text) => {
+    const ids = []
+    let everyone = false
+    const re = /@([\w.\-]+|\[[^\]]+\])/g
+    let m
+    while ((m = re.exec(text)) !== null) {
+      let token = m[1]
+      if (token.startsWith('[') && token.endsWith(']')) token = token.slice(1, -1)
+      if (['everyone', 'channel', 'here'].includes(token.toLowerCase())) {
+        everyone = true
+        continue
+      }
+      // Format: @[name|id]
+      const parts = token.split('|')
+      if (parts.length === 2) ids.push(parts[1])
+    }
+    return { mention_user_ids: ids, is_everyone: everyone }
+  }
+
   const send = useMutation({
-    mutationFn: (body) => collabApi.sendMessage({ conversation_id: conv.id, body }),
+    mutationFn: (body) => {
+      const mentions = parseMentions(body)
+      return collabApi.sendMessage({
+        conversation_id: conv.id,
+        body,
+        parent_message_id: activeThreadRoot,
+        ...mentions,
+      })
+    },
     onSuccess: () => {
       qc.invalidateQueries(['collab-messages', conv.id])
       qc.invalidateQueries(['collab-conversations'])
@@ -476,6 +552,81 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
   useEffect(() => {
     setShowSlashMenu(draft.startsWith('/') && !draft.includes(' '))
   }, [draft, setShowSlashMenu])
+
+  // Mention detection — busca el último @ sin cerrar
+  useEffect(() => {
+    if (!conv) return
+    const m = draft.match(/(^|[\s])@([\w.\-]{0,40})$/)
+    if (!m) {
+      setMentionState(null)
+      return
+    }
+    const q = m[2]
+    let cancelled = false
+    collabApi.mentionSuggestions({ q, conversation_id: conv.id })
+      .then((data) => {
+        if (cancelled) return
+        const items = [...(data.users || []), ...(data.groups || [])]
+        setMentionState({ query: q, items })
+      })
+      .catch(() => setMentionState(null))
+    return () => { cancelled = true }
+  }, [draft, conv])
+
+  // Typing emit (debounced)
+  useEffect(() => {
+    if (!conv?.id || !wsRef?.current) return
+    if (wsRef.current.readyState !== WebSocket.OPEN) return
+    if (!draft.trim()) return
+    try {
+      wsRef.current.send(JSON.stringify({ type: 'typing', conversation_id: conv.id, active: true }))
+    } catch { /* noop */ }
+    const t = setTimeout(() => {
+      try { wsRef.current?.send(JSON.stringify({ type: 'typing', conversation_id: conv.id, active: false })) }
+      catch { /* noop */ }
+    }, 4000)
+    return () => clearTimeout(t)
+  }, [draft, conv?.id, wsRef])
+
+  // Listen to typing events from bus (delegated through window CustomEvent)
+  useEffect(() => {
+    const handler = (e) => {
+      const { conversation_id, payload } = e.detail || {}
+      if (conversation_id !== conv?.id) return
+      const uid = payload?.user_id
+      const active = !!payload?.active
+      if (!uid || uid === currentUser?.id) return
+      setTypingUsers(prev => {
+        const next = { ...prev }
+        if (active) next[uid] = Date.now()
+        else delete next[uid]
+        return next
+      })
+    }
+    window.addEventListener('collab:typing', handler)
+    return () => window.removeEventListener('collab:typing', handler)
+  }, [conv?.id, currentUser?.id])
+
+  // Garbage-collect typing entries older than 6s
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTypingUsers(prev => {
+        const cutoff = Date.now() - 6000
+        const next = {}
+        for (const [k, v] of Object.entries(prev)) if (v > cutoff) next[k] = v
+        return next
+      })
+    }, 2000)
+    return () => clearInterval(id)
+  }, [])
+
+  const insertMention = (item) => {
+    const insert = item.is_group ? `@${item.username} ` : `@[${item.full_name}|${item.id}] `
+    const replaced = draft.replace(/(^|[\s])@([\w.\-]{0,40})$/, (_m, p1) => `${p1}${insert}`)
+    setDraft(replaced)
+    setMentionState(null)
+    composerRef.current?.focus()
+  }
 
   if (!conv) {
     return (
@@ -561,11 +712,20 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
               onDelete={() => { if (confirm('¿Borrar mensaje?')) delMsg.mutate(m.id) }}
               onPin={() => collabApi.pinMessage(conv.id, m.id).then(() => qc.invalidateQueries(['collab-messages', conv.id]))}
               onSave={() => collabApi.saveMessage(m.id).then(() => toast.success('Guardado'))}
+              onReplyThread={() => setActiveThreadRoot(m.id)}
+              onLink={(kind) => setLinkPicker({ messageId: m.id, kind })}
             />
           )
         })}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Typing indicator */}
+      {Object.keys(typingUsers).length > 0 && (
+        <div style={{ padding: '0 22px', height: 22, fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontStyle: 'italic' }}>
+          {Object.keys(typingUsers).length === 1 ? 'Alguien está escribiendo…' : `${Object.keys(typingUsers).length} personas están escribiendo…`}
+        </div>
+      )}
 
       {/* Composer */}
       <div style={{
@@ -575,6 +735,17 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
       }}>
         {showSlashMenu && (
           <SlashMenu draft={draft} onPick={(cmd) => setDraft(`/${cmd} `)} />
+        )}
+        {mentionState && mentionState.items?.length > 0 && (
+          <MentionMenu items={mentionState.items} onPick={insertMention} />
+        )}
+        {activeThreadRoot && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', marginBottom: 6, background: 'var(--accent-muted)', borderRadius: 6, fontSize: 'var(--text-xs)' }}>
+            <MessageSquare size={12} /> Respondiendo en hilo
+            <button onClick={() => setActiveThreadRoot(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}>
+              <X size={12} />
+            </button>
+          </div>
         )}
         {editing && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', marginBottom: 6, background: 'var(--accent-muted)', borderRadius: 6, fontSize: 'var(--text-xs)' }}>
@@ -593,6 +764,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
           <input ref={fileRef} type="file" hidden onChange={e => handleFile(e.target.files?.[0])} />
           <textarea
             ref={composerRef}
+            data-chat-composer
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => {
@@ -601,7 +773,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
                 handleSend()
               }
             }}
-            placeholder={`Escribe un mensaje en ${conv.title}…  (usa / para comandos)`}
+            placeholder={`Escribe un mensaje en ${conv.title}…  ( / comandos · @ menciones )`}
             rows={1}
             style={{
               flex: 1, minWidth: 0, resize: 'none',
@@ -610,12 +782,36 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
               fontFamily: 'inherit', maxHeight: 200,
             }}
           />
+          <IconBtn onClick={() => setDraft(d => d + '@')} title="Mencionar"><AtSign size={16} /></IconBtn>
           <IconBtn onClick={handleSend} title="Enviar"
             style={{ background: 'var(--accent)', color: '#fff' }}>
             <Send size={16} />
           </IconBtn>
         </div>
       </div>
+
+      {/* Thread side panel */}
+      {activeThreadRoot && (
+        <ThreadPanel
+          conv={conv}
+          rootId={activeThreadRoot}
+          onClose={() => setActiveThreadRoot(null)}
+        />
+      )}
+
+      {/* Link picker modal */}
+      {linkPicker && (
+        <LinkPickerModal
+          messageId={linkPicker.messageId}
+          kind={linkPicker.kind}
+          onClose={() => setLinkPicker(null)}
+          onPicked={() => {
+            setLinkPicker(null)
+            qc.invalidateQueries(['collab-messages', conv.id])
+            toast.success('Anclado')
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -636,7 +832,7 @@ function IconBtn({ children, onClick, title, style = {} }) {
 }
 
 // ── Message bubble with hover actions ────────────────────────────────────────
-function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin, onSave }) {
+function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin, onSave, onReplyThread, onLink }) {
   const [showActions, setShowActions] = useState(false)
   const author = msg.author_name || (msg.bot_id ? 'Bot' : 'Usuario')
 
@@ -689,6 +885,9 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
           {msg.body}
         </div>
         {msg.metadata_json?.card && <BotCard meta={msg.metadata_json} />}
+        {(msg.linked_task_id || msg.linked_ticket_id || msg.linked_deliverable_id || msg.linked_risk_id) && (
+          <LinkedEntityChips msg={msg} />
+        )}
         {msg.attachments?.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
             {msg.attachments.map(a => (
@@ -731,8 +930,11 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
           {['👍', '❤️', '😂', '🎉'].map(e => (
             <button key={e} onClick={() => onReact(e)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, fontSize: 14 }}>{e}</button>
           ))}
+          <IconBtn onClick={onReplyThread} title="Responder en hilo"><MessageSquare size={13} /></IconBtn>
           <IconBtn onClick={onPin} title="Anclar"><Pin size={13} /></IconBtn>
           <IconBtn onClick={onSave} title="Guardar"><Bookmark size={13} /></IconBtn>
+          <IconBtn onClick={() => onLink && onLink('task')} title="Anclar a tarea"><ListChecks size={13} /></IconBtn>
+          <IconBtn onClick={() => onLink && onLink('ticket')} title="Anclar a ticket"><Headphones size={13} /></IconBtn>
           {isMine && <IconBtn onClick={onEdit} title="Editar"><Pencil size={13} /></IconBtn>}
           {isMine && <IconBtn onClick={onDelete} title="Borrar" style={{ color: 'var(--danger)' }}><Trash2 size={13} /></IconBtn>}
         </div>
@@ -804,6 +1006,237 @@ function PollCard({ meta }) {
   )
 }
 
+// ── Search modal (Cmd+K) ───────────────────────────────────────────────────
+function SearchModal({ onClose, onJump }) {
+  const [q, setQ] = useState('')
+  const { data: result, isFetching } = useQuery({
+    queryKey: ['collab-search', q],
+    queryFn: () => collabApi.search({ q, limit: 30 }),
+    enabled: q.trim().length >= 2,
+  })
+  const hits = result?.hits || []
+  return (
+    <div role="presentation" onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '8vh 16px', zIndex: 1000,
+    }}>
+      <div role="dialog" onClick={(e) => e.stopPropagation()} style={{
+        background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+        borderRadius: 14, width: 640, maxWidth: '94%', overflow: 'hidden',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderBottom: '1px solid var(--surface-4)' }}>
+          <Search size={16} style={{ color: 'var(--text-3)' }} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus
+            placeholder="Buscar mensajes…  (operadores: from:, in:, before:, has:link, is:pinned …)"
+            style={{
+              flex: 1, background: 'transparent', border: 'none', outline: 'none',
+              color: 'var(--text-1)', fontSize: 'var(--text-md)', fontFamily: 'inherit',
+            }} />
+          <kbd style={{
+            fontSize: 'var(--text-xs)', color: 'var(--text-3)',
+            border: '1px solid var(--surface-4)', padding: '2px 6px', borderRadius: 4,
+          }}>Esc</kbd>
+        </div>
+        <div style={{ maxHeight: '54vh', overflowY: 'auto' }}>
+          {q.trim().length < 2 && (
+            <div style={{ padding: 24, fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
+              Escribe al menos 2 caracteres. Soporta operadores: <code>from:juan</code> · <code>in:#general</code> · <code>before:2026-05-01</code> · <code>has:link</code> · <code>is:pinned</code> · <code>type:bot</code>
+            </div>
+          )}
+          {isFetching && <div style={{ padding: 18, fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Buscando…</div>}
+          {!isFetching && q.trim().length >= 2 && hits.length === 0 && (
+            <div style={{ padding: 18, fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Sin resultados</div>
+          )}
+          {hits.map((h) => (
+            <button key={h.id} onClick={() => onJump(h.conversation_id)} style={{
+              display: 'block', width: '100%', textAlign: 'left',
+              padding: '10px 18px',
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              fontFamily: 'inherit', borderBottom: '1px solid var(--surface-4)',
+            }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', marginBottom: 4 }}>{h.snippet}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                {h.sent_at ? new Date(h.sent_at).toLocaleString('es-ES') : ''}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Linked entity chips ────────────────────────────────────────────────────
+function LinkedEntityChips({ msg }) {
+  const chips = []
+  if (msg.linked_task_id) chips.push({ icon: ListChecks, label: 'Tarea', href: `/tasks?id=${msg.linked_task_id}`, color: 'var(--success)' })
+  if (msg.linked_ticket_id) chips.push({ icon: Headphones, label: 'Ticket', href: `/service-desk?id=${msg.linked_ticket_id}`, color: 'var(--warning)' })
+  if (msg.linked_deliverable_id) chips.push({ icon: FileText, label: 'Entregable', href: `/deliverables?id=${msg.linked_deliverable_id}`, color: 'var(--accent)' })
+  if (msg.linked_risk_id) chips.push({ icon: AlertCircle, label: 'Riesgo', href: `/risks?id=${msg.linked_risk_id}`, color: 'var(--danger)' })
+  if (!chips.length) return null
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+      {chips.map((c, i) => (
+        <a key={i} href={c.href} target="_blank" rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '4px 10px', borderRadius: 999,
+            background: `${c.color}15`, border: `1px solid ${c.color}40`,
+            color: c.color, fontSize: 'var(--text-xs)', fontWeight: 700,
+            textDecoration: 'none',
+          }}>
+          <c.icon size={11} /> {c.label}
+        </a>
+      ))}
+    </div>
+  )
+}
+
+// ── Link picker modal ──────────────────────────────────────────────────────
+function LinkPickerModal({ messageId, kind, onClose, onPicked }) {
+  const [q, setQ] = useState('')
+  const { data: items = [] } = useQuery({
+    queryKey: ['link-candidates', messageId, kind, q],
+    queryFn: () => collabApi.linkCandidates(messageId, { kind, q }),
+  })
+  const link = useMutation({
+    mutationFn: (id) => collabApi.linkMessage(messageId, { kind, id }),
+    onSuccess: onPicked,
+  })
+  return (
+    <div role="presentation" onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    }}>
+      <div role="dialog" onClick={(e) => e.stopPropagation()} style={{
+        background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+        borderRadius: 12, padding: 18, width: 480, maxWidth: '92%',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>
+            Anclar a {kind === 'task' ? 'tarea' : kind === 'ticket' ? 'ticket' : kind}
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}>
+            <X size={14} />
+          </button>
+        </div>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar…" autoFocus
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+            borderRadius: 8, padding: '10px 12px',
+            color: 'var(--text-1)', fontSize: 'var(--text-sm)', outline: 'none', fontFamily: 'inherit',
+          }} />
+        <div style={{ marginTop: 10, maxHeight: 320, overflowY: 'auto' }}>
+          {items.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', padding: 14 }}>Sin resultados</div>}
+          {items.map((it) => (
+            <button key={it.id} onClick={() => link.mutate(it.id)} style={{
+              display: 'block', width: '100%', textAlign: 'left',
+              padding: '10px 12px', borderRadius: 6,
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              fontFamily: 'inherit', fontSize: 'var(--text-sm)', color: 'var(--text-1)',
+            }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+              {it.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Mention menu ────────────────────────────────────────────────────────────
+function MentionMenu({ items, onPick }) {
+  return (
+    <div style={{
+      position: 'absolute', bottom: '100%', left: 18, right: 18,
+      marginBottom: 6, padding: 6,
+      background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
+      borderRadius: 10, boxShadow: '0 -4px 18px rgba(0,0,0,0.3)',
+      maxHeight: 280, overflowY: 'auto',
+    }}>
+      {items.map((it, i) => (
+        <button key={i} onClick={() => onPick(it)} style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          width: '100%', padding: '8px 10px', borderRadius: 6,
+          background: 'transparent', border: 'none', cursor: 'pointer',
+          fontFamily: 'inherit', textAlign: 'left',
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+          <span style={{
+            width: 26, height: 26, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
+            color: '#fff', fontSize: 11, fontWeight: 800,
+          }}>{(it.full_name || it.username || '?').charAt(0).toUpperCase()}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>
+              {it.full_name}{it.is_group ? '' : ` (@${it.username || ''})`}
+            </div>
+            {it.email && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{it.email}</div>}
+          </div>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ── Thread side panel ──────────────────────────────────────────────────────
+function ThreadPanel({ conv, rootId, onClose }) {
+  const qc = useQueryClient()
+  const [reply, setReply] = useState('')
+  const { data: thread = [] } = useQuery({
+    queryKey: ['collab-thread', conv?.id, rootId],
+    queryFn: () => collabApi.listMessages(conv.id, { thread_root: rootId, limit: 200 }),
+    enabled: !!conv?.id && !!rootId,
+    refetchInterval: 5000,
+  })
+  const send = useMutation({
+    mutationFn: () => collabApi.sendMessage({ conversation_id: conv.id, parent_message_id: rootId, body: reply }),
+    onSuccess: () => {
+      qc.invalidateQueries(['collab-thread', conv.id, rootId])
+      qc.invalidateQueries(['collab-messages', conv.id])
+      setReply('')
+    },
+  })
+  return (
+    <div style={{
+      position: 'fixed', top: 56, right: 0, bottom: 0, width: 380,
+      background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',
+      display: 'flex', flexDirection: 'column', zIndex: 50,
+    }}>
+      <div style={{ height: 48, padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--surface-4)' }}>
+        <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }}>Hilo · {thread.length} respuesta{thread.length === 1 ? '' : 's'}</div>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}><X size={14} /></button>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
+        {thread.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Sin respuestas todavía.</div>}
+        {thread.map(m => (
+          <div key={m.id} style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{m.author_name || 'Usuario'} · {new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</div>
+            <div style={{ fontSize: 'var(--text-sm)', whiteSpace: 'pre-wrap', color: 'var(--text-1)' }}>{m.body}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: 10, borderTop: '1px solid var(--surface-4)', display: 'flex', gap: 6 }}>
+        <input value={reply} onChange={e => setReply(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && reply.trim() && send.mutate()}
+          placeholder="Responder en hilo…"
+          style={{
+            flex: 1, padding: '8px 10px',
+            background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
+            color: 'var(--text-1)', fontSize: 'var(--text-sm)', outline: 'none', fontFamily: 'inherit',
+          }} />
+        <IconBtn onClick={() => reply.trim() && send.mutate()} style={{ background: 'var(--accent)', color: '#fff' }}><Send size={14} /></IconBtn>
+      </div>
+    </div>
+  )
+}
+
 // ── Slash menu ──────────────────────────────────────────────────────────────
 function SlashMenu({ draft, onPick }) {
   const { data: help = { commands: [] } } = useQuery({
@@ -864,6 +1297,15 @@ function ContextPanel({ conv }) {
     queryFn: () => collabApi.listCalls(conv.id),
     enabled: !!conv?.id,
   })
+  const { data: calendar } = useQuery({
+    queryKey: ['collab-calendar'],
+    queryFn: () => collabApi.calendarEvents(7),
+    refetchInterval: 5 * 60_000,
+  })
+  const { data: decisions = [] } = useQuery({
+    queryKey: ['collab-decisions-context'],
+    queryFn: () => collabApi.listDecisions(5),
+  })
 
   return (
     <div style={{
@@ -900,6 +1342,26 @@ function ContextPanel({ conv }) {
           <div key={c.id} style={{ padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
             {c.kind === 'video' ? <Video size={11} /> : <Phone size={11} />} {c.duration_seconds}s — {c.status}
             {c.has_summary && <Sparkles size={10} style={{ marginLeft: 4, color: 'var(--warning)' }} />}
+          </div>
+        ))}
+      </Section>
+      <Section title="Próximos eventos (7d)">
+        {!calendar?.events?.length ? (
+          <Empty>{calendar?.providers_connected?.length ? 'Sin eventos próximos' : 'Conecta Google/M365 para ver tu calendario'}</Empty>
+        ) : calendar.events.slice(0, 6).map(ev => (
+          <a key={ev.id} href={ev.link || '#'} target="_blank" rel="noopener noreferrer"
+            style={{ display: 'block', padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)', textDecoration: 'none' }}>
+            <div style={{ color: 'var(--text-1)', fontWeight: 600 }}>{ev.title}</div>
+            <div style={{ color: 'var(--text-3)' }}>
+              {ev.source === 'google' ? '🅖' : '🅜'} {ev.start ? new Date(ev.start).toLocaleString('es-ES', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+            </div>
+          </a>
+        ))}
+      </Section>
+      <Section title={`Decisiones (${decisions.length})`}>
+        {decisions.length === 0 ? <Empty>Sin decisiones registradas</Empty> : decisions.slice(0, 5).map(d => (
+          <div key={d.id} style={{ padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+            <FileSignature size={10} style={{ marginRight: 4 }} /> {(d.text || '').slice(0, 100)}
           </div>
         ))}
       </Section>

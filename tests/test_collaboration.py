@@ -224,3 +224,128 @@ def test_push_public_key(client, admin_token):
     h = _auth_headers(admin_token)
     r = client.get("/api/v1/collaboration/push/public-key", headers=h).json()
     assert "configured" in r
+
+
+# ── Tests de las features añadidas en la 2ª ronda ──────────────────────────
+def test_mention_suggestions(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    r = client.get("/api/v1/collaboration/mention-suggestions", params={"q": "ad"}, headers=h).json()
+    assert "users" in r and "groups" in r
+    assert any(g["username"] == "everyone" for g in r["groups"]) or len(r["groups"]) >= 1
+
+
+def test_link_message_to_task(client, admin_token, db):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    msg_id = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "anchor me"}, headers=h).json()["id"]
+    # crea tarea via slash y luego ancla
+    from app.models.project import Project
+    from app.models.task import Task
+    p = db.query(Project).first()
+    if not p:
+        # Crea un proyecto minimo
+        from datetime import date
+        p = Project(id="test-p", code="TEST", name="Test", organization_id=1, status="active", start_date=date.today(), created_by="admin-test-id")
+        db.add(p); db.commit()
+    t = Task(id="task-1", code="T-1", title="x", project_id=p.id, status="todo", priority="medium", organization_id=1, created_by="admin-test-id")
+    db.add(t); db.commit()
+    r = client.post(f"/api/v1/collaboration/messages/{msg_id}/link", json={"kind": "task", "id": t.id}, headers=h)
+    assert r.status_code == 200
+    msgs = client.get(f"/api/v1/collaboration/conversations/{cid}/messages", headers=h).json()
+    linked = next(m for m in msgs if m["id"] == msg_id)
+    assert linked["linked_task_id"] == t.id
+
+
+def test_link_candidates(client, admin_token, db):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    msg_id = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "hi"}, headers=h).json()["id"]
+    r = client.get(f"/api/v1/collaboration/messages/{msg_id}/link/candidates", params={"kind": "task"}, headers=h)
+    assert r.status_code == 200
+    assert isinstance(r.json(), list)
+
+
+def test_decisions_endpoint(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "decision", "args": "Migrar Postgres 16"}, headers=h)
+    r = client.get("/api/v1/collaboration/decisions", headers=h)
+    assert r.status_code == 200
+    items = r.json()
+    assert any("Postgres 16" in (d.get("text") or "") for d in items)
+
+
+def test_calendar_events_no_providers(client, admin_token):
+    h = _auth_headers(admin_token)
+    r = client.get("/api/v1/collaboration/calendar/events", headers=h)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["events"] == []
+
+
+def test_scheduled_message_does_not_notify_immediately(client, admin_token, db):
+    """Mensaje programado al futuro: no fan-out de notificaciones inmediato."""
+    from datetime import datetime, timedelta
+    from app.models.collaboration import CollaborationNotification
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    future = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    r = client.post(
+        "/api/v1/collaboration/messages",
+        json={"conversation_id": cid, "body": "futuro", "scheduled_for": future},
+        headers=h,
+    )
+    assert r.status_code == 200
+    msg_id = r.json()["id"]
+    notifs = db.query(CollaborationNotification).filter(CollaborationNotification.message_id == msg_id).count()
+    assert notifs == 0  # ningún fan-out hasta que el scheduler lo entregue
+
+
+def test_project_auto_channel(client, admin_token, db):
+    """Crear un proyecto debe disparar la creación de un team+canal collaboration."""
+    from app.models.project import Project
+    from app.models.collaboration import CollaborationChannel, CollaborationTeam
+    from app.services.collaboration._project_sync import on_project_created
+    from app.models.user import User
+
+    creator = db.query(User).filter(User.username == "admin").first()
+    proj = Project(
+        id="auto-p", code="AUTO", name="AutoProj", organization_id=1, status="active",
+        created_by=creator.id,
+    )
+    db.add(proj); db.commit()
+    on_project_created(db, proj, creator)
+    db.commit()
+
+    team = db.query(CollaborationTeam).filter(CollaborationTeam.project_id == proj.id).first()
+    chan = db.query(CollaborationChannel).filter(CollaborationChannel.project_id == proj.id).first()
+    assert team is not None
+    assert chan is not None
+    assert chan.channel_type == "project"
+
+
+def test_search_query_advanced_operators():
+    from app.services.collaboration._search_query import parse
+    p = parse("type:bot is:saved")
+    assert p.type_filter == "bot"
+    assert p.is_saved is True
+
+
+def test_permission_cache_invalidation():
+    from app.services.collaboration._permissions import _cache_get, _cache_set, invalidate_membership
+    _cache_set("team:T1:user-X", True)
+    assert _cache_get("team:T1:user-X") is True
+    invalidate_membership("user-X")
+    assert _cache_get("team:T1:user-X") is None
+
+
+def test_text_extract_plain_text():
+    from app.services.collaboration._text_extract import extract_text
+    text = extract_text(b"Hola mundo, este es texto plano.", "test.txt", "text/plain")
+    assert "Hola mundo" in text
+

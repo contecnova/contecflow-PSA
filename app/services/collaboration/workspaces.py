@@ -22,7 +22,7 @@ from app.models.user import User
 from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import (
     _org, assert_team_access, assert_workspace,
-    is_team_member,
+    invalidate_membership, is_team_member,
 )
 
 
@@ -168,6 +168,8 @@ def add_team_members(db: Session, user, team_id: str, user_ids: list[str], role:
         payload={"added": added, "role": role, "user_ids": user_ids},
     )
     db.commit()
+    for uid in user_ids:
+        invalidate_membership(uid)
     return added
 
 

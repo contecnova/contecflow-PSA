@@ -93,7 +93,16 @@ async def upload_attachment(
     if not is_quarantined:
         from app.services.collaboration._queue import task_queue
         from app.services.collaboration._thumbnails import generate_for_attachment
+        from app.services.collaboration._text_extract import extract_text
         task_queue.enqueue(generate_for_attachment, att.id)
+        # Extract text body for search index (best-effort, sync to keep dev simple)
+        try:
+            text = extract_text(data, file.filename or "", file.content_type)
+            if text:
+                att.text_index = text
+                db.commit()
+        except Exception:
+            pass
 
     download_url = None if is_quarantined else storage.signed_url(stored.storage_key, ttl_seconds=3600)
     return AttachmentOut(

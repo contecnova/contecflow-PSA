@@ -119,6 +119,53 @@ def oauth_start(
     return RedirectResponse(url=url, status_code=302)
 
 
+@router.get("/calendar/events", summary="Eventos próximos (Google + M365 agregados)")
+async def calendar_events(
+    days: int = Query(7, ge=1, le=60),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Devuelve eventos próximos de cualquier integracion calendario activa."""
+    rows = db.query(CollaborationIntegration).filter(
+        CollaborationIntegration.organization_id == current_user.organization_id,
+        CollaborationIntegration.is_enabled == True,  # noqa: E712
+        CollaborationIntegration.kind.in_(["google_calendar", "microsoft_365"]),
+    ).all()
+    out = []
+    for it in rows:
+        try:
+            if it.kind == "google_calendar":
+                from app.services.collaboration._integrations_clients import google_calendar_list
+                r = await google_calendar_list(it, max_results=20)
+                items = (r.get("body") or {}).get("items") or []
+                for ev in items:
+                    out.append({
+                        "id": ev.get("id"),
+                        "title": ev.get("summary"),
+                        "start": (ev.get("start") or {}).get("dateTime") or (ev.get("start") or {}).get("date"),
+                        "end": (ev.get("end") or {}).get("dateTime") or (ev.get("end") or {}).get("date"),
+                        "source": "google",
+                        "link": ev.get("htmlLink"),
+                    })
+            elif it.kind == "microsoft_365":
+                from app.services.collaboration._integrations_clients import m365_calendar_list
+                r = await m365_calendar_list(it, top=20)
+                items = (r.get("body") or {}).get("value") or []
+                for ev in items:
+                    out.append({
+                        "id": ev.get("id"),
+                        "title": ev.get("subject"),
+                        "start": (ev.get("start") or {}).get("dateTime"),
+                        "end": (ev.get("end") or {}).get("dateTime"),
+                        "source": "m365",
+                        "link": ev.get("webLink"),
+                    })
+        except Exception:
+            continue
+    out.sort(key=lambda e: e.get("start") or "")
+    return {"events": out, "providers_connected": [it.kind for it in rows]}
+
+
 @router.get("/integrations/oauth/callback", summary="Callback OAuth (cualquier proveedor)")
 async def oauth_callback(
     state: str = Query(...),

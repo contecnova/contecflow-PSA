@@ -143,6 +143,77 @@ def list_saved(current_user: User = Depends(get_current_user), db: Session = Dep
 
 
 # ── Mentions (mine) ──────────────────────────────────────────────────────────
+@router.post("/messages/{message_id}/link", summary="Anclar mensaje a entidad PSA (task/ticket/deliverable/risk)")
+def link_message(
+    message_id: str,
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.services.collaboration import audit_log
+    from app.services.collaboration._permissions import _org as _org_fn
+    org = _org_fn(current_user)
+    msg = db.query(CollaborationMessage).filter(
+        CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org,
+    ).first()
+    if not msg:
+        raise HTTPException(404, "Mensaje no encontrado")
+    assert_conversation_access(db, current_user, msg.conversation_id)
+    kind = (payload.get("kind") or "").lower()
+    eid = payload.get("id")
+    if kind not in {"task", "ticket", "deliverable", "risk"}:
+        raise HTTPException(400, "kind debe ser task|ticket|deliverable|risk")
+    setattr(msg, f"linked_{kind}_id", eid)
+    audit_log.write(
+        db, organization_id=org, actor_user_id=current_user.id, actor_client_id=None,
+        action="message.linked", entity_type="message", entity_id=message_id,
+        payload={"kind": kind, "linked_id": eid},
+    )
+    db.commit()
+    return {"ok": True, "kind": kind, "linked_id": eid}
+
+
+@router.get("/messages/{message_id}/link/candidates", summary="Buscar candidatos para anclar")
+def link_candidates(
+    message_id: str,
+    kind: str = Query(...),
+    q: str = Query(""),
+    limit: int = Query(10, le=30),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.services.collaboration._permissions import _org as _org_fn
+    org = _org_fn(current_user)
+    msg = db.query(CollaborationMessage).filter(
+        CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org,
+    ).first()
+    if not msg:
+        raise HTTPException(404, "Mensaje no encontrado")
+    if kind == "task":
+        from app.models.task import Task
+        from app.models.collaboration import CollaborationChannel
+        ch = db.query(CollaborationChannel).filter(CollaborationChannel.conversation_id == msg.conversation_id).first()
+        qx = db.query(Task)
+        if hasattr(Task, "organization_id"):
+            qx = qx.filter(Task.organization_id == org)
+        if ch and ch.project_id:
+            qx = qx.filter(Task.project_id == ch.project_id)
+        if q:
+            qx = qx.filter(Task.title.ilike(f"%{q}%"))
+        rows = qx.order_by(Task.created_at.desc()).limit(limit).all()
+        return [{"id": t.id, "label": f"{t.code or '?'} · {t.title}"} for t in rows]
+    if kind == "ticket":
+        from app.models.service_desk import Ticket
+        qx = db.query(Ticket)
+        if hasattr(Ticket, "organization_id"):
+            qx = qx.filter(Ticket.organization_id == org)
+        if q:
+            qx = qx.filter(Ticket.title.ilike(f"%{q}%"))
+        rows = qx.order_by(Ticket.created_at.desc()).limit(limit).all()
+        return [{"id": t.id, "label": f"{getattr(t, 'number', t.id[:8])} · {t.title}"} for t in rows]
+    return []
+
+
 @router.get("/mentions", summary="Mis menciones recientes")
 def list_my_mentions(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = db.query(CollaborationMention).filter(

@@ -8,13 +8,46 @@ Multi-tenant enforcement:
     * channel public: any team member; private/announcement: explicit channel member
     * direct: only the two participants
     * group: explicit conversation member
+
+Cache:
+  Cada chequeo de membresía hace 1-3 queries SQL. En conversaciones activas
+  con muchos mensajes esto es ruidoso. Usamos un caché TTL=30s en memoria por
+  (kind, key) → bool. Cualquier mutación de membresía debe llamar a
+  invalidate_membership(user_id) para que se actualice antes del TTL.
 """
 from __future__ import annotations
 
+import time
 from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+
+# (key, expires_at) → bool
+_MEMBERSHIP_CACHE: dict[str, tuple[float, bool]] = {}
+_TTL = 30.0
+
+
+def _cache_get(key: str) -> Optional[bool]:
+    rec = _MEMBERSHIP_CACHE.get(key)
+    if not rec:
+        return None
+    expires_at, value = rec
+    if expires_at < time.monotonic():
+        _MEMBERSHIP_CACHE.pop(key, None)
+        return None
+    return value
+
+
+def _cache_set(key: str, value: bool) -> None:
+    _MEMBERSHIP_CACHE[key] = (time.monotonic() + _TTL, value)
+
+
+def invalidate_membership(user_id: str) -> None:
+    """Borra todas las entradas de cache que mencionan al usuario."""
+    keys = [k for k in _MEMBERSHIP_CACHE if user_id in k]
+    for k in keys:
+        _MEMBERSHIP_CACHE.pop(k, None)
 
 from app.models.collaboration import (
     CollaborationChannel, CollaborationChannelMember,
@@ -41,19 +74,31 @@ def can_access_workspace(db: Session, user, workspace_id: str) -> bool:
 
 
 def is_team_member(db: Session, user, team_id: str) -> bool:
-    return db.query(CollaborationTeamMember).filter(
+    cache_key = f"team:{team_id}:{user.id}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+    val = db.query(CollaborationTeamMember).filter(
         CollaborationTeamMember.team_id == team_id,
         CollaborationTeamMember.user_id == user.id,
         CollaborationTeamMember.organization_id == _org(user),
     ).first() is not None
+    _cache_set(cache_key, val)
+    return val
 
 
 def is_channel_member(db: Session, user, channel_id: str) -> bool:
-    return db.query(CollaborationChannelMember).filter(
+    cache_key = f"channel:{channel_id}:{user.id}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+    val = db.query(CollaborationChannelMember).filter(
         CollaborationChannelMember.channel_id == channel_id,
         CollaborationChannelMember.user_id == user.id,
         CollaborationChannelMember.organization_id == _org(user),
     ).first() is not None
+    _cache_set(cache_key, val)
+    return val
 
 
 def is_conversation_participant(db: Session, user, conversation_id: str) -> bool:

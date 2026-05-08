@@ -506,6 +506,7 @@ class CollaborationAttachment(Base):
     is_quarantined = Column(Boolean, nullable=False, default=False)
     preview_key = Column(String(800), nullable=True)
     preview_status = Column(String(40), nullable=False, default="none")  # none|pending|ready|failed|skipped
+    text_index = Column(Text, nullable=True)  # texto extraído para FTS
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 

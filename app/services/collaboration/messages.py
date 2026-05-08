@@ -233,6 +233,11 @@ def send_message(
     db.commit()
     search_engine.index(db, msg.id)
 
+    # Si está programado para el futuro: NO hacemos fan-out ni publish ahora.
+    # El scheduler (_scheduler.py) entregará cuando llegue scheduled_for.
+    if scheduled_for and scheduled_for > datetime.now(timezone.utc):
+        return msg
+
     # Realtime publish
     event = {
         "type": "message.created",

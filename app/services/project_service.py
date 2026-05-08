@@ -487,6 +487,14 @@ def create_project_record(db: Session, payload, current_user):
         phase = ProjectPhase(**phase_data.model_dump(), project_id=project.id, order=i)
         db.add(phase)
 
+    # Collaboration: auto-create team + channel for the project (best-effort).
+    try:
+        from app.services.collaboration._project_sync import on_project_created
+        on_project_created(db, project, current_user)
+    except Exception:
+        # No bloquear creación de proyecto si collaboration falla
+        pass
+
     return project
 
 
