@@ -1318,6 +1318,7 @@ const es = {
   },
   nav: {
     dashboard: 'Panel de control',
+    chat: 'Chat',
     projects: 'Proyectos',
     tasks: 'Tareas',
     timesheet: 'Hoja de horas',

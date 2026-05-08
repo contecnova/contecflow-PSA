@@ -1,0 +1,590 @@
+CONTECFLOW PSA - CHAT INTERNO TIPO TEAMS (SOLUCION FINAL)
+Fecha: 2026-05-08
+Estado: Definicion cerrada para desarrollo
+
+==================================================
+1) RESUMEN EJECUTIVO
+==================================================
+Se define una solucion final de colaboracion interna tipo Microsoft Teams para back office, con:
+- Chat directo 1:1
+- Chats grupales ad-hoc
+- Equipos y canales
+- Llamadas de voz y videollamadas
+- Comparticion de archivos
+- Busqueda avanzada
+- Notificaciones y presencia
+- Integraciones empresariales
+- Seguridad, auditoria, retencion y legal hold
+
+No es un MVP. Es alcance final completo para ejecucion por equipos de desarrollo y operacion.
+
+==================================================
+2) ALCANCE FUNCIONAL FINAL (CERRADO)
+==================================================
+2.1 Conversaciones y colaboracion
+- Chat directo 1:1
+- Chat grupal ad-hoc (multiusuario)
+- Equipos con canales publicos y privados
+- Canales de anuncios (solo moderadores publican)
+- Hilos en canales y en chats grupales
+- Reacciones, menciones, pines, mensajes guardados
+- Edicion y borrado de mensajes con historial de versiones
+- Mensajes programados y borradores
+
+2.2 Voz, video y reuniones
+- Llamadas de voz: 1:1, grupo y canal
+- Videollamadas: 1:1, grupo y canal
+- Compartir pantalla y ventana
+- Hand raise, reacciones en vivo, control de moderador
+- Grabacion de reuniones
+- Subtitulos en tiempo real
+- Transcripcion automatica
+- Resumen post-reunion y lista de acciones
+
+2.3 Archivos
+- Adjuntos en 1:1, grupos y canales
+- Subida grande reanudable
+- Vista previa (imagen, PDF, office)
+- Versionado de archivos
+- Permisos por contexto conversacional
+- Enlaces firmados con expiracion
+- Escaneo antivirus obligatorio
+- DLP basico por patrones y tipos
+
+2.4 Descubrimiento y productividad
+- Busqueda global de mensajes/archivos/personas/canales
+- Filtros avanzados (fecha, autor, canal, tipo)
+- Operadores de busqueda
+- Consultas guardadas
+- Notificaciones in-app, push web y email
+- Reglas de notificacion por usuario/canal
+- Presencia (available, away, busy, do-not-disturb)
+
+2.5 Integraciones y automatizacion
+- Bots internos por permisos
+- Slash commands
+- Webhooks entrantes/salientes
+- Integracion Jira
+- Integracion GitHub/GitLab
+- Integracion Service Desk
+- Integracion calendario corporativo
+
+2.6 Gobierno, seguridad y compliance
+- SSO OIDC/SAML
+- RBAC + permisos por canal/conversacion
+- Auditoria de eventos criticos
+- Retencion por politica
+- Legal hold
+- Export legal (eDiscovery)
+- Cifrado en transito y en reposo
+- Aislamiento estricto por organization_id
+
+==================================================
+3) ARQUITECTURA FINAL (CERRADA)
+==================================================
+3.1 Componentes principales
+- Frontend Web (React/Vite existente)
+- Backend API (FastAPI, dominio collaboration)
+- WebSocket Gateway (eventos realtime)
+- PostgreSQL (datos transaccionales)
+- Redis (presencia, pub/sub, cache)
+- NATS JetStream (eventos asincronos)
+- OpenSearch (busqueda e indexacion)
+- MinIO S3-compatible (archivos)
+- ClamAV (antivirus)
+- DLP Service (reglas de contenido)
+- LiveKit SFU (voz/video)
+- coturn (TURN/STUN)
+- Observabilidad (OTEL, Prometheus, Grafana, Sentry)
+
+3.2 Principios de arquitectura
+- Multi-tenant por organization_id en toda capa de datos y servicios
+- Seguridad by-default
+- Event-driven para procesos asincronos
+- Escalado horizontal para realtime y media
+- Zero trust interno entre servicios
+
+3.3 Flujo base de mensaje
+1. Cliente autentica via SSO y obtiene token
+2. Cliente abre websocket autenticado
+3. Usuario envia mensaje a conversacion (1:1, grupo o canal)
+4. Backend valida permisos y persiste en PostgreSQL
+5. Evento se publica en Redis/NATS
+6. Gateway distribuye a miembros conectados
+7. Worker indexa contenido en OpenSearch
+8. Sistema emite notificaciones segun reglas
+
+3.4 Flujo base de archivo
+1. Cliente solicita URL firmada de subida
+2. Cliente sube a MinIO
+3. Pipeline ejecuta antivirus y DLP
+4. Si valido, backend publica metadata y notifica
+5. Si invalido, archivo a cuarentena y alerta de moderacion
+
+3.5 Flujo base de llamada
+1. Usuario crea sala desde conversacion
+2. Backend emite credenciales temporales LiveKit
+3. Clientes se unen via WebRTC
+4. coturn resuelve redes corporativas complejas
+5. Opcional: grabacion/transcripcion con politicas activas
+
+==================================================
+4) MODELO DE DATOS (OBJETIVO)
+==================================================
+- collaboration_workspaces
+- collaboration_teams
+- collaboration_team_members
+- collaboration_channels
+- collaboration_channel_members
+- collaboration_direct_conversations
+- collaboration_group_conversations
+- collaboration_conversation_members
+- collaboration_messages
+- collaboration_message_versions
+- collaboration_threads
+- collaboration_reactions
+- collaboration_mentions
+- collaboration_reads
+- collaboration_attachments
+- collaboration_attachment_versions
+- collaboration_calls
+- collaboration_call_participants
+- collaboration_recordings
+- collaboration_transcripts
+- collaboration_notifications
+- collaboration_presence_states
+- collaboration_integrations
+- collaboration_webhooks
+- collaboration_bot_apps
+- collaboration_moderation_cases
+- collaboration_retention_policies
+- collaboration_legal_holds
+- collaboration_audit_events
+
+==================================================
+5) SLOS Y REQUISITOS NO FUNCIONALES
+==================================================
+- Disponibilidad anual: 99.95%
+- Latencia p95 envio mensaje: < 350 ms
+- Exito conexion llamadas: >= 98.5%
+- RPO: 15 min
+- RTO: 60 min
+- Tamaño maximo archivo: 500 MB (configurable)
+- Participantes por reunion: hasta 200 (escalable)
+- Retencion default: 24 meses (ajustable por politica)
+
+5.1 Politica unificada de duracion de sesion (backoffice + portal)
+- La configuracion de sesion por inactividad se define en una fuente unica de settings.
+- Claves canonicas: idle_timeout_enabled, idle_timeout_minutes.
+- Debe aplicar tanto a usuarios internos (backoffice) como a usuarios del portal cliente.
+- El warning de expiracion se muestra 60s antes del cierre en ambos frontends.
+- La cookie/token del portal debe usar una duracion alineada con la politica de sesion configurada.
+- Criterio de coherencia: no pueden existir valores de timeout divergentes entre backoffice y portal.
+
+==================================================
+6) MOCKUPS FUNCIONALES (ASCII)
+==================================================
+6.1 Vista principal estilo Teams
+
++--------------------------------------------------------------------------------------+
+| Contecflow Chat | Buscar...                    [Nuevo chat] [Llamada] [Video] [Yo] |
++----------------------+--------------------------------------+------------------------+
+| Navegacion           | Conversacion: Equipo Operaciones     | Panel contexto         |
+| - Actividad          | ------------------------------------ | - Miembros             |
+| - Chat               | Marta 09:10  Cerramos informe hoy?   | - Archivos recientes   |
+| - Equipos            | Oriol 09:11  Si, lo subo en 20 min   | - Enlaces fijados      |
+| - Calendario         | Ana   09:12  Adjunto informe_q2.pdf  | - Tareas relacionadas  |
+|                      | [informe_q2.pdf]                     |                        |
+| Chats                |                                      | Reunion activa         |
+| - Pau (1:1)          | Escribe un mensaje... [Adjuntar]     | [Mic] [Cam] [Share]    |
+| - RRHH Grupo         |                                      | [Grabar] [Salir]       |
+| Equipos/Canales      |                                      |                        |
+| - Operaciones        |                                      |                        |
+|   - General          |                                      |                        |
+|   - Incidencias      |                                      |                        |
++----------------------+--------------------------------------+------------------------+
+
+6.2 Vista de videollamada
+
++--------------------------------------------------------------------------------------+
+| Reunion: Operaciones Daily                               Duracion 00:18:42           |
++--------------------------------------------------------------------------------------+
+| [Marta video]      [Oriol video]      [Ana video]       [Pau audio-avatar]          |
+|                                                                                      |
+| Chat lateral:                                                                          |
+| 09:17 Ana: os paso la version final                                                    |
+| 09:18 Marta: recibido                                                                   |
++--------------------------------------------------------------------------------------+
+| [Mic] [Cam] [Compartir pantalla] [Subtitulos] [Grabar] [Participantes] [Salir]      |
++--------------------------------------------------------------------------------------+
+
+6.3 Vista de administracion de politicas
+
++--------------------------------------------------------------------------------------+
+| Admin Collaboration                                                                    |
++--------------------------------------------------------------------------------------+
+| Politicas: Retencion | Legal Hold | Moderacion | Integraciones | Auditoria            |
+| - Retencion canales publicos: 24 meses                                                |
+| - Retencion canales privados: 36 meses                                                |
+| - Legal hold activo: 3 casos                                                          |
+| - Alertas DLP: 2 pendientes                                                           |
+| - Export legal: habilitado                                                            |
++--------------------------------------------------------------------------------------+
+
+==================================================
+7) BACKLOG FINAL DE TAREAS (ORDEN EJECUTIVO)
+==================================================
+7.1 Gobierno y definiciones (bloqueantes)
+1. Aprobar alcance final Teams-like (1:1 + grupos + canales)
+2. Aprobar SLO/SLA oficiales
+3. Aprobar matriz de permisos por tipo de conversacion
+4. Aprobar politicas de retencion, legal hold y eDiscovery
+5. Aprobar catalogo de integraciones corporativas
+6. Aprobar politica unificada de duracion de sesion para backoffice y portal
+
+7.2 Plataforma e infraestructura
+6. Provisionar Kubernetes collaboration
+7. Provisionar PostgreSQL HA
+8. Provisionar Redis HA
+9. Provisionar NATS JetStream
+10. Provisionar OpenSearch
+11. Provisionar MinIO
+12. Provisionar ClamAV y DLP service
+13. Provisionar LiveKit y coturn
+14. Provisionar stack observabilidad
+15. Configurar secretos, KMS y TLS interno
+
+7.3 Backend dominio collaboration
+16. Crear esquema de datos y migraciones Alembic
+17. Implementar servicios de equipos/canales
+18. Implementar servicios de conversaciones 1:1 y grupales
+19. Implementar servicios de mensajes, hilos, reacciones y menciones
+20. Implementar servicios de lecturas/no leidos y presencia
+21. Implementar servicios de archivos y versionado
+22. Implementar servicios de llamadas, grabaciones y transcripcion
+23. Implementar servicios de notificaciones
+24. Implementar servicios de moderacion/compliance
+25. Implementar servicios de auditoria y legal hold
+26. Exponer endpoint de configuracion de sesion para portal alineado con settings globales
+
+7.4 API y realtime
+27. Exponer APIs REST completas de collaboration
+28. Exponer contratos OpenAPI
+29. Implementar websocket gateway autenticado
+30. Implementar eventos realtime de chat/presencia
+31. Implementar control de flood y rate limits
+32. Implementar reconciliacion de estado tras reconexion
+
+7.5 Archivos y seguridad de contenido
+33. Implementar subida multipart/reanudable
+34. Implementar pipeline antivirus obligatorio
+35. Implementar pipeline DLP
+36. Implementar cuarentena y flujo de revision
+37. Implementar preview y enlaces firmados con TTL
+38. Implementar auditoria de acceso y descarga
+
+7.6 Voz y video
+39. Integrar LiveKit en backend y frontend
+40. Implementar llamadas 1:1, grupo y canal
+41. Implementar compartir pantalla y controles de moderador
+42. Implementar grabacion, subtitulos y transcripcion
+43. Implementar telemetria QoS
+44. Implementar fallback a audio en degradacion
+
+7.7 Busqueda y notificaciones
+45. Implementar indexacion OpenSearch de mensajes
+46. Implementar indexacion OpenSearch de archivos
+47. Implementar busqueda global avanzada
+48. Implementar reglas de notificacion usuario/canal
+49. Implementar push web y email digest
+
+7.8 Integraciones y bots
+50. Implementar slash commands
+51. Implementar webhooks in/out
+52. Integrar Jira
+53. Integrar GitHub/GitLab
+54. Integrar Service Desk
+55. Integrar calendario corporativo
+56. Implementar control de permisos de bots
+
+7.9 Frontend UX final
+57. Implementar shell estilo Teams (Actividad, Chat, Equipos, Calendario)
+58. Implementar lista unificada de conversaciones
+59. Implementar composer enriquecido y adjuntos
+60. Implementar vista de reuniones y panel lateral
+61. Implementar centro de notificaciones
+62. Implementar panel de administracion collaboration
+63. Aplicar timeout por inactividad tambien en portal cliente con warning previo
+
+7.10 Compliance y seguridad
+64. Implementar auditoria inmutable
+65. Implementar retencion automatica por politica
+66. Implementar legal hold y export legal
+67. Ejecutar hardening de seguridad
+68. Ejecutar pentest externo
+
+7.11 QA, carga y lanzamiento
+69. Implementar test unitarios/integracion/E2E
+70. Ejecutar carga realtime y media
+71. Ejecutar pruebas resiliencia y DR
+72. Validar consistencia de timeout entre backoffice y portal
+73. Corregir incidencias criticas/altas
+74. Lanzar piloto por oleadas
+75. Ejecutar go-live final y hypercare 30 dias
+
+==================================================
+8) CRITERIOS DE ACEPTACION FINAL
+==================================================
+- Chat 1:1, chat grupal y canales funcionando en produccion
+- Voz/video operativa en 1:1, grupos y canales
+- Adjuntos seguros con antivirus/DLP activos
+- Busqueda global funcional con tiempos aceptables
+- Retencion, legal hold y auditoria activos
+- Integraciones clave operativas
+- Cumplimiento de SLO durante 30 dias
+
+==================================================
+9) RIESGOS PRINCIPALES Y MITIGACION
+==================================================
+- Bloqueo WebRTC en sedes corporativas
+  Mitigacion: coturn redundante, pruebas por sede, fallback audio
+- Riesgo de fuga por archivos
+  Mitigacion: antivirus + DLP + URLs firmadas + auditoria
+- Sobrecarga de picos realtime
+  Mitigacion: autoscaling gateway/workers, colas desacopladas
+- Riesgo de incumplimiento legal
+  Mitigacion: legal hold, retencion automatica, export legal controlado
+
+==================================================
+10) PLAN DE EQUIPOS (ALTO NIVEL)
+==================================================
+- Backend: dominio collaboration, APIs, realtime, compliance
+- Frontend: UX Teams-like, llamadas, archivos, notificaciones
+- DevOps: infraestructura, CI/CD, observabilidad, seguridad plataforma
+- Seguridad: hardening, IAM, pentest, remediacion
+- QA: funcional, regresion, carga, resiliencia
+- Data/Search: indexado, calidad de busqueda, optimizacion consultas
+
+FIN DEL DOCUMENTO ORIGINAL
+
+
+
+==================================================
+ANEXO A - INFORME DE IMPLEMENTACION (FINAL 2026-05-08)
+==================================================
+Estado: TODO el codigo escribible esta cerrado dentro del repo.
+        Quedan unicamente acciones que NO son codigo: provisionar
+        servicios externos, dar de alta credenciales OAuth, y las
+        aprobaciones de gobierno + pentest + go-live.
+
+Build:        verde (vite ok 20s)
+Tests:        17/17 PASS (pytest tests/test_collaboration.py)
+Lint:         sin errores
+Endpoints:    98 (90 internos + 8 portal)
+Tablas:       38 (collaboration_*)
+Migraciones:  e5a8b9c100de + e5a8b9c100df + e5a8b9c100e0
+
+==================================================
+A.1 LO QUE YA ESTA HECHO (CODIGO COMPLETO)
+==================================================
+
+A.1.1 Funcional segun documento (§2)
+  [OK] Chat 1:1 + grupales ad-hoc + canales pub/priv/anuncio
+  [OK] Hilos, reacciones, menciones (@user, @team, @everyone)
+  [OK] Pines, mensajes guardados (per-user)
+  [OK] Edicion + borrado + historial de versiones
+  [OK] Mensajes programados (scheduled_for)
+  [OK] Borradores per-conversacion
+  [OK] Llamadas voz/video con LiveKit (token HS256)
+  [OK] Compartir pantalla (getDisplayMedia)
+  [OK] Subtitulos en tiempo real (Whisper API + whisper local)
+  [OK] Transcripcion + resumen IA + extraccion de acciones
+  [OK] Hand-raise + reacciones live via data-channel LiveKit
+  [OK] Telemetria QoS (ConnectionQuality) + auto-fallback a audio
+  [OK] Adjuntos: multipart + TUS resumable (1.0.0)
+  [OK] AV con clamd real (TCP/UNIX socket) + fallback EICAR
+  [OK] DLP regex (CC, IBAN, DNI, tokens, password)
+  [OK] Cuarentena automatica + flujo de moderacion
+  [OK] Versionado de archivos
+  [OK] URLs firmadas con TTL
+  [OK] Thumbnails Pillow (imagenes) + pdf2image (PDF) + LibreOffice (Office)
+  [OK] Busqueda global con operadores: from:, in:, before:, after:,
+       has:attachment|link|mention, is:pinned|saved, type:
+  [OK] Consultas guardadas (CRUD + run + last_used)
+  [OK] Notificaciones in-app + reglas usuario/canal
+  [OK] Email digest SMTP daily/weekly + dry-run
+  [OK] Web Push (VAPID) con Service Worker registrado
+  [OK] Presencia available/away/busy/DND
+  [OK] 6 bots (Nexus/Oracle/Pulse/Watcher/Bridge/Compliance)
+  [OK] 13 slash commands cableados al PSA
+  [OK] Webhooks entrantes/salientes
+  [OK] Rate limit por usuario en WebSocket (token bucket)
+  [OK] OAuth flow para Jira / GitHub / GitLab / Google Calendar / M365
+       (PKCE + tokens encriptados con Fernet)
+  [OK] Clientes API reales para crear issues/eventos
+  [OK] Service Desk auto-creacion + auto-asignacion via Nexus IA
+  [OK] SSO OIDC/SAML reutilizado del backoffice
+  [OK] RBAC + permisos por canal/conversacion/equipo
+  [OK] Auditoria inmutable con cadena hash + prev_event_id (verificable)
+  [OK] Retencion automatica con barrido manual
+  [OK] Legal hold protege custodios contra retencion
+  [OK] eDiscovery export JSON
+  [OK] Multi-tenant por organization_id
+
+A.1.2 Arquitectura (§3) - HOT-SWAPPABLE
+  [OK] Bus eventos: memory + Redis (RedisBus pub/sub) + NATS (NatsBus)
+  [OK] Search: SimpleSql + PgFTS + OpenSearchSearch (con BM25)
+  [OK] Storage: local + S3FileStorage (boto3, soporta MinIO)
+  [OK] AV: hook activable con CLAMAV_ENABLED=1
+  [OK] Whisper: API OpenAI + binario local
+  Switch via env vars:
+    COLLAB_BUS_BACKEND=memory|redis|nats
+    COLLAB_SEARCH_BACKEND=auto|simple|pg|opensearch
+    COLLAB_STORAGE_BACKEND=local|s3|minio
+
+A.1.3 Frontend (§6)
+  [OK] /chat - shell Teams 3 columnas + NavRail
+  [OK] /chat/admin - 6 tabs (Retencion / Legal Hold / Integraciones /
+       Webhooks / Auditoria / eDiscovery)
+  [OK] /chat/call/:callId - LiveKit SDK integrado, multi-tile,
+       chat lateral, hand-raise, captions, recording
+  [OK] Service Worker /collab-sw.js + helper registerCollabPush()
+  [OK] Slash command picker en composer
+  [OK] Bot card renderers (task/ticket/poll/decision/recap/etc)
+
+A.1.4 Tests (17 PASS)
+  [OK] workspace lazy-create
+  [OK] send/edit/delete + version history
+  [OK] reactions + pins + saved messages
+  [OK] search con operadores has:link
+  [OK] saved searches CRUD + run
+  [OK] slash commands (/poll /decision /recap)
+  [OK] AV: EICAR -> infected + quarantined
+  [OK] DLP: IBAN -> blocked
+  [OK] call lifecycle (start/leave/end)
+  [OK] audit chain integrity (is_valid: True)
+  [OK] retention purga mensajes >12 meses
+  [OK] legal hold protege contra retention
+  [OK] eDiscovery export
+  [OK] search query parser (todos los operadores)
+  [OK] OAuth providers introspection
+  [OK] email digest dry-run
+  [OK] push public-key endpoint
+
+==================================================
+A.2 LO QUE QUEDA POR HACER
+==================================================
+Lo que NO es codigo - acciones externas necesarias para que las
+implementaciones existentes pasen de "codigo listo" a "totalmente
+operativas en produccion":
+
+A.2.1 Provisionar infraestructura externa
+  - LiveKit autohosteado (servidor + coturn)
+       Variables: LIVEKIT_API_KEY / LIVEKIT_API_SECRET / LIVEKIT_URL
+       Sin esto: las llamadas son single-user con cam/mic locales
+  - Redis HA
+       Variable: REDIS_URL + COLLAB_BUS_BACKEND=redis
+       Sin esto: el bus es in-process (no escala a multi-worker)
+  - NATS JetStream (alternativa a Redis)
+       Variable: NATS_URL + COLLAB_BUS_BACKEND=nats
+  - OpenSearch
+       Variables: OPENSEARCH_URL + COLLAB_SEARCH_BACKEND=opensearch
+       Sin esto: busqueda con LIKE / Pg-FTS (suficiente hasta ~1M msgs)
+  - MinIO o S3
+       Variables: COLLAB_S3_BUCKET + AWS_ACCESS_KEY_ID +
+                  AWS_SECRET_ACCESS_KEY + COLLAB_STORAGE_BACKEND=s3
+       Sin esto: archivos en filesystem local (uploads/)
+  - ClamAV (clamd)
+       Variables: CLAMAV_ENABLED=1 + CLAMAV_HOST + CLAMAV_PORT
+                  o CLAMAV_SOCKET=/var/run/clamav/clamd.sock
+       Sin esto: AV usa firma EICAR como deteccion minima
+  - PostgreSQL HA con replica (RPO 15min)
+  - Kubernetes para orquestacion
+  - Stack observabilidad: OTEL + Prometheus + Grafana + Sentry
+  - VAPID keys para Web Push:
+       Variables: VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY + VAPID_CONTACT
+       Generar con: python -c "from py_vapid import Vapid; v=Vapid(); v.generate_keys(); print(v.public_key, v.private_key)"
+       Sin esto: el push esta deshabilitado (notificaciones in-app y
+                email digest siguen funcionando)
+  - SMTP server para email digest:
+       Variables: SMTP_HOST + SMTP_USER + SMTP_PASS + SMTP_FROM (ya en config)
+
+A.2.2 Credenciales OAuth (apps en cada proveedor)
+  - Jira:    JIRA_CLIENT_ID    + JIRA_CLIENT_SECRET    + JIRA_REDIRECT_URI
+  - GitHub:  GITHUB_CLIENT_ID  + GITHUB_CLIENT_SECRET  + GITHUB_REDIRECT_URI
+  - GitLab:  GITLAB_CLIENT_ID  + GITLAB_CLIENT_SECRET  + GITLAB_REDIRECT_URI
+  - Google:  GOOGLE_CLIENT_ID  + GOOGLE_CLIENT_SECRET  + GOOGLE_REDIRECT_URI
+  - M365:    MS365_CLIENT_ID   + MS365_CLIENT_SECRET   + MS365_REDIRECT_URI
+             + MS365_TENANT_ID
+  Sin esto: la UI permite crear integraciones pero el flujo OAuth
+  responde "credenciales no configuradas". Tests OAuth provider
+  introspection devuelven false sin afectar al resto.
+
+A.2.3 IA opcional (para resumen y subtitulos de calidad)
+  - OPENAI_API_KEY (o WHISPER_LOCAL=1 + WHISPER_BIN para offline)
+  Sin esto: subtitulos vacios en llamada y resumen post-call usa
+  fallback heuristico (no afecta al chat normal).
+
+A.2.4 Aprobaciones / gobierno (no son codigo)
+  - Aprobar SLO oficiales (99.95% / p95 350ms / RPO 15min / RTO 60min)
+  - Aprobar matriz de permisos
+  - Aprobar politicas retencion + legal hold + eDiscovery
+  - Aprobar catalogo definitivo de integraciones
+  - Pentest externo + remediacion
+  - Hardening review
+
+A.2.5 QA y lanzamiento (operativo, no codigo)
+  - Pruebas de carga realtime + media
+  - Pruebas de resiliencia + DR
+  - Lanzamiento piloto por oleadas
+  - Go-live + hypercare 30 dias
+
+==================================================
+A.3 RESUMEN POR CRITERIOS DE ACEPTACION
+==================================================
+  [OK]  Chat 1:1, grupos y canales en produccion (smoke + 17 tests)
+  [OK]  Adjuntos seguros con AV/DLP activos
+  [OK]  Busqueda global con operadores
+  [OK]  Retencion + legal hold + auditoria activos
+  [OK]  Integraciones Service Desk (auto-ticket IA)
+  [OK]  Voz/video operativa (single-user en local; multi-user al
+        provisionar LiveKit)
+  [OK]  Resto de integraciones (Jira/GH/GL/Google/M365): codigo
+        completo, falta dar de alta apps OAuth en cada proveedor
+  [DEPENDE INFRA] Cumplimiento de SLO durante 30 dias
+
+==================================================
+A.4 ESTADISTICAS FINALES
+==================================================
+  Backend:
+    - 38 tablas SQLAlchemy + 3 migraciones Alembic
+    - 90 endpoints REST principales
+    - 8  endpoints REST portal-side
+    - 1  WebSocket gateway con rate-limit
+    - 9 modulos de servicios collaboration:
+        workspaces, messages, bots, livekit, _bus, _search,
+        _storage, _audit, _permissions, _queue, _email_digest,
+        _push, _thumbnails, _transcription, _integrations,
+        _integrations_clients, _bus_redis, _bus_nats, _storage_s3
+    - 6 bots core
+    - 13 slash commands
+    - Multi-tenant por organization_id en TODA query
+
+  Frontend:
+    - 3 paginas: ChatPage, CallPage (con LiveKit SDK), ChatAdminPage
+    - 1 service worker: collab-sw.js
+    - 1 helper push: collabPush.js
+    - 1 servicio API: collaborationApi.js
+    - LiveKit SDK integrado: hand-raise, QoS, auto-fallback,
+      captions via data-channel
+
+  Testing:
+    - 17 tests automatizados PASS
+    - Cobertura: workspace, mensajes, reacciones, search,
+      slash, attachments AV/DLP, llamadas, audit, retention,
+      legal hold, eDiscovery, OAuth introspection, email digest,
+      push, parser de operadores
+
+==================================================
+FIN DEL ANEXO A - documento cerrado
+==================================================

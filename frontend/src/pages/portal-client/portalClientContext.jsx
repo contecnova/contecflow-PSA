@@ -6,6 +6,7 @@ import { createContext, useContext, useState, useEffect, useId } from 'react'
 import axios from 'axios'
 import { PORTAL_TRANSLATIONS as T, PORTAL_LANGUAGES as LANGUAGES } from '../../i18n/portalTranslations'
 import { STATUS_CFG } from '../../constants/sharedStatus'
+import { useIdleTimeout } from '../../hooks/useIdleTimeout'
 
 // ── API client ────────────────────────────────────────────────────────────────
 export const CLIENT_API = axios.create({ baseURL: '/api/v1', withCredentials: true, timeout: 30000 })
@@ -71,6 +72,8 @@ export function ClientAuthProvider({ children }) {
     try { return JSON.parse(localStorage.getItem('client_user') || 'null') } catch { return null }
   })
   const [isReady, setIsReady] = useState(false)
+  const [idleEnabled, setIdleEnabled] = useState(false)
+  const [idleMinutes, setIdleMinutes] = useState(30)
   useEffect(() => {
     let mounted = true
     CLIENT_API.get('/portal/auth/me')
@@ -105,7 +108,79 @@ export function ClientAuthProvider({ children }) {
     localStorage.removeItem('client_user')
     setClient(null)
   }
-  return <ClientAuthContext.Provider value={{ client, login, logout, isReady }}>{children}</ClientAuthContext.Provider>
+
+  useEffect(() => {
+    if (!client) return
+    CLIENT_API.get('/portal/auth/session-config')
+      .then((res) => {
+        const cfg = res?.data || {}
+        setIdleEnabled(Boolean(cfg.idle_timeout_enabled))
+        setIdleMinutes(Math.max(1, parseInt(cfg.idle_timeout_minutes, 10) || 30))
+      })
+      .catch(() => {
+        // Keep safe defaults when config is unavailable.
+        setIdleEnabled(false)
+        setIdleMinutes(30)
+      })
+  }, [client])
+
+  const { showWarning, secondsLeft, dismiss } = useIdleTimeout({
+    enabled: !!client && idleEnabled,
+    timeoutMinutes: idleMinutes,
+    onTimeout: logout,
+    warningSeconds: 60,
+  })
+
+  return (
+    <ClientAuthContext.Provider value={{ client, login, logout, isReady }}>
+      {children}
+      {showWarning && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
+            borderRadius: 16, padding: '28px 30px', maxWidth: 420, width: '90%',
+            boxShadow: '0 8px 40px rgba(0,0,0,0.4)', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>⏱️</div>
+            <h3 style={{ margin: '0 0 8px', color: 'var(--text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
+              Sesión a punto de expirar
+            </h3>
+            <p style={{ color: 'var(--text-2)', margin: '0 0 22px', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
+              Tu sesión del portal se cerrará por inactividad en{' '}
+              <strong style={{ color: secondsLeft <= 15 ? '#ff4757' : 'var(--accent)' }}>
+                {secondsLeft}s
+              </strong>.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button
+                onClick={dismiss}
+                style={{
+                  background: 'var(--accent)', color: 'var(--surface-0)', border: 'none',
+                  borderRadius: 8, padding: '10px 24px', fontWeight: 700,
+                  cursor: 'pointer', fontSize: 'var(--text-sm)',
+                }}
+              >
+                Continuar sesión
+              </button>
+              <button
+                onClick={logout}
+                style={{
+                  background: 'transparent', color: 'var(--text-3)',
+                  border: '1px solid var(--surface-4)', borderRadius: 8,
+                  padding: '10px 20px', cursor: 'pointer', fontSize: 'var(--text-sm)',
+                }}
+              >
+                Cerrar sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </ClientAuthContext.Provider>
+  )
 }
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -161,23 +236,126 @@ export function LoginScreen({ _changeLang, _currentLang }) {
     finally { setLoading(false) }
   }
 
+  const fieldStyle = {
+    width: '100%', boxSizing: 'border-box',
+    background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+    borderRadius: 'var(--radius-md, 8px)', padding: '11px 13px',
+    color: 'var(--text-1)', fontSize: 'var(--text-base)', outline: 'none',
+    fontFamily: 'inherit', transition: 'border-color 0.15s, box-shadow 0.15s',
+  }
+  const labelStyle = {
+    fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)',
+    textTransform: 'uppercase', letterSpacing: '0.07em',
+    display: 'block', marginBottom: 6,
+  }
+
   return (
-    <div style={{ ...S.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: 420 }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ width: 56, height: 56, background: 'linear-gradient(135deg, var(--accent), var(--purple))', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-2xl-em)", margin: '0 auto 16px', fontWeight: 800 }}>◈</div>
-          <h1 style={{ fontSize: "var(--text-2xl-em)", fontWeight: 800, margin: '0 0 6px' }}>{t('login_title')}</h1>
-          <p style={{ color: 'var(--text-2)', margin: 0 }}>{t('login_subtitle')}</p>
+    <div style={{
+      minHeight: '100vh', display: 'flex',
+      background: 'var(--surface-0)', color: 'var(--text-1)',
+      fontFamily: "'Inter', system-ui, sans-serif",
+    }}>
+      {/* Brand panel (oculto en pantallas pequeñas) */}
+      <div className="portal-login-brand" style={{
+        flex: 1, display: 'flex', flexDirection: 'column',
+        background: 'linear-gradient(135deg, var(--surface-1) 0%, var(--surface-2) 100%)',
+        borderRight: '1px solid var(--surface-4)',
+        padding: '48px 56px', justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 12,
+            background: 'linear-gradient(135deg, var(--accent), var(--purple))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 'var(--text-xl-em)', fontWeight: 800, color: '#fff',
+          }}>◈</div>
+          <div>
+            <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 800 }}>Contecflow</div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Portal cliente</div>
+          </div>
         </div>
-        <form onSubmit={e => { e.preventDefault(); handleLogin() }} style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div><label htmlFor={`${idPrefix}-email`} style={S.label}>{t('login_email')}</label><input id={`${idPrefix}-email`} type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} style={S.input} placeholder={t('login_email')} /></div>
-          <div><label htmlFor={`${idPrefix}-password`} style={S.label}>{t('login_password')}</label><input id={`${idPrefix}-password`} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} style={S.input} placeholder={t('login_password')} /></div>
-          {error && <div style={{ fontSize: "var(--text-base)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 8, padding: '8px 12px' }}>{error}</div>}
-          <button type="submit" disabled={loading || !email || !password} style={{ ...S.btn, width: '100%', padding: '13px', fontSize: "var(--text-md-em)", opacity: loading ? 0.6 : 1 }}>
-            {loading ? t('login_loading') : t('login_btn')}
-          </button>
-        </form>
+        <div>
+          <h1 style={{ fontSize: 'var(--text-3xl-em, 28px)', fontWeight: 800, margin: '0 0 14px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+            {t('login_title')}
+          </h1>
+          <p style={{ fontSize: 'var(--text-md)', color: 'var(--text-2)', margin: 0, maxWidth: 460, lineHeight: 1.6 }}>
+            {t('login_subtitle')}
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 28, maxWidth: 480 }}>
+            {[
+              { t: 'Roadmap y entregables', s: 'Visibilidad clara del avance del proyecto' },
+              { t: 'Soporte y SLA', s: 'Tickets, KB y comunicados centralizados' },
+              { t: 'UAT colaborativos', s: 'Valida entregas con feedback estructurado' },
+              { t: 'Facturación', s: 'Aprueba facturas y revisa el histórico' },
+            ].map((it, i) => (
+              <div key={i} style={{
+                background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+                borderRadius: 10, padding: '12px 14px',
+              }}>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{it.t}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>{it.s}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+          © {new Date().getFullYear()} Contecflow PSA — Portal cliente
+        </div>
       </div>
+
+      {/* Form panel */}
+      <div style={{
+        width: 460, maxWidth: '100%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '32px 36px',
+      }}>
+        <div style={{ width: '100%', maxWidth: 360 }}>
+          <h2 style={{ fontSize: 'var(--text-xl-em)', fontWeight: 800, margin: '0 0 6px' }}>Acceder al portal</h2>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 24px' }}>
+            Usa tu correo corporativo para acceder.
+          </p>
+          <form onSubmit={e => { e.preventDefault(); handleLogin() }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label htmlFor={`${idPrefix}-email`} style={labelStyle}>{t('login_email')}</label>
+              <input id={`${idPrefix}-email`} type="email" autoComplete="email"
+                value={email} onChange={e => setEmail(e.target.value)}
+                style={fieldStyle} placeholder="tu@empresa.com" />
+            </div>
+            <div>
+              <label htmlFor={`${idPrefix}-password`} style={labelStyle}>{t('login_password')}</label>
+              <input id={`${idPrefix}-password`} type="password" autoComplete="current-password"
+                value={password} onChange={e => setPassword(e.target.value)}
+                style={fieldStyle} placeholder="••••••••" />
+            </div>
+            {error && (
+              <div style={{
+                fontSize: 'var(--text-sm)', color: 'var(--danger)',
+                background: 'var(--danger-bg, rgba(239,68,68,0.12))',
+                border: '1px solid var(--danger-border, rgba(239,68,68,0.3))',
+                borderRadius: 8, padding: '10px 12px',
+              }}>{error}</div>
+            )}
+            <button type="submit" disabled={loading || !email || !password} style={{
+              width: '100%', padding: '12px',
+              background: 'var(--accent)', color: '#fff',
+              border: '1px solid var(--accent)',
+              borderRadius: 'var(--radius-md, 8px)',
+              fontSize: 'var(--text-md)', fontWeight: 700,
+              cursor: (loading || !email || !password) ? 'not-allowed' : 'pointer',
+              opacity: (loading || !email || !password) ? 0.6 : 1,
+              fontFamily: 'inherit', marginTop: 6,
+            }}>
+              {loading ? t('login_loading') : t('login_btn')}
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <style>{`
+        @media (max-width: 880px) {
+          .portal-login-brand { display: none !important; }
+        }
+      `}</style>
     </div>
   )
 }

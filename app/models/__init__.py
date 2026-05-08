@@ -144,4 +144,29 @@ from app.models.service_desk_ai_governance import (  # noqa: F401
 from app.models.bi_collaboration import (  # noqa: F401
     DashboardComment, DashboardVersion, DashboardShare, DashboardNotification,
 )
+from app.models.collaboration import (  # noqa: F401
+    ConversationKind, ChannelType, TeamRole, ChannelRole,
+    MessageType, MessageStatus, ReactionEmoji,
+    CallKind, CallStatus, PresenceStatus,
+    NotificationKind, ModerationVerdict,
+    IntegrationKind, BotKind,
+    CollaborationWorkspace, CollaborationTeam, CollaborationTeamMember,
+    CollaborationConversation,
+    CollaborationChannel, CollaborationChannelMember,
+    CollaborationDirectConversation, CollaborationGroupConversation,
+    CollaborationConversationMember,
+    CollaborationMessage, CollaborationMessageVersion, CollaborationThread,
+    CollaborationReaction, CollaborationMention, CollaborationRead,
+    CollaborationAttachment, CollaborationAttachmentVersion,
+    CollaborationCall, CollaborationCallParticipant,
+    CollaborationRecording, CollaborationTranscript,
+    CollaborationNotification, CollaborationPresenceState,
+    CollaborationIntegration, CollaborationWebhook, CollaborationBotApp,
+    CollaborationModerationCase, CollaborationRetentionPolicy,
+    CollaborationLegalHold, CollaborationAuditEvent,
+    CollaborationPinnedMessage, CollaborationSavedMessage,
+    CollaborationDraft, CollaborationNotificationRule,
+    CollaborationBotExecution, CollaborationSlashCommandLog,
+    CollaborationSavedSearch, CollaborationPushSubscription,
+)
 

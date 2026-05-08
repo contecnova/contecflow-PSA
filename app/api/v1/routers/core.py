@@ -13,6 +13,8 @@ from app.api.v1.endpoints import (
     advanced_config, analytics, client_portal, portal_conversations, service_desk, sprints,
     expenses, automations, enterprise, bpmn_processes, user_costs,
 )
+from app.api.v1.endpoints import collaboration as collaboration_pkg
+from app.api.v1.endpoints import collaboration_portal
 
 router = APIRouter()
 
@@ -47,3 +49,5 @@ router.include_router(automations.router,     prefix="/automations",          ta
 router.include_router(enterprise.router,      prefix="/enterprise",      tags=["Enterprise"])
 router.include_router(bpmn_processes.router,  prefix="/bpmn-processes",  tags=["BPMN Processes"])
 router.include_router(user_costs.router,      prefix="/user-costs",      tags=["User Costs"])
+router.include_router(collaboration_pkg.router, prefix="/collaboration",  tags=["Collaboration"])
+router.include_router(collaboration_portal.router, prefix="/portal/collaboration", tags=["Portal Collaboration"])

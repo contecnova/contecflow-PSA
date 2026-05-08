@@ -24,6 +24,14 @@ export function AuthProvider({ children }) {
   const toast = useToast()
 
   useEffect(() => {
+    // Skip the operator-session restore entirely on the client portal — that
+    // route uses its own ClientAuthContext (ClientUser ≠ User) and the
+    // operator /auth/me would always 401 there, polluting the console.
+    const path = typeof window !== 'undefined' ? window.location.pathname : ''
+    if (path === '/portal' || path.startsWith('/portal/')) {
+      setLoading(false)
+      return
+    }
     // Only attempt session restoration if a hint says the user logged in before.
     // This avoids an unnecessary 401 on first visit / after logout.
     if (!localStorage.getItem(SESSION_HINT_KEY)) {

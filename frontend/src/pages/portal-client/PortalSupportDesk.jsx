@@ -1,22 +1,60 @@
+/**
+ * PortalSupportDesk — service desk del cliente con el lenguaje del backoffice.
+ * Tickets, KB y comunicados.
+ */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  Headphones, Plus, Search, ArrowLeft, Megaphone, Bug, BookOpen,
+  AlertTriangle, Wrench, CheckCircle2, Star, Send,
+  ClipboardList, HelpCircle, GitBranch, Clock,
+} from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { CHART } from '../../constants/theme'
-import { CLIENT_API, useLang, useClientAuth, S } from './portalClientContext'
+import { CLIENT_API, useLang } from './portalClientContext'
+import {
+  PortalPageHeader, PortalCard, PortalEmpty, PortalBadge,
+  PortalButton, PortalModal, PortalField, PortalInput, PortalSelect,
+  PortalTextarea, PortalBanner,
+} from './PortalUI'
+
+const PRIORITY_TONE = {
+  p1_critical: 'danger',
+  p2_high:     'warning',
+  p3_medium:   'warning',
+  p4_low:      'success',
+}
+const PRIORITY_COLORS = {
+  p1_critical: 'var(--danger)',
+  p2_high:     CHART?.orange || '#f97316',
+  p3_medium:   'var(--warning)',
+  p4_low:      'var(--success)',
+}
+const STATUS_TONE = {
+  new: 'default', assigned: 'accent', in_progress: 'accent',
+  pending_client: 'warning', pending_third: 'warning',
+  resolved: 'success', closed: 'default', cancelled: 'default',
+}
+const TYPE_ICON = {
+  incident: Bug, service_request: ClipboardList, change: GitBranch, question: HelpCircle,
+}
 
 export function PortalSupportDesk() {
-  const t = useLang()
-  const { _client } = useClientAuth()
+  const _t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const [_view, _setView] = useState('list')
   const [selectedId, setSelectedId] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [searchKB, setSearchKB] = useState('')
   const [tab, setTab] = useState('tickets')
+  const [newComment, setNewComment] = useState('')
+  const [createForm, setCreateForm] = useState({
+    title: '', description: '', ticket_type: 'incident',
+    urgency: 'medium', impact: 'user', service_item_id: '',
+  })
 
-  const { data: tickets = [], isLoading: _isLoading } = useQuery({
+  const { data: tickets = [] } = useQuery({
     queryKey: ['portal-sd-tickets'],
     queryFn: () => CLIENT_API.get('/sd/tickets/client/my').then(r => r.data),
   })
@@ -38,9 +76,14 @@ export function PortalSupportDesk() {
     enabled: !!selectedId,
   })
 
-  const { mutate: createTicket } = useMutation({
+  const { mutate: createTicket, isPending: creatingTicket } = useMutation({
     mutationFn: d => CLIENT_API.post('/sd/tickets/client', d),
-    onSuccess: () => { qc.invalidateQueries(['portal-sd-tickets']); setShowCreate(false) },
+    onSuccess: () => {
+      qc.invalidateQueries(['portal-sd-tickets'])
+      setShowCreate(false)
+      setCreateForm({ title: '', description: '', ticket_type: 'incident', urgency: 'medium', impact: 'user', service_item_id: '' })
+      toast.success('Ticket abierto')
+    },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: addComment } = useMutation({
@@ -50,338 +93,367 @@ export function PortalSupportDesk() {
   })
   const { mutate: submitCSAT } = useMutation({
     mutationFn: d => CLIENT_API.post(`/sd/tickets/${selectedId}/csat`, d),
-    onSuccess: () => qc.invalidateQueries(['portal-sd-ticket', selectedId]),
+    onSuccess: () => { qc.invalidateQueries(['portal-sd-ticket', selectedId]); toast.success('Gracias por tu valoración') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
-  const [newComment, setNewComment] = useState('')
-  const [createForm, setCreateForm] = useState({ title: '', description: '', ticket_type: 'incident', urgency: 'medium', impact: 'user', service_item_id: '' })
+  const pendingClient = tickets.filter(t => t.status === 'pending_client').length
+  const openTickets = tickets.filter(t => !['closed', 'cancelled', 'resolved'].includes(t.status)).length
 
-  const PRIORITY_COLORS = { p1_critical: 'var(--danger)', p2_high: CHART.orange, p3_medium: 'var(--warning)', p4_low: 'var(--success)' }
-  const STATUS_LABELS = { new: t('ticket_status_new'), assigned: t('ticket_status_assigned'), in_progress: t('ticket_status_in_progress'), pending_client: t('ticket_status_pending_client'), pending_third: t('no_data'), resolved: t('ticket_status_resolved'), closed: t('ticket_status_closed'), cancelled: t('cancel') }
-  const STATUS_COLORS = { new: 'var(--text-2)', assigned: 'var(--accent)', in_progress: 'var(--purple)', pending_client: 'var(--warning)', resolved: 'var(--success)', closed: 'var(--text-3)' }
-  const TYPE_ICONS = { incident: '🔥', service_request: '📋', change: '🔀', question: '❓' }
+  const tabs = [
+    { id: 'tickets', label: `Tickets (${tickets.length})`, icon: <Headphones size={13} /> },
+    { id: 'kb',      label: 'Base de conocimiento',        icon: <BookOpen size={13} /> },
+    { id: 'announcements', label: `Comunicados (${announcements.length})`, icon: <Megaphone size={13} /> },
+  ]
 
-  const pendingClientTickets = tickets.filter(tk => tk.status === 'pending_client').length
+  // ── Detail view ────────────────────────────────────────────────────────────
+  if (tab === 'tickets' && selectedId) {
+    return (
+      <div>
+        <PortalPageHeader
+          title={ticketDetail?.title || 'Cargando...'}
+          icon={Headphones}
+          breadcrumb={[
+            { label: 'Service Desk', onClick: () => setSelectedId(null) },
+            { label: ticketDetail?.number || '...' },
+          ]}
+          meta={ticketDetail ? [
+            { value: ticketDetail.number, color: 'var(--text-3)' },
+            ticketDetail.assigned_to_name && { value: ticketDetail.assigned_to_name, label: 'agente' },
+            ticketDetail.sla_resolution_due && { value: ticketDetail.sla_resolution_due, label: 'SLA resolución' },
+          ].filter(Boolean) : []}
+          actions={<PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />} onClick={() => setSelectedId(null)}>Volver</PortalButton>}
+        />
 
-  return (
-    <div>
-      {/* Active announcements */}
-      {announcements.filter(a => a.show_to_clients).map(a => (
-        <div key={a.id} style={{ background: a.type === 'outage' ? 'var(--danger-bg)' : 'var(--accent-muted)', border: `1px solid ${a.type === 'outage' ? 'var(--danger-border)' : 'var(--accent-glow)'}`, borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', fontSize: "var(--text-base)" }}>
-          <span style={{ fontSize: "var(--text-lg-em)" }}>{a.type === 'outage' ? '🚨' : a.type === 'maintenance' ? '🔧' : 'ℹ️'}</span>
-          <div>
-            <div style={{ fontWeight: 700 }}>{a.title}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{a.body}</div>
-          </div>
-        </div>
-      ))}
+        {!ticketDetail ? (
+          <div style={{ color: 'var(--text-3)', padding: 60, textAlign: 'center' }}>Cargando ticket...</div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+              <PortalBadge tone={STATUS_TONE[ticketDetail.status] || 'default'}>{ticketDetail.status_label || ticketDetail.status}</PortalBadge>
+              <PortalBadge tone={PRIORITY_TONE[ticketDetail.priority] || 'default'}>{ticketDetail.priority_label}</PortalBadge>
+            </div>
 
-      {pendingClientTickets > 0 && (
-        <div role="button" tabIndex={0} aria-label={t('support_pending_hint')} style={{ background: 'var(--warning-bg)', border: '2px solid var(--warning-border)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }} onClick={() => setTab('tickets')} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTab('tickets') } }}>
-          <span style={{ fontSize: "var(--text-xl)" }}>⏳</span>
-          <div>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--warning)' }}>{pendingClientTickets} {t('support_pending_count')}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('support_pending_hint')}</div>
-          </div>
-        </div>
-      )}
+            <PortalCard style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Descripción original</div>
+              <p style={{ fontSize: 'var(--text-sm)', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{ticketDetail.description}</p>
+            </PortalCard>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div role="tablist" aria-label={t('nav_support')} style={{ display: 'flex', gap: 8 }}>
-          {[[`tickets`, `${t('support_tab_tickets')} (${tickets.length})`], ['kb', t('support_tab_kb')], ['announcements', `${t('support_tab_ann')} (${announcements.length})`]].map(([tabId, l]) => (
-            <button key={tabId} role="tab" aria-selected={tab === tabId} aria-controls={`portal-support-panel-${tabId}`} id={`portal-support-tab-${tabId}`} onClick={() => setTab(tabId)}
-              style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${tab === tabId ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === tabId ? 'var(--accent-muted)' : 'transparent', color: tab === tabId ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-              {l}
-            </button>
-          ))}
-        </div>
-        {tab === 'tickets' && !selectedId && (
-          <button onClick={() => setShowCreate(true)} style={{ background: 'linear-gradient(135deg, var(--accent), var(--purple))', border: 'none', borderRadius: 8, padding: '10px 18px', color: '#fff', fontSize: "var(--text-base)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {t('support_open_ticket_btn')}
-          </button>
+            {ticketDetail.resolution && (
+              <PortalCard style={{ marginBottom: 14, borderColor: 'var(--success-border, rgba(16,185,129,0.3))' }}>
+                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <CheckCircle2 size={13} /> Resolución del equipo
+                </div>
+                <p style={{ fontSize: 'var(--text-sm)', lineHeight: 1.7, margin: 0 }}>{ticketDetail.resolution}</p>
+              </PortalCard>
+            )}
+
+            {ticketDetail.csat_requested_at && !ticketDetail.csat_score && (
+              <PortalCard style={{ marginBottom: 14, borderColor: 'var(--success-border, rgba(16,185,129,0.3))' }}>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Star size={14} style={{ color: 'var(--warning)' }} /> ¿Cómo valorarías la atención recibida?
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button key={n} onClick={() => submitCSAT({ score: n })} style={{
+                      flex: 1, padding: '12px', borderRadius: 10,
+                      border: '1px solid var(--surface-4)', background: 'var(--surface-3)',
+                      color: 'var(--text-1)', cursor: 'pointer',
+                      fontSize: 'var(--text-md-em)', fontFamily: 'inherit',
+                    }}>{'⭐'.repeat(n)}</button>
+                  ))}
+                </div>
+              </PortalCard>
+            )}
+            {ticketDetail.csat_score && (
+              <PortalBanner tone="success" icon={<Star size={16} />} title={`Valoración: ${ticketDetail.csat_score}/5`} body="Gracias por tu feedback" />
+            )}
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 12 }}>Conversación</div>
+              {ticketDetail.comments?.filter(c => c.is_public).map(c => (
+                <div key={c.id} style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                    background: c.author_type === 'agent'
+                      ? 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))'
+                      : 'linear-gradient(135deg, var(--success, #10b981), var(--accent))',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 'var(--text-xs)', fontWeight: 800, color: '#fff',
+                  }}>{c.author_name?.split(' ').map(w => w[0]).join('').slice(0, 2)}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 4, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{c.author_name}</span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{c.created_at}</span>
+                      {c.author_type === 'agent' && <PortalBadge tone="accent">Agente</PortalBadge>}
+                    </div>
+                    <div style={{
+                      background: c.author_type === 'agent' ? 'var(--surface-3)' : 'var(--accent-muted)',
+                      border: `1px solid ${c.author_type === 'agent' ? 'var(--surface-4)' : 'var(--accent-border, rgba(79,142,247,0.25))'}`,
+                      borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-sm)', lineHeight: 1.6,
+                    }}>{c.body}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {!['closed', 'cancelled'].includes(ticketDetail.status) && (
+              <PortalCard>
+                <PortalField label="Tu respuesta">
+                  <PortalTextarea rows={4} value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe tu respuesta..." />
+                </PortalField>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+                  <PortalButton icon={<Send size={13} />} disabled={!newComment.trim()}
+                    onClick={() => { addComment({ body: newComment, is_public: true }); setNewComment('') }}>
+                    Enviar respuesta
+                  </PortalButton>
+                </div>
+              </PortalCard>
+            )}
+          </>
         )}
       </div>
+    )
+  }
 
-      {/* Tickets tab */}
-      {tab === 'tickets' && !selectedId && (
-        <div id="portal-support-panel-tickets" role="tabpanel" aria-labelledby="portal-support-tab-tickets">
-          {tickets.length === 0 ? (
-            <div style={{ ...S.card, textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>🎫</div>
-              <div style={{ fontSize: "var(--text-lg)", fontWeight: 600 }}>{t('support_empty')}</div>
-              <p style={{ margin: '8px 0 16px' }}>¿Tienes algún problema o necesitas ayuda? Abre un ticket y el equipo te atenderá.</p>
-              <button onClick={() => setShowCreate(true)} style={{ background: 'linear-gradient(135deg, var(--accent), var(--purple))', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#fff', fontSize: "var(--text-base)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{t('ticket_submit')}</button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {tickets.map(tk => {
-                const stColor = STATUS_COLORS[tk.status] || 'var(--text-2)'
-                const prColor = PRIORITY_COLORS[tk.priority] || 'var(--text-2)'
-                return (
-                  <div key={tk.id} role="button" tabIndex={0} onClick={() => setSelectedId(tk.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedId(tk.id) } }} aria-label={`Abrir ticket ${tk.number} ${tk.title}`}
-                    style={{ ...S.card, cursor: 'pointer', border: `1px solid ${tk.status === 'pending_client' ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)'}`, transition: 'all 0.15s' }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = tk.status === 'pending_client' ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)'}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                          <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{tk.number}</span>
-                          <span style={{ fontSize: "var(--text-sm)" }}>{TYPE_ICONS[tk.ticket_type]}</span>
-                          <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{tk.title}</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: 14, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                          <span>{t('created')}: {tk.created_at}</span>
-                          {tk.assigned_to_name && <span>{t('assigned_to')}: {tk.assigned_to_name}</span>}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: prColor, background: prColor + '15', border: `1px solid ${prColor}30`, borderRadius: 20, padding: '2px 8px' }}>{tk.priority_label}</span>
-                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: stColor, background: stColor + '15', border: `1px solid ${stColor}30`, borderRadius: 20, padding: '2px 8px' }}>{STATUS_LABELS[tk.status] || tk.status_label || tk.status}</span>
-                      </div>
-                    </div>
-                    {tk.status === 'pending_client' && (
-                      <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--warning-bg)', borderRadius: 6, fontSize: "var(--text-sm)", color: 'var(--warning)', fontWeight: 600 }}>
-                        ⏳ {t('ticket_status_pending_client')} — haz clic para responder
-                      </div>
-                    )}
-                    {tk.csat_requested_at && !tk.csat_score && (
-                      <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--success-bg)', borderRadius: 6, fontSize: "var(--text-sm)", color: 'var(--success)', fontWeight: 600 }}>
-                        ⭐ {t('ticket_rate_prompt')}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+  // ── List view ──────────────────────────────────────────────────────────────
+  return (
+    <div>
+      <PortalPageHeader
+        title="Service Desk"
+        subtitle="Tickets de soporte, base de conocimiento y comunicados del equipo."
+        icon={Headphones}
+        meta={[
+          { value: openTickets, label: 'tickets abiertos', color: 'var(--accent)' },
+          { value: pendingClient, label: 'esperan tu respuesta', color: pendingClient ? 'var(--warning)' : 'var(--text-3)' },
+          { value: announcements.length, label: 'comunicados activos' },
+        ]}
+        actions={
+          <PortalButton icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>Abrir ticket</PortalButton>
+        }
+      />
+
+      {announcements.filter(a => a.show_to_clients).map(a => (
+        <PortalBanner key={a.id}
+          tone={a.type === 'outage' ? 'danger' : a.type === 'maintenance' ? 'warning' : 'info'}
+          icon={a.type === 'outage' ? <AlertTriangle size={18} /> : a.type === 'maintenance' ? <Wrench size={18} /> : <Megaphone size={18} />}
+          title={a.title} body={a.body}
+        />
+      ))}
+
+      {pendingClient > 0 && (
+        <PortalBanner tone="warning" icon={<Clock size={18} />}
+          title={`${pendingClient} ticket(s) esperan tu respuesta`}
+          body="Pulsa el ticket para responder y desbloquear el avance del equipo."
+        />
       )}
 
-      {/* Ticket detail */}
-      {tab === 'tickets' && selectedId && (
-        !ticketDetail ? (
-          <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-2)' }}>
-            <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 12, animation: 'spin 1s linear infinite' }}>⟳</div>
-            <div>{t('loading')}</div>
-          </div>
+      <div role="tablist" aria-label="Service Desk" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 18, flexWrap: 'wrap' }}>
+        {tabs.map(tb => (
+          <button key={tb.id} role="tab" aria-selected={tab === tb.id}
+            onClick={() => setTab(tb.id)}
+            style={{
+              background: 'transparent', border: 'none',
+              borderBottom: `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}`,
+              padding: '9px 14px', cursor: 'pointer', fontFamily: 'inherit',
+              fontSize: 'var(--text-sm)', fontWeight: tab === tb.id ? 700 : 500,
+              color: tab === tb.id ? 'var(--accent)' : 'var(--text-2)',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}>{tb.icon} {tb.label}</button>
+        ))}
+      </div>
+
+      {/* Tickets */}
+      {tab === 'tickets' && (
+        tickets.length === 0 ? (
+          <PortalEmpty icon={Headphones} title="No tienes tickets"
+            description="¿Necesitas ayuda? Abre un ticket y el equipo te atenderá en plazo SLA."
+            action={<PortalButton icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>Abrir ticket</PortalButton>}
+          />
         ) : (
-          <div>
-            <button onClick={() => setSelectedId(null)} style={{ ...S.btnSec, marginBottom: 20 }}>← Volver a mis tickets</button>
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{ticketDetail.number}</span>
-              <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: STATUS_COLORS[ticketDetail.status] || 'var(--text-2)', background: (STATUS_COLORS[ticketDetail.status] || 'var(--text-2)') + '15', border: `1px solid ${(STATUS_COLORS[ticketDetail.status] || 'var(--text-2)')}30`, borderRadius: 20, padding: '2px 8px' }}>
-                {STATUS_LABELS[ticketDetail.status] || ticketDetail.status}
-              </span>
-              <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: PRIORITY_COLORS[ticketDetail.priority] || 'var(--text-2)' }}>{ticketDetail.priority_label}</span>
-            </div>
-            <h3 style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, margin: '0 0 6px' }}>{ticketDetail.title}</h3>
-            {ticketDetail.assigned_to_name && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Agente asignado: <span style={{ color: 'var(--text-1)' }}>{ticketDetail.assigned_to_name}</span></div>}
-            {ticketDetail.sla_resolution_due && (
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>Resolución estimada antes de: {ticketDetail.sla_resolution_due}</div>
-            )}
-          </div>
-
-          <div style={{ ...S.card, marginBottom: 16 }}>
-            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, textTransform: 'uppercase' }}>Descripción original</div>
-            <p style={{ fontSize: "var(--text-md)", lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{ticketDetail.description}</p>
-          </div>
-
-          {ticketDetail.resolution && (
-            <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--success)', marginBottom: 8, textTransform: 'uppercase' }}>✓ Resolución del equipo</div>
-              <p style={{ fontSize: "var(--text-md)", lineHeight: 1.7, margin: 0 }}>{ticketDetail.resolution}</p>
-            </div>
-          )}
-
-          {ticketDetail.csat_requested_at && !ticketDetail.csat_score && (
-            <div style={{ ...S.card, border: '1px solid var(--success-border)', marginBottom: 16 }}>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 12 }}>⭐ ¿Cómo valorarías la atención recibida?</div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                {[1,2,3,4,5].map(n => (
-                  <button key={n} onClick={() => submitCSAT({ score: n })}
-                    style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-1)', cursor: 'pointer', fontSize: "var(--text-xl-em)", fontFamily: 'inherit', transition: 'all 0.15s' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--success-bg)'; e.currentTarget.style.borderColor = 'var(--success-border)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-1)'; e.currentTarget.style.borderColor = 'var(--surface-4)' }}>
-                    {'⭐'.repeat(n)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {ticketDetail.csat_score && (
-            <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: "var(--text-base)", color: 'var(--success)' }}>
-              ✓ Valoraste este ticket con {'⭐'.repeat(ticketDetail.csat_score)} — ¡gracias por tu feedback!
-            </div>
-          )}
-
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>Conversación</div>
-            {ticketDetail.comments?.filter(c => c.is_public).map(c => (
-              <div key={c.id} style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-                <div style={{ width: 34, height: 34, borderRadius: '50%', background: c.author_type === 'agent' ? 'linear-gradient(135deg, var(--accent), var(--purple))' : 'linear-gradient(135deg, var(--success), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-sm)", fontWeight: 700, flexShrink: 0 }}>
-                  {c.author_name?.split(' ').map(w => w[0]).join('').slice(0,2)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', gap: 10, marginBottom: 4 }}>
-                    <span style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{c.author_name}</span>
-                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{c.created_at}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {tickets.map(tk => {
+              const TypeIcon = TYPE_ICON[tk.ticket_type] || Headphones
+              return (
+                <PortalCard key={tk.id} onClick={() => setSelectedId(tk.id)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>{tk.number}</span>
+                        <TypeIcon size={13} style={{ color: 'var(--text-2)' }} />
+                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{tk.title}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, fontSize: 'var(--text-xs)', color: 'var(--text-3)', flexWrap: 'wrap' }}>
+                        <span>Creado: {tk.created_at}</span>
+                        {tk.assigned_to_name && <span>Asignado: {tk.assigned_to_name}</span>}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{
+                        fontSize: 'var(--text-xs)', fontWeight: 700,
+                        color: PRIORITY_COLORS[tk.priority] || 'var(--text-2)',
+                      }}>{tk.priority_label}</span>
+                      <PortalBadge tone={STATUS_TONE[tk.status] || 'default'}>{tk.status_label || tk.status}</PortalBadge>
+                    </div>
                   </div>
-                  <div style={{ background: c.author_type === 'agent' ? 'var(--portal-bg)' : 'var(--portal-surface)', borderRadius: 10, padding: '12px 16px', fontSize: "var(--text-base)", lineHeight: 1.6 }}>{c.body}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {!['closed', 'cancelled'].includes(ticketDetail.status) && (
-            <div style={{ ...S.card }}>
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, textTransform: 'uppercase' }}>Tu respuesta</div>
-              <textarea value={newComment} onChange={e => setNewComment(e.target.value)} rows={4}
-                placeholder="Escribe tu respuesta"
-                style={{ ...S.input, resize: 'vertical', marginBottom: 12 }} />
-              <button onClick={() => { addComment({ body: newComment, is_public: true }); setNewComment('') }}
-                disabled={!newComment}
-                style={{ ...S.btn, opacity: newComment ? 1 : 0.5 }}>
-                Enviar respuesta
-              </button>
-            </div>
-          )}
+                  {tk.status === 'pending_client' && (
+                    <div style={{
+                      marginTop: 10, padding: '8px 12px',
+                      background: 'var(--warning-bg, rgba(245,158,11,0.12))',
+                      borderRadius: 8, fontSize: 'var(--text-xs)',
+                      color: 'var(--warning)', fontWeight: 700,
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                    }}><Clock size={12} /> Esperan tu respuesta — clic para abrir</div>
+                  )}
+                  {tk.csat_requested_at && !tk.csat_score && (
+                    <div style={{
+                      marginTop: 8, padding: '6px 12px',
+                      background: 'var(--success-bg, rgba(16,185,129,0.12))',
+                      borderRadius: 8, fontSize: 'var(--text-xs)',
+                      color: 'var(--success)', fontWeight: 700,
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                    }}><Star size={12} /> Valora la atención recibida</div>
+                  )}
+                </PortalCard>
+              )
+            })}
           </div>
         )
       )}
 
-      {/* KB tab */}
+      {/* KB */}
       {tab === 'kb' && (
-        <div id="portal-support-panel-kb" role="tabpanel" aria-labelledby="portal-support-tab-kb">
-          <div style={{ marginBottom: 20 }}>
-            <input aria-label="Buscar en la base de conocimiento" value={searchKB} onChange={e => setSearchKB(e.target.value)} placeholder="Buscar en la base de conocimiento"
-              style={{ ...S.input, fontSize: "var(--text-md-em)", padding: '13px 16px' }} />
+        <>
+          <div style={{ marginBottom: 16, position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
+            <PortalInput value={searchKB} onChange={e => setSearchKB(e.target.value)} placeholder="Buscar artículo..."
+              style={{ paddingLeft: 34, fontSize: 'var(--text-md)', padding: '11px 12px 11px 34px' }} />
           </div>
           {kbArticles.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>📚</div>
-              <p>{searchKB ? `Sin resultados para "${searchKB}"` : 'La base de conocimiento está vacía de momento'}</p>
-            </div>
+            <PortalEmpty icon={Search} title={searchKB ? `Sin resultados para "${searchKB}"` : 'Base de conocimiento vacía'} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {kbArticles.map(a => (
-                <div key={a.id} style={{ ...S.card }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{a.title}</span>
-                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>👁 {a.view_count} · ✓ {a.helpful_count}</span>
+                <PortalCard key={a.id}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{a.title}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>👁 {a.view_count} · ✓ {a.helpful_count}</div>
                   </div>
-                  {a.summary && <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: '0 0 10px' }}>{a.summary}</p>}
-                  {a.tags && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>🏷 {a.tags}</div>}
-                </div>
+                  {a.summary && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 8px' }}>{a.summary}</p>}
+                  {a.tags && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>🏷 {a.tags}</div>}
+                </PortalCard>
               ))}
             </div>
           )}
-        </div>
+        </>
       )}
 
-      {/* Announcements tab */}
+      {/* Announcements */}
       {tab === 'announcements' && (
-        <div id="portal-support-panel-announcements" role="tabpanel" aria-labelledby="portal-support-tab-announcements">
-          {announcements.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>📢</div>
-              <p>No hay comunicados activos</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {announcements.map(a => (
-                <div key={a.id} style={{ ...S.card, border: `1px solid ${a.type === 'outage' ? 'rgba(248,113,113,0.25)' : 'var(--surface-4)'}` }}>
+        announcements.length === 0 ? (
+          <PortalEmpty icon={Megaphone} title="Sin comunicados activos" />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {announcements.map(a => {
+              const Icon = a.type === 'outage' ? AlertTriangle : a.type === 'maintenance' ? Wrench : a.type === 'resolved' ? CheckCircle2 : Megaphone
+              const tone = a.type === 'outage' ? 'danger' : a.type === 'maintenance' ? 'warning' : a.type === 'resolved' ? 'success' : 'accent'
+              const color = tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)' : tone === 'success' ? 'var(--success)' : 'var(--accent)'
+              return (
+                <PortalCard key={a.id}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: "var(--text-2xl)" }}>{a.type === 'outage' ? '🚨' : a.type === 'maintenance' ? '🔧' : a.type === 'resolved' ? '✅' : 'ℹ️'}</span>
-                    <div>
-                      <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{a.title}</div>
-                      <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: 0 }}>{a.body}</p>
-                      {a.starts_at && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6 }}>{a.starts_at} {a.ends_at && `→ ${a.ends_at}`}</div>}
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--surface-3)', color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon size={15} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 4 }}>{a.title}</div>
+                      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: 0 }}>{a.body}</p>
+                      {a.starts_at && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6 }}>{a.starts_at}{a.ends_at && ` → ${a.ends_at}`}</div>}
                     </div>
                   </div>
-                </div>
+                </PortalCard>
+              )
+            })}
+          </div>
+        )
+      )}
+
+      <PortalModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="Abrir nuevo ticket"
+        subtitle="Cuéntanos qué necesitas. Sigue las plantillas si te ayuda."
+        width={620}
+        footer={
+          <>
+            <PortalButton variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</PortalButton>
+            <PortalButton loading={creatingTicket} disabled={!createForm.title || !createForm.description}
+              onClick={() => createTicket(createForm)}>Abrir ticket</PortalButton>
+          </>
+        }
+      >
+        <PortalBanner tone="info" icon={<BookOpen size={16} />}
+          title="¿Has revisado la base de conocimiento?"
+          body="Muchos casos están ya documentados — revisa la KB antes de abrir un ticket nuevo." />
+        {catalog.length > 0 && (
+          <PortalField label="Servicio del catálogo">
+            <PortalSelect value={createForm.service_item_id}
+              onChange={e => setCreateForm(f => ({ ...f, service_item_id: e.target.value }))}>
+              <option value="">Seleccionar...</option>
+              {catalog.map(cat => (
+                <optgroup key={cat.id} label={`${cat.icon || ''} ${cat.name}`}>
+                  {cat.services.map(s => <option key={s.id} value={s.id}>{s.name} — SLA {s.sla_resolution_hours}h</option>)}
+                </optgroup>
+              ))}
+            </PortalSelect>
+          </PortalField>
+        )}
+        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <PortalField label="Tipo de ticket">
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                ['incident', 'Incidencia', Bug],
+                ['service_request', 'Solicitud', ClipboardList],
+                ['question', 'Consulta', HelpCircle],
+              ].map(([v, l, Icon]) => (
+                <button key={v} onClick={() => setCreateForm(f => ({ ...f, ticket_type: v }))} style={{
+                  flex: 1, minWidth: 110,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  padding: '10px',
+                  background: createForm.ticket_type === v ? 'var(--accent-muted)' : 'var(--surface-3)',
+                  border: `1px solid ${createForm.ticket_type === v ? 'var(--accent)' : 'var(--surface-4)'}`,
+                  borderRadius: 8,
+                  color: createForm.ticket_type === v ? 'var(--accent)' : 'var(--text-2)',
+                  cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: 'inherit',
+                }}><Icon size={14} /> {l}</button>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Create ticket modal */}
-      {showCreate && (
-        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="portal-support-create-title" style={{ ...S.card, width: 580, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 id="portal-support-create-title" style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, margin: '0 0 20px' }}>{t('support_modal_title')}</h3>
-
-            <div style={{ background: 'var(--portal-bg)', borderRadius: 10, padding: 14, marginBottom: 20 }}>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>{t('support_kb_hint')}</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input placeholder="Buscar artículo relacionado" aria-label="Buscar artículo relacionado" style={{ ...S.input, flex: 1, fontSize: "var(--text-sm)", padding: '8px 12px' }}
-                  onChange={e => setSearchKB(e.target.value)} />
-                <button onClick={() => { setShowCreate(false); setTab('kb') }}
-                  style={{ ...S.btnSec, padding: '7px 12px', fontSize: "var(--text-sm)", whiteSpace: 'nowrap' }}>Ver KB</button>
-              </div>
-            </div>
-
-            {catalog.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <label style={S.label}>Tipo de solicitud (catálogo de servicios)</label>
-                <select value={createForm.service_item_id} onChange={e => setCreateForm(f => ({ ...f, service_item_id: e.target.value }))} style={S.input}>
-                  <option value="">Seleccionar del catálogo...</option>
-                  {catalog.map(cat => (
-                    <optgroup key={cat.id} label={`${cat.icon} ${cat.name}`}>
-                      {cat.services.map(s => <option key={s.id} value={s.id}>{s.name} — SLA {s.sla_resolution_hours}h</option>)}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label style={S.label}>Tipo de ticket</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {[['incident','🔥 Incidencia'],['service_request','📋 Solicitud'],['question','❓ Consulta']].map(([v,l]) => (
-                    <button key={v} onClick={() => setCreateForm(f => ({ ...f, ticket_type: v }))}
-                      style={{ flex: 1, padding: '8px', borderRadius: 8, border: `1px solid ${createForm.ticket_type === v ? 'var(--accent)' : 'var(--surface-4)'}`, background: createForm.ticket_type === v ? 'var(--accent-muted)' : 'transparent', color: createForm.ticket_type === v ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div><label style={S.label}>Título *</label><input value={createForm.title} onChange={e => setCreateForm(f => ({ ...f, title: e.target.value }))} style={S.input} placeholder="Título del ticket" aria-label="Título del ticket" /></div>
-              <div><label style={S.label}>Descripción *</label><textarea value={createForm.description} onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))} rows={4} style={{ ...S.input, resize: 'vertical' }} placeholder="Describe el problema o solicitud" aria-label="Descripción del ticket" /></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={S.label}>Urgencia</label>
-                  <select value={createForm.urgency} onChange={e => setCreateForm(f => ({ ...f, urgency: e.target.value }))} style={S.input}>
-                    <option value="critical">Crítica — el negocio está parado</option>
-                    <option value="high">Alta — funcionalidad importante no funciona</option>
-                    <option value="medium">Media — hay un workaround posible</option>
-                    <option value="low">Baja — es un problema menor</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={S.label}>Impacto</label>
-                  <select value={createForm.impact} onChange={e => setCreateForm(f => ({ ...f, impact: e.target.value }))} style={S.input}>
-                    <option value="enterprise">Afecta a toda la empresa</option>
-                    <option value="department">Afecta a mi departamento</option>
-                    <option value="user">Me afecta solo a mí</option>
-                    <option value="minimal">Impacto mínimo</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-                <button onClick={() => setShowCreate(false)} style={S.btnSec}>Cancelar</button>
-                <button onClick={() => createTicket(createForm)} disabled={!createForm.title || !createForm.description}
-                  style={{ ...S.btn, opacity: createForm.title && createForm.description ? 1 : 0.5 }}>
-                  Abrir ticket
-                </button>
-              </div>
-            </div>
+          </PortalField>
+          <PortalField label="Título" required>
+            <PortalInput value={createForm.title} onChange={e => setCreateForm(f => ({ ...f, title: e.target.value }))} placeholder="Resumen claro del problema" />
+          </PortalField>
+          <PortalField label="Descripción" required hint="Cuanto más contexto añadas, antes te resolveremos">
+            <PortalTextarea rows={4} value={createForm.description} onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe el problema o solicitud..." />
+          </PortalField>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <PortalField label="Urgencia">
+              <PortalSelect value={createForm.urgency} onChange={e => setCreateForm(f => ({ ...f, urgency: e.target.value }))}>
+                <option value="critical">Crítica — el negocio está parado</option>
+                <option value="high">Alta — funcionalidad importante no funciona</option>
+                <option value="medium">Media — hay un workaround</option>
+                <option value="low">Baja — problema menor</option>
+              </PortalSelect>
+            </PortalField>
+            <PortalField label="Impacto">
+              <PortalSelect value={createForm.impact} onChange={e => setCreateForm(f => ({ ...f, impact: e.target.value }))}>
+                <option value="enterprise">Toda la empresa</option>
+                <option value="department">Mi departamento</option>
+                <option value="user">Solo a mí</option>
+                <option value="minimal">Mínimo</option>
+              </PortalSelect>
+            </PortalField>
           </div>
         </div>
-      )}
+      </PortalModal>
     </div>
   )
 }

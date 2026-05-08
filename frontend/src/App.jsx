@@ -134,6 +134,9 @@ const FinanceDashboardPage   = lazy(() => import('./pages/FinanceDashboardPage')
 const SupportDashboardPage   = lazy(() => import('./pages/SupportDashboardPage'))
 const BPMPage                = lazy(() => import('./pages/BPMPage'))
 const UserCostsPage          = lazy(() => import('./pages/UserCostsPage'))
+const ChatPage               = lazy(() => import('./pages/ChatPage'))
+const CallPage               = lazy(() => import('./pages/CallPage'))
+const ChatAdminPage          = lazy(() => import('./pages/ChatAdminPage'))
 
 // ── Fallback de carga para lazy pages — skeleton por tipo de módulo ───────────
 const TABLE_ROUTES = new Set([
@@ -578,6 +581,9 @@ function AppRoutes() {
         <Route path="/project-templates"   element={<ProtectedRoute roles={['admin','pm']}><Layout><ProjectTemplatesPage /></Layout></ProtectedRoute>} />
       <Route path="/bpm" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><BPMPage /></Layout></ProtectedRoute>} />
       <Route path="/user-costs" element={<ProtectedRoute roles={['admin','hr']}><Layout><UserCostsPage /></Layout></ProtectedRoute>} />
+      <Route path="/chat" element={<ProtectedRoute><Layout><ChatPage /></Layout></ProtectedRoute>} />
+      <Route path="/chat/admin" element={<ProtectedRoute roles={['admin']}><Layout><ChatAdminPage /></Layout></ProtectedRoute>} />
+      <Route path="/chat/call/:callId" element={<ProtectedRoute><CallPage /></ProtectedRoute>} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
     </Suspense>

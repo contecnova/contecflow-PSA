@@ -1,35 +1,41 @@
 /**
- * PortalClientePage – The external-facing client portal.
- * Accessed at /portal — uses separate client auth (ClientUser, not User).
- * This is what the CLIENT sees, not the internal team.
+ * PortalClientePage — Portal externo del cliente.
  *
- * Shared context, auth, API client, and styles live in portal-client/portalClientContext.jsx
+ * Estructura: Shell (sidebar + topbar al estilo backoffice) + secciones
+ * rediseñadas (PortalDashboard, PortalUAT, PortalFeatureRequests, ...).
+ *
+ * Auth: separado del backoffice (ClientUser). Ver portalClientContext.jsx.
  */
-import { extractErr } from '../utils/helpers'
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  Settings, User, Palette, Globe, ShieldCheck, KeyRound,
+  Save, Sparkles, Languages,
+} from 'lucide-react'
 import { useToast } from '../context/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../i18n/AppLangContext'
+import { extractErr } from '../utils/helpers'
 import {
   CLIENT_API, LangContext, useLang, useClientAuth,
-  ClientAuthProvider, S, LoginScreen,
+  ClientAuthProvider, LoginScreen,
 } from './portal-client/portalClientContext'
-import { PortalDashboard } from './portal-client/PortalContentSections'
 import {
-  PortalUAT,
-  PortalFeatureRequests,
-  PortalMessages,
-  PortalInvoices,
-  PortalRoadmap,
-  PortalDocuments,
-  PortalWiki,
+  PortalShell, PortalPageHeader, PortalCard, PortalSection,
+  PortalButton, PortalField, PortalInput, PortalSelect, PortalBadge,
+  PortalBanner,
+} from './portal-client/PortalUI'
+import { PortalDashboard } from './portal-client/PortalDashboard'
+import {
+  PortalUAT, PortalFeatureRequests, PortalMessages,
+  PortalInvoices, PortalRoadmap, PortalDocuments, PortalWiki,
 } from './portal-client/PortalAdvancedSections'
 import { PortalSupportDesk } from './portal-client/PortalSupportDesk'
+import { PortalSurveys } from './portal-client/PortalSurveys'
 
-function PortalApp({ changeLang, _currentLang }) {
-  const { client, logout } = useClientAuth()
+// ── Inner app (con cliente autenticado) ──────────────────────────────────────
+function PortalApp({ changeLang }) {
   const qc = useQueryClient()
-  const t = useLang()
+  const { client } = useClientAuth()
   const [section, setSection] = useState('dashboard')
 
   const { data: branding } = useQuery({
@@ -41,10 +47,54 @@ function PortalApp({ changeLang, _currentLang }) {
   const { data: surveys = [] } = useQuery({
     queryKey: ['portal-surveys'],
     queryFn: () => CLIENT_API.get('/portal/surveys').then(r => r.data),
-    enabled: !!client,
+    enabled: !!client, staleTime: 60000,
   })
+
+  // Badges para sidebar y topbar
+  const { data: dash } = useQuery({
+    queryKey: ['portal-dashboard'],
+    queryFn: () => CLIENT_API.get('/portal/dashboard').then(r => r.data),
+    enabled: !!client, staleTime: 30000, refetchOnWindowFocus: false,
+  })
+  const { data: tickets = [] } = useQuery({
+    queryKey: ['portal-sd-tickets'],
+    queryFn: () => CLIENT_API.get('/sd/tickets/client/my').then(r => r.data),
+    enabled: !!client, staleTime: 30000,
+  })
+  const { data: docs = [] } = useQuery({
+    queryKey: ['portal-docs-client'],
+    queryFn: () => CLIENT_API.get('/portal/documents').then(r => r.data),
+    enabled: !!client, staleTime: 30000,
+  })
+  const { data: invoices = [] } = useQuery({
+    queryKey: ['portal-invoices'],
+    queryFn: () => CLIENT_API.get('/portal/invoices').then(r => r.data),
+    enabled: !!client, staleTime: 30000,
+  })
+  const { data: frs = [] } = useQuery({
+    queryKey: ['portal-frs-client'],
+    queryFn: () => CLIENT_API.get('/portal/feature-requests').then(r => r.data),
+    enabled: !!client, staleTime: 30000,
+  })
+  const { data: uats = [] } = useQuery({
+    queryKey: ['portal-uat'],
+    queryFn: () => CLIENT_API.get('/portal/uat').then(r => r.data),
+    enabled: !!client, staleTime: 30000,
+  })
+
   const pendingSurveys = surveys.filter(s => s.status === 'pending').length
 
+  const badges = {
+    support:   tickets.filter(t => t.status === 'pending_client').length,
+    documents: docs.filter(d => d.requires_signature && !d.signed_by_client).length,
+    invoices:  invoices.filter(i => i.client_approval_status === 'pending').length,
+    requests:  frs.filter(f => f.status === 'estimated' && f.client_approved == null).length,
+    uat:       uats.filter(u => ['pending', 'in_progress'].includes(u.status)).length,
+    messages:  dash?.kpis?.unread_messages || 0,
+    surveys:   pendingSurveys,
+  }
+
+  // WebSocket portal-notifications con reconexión exponencial.
   useEffect(() => {
     if (!client) return
     let socket = null
@@ -61,13 +111,10 @@ function PortalApp({ changeLang, _currentLang }) {
         const ticketRes = await CLIENT_API.get('/ws/portal-ticket')
         const ticket = ticketRes?.data?.ticket
         if (!ticket || cancelled) return
-
         const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws'
         const wsUrl = `${wsProto}://${window.location.host}/api/v1/ws/portal-notifications?ticket=${encodeURIComponent(ticket)}`
         socket = new window.WebSocket(wsUrl)
-
         socket.onopen = () => { attempt = 0 }
-
         socket.onmessage = (event) => {
           try {
             const msg = JSON.parse(event.data)
@@ -77,24 +124,20 @@ function PortalApp({ changeLang, _currentLang }) {
               qc.invalidateQueries(['portal-conversations-client'])
               qc.invalidateQueries(['portal-sd-tickets'])
               qc.invalidateQueries(['portal-invoices'])
+              qc.invalidateQueries(['portal-docs-client'])
+              qc.invalidateQueries(['portal-frs-client'])
+              qc.invalidateQueries(['portal-uat'])
+              qc.invalidateQueries(['portal-surveys'])
             }
-          } catch {
-            // Ignore malformed payloads from network middleboxes.
-          }
+          } catch { /* network garbage */ }
         }
-
         socket.onclose = (ev) => {
           if (cancelled) return
-          // Only reconnect on abnormal close; skip if server rejected (4xx-equiv code 4003/1008)
           if (ev.code === 1000 || ev.code === 1001) return
           const delay = Math.min(1000 * 2 ** (attempt - 1), 30000)
           reconnectTimer = window.setTimeout(connect, delay)
         }
-
-        socket.onerror = () => {
-          // onerror is always followed by onclose — reconnect logic handled there
-        }
-
+        socket.onerror = () => { /* onclose follows */ }
         if (pingInterval) window.clearInterval(pingInterval)
         pingInterval = window.setInterval(() => {
           if (socket && socket.readyState === window.WebSocket.OPEN) {
@@ -102,14 +145,12 @@ function PortalApp({ changeLang, _currentLang }) {
           }
         }, 25000)
       } catch {
-        // WS is optional; portal works with polling queries.
         if (!cancelled && attempt < MAX_ATTEMPTS) {
           const delay = Math.min(1000 * 2 ** (attempt - 1), 30000)
           reconnectTimer = window.setTimeout(connect, delay)
         }
       }
     }
-
     connect()
     return () => {
       cancelled = true
@@ -119,88 +160,45 @@ function PortalApp({ changeLang, _currentLang }) {
     }
   }, [client, qc])
 
-  const SECTIONS = [
-    { id: 'dashboard', icon: '◈',  label: t('nav_dashboard') },
-    { id: 'uat',       icon: '🧪', label: t('nav_uat') },
-    { id: 'requests',  icon: '💡', label: t('nav_requests') },
-    { id: 'roadmap',   icon: '🗺️', label: t('nav_roadmap') },
-    { id: 'wiki',      icon: '📚', label: t('nav_wiki') },
-    { id: 'documents', icon: '📄', label: t('nav_documents') },
-    { id: 'invoices',  icon: '🧾', label: 'Facturas' },
-    { id: 'support',   icon: '🛎️', label: t('nav_support') },
-    { id: 'messages',  icon: '💬', label: t('nav_messages') },
-    { id: 'profile',   icon: '⚙️', label: 'Mi perfil' },
-  ]
-
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--surface-0)' }}>
-      {/* Sidebar */}
-      <aside style={{ width: 220, background: 'var(--portal-deep)', borderRight: '1px solid var(--surface-4)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-        <div style={{ padding: '20px 20px', borderBottom: '1px solid var(--surface-4)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            {branding?.logo_url ? (
-              <img src={branding.logo_url} alt={branding.brand_name || 'Portal'} style={{ width: 28, height: 28, borderRadius: 7, objectFit: 'cover', border: '1px solid var(--surface-4)' }} />
-            ) : (
-              <div style={{ width: 28, height: 28, background: `linear-gradient(135deg, ${branding?.primary_color || '#4f8ef7'}, var(--surface-0))`, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 800 }}>◈</div>
-            )}
-            <span style={{ fontWeight: 800, fontSize: "var(--text-lg-em)" }}>{branding?.brand_name || t('portal')}</span>
-          </div>
-        </div>
+    <PortalShell section={section} onSection={setSection} branding={branding} badges={badges}>
+      {pendingSurveys > 0 && section !== 'profile' && section !== 'surveys' && (
+        <button type="button"
+          onClick={() => setSection('surveys')}
+          style={{
+            background: 'transparent', border: 'none', padding: 0,
+            display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          <PortalBanner
+            tone="info"
+            icon={<Sparkles size={18} />}
+            title={`Tienes ${pendingSurveys} encuesta(s) pendiente(s)`}
+            body="Tu opinión nos ayuda a mejorar — responde en menos de 1 minuto. Pulsa aquí."
+          />
+        </button>
+      )}
 
-        <nav style={{ flex: 1, padding: '12px 10px' }}>
-          {SECTIONS.map(s => (
-            <button key={s.id} onClick={() => setSection(s.id)}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, border: `1px solid ${section === s.id ? 'var(--accent-glow)' : 'transparent'}`, background: section === s.id ? 'var(--accent-muted)' : 'transparent', color: section === s.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-base)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 2, textAlign: 'left' }}>
-              <span style={{ fontSize: "var(--text-lg)" }}>{s.icon}</span>
-              {s.label}
-            </button>
-          ))}
-        </nav>
-
-        <div style={{ padding: '12px 10px', borderTop: '1px solid var(--surface-4)' }}>
-          <div style={{ padding: '8px 12px', marginBottom: 4, display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 800, color: 'var(--accent)', flexShrink: 0 }}>
-              {client?.full_name?.charAt(0)?.toUpperCase() || '?'}
-            </div>
-            <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{client?.full_name}</div>
-              <button onClick={() => setSection('profile')} style={{ background: 'none', border: 'none', padding: 0, fontSize: "var(--text-sm)", color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>⚙️ Mi perfil</button>
-            </div>
-          </div>
-          <button onClick={logout} style={{ ...S.btnSec, width: '100%', padding: '8px 12px', fontSize: "var(--text-base)" }}>⏻ {t('logout')}</button>
-        </div>
-      </aside>
-
-      {/* Content */}
-      <main style={{ flex: 1, overflowY: 'auto', padding: 32, color: 'var(--text-1)' }}>
-        {pendingSurveys > 0 && (
-          <button type="button" style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 10, padding: '12px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'inherit' }} onClick={() => setSection('surveys')}>
-            <span style={{ fontSize: "var(--text-2xl)" }}>⭐</span>
-            <div>
-              <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--success)' }}>Tienes {pendingSurveys} encuesta(s) pendiente(s)</div>
-              <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Tu opinión nos ayuda a mejorar. Solo toma 1 minuto.</div>
-            </div>
-          </button>
-        )}
-
-        {section === 'dashboard'  && <PortalDashboard />}
-        {section === 'uat'        && <PortalUAT />}
-        {section === 'requests'   && <PortalFeatureRequests />}
-        {section === 'roadmap'    && <PortalRoadmap />}
-        {section === 'wiki'       && <PortalWiki />}
-        {section === 'documents'  && <PortalDocuments />}
-        {section === 'invoices'   && <PortalInvoices />}
-        {section === 'support'    && <PortalSupportDesk />}
-        {section === 'messages'   && <PortalMessages />}
-        {section === 'profile'    && <PortalMyProfile changeLang={changeLang} />}
-      </main>
-    </div>
+      {section === 'dashboard'  && <PortalDashboard onNavigate={setSection} />}
+      {section === 'roadmap'    && <PortalRoadmap />}
+      {section === 'uat'        && <PortalUAT />}
+      {section === 'requests'   && <PortalFeatureRequests />}
+      {section === 'support'    && <PortalSupportDesk />}
+      {section === 'messages'   && <PortalMessages />}
+      {section === 'documents'  && <PortalDocuments />}
+      {section === 'wiki'       && <PortalWiki />}
+      {section === 'invoices'   && <PortalInvoices />}
+      {section === 'surveys'    && <PortalSurveys />}
+      {section === 'profile'    && <PortalMyProfile changeLang={changeLang} />}
+    </PortalShell>
   )
 }
 
-// ── Mi Perfil (cliente) ───────────────────────────────────────────────────────
+// ── Mi perfil rediseñado ─────────────────────────────────────────────────────
 function PortalMyProfile({ changeLang }) {
   const { client } = useClientAuth()
+  const _t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [tab, setTab] = useState('profile')
@@ -210,45 +208,49 @@ function PortalMyProfile({ changeLang }) {
     job_title: client?.job_title || '',
   })
   const [pendingLang, setPendingLang] = useState(client?.language || 'es')
-  const [pwdForm, setPwdForm]   = useState({ current: '', new_pwd: '', confirm: '' })
+  const [pwdForm, setPwdForm] = useState({ new_pwd: '', confirm: '' })
+  const [pwdError, setPwdError] = useState('')
   const [savedProfile, setSavedProfile] = useState(false)
   const [savedLanguage, setSavedLanguage] = useState(false)
-  const [pwdError, setPwdError] = useState('')
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('portal_theme_mode') || 'freight')
 
-  // Obtener config del portal para saber qué puede editar
   const { data: me } = useQuery({
     queryKey: ['portal-me'],
     queryFn: () => CLIENT_API.get('/portal/auth/me').then(r => r.data),
   })
 
   const LANGUAGES = [
-    { code: 'es', label: 'Español' }, { code: 'en', label: 'English' },
+    { code: 'es', label: 'Español' },  { code: 'en', label: 'English' },
     { code: 'fr', label: 'Français' }, { code: 'de', label: 'Deutsch' },
     { code: 'pt', label: 'Português' }, { code: 'it', label: 'Italiano' },
-    { code: 'pl', label: 'Polski' }, { code: 'zh', label: '中文' },
+    { code: 'pl', label: 'Polski' },   { code: 'zh', label: '中文' },
   ]
-
   const THEMES = [
-    { id: 'freight', label: 'Freight Pro', icon: '🚚', desc: 'Tema principal de Contecflow' },
-    { id: 'dark', label: 'Oscuro', icon: '🌙', desc: 'Estilo oscuro clásico' },
-    { id: 'midnight', label: 'Midnight', icon: '🌌', desc: 'Oscuro profundo' },
-    { id: 'slate', label: 'Slate', icon: '⬛', desc: 'Gris neutro' },
-    { id: 'light', label: 'Claro', icon: '☀️', desc: 'Fondo claro' },
-    { id: 'high-contrast', label: 'Alto contraste', icon: '◑', desc: 'Máxima legibilidad' },
-    { id: 'system', label: 'Sistema', icon: '💻', desc: 'Sigue tu sistema operativo' },
+    { id: 'freight', label: 'Freight Pro', desc: 'Tema principal de Contecflow', icon: '🚚' },
+    { id: 'dark',    label: 'Oscuro',      desc: 'Estilo oscuro clásico',         icon: '🌙' },
+    { id: 'midnight', label: 'Midnight',   desc: 'Oscuro profundo',               icon: '🌌' },
+    { id: 'slate',   label: 'Slate',       desc: 'Gris neutro',                   icon: '⬛' },
+    { id: 'light',   label: 'Claro',       desc: 'Fondo claro',                   icon: '☀️' },
+    { id: 'high-contrast', label: 'Alto contraste', desc: 'Máxima legibilidad',   icon: '◑' },
+    { id: 'system',  label: 'Sistema',     desc: 'Sigue el sistema operativo',    icon: '💻' },
+  ]
+  const TABS = [
+    { id: 'profile',    label: 'Perfil',      icon: <User size={13} /> },
+    { id: 'appearance', label: 'Apariencia',  icon: <Palette size={13} /> },
+    { id: 'language',   label: 'Idioma',      icon: <Languages size={13} /> },
+    { id: 'security',   label: 'Seguridad',   icon: <ShieldCheck size={13} /> },
   ]
 
-  const applyTheme = (themeId) => {
-    setThemeMode(themeId)
-    if (themeId === 'system') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light')
+  const applyTheme = (id) => {
+    setThemeMode(id)
+    if (id === 'system') {
+      const dark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
     } else {
-      document.documentElement.setAttribute('data-theme', themeId)
+      document.documentElement.setAttribute('data-theme', id)
     }
   }
-
+  // Aplica el tema una sola vez al montar (los cambios manuales pasan por applyTheme directamente).
   useEffect(() => {
     applyTheme(themeMode)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -283,14 +285,17 @@ function PortalMyProfile({ changeLang }) {
 
   const { mutate: savePwd, isPending: changingPwd } = useMutation({
     mutationFn: d => CLIENT_API.patch('/portal/auth/me', { password: d.new_pwd }).then(r => r.data),
-    onSuccess: () => { setPwdForm({ current: '', new_pwd: '', confirm: '' }); toast.success('✅ Contraseña actualizada correctamente') },
-    onError: e => { const raw = e?.response?.data?.detail; setPwdError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'Error al cambiar contraseña')) },
+    onSuccess: () => { setPwdForm({ new_pwd: '', confirm: '' }); toast.success('Contraseña actualizada') },
+    onError: e => {
+      const raw = e?.response?.data?.detail
+      setPwdError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'Error al cambiar contraseña'))
+    },
   })
 
   const handlePwdChange = () => {
     setPwdError('')
     if (pwdForm.new_pwd !== pwdForm.confirm) { setPwdError('Las contraseñas no coinciden'); return }
-    if (pwdForm.new_pwd.length < 6) { setPwdError('La contraseña debe tener al menos 6 caracteres'); return }
+    if (pwdForm.new_pwd.length < 6) { setPwdError('Mínimo 6 caracteres'); return }
     savePwd(pwdForm)
   }
 
@@ -300,188 +305,195 @@ function PortalMyProfile({ changeLang }) {
     toast.success('Apariencia guardada')
   }
 
-  const TABS = [
-    { id: 'profile',  label: '👤 Perfil' },
-    { id: 'appearance', label: '🎨 Apariencia' },
-    { id: 'language', label: '🌐 Idioma' },
-    { id: 'security', label: 'Seguridad' },
+  const permissions = [
+    { key: 'can_approve_deliverables', label: 'Aprobar entregables' },
+    { key: 'can_request_changes',      label: 'Solicitar cambios' },
+    { key: 'can_view_budget',          label: 'Ver presupuesto' },
+    { key: 'can_view_team',            label: 'Ver equipo' },
   ]
 
   return (
-    <div style={{ maxWidth: 640 }}>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, marginBottom: 4 }}>Mi perfil</div>
-        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Gestiona tus datos personales y preferencias</div>
-      </div>
+    <div>
+      <PortalPageHeader
+        title="Mi perfil"
+        subtitle="Datos personales, idioma, apariencia y seguridad."
+        icon={Settings}
+      />
 
-      {/* Avatar + info rápida */}
-      <div style={{ ...S.card, display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ width: 56, height: 56, borderRadius: 14, background: 'linear-gradient(135deg, var(--accent-border), var(--purple-border))', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-2xl)", fontWeight: 800, color: 'var(--accent)', flexShrink: 0 }}>
-          {client?.full_name?.charAt(0)?.toUpperCase() || '?'}
-        </div>
-        <div>
-          <div style={{ fontSize: "var(--text-17)", fontWeight: 800 }}>{client?.full_name}</div>
-          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{client?.email}</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-            {client?.job_title && `${client.job_title} · `}{client?.company}
+      {/* Identity card */}
+      <PortalCard style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 16,
+            background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 'var(--text-xl-em)', fontWeight: 800, color: '#fff', flexShrink: 0,
+          }}>{client?.full_name?.charAt(0)?.toUpperCase() || '?'}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 'var(--text-lg)', fontWeight: 800 }}>{client?.full_name}</div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{client?.email}</div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
+              {client?.job_title && `${client.job_title} · `}{client?.company || client?.organization_name}
+            </div>
           </div>
         </div>
-      </div>
+      </PortalCard>
 
       {/* Sub-tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 10 }}>
+      <div role="tablist" aria-label="Mi perfil" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 20, flexWrap: 'wrap' }}>
         {TABS.map(tb => (
-          <button key={tb.id} onClick={() => setTab(tb.id)}
-            style={{ padding: '6px 16px', borderRadius: 8, border: `1px solid ${tab === tb.id ? 'var(--accent-glow)' : 'transparent'}`,
-              background: tab === tb.id ? 'var(--accent-muted)' : 'transparent', color: tab === tb.id ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: "var(--text-sm)", fontWeight: tab === tb.id ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {tb.label}
-          </button>
+          <button key={tb.id} role="tab" aria-selected={tab === tb.id}
+            onClick={() => setTab(tb.id)}
+            style={{
+              background: 'transparent', border: 'none',
+              borderBottom: `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}`,
+              padding: '9px 14px', cursor: 'pointer', fontFamily: 'inherit',
+              fontSize: 'var(--text-sm)', fontWeight: tab === tb.id ? 700 : 500,
+              color: tab === tb.id ? 'var(--accent)' : 'var(--text-2)',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}>{tb.icon} {tb.label}</button>
         ))}
       </div>
 
-      {/* Tab: Perfil */}
+      {/* Tab content */}
       {tab === 'profile' && (
-        <div style={S.card}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>Información personal</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
-            <div>
-              <label style={S.label}>Nombre visible</label>
-              <input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={S.input} />
+        <PortalCard>
+          <PortalSection title="Información personal">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+              <PortalField label="Nombre visible">
+                <PortalInput value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
+              </PortalField>
+              <PortalField label="Cargo / Rol">
+                <PortalInput value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} />
+              </PortalField>
+              <PortalField label="Teléfono">
+                <PortalInput value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+              </PortalField>
             </div>
-            <div>
-              <label style={S.label}>Cargo / Rol</label>
-              <input value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={S.input} />
+            <PortalBanner tone="info" icon={<KeyRound size={16} />}
+              title="Email no editable"
+              body={`Tu email (${client?.email}) es tu identificador. Si necesitas cambiarlo, contacta con el equipo.`} />
+            {savedProfile && (
+              <PortalBanner tone="success" title="Perfil actualizado correctamente" />
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <PortalButton icon={<Save size={13} />} loading={saving} onClick={() => saveProfile(form)}>
+                Guardar cambios
+              </PortalButton>
             </div>
-            <div>
-              <label style={S.label}>Teléfono</label>
-              <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={S.input} placeholder="Teléfono" />
-            </div>
-          </div>
-          <div style={{ marginBottom: 16, padding: '10px 14px', background: 'var(--surface-4)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-            🔒 El email (<strong style={{ color: 'var(--text-1)' }}>{client?.email}</strong>) es tu identificador de acceso y no puede modificarse. Contacta con el equipo si necesitas cambiarlo.
-          </div>
-          {savedProfile && (
-            <div style={{ marginBottom: 12, padding: '8px 14px', background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--success)' }}>
-              ✅ Perfil actualizado correctamente
-            </div>
-          )}
-          <button onClick={() => saveProfile(form)} disabled={saving}
-            style={{ ...S.btn, opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Guardando...' : '💾 Guardar cambios'}
-          </button>
+          </PortalSection>
 
-          <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--surface-4)' }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>Mi acceso</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 12 }}>Estos permisos son asignados por tu gestor.</div>
-            {[
-              { key: 'can_approve_deliverables', label: 'Aprobar entregables' },
-              { key: 'can_request_changes', label: 'Solicitar cambios' },
-              { key: 'can_view_budget', label: 'Ver presupuesto' },
-              { key: 'can_view_team', label: 'Ver equipo' },
-            ].map(p => (
-              <div key={p.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, padding: '8px 10px', background: 'var(--surface-4)', borderRadius: 8 }}>
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{p.label}</span>
-                <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: me?.[p.key] ? 'var(--success)' : 'var(--text-3)' }}>{me?.[p.key] ? 'Sí' : 'No'}</span>
+          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--surface-4)' }}>
+            <PortalSection title="Mi acceso" hint="Permisos asignados por tu gestor">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+                {permissions.map(p => (
+                  <div key={p.key} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 14px',
+                    background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+                    borderRadius: 10,
+                  }}>
+                    <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{p.label}</span>
+                    <PortalBadge tone={me?.[p.key] ? 'success' : 'default'}>{me?.[p.key] ? 'Sí' : 'No'}</PortalBadge>
+                  </div>
+                ))}
               </div>
-            ))}
+            </PortalSection>
           </div>
-        </div>
+        </PortalCard>
       )}
 
-      {/* Tab: Apariencia */}
       {tab === 'appearance' && (
-        <div style={S.card}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>Tema del portal</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-            {THEMES.map(th => (
-              <button
-                key={th.id}
-                onClick={() => applyTheme(th.id)}
-                style={{
-                  textAlign: 'left',
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  border: `1px solid ${themeMode === th.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
-                  background: themeMode === th.id ? 'var(--accent-muted)' : 'var(--surface-1)',
-                  color: themeMode === th.id ? 'var(--accent)' : 'var(--text-2)',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 2 }}>{th.icon} {th.label}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{th.desc}</div>
-              </button>
-            ))}
-          </div>
-          <button onClick={saveAppearance} style={S.btn}>🎨 Guardar apariencia</button>
-        </div>
+        <PortalCard>
+          <PortalSection title="Tema del portal">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, marginBottom: 14 }}>
+              {THEMES.map(th => {
+                const active = themeMode === th.id
+                return (
+                  <button key={th.id} onClick={() => applyTheme(th.id)} style={{
+                    textAlign: 'left',
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`,
+                    background: active ? 'var(--accent-muted)' : 'var(--surface-3)',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: active ? 'var(--accent)' : 'var(--text-1)', marginBottom: 2 }}>
+                      <span style={{ marginRight: 6 }}>{th.icon}</span>{th.label}
+                    </div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{th.desc}</div>
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <PortalButton icon={<Save size={13} />} onClick={saveAppearance}>Guardar apariencia</PortalButton>
+            </div>
+          </PortalSection>
+        </PortalCard>
       )}
 
-      {/* Tab: Idioma */}
       {tab === 'language' && (
-        <div style={S.card}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>Idioma del portal</div>
-          <div style={{ marginBottom: 14 }}>
-            <label style={S.label}>Selecciona idioma</label>
-            <select value={pendingLang} onChange={e => setPendingLang(e.target.value)} style={S.input}>
-              {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
-            </select>
-          </div>
-          {savedLanguage && (
-            <div style={{ marginBottom: 12, padding: '8px 14px', background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--success)' }}>
-              ✅ Idioma actualizado correctamente
+        <PortalCard>
+          <PortalSection title="Idioma del portal">
+            <PortalField label="Selecciona idioma">
+              <PortalSelect value={pendingLang} onChange={e => setPendingLang(e.target.value)}>
+                {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+              </PortalSelect>
+            </PortalField>
+            {savedLanguage && (
+              <div style={{ marginTop: 12 }}>
+                <PortalBanner tone="success" title="Idioma actualizado" />
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+              <PortalButton icon={<Globe size={13} />} loading={savingLanguage}
+                onClick={() => saveLanguage(pendingLang)}>Guardar idioma</PortalButton>
             </div>
-          )}
-          <button onClick={() => saveLanguage(pendingLang)} disabled={savingLanguage}
-            style={{ ...S.btn, opacity: savingLanguage ? 0.6 : 1 }}>
-            {savingLanguage ? 'Guardando...' : '🌐 Guardar idioma'}
-          </button>
-        </div>
+          </PortalSection>
+        </PortalCard>
       )}
 
-      {/* Tab: Seguridad */}
       {tab === 'security' && (
-        <div style={S.card}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>Cambiar contraseña</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-            <div>
-              <label style={S.label}>Nueva contraseña</label>
-              <input type="password" value={pwdForm.new_pwd} onChange={e => setPwdForm(f => ({ ...f, new_pwd: e.target.value }))} style={S.input} placeholder="Nueva contraseña" />
+        <PortalCard>
+          <PortalSection title="Cambiar contraseña" hint="Mínimo 6 caracteres">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <PortalField label="Nueva contraseña">
+                <PortalInput type="password" value={pwdForm.new_pwd}
+                  onChange={e => setPwdForm(f => ({ ...f, new_pwd: e.target.value }))} placeholder="Nueva contraseña" />
+              </PortalField>
+              <PortalField label="Confirmar nueva contraseña">
+                <PortalInput type="password" value={pwdForm.confirm}
+                  onChange={e => setPwdForm(f => ({ ...f, confirm: e.target.value }))} placeholder="Repite la contraseña" />
+              </PortalField>
             </div>
-            <div>
-              <label style={S.label}>Confirmar nueva contraseña</label>
-              <input type="password" value={pwdForm.confirm} onChange={e => setPwdForm(f => ({ ...f, confirm: e.target.value }))} style={S.input} />
+            {pwdError && (
+              <div style={{ marginTop: 12 }}>
+                <PortalBanner tone="danger" title={pwdError} />
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+              <PortalButton icon={<KeyRound size={13} />} loading={changingPwd}
+                disabled={!pwdForm.new_pwd || !pwdForm.confirm}
+                onClick={handlePwdChange}>Cambiar contraseña</PortalButton>
             </div>
-          </div>
-          {pwdError && (
-            <div style={{ marginBottom: 12, padding: '8px 14px', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--danger)' }}>
-              ✗ {pwdError}
+            <div style={{ marginTop: 14, fontSize: 'var(--text-xs)', color: 'var(--text-3)', lineHeight: 1.6 }}>
+              Elige una contraseña segura que no uses en otros servicios. Si la olvidas, contacta con el equipo para que te la restablezcan.
             </div>
-          )}
-          <button onClick={handlePwdChange} disabled={changingPwd || !pwdForm.new_pwd || !pwdForm.confirm}
-            style={{ ...S.btn, opacity: (changingPwd || !pwdForm.new_pwd) ? 0.6 : 1 }}>
-            {changingPwd ? 'Actualizando...' : '🔑 Cambiar contraseña'}
-          </button>
-          <div style={{ marginTop: 16, fontSize: "var(--text-xs)", color: 'var(--text-3)', lineHeight: 1.6 }}>
-            Elige una contraseña segura que no uses en otros servicios. Si olvidas tu contraseña, contacta con el equipo para que te la restablezcan.
-          </div>
-        </div>
+          </PortalSection>
+        </PortalCard>
       )}
-
     </div>
   )
 }
 
-
-// ── Root export ───────────────────────────────────────────────────────────────
+// ── Root ─────────────────────────────────────────────────────────────────────
 export default function PortalClientePage() {
   const _t = useAppT()
   const [lang, setLang] = useState(() => {
-    // Prioridad: idioma del perfil del cliente > localStorage > 'es'
     try {
-      const savedClient = JSON.parse(localStorage.getItem('client_user') || 'null')
-      if (savedClient?.language) return savedClient.language
+      const saved = JSON.parse(localStorage.getItem('client_user') || 'null')
+      if (saved?.language) return saved.language
     } catch { /* noop */ }
     return localStorage.getItem('portal_lang') || 'es'
   })
@@ -498,5 +510,7 @@ export default function PortalClientePage() {
 function PortalClienteInner({ changeLang, currentLang }) {
   const _toast = useToast()
   const { client } = useClientAuth()
-  return client ? <PortalApp changeLang={changeLang} currentLang={currentLang} /> : <LoginScreen changeLang={changeLang} currentLang={currentLang} />
+  return client
+    ? <PortalApp changeLang={changeLang} currentLang={currentLang} />
+    : <LoginScreen changeLang={changeLang} currentLang={currentLang} />
 }

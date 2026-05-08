@@ -1258,6 +1258,7 @@ const en = {
   },
   nav: {
     dashboard: 'Dashboard',
+    chat: 'Chat',
     projects: 'Projects',
     tasks: 'Tasks',
     timesheet: 'Timesheet',

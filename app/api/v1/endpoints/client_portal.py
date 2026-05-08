@@ -264,7 +264,7 @@ def client_login(request: Request, response: Response, payload: ClientLoginIn, d
         "portal_access_token", token,
         httponly=True, samesite="lax",
         secure=settings.ENVIRONMENT == "production",
-        max_age=7 * 86400,
+        max_age=CLIENT_TOKEN_EXPIRE_HOURS * 3600,
     )
     return {"ok": True, "client": result["client"]}
 
@@ -284,6 +284,15 @@ def client_logout(response: Response):
 @router.get("/auth/me", summary="Datos del cliente autenticado")
 def get_me(current_client: ClientUser = Depends(get_current_client), db: Session = Depends(get_db)):
     return _svc.get_me(current_client, db)
+
+
+@router.get("/auth/session-config", summary="Configuración de duración de sesión para portal")
+def get_portal_session_config(
+    current_client: ClientUser = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    _ = current_client
+    return _svc.get_portal_session_config(db)
 
 
 @router.get("/branding", summary="Branding del portal para el cliente autenticado")

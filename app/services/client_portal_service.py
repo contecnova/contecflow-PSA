@@ -22,6 +22,7 @@ from app.models.client_portal import ClientDocument
 from app.models.client_portal import ClientSurvey
 from app.models.clients import ClientPortalConfig, Client
 from app.models.clients import Client as ClientOrg
+from app.models.settings import AppSetting
 from app.models.epics import WikiPage
 from app.models.financial import ProjectMilestone
 from app.models.imputation import Imputation
@@ -60,6 +61,31 @@ def create_client_token(client_id: str) -> str:
         CLIENT_TOKEN_SECRET,
         algorithm=ALGORITHM,
     )
+
+
+def get_portal_session_config(db: Session) -> dict:
+    """Return idle-timeout session policy for the client portal."""
+    defaults = {
+        "idle_timeout_enabled": "false",
+        "idle_timeout_minutes": "30",
+    }
+    rows = db.query(AppSetting).filter(
+        AppSetting.organization_id.is_(None),
+        AppSetting.key.in_(list(defaults.keys())),
+    ).all()
+    values = {r.key: r.value for r in rows}
+
+    enabled_raw = (values.get("idle_timeout_enabled") or defaults["idle_timeout_enabled"]).strip().lower()
+    minutes_raw = values.get("idle_timeout_minutes") or defaults["idle_timeout_minutes"]
+    try:
+        minutes = max(1, int(minutes_raw))
+    except Exception:
+        minutes = int(defaults["idle_timeout_minutes"])
+
+    return {
+        "idle_timeout_enabled": enabled_raw in ("true", "1", "yes", "on"),
+        "idle_timeout_minutes": minutes,
+    }
 
 
 def create_portal_share_token(project_id: str) -> str:

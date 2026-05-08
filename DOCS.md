@@ -4,6 +4,9 @@
 Este documento describe el estado actual del sistema y como usarlo hoy.
 No es un historico de versiones ni un registro de auditorias antiguas.
 
+Nota operativa reciente:
+- La navegación del frontend incluye la clave base `nav.chat` en traducciones `es/en` para evitar warnings `i18n-missing` al resolver el item de menú Chat.
+
 ## 2. Que es Contecflow PSA
 Contecflow PSA es una plataforma para gestion integral de servicios profesionales:
 - Proyectos, tareas, sprints y planificacion
@@ -639,6 +642,7 @@ Fetches `/settings/org-defaults` con TanStack Query (staleTime 5min). Devuelve l
 - `frontend/src/pages/portal-client/PortalContentSections.jsx`: la tarjeta `Service Desk y SLA` incrementa tamaño tipográfico, espaciado y densidad visual para mantener el mismo estilo del resto de KPIs del dashboard del portal.
 - `frontend/src/pages/portal-client/PortalContentSections.jsx`: la tarjeta `Service Desk y SLA` se rediseña para abandonar la subrejilla de mini-cards y adoptar el mismo patrón limpio del dashboard principal: métricas en filas, barra de cumplimiento SLA y resumen de riesgos con jerarquía visual coherente.
 - `frontend/src/pages/portal-client/PortalContentSections.jsx`: las tarjetas de detalle del Inicio del portal se reorganizan en dos filas lógicas: `Presupuesto del proyecto` + `Próximo hito`, y debajo `Pruebas UAT` + `Service Desk y SLA`.
+- `frontend/src/pages/portal-client/PortalContentSections.jsx`: refinado final de `Service Desk y SLA` para mantener estilo homogéneo con el resto (métricas en filas + barras de cumplimiento/riesgo + pie de breachs), eliminando ruido visual y mejorando jerarquía.
 
 
 
@@ -670,3 +674,128 @@ AIHubPage, ALMPage, AgentDashboardPage, AlertsPage, BPMPage, CalendarPage, Chang
 
 ### Páginas con export habilitado (listas reales)
 ProjectsPage, InvoicesPage, ApprovalsPage, ServiceDeskPage, TasksPage, AbsencesPage, AutomationsPage, BudgetsPage, CMDBPage, CapacityPage, ClientsPage, ContractsPage, CumulativeFlowPage, CustomFieldsPage, DeliverablesPage, DependenciesPage, DocumentsPage, ESignPage, EVMPage, ExpensesPage (export backend), BIPage, BIProjectDetailPage, GitPage, GrcPage, IssueTypesPage, M365Page, OrgChartPage, PortfolioPage, ProjectPermissionsPage, PublicFormsPage, RACIPage, RateCardsPage, ReportsPage, ResourceForecastPage, ResourcesPage, RevenuePage, RisksPage, SkillsPage, SubcontractorsPage, TimerPage, TrainingPage, UserCostsPage, WebhookLogPage.
+
+
+## 21. PRD MVP - Chat interno back office (tipo Slack)
+
+### Objetivo
+Disponer de un canal de comunicacion interno unificado para equipos de back office con mensajeria en tiempo real, llamadas de voz/video y comparticion de archivos, integrado con autenticacion y permisos corporativos existentes.
+
+### Alcance del MVP (in)
+- Chat en canales publicos/privados.
+- Mensajeria directa 1:1.
+- Edicion y borrado de mensajes propios (ventana temporal configurable).
+- Adjuntos (imagenes, PDF, Office) con vista previa basica.
+- Llamadas de voz y videollamadas de grupo.
+- Presencia (online/away/offline) y estados de lectura.
+- Busqueda por texto en mensajes y archivos compartidos.
+- Notificaciones in-app y badge de no leidos.
+- SSO corporativo + control de acceso por rol/organizacion.
+
+### Fuera de alcance MVP (out)
+- Grabacion de llamadas con transcripcion automatica.
+- Federacion externa entre organizaciones.
+- Bots avanzados y marketplace de apps.
+- E2E encryption por defecto en todas las salas.
+- eDiscovery legal avanzado (se deja para fase enterprise).
+
+### Perfiles y permisos (RBAC inicial)
+- Admin sistema: configuracion global, politicas de retencion, auditoria.
+- Manager back office: crea canales de equipo, modera miembros y permisos.
+- Usuario interno: chat, llamadas, adjuntos en canales permitidos.
+
+### Requisitos funcionales clave
+- RF-01: envio/recepcion de mensajes en < 500 ms en red corporativa normal.
+- RF-02: entrega confiable con reintento y confirmacion de estado.
+- RF-03: subida de archivo hasta 100 MB por adjunto (configurable).
+- RF-04: llamadas de hasta 25 participantes en MVP.
+- RF-05: historial accesible por permisos del canal.
+- RF-06: auditoria de acciones sensibles (borrado, cambios de permisos, expulsion).
+
+### Requisitos no funcionales
+- RNF-01: disponibilidad objetivo 99.9% mensual.
+- RNF-02: cifrado TLS en transito y cifrado en reposo para adjuntos.
+- RNF-03: trazabilidad completa con correlation id por evento.
+- RNF-04: observabilidad (logs, metricas, alertas) desde dia 1.
+- RNF-05: cumplimiento de politicas de retencion internas por canal.
+
+### Arquitectura tecnica recomendada
+Patron recomendado: experiencia integrada en Contecflow + motores especializados.
+
+Componentes:
+- Frontend SPA (modulo chat): canales, DM, hilos, llamadas, archivos.
+- API Contecflow: permisos, metadata de canales, auditoria, politicas.
+- Motor de mensajeria real-time (recomendado Matrix/Synapse o equivalente).
+- Motor de media WebRTC (recomendado LiveKit/Jitsi SFU).
+- Almacenamiento de adjuntos (S3 compatible, URL firmada con expiracion).
+- Cola/event bus para eventos internos (notificaciones, auditoria, webhooks).
+
+Flujo resumido:
+1. Usuario autentica por SSO.
+2. Entra a canal autorizado por RBAC/organization_id.
+3. Mensajes via WebSocket y persistencia en motor de chat.
+4. Archivos via upload firmado + escaneo antivirus + metadatos en DB.
+5. Llamadas con sala WebRTC y TURN/STUN para redes restringidas.
+
+### Modelo de datos minimo
+- chat_channels
+- chat_channel_members
+- chat_messages
+- chat_message_reads
+- chat_attachments
+- chat_calls
+- chat_call_participants
+- chat_audit_events
+
+### Seguridad y compliance
+- Autenticacion SSO/OIDC y sesiones con expiracion.
+- Aislamiento estricto por organization_id.
+- Politica DLP basica en adjuntos (MIME permitido + antivirus).
+- URLs firmadas de descarga con TTL corto.
+- Registro de auditoria para cambios de rol/permisos y moderacion.
+
+### Mockup funcional (desktop)
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [Contecflow Chat]  Buscar...                           [+]  [Llamada] [Video] [Perfil]   │
+├──────────────────┬─────────────────────────────────────────────────┬────────────────────────┤
+│ Canales          │ #operaciones                                    │ Detalle canal          │
+│ - #general       │ [09:10] Marta: Cerramos reporte mensual hoy?   │ Miembros: 18           │
+│ - #operaciones   │ [09:11] Oriol: Si, lo subo en 20 min           │ Archivos: 124          │
+│ - #rrhh          │ [09:12] Ana: Adjunto informe.pdf               │ Enlaces fijados: 6     │
+│                  │          [informe.pdf]                          │                        │
+│ Mensajes directos│ ------------------------------------------------ │ Llamada activa         │
+│ - Pau            │ Escribe un mensaje...              [Adjuntar]   │ [miniaturas x4]        │
+│ - Ana            │                                                 │ [Silenciar][Compartir] │
+└──────────────────┴─────────────────────────────────────────────────┴────────────────────────┘
+```
+
+### Plan de implementacion por fases
+- Fase 0 (1-2 semanas): discovery, UX, criterios de seguridad, PoC de stack.
+- Fase 1 (3-4 semanas): chat canales + DM + presencia + notificaciones.
+- Fase 2 (2-3 semanas): adjuntos seguros + preview + politicas basicas.
+- Fase 3 (3-4 semanas): voz/video + TURN/STUN + controles de llamada.
+- Fase 4 (2 semanas): hardening, observabilidad, piloto interno y rollout.
+
+Estimacion MVP: 8-12 semanas segun nivel de integracion y compliance.
+
+### KPIs de exito del MVP
+- Adopcion semanal (% usuarios activos de back office).
+- Tiempo medio de respuesta en canal.
+- Exito de conexion en llamada (> 98%).
+- Latencia p95 de envio de mensaje.
+- Incidencias de seguridad/compliance (objetivo: 0 criticas).
+
+### Riesgos tecnicos y mitigacion
+- Red corporativa bloquea WebRTC: desplegar TURN propio y pruebas tempranas.
+- Fuga de datos en adjuntos: antivirus + DLP + TTL corto en descargas.
+- Sobrecarga del sistema de eventos: colas y limites por canal/usuario.
+- Complejidad operativa: preferir motores maduros frente a desarrollo desde cero.
+
+### Siguiente decision arquitectonica (pendiente)
+Elegir stack final para ejecucion:
+1. Opcion A (self-hosted): Matrix + LiveKit + MinIO.
+2. Opcion B (SaaS): Stream/Sendbird + proveedor WebRTC gestionado.
+
+Se recomienda decidir en comite tecnico con criterios de coste, soberania de datos y esfuerzo de operacion.
+

@@ -1,0 +1,226 @@
+"""Tests del dominio collaboration.
+
+Usa las fixtures del conftest (db, client, admin_token).
+Cubre flujos críticos: workspace, mensajes, reacciones, pins, saved,
+search + operadores, slash commands, llamadas, adjuntos AV/DLP, audit chain,
+retention + legal hold, eDiscovery, OAuth providers, push, email digest.
+"""
+from datetime import datetime, timedelta
+
+import pytest
+
+
+def _auth_headers(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _conv_id(client, headers):
+    chans = client.get("/api/v1/collaboration/channels", headers=headers).json()
+    return chans[0]["conversation_id"]
+
+
+def test_workspace_lazy_create(client, admin_token):
+    h = _auth_headers(admin_token)
+    r = client.get("/api/v1/collaboration/workspace", headers=h)
+    assert r.status_code == 200
+    teams = client.get("/api/v1/collaboration/teams", headers=h).json()
+    assert len(teams) == 1
+
+
+def test_send_edit_delete_message(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    r = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "hola"}, headers=h)
+    assert r.status_code == 200
+    mid = r.json()["id"]
+    msgs = client.get(f"/api/v1/collaboration/conversations/{cid}/messages", headers=h).json()
+    assert any(m["id"] == mid for m in msgs)
+    r = client.patch(f"/api/v1/collaboration/messages/{mid}", json={"body": "editado"}, headers=h)
+    assert r.status_code == 200
+    v = client.get(f"/api/v1/collaboration/messages/{mid}/versions", headers=h).json()
+    assert len(v) == 1
+    r = client.delete(f"/api/v1/collaboration/messages/{mid}", headers=h)
+    assert r.status_code == 200
+
+
+def test_reactions_pins_saved(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    mid = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "test"}, headers=h).json()["id"]
+    r = client.post(f"/api/v1/collaboration/messages/{mid}/reactions", json={"emoji": "👍"}, headers=h)
+    assert r.json()["added"] is True
+    client.post(f"/api/v1/collaboration/conversations/{cid}/pins", json={"message_id": mid}, headers=h)
+    pins = client.get(f"/api/v1/collaboration/conversations/{cid}/pins", headers=h).json()
+    assert any(p["message_id"] == mid for p in pins)
+    client.post("/api/v1/collaboration/saved", json={"message_id": mid}, headers=h)
+    saved = client.get("/api/v1/collaboration/saved", headers=h).json()
+    assert any(s["message_id"] == mid for s in saved)
+
+
+def test_search_with_operators(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "Bug en home"}, headers=h)
+    client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "doc https://x.com aqui"}, headers=h)
+    r = client.get("/api/v1/collaboration/search", params={"q": "home"}, headers=h).json()
+    assert r["total"] >= 1
+    r = client.get("/api/v1/collaboration/search", params={"q": "has:link"}, headers=h).json()
+    assert r["total"] >= 1
+
+
+def test_saved_searches(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    r = client.post("/api/v1/collaboration/search/saved", json={"name": "Todo bug", "query": "bug in:general"}, headers=h)
+    assert r.status_code == 200
+    sid = r.json()["id"]
+    saved = client.get("/api/v1/collaboration/search/saved", headers=h).json()
+    assert any(s["id"] == sid for s in saved)
+    r = client.post(f"/api/v1/collaboration/search/saved/{sid}/run", headers=h)
+    assert r.status_code == 200
+    client.delete(f"/api/v1/collaboration/search/saved/{sid}", headers=h)
+
+
+def test_slash_commands(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    r = client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "poll", "args": "Q? | A | B"}, headers=h).json()
+    assert r["success"]
+    r = client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "decision", "args": "X"}, headers=h).json()
+    assert r["success"]
+    r = client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "recap", "args": ""}, headers=h).json()
+    assert r["success"]
+
+
+def test_attachment_av_block(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    eicar = b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
+    r = client.post(
+        "/api/v1/collaboration/attachments",
+        data={"conversation_id": cid},
+        files={"file": ("t.txt", eicar, "text/plain")},
+        headers=h,
+    )
+    body = r.json()
+    assert body["av_status"] == "infected"
+    assert body["is_quarantined"] is True
+
+
+def test_attachment_dlp_block(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    body = b"IBAN: ES7620770024003102575766 transfer me"
+    r = client.post(
+        "/api/v1/collaboration/attachments",
+        data={"conversation_id": cid},
+        files={"file": ("n.txt", body, "text/plain")},
+        headers=h,
+    )
+    j = r.json()
+    assert j["dlp_status"] == "blocked"
+
+
+def test_call_lifecycle(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    r = client.post("/api/v1/collaboration/calls/start", json={"conversation_id": cid, "kind": "video"}, headers=h).json()
+    assert "livekit_token" in r
+    cid_call = r["call_id"]
+    client.post(f"/api/v1/collaboration/calls/{cid_call}/leave", headers=h)
+    client.post(f"/api/v1/collaboration/calls/{cid_call}/end", headers=h)
+    s = client.get(f"/api/v1/collaboration/calls/{cid_call}", headers=h).json()
+    assert s["status"] == "ended"
+
+
+def test_audit_chain(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "audit test"}, headers=h)
+    res = client.get("/api/v1/collaboration/audit/verify", headers=h).json()
+    assert res["is_valid"] is True
+
+
+def test_retention_run(client, admin_token, db):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    mid = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "old"}, headers=h).json()["id"]
+    from app.models.collaboration import CollaborationMessage
+    m = db.query(CollaborationMessage).filter(CollaborationMessage.id == mid).first()
+    m.sent_at = datetime.utcnow() - timedelta(days=400)
+    db.commit()
+    client.post("/api/v1/collaboration/retention", json={"name": "12m", "retention_months": 12}, headers=h)
+    res = client.post("/api/v1/collaboration/retention/run", headers=h).json()
+    assert res["deleted"] >= 1
+
+
+def test_legal_hold_protects(client, admin_token, db):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    mid = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "old hold"}, headers=h).json()["id"]
+    from app.models.collaboration import CollaborationMessage
+    from app.models.user import User
+    m = db.query(CollaborationMessage).filter(CollaborationMessage.id == mid).first()
+    m.sent_at = datetime.utcnow() - timedelta(days=400)
+    user_id = db.query(User).filter(User.username == "admin").first().id
+    db.commit()
+    client.post("/api/v1/collaboration/legal-holds", json={"case_reference": "C1", "custodian_user_ids": [user_id]}, headers=h)
+    client.post("/api/v1/collaboration/retention", json={"name": "12m", "retention_months": 12}, headers=h)
+    client.post("/api/v1/collaboration/retention/run", headers=h)
+    db.expire_all()
+    m = db.query(CollaborationMessage).filter(CollaborationMessage.id == mid).first()
+    assert m.status != "deleted"
+
+
+def test_ediscovery_export(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "discovery xx"}, headers=h)
+    r = client.post("/api/v1/collaboration/ediscovery/export", json={"keywords": ["discovery"]}, headers=h)
+    assert r.status_code == 200
+    assert r.json()["total"] >= 1
+
+
+def test_search_query_parser_unit():
+    from app.services.collaboration._search_query import parse
+    p = parse("from:admin in:#general before:2026-05-01 has:attachment is:pinned bug")
+    assert p.from_author == "admin"
+    assert p.in_target == "#general"
+    assert p.before is not None
+    assert p.has_attachment is True
+    assert p.is_pinned is True
+    assert "bug" in p.text
+
+
+def test_oauth_providers(client, admin_token):
+    h = _auth_headers(admin_token)
+    r = client.get("/api/v1/collaboration/integrations/providers", headers=h).json()
+    assert "jira" in r["providers"]
+    assert "github" in r["providers"]
+    assert "google_calendar" in r["providers"]
+
+
+def test_email_digest_dry_run(client, admin_token):
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    r = client.post("/api/v1/collaboration/admin/email-digest/run", params={"dry_run": True}, headers=h)
+    assert r.status_code == 200
+    body = r.json()
+    assert "sent" in body and "skipped" in body
+
+
+def test_push_public_key(client, admin_token):
+    h = _auth_headers(admin_token)
+    r = client.get("/api/v1/collaboration/push/public-key", headers=h).json()
+    assert "configured" in r
