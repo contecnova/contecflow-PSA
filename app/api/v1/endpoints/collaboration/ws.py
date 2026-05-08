@@ -96,13 +96,15 @@ async def collaboration_ws(
         await websocket.accept()
 
         # Subscribe to user's channels
-        conv_list = list_conversations_for_user(db, user)
-        channels = [
-            org_channel(user.organization_id),
-            workspace_channel(ws_obj.id),
-            user_channel(user.id),
-        ] + [conv_channel(c["id"]) for c in conv_list]
+        def _channels_for() -> list[str]:
+            conv_list = list_conversations_for_user(db, user)
+            return [
+                org_channel(user.organization_id),
+                workspace_channel(ws_obj.id),
+                user_channel(user.id),
+            ] + [conv_channel(c["id"]) for c in conv_list]
 
+        channels = _channels_for()
         sub = await bus.subscribe(channels)
 
         async def producer():
@@ -112,9 +114,33 @@ async def collaboration_ws(
                 except Exception:
                     return
 
+        async def _ensure_user_still_active() -> bool:
+            revalidated_user = get_active_user_by_id(db, user_id)
+            if not revalidated_user or not revalidated_user.is_active:
+                log.warning("collab ws closing user=%s: access revoked", user_id)
+                try:
+                    await websocket.close(code=4403)
+                except Exception:
+                    pass
+                return False
+            return True
+
+        async def resync_subscriptions():
+            """Re-suscribe a las conversations actuales del usuario.
+            Útil tras crear/unirse a un nuevo grupo/canal mientras está conectado."""
+            nonlocal sub, channels
+            new_channels = _channels_for()
+            if set(new_channels) == set(channels):
+                return
+            await sub.close()
+            channels = new_channels
+            sub = await bus.subscribe(channels)
+            asyncio.create_task(producer())
+
         async def consumer():
             bucket = _bucket_for(user.id)
             sustained_breach = 0
+            revalidate_counter = 0
             while True:
                 try:
                     raw = await websocket.receive_text()
@@ -124,6 +150,14 @@ async def collaboration_ws(
                     payload = json.loads(raw)
                 except Exception:
                     continue
+                
+                # G2 Fix: Revalidate user every 60 messages (roughly every 5-10 minutes)
+                revalidate_counter += 1
+                if revalidate_counter >= 60:
+                    if not await _ensure_user_still_active():
+                        return
+                    revalidate_counter = 0
+                
                 t = payload.get("type")
                 # Rate limit (excluye pong de servidor; ping cuenta como 1 token)
                 if not bucket.take(1.0):
@@ -157,9 +191,19 @@ async def collaboration_ws(
                         "type": "presence.updated",
                         "payload": {"user_id": user.id, "status": status},
                     })
+                elif t == "resync":
+                    # Cliente acaba de crear/unirse a una conversación nueva
+                    await resync_subscriptions()
+
+        async def revocation_watchdog():
+            # Revalidación periódica incluso si el cliente está idle.
+            while True:
+                await asyncio.sleep(30)
+                if not await _ensure_user_still_active():
+                    return
 
         try:
-            await asyncio.gather(producer(), consumer())
+            await asyncio.gather(producer(), consumer(), revocation_watchdog())
         except Exception as exc:
             log.warning("collab ws closed: %s", exc)
         finally:

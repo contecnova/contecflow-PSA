@@ -699,6 +699,15 @@ def resolve_user_from_token(db, token: str):
     return None
 
 
+def resolve_file_access_token(token: str, file_key: str) -> bool:
+    payload = decode_token(token)
+    if not payload or payload.get("type") != "access":
+        return False
+    if not payload.get("document_file_access"):
+        return False
+    return payload.get("file_key") == file_key
+
+
 def get_version_by_file_key(db, file_key: str):
     return db.query(DocumentVersion).filter(DocumentVersion.file_key == file_key).first()
 

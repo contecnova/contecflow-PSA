@@ -83,7 +83,7 @@ def update_imputation(
         raise HTTPException(status_code=404, detail="Imputación no encontrada")
 
     validate_imputation_edit_allowed(imp, current_user, db)
-    return update_imputation_fields(imp, payload, db)
+    return update_imputation_fields(imp, payload, db, current_user)
 
 
 @router.delete("/{imputation_id}", summary="Eliminar imputación")

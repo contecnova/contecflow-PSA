@@ -280,14 +280,27 @@ def get_conversation(conversation_id: str, current_user: User = Depends(get_curr
 
 
 # ── Presence ─────────────────────────────────────────────────────────────────
-@router.get("/presence", response_model=List[PresenceOut], summary="Presencia de mi org")
+@router.get("/presence", summary="Presencia de mi org (con nombre de usuario)")
 def list_presence(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org = _org(current_user)
     rows = db.query(CollaborationPresenceState).filter(CollaborationPresenceState.organization_id == org).all()
-    return [PresenceOut(
-        user_id=r.user_id, client_user_id=r.client_user_id, status=r.status,
-        custom_message=r.custom_message, is_in_call=r.is_in_call, last_seen_at=r.last_seen_at,
-    ) for r in rows]
+    user_ids = [r.user_id for r in rows if r.user_id]
+    users_by_id = {}
+    if user_ids:
+        users_by_id = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()}
+    out = []
+    for r in rows:
+        u = users_by_id.get(r.user_id)
+        out.append({
+            "user_id": r.user_id,
+            "client_user_id": r.client_user_id,
+            "user_name": (u.full_name or u.username or u.email) if u else None,
+            "status": r.status,
+            "custom_message": r.custom_message,
+            "is_in_call": r.is_in_call,
+            "last_seen_at": r.last_seen_at,
+        })
+    return out
 
 
 @router.post("/presence/me", summary="Actualizar mi presencia")
@@ -490,6 +503,8 @@ def mention_suggestions(
     rows = qx.limit(50).all()
     if user_ids is not None:
         rows = [u for u in rows if u.id in user_ids]
+    # Excluir al usuario actual de las sugerencias
+    rows = [u for u in rows if u.id != current_user.id]
     out = [{
         "id": u.id,
         "username": getattr(u, "username", None),

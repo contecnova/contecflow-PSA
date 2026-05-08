@@ -306,9 +306,16 @@ def add_channel_members(db: Session, user, channel_id: str, user_ids: list[str])
 def open_direct(db: Session, user, *, target_user_id: Optional[str] = None, target_client_id: Optional[str] = None) -> CollaborationDirectConversation:
     if not target_user_id and not target_client_id:
         raise HTTPException(400, "Indica user_id o client_user_id")
+    if target_user_id == user.id:
+        raise HTTPException(400, "No puedes abrir un chat directo contigo mismo")
     org = _org(user)
     ws = get_or_create_workspace(db, user)
     if target_user_id:
+        # Validar que el target existe en la misma org
+        from app.models.user import User as _U
+        target = db.query(_U).filter(_U.id == target_user_id, _U.organization_id == org).first()
+        if not target:
+            raise HTTPException(404, "Usuario no encontrado")
         a, b = sorted([user.id, target_user_id])
         existing = db.query(CollaborationDirectConversation).filter(
             CollaborationDirectConversation.organization_id == org,

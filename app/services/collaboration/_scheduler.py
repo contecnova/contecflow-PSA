@@ -39,15 +39,18 @@ async def _tick():
     db = SessionLocal()
     try:
         now = datetime.now(timezone.utc)
+        # SQLite guarda datetime sin tz; Postgres con tz. Usamos un margen
+        # generoso (now + 0) y filtramos en Python si hace falta para evitar
+        # tropezar con comparaciones naive vs aware.
         rows = (
             db.query(CollaborationMessage)
             .filter(
                 CollaborationMessage.scheduled_for.isnot(None),
-                CollaborationMessage.scheduled_for <= now,
                 CollaborationMessage.status == "visible",
             )
             .all()
         )
+        rows = [r for r in rows if r.scheduled_for and (r.scheduled_for.replace(tzinfo=timezone.utc) if r.scheduled_for.tzinfo is None else r.scheduled_for) <= now]
         for msg in rows:
             meta = dict(msg.metadata_json or {})
             if meta.get("_scheduled_delivered"):

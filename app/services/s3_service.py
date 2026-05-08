@@ -9,11 +9,12 @@ needs to know which backend is active.
 """
 import uuid
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional, Tuple
 
 from app.core.config import settings
+from app.core.security import create_access_token
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
@@ -49,8 +50,14 @@ class LocalFileStorage:
         return relative_key, len(file_content)
 
     def generate_presigned_url(self, file_key: str, expiration_hours: Optional[int] = None) -> str:
-        """Return the API download URL for this file key."""
-        return f"/api/v1/documents/file/{file_key}"
+        """Return a short-lived API URL with a scoped access token for local files."""
+        ttl_minutes = max(1, int((expiration_hours or 1) * 60))
+        token = create_access_token(
+            subject="document-file",
+            extra={"document_file_access": True, "file_key": file_key},
+            expires_delta=timedelta(minutes=ttl_minutes),
+        )
+        return f"/api/v1/documents/file/{file_key}?access={token}"
 
     def get_file_bytes(self, file_key: str) -> bytes:
         # Resolve the absolute path and ensure it stays within the upload root

@@ -75,29 +75,31 @@ def can_access_workspace(db: Session, user, workspace_id: str) -> bool:
 
 def is_team_member(db: Session, user, team_id: str) -> bool:
     cache_key = f"team:{team_id}:{user.id}"
-    cached = _cache_get(cache_key)
-    if cached is not None:
-        return cached
+    # Sólo cacheamos True (positivos). Los False vuelven a consultar siempre,
+    # así un usuario añadido a un team se ve al instante sin invalidar cache.
+    if _cache_get(cache_key) is True:
+        return True
     val = db.query(CollaborationTeamMember).filter(
         CollaborationTeamMember.team_id == team_id,
         CollaborationTeamMember.user_id == user.id,
         CollaborationTeamMember.organization_id == _org(user),
     ).first() is not None
-    _cache_set(cache_key, val)
+    if val:
+        _cache_set(cache_key, True)
     return val
 
 
 def is_channel_member(db: Session, user, channel_id: str) -> bool:
     cache_key = f"channel:{channel_id}:{user.id}"
-    cached = _cache_get(cache_key)
-    if cached is not None:
-        return cached
+    if _cache_get(cache_key) is True:
+        return True
     val = db.query(CollaborationChannelMember).filter(
         CollaborationChannelMember.channel_id == channel_id,
         CollaborationChannelMember.user_id == user.id,
         CollaborationChannelMember.organization_id == _org(user),
     ).first() is not None
-    _cache_set(cache_key, val)
+    if val:
+        _cache_set(cache_key, True)
     return val
 
 

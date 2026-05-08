@@ -1,6 +1,7 @@
 """Attachment endpoints — upload, AV/DLP, signed download, preview."""
 from datetime import datetime
 from typing import Optional
+import re
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
@@ -26,6 +27,15 @@ router = APIRouter()
 MAX_FILE_BYTES = 500 * 1024 * 1024  # 500 MB per the SLO
 
 
+def _safe_filename(name: Optional[str]) -> str:
+    raw = (name or "upload").replace("\\", "/")
+    base = raw.split("/")[-1].strip().strip(".")
+    if not base:
+        return "upload"
+    # Keep object keys portable and traversal-safe.
+    return re.sub(r"[^A-Za-z0-9._-]", "_", base)[:180] or "upload"
+
+
 @router.post("/attachments", response_model=AttachmentOut, summary="Subir adjunto (multipart)")
 async def upload_attachment(
     conversation_id: str = Form(...),
@@ -47,7 +57,8 @@ async def upload_attachment(
     dlp_status, dlp_findings = scan_dlp(data.decode("utf-8", errors="ignore")[:200_000])
     is_quarantined = (av_status == "infected") or (dlp_status == "blocked")
 
-    key = f"{org}/{conversation_id}/{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file.filename}"
+    safe_name = _safe_filename(file.filename)
+    key = f"{org}/{conversation_id}/{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{safe_name}"
     stored = storage.save_bytes(key, data)
 
     att = CollaborationAttachment(
@@ -55,7 +66,7 @@ async def upload_attachment(
         conversation_id=conversation_id,
         message_id=message_id,
         uploaded_by_user_id=current_user.id,
-        name=file.filename,
+        name=safe_name,
         mime_type=file.content_type,
         size_bytes=stored.size_bytes,
         storage_provider=stored.storage_provider,
@@ -89,6 +100,46 @@ async def upload_attachment(
     )
     db.commit()
 
+    # Si el adjunto NO viene asociado a un mensaje existente, creamos uno
+    # automáticamente para que aparezca en el chat. Si está en cuarentena,
+    # creamos un mensaje system de aviso en su lugar.
+    if not message_id:
+        from app.models.collaboration import CollaborationMessage
+        from app.services.collaboration.messages import _publish_async, _serialize_message
+        from app.services.collaboration._bus import conv_channel
+        body = (
+            f"⚠️ Archivo bloqueado: {file.filename} ({'AV' if av_status == 'infected' else 'DLP'})"
+            if is_quarantined else file.filename
+        )
+        new_msg = CollaborationMessage(
+            organization_id=org,
+            conversation_id=conversation_id,
+            user_id=current_user.id,
+            type="system" if is_quarantined else "file",
+            status="visible",
+            body=body,
+            metadata_json={"attachment_id": att.id, "quarantined": is_quarantined},
+            has_attachments=not is_quarantined,
+            sent_at=datetime.utcnow(),
+        )
+        db.add(new_msg); db.flush()
+        # Vincular el adjunto al mensaje recién creado ANTES de serializar
+        att.message_id = new_msg.id
+        # Actualizar last_activity de la conversación
+        from app.models.collaboration import CollaborationConversation
+        conv = db.query(CollaborationConversation).filter(CollaborationConversation.id == conversation_id).first()
+        if conv:
+            conv.last_activity_at = datetime.utcnow()
+            conv.last_message_id = new_msg.id
+        db.commit()
+        # Realtime publish con los attachments ya enlazados
+        _publish_async(conv_channel(conversation_id), {
+            "type": "message.created",
+            "conversation_id": conversation_id,
+            "message_id": new_msg.id,
+            "payload": _serialize_message(db, new_msg),
+        })
+
     # Generate thumbnail asynchronously
     if not is_quarantined:
         from app.services.collaboration._queue import task_queue
@@ -97,7 +148,7 @@ async def upload_attachment(
         task_queue.enqueue(generate_for_attachment, att.id)
         # Extract text body for search index (best-effort, sync to keep dev simple)
         try:
-            text = extract_text(data, file.filename or "", file.content_type)
+            text = extract_text(data, safe_name, file.content_type)
             if text:
                 att.text_index = text
                 db.commit()

@@ -29,10 +29,18 @@ export default function CallPage() {
   const { callId } = useParams()
   const [params] = useSearchParams()
   const navigate = useNavigate()
-  const livekitRoom = params.get('room')
-  const livekitUrl = params.get('url')
-  const livekitToken = params.get('token')
-  const kind = params.get('kind') || 'video'
+  // Leer credenciales desde sessionStorage (nunca desde URL) y limpiar inmediatamente
+  const _stored = (() => {
+    try {
+      const raw = sessionStorage.getItem(`call_creds_${callId}`)
+      if (raw) { sessionStorage.removeItem(`call_creds_${callId}`); return JSON.parse(raw) }
+    } catch { /* noop */ }
+    return {}
+  })()
+  const livekitRoom = _stored.room || params.get('room')
+  const livekitUrl = _stored.url || params.get('url')
+  const livekitToken = _stored.token || params.get('token')
+  const kind = _stored.kind || params.get('kind') || 'video'
   const isLiveKitReal = !!livekitToken && !livekitToken.startsWith('dev:')
 
   const [muted, setMuted] = useState(false)

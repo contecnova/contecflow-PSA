@@ -405,7 +405,7 @@ def create_and_upload(
 def serve_local_file(
     file_key: str,
     request: Request,
-    token: Optional[str] = Query(default=None, description="JWT access token (for browser-native requests that cannot set Authorization header)"),
+    access: Optional[str] = Query(default=None, description="Short-lived scoped access token for this file URL"),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user),
 ):
@@ -418,24 +418,23 @@ def serve_local_file(
     Access control: verifies the requesting user has at least viewer access
     to the document that owns this file version.
 
-    Authentication: accepts either the standard ``Authorization: Bearer`` header
-    or a ``?token=`` query parameter (required for browser-native iframe/img tags).
+    Authentication: accepts either the standard session/auth header/cookie
+    or a short-lived scoped ``?access=`` token generated with the download URL.
     """
-    # Fall back to query-param token when browser can't set Authorization header
-    if current_user is None and token:
-        current_user = doc_svc.resolve_user_from_token(db, token)
-    if current_user is None:
+    token_ok = bool(access and doc_svc.resolve_file_access_token(access, file_key))
+    if current_user is None and not token_ok:
         raise HTTPException(status_code=401, detail="No autenticado")
     from app.services.s3_service import LocalFileStorage
     if not isinstance(file_storage, LocalFileStorage):
         raise HTTPException(404, "Direct file serving only available in local-storage mode")
 
-    # Verify the user has access to the document that owns this file key
+    # Verify the file exists and access constraints.
     version = doc_svc.get_version_by_file_key(db, file_key)
     if not version:
         raise HTTPException(404, "File not found")
-    doc = get_document_or_404(db, version.document_id)
-    check_document_access(doc, current_user)  # raises 403 if no access
+    if current_user is not None:
+        doc = get_document_or_404(db, version.document_id)
+        check_document_access(doc, current_user)  # raises 403 if no access
 
     try:
         content = file_storage.get_file_bytes(file_key)
@@ -449,7 +448,8 @@ def serve_local_file(
     filename = file_key.split("/")[-1]
 
     # Audit trail for file download
-    doc_svc.log_document_download(db, doc.id, current_user.id, request.client.host if request.client else None)
+    if current_user is not None:
+        doc_svc.log_document_download(db, doc.id, current_user.id, request.client.host if request.client else None)
     # SVG served inline allows JS execution (XSS); force download for SVG
     disposition = "attachment" if mime_type == "image/svg+xml" else "inline"
     return StreamingResponse(
@@ -462,14 +462,13 @@ def serve_local_file(
 @router.head("/file/{file_key:path}", summary="Probe metadata for a locally stored document file")
 def head_local_file(
     file_key: str,
-    token: Optional[str] = Query(default=None, description="JWT access token (for browser-native requests that cannot set Authorization header)"),
+    access: Optional[str] = Query(default=None, description="Short-lived scoped access token for this file URL"),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user),
 ):
     """Return metadata headers for a locally stored file without streaming the body."""
-    if current_user is None and token:
-        current_user = doc_svc.resolve_user_from_token(db, token)
-    if current_user is None:
+    token_ok = bool(access and doc_svc.resolve_file_access_token(access, file_key))
+    if current_user is None and not token_ok:
         raise HTTPException(status_code=401, detail="No autenticado")
     from app.services.s3_service import LocalFileStorage
     if not isinstance(file_storage, LocalFileStorage):
@@ -478,8 +477,9 @@ def head_local_file(
     version = doc_svc.get_version_by_file_key(db, file_key)
     if not version:
         raise HTTPException(404, "File not found")
-    doc = get_document_or_404(db, version.document_id)
-    check_document_access(doc, current_user)
+    if current_user is not None:
+        doc = get_document_or_404(db, version.document_id)
+        check_document_access(doc, current_user)
 
     file_size = file_storage.get_file_size(file_key)
     if file_size is None:

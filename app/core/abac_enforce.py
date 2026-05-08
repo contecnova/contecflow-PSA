@@ -36,11 +36,19 @@ def enforce_abac(
     - The user has no organization (local dev / seed data)
     - There are no ABAC policies for the org (fail-open)
     - The user is a superadmin
+    - The resource is a collaboration domain resource (chat tiene su propio
+      modelo de membresía por canal/conversación que es la fuente de verdad)
 
     Any exception from the ABAC service is logged and results in a 403
     (fail-closed) to avoid granting access when policy evaluation is broken.
     """
     if getattr(user, "is_superadmin", False):
+        return
+
+    # Collaboration: la membresía por canal/conversación ya es la autoridad.
+    # ABAC adicional aquí no aplica porque introduce 403 falsos cuando el
+    # resource_type no está registrado en las políticas activas.
+    if resource_type and resource_type.startswith("collaboration_"):
         return
 
     org_id = getattr(user, "organization_id", None)

@@ -649,7 +649,7 @@ def get_current_timer_record(db: Session, current_user: User):
     ).first()
 
 
-def update_imputation_fields(imp, payload, db: Session):
+def update_imputation_fields(imp, payload, db: Session, current_user: User = None):
     """Apply field updates from payload and recompute cost if hours changed. Commits. Valida límites diarios y semanales."""
     from app.models.user import User as UserModel
     from app.models.imputation import Imputation
@@ -662,8 +662,27 @@ def update_imputation_fields(imp, payload, db: Session):
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado para la imputación")
 
+    # G3 Fix: Field-level permissions — restrict critical fields by role
+    # Only admin and manager can edit: billable_hours, hourly_rate_snapshot, project_id, task_id
+    critical_fields = {"billable_hours", "hourly_rate_snapshot", "project_id", "task_id", "cost_amount"}
+    manager_roles = {UserRole.admin, UserRole.pm, UserRole.team_lead, UserRole.hr}
+    is_self_non_manager = (
+        current_user
+        and current_user.id == imp.user_id
+        and current_user.role not in manager_roles
+    )
+
+    if is_self_non_manager:
+        # Non-manager editing own imputation: only allow non-sensitive fields.
+        allowed_fields = {"hours", "notes", "body"}
+        filtered_payload = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if k in allowed_fields}
+        if set(payload.model_dump(exclude_unset=True).keys()) & critical_fields:
+            raise HTTPException(status_code=403, detail="No tienes permiso para editar campos críticos de la imputación")
+    else:
+        filtered_payload = payload.model_dump(exclude_unset=True)
+
     # Si se va a cambiar horas, validar límites
-    new_hours = payload.hours if payload.hours is not None else imp.hours
+    new_hours = filtered_payload.get("hours", payload.hours if payload.hours is not None else imp.hours)
     imputation_date = imp.date
     # Límite diario: sumar todas las imputaciones del usuario ese día, excepto la actual
     existing_hours = db.query(func.sum(Imputation.hours)).filter(
@@ -696,7 +715,7 @@ def update_imputation_fields(imp, payload, db: Session):
         )
 
     # Aplicar cambios
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    for field, value in filtered_payload.items():
         setattr(imp, field, value)
     if payload.hours is not None:
         rate = imp.hourly_rate_snapshot

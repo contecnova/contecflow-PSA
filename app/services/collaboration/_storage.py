@@ -48,7 +48,11 @@ class FileStorage:
     provider: str = "local"
 
     def _abs(self, key: str) -> Path:
-        return COLLAB_ROOT / key
+        base = COLLAB_ROOT.resolve()
+        target = (base / key).resolve()
+        if not str(target).startswith(str(base) + os.sep):
+            raise PermissionError("Access denied: path outside collaboration upload root")
+        return target
 
     def save(self, key: str, fp: BinaryIO) -> StoredFile:
         target = self._abs(key)

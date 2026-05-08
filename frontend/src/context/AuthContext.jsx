@@ -100,6 +100,9 @@ export function AuthProvider({ children }) {
   }, [])
 
   const logout = useCallback(async () => {
+    // Notify subscribers (chat presence, etc.) BEFORE invalidating the cookie
+    // so they can stop firing requests that would otherwise return 401.
+    try { window.dispatchEvent(new CustomEvent('auth:logout-start')) } catch { /* noop */ }
     try {
       await api.post('/auth/logout')
     } catch { /* noop */ }

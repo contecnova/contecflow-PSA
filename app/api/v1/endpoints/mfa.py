@@ -561,10 +561,9 @@ def revoke_bi_token(
 def bi_data_projects(
     request: Request,
     db: Session = Depends(get_db),
-    token: Optional[str] = Query(None),
 ):
     auth_header = request.headers.get("Authorization", "")
-    raw_token = token or (auth_header.replace("Bearer bi_", "bi_") if "bi_" in auth_header else None)
+    raw_token = auth_header.replace("Bearer bi_", "bi_") if "bi_" in auth_header else None
     try:
         return _svc.bi_data_projects(raw_token, db)
     except ValueError:
@@ -579,10 +578,9 @@ def bi_data_timesheets(
     page: int = Query(1, ge=1),
     page_size: int = Query(500, ge=1, le=5000),
     db: Session = Depends(get_db),
-    token: Optional[str] = Query(None),
 ):
     auth_header = request.headers.get("Authorization", "")
-    raw_token = token or (auth_header if "bi_" in auth_header else None)
+    raw_token = auth_header if "bi_" in auth_header else None
     try:
         return _svc.bi_data_timesheets(raw_token, date_from, date_to, page, page_size, db)
     except ValueError:
@@ -593,10 +591,9 @@ def bi_data_timesheets(
 def bi_data_kpis(
     request: Request,
     db: Session = Depends(get_db),
-    token: Optional[str] = Query(None),
 ):
     auth_header = request.headers.get("Authorization", "")
-    raw_token = token or (auth_header if "bi_" in auth_header else None)
+    raw_token = auth_header if "bi_" in auth_header else None
     try:
         return _svc.bi_data_kpis(raw_token, db)
     except ValueError:

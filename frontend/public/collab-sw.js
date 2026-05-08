@@ -27,7 +27,10 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const targetUrl = event.notification.data?.url || '/chat'
+  const rawUrl = event.notification.data?.url || '/chat'
+  // Whitelist: sólo rutas internas del mismo origen
+  const ALLOWED_PATH_RE = /^\/(?:chat|portal|dashboard|tickets|projects|reports)(?:\/[\w\-]*)*$/
+  const targetUrl = ALLOWED_PATH_RE.test(rawUrl) ? rawUrl : '/chat'
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
     const existing = all.find(c => c.url.includes('/chat'))

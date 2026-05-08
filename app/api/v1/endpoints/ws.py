@@ -516,13 +516,19 @@ async def ws_portal_notifications(
                     await websocket.close(code=4001, reason="Ticket inválido o expirado")
                     return
             elif token:
+                if settings.ENVIRONMENT in {"production", "staging"}:
+                    await websocket.close(
+                        code=4003,
+                        reason="Token en URL no permitido en production. Usa ?ticket= (GET /ws/portal-ticket).",
+                    )
+                    return
                 client = verify_client_token(token, db)
                 client_id = str(client.id) if client else None
                 if not client_id:
                     await websocket.close(code=4001, reason="Token inválido")
                     return
             else:
-                await websocket.close(code=4001, reason="Se requiere ticket o token")
+                await websocket.close(code=4001, reason="Se requiere ?ticket= (obtener via GET /ws/portal-ticket)")
                 return
 
             manager_key = f"client:{client_id}"
@@ -551,13 +557,8 @@ async def ws_portal_notifications(
 
 
 @router.get("/notifications/stats", summary="Estadísticas de conexiones WebSocket activas")
-async def ws_stats(token: str = Query(...)):
-    """Requiere token JWT de acceso válido para evitar exponer usuarios conectados."""
-    from app.core.security import decode_token
-    from fastapi import HTTPException
-    payload = decode_token(token)
-    if not payload or payload.get("type") != "access":
-        raise HTTPException(status_code=401, detail="Token inválido")
+async def ws_stats(current_user=Depends(get_current_user)):
+    """Requiere sesión autenticada (header/cookie), no token en query string."""
     return {
         "connected_users":   manager.connected_users(),
         "total_connections": manager.total_connections(),

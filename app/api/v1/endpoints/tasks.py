@@ -246,7 +246,7 @@ def bulk_update_dates(
     Payload: { updates: [{ id, start_date, due_date }] }
     """
     updates = payload.get("updates", [])
-    return bulk_update_dates_record(db, updates)
+    return bulk_update_dates_record(db, updates, current_user)
 
 
 @router.post("/bulk-update", summary="Actualizar estado/asignado/prioridad en múltiples tareas")

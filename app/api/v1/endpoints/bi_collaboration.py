@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSock
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.security import decode_token
 from app.db.session import get_db
@@ -408,6 +409,10 @@ def dashboard_updates_snapshot(
 async def dashboard_updates_ws(websocket: WebSocket, dashboard_key: str, token: Optional[str] = Query(default=None)):
     if not token:
         await websocket.close(code=4001, reason='Token requerido')
+        return
+
+    if settings.ENVIRONMENT in {'production', 'staging'}:
+        await websocket.close(code=4003, reason='Token en URL no permitido en production')
         return
 
     payload = decode_token(token)

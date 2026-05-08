@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
 from io import BytesIO
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from app.models.user import User
 
@@ -224,12 +224,40 @@ def test_document_file_head_returns_metadata_headers(db: Session, doc_client):
     )
     assert upload_response.status_code == 200
     download_url = upload_response.json()["download_url"]
-    head_path = urlparse(download_url).path
+    parsed = urlparse(download_url)
+    head_path = parsed.path
+    access = parse_qs(parsed.query).get("access", [None])[0]
+    assert access
 
-    head_response = client.head(head_path, headers=headers)
+    head_response = client.head(f"{head_path}?access={access}")
     assert head_response.status_code == 200
     assert "content-type" in {k.lower() for k in head_response.headers.keys()}
     assert "content-length" in {k.lower() for k in head_response.headers.keys()}
+
+
+def test_document_file_get_with_scoped_access_token_no_auth_header(db: Session, doc_client):
+    client, token = doc_client
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = client.post("/api/v1/documents", json={"title": "Scoped access doc"}, headers=headers)
+    doc_id = create_response.json()["id"]
+
+    upload_response = client.post(
+        f"/api/v1/documents/{doc_id}/versions",
+        files={"file": ("scoped.txt", BytesIO(b"scoped body"), "text/plain")},
+        headers=headers,
+    )
+    assert upload_response.status_code == 200
+
+    download_url = upload_response.json()["download_url"]
+    parsed = urlparse(download_url)
+    access = parse_qs(parsed.query).get("access", [None])[0]
+    assert access
+
+    # Browser-native fetch without Authorization should still work via scoped token.
+    get_response = client.get(f"{parsed.path}?access={access}")
+    assert get_response.status_code == 200
+    assert get_response.content == b"scoped body"
 
 
 def test_document_file_size_validation(db: Session, doc_client):

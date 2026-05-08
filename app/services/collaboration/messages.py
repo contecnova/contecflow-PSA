@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
+from app.core.abac_enforce import enforce_abac
 from app.models.collaboration import (
     CollaborationAttachment,
     CollaborationChannel, CollaborationConversation,
@@ -37,6 +38,11 @@ from app.services.collaboration._storage import scan_dlp
 
 
 MENTION_RE = re.compile(r"@([a-zA-Z0-9_.\-]+)")
+
+
+def _aware(dt: datetime) -> datetime:
+    """Devuelve un datetime tz-aware (UTC) para comparaciones consistentes."""
+    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
 
 
 def _resolve_conversation(db: Session, *, conversation_id: Optional[str], channel_id: Optional[str], direct_id: Optional[str], group_id: Optional[str]) -> CollaborationConversation:
@@ -153,6 +159,7 @@ def send_message(
 
     if not bot_id:
         assert_conversation_access(db, user, conv.id)
+        enforce_abac(db, user, "collaboration_message", resource_id=conv.id, action="send")
 
     # DLP scan on body
     dlp_status, dlp_findings = scan_dlp(body)
@@ -220,8 +227,9 @@ def send_message(
     conv.last_activity_at = datetime.now(timezone.utc)
     conv.last_message_id = msg.id
 
-    # Notifications fan-out
-    if not scheduled_for or scheduled_for <= datetime.now(timezone.utc):
+    # Notifications fan-out — sólo si NO es programado al futuro
+    _is_future = bool(scheduled_for) and _aware(scheduled_for) > datetime.now(timezone.utc)
+    if not _is_future:
         _notify_recipients(db, organization_id=org, conv=conv, message=msg, mentions=mentions)
 
     # Audit + index
@@ -235,7 +243,7 @@ def send_message(
 
     # Si está programado para el futuro: NO hacemos fan-out ni publish ahora.
     # El scheduler (_scheduler.py) entregará cuando llegue scheduled_for.
-    if scheduled_for and scheduled_for > datetime.now(timezone.utc):
+    if _is_future:
         return msg
 
     # Realtime publish
@@ -331,6 +339,7 @@ def delete_message(db: Session, user, message_id: str) -> None:
 
 def list_messages(db: Session, user, conversation_id: str, *, before: Optional[str] = None, limit: int = 50, thread_root: Optional[str] = None) -> list[CollaborationMessage]:
     assert_conversation_access(db, user, conversation_id)
+    enforce_abac(db, user, "collaboration_message", resource_id=conversation_id, action="read")
     org = _org(user)
     q = db.query(CollaborationMessage).filter(
         CollaborationMessage.organization_id == org,

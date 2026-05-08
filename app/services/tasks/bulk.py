@@ -13,6 +13,7 @@ from app.models.project import Project
 from app.models.task import Task
 from app.models.user import UserRole
 from app.services.tasks.core import apply_status_side_effects
+from app.core.abac_enforce import enforce_abac
 
 
 def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) -> dict:
@@ -61,6 +62,13 @@ def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) 
             if task.assignee_id != current_user.id:
                 skipped.append({"id": task.id, "reason": "forbidden"})
                 continue
+
+        # G5 Fix: Enforce ABAC for each task individually in bulk operation
+        try:
+            enforce_abac(db, current_user, "task", task.id, action="update")
+        except HTTPException:
+            skipped.append({"id": task.id, "reason": "abac_denied"})
+            continue
 
         if new_status and new_status != task.status:
             apply_status_side_effects(task, new_status)

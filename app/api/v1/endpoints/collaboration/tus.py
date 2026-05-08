@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import base64
 import os
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -85,6 +86,14 @@ def _parse_metadata(header: str) -> dict:
     return out
 
 
+def _safe_filename(name: Optional[str]) -> str:
+    raw = (name or "upload").replace("\\", "/")
+    base = raw.split("/")[-1].strip().strip(".")
+    if not base:
+        return "upload"
+    return re.sub(r"[^A-Za-z0-9._-]", "_", base)[:180] or "upload"
+
+
 @router.options("/tus")
 def tus_options() -> Response:
     return Response(
@@ -120,7 +129,7 @@ async def tus_create(
         "user_id": current_user.id,
         "organization_id": _org(current_user),
         "conversation_id": conversation_id,
-        "name": meta.get("filename") or meta.get("name") or "upload",
+        "name": _safe_filename(meta.get("filename") or meta.get("name")),
         "mime_type": meta.get("filetype") or meta.get("mime_type") or None,
         "size": upload_length,
         "offset": 0,
@@ -184,7 +193,7 @@ async def tus_patch(
         av_status, av_details = scan_with_av(data)
         dlp_status, dlp_findings = scan_dlp(data.decode("utf-8", errors="ignore")[:200_000])
         is_quarantined = (av_status == "infected") or (dlp_status == "blocked")
-        key = f"{meta['organization_id']}/{meta['conversation_id']}/{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{meta['name']}"
+        key = f"{meta['organization_id']}/{meta['conversation_id']}/{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{_safe_filename(meta['name'])}"
         stored = storage.save_bytes(key, data)
         att = CollaborationAttachment(
             organization_id=meta["organization_id"],

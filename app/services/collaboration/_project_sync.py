@@ -29,6 +29,7 @@ def on_project_created(db: Session, project, creator) -> None:
         CollaborationTeam, CollaborationTeamMember,
     )
     from app.services.collaboration import audit_log
+    from app.services.collaboration._permissions import invalidate_membership
     from app.services.collaboration.workspaces import get_or_create_workspace
 
     ws = get_or_create_workspace(db, creator)
@@ -59,12 +60,14 @@ def on_project_created(db: Session, project, creator) -> None:
         db.add(CollaborationTeamMember(
             organization_id=org_id, team_id=team.id, user_id=creator.id, role="owner",
         ))
+        invalidate_membership(creator.id)
         # Si el proyecto tiene PM diferente al creator, añadirlo
         pm_id = getattr(project, "pm_id", None)
         if pm_id and pm_id != creator.id:
             db.add(CollaborationTeamMember(
                 organization_id=org_id, team_id=team.id, user_id=pm_id, role="admin",
             ))
+            invalidate_membership(pm_id)
 
     # Canal por defecto del proyecto
     existing_chan = db.query(CollaborationChannel).filter(CollaborationChannel.project_id == project.id).first()
@@ -88,6 +91,7 @@ def on_project_created(db: Session, project, creator) -> None:
     db.add(CollaborationChannelMember(
         organization_id=org_id, channel_id=chan.id, user_id=creator.id, role="owner",
     ))
+    invalidate_membership(creator.id)
     audit_log.write(
         db, organization_id=org_id, actor_user_id=creator.id, actor_client_id=None,
         action="channel.auto_created", entity_type="channel", entity_id=chan.id,

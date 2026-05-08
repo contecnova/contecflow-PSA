@@ -24,9 +24,12 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.models.project import Project
 from app.models.service_desk import Ticket, TicketStatus, TicketPriority
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +39,27 @@ DEFAULT_WINDOW_HOURS = 4          # only consider tickets created within this wi
 MIN_CLUSTER_SIZE = 2              # min tickets for a cluster to be actionable
 DBSCAN_EPS = 0.35                 # DBSCAN neighborhood radius (0-1 feature space)
 DBSCAN_MIN_SAMPLES = 2            # DBSCAN min neighbours to form core point
+
+
+def _apply_org_scope(q, db: Session, organization_id: Optional[str]):
+    """Scope ticket query to an organization without relying on Ticket.organization_id.
+
+    Service Desk tickets are scoped indirectly through related users/projects.
+    """
+    if not organization_id:
+        return q
+
+    org_user_ids = db.query(User.id).filter(User.organization_id == organization_id).scalar_subquery()
+    org_project_ids = db.query(Project.id).filter(Project.organization_id == organization_id).scalar_subquery()
+
+    return q.filter(
+        or_(
+            Ticket.requester_user_id.in_(org_user_ids),
+            Ticket.assigned_to_user_id.in_(org_user_ids),
+            Ticket.created_by_user_id.in_(org_user_ids),
+            Ticket.project_id.in_(org_project_ids),
+        )
+    )
 
 
 # ── Data structures ───────────────────────────────────────────────────────────
@@ -195,8 +219,7 @@ def cluster_open_alerts(
         Ticket.problem_id.is_(None),
         Ticket.created_at >= window_start,
     )
-    if organization_id:
-        q = q.filter(Ticket.organization_id == organization_id)
+    q = _apply_org_scope(q, db, organization_id)
 
     tickets = q.order_by(Ticket.created_at.asc()).all()
 
@@ -317,8 +340,7 @@ def get_correlation_stats(db: Session, *, organization_id: Optional[str] = None)
         Ticket.status.not_in([TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled]),
         Ticket.created_at >= window_start,
     )
-    if organization_id:
-        q = q.filter(Ticket.organization_id == organization_id)
+    q = _apply_org_scope(q, db, organization_id)
 
     open_tickets = q.count()
     clusters = cluster_open_alerts(db, organization_id=organization_id)

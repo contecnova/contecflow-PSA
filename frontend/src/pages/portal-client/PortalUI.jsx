@@ -84,10 +84,10 @@ export function PortalShell({ section, onSection, branding, badges, children }) 
 
   useEffect(() => { localStorage.setItem('portal_sidebar_collapsed', collapsed ? '1' : '0') }, [collapsed])
 
-  // Atajo de teclado: ⌘+ / Ctrl++ abre el menú quick-create (igual que backoffice)
+  // Atajo de teclado: ⌘+Shift+N / Ctrl+Shift+N abre el menú quick-create (igual que backoffice)
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '=')) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'n' || e.key === 'N')) {
         e.preventDefault()
         setQuickOpen(o => !o)
       }

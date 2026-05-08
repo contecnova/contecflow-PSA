@@ -6,6 +6,7 @@
  * Wired to /api/v1/collaboration endpoints + WebSocket realtime.
  */
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Hash, MessageSquare, Users, Pin, Bookmark, Search,
@@ -16,21 +17,21 @@ import {
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
+import { useChatRealtime } from '../context/ChatRealtimeContext'
 import { collabApi } from '../services/collaborationApi'
 import { registerCollabPush } from '../utils/collabPush'
 
 // ── Page entry ───────────────────────────────────────────────────────────────
 export default function ChatPage() {
-  const qc = useQueryClient()
   const _toast = useToast()
   const { user } = useAuth()
 
   const [activeTab, setActiveTab] = useState('chats') // chats | teams | activity | calls
-  const [activeConv, setActiveConv] = useState(null) // {id, kind, title, ...}
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlConvId = searchParams.get('conv')
   const [showSlashMenu, setShowSlashMenu] = useState(false)
   const [draft, setDraft] = useState('')
   const [searchModalOpen, setSearchModalOpen] = useState(false)
-  const wsRef = useRef(null)
 
   // ── Data ───────────────────────────────────────────────────────────────────
   useQuery({
@@ -75,18 +76,73 @@ export default function ChatPage() {
     staleTime: 5 * 60_000,
   })
 
-  // Pick a default conversation when nothing selected
-  useEffect(() => {
-    if (!activeConv && conversations.length > 0) {
-      const channel = conversations.find(c => c.kind === 'channel')
-      setActiveConv(channel || conversations[0])
+  // Conversación activa = ?conv= de la URL si es válida; si no, primer canal disponible
+  const activeConv = (() => {
+    if (urlConvId) {
+      const found = conversations.find(c => c.id === urlConvId)
+      if (found) return found
     }
-  }, [conversations, activeConv])
+    if (conversations.length === 0) return null
+    return conversations.find(c => c.kind === 'channel') || conversations[0]
+  })()
+
+  // Si la URL no trae conv pero ya hay conversaciones cargadas, fija la URL
+  // por defecto (sin generar entrada nueva en el historial → replace).
+  useEffect(() => {
+    if (!urlConvId && activeConv?.id) {
+      setSearchParams({ conv: activeConv.id }, { replace: true })
+    }
+  }, [urlConvId, activeConv?.id, setSearchParams])
+
+  const setActiveConv = (c) => {
+    if (!c?.id) return
+    setSearchParams({ conv: c.id }, { replace: false })
+  }
 
   // Register Web Push subscription (best-effort, only if VAPID configured)
   useEffect(() => {
     registerCollabPush().catch(() => { /* ignore */ })
   }, [])
+
+  // Auto-presencia: online al cargar, away en blur, offline al cerrar
+  // Sólo activa cuando hay sesión válida (user no nulo) para evitar 401
+  // del cleanup tras logout.
+  useEffect(() => {
+    if (!user?.id) return
+    let stopped = false
+    const setStatus = (status) => {
+      if (stopped) return
+      collabApi.setPresence({ status }).catch(() => {})
+    }
+    setStatus('online')
+    const onVis = () => setStatus(document.visibilityState === 'visible' ? 'online' : 'away')
+    const onBeforeUnload = () => {
+      try {
+        navigator.sendBeacon('/api/v1/collaboration/presence/me', new Blob([JSON.stringify({ status: 'offline' })], { type: 'application/json' }))
+      } catch { /* noop */ }
+    }
+    // Listener para "logout" — cuando se dispara este evento dejamos de
+    // mandar updates de presencia (evita 401 inútiles al servidor).
+    const onLogout = () => { stopped = true }
+    document.addEventListener('visibilitychange', onVis)
+    window.addEventListener('beforeunload', onBeforeUnload)
+    window.addEventListener('auth:session-expired', onLogout)
+    window.addEventListener('auth:logout-start', onLogout)
+    // Heartbeat
+    const hb = setInterval(() => {
+      if (!stopped && document.visibilityState === 'visible') setStatus('online')
+    }, 60_000)
+    return () => {
+      stopped = true
+      document.removeEventListener('visibilitychange', onVis)
+      window.removeEventListener('beforeunload', onBeforeUnload)
+      window.removeEventListener('auth:session-expired', onLogout)
+      window.removeEventListener('auth:logout-start', onLogout)
+      clearInterval(hb)
+      // No emitimos "away" en el cleanup: si el cleanup viene de un logout,
+      // ya no hay sesión y la llamada daría 401.
+    }
+  }, [user?.id])
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -110,77 +166,9 @@ export default function ChatPage() {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  // ── WebSocket ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    let cancelled = false
-    let ws
-    let pingInterval
-    let reconnectTimer
-    let attempt = 0
-
-    const connect = async () => {
-      if (cancelled || attempt >= 5) return
-      attempt++
-      try {
-        const r = await fetch('/api/v1/ws/ticket', { credentials: 'include' })
-        const { ticket } = await r.json()
-        if (!ticket || cancelled) return
-        const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-        ws = new WebSocket(`${proto}://${window.location.host}/api/v1/collaboration/ws?ticket=${encodeURIComponent(ticket)}`)
-        wsRef.current = ws
-        ws.onopen = () => { attempt = 0 }
-        ws.onmessage = (event) => {
-          try {
-            const ev = JSON.parse(event.data)
-            handleRealtimeEvent(ev)
-          } catch { /* noop */ }
-        }
-        ws.onclose = (ev) => {
-          if (cancelled || ev.code === 1000) return
-          reconnectTimer = setTimeout(connect, Math.min(1000 * 2 ** (attempt - 1), 30000))
-        }
-        if (pingInterval) clearInterval(pingInterval)
-        pingInterval = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping' }))
-        }, 25000)
-      } catch {
-        if (!cancelled) reconnectTimer = setTimeout(connect, Math.min(1000 * 2 ** (attempt - 1), 30000))
-      }
-    }
-
-    function handleRealtimeEvent(ev) {
-      if (!ev?.type) return
-      if (ev.type === 'message.created' && ev.conversation_id) {
-        qc.invalidateQueries(['collab-messages', ev.conversation_id])
-        qc.invalidateQueries(['collab-conversations'])
-      } else if (ev.type === 'message.updated' || ev.type === 'message.deleted' ||
-                 ev.type.startsWith('reaction.') || ev.type === 'message.pinned' ||
-                 ev.type === 'message.unpinned' || ev.type === 'read.updated') {
-        if (ev.conversation_id) qc.invalidateQueries(['collab-messages', ev.conversation_id])
-      } else if (ev.type === 'notification.new') {
-        qc.invalidateQueries(['collab-notifications'])
-        // Native browser notification cuando la pestaña no está activa
-        try {
-          if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
-            new Notification('Contecflow Chat', { body: 'Nueva actividad en tu chat', icon: '/favicon.ico', tag: 'collab' })
-          }
-        } catch { /* noop */ }
-      } else if (ev.type === 'presence.updated') {
-        qc.invalidateQueries(['collab-presence'])
-      } else if (ev.type === 'typing') {
-        // Re-emit como evento DOM para que el ConversationPane lo consuma sin acoplarse al WS
-        window.dispatchEvent(new CustomEvent('collab:typing', { detail: ev }))
-      }
-    }
-
-    connect()
-    return () => {
-      cancelled = true
-      if (pingInterval) clearInterval(pingInterval)
-      if (reconnectTimer) clearTimeout(reconnectTimer)
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close()
-    }
-  }, [qc])
+  // El WebSocket vive ahora en ChatRealtimeProvider (always-on, app-wide).
+  // Aquí ya no se abre una conexión adicional para evitar duplicados; el
+  // provider invalida React Query y reemite `collab:typing`/`collab:resync`.
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -209,7 +197,6 @@ export default function ChatPage() {
         setDraft={setDraft}
         showSlashMenu={showSlashMenu}
         setShowSlashMenu={setShowSlashMenu}
-        wsRef={wsRef}
       />
 
       {activeConv && <ContextPanel conv={activeConv} />}
@@ -377,7 +364,7 @@ function ConversationsList({ activeTab, conversations, teams, channels, presence
       </div>
 
       <div style={{ padding: '10px 14px', borderTop: '1px solid var(--surface-4)' }}>
-        <NewConversationButton />
+        <NewConversationButton onCreated={(c) => onSelect && onSelect(c)} />
       </div>
     </div>
   )
@@ -444,23 +431,238 @@ function ConvRow({ c, active, onClick, presence, indent }) {
   )
 }
 
-function NewConversationButton() {
+function NewConversationButton({ onCreated }) {
+  const [open, setOpen] = useState(false)
   return (
-    <button style={{
-      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-      padding: '8px',
-      background: 'var(--accent)', color: '#fff',
-      border: 'none', borderRadius: 8,
-      fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 700,
-      cursor: 'pointer',
-    }} title="Próximamente: nuevo chat / canal">
-      <Plus size={14} /> Nuevo
-    </button>
+    <>
+      <button onClick={() => setOpen(true)} style={{
+        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        padding: '8px',
+        background: 'var(--accent)', color: '#fff',
+        border: 'none', borderRadius: 8,
+        fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 700,
+        cursor: 'pointer',
+      }}>
+        <Plus size={14} /> Nuevo
+      </button>
+      {open && <NewConversationModal onClose={() => setOpen(false)} onCreated={(c) => { setOpen(false); onCreated?.(c) }} />}
+    </>
   )
 }
 
+function NewConversationModal({ onClose, onCreated }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const [tab, setTab] = useState('direct')  // direct | group | channel
+  const [search, setSearch] = useState('')
+  const [selectedUsers, setSelectedUsers] = useState([])
+  const [groupTitle, setGroupTitle] = useState('')
+  const [channelName, setChannelName] = useState('')
+  const [channelType, setChannelType] = useState('public')
+  const [selectedTeamId, setSelectedTeamId] = useState('')
+
+  const { data: suggestions = { users: [], groups: [] } } = useQuery({
+    queryKey: ['mention-suggestions-modal', search],
+    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: 12 }),
+  })
+  const { data: teams = [] } = useQuery({
+    queryKey: ['collab-teams'],
+    queryFn: () => collabApi.listTeams(),
+  })
+
+  useEffect(() => {
+    if (!selectedTeamId && teams.length > 0) setSelectedTeamId(teams[0].id)
+  }, [teams, selectedTeamId])
+
+  const toggleUser = (u) => {
+    setSelectedUsers(prev => prev.find(x => x.id === u.id) ? prev.filter(x => x.id !== u.id) : [...prev, u])
+  }
+
+  const submit = useMutation({
+    mutationFn: async () => {
+      if (tab === 'direct') {
+        if (!selectedUsers.length) throw new Error('Selecciona un usuario')
+        return await collabApi.openDirect({ user_id: selectedUsers[0].id })
+      } else if (tab === 'group') {
+        if (!selectedUsers.length) throw new Error('Selecciona al menos 1 miembro')
+        return await collabApi.createGroup({
+          title: groupTitle.trim() || null,
+          user_ids: selectedUsers.map(u => u.id),
+        })
+      } else {
+        if (!channelName.trim()) throw new Error('Pon un nombre al canal')
+        if (!selectedTeamId) throw new Error('Selecciona un equipo')
+        const ch = await collabApi.createChannel({
+          team_id: selectedTeamId,
+          name: channelName.trim(),
+          channel_type: channelType,
+          initial_member_ids: selectedUsers.map(u => u.id),
+        })
+        return { conversation_id: ch.conversation_id }
+      }
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries(['collab-conversations'])
+      qc.invalidateQueries(['collab-channels'])
+      // Notifica al WS para que re-suscriba a la nueva conversación sin recargar página
+      window.dispatchEvent(new CustomEvent('collab:resync'))
+      onCreated?.({ id: data.conversation_id || data.id, kind: tab === 'channel' ? 'channel' : tab })
+      toast.success(tab === 'direct' ? 'Chat abierto' : tab === 'group' ? 'Grupo creado' : 'Canal creado')
+    },
+    onError: (e) => toast.error(e.message || e?.response?.data?.detail || 'Error'),
+  })
+
+  return (
+    <div role="presentation" onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    }}>
+      <div role="dialog" aria-modal="true" tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+        style={{
+          background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+          borderRadius: 14, width: 540, maxWidth: '94%', overflow: 'hidden',
+        }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>Nueva conversación</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}><X size={14} /></button>
+        </div>
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--surface-4)' }}>
+          {[{ id: 'direct', label: 'Chat directo', icon: MessageSquare },
+            { id: 'group', label: 'Grupo', icon: Users },
+            { id: 'channel', label: 'Canal', icon: Hash }].map(t => {
+            const Icon = t.icon; const active = tab === t.id
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                flex: 1, padding: '10px 14px',
+                background: 'transparent', border: 'none',
+                borderBottom: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
+                cursor: 'pointer', fontFamily: 'inherit',
+                fontSize: 'var(--text-sm)', fontWeight: active ? 700 : 500,
+                color: active ? 'var(--accent)' : 'var(--text-2)',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}><Icon size={13} /> {t.label}</button>
+            )
+          })}
+        </div>
+        <div style={{ padding: 18, maxHeight: '60vh', overflowY: 'auto' }}>
+          {tab === 'group' && (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Título (opcional)</label>
+              <input value={groupTitle} onChange={(e) => setGroupTitle(e.target.value)} placeholder="Ej. Refactor backend"
+                style={inputStyle} />
+            </div>
+          )}
+          {tab === 'channel' && (
+            <>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Nombre</label>
+                <input value={channelName} onChange={(e) => setChannelName(e.target.value)} placeholder="ej. ventas-q4" style={inputStyle} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                <div>
+                  <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Equipo</label>
+                  <select value={selectedTeamId} onChange={(e) => setSelectedTeamId(e.target.value)} style={inputStyle}>
+                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Tipo</label>
+                  <select value={channelType} onChange={(e) => setChannelType(e.target.value)} style={inputStyle}>
+                    <option value="public">Público</option>
+                    <option value="private">Privado</option>
+                    <option value="announcement">Anuncios</option>
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
+          {tab === 'direct' ? (
+            <div style={{ marginBottom: 8, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Selecciona un usuario</div>
+          ) : (
+            <div style={{ marginBottom: 8, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+              Añade miembros {tab === 'group' ? '(mínimo 1)' : '(opcional)'}
+            </div>
+          )}
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar usuarios…"
+            style={inputStyle} autoFocus />
+          {selectedUsers.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+              {selectedUsers.map(u => (
+                <span key={u.id} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '4px 10px', borderRadius: 999,
+                  background: 'var(--accent-muted)', color: 'var(--accent)',
+                  fontSize: 'var(--text-xs)', fontWeight: 700,
+                }}>
+                  {u.full_name || u.username} <button onClick={() => toggleUser(u)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}><X size={11} /></button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div style={{ marginTop: 10, maxHeight: 240, overflowY: 'auto' }}>
+            {(suggestions.users || []).map(u => {
+              const sel = !!selectedUsers.find(x => x.id === u.id)
+              return (
+                <button key={u.id} onClick={() => {
+                  if (tab === 'direct') {
+                    setSelectedUsers([u])
+                  } else {
+                    toggleUser(u)
+                  }
+                }} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  width: '100%', padding: '8px 10px', borderRadius: 6,
+                  background: sel ? 'var(--accent-muted)' : 'transparent',
+                  border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                }}>
+                  <span style={{
+                    width: 28, height: 28, borderRadius: '50%',
+                    background: 'linear-gradient(135deg, var(--accent), var(--purple))',
+                    color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, fontWeight: 800,
+                  }}>{(u.full_name || u.username || '?').charAt(0).toUpperCase()}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', fontWeight: 600 }}>{u.full_name}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{u.email}</div>
+                  </div>
+                  {sel && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)' }}>✓</span>}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button onClick={onClose} style={{
+            padding: '8px 16px', borderRadius: 8,
+            background: 'transparent', color: 'var(--text-2)',
+            border: '1px solid var(--surface-4)', cursor: 'pointer', fontFamily: 'inherit',
+            fontSize: 'var(--text-sm)',
+          }}>Cancelar</button>
+          <button onClick={() => submit.mutate()} disabled={submit.isPending} style={{
+            padding: '8px 16px', borderRadius: 8,
+            background: 'var(--accent)', color: '#fff',
+            border: 'none', cursor: submit.isPending ? 'not-allowed' : 'pointer',
+            fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 700,
+          }}>{submit.isPending ? 'Creando…' : 'Crear'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const inputStyle = {
+  width: '100%', boxSizing: 'border-box', marginTop: 4,
+  background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+  borderRadius: 8, padding: '8px 10px',
+  color: 'var(--text-1)', fontSize: 'var(--text-sm)',
+  outline: 'none', fontFamily: 'inherit',
+}
+
 // ── Conversation pane ────────────────────────────────────────────────────────
-function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlashMenu, setShowSlashMenu, wsRef }) {
+function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlashMenu, setShowSlashMenu }) {
+  const realtime = useChatRealtime()
   const qc = useQueryClient()
   const toast = useToast()
   const fileRef = useRef(null)
@@ -471,6 +673,8 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
   const [activeThreadRoot, setActiveThreadRoot] = useState(null)
   const [linkPicker, setLinkPicker] = useState(null) // { kind: 'task'|'ticket', items }
   const [typingUsers, setTypingUsers] = useState({})  // { user_id: ts }
+  const [isDragging, setIsDragging] = useState(false)
+  const dragCounterRef = useRef(0)
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['collab-messages', conv?.id],
@@ -483,7 +687,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
   const parseMentions = (text) => {
     const ids = []
     let everyone = false
-    const re = /@([\w.\-]+|\[[^\]]+\])/g
+    const re = /@([\w.-]+|\[[^\]]+\])/g
     let m
     while ((m = re.exec(text)) !== null) {
       let token = m[1]
@@ -556,7 +760,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
   // Mention detection — busca el último @ sin cerrar
   useEffect(() => {
     if (!conv) return
-    const m = draft.match(/(^|[\s])@([\w.\-]{0,40})$/)
+    const m = draft.match(/(^|[\s])@([\w.-]{0,40})$/)
     if (!m) {
       setMentionState(null)
       return
@@ -575,18 +779,13 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
 
   // Typing emit (debounced)
   useEffect(() => {
-    if (!conv?.id || !wsRef?.current) return
-    if (wsRef.current.readyState !== WebSocket.OPEN) return
-    if (!draft.trim()) return
-    try {
-      wsRef.current.send(JSON.stringify({ type: 'typing', conversation_id: conv.id, active: true }))
-    } catch { /* noop */ }
+    if (!conv?.id || !draft.trim()) return
+    realtime.send({ type: 'typing', conversation_id: conv.id, active: true })
     const t = setTimeout(() => {
-      try { wsRef.current?.send(JSON.stringify({ type: 'typing', conversation_id: conv.id, active: false })) }
-      catch { /* noop */ }
+      realtime.send({ type: 'typing', conversation_id: conv.id, active: false })
     }, 4000)
     return () => clearTimeout(t)
-  }, [draft, conv?.id, wsRef])
+  }, [draft, conv?.id, realtime])
 
   // Listen to typing events from bus (delegated through window CustomEvent)
   useEffect(() => {
@@ -622,7 +821,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
 
   const insertMention = (item) => {
     const insert = item.is_group ? `@${item.username} ` : `@[${item.full_name}|${item.id}] `
-    const replaced = draft.replace(/(^|[\s])@([\w.\-]{0,40})$/, (_m, p1) => `${p1}${insert}`)
+    const replaced = draft.replace(/(^|[\s])@([\w.-]{0,40})$/, (_m, p1) => `${p1}${insert}`)
     setDraft(replaced)
     setMentionState(null)
     composerRef.current?.focus()
@@ -653,29 +852,105 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
 
   const handleFile = async (file) => {
     if (!file) return
+    if (file.size > 500 * 1024 * 1024) {
+      toast.error(`El archivo "${file.name}" excede el máximo de 500 MB`)
+      return
+    }
     const fd = new FormData()
     fd.append('conversation_id', conv.id)
     fd.append('file', file)
     try {
-      await collabApi.uploadAttachment(fd)
+      const result = await collabApi.uploadAttachment(fd)
       qc.invalidateQueries(['collab-messages', conv.id])
-      toast.success('Archivo subido')
+      qc.invalidateQueries(['collab-conversations'])
+      if (result?.is_quarantined) {
+        toast.warning(`Archivo bloqueado: ${result.av_status === 'infected' ? 'antivirus' : 'DLP'}`)
+      } else {
+        toast.success('Archivo subido')
+      }
+      // Reset input value para permitir subir el mismo nombre dos veces
+      if (fileRef.current) fileRef.current.value = ''
     } catch (e) {
-      toast.error(e?.response?.data?.detail || 'Error al subir')
+      const detail = e?.response?.data?.detail
+      toast.error(typeof detail === 'string' ? detail : `Error al subir ${file.name}`)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  // Drag-and-drop + paste files anywhere within the conversation pane
+  const onDragEnter = (e) => {
+    if (!e.dataTransfer?.types?.includes('Files')) return
+    e.preventDefault()
+    dragCounterRef.current += 1
+    setIsDragging(true)
+  }
+  const onDragOver = (e) => {
+    if (!e.dataTransfer?.types?.includes('Files')) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+  const onDragLeave = (e) => {
+    if (!e.dataTransfer?.types?.includes('Files')) return
+    e.preventDefault()
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1)
+    if (dragCounterRef.current === 0) setIsDragging(false)
+  }
+  const onDrop = (e) => {
+    if (!e.dataTransfer?.files?.length) return
+    e.preventDefault()
+    dragCounterRef.current = 0
+    setIsDragging(false)
+    for (const f of e.dataTransfer.files) handleFile(f)
+  }
+  const onPaste = (e) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const it of items) {
+      if (it.kind === 'file') {
+        const f = it.getAsFile()
+        if (f) handleFile(f)
+      }
     }
   }
 
   const onCallStart = async (kind) => {
     try {
       const c = await collabApi.startCall({ conversation_id: conv.id, kind })
-      window.open(`/chat/call/${c.call_id}?token=${encodeURIComponent(c.livekit_token)}&room=${encodeURIComponent(c.livekit_room)}&url=${encodeURIComponent(c.livekit_url)}&kind=${kind}`, '_blank', 'width=1100,height=720')
+      // Almacenar credenciales en sessionStorage para evitar exponerlas en la URL
+      sessionStorage.setItem(`call_creds_${c.call_id}`, JSON.stringify({
+        token: c.livekit_token,
+        room: c.livekit_room,
+        url: c.livekit_url,
+        kind,
+      }))
+      window.open(`/chat/call/${c.call_id}?kind=${kind}`, '_blank', 'width=1100,height=720')
     } catch {
       toast.error('Error iniciando llamada')
     }
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+    <div
+      role="region"
+      aria-label="Conversación"
+      style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      {isDragging && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 20,
+          background: 'rgba(59,130,246,0.08)',
+          border: '2px dashed var(--accent)', borderRadius: 8,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+          fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--accent)',
+        }}>
+          Suelta el archivo para subirlo
+        </div>
+      )}
       {/* Header */}
       <div style={{
         height: 56, padding: '0 18px', flexShrink: 0,
@@ -760,8 +1035,26 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
           background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
           borderRadius: 12, padding: '8px 10px',
         }}>
-          <IconBtn onClick={() => fileRef.current?.click()} title="Adjuntar"><Paperclip size={16} /></IconBtn>
-          <input ref={fileRef} type="file" hidden onChange={e => handleFile(e.target.files?.[0])} />
+          {/* Patrón label+input: el click en el label abre el selector sin
+              depender de programmatic .click() (más fiable cross-browser) */}
+          <label title="Adjuntar archivo" style={{
+            position: 'relative',
+            width: 32, height: 32, flexShrink: 0,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            background: 'transparent', borderRadius: 6,
+            color: 'var(--text-2)', cursor: 'pointer',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-4)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+          >
+            <Paperclip size={16} />
+            <input ref={fileRef} type="file"
+              style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
+              onChange={e => {
+                const f = e.target.files?.[0]
+                if (f) handleFile(f)
+              }} />
+          </label>
           <textarea
             ref={composerRef}
             data-chat-composer
@@ -773,6 +1066,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
                 handleSend()
               }
             }}
+            onPaste={onPaste}
             placeholder={`Escribe un mensaje en ${conv.title}…  ( / comandos · @ menciones )`}
             rows={1}
             style={{
@@ -890,20 +1184,7 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
         )}
         {msg.attachments?.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-            {msg.attachments.map(a => (
-              <div key={a.id} style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '6px 10px', background: 'var(--surface-3)',
-                border: '1px solid var(--surface-4)', borderRadius: 8,
-                fontSize: 'var(--text-xs)',
-              }}>
-                <FileText size={13} />
-                <span>{a.name}</span>
-                <span style={{ color: a.is_quarantined ? 'var(--danger)' : 'var(--text-3)' }}>
-                  {a.is_quarantined ? '⚠ cuarentena' : `${Math.round(a.size_bytes / 1024)} KB`}
-                </span>
-              </div>
-            ))}
+            {msg.attachments.map(a => <AttachmentChip key={a.id} att={a} />)}
           </div>
         )}
         {msg.reactions?.length > 0 && (
@@ -1006,6 +1287,66 @@ function PollCard({ meta }) {
   )
 }
 
+// ── Attachment chip ────────────────────────────────────────────────────────
+function AttachmentChip({ att }) {
+  const [meta, setMeta] = useState(att)
+  // Si ya tenemos download_url usamos eso; si no, pedimos detalle al backend
+  useEffect(() => {
+    if (att.download_url || att.is_quarantined) return
+    let cancel = false
+    collabApi.getAttachment(att.id).then(d => { if (!cancel) setMeta(d) }).catch(() => {})
+    return () => { cancel = true }
+  }, [att.id, att.download_url, att.is_quarantined])
+
+  const isImage = (meta.mime_type || '').startsWith('image/')
+  const downloadUrl = meta.download_url
+  const previewUrl = meta.preview_url || (isImage ? downloadUrl : null)
+
+  if (meta.is_quarantined) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '6px 10px', background: 'var(--danger-bg, rgba(239,68,68,0.12))',
+        border: '1px solid var(--danger-border, rgba(239,68,68,0.3))', borderRadius: 8,
+        fontSize: 'var(--text-xs)', color: 'var(--danger)',
+      }}>
+        <AlertCircle size={13} /> {att.name} · cuarentena
+      </div>
+    )
+  }
+
+  if (isImage && previewUrl) {
+    return (
+      <a href={downloadUrl} target="_blank" rel="noopener noreferrer"
+        style={{ display: 'block', maxWidth: 320, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--surface-4)' }}>
+        <img src={previewUrl} alt={att.name} style={{ display: 'block', width: '100%', maxHeight: 240, objectFit: 'cover' }} />
+      </a>
+    )
+  }
+
+  return (
+    <a href={downloadUrl || '#'} target="_blank" rel="noopener noreferrer"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 12px', background: 'var(--surface-3)',
+        border: '1px solid var(--surface-4)', borderRadius: 8,
+        fontSize: 'var(--text-xs)', textDecoration: 'none', color: 'var(--text-1)',
+        maxWidth: 360,
+      }}>
+      <FileText size={15} style={{ color: 'var(--accent)' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{att.name}</div>
+        <div style={{ color: 'var(--text-3)' }}>
+          {att.size_bytes >= 1024 * 1024
+            ? `${(att.size_bytes / (1024 * 1024)).toFixed(1)} MB`
+            : `${Math.round(att.size_bytes / 1024)} KB`}
+          {att.mime_type && ` · ${att.mime_type.split('/')[1] || att.mime_type}`}
+        </div>
+      </div>
+    </a>
+  )
+}
+
 // ── Search modal (Cmd+K) ───────────────────────────────────────────────────
 function SearchModal({ onClose, onJump }) {
   const [q, setQ] = useState('')
@@ -1020,7 +1361,10 @@ function SearchModal({ onClose, onJump }) {
       position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
       display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '8vh 16px', zIndex: 1000,
     }}>
-      <div role="dialog" onClick={(e) => e.stopPropagation()} style={{
+      <div role="dialog" aria-modal="true" tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+        style={{
         background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
         borderRadius: 14, width: 640, maxWidth: '94%', overflow: 'hidden',
       }}>
@@ -1110,7 +1454,10 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }) {
       position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
     }}>
-      <div role="dialog" onClick={(e) => e.stopPropagation()} style={{
+      <div role="dialog" aria-modal="true" tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+        style={{
         background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
         borderRadius: 12, padding: 18, width: 480, maxWidth: '92%',
       }}>
@@ -1306,6 +1653,12 @@ function ContextPanel({ conv }) {
     queryKey: ['collab-decisions-context'],
     queryFn: () => collabApi.listDecisions(5),
   })
+  const { data: presenceList = [] } = useQuery({
+    queryKey: ['collab-presence'],
+    queryFn: () => collabApi.listPresence(),
+    refetchInterval: 30_000,
+  })
+  const onlineUsers = presenceList.filter(p => p.user_id && p.status && p.status !== 'offline')
 
   return (
     <div style={{
@@ -1316,6 +1669,30 @@ function ContextPanel({ conv }) {
     }}>
       <Section title="Información">
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{conv.kind === 'channel' ? 'Canal' : conv.kind === 'group' ? 'Grupo' : 'Chat directo'}</div>
+      </Section>
+      <Section title={`Conectados (${onlineUsers.length})`}>
+        {onlineUsers.length === 0 ? <Empty>Nadie online ahora</Empty> : onlineUsers.slice(0, 12).map(p => {
+          const name = p.user_name || 'Usuario'
+          return (
+            <div key={p.user_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+              <span style={{ position: 'relative', display: 'inline-flex' }}>
+                <span style={{
+                  width: 22, height: 22, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--accent), var(--purple))',
+                  color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 800,
+                }}>{name.charAt(0).toUpperCase()}</span>
+                <span style={{
+                  position: 'absolute', bottom: 0, right: -2, width: 8, height: 8, borderRadius: '50%',
+                  background: p.status === 'online' ? 'var(--success)' : p.status === 'busy' ? 'var(--danger)' : 'var(--warning)',
+                  border: '1.5px solid var(--surface-1)',
+                }} />
+              </span>
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+              {p.is_in_call && <Phone size={10} style={{ color: 'var(--accent)' }} />}
+            </div>
+          )
+        })}
       </Section>
       {members.length > 0 && (
         <Section title={`Miembros (${members.length})`}>

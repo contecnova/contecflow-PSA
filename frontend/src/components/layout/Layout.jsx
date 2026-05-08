@@ -12,6 +12,7 @@ import AlertsDrawer from './AlertsDrawer'
 import Breadcrumbs from './Breadcrumbs'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import useNotificationBadges from '../../hooks/useNotificationBadges'
+import { useChatRealtime } from '../../context/ChatRealtimeContext'
 import OfflineIndicator from '../OfflineIndicator'
 import { useSwipeGesture } from '../../hooks/useSwipeGesture'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -489,8 +490,14 @@ function ShortcutsModal({ onClose, text }) {
 }
 
 function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin, text = {} }) {
-  const badge = item.to === '/alerts' ? alertCount : item.to === '/approvals' ? approvalCount : 0
-  const badgeColor = item.to === '/approvals' ? 'var(--warning)' : 'var(--danger)'
+  const { unread: chatUnread } = useChatRealtime()
+  const badge = item.to === '/alerts' ? alertCount
+              : item.to === '/approvals' ? approvalCount
+              : item.to === '/chat' ? chatUnread
+              : 0
+  const badgeColor = item.to === '/approvals' ? 'var(--warning)'
+                   : item.to === '/chat' ? 'var(--accent)'
+                   : 'var(--danger)'
   const displayLabel = getNavLabel(item.to, item.label, t)
   const isPinned = pinned?.includes(item.to)
   const [hover, setHover] = useState(false)

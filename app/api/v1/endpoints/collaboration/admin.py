@@ -86,7 +86,7 @@ def push_unsubscribe(endpoint: str = Body(..., embed=True), current_user: User =
              dependencies=[Depends(require_admin)])
 def run_digest(
     dry_run: bool = Query(False),
-    frequency: Optional[str] = Query(None, regex="^(daily|weekly)$"),
+    frequency: Optional[str] = Query(None, pattern="^(daily|weekly)$"),
     db: Session = Depends(get_db),
 ):
     from app.services.collaboration._email_digest import run as run_digest_svc

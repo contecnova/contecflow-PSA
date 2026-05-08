@@ -127,6 +127,84 @@ def test_attachment_dlp_block(client, admin_token):
     assert j["dlp_status"] == "blocked"
 
 
+def test_attachment_filename_sanitized_in_storage_key(client, admin_token, db):
+    from app.models.collaboration import CollaborationAttachment
+
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    r = client.post(
+        "/api/v1/collaboration/attachments",
+        data={"conversation_id": cid},
+        files={"file": ("../../evil.txt", b"safe-content", "text/plain")},
+        headers=h,
+    )
+    assert r.status_code == 200
+    att_id = r.json()["id"]
+    att = db.query(CollaborationAttachment).filter(CollaborationAttachment.id == att_id).first()
+    assert att is not None
+    assert att.name == "evil.txt"
+    assert ".." not in att.storage_key
+    assert "\\" not in att.storage_key
+
+
+def test_tus_filename_sanitized_in_storage_key(client, admin_token, db):
+    import base64
+    from app.models.collaboration import CollaborationAttachment
+    from app.models.user import User
+
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+
+    meta = ",".join([
+        f"filename {base64.b64encode('../../evil_tus.pdf'.encode()).decode()}",
+        f"conversationId {base64.b64encode(cid.encode()).decode()}",
+        f"filetype {base64.b64encode('application/pdf'.encode()).decode()}",
+    ])
+
+    create = client.post(
+        "/api/v1/collaboration/tus",
+        headers={
+            **h,
+            "Tus-Resumable": "1.0.0",
+            "Upload-Length": "4",
+            "Upload-Metadata": meta,
+        },
+    )
+    assert create.status_code == 201
+    location = create.headers.get("Location")
+    assert location
+    uid = location.rsplit("/", 1)[-1]
+
+    patch = client.patch(
+        f"/api/v1/collaboration/tus/{uid}",
+        content=b"%PDF",
+        headers={
+            **h,
+            "Tus-Resumable": "1.0.0",
+            "Upload-Offset": "0",
+            "Content-Type": "application/offset+octet-stream",
+        },
+    )
+    assert patch.status_code == 204
+
+    user = db.query(User).filter(User.username == "admin").first()
+    att = (
+        db.query(CollaborationAttachment)
+        .filter(
+            CollaborationAttachment.conversation_id == cid,
+            CollaborationAttachment.uploaded_by_user_id == user.id,
+            CollaborationAttachment.name == "evil_tus.pdf",
+        )
+        .order_by(CollaborationAttachment.created_at.desc())
+        .first()
+    )
+    assert att is not None
+    assert ".." not in att.storage_key
+    assert "\\" not in att.storage_key
+
+
 def test_call_lifecycle(client, admin_token):
     h = _auth_headers(admin_token)
     client.get("/api/v1/collaboration/workspace", headers=h)
@@ -230,9 +308,11 @@ def test_push_public_key(client, admin_token):
 def test_mention_suggestions(client, admin_token):
     h = _auth_headers(admin_token)
     client.get("/api/v1/collaboration/workspace", headers=h)
-    r = client.get("/api/v1/collaboration/mention-suggestions", params={"q": "ad"}, headers=h).json()
+    # query vacío: aparecen los 3 grupos especiales
+    r = client.get("/api/v1/collaboration/mention-suggestions", headers=h).json()
     assert "users" in r and "groups" in r
-    assert any(g["username"] == "everyone" for g in r["groups"]) or len(r["groups"]) >= 1
+    assert any(g["username"] == "everyone" for g in r["groups"])
+    assert any(g["username"] == "channel" for g in r["groups"])
 
 
 def test_link_message_to_task(client, admin_token, db):
@@ -240,16 +320,16 @@ def test_link_message_to_task(client, admin_token, db):
     client.get("/api/v1/collaboration/workspace", headers=h)
     cid = _conv_id(client, h)
     msg_id = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "anchor me"}, headers=h).json()["id"]
-    # crea tarea via slash y luego ancla
-    from app.models.project import Project
+    from datetime import date
+    from app.models.project import Project, ProjectType, ProjectStatus
     from app.models.task import Task
-    p = db.query(Project).first()
-    if not p:
-        # Crea un proyecto minimo
-        from datetime import date
-        p = Project(id="test-p", code="TEST", name="Test", organization_id=1, status="active", start_date=date.today(), created_by="admin-test-id")
-        db.add(p); db.commit()
-    t = Task(id="task-1", code="T-1", title="x", project_id=p.id, status="todo", priority="medium", organization_id=1, created_by="admin-test-id")
+    p = Project(
+        id="test-p", code="TESTP", name="Test", organization_id=1,
+        project_type=ProjectType.development, status=ProjectStatus.active,
+        start_date=date.today(), created_by="admin-test-id",
+    )
+    db.add(p); db.commit()
+    t = Task(id="task-1", code="T-1", title="x", project_id=p.id, status="todo", priority="medium", created_by="admin-test-id")
     db.add(t); db.commit()
     r = client.post(f"/api/v1/collaboration/messages/{msg_id}/link", json={"kind": "task", "id": t.id}, headers=h)
     assert r.status_code == 200
@@ -308,15 +388,17 @@ def test_scheduled_message_does_not_notify_immediately(client, admin_token, db):
 
 def test_project_auto_channel(client, admin_token, db):
     """Crear un proyecto debe disparar la creación de un team+canal collaboration."""
-    from app.models.project import Project
+    from datetime import date
+    from app.models.project import Project, ProjectType, ProjectStatus
     from app.models.collaboration import CollaborationChannel, CollaborationTeam
     from app.services.collaboration._project_sync import on_project_created
     from app.models.user import User
 
     creator = db.query(User).filter(User.username == "admin").first()
     proj = Project(
-        id="auto-p", code="AUTO", name="AutoProj", organization_id=1, status="active",
-        created_by=creator.id,
+        id="auto-p", code="AUTO", name="AutoProj", organization_id=1,
+        project_type=ProjectType.development, status=ProjectStatus.active,
+        start_date=date.today(), created_by=creator.id,
     )
     db.add(proj); db.commit()
     on_project_created(db, proj, creator)
@@ -348,4 +430,51 @@ def test_text_extract_plain_text():
     from app.services.collaboration._text_extract import extract_text
     text = extract_text(b"Hola mundo, este es texto plano.", "test.txt", "text/plain")
     assert "Hola mundo" in text
+
+
+# ── Tests de bugs cazados en revisión final ─────────────────────────────────
+def test_upload_creates_visible_message(client, admin_token):
+    """Bug fix: subir archivo sin message_id debe crear un mensaje en la conversación."""
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    cid = _conv_id(client, h)
+    # Snapshot de mensajes antes
+    before = client.get(f"/api/v1/collaboration/conversations/{cid}/messages", headers=h).json()
+    before_count = len(before)
+    # Sube un archivo limpio
+    r = client.post(
+        "/api/v1/collaboration/attachments",
+        data={"conversation_id": cid},
+        files={"file": ("plan.txt", b"contenido limpio", "text/plain")},
+        headers=h,
+    )
+    assert r.status_code == 200
+    att_id = r.json()["id"]
+    # Tras la subida, debe haber un mensaje nuevo tipo "file" con el adjunto enlazado
+    after = client.get(f"/api/v1/collaboration/conversations/{cid}/messages", headers=h).json()
+    assert len(after) == before_count + 1
+    new_msg = after[-1]
+    assert new_msg["type"] == "file"
+    assert new_msg["has_attachments"] is True
+    assert any(a["id"] == att_id for a in new_msg["attachments"])
+
+
+def test_self_direct_blocked(client, admin_token, db):
+    """Bug fix: no se puede abrir un chat directo contigo mismo."""
+    from app.models.user import User
+    h = _auth_headers(admin_token)
+    me = db.query(User).filter(User.username == "admin").first()
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    r = client.post("/api/v1/collaboration/direct/open", json={"user_id": me.id}, headers=h)
+    assert r.status_code == 400
+
+
+def test_mention_suggestions_excludes_self(client, admin_token):
+    """Bug fix: las sugerencias de @mention no deben incluir al usuario actual."""
+    h = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h)
+    r = client.get("/api/v1/collaboration/mention-suggestions", headers=h).json()
+    # Ningún user de la lista debe ser el admin actual
+    me_in_list = any(u.get("username") == "admin" for u in r["users"])
+    assert not me_in_list
 

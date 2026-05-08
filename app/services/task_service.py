@@ -563,8 +563,9 @@ def add_comment_record(db: Session, task_id: str, payload, current_user):
 
 # ── Bulk dates ─────────────────────────────────────────────────────────────────
 
-def bulk_update_dates_record(db: Session, updates: list) -> dict:
+def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> dict:
     import logging
+    from app.core.abac_enforce import enforce_abac
 
     logger = logging.getLogger(__name__)
 
@@ -581,10 +582,20 @@ def bulk_update_dates_record(db: Session, updates: list) -> dict:
     updated = 0
     errors = []
     for u in updates:
-        task = db.query(TaskModel).filter(TaskModel.id == u.get("id")).first()
+        task_id = u.get("id")
+        task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
         if not task:
-            errors.append(u.get("id"))
+            errors.append({"id": task_id, "reason": "not_found"})
             continue
+        
+        # G5 Fix: Enforce ABAC for each task individually in bulk date update
+        if current_user:
+            try:
+                enforce_abac(db, current_user, "task", task.id, action="update")
+            except HTTPException:
+                errors.append({"id": task.id, "reason": "abac_denied"})
+                continue
+        
         if "start_date" in u:
             task.start_date = _to_date(u["start_date"])
         if "due_date" in u:

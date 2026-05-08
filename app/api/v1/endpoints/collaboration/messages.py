@@ -5,6 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
@@ -31,12 +32,19 @@ def list_messages(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Membership + ABAC explícito por conversación (defensa en profundidad).
+    assert_conversation_access(db, current_user, conversation_id)
+    enforce_abac(db, current_user, "collaboration_message", resource_id=conversation_id, action="read")
     rows = msg_svc.list_messages(db, current_user, conversation_id, before=before, limit=limit, thread_root=thread_root)
     return [MessageOut(**msg_svc._serialize_message(db, m)) for m in rows]
 
 
 @router.post("/messages", response_model=MessageOut, summary="Enviar mensaje")
 def send_message(payload: MessageCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Membership + ABAC por conversación cuando se envía por conversation_id.
+    if payload.conversation_id:
+        assert_conversation_access(db, current_user, payload.conversation_id)
+        enforce_abac(db, current_user, "collaboration_message", resource_id=payload.conversation_id, action="send")
     msg = msg_svc.send_message(
         db, current_user,
         body=payload.body,

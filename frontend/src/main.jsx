@@ -18,6 +18,7 @@ import App from './App'
 import { AppLangProvider } from './i18n/AppLangContext'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
+import ChatRealtimeProvider from './context/ChatRealtimeContext'
 import { useAppT } from './hooks/useAppT'
 import { initOfflineSync } from './services/offlineQueue'
 import api from './services/api'
@@ -148,9 +149,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <ToastProvider>
         <AuthProvider>
           <QueryClientProvider client={queryClient}>
-            <RootBoundary>
-              <App />
-            </RootBoundary>
+            <ChatRealtimeProvider>
+              <RootBoundary>
+                <App />
+              </RootBoundary>
+            </ChatRealtimeProvider>
           </QueryClientProvider>
         </AuthProvider>
       </ToastProvider>
