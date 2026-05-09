@@ -5,7 +5,7 @@ Contecflow v18 — Modelos adicionales para:
   3. Permisos granulares por proyecto (ya en enterprise.py — solo helpers aquí)
 """
 import uuid
-from sqlalchemy import Column, String, Boolean, Integer, Text, DateTime, ForeignKey
+from sqlalchemy import Column, String, Boolean, Integer, Text, DateTime, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -27,6 +27,7 @@ class WorkflowState(Base):
     icon        = Column(String(10), nullable=True)         # emoji
     is_initial  = Column(Boolean, default=False)            # estado de inicio
     is_final    = Column(Boolean, default=False)            # estado de cierre (cuenta como completado)
+    is_active   = Column(Boolean, default=True)             # Soft delete
     sort_order  = Column(Integer, default=0)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -45,6 +46,7 @@ class WorkflowTransition(Base):
     label           = Column(String(100), nullable=True)           # "Enviar a QA"
     required_role   = Column(String(50), nullable=True)            # solo este rol puede ejecutar
     requires_comment= Column(Boolean, default=False)               # obliga a añadir comentario
+    is_active       = Column(Boolean, default=True)                # Soft delete
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
 
     from_state = relationship("WorkflowState", foreign_keys=[from_state_id], back_populates="transitions_from")

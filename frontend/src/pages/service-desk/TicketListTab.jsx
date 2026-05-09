@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Search, AlertTriangle, Inbox } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Spinner, EmptyState, useSort, SortableTH } from '../../components/ui'
+import { Spinner, useSort, SortableTH } from '../../components/ui'
 import { ticketsApi } from '../../services/api'
 import { COLOR } from '../../constants/theme'
 import { PBadge, SBadge, fmtDate, PRIORITY_LABEL } from './sdUtils'
 
+// ── Row ─────────────────────────────────────────────────────────────────────
 function TRow({ t: ticket, onClick }) {
   const tr = useAppT()
   const now = new Date()
@@ -17,28 +19,41 @@ function TRow({ t: ticket, onClick }) {
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
       aria-label={`${ticket.number} ${ticket.title}`}
-      style={{ cursor: 'pointer', borderBottom: '1px solid var(--surface-4)' }}
+      style={{ cursor: 'pointer', borderBottom: '1px solid var(--surface-4)', transition: 'background 0.12s var(--easing)' }}
       onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-muted)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
-      <td style={{ padding: '10px 14px', fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>{ticket.number}</td>
+      <td style={{ padding: '10px 14px', fontSize: 'var(--text-sm)', color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+        {ticket.number}
+      </td>
       <td style={{ padding: '10px 8px', maxWidth: 320 }}>
-        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.title}</div>
-        {ticket.requester_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{ticket.requester_name}</div>}
+        <div style={{ fontSize: 'var(--text-base)', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {ticket.title}
+        </div>
+        {ticket.requester_name && (
+          <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>{ticket.requester_name}</div>
+        )}
       </td>
       <td style={{ padding: '10px 8px' }}><PBadge v={ticket.priority} /></td>
       <td style={{ padding: '10px 8px' }}><SBadge v={ticket.status} /></td>
-      <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{ticket.ticket_type?.replace(/_/g, ' ')}</td>
-      <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: overdue ? COLOR.danger : 'var(--text-2)', whiteSpace: 'nowrap' }}>
-        {due ? `${overdue ? '⚠ ' : ''}${fmtDate(due)}` : '—'}
+      <td style={{ padding: '10px 8px', fontSize: 'var(--text-xs)', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
+        {ticket.ticket_type?.replace(/_/g, ' ')}
       </td>
-      <td style={{ padding: '10px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+      <td style={{ padding: '10px 8px', fontSize: 'var(--text-xs)', color: overdue ? COLOR.danger : 'var(--text-2)', whiteSpace: 'nowrap' }}>
+        {due ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {overdue && <AlertTriangle size={11} />} {fmtDate(due)}
+          </span>
+        ) : '—'}
+      </td>
+      <td style={{ padding: '10px 14px', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
         {ticket.assigned_to?.full_name || <span style={{ color: 'var(--text-4)' }}>{tr('service_desk.unassigned')}</span>}
       </td>
     </tr>
   )
 }
 
+// ── Main ────────────────────────────────────────────────────────────────────
 export default function TicketListTab({ queueOnly, onSelect }) {
   const t = useAppT()
   const [search, setSearch] = useState('')
@@ -77,66 +92,101 @@ export default function TicketListTab({ queueOnly, onSelect }) {
 
   const { sort: ticketSort, setSort: setTicketSort, sortedData: sortedTickets } = useSort(filtered, 'number')
 
-  const IS = {
-    background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: "var(--text-sm)",
-    outline: 'none', fontFamily: 'inherit',
-  }
+  const hasFilters = !!(search || filterPrio || filterStatus || filterType)
 
   return (
-    <div>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <input
-          placeholder={t('service_desk.search_tickets')}
-          value={search}
-          aria-label={t('service_desk.search_tickets')}
-          onChange={e => setSearch(e.target.value)}
-          style={{ ...IS, flex: 1, minWidth: 200 }}
-        />
-        <select aria-label={t('service_desk.filter_all_priorities')} value={filterPrio} onChange={e => setFilterPrio(e.target.value)} style={IS}>
+    <div className="ds-stack-lg">
+      {/* Toolbar — search + filtros + contador */}
+      <div className="ds-toolbar">
+        <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: 380 }}>
+          <Search size={14} aria-hidden style={{
+            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--text-3)', pointerEvents: 'none',
+          }} />
+          <input
+            placeholder={t('service_desk.search_tickets')}
+            value={search}
+            aria-label={t('service_desk.search_tickets')}
+            onChange={e => setSearch(e.target.value)}
+            className="ds-input"
+            style={{ paddingLeft: 32 }}
+          />
+        </div>
+        <select aria-label={t('service_desk.filter_all_priorities')}
+          value={filterPrio} onChange={e => setFilterPrio(e.target.value)}
+          className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
           <option value="">{t('service_desk.filter_all_priorities')}</option>
           {['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p =>
             <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
         </select>
-        <select aria-label={t('service_desk.filter_all_statuses')} value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={IS}>
+        <select aria-label={t('service_desk.filter_all_statuses')}
+          value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
           <option value="">{t('service_desk.filter_all_statuses')}</option>
           {['new', 'assigned', 'in_progress', 'pending_client', 'resolved', 'closed'].map(s =>
             <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
         </select>
-        <select aria-label={t('service_desk.filter_all_types')} value={filterType} onChange={e => setFilterType(e.target.value)} style={IS}>
+        <select aria-label={t('service_desk.filter_all_types')}
+          value={filterType} onChange={e => setFilterType(e.target.value)}
+          className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
           <option value="">{t('service_desk.filter_all_types')}</option>
           {['incident', 'service_request', 'change', 'problem', 'question'].map(tk =>
             <option key={tk} value={tk}>{tk.replace(/_/g, ' ')}</option>)}
         </select>
+        <div className="ds-toolbar__spacer" />
+        {!isLoading && (
+          <span className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+            {filtered.length} ticket{filtered.length !== 1 ? 's' : ''}
+          </span>
+        )}
       </div>
 
-      {isLoading
-        ? <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
-        : filtered.length === 0
-          ? <EmptyState icon="🎫" title={t('service_desk.no_tickets')} description={t('service_desk.no_matching')} />
-          : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
-                    <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_number')}</SortableTH></th>
-                    <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_title')}</SortableTH></th>
-                    <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="priority" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_priority')}</SortableTH></th>
-                    <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_status')}</SortableTH></th>
-                    <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="ticket_type" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_type')}</SortableTH></th>
-                    <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="sla_due" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_sla_deadline')}</SortableTH></th>
-                    <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="assignee_name" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.assigned_to')}</SortableTH></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedTickets.map(tk => <TRow key={tk.id} t={tk} onClick={() => onSelect(tk)} />)}
-                </tbody>
-              </table>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', padding: '10px 4px' }}>
-                {filtered.length} ticket{filtered.length !== 1 ? 's' : ''}
-              </div>
-            </div>
-          )}
+      {/* Body */}
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: 'var(--space-9)' }}><Spinner /></div>
+      ) : filtered.length === 0 ? (
+        <div className="ds-empty">
+          <Inbox size={36} className="ds-empty__icon" />
+          <div className="ds-empty__title">
+            {hasFilters ? t('service_desk.no_matching') : t('service_desk.no_tickets')}
+          </div>
+          <div className="ds-empty__desc">
+            {hasFilters ? 'Prueba con otros filtros o quita la búsqueda.' : 'Cuando lleguen tickets aparecerán aquí.'}
+          </div>
+        </div>
+      ) : (
+        <div className="ds-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-base)' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-3)' }}>
+                  <th style={th}><SortableTH col="number" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_number')}</SortableTH></th>
+                  <th style={th}><SortableTH col="title" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_title')}</SortableTH></th>
+                  <th style={th}><SortableTH col="priority" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_priority')}</SortableTH></th>
+                  <th style={th}><SortableTH col="status" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_status')}</SortableTH></th>
+                  <th style={th}><SortableTH col="ticket_type" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_type')}</SortableTH></th>
+                  <th style={th}><SortableTH col="sla_due" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_sla_deadline')}</SortableTH></th>
+                  <th style={th}><SortableTH col="assignee_name" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.assigned_to')}</SortableTH></th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedTickets.map(tk => <TRow key={tk.id} t={tk} onClick={() => onSelect(tk)} />)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
+}
+
+const th = {
+  padding: '10px 8px',
+  whiteSpace: 'nowrap',
+  textAlign: 'left',
+  fontSize: 'var(--text-xs)',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  color: 'var(--text-3)',
 }

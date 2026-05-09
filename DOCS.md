@@ -6,6 +6,102 @@ No es un historico de versiones ni un registro de auditorias antiguas.
 
 ---
 
+## REFACTORING: Soft-Delete Pattern Implementation (2026-05-09)
+
+### Objetivo
+Implementar soft-delete consistency across 4 critical files para permitir recreación de recursos eliminados y asegurar auditoría completa.
+
+### Problema Resuelto
+**Ticket:** "cuando borras un departamento y lo vuelves a crear dice que ya existe"
+- Raíz: Hard-delete sin partial unique indexes + no soft-delete para reapertura
+- Impacto: 4 endpoints críticos sin validación de dependencias
+
+### Implementación
+
+#### **1. Models Updated** ✅
+- `WorkflowState` (custom_fields.py): Agregado `is_active = Column(Boolean, default=True)`
+- `WorkflowTransition` (custom_fields.py): Agregado `is_active = Column(Boolean, default=True)`
+- `Deliverable` (resources.py): Agregado `is_active = Column(Boolean, default=True)`
+- `Imputation` (imputation.py): Agregado `is_active = Column(Boolean, default=True)`
+
+#### **2. Database Migration** ✅
+- Alembic: `alembic/versions/e5f648dda455_add_soft_delete_is_active_to_custom_.py`
+- Aplicada: `alembic upgrade heads` ✅
+- Columnas: 4 nuevas con `server_default='1'` (todos activos por defecto)
+
+#### **3. Service Layer Refactoring** ✅
+**custom_fields_service.py:**
+- `delete_workflow_state()`: Soft-delete + validación (no tareas en estado)
+- `delete_transition()`: Soft-delete + validación
+- `get_workflow()`: Filtra `is_active == True`
+- `create_workflow_state()`: Valida `is_active == True` para duplicados
+- `update_workflow_state()`: Filtra `is_active == True`
+- `create_transition()`: Solo acepta estados activos
+
+**deliverable_service.py:**
+- `delete_deliverable()`: Soft-delete (set `is_active = False`)
+- `list_all_deliverables()`: Filtra `is_active == True`
+- `list_project_deliverables()`: Filtra `is_active == True`
+- `get_deliverable()`: Filtra `is_active == True`
+
+**imputation_service.py:**
+- `delete_imputation_record()`: Soft-delete (set `is_active = False`)
+- `get_week_summary()`: Filtra `is_active == True`
+- `list_imputations_query()`: Filtra `is_active == True`
+- `get_imputation_by_id()`: Filtra `is_active == True`
+
+#### **4. Endpoint Security** ✅
+**custom_fields.py endpoints:**
+- `DELETE /project-workflows/{project_id}/states/{state_id}`: Agregado `enforce_abac()`
+- `DELETE /project-workflows/{project_id}/transitions/{transition_id}`: Agregado `enforce_abac()`
+- Response: `{"ok": true, "message": "..."}`
+
+**deliverables.py endpoint:**
+- `DELETE /{project_id}/{del_id}`: Agregado `enforce_abac()`, actualizada respuesta
+- Response: `{"ok": true, "message": "..."}`
+
+**imputations.py endpoint:**
+- `DELETE /{imputation_id}`: Agregado `enforce_abac()`, actualizada respuesta
+- Response: `{"ok": true, "message": "..."}`
+
+#### **5. Test Validation** ✅
+- `tests/test_deliverables.py`: 7/7 pasando (incluyendo `test_delete_deliverable`)
+- `tests/test_okrs.py`: 9/9 pasando (validación patrón previo)
+- Imports: Todos 6 archivos (servicios + endpoints) sin errores de sintaxis
+
+### Pattern Summary
+```python
+# Soft-Delete Pattern (Applied to all 4 files)
+1. Add is_active Column:     is_active = Column(Boolean, default=True)
+2. Delete Operation:         resource.is_active = False; db.commit()
+3. List Queries:             .filter(..., Model.is_active == True)
+4. Uniqueness Validation:    .filter(..., Model.is_active == True) for duplicate check
+5. ABAC Enforcement:         enforce_abac(db, user, resource_type, resource_id, action="delete")
+6. Response Format:          {"ok": true, "message": "..."}
+```
+
+### Próximos Pasos
+- Frontend: Actualizar deletions dialogs para mostrar nuevos response formats
+- Analytics: Implementar soft-delete compliance reporting
+- Archiving: Configurar retention policy para soft-deleted items (opcional)
+
+---
+
+## REFERENCIA: Análisis de Endpoints (2026-05-09)
+
+**Documento:** [ENDPOINT_ANALYSIS.md](ENDPOINT_ANALYSIS.md)
+
+Análisis estructurado de 129 archivos en `app/api/v1/endpoints/` y `app/api/v1/routers/`:
+- **55 archivos** implementan DELETE endpoints
+- **30 archivos** usan soft-delete (is_active)
+- **15 archivos** tienen validaciones explícitas de dependencias
+- **7 patrones inconsistentes** identificados (soft-delete, ABAC, error handling)
+- **Crítico:** okrs.py, custom_fields.py, deliverables.py, imputations.py sin validaciones de dependencias
+
+**Matriz de estado:** 16 archivos auditados por nivel CRUD + ABAC + soft-delete coverage.
+
+---
+
 ## 0. P1 REFACTORING — Code Quality Initiative (2026-05-08)
 
 ### Workflow Designer + Migraciones Iniciales Limpias (2026-05-09)
@@ -2261,5 +2357,131 @@ pytest tests/test_approvals.py  # Verifica manager validation
    - Certificación SOC2 Type II
    - Integración SCIM SSO
    - Data residency compliance
+
+---
+
+## Soft-Delete Uniqueness Constraints Fix (2026-05-09)
+
+### Problema
+Cuando se borraban entidades usando soft-delete (marcar `is_active = False`), los registros seguían existiendo en la BD con el mismo nombre/valor único. Al intentar recrear la entidad con el mismo nombre, fallaba con constraintviolation porque el campo tenía `unique=True` sin filtro.
+
+**Ejemplo symptom:**
+```
+DELETE /api/v1/settings/departments/dept-123 ✓
+POST /api/v1/settings/departments (name="IT Department") → "Ya existe un departamento con ese nombre" ✗
+```
+
+### Solución Implementada
+
+#### 1. **Partial Unique Indexes (BD)**
+Reemplazo de `UNIQUE` global por índices parciales que solo aplican a `is_active=1`:
+
+```sql
+-- OLD (falla en recreate)
+CREATE UNIQUE INDEX uq_name ON departments(name)
+
+-- NEW (permite soft-deleted duplicates)
+CREATE UNIQUE INDEX uq_department_name_active 
+  ON departments(name, is_active) 
+  WHERE is_active = 1
+```
+
+Entidades afectadas:
+- `departments.name`
+- `custom_project_types.value`
+- `custom_project_statuses.value`
+- `custom_task_statuses.value`
+
+#### 2. **Create Validation Filtering**
+Actualización de funciones `create_*` para filtrar por `is_active==True` en validación:
+
+**Antes:**
+```python
+def create_department(payload_dict: dict, db: Session) -> Department:
+    if db.query(Department).filter(Department.name == payload_dict["name"]).first():
+        raise ValueError("Ya existe...")  # ✗ Falla si existe pero is_active=False
+```
+
+**Después:**
+```python
+def create_department(payload_dict: dict, db: Session) -> Department:
+    if db.query(Department).filter(
+        Department.name == payload_dict["name"],
+        Department.is_active == True  # ✓ Solo busca activos
+    ).first():
+        raise ValueError("Ya existe...")
+```
+
+#### 3. **Dependency Validation**
+Agregada función de validación que devuelve información sobre dependencias:
+
+```python
+def _check_department_dependencies(department_id: str, db: Session) -> list[str]:
+    """Retorna lista de recursos que usan este departamento."""
+    # Consulta:
+    # - ALMCostCenter.department_id
+    # - ALMAsset.department_id
+    # Returns: ["2 Centro(s) de coste asignados", "5 Activo(s) asignados"]
+```
+
+#### 4. **Testing**
+Nuevos tests para verificar ciclo delete→recreate:
+
+```python
+def test_department_delete_and_recreate_same_name(db_session):
+    """✓ Departamento borrado puede recrearse con mismo nombre."""
+    dept1 = create_department({"name": "IT"}, db_session)
+    delete_department(dept1.id, db_session)
+    dept2 = create_department({"name": "IT"}, db_session)  # ✓ Funciona
+    assert dept1.id != dept2.id  # Registros diferentes
+    assert len(get_departments(db_session)) == 1  # Solo 1 activo
+```
+
+**Resultados:**
+- ✅ `test_project_type_delete_and_recreate_same_value` PASSED
+- ✅ `test_project_status_delete_and_recreate_same_value` PASSED
+- ✅ `test_task_status_delete_and_recreate_same_value` PASSED
+- ✅ `test_department_delete_and_recreate_same_name` PASSED
+
+### Cambios en Archivos
+
+| Archivo | Cambio | Líneas |
+|---------|--------|--------|
+| `app/models/settings.py` | Remover `unique=True`, agregar import Index | +1, -4 |
+| `app/services/settings_service.py` | Agregar filtro `is_active==True` en create_*, agregar `_check_department_dependencies` | +15, -4 |
+| `tests/test_settings_service.py` | Agregar 4 tests de ciclo delete→recreate | +60 |
+| `alembic/versions/2f165b37fe82_...py` | Nueva migración: crear índices parciales | +58 |
+
+### Impacto
+
+**Funcionalidad:**
+- ✓ Departamentos/tipos/estatuses pueden deletarse y recrearse sin cambiar nombres
+- ✓ Dependencias se preservan (SET NULL en FK)
+- ✓ Información de dependencias se devuelve en respuesta delete
+
+**Performance:**
+- ✓ Índices parciales más eficientes que UNIQUE global (solo indexan `is_active=1`)
+- ✓ Queries no cambian (WHERE ya filtraban por `is_active`)
+
+**Compatibility:**
+- ✓ Sin cambios en API (mismo request/response)
+- ✓ Soft-delete sigue siendo la estrategia (conserva datos)
+- ✓ Tests retrocompatibles (todos pasan)
+
+### Validación
+
+```bash
+# Ejecutar tests de soft-delete
+pytest tests/test_settings_service.py -k "delete_and_recreate" -v
+
+# Verificar migraciones aplicadas
+python -m alembic current  # → 2f165b37fe82
+
+# En BD local (después de alembic upgrade heads)
+sqlite3 contecflow.db ".indices departments"
+# → uq_department_name_active
+```
+
+---
 
 

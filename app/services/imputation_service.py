@@ -606,7 +606,7 @@ def stop_timer_session(payload, current_user: User, db: Session):
         joinedload(Imputation.user),
         joinedload(Imputation.task),
         joinedload(Imputation.project),
-    ).filter(Imputation.id == imputation.id).first()
+    ).filter(Imputation.id == imputation.id, Imputation.is_active == True).first()
     return imputation
 
 
@@ -785,6 +785,7 @@ def get_week_summary(week_start: Optional[date], current_user: User, db: Session
         Imputation.user_id == current_user.id,
         Imputation.date >= week_start,
         Imputation.date <= week_end,
+        Imputation.is_active == True,
     ).all()
 
     total_hours = sum(i.hours for i in imputations)
@@ -837,7 +838,7 @@ def list_imputations_query(
         joinedload(Imputation.user),
         joinedload(Imputation.task),
         joinedload(Imputation.project),
-    )
+    ).filter(Imputation.is_active == True)
 
     # Scope: employees and subcontractors only see their own imputations
     if current_user.role in ("employee", "subcontractor"):
@@ -871,12 +872,13 @@ def get_imputation_by_id(db: Session, imputation_id: str):
         joinedload(Imputation.user),
         joinedload(Imputation.task),
         joinedload(Imputation.project),
-    ).filter(Imputation.id == imputation_id).first()
+    ).filter(Imputation.id == imputation_id, Imputation.is_active == True).first()
 
 
 def delete_imputation_record(db: Session, imp) -> None:
+    """Soft-delete an imputation."""
     user_id = imp.user_id
     work_date = imp.date
-    db.delete(imp)
+    imp.is_active = False
     db.commit()
     sync_imputation_week_timesheet(db, user_id, work_date)

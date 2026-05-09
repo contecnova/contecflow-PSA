@@ -80,10 +80,13 @@ def test_delete_objective_cascades_krs(client, admin_token, db):
     client.post("/api/v1/okrs/key-results",
         headers=auth(admin_token),
         json={"objective_id": obj_id, "title": "KR huerfano", "kr_type": "percentage", "target_value": 100})
-    # Borrar el objetivo
+    # Borrar el objetivo (soft delete, cascades a KRs)
     del_res = client.delete(f"/api/v1/okrs/{obj_id}", headers=auth(admin_token))
     assert del_res.status_code == 200
-    # Verificar que no aparece en la lista
+    data = del_res.json()
+    assert data["ok"] is True
+    assert data["kr_count"] == 1  # 1 KR cascaded to soft-delete
+    # Verificar que no aparece en la lista (is_active filtering)
     objs = client.get("/api/v1/okrs?year=2026", headers=auth(admin_token)).json()
     assert not any(o["id"] == obj_id for o in objs)
 
@@ -110,4 +113,4 @@ def test_delete_key_result(client, admin_token, db):
     ).json()["id"]
     res = client.delete(f"/api/v1/okrs/key-results/{kr_id}", headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["deleted"] is True
+    assert res.json()["ok"] is True

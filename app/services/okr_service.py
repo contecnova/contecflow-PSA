@@ -162,7 +162,10 @@ def list_objectives(
     q = db.query(Objective).options(
         joinedload(Objective.key_results).joinedload(KeyResult.owner),
         joinedload(Objective.owner),
-    ).filter(Objective.year == year)
+    ).filter(
+        Objective.year == year,
+        Objective.is_active == True  # Soft-delete filter
+    )
     if not is_superadmin and organization_id:
         org_user_ids = db.query(User.id).filter(
             User.organization_id == organization_id
@@ -205,9 +208,26 @@ def update_objective(db: Session, obj: Objective, data: dict) -> Objective:
     return obj
 
 
-def delete_objective(db: Session, obj: Objective) -> None:
-    db.delete(obj)
+def delete_objective(db: Session, obj: Objective) -> dict:
+    """Soft-delete an objective (soft delete). Cascades to soft-delete active KRs."""
+    # Soft-delete all active key results (cascade)
+    active_krs = db.query(KeyResult).filter(
+        KeyResult.objective_id == obj.id,
+        KeyResult.is_active == True
+    ).all()
+    
+    for kr in active_krs:
+        kr.is_active = False
+    
+    # Perform soft delete of objective
+    obj.is_active = False
     db.commit()
+    
+    return {
+        "ok": True,
+        "message": f"Objetivo eliminado junto con {len(active_krs)} Key Result(s) (soft delete)",
+        "kr_count": len(active_krs)
+    }
 
 
 def get_key_result(db: Session, kr_id: str) -> Optional[KeyResult]:
@@ -232,9 +252,14 @@ def update_kr(db: Session, kr: KeyResult, data: dict) -> KeyResult:
     return kr
 
 
-def delete_kr(db: Session, kr: KeyResult) -> None:
-    db.delete(kr)
+def delete_kr(db: Session, kr: KeyResult) -> dict:
+    """Soft-delete a key result (soft delete)."""
+    kr.is_active = False
     db.commit()
+    return {
+        "ok": True,
+        "message": "Key Result eliminado (soft delete)"
+    }
 
 
 def checkin_kr(

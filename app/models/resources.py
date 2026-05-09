@@ -225,6 +225,7 @@ class Deliverable(Base):
     document_url = Column(String(500), nullable=True)
 
     sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)  # Soft delete
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

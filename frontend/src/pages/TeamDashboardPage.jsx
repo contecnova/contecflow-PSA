@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { usersApi, analyticsApi, okrsApi, performanceApi, trainingApi, absencesApi } from '../services/api'
 import { Spinner } from '../components/ui'
-import { Users } from 'lucide-react'
 import {
-  COLOR, DashPageShell, KpiCard, GaugeCard, BarRow, SectionCard, DashEmpty,
+  Users, Target, Star, GraduationCap, Plane, Zap,
+} from 'lucide-react'
+import {
+  COLOR, DashPageShell, KpiCard, KpiIcon, GaugeCard, BarRow, SectionCard, DashEmpty,
   dateRange, typePalette,
 } from '../components/dashboard/DashKit'
 
@@ -133,95 +135,97 @@ export default function TeamDashboardPage() {
       days={days} setDays={setDays}
       periods={[30, 90, 365]}
     >
-      {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 14 }}>
-        <KpiCard icon="👥" label="Personas en equipo"
-          value={teamSize} color="var(--text-1)" accentBar={COLOR.accent} />
-        <KpiCard icon="📊" label="OKRs activos"
-          value={totalOkrs} color={COLOR.purple} accentBar={COLOR.purple}
-          sub={completedOkrs > 0 ? `${completedOkrs} completados` : undefined} />
-        <KpiCard icon="⭐" label="Reviews pendientes"
-          value={pendingReviews}
-          color={pendingReviews > 0 ? COLOR.warning : COLOR.success}
-          accentBar={pendingReviews > 0 ? COLOR.warning : COLOR.success}
-          sub={completedReviews > 0 ? `${completedReviews} completadas` : undefined} />
-        <KpiCard icon="🎓" label="Formaciones"
-          value={trainingTotal}
-          color={COLOR.accent} accentBar={COLOR.accent}
-          sub={`${trainingCompleted} completadas · ${trainingInProgress} en curso`} />
-        <KpiCard icon="🏖" label="Ausencias hoy"
-          value={todayAbsences}
-          color={todayAbsences > 0 ? COLOR.warning : COLOR.success}
-          accentBar={todayAbsences > 0 ? COLOR.warning : COLOR.success} />
-        <KpiCard icon="⚡" label="Ausencias pendientes"
-          value={absences.filter(a => a.status === 'pending').length}
-          color={COLOR.purple} accentBar={COLOR.purple} />
-      </div>
+      <div className="ds-page">
+        {/* KPI row */}
+        <div className="ds-grid-stats">
+          <KpiCard icon={<KpiIcon icon={Users} />} label="Personas en equipo"
+            value={teamSize} color="var(--text-1)" accentBar={COLOR.accent} />
+          <KpiCard icon={<KpiIcon icon={Target} />} label="OKRs activos"
+            value={totalOkrs} color={COLOR.purple} accentBar={COLOR.purple}
+            sub={completedOkrs > 0 ? `${completedOkrs} completados` : undefined} />
+          <KpiCard icon={<KpiIcon icon={Star} />} label="Reviews pendientes"
+            value={pendingReviews}
+            color={pendingReviews > 0 ? COLOR.warning : COLOR.success}
+            accentBar={pendingReviews > 0 ? COLOR.warning : COLOR.success}
+            sub={completedReviews > 0 ? `${completedReviews} completadas` : undefined} />
+          <KpiCard icon={<KpiIcon icon={GraduationCap} />} label="Formaciones"
+            value={trainingTotal}
+            color={COLOR.accent} accentBar={COLOR.accent}
+            sub={`${trainingCompleted} completadas · ${trainingInProgress} en curso`} />
+          <KpiCard icon={<KpiIcon icon={Plane} />} label="Ausencias hoy"
+            value={todayAbsences}
+            color={todayAbsences > 0 ? COLOR.warning : COLOR.success}
+            accentBar={todayAbsences > 0 ? COLOR.warning : COLOR.success} />
+          <KpiCard icon={<KpiIcon icon={Zap} />} label="Ausencias pendientes"
+            value={absences.filter(a => a.status === 'pending').length}
+            color={COLOR.purple} accentBar={COLOR.purple} />
+        </div>
 
-      {/* Gauges */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 20 }}>
-        {utilPct != null && (
-          <GaugeCard label="Utilización media equipo"
-            value={utilPct} color={utilColor}
-            sub={utilPct >= 70 ? 'Buen aprovechamiento' : utilPct >= 50 ? 'Capacidad disponible' : 'Baja ocupación'} />
-        )}
-        {okrPct != null && (
-          <GaugeCard label="OKRs completados"
-            value={okrPct} color={okrColor}
-            sub={`${completedOkrs} de ${totalOkrs} objetivos`} />
-        )}
-        {trainingTotal > 0 && (
-          <GaugeCard label="Formación completada"
-            value={Math.round((trainingCompleted / trainingTotal) * 100)}
-            color={COLOR.success}
-            sub={`${trainingCompleted} de ${trainingTotal} formaciones`} />
-        )}
-      </div>
+        {/* Gauges */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
+          {utilPct != null && (
+            <GaugeCard label="Utilización media equipo"
+              value={utilPct} color={utilColor}
+              sub={utilPct >= 70 ? 'Buen aprovechamiento' : utilPct >= 50 ? 'Capacidad disponible' : 'Baja ocupación'} />
+          )}
+          {okrPct != null && (
+            <GaugeCard label="OKRs completados"
+              value={okrPct} color={okrColor}
+              sub={`${completedOkrs} de ${totalOkrs} objetivos`} />
+          )}
+          {trainingTotal > 0 && (
+            <GaugeCard label="Formación completada"
+              value={Math.round((trainingCompleted / trainingTotal) * 100)}
+              color={COLOR.success}
+              sub={`${trainingCompleted} de ${trainingTotal} formaciones`} />
+          )}
+        </div>
 
-      {/* Distribution charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14, marginBottom: 20 }}>
-        <SectionCard title="Distribución por departamento" badge={deptRows.length}>
-          {deptRows.length === 0
-            ? <DashEmpty icon="🏢" title="Sin departamentos definidos" />
-            : deptRows.map((row, i) => (
-                <BarRow key={row.label}
-                  label={row.label} count={row.count}
-                  total={Math.max(teamSize, 1)}
-                  color={typePalette[i % typePalette.length]} />
+        {/* Distribution charts */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-3)' }}>
+          <SectionCard title="Distribución por departamento" badge={deptRows.length}>
+            {deptRows.length === 0
+              ? <DashEmpty title="Sin departamentos definidos" />
+              : deptRows.map((row, i) => (
+                  <BarRow key={row.label}
+                    label={row.label} count={row.count}
+                    total={Math.max(teamSize, 1)}
+                    color={typePalette[i % typePalette.length]} />
+                ))
+            }
+          </SectionCard>
+
+          <SectionCard title="Distribución por rol" badge={roleRows.length}>
+            {roleRows.length === 0
+              ? <DashEmpty title="Sin roles definidos" />
+              : roleRows.map((row, i) => (
+                  <BarRow key={row.label}
+                    label={row.label} count={row.count}
+                    total={Math.max(teamSize, 1)}
+                    color={typePalette[(i + 2) % typePalette.length]} />
+                ))
+            }
+          </SectionCard>
+        </div>
+
+        {/* OKRs breakdown */}
+        {okrs.length > 0 && (
+          <SectionCard title="Estado de OKRs" badge={totalOkrs}>
+            {(() => {
+              const groups = [
+                { label: 'Completados', count: okrBuckets.completed   || 0, color: COLOR.success },
+                { label: 'En progreso', count: okrBuckets.in_progress || 0, color: COLOR.accent },
+                { label: 'Sin iniciar', count: okrBuckets.pending     || 0, color: 'var(--text-3)' },
+                { label: 'Cancelados',  count: okrBuckets.cancelled   || 0, color: COLOR.danger },
+              ].filter(g => g.count > 0)
+              return groups.map(g => (
+                <BarRow key={g.label} label={g.label}
+                  count={g.count} total={Math.max(totalOkrs, 1)} color={g.color} />
               ))
-          }
-        </SectionCard>
-
-        <SectionCard title="Distribución por rol" badge={roleRows.length}>
-          {roleRows.length === 0
-            ? <DashEmpty icon="👤" title="Sin roles definidos" />
-            : roleRows.map((row, i) => (
-                <BarRow key={row.label}
-                  label={row.label} count={row.count}
-                  total={Math.max(teamSize, 1)}
-                  color={typePalette[(i + 2) % typePalette.length]} />
-              ))
-          }
-        </SectionCard>
+            })()}
+          </SectionCard>
+        )}
       </div>
-
-      {/* OKRs breakdown */}
-      {okrs.length > 0 && (
-        <SectionCard title="Estado de OKRs" badge={totalOkrs}>
-          {(() => {
-            const groups = [
-              { label: 'Completados', count: okrBuckets.completed   || 0, color: COLOR.success },
-              { label: 'En progreso', count: okrBuckets.in_progress || 0, color: COLOR.accent },
-              { label: 'Sin iniciar', count: okrBuckets.pending     || 0, color: 'var(--text-3)' },
-              { label: 'Cancelados',  count: okrBuckets.cancelled   || 0, color: COLOR.danger },
-            ].filter(g => g.count > 0)
-            return groups.map(g => (
-              <BarRow key={g.label} label={g.label}
-                count={g.count} total={Math.max(totalOkrs, 1)} color={g.color} />
-            ))
-          })()}
-        </SectionCard>
-      )}
     </DashPageShell>
   )
 }

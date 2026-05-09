@@ -14,6 +14,7 @@ from app.schemas.custom_fields import CustomFieldIn, FieldValueIn, WorkflowState
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 import app.services.custom_fields_service as _svc
 
@@ -126,12 +127,13 @@ def update_workflow_state(
     return _svc.update_workflow_state(project_id, state_id, payload, db)
 
 
-@router.delete("/project-workflows/{project_id}/states/{state_id}", summary="Eliminar estado")
+@router.delete("/project-workflows/{project_id}/states/{state_id}", summary="Eliminar estado (soft delete)")
 def delete_workflow_state(
     project_id: str, state_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    user: User = Depends(require_admin_or_pm),
 ):
+    enforce_abac(db, user, "workflow_state", state_id, action="delete")
     return _svc.delete_workflow_state(project_id, state_id, db)
 
 
@@ -145,12 +147,13 @@ def create_transition(
     return _svc.create_transition(project_id, payload, db)
 
 
-@router.delete("/project-workflows/{project_id}/transitions/{transition_id}", summary="Eliminar transición")
+@router.delete("/project-workflows/{project_id}/transitions/{transition_id}", summary="Eliminar transición (soft delete)")
 def delete_transition(
     project_id: str, transition_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    user: User = Depends(require_admin_or_pm),
 ):
+    enforce_abac(db, user, "workflow_transition", transition_id, action="delete")
     return _svc.delete_transition(project_id, transition_id, db)
 
 

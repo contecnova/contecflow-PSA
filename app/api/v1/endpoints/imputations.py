@@ -5,6 +5,7 @@ from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.schemas import ImputationCreate, ImputationUpdate, ImputationOut, WeekSummary
 from app.schemas.time_tracking import TimerSessionOut, TimerStartPayload, TimerStopPayload, ImputationAlertOut, LockoutStatusOut
@@ -86,7 +87,7 @@ def update_imputation(
     return update_imputation_fields(imp, payload, db, current_user)
 
 
-@router.delete("/{imputation_id}", summary="Eliminar imputación")
+@router.delete("/{imputation_id}", summary="Eliminar imputación (soft delete)")
 def delete_imputation(
     imputation_id: str,
     db: Session = Depends(get_db),
@@ -97,9 +98,10 @@ def delete_imputation(
         raise HTTPException(status_code=404, detail="Imputación no encontrada")
 
     validate_imputation_edit_allowed(imp, current_user, db)
+    enforce_abac(db, current_user, "imputation", imputation_id, action="delete")
 
     delete_imputation_record(db, imp)
-    return {"message": "Imputación eliminada"}
+    return {"ok": True, "message": "Imputación eliminada"}
 
 
 @router.post("/{imputation_id}/approve", summary="Aprobar imputación (manager)")

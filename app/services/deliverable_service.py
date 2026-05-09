@@ -15,7 +15,7 @@ def list_all_deliverables(db: Session) -> list[Deliverable]:
     return (
         db.query(Deliverable)
         .options(joinedload(Deliverable.owner), joinedload(Deliverable.project))
-        .filter(Deliverable.status.notin_(["accepted"]))
+        .filter(Deliverable.status.notin_(["accepted"]), Deliverable.is_active == True)
         .order_by(Deliverable.planned_date)
         .all()
     )
@@ -27,7 +27,7 @@ def list_project_deliverables(
     q = (
         db.query(Deliverable)
         .options(joinedload(Deliverable.owner))
-        .filter(Deliverable.project_id == project_id)
+        .filter(Deliverable.project_id == project_id, Deliverable.is_active == True)
     )
     if status:
         q = q.filter(Deliverable.status == status)
@@ -35,7 +35,7 @@ def list_project_deliverables(
 
 
 def get_deliverable(db: Session, del_id: str, project_id: Optional[str] = None) -> Optional[Deliverable]:
-    q = db.query(Deliverable).filter(Deliverable.id == del_id)
+    q = db.query(Deliverable).filter(Deliverable.id == del_id, Deliverable.is_active == True)
     if project_id is not None:
         q = q.filter(Deliverable.project_id == project_id)
     return q.first()
@@ -97,7 +97,8 @@ def mark_rejected(db: Session, d: Deliverable, reason: str) -> Deliverable:
 
 
 def delete_deliverable(db: Session, d: Deliverable) -> None:
-    db.delete(d)
+    """Soft-delete a deliverable."""
+    d.is_active = False
     db.commit()
 
 

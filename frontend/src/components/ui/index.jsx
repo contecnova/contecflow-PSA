@@ -7,6 +7,10 @@ export { default as IconButton } from './IconButton'
 export { default as Tabs, TabPanel } from './Tabs'
 export { default as Toolbar } from './Toolbar'
 export { default as FormField } from './FormField'
+// Design system v2 primitivos
+export { default as Page } from './Page'
+export { default as Section } from './Section'
+export { default as StatusBadge } from './StatusBadge'
 
 export {
   ClientSelect, UserSelect, ProjectSelect,

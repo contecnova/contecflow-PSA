@@ -1,8 +1,8 @@
 """Módulo OKRs — Objectives and Key Results."""
 import uuid
 import enum
-from sqlalchemy import Column, String, Text, Float, Integer, ForeignKey, Date
-from sqlalchemy import DateTime, Enum
+from sqlalchemy import Column, String, Text, Float, Integer, ForeignKey, Date, Boolean
+from sqlalchemy import DateTime, Enum, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -34,6 +34,7 @@ class Objective(Base):
     year        = Column(Integer, nullable=False, default=lambda: __import__('datetime').datetime.now().year)
     status      = Column(Enum(OKRStatus), default=OKRStatus.draft)
     progress    = Column(Float, default=0.0)   # 0-100, calculado de KRs
+    is_active   = Column(Boolean, default=True)  # Soft delete
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
     owner       = relationship("User", foreign_keys=[owner_id])
@@ -63,6 +64,7 @@ class KeyResult(Base):
     due_date      = Column(Date, nullable=True)
     progress      = Column(Float, default=0.0)   # 0-100
     notes         = Column(Text, nullable=True)
+    is_active     = Column(Boolean, default=True)  # Soft delete
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), onupdate=func.now())
     objective     = relationship("Objective", back_populates="key_results")

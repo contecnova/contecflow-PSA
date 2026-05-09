@@ -4,39 +4,10 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { usersApi, cmdbApi } from '../services/api'
-import { Button, Spinner, EmptyState } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
+import { Button, Spinner } from '../components/ui'
+import { Page } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
-import { BarChart2 } from 'lucide-react'
-
-const ps = {
-  background: 'var(--surface-2)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 'var(--radius-lg)',
-  padding: 'var(--space-6) var(--space-8)',
-}
-const is = {
-  width: '100%',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 'var(--radius-md)',
-  padding: 'var(--space-3) var(--space-3)',
-  color: 'var(--text-1)',
-  fontSize: '13px',
-  outline: 'none',
-  fontFamily: 'var(--font-sans)',
-  boxSizing: 'border-box',
-}
-const ls = {
-  fontSize: '11px',
-  fontWeight: 600,
-  color: 'var(--text-2)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.07em',
-  display: 'block',
-  marginBottom: 'var(--space-1)',
-}
+import { BarChart2, Camera, User } from 'lucide-react'
 
 const TOOLTIP_STYLE = {
   background: 'var(--surface-2)',

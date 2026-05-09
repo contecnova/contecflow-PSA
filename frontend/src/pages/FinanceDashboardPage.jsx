@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { currencyApi, userCostsApi, unwrapList } from '../services/api'
-import { DollarSign } from 'lucide-react'
+import {
+  DollarSign, TrendingUp, TrendingDown, CheckCircle2, Building2, Target, FileText,
+  Calculator, AlertTriangle, Ruler, X, Plus,
+} from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
 import {
-  COLOR, DashPageShell, KpiCard, KpiCardSkeleton, GaugeCard, BarRow, SectionCard, DashEmpty,
+  COLOR, DashPageShell, KpiCard, KpiIcon, KpiCardSkeleton, GaugeCard, BarRow, SectionCard, DashEmpty,
   dateRange, fmtCur, typePalette,
 } from '../components/dashboard/DashKit'
 
@@ -120,59 +123,60 @@ export default function FinanceDashboardPage() {
       days={days} setDays={setDays}
       periods={[30, 90, 365]}
     >
-      {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 14 }}>
-        {(lp || lc) ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : <>
-        <KpiCard icon="📈" label="Ingresos"
-          value={fmtCur(revenue, lang)}
-          color={COLOR.accent} accentBar={COLOR.accent} />
-        <KpiCard icon="💸" label="Costes"
-          value={fmtCur(costs, lang)}
-          color={COLOR.warning} accentBar={COLOR.warning} />
-        <KpiCard icon="✅" label="Margen bruto"
-          value={fmtCur(margin, lang)}
-          color={margin >= 0 ? COLOR.success : COLOR.danger}
-          accentBar={margin >= 0 ? COLOR.success : COLOR.danger}
-          sub={marginPct != null ? `${marginPct}% de margen` : undefined} />
-        <KpiCard icon="🏢" label="Clientes activos"
-          value={activeClients} color={COLOR.accent} accentBar={COLOR.accent}
-          sub={`${clients.length} total`} />
-        <KpiCard icon="🎯" label="Pipeline"
-          value={fmtCur(pipelineValue, lang)}
-          color={COLOR.purple} accentBar={COLOR.purple}
-          sub={`${openOpportunities} oportunidades abiertas`} />
-        <KpiCard icon="📄" label="Facturas pendientes"
-          value={fmtCur(pendingAmount, lang)}
-          color={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
-          accentBar={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
-          sub={overdueAmount > 0 ? `${fmtCur(overdueAmount, lang)} vencidas` : `${pendingInvoices.length} por cobrar`} />
-        </>}
-      </div>
-
-      {/* Cost-structure KPIs (admin/hr only) */}
-      {costSummary && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>
-          <KpiCard icon="🧮" label="Coste/hora medio"
-            value={fmtCur(costSummary.avg_cost_per_hour, lang)}
-            color={COLOR.accent} accentBar={COLOR.accent}
-            sub={`${costSummary.users_with_cost} de ${costSummary.total_users} personas`} />
-          <KpiCard icon="⚠️" label="Sin estructura de coste"
-            value={costSummary.users_missing_cost}
-            color={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
-            accentBar={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
-            sub={costSummary.users_missing_cost > 0 ? 'Margen real incompleto' : 'Margen real fiable'} />
-          {revenue > 0 && costSummary.avg_cost_per_hour > 0 && (
-            <KpiCard icon="📐" label="Margen real estimado"
-              value={`${Math.round(((revenue - costs) / revenue) * 100)}%`}
+      <div className="ds-page">
+        {/* KPI row */}
+        <div className="ds-grid-stats">
+          {(lp || lc) ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : <>
+            <KpiCard icon={<KpiIcon icon={TrendingUp} />} label="Ingresos"
+              value={fmtCur(revenue, lang)}
+              color={COLOR.accent} accentBar={COLOR.accent} />
+            <KpiCard icon={<KpiIcon icon={TrendingDown} />} label="Costes"
+              value={fmtCur(costs, lang)}
+              color={COLOR.warning} accentBar={COLOR.warning} />
+            <KpiCard icon={<KpiIcon icon={CheckCircle2} />} label="Margen bruto"
+              value={fmtCur(margin, lang)}
+              color={margin >= 0 ? COLOR.success : COLOR.danger}
+              accentBar={margin >= 0 ? COLOR.success : COLOR.danger}
+              sub={marginPct != null ? `${marginPct}% de margen` : undefined} />
+            <KpiCard icon={<KpiIcon icon={Building2} />} label="Clientes activos"
+              value={activeClients} color={COLOR.accent} accentBar={COLOR.accent}
+              sub={`${clients.length} total`} />
+            <KpiCard icon={<KpiIcon icon={Target} />} label="Pipeline"
+              value={fmtCur(pipelineValue, lang)}
               color={COLOR.purple} accentBar={COLOR.purple}
-              sub="Snapshots actualizados con coste real al imputar" />
-          )}
+              sub={`${openOpportunities} oportunidades abiertas`} />
+            <KpiCard icon={<KpiIcon icon={FileText} />} label="Facturas pendientes"
+              value={fmtCur(pendingAmount, lang)}
+              color={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
+              accentBar={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
+              sub={overdueAmount > 0 ? `${fmtCur(overdueAmount, lang)} vencidas` : `${pendingInvoices.length} por cobrar`} />
+          </>}
         </div>
-      )}
+
+        {/* Cost-structure KPIs (admin/hr only) */}
+        {costSummary && (
+          <div className="ds-grid-stats">
+            <KpiCard icon={<KpiIcon icon={Calculator} />} label="Coste/hora medio"
+              value={fmtCur(costSummary.avg_cost_per_hour, lang)}
+              color={COLOR.accent} accentBar={COLOR.accent}
+              sub={`${costSummary.users_with_cost} de ${costSummary.total_users} personas`} />
+            <KpiCard icon={<KpiIcon icon={AlertTriangle} />} label="Sin estructura de coste"
+              value={costSummary.users_missing_cost}
+              color={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
+              accentBar={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
+              sub={costSummary.users_missing_cost > 0 ? 'Margen real incompleto' : 'Margen real fiable'} />
+            {revenue > 0 && costSummary.avg_cost_per_hour > 0 && (
+              <KpiCard icon={<KpiIcon icon={Ruler} />} label="Margen real estimado"
+                value={`${Math.round(((revenue - costs) / revenue) * 100)}%`}
+                color={COLOR.purple} accentBar={COLOR.purple}
+                sub="Snapshots actualizados con coste real al imputar" />
+            )}
+          </div>
+        )}
 
       {/* Gauges */}
       {!lp && marginPct != null && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
           <GaugeCard label="Margen bruto"
             value={marginPct} color={marginColor}
             sub={marginPct >= 30 ? 'Rentabilidad excelente' : marginPct >= 15 ? 'Rentabilidad aceptable' : 'Margen bajo — revisar costes'} />
@@ -192,11 +196,11 @@ export default function FinanceDashboardPage() {
       )}
 
       {/* Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-3)' }}>
         {/* Top clients */}
         <SectionCard title="Top clientes por ingresos" badge={clientRows.length}>
           {clientRows.length === 0
-            ? <DashEmpty icon="🏢" title="Sin datos de ingresos por cliente" description="Asocia proyectos e ingresos a clientes para ver esta métrica" />
+            ? <DashEmpty title="Sin datos de ingresos por cliente" description="Asocia proyectos e ingresos a clientes para ver esta métrica" />
             : clientRows.map((c, i) => (
                 <BarRow key={c.name}
                   label={c.name}
@@ -211,7 +215,7 @@ export default function FinanceDashboardPage() {
         {/* Pipeline by stage */}
         <SectionCard title="Pipeline por etapa" badge={openOpportunities}>
           {stageRows.length === 0
-            ? <DashEmpty icon="🎯" title="Sin oportunidades en pipeline" />
+            ? <DashEmpty title="Sin oportunidades en pipeline" />
             : stageRows.map(([stage, data], i) => (
                 <BarRow key={stage}
                   label={stage}
@@ -290,48 +294,59 @@ export default function FinanceDashboardPage() {
 
       {/* Currency exchange rates */}
       <SectionCard title="Tipos de cambio"
-        badge={<button onClick={() => setShowRateForm(v => !v)}
-          style={{ fontSize: "var(--text-xs)", padding:'2px 9px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', cursor:'pointer', fontFamily:'inherit' }}>
-          {showRateForm ? '✕' : '+ Añadir'}
-        </button>}
+        badge={
+          <button onClick={() => setShowRateForm(v => !v)}
+            style={{ fontSize: 'var(--text-xs)', padding: '3px 9px', borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)',
+              cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {showRateForm ? <><X size={11} /> Cerrar</> : <><Plus size={11} /> Añadir</>}
+          </button>
+        }
       >
         {showRateForm && (
-          <div style={{ display:'flex', gap:10, alignItems:'flex-end', marginBottom:14, flexWrap:'wrap' }}>
-            {[['from_currency','De','EUR'],['to_currency','A','USD']].map(([k,l,ph]) => (
-              <div key={k} style={{ flex:'0 0 90px' }}>
-                <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>{l}</div>
-                <input maxLength={3} value={rateForm[k]} onChange={e => setRateForm(f => ({...f,[k]:e.target.value.toUpperCase()}))}
-                  style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:6, padding:'6px 8px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} placeholder={ph} />
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
+            {[['from_currency', 'De', 'EUR'], ['to_currency', 'A', 'USD']].map(([k, l, ph]) => (
+              <div key={k} style={{ flex: '0 0 90px' }}>
+                <div className="ds-eyebrow" style={{ marginBottom: 4 }}>{l}</div>
+                <input maxLength={3} value={rateForm[k]} onChange={e => setRateForm(f => ({ ...f, [k]: e.target.value.toUpperCase() }))}
+                  className="ds-input" placeholder={ph} />
               </div>
             ))}
-            <div style={{ flex:'0 0 100px' }}>
-              <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>Tasa</div>
-              <input type="number" step="0.0001" min="0" value={rateForm.rate} onChange={e => setRateForm(f => ({...f,rate:e.target.value}))}
-                style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:6, padding:'6px 8px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} placeholder="1.0850" />
+            <div style={{ flex: '0 0 110px' }}>
+              <div className="ds-eyebrow" style={{ marginBottom: 4 }}>Tasa</div>
+              <input type="number" step="0.0001" min="0" value={rateForm.rate}
+                onChange={e => setRateForm(f => ({ ...f, rate: e.target.value }))}
+                className="ds-input" placeholder="1.0850" />
             </div>
-            <button onClick={() => upsertRate({ from_currency:rateForm.from_currency, to_currency:rateForm.to_currency, rate:parseFloat(rateForm.rate) })}
+            <button onClick={() => upsertRate({ from_currency: rateForm.from_currency, to_currency: rateForm.to_currency, rate: parseFloat(rateForm.rate) })}
               disabled={savingRate || !rateForm.from_currency || !rateForm.to_currency || !rateForm.rate}
-              style={{ padding:'7px 14px', borderRadius:6, border:'1px solid var(--accent)', background:'var(--accent-muted)', color:'var(--accent)', cursor:'pointer', fontFamily:'inherit', fontSize: "var(--text-sm)", fontWeight:600 }}>
+              style={{ padding: '8px 14px', borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--accent)', background: 'var(--accent-muted)', color: 'var(--accent)',
+                cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
               {savingRate ? '...' : 'Guardar'}
             </button>
           </div>
         )}
         {rates.length === 0 ? (
-          <DashEmpty icon="💱" title="Sin tipos de cambio" description="Añade tasas de conversión para gestionar proyectos multi-divisa" />
+          <DashEmpty title="Sin tipos de cambio" description="Añade tasas de conversión para gestionar proyectos multi-divisa" />
         ) : (
-          <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
             {rates.map(r => (
-              <div key={r.id} style={{ background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 14px', fontSize: "var(--text-base)" }}>
-                <span style={{ fontWeight:700, color:'var(--text-1)' }}>{r.from_currency}</span>
-                <span style={{ color:'var(--text-3)', margin:'0 6px' }}>→</span>
-                <span style={{ fontWeight:700, color:'var(--text-1)' }}>{r.to_currency}</span>
-                <span style={{ marginLeft:10, fontWeight:600, color:'var(--accent)' }}>{r.rate}</span>
-                {r.effective_date && <span style={{ marginLeft:8, fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{r.effective_date}</span>}
+              <div key={r.id} className="ds-card--inset" style={{
+                padding: '8px 14px', fontSize: 'var(--text-base)',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+              }}>
+                <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{r.from_currency}</span>
+                <span className="ds-muted">→</span>
+                <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{r.to_currency}</span>
+                <span style={{ marginLeft: 6, fontWeight: 600, color: 'var(--accent)' }}>{r.rate}</span>
+                {r.effective_date && <span className="ds-muted" style={{ marginLeft: 4 }}>{r.effective_date}</span>}
               </div>
             ))}
           </div>
         )}
       </SectionCard>
+      </div>
     </DashPageShell>
   )
 }

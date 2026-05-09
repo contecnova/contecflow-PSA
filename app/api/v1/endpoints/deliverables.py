@@ -4,6 +4,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User, UserRole
 from app.services import deliverable_service
 from app.services.deliverable_service import serialize_deliverable as _del_out
@@ -127,7 +128,7 @@ def reject(
     return _del_out(d)
 
 
-@router.delete("/{project_id}/{del_id}", summary="Eliminar entregable")
+@router.delete("/{project_id}/{del_id}", summary="Eliminar entregable (soft delete)")
 def delete_deliverable(
     project_id: str,
     del_id: str,
@@ -137,5 +138,6 @@ def delete_deliverable(
     d = deliverable_service.get_deliverable(db, del_id)
     if not d:
         raise HTTPException(404, "No encontrado")
+    enforce_abac(db, current_user, "deliverable", del_id, action="delete")
     deliverable_service.delete_deliverable(db, d)
-    return {"ok": True}
+    return {"ok": True, "message": f"Entregable '{d.name}' eliminado"}

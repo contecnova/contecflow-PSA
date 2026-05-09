@@ -26,9 +26,7 @@ import {
 } from 'lucide-react'
 import { sdWorkflowDesignerApi } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
-import { Button, Spinner } from '../../components/ui'
-import PageHeader from '../../components/layout/PageHeader'
-import PageShell from '../../components/layout/PageShell'
+import { Button, Spinner, Page, StatusBadge } from '../../components/ui'
 
 // ── Catálogo visual de los nodos (color + icono por tipo) ────────────────────
 const NODE_VISUAL = {
@@ -91,16 +89,15 @@ export default function WorkflowDesignerPage() {
   const activeId = searchParams.get('id')
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={<GitBranch size={20} />}
-        title="Workflow Designer"
-        subtitle="Diseña procesos visuales reutilizables (tickets, cambios, aprobaciones)"
-      />
+    <Page
+      icon={<GitBranch size={20} />}
+      title="Workflow Designer"
+      subtitle="Diseña procesos visuales reutilizables (tickets, cambios, aprobaciones)"
+    >
       {activeId
         ? <BlueprintEditor id={activeId} onBack={() => setSearchParams({})} />
         : <BlueprintList onOpen={(id) => setSearchParams({ id })} />}
-    </PageShell>
+    </Page>
   )
 }
 
@@ -147,26 +144,27 @@ function BlueprintList({ onOpen }) {
   }, [blueprints, search])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <>
       {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <div className="ds-toolbar">
         <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 360 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar blueprints…"
-            style={{ ...inputStyle, paddingLeft: 32 }}
+            className="ds-input"
+            style={{ paddingLeft: 32 }}
           />
         </div>
         <select value={filter} onChange={e => setFilter(e.target.value)}
-          style={{ ...inputStyle, width: 'auto', minWidth: 160 }}>
+          className="ds-input" style={{ width: 'auto', minWidth: 160 }}>
           <option value="">Todos los procesos</option>
           <option value="ticket">Ticket</option>
           <option value="change">Cambio</option>
           <option value="approval">Aprobación</option>
         </select>
-        <div style={{ flex: 1 }} />
+        <div className="ds-toolbar__spacer" />
         <Button variant="secondary" onClick={() => setShowTemplates(true)}>
           <Sparkles size={14} /> Plantilla
         </Button>
@@ -181,7 +179,7 @@ function BlueprintList({ onOpen }) {
       ) : filtered.length === 0 ? (
         <EmptyState search={search} filter={filter} />
       ) : (
-        <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+        <div className="ds-grid-cards">
           {filtered.map(bp => (
             <BlueprintCard key={bp.id} bp={bp}
               onOpen={() => onOpen(bp.id)}
@@ -209,22 +207,18 @@ function BlueprintList({ onOpen }) {
           onPicked={(bp) => { setShowTemplates(false); onOpen(bp.id) }}
         />
       )}
-    </div>
+    </>
   )
 }
 
 function EmptyState({ search, filter }) {
   return (
-    <div style={{
-      padding: 60, textAlign: 'center',
-      background: 'var(--surface-2)', border: '1px dashed var(--surface-4)', borderRadius: 12,
-      color: 'var(--text-2)',
-    }}>
-      <GitBranch size={36} style={{ color: 'var(--text-3)', marginBottom: 8 }} />
-      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+    <div className="ds-empty">
+      <GitBranch size={36} className="ds-empty__icon" />
+      <div className="ds-empty__title">
         {search || filter ? 'No hay blueprints que coincidan' : 'Aún no hay blueprints'}
       </div>
-      <div style={{ fontSize: 'var(--text-sm)' }}>
+      <div className="ds-empty__desc">
         {search || filter ? 'Prueba con otros términos.' : 'Crea uno desde cero o parte de una plantilla.'}
       </div>
     </div>
@@ -232,50 +226,39 @@ function EmptyState({ search, filter }) {
 }
 
 function BlueprintCard({ bp, onOpen, onClone, onArchive }) {
+  const statusKind = bp.status === 'published' ? 'success'
+                    : bp.status === 'draft' ? 'warning' : 'neutral'
+  const statusLabel = bp.status === 'published' ? 'Publicado'
+                     : bp.status === 'draft' ? 'Borrador' : 'Archivado'
   return (
     <div role="button" tabIndex={0}
-      style={{
-        background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12,
-        padding: 16, display: 'flex', flexDirection: 'column', gap: 8,
-        cursor: 'pointer', transition: 'border-color 0.15s, transform 0.15s',
-      }}
+      className="ds-card ds-card--clickable"
       onClick={onOpen}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)' }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+      <div className="ds-row-between" style={{ alignItems: 'flex-start' }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bp.name}</div>
           {bp.description && (
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2,
+            <div className="ds-muted" style={{ marginTop: 2,
               display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
               {bp.description}
             </div>
           )}
         </div>
-        <span style={{
-          fontSize: 'var(--text-xs)', fontWeight: 700,
-          padding: '2px 8px', borderRadius: 12,
-          background: bp.status === 'published' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
-          color: bp.status === 'published' ? '#10b981' : '#f59e0b',
-          flexShrink: 0,
-        }}>
-          {bp.status === 'published' ? 'Publicado' : bp.status === 'draft' ? 'Borrador' : 'Archivado'}
-        </span>
+        <StatusBadge kind={statusKind}>{statusLabel}</StatusBadge>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
-        <span style={{ background: 'var(--surface-3)', padding: '2px 6px', borderRadius: 4 }}>
+      <div className="ds-row" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+        <span style={{ background: 'var(--surface-3)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
           {PROCESS_LABEL[bp.process_type] || bp.process_type}
         </span>
         <span>v{bp.latest_version}</span>
-        {bp.published_version && <span style={{ color: '#10b981' }}>· publicada v{bp.published_version}</span>}
+        {bp.published_version && <span style={{ color: 'var(--success)' }}>· publicada v{bp.published_version}</span>}
       </div>
-      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}
+      <div className="ds-row"
         role="presentation"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}>
-
         <Button size="sm" variant="secondary" onClick={onClone}><Copy size={12} /> Clonar</Button>
         <Button size="sm" variant="secondary" onClick={onArchive}><Trash2 size={12} /> Archivar</Button>
       </div>

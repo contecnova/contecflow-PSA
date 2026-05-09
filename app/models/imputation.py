@@ -52,6 +52,9 @@ class Imputation(Base):
     # Timer session that generated this imputation (if any)
     timer_session_id = Column(String(36), nullable=True, index=True)
 
+    # Soft delete
+    is_active = Column(Boolean, default=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

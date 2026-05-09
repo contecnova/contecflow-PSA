@@ -189,7 +189,7 @@ def get_workflow(project_id: str, db: Session) -> dict:
     states = (
         db.query(WorkflowState)
         .options(joinedload(WorkflowState.transitions_from).joinedload(WorkflowTransition.to_state))
-        .filter(WorkflowState.project_id == project_id)
+        .filter(WorkflowState.project_id == project_id, WorkflowState.is_active == True)
         .order_by(WorkflowState.sort_order)
         .all()
     )
@@ -201,6 +201,7 @@ def create_workflow_state(project_id: str, payload, db: Session) -> dict:
     existing = db.query(WorkflowState).filter(
         WorkflowState.project_id == project_id,
         WorkflowState.value == payload.value,
+        WorkflowState.is_active == True,
     ).first()
     if existing:
         raise HTTPException(400, f"Ya existe un estado con valor '{payload.value}'")
@@ -215,6 +216,7 @@ def update_workflow_state(project_id: str, state_id: str, payload, db: Session) 
     s = db.query(WorkflowState).filter(
         WorkflowState.id == state_id,
         WorkflowState.project_id == project_id,
+        WorkflowState.is_active == True,
     ).first()
     if not s:
         raise HTTPException(404, "Estado no encontrado")
@@ -226,21 +228,30 @@ def update_workflow_state(project_id: str, state_id: str, payload, db: Session) 
 
 
 def delete_workflow_state(project_id: str, state_id: str, db: Session) -> dict:
+    """Soft-delete a workflow state. Validates no tasks actively in this state."""
     s = db.query(WorkflowState).filter(
         WorkflowState.id == state_id,
         WorkflowState.project_id == project_id,
+        WorkflowState.is_active == True,
     ).first()
     if not s:
         raise HTTPException(404, "Estado no encontrado")
-    in_use = db.query(Task).filter(Task.status == s.value).count()
+    
+    # Check if any active tasks are using this state
+    in_use = db.query(Task).filter(
+        Task.status == s.value,
+        Task.project_id == project_id,
+    ).count()
     if in_use > 0:
         raise HTTPException(
             400,
             f"No se puede eliminar: {in_use} tareas usan este estado. Reasígnalas primero.",
         )
-    db.delete(s)
+    
+    # Soft-delete: mark as inactive
+    s.is_active = False
     db.commit()
-    return {"deleted": True}
+    return {"ok": True, "message": f"Estado '{s.name}' eliminado"}
 
 
 # ── Workflow transitions ──────────────────────────────────────────────────────
@@ -248,7 +259,7 @@ def delete_workflow_state(project_id: str, state_id: str, db: Session) -> dict:
 def create_transition(project_id: str, payload, db: Session) -> dict:
     for sid in [payload.from_state_id, payload.to_state_id]:
         s = db.query(WorkflowState).filter(
-            WorkflowState.id == sid, WorkflowState.project_id == project_id
+            WorkflowState.id == sid, WorkflowState.project_id == project_id, WorkflowState.is_active == True
         ).first()
         if not s:
             raise HTTPException(404, f"Estado {sid} no encontrado en este proyecto")
@@ -264,15 +275,19 @@ def create_transition(project_id: str, payload, db: Session) -> dict:
 
 
 def delete_transition(project_id: str, transition_id: str, db: Session) -> dict:
+    """Soft-delete a workflow transition."""
     t = db.query(WorkflowTransition).filter(
         WorkflowTransition.id == transition_id,
         WorkflowTransition.project_id == project_id,
+        WorkflowTransition.is_active == True,
     ).first()
     if not t:
         raise HTTPException(404, "Transición no encontrada")
-    db.delete(t)
+    
+    # Soft-delete: mark as inactive
+    t.is_active = False
     db.commit()
-    return {"deleted": True}
+    return {"ok": True, "message": "Transición eliminada"}
 
 
 def init_default_workflow(project_id: str, db: Session) -> dict:

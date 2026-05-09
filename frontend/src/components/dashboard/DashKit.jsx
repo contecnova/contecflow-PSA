@@ -9,6 +9,18 @@ import PageHeader from '../layout/PageHeader'
 
 export { COLOR }
 
+/* ── KpiIcon — wrapper para usar iconos Lucide en KpiCard ───────────────────
+ * Sustituye el patrón de pasar emojis (icon="✅") por un icono de la librería.
+ * Mantiene la altura y centrado consistentes con el resto de la card.
+ */
+export function KpiIcon({ icon: Icon, size = 14 }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16 }}>
+      <Icon size={size} strokeWidth={2.2} />
+    </span>
+  )
+}
+
 /* ── Design tokens ─────────────────────────────────────────────────────────── */
 export const S = {
   card: {

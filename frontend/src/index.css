@@ -1579,3 +1579,301 @@ textarea:focus-visible {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * DESIGN SYSTEM v2 — utilidades semánticas
+ *
+ * Reemplaza los 7700+ inline styles repetidos por clases componibles.  Cada
+ * página debe componer estas clases en lugar de re-escribir lo mismo en línea.
+ * Si necesitas algo distinto, usa el style prop SOLO para el caso particular.
+ *
+ * Reglas:
+ *   .ds-page          — wrapper de página (uses PageShell padding)
+ *   .ds-section       — sección con header + body
+ *   .ds-card          — card estándar (surface-2 + border + radius + padding)
+ *   .ds-card--inset   — variante para listas o nested (sin shadow)
+ *   .ds-card--accent  — borde acento (highlight)
+ *   .ds-toolbar       — toolbar horizontal con acciones a la derecha
+ *   .ds-empty         — empty state centrado
+ *   .ds-grid-cards    — grid auto-fill responsive (cards, 280px min)
+ *   .ds-grid-stats    — grid auto-fill (KPIs, 180px min)
+ *   .ds-stack         — flex column gap-3
+ *   .ds-row           — flex row align-center gap-2
+ *   .ds-row-between   — flex row, justify space-between, align center
+ *   .ds-eyebrow       — pequeño label uppercase (sectionheaders)
+ *   .ds-muted         — texto secundario (text-3)
+ *   .ds-status-dot    — punto de estado coloreado
+ * ════════════════════════════════════════════════════════════════════════ */
+
+.ds-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.ds-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ds-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.ds-section__title {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.ds-section__subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  margin: 0;
+}
+
+.ds-card {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  transition: border-color 0.15s var(--easing), box-shadow 0.15s var(--easing);
+}
+.ds-card--inset {
+  background: var(--surface-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+}
+.ds-card--accent {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-accent);
+}
+.ds-card--clickable {
+  cursor: pointer;
+}
+.ds-card--clickable:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-md);
+}
+.ds-card--clickable:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.ds-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.ds-toolbar__spacer { flex: 1; }
+.ds-toolbar__title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ds-toolbar__title strong {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds-toolbar__title small {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+
+.ds-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-9) var(--space-5);
+  gap: var(--space-2);
+  background: var(--surface-2);
+  border: 1px dashed var(--surface-4);
+  border-radius: var(--radius-lg);
+  color: var(--text-3);
+}
+.ds-empty__icon {
+  color: var(--text-3);
+  margin-bottom: var(--space-2);
+}
+.ds-empty__title {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-2);
+  margin: 0;
+}
+.ds-empty__desc {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  margin: 0;
+  max-width: 480px;
+}
+
+.ds-grid-cards {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.ds-grid-stats {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.ds-stack { display: flex; flex-direction: column; gap: var(--space-3); }
+.ds-stack-sm { display: flex; flex-direction: column; gap: var(--space-2); }
+.ds-stack-lg { display: flex; flex-direction: column; gap: var(--space-5); }
+.ds-row { display: flex; align-items: center; gap: var(--space-2); }
+.ds-row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.ds-row-wrap { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+.ds-eyebrow {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 0;
+}
+.ds-muted { color: var(--text-3); font-size: var(--text-sm); }
+.ds-text-1 { color: var(--text-1); }
+.ds-text-2 { color: var(--text-2); }
+.ds-text-3 { color: var(--text-3); }
+
+/* Status dot — foreground bullet to indicate state */
+.ds-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-3);
+}
+.ds-status-dot--success { background: var(--success); }
+.ds-status-dot--warning { background: var(--warning); }
+.ds-status-dot--danger  { background: var(--danger); }
+.ds-status-dot--info    { background: var(--info); }
+.ds-status-dot--accent  { background: var(--accent); }
+.ds-status-dot--purple  { background: var(--purple); }
+
+/* Pill — semantic mini badges (alternative to <Badge> for inline use) */
+.ds-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--surface-3);
+  color: var(--text-2);
+  border: 1px solid var(--surface-4);
+  white-space: nowrap;
+}
+.ds-pill--success { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+.ds-pill--warning { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
+.ds-pill--danger  { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
+.ds-pill--info    { background: var(--info-bg); color: var(--info); border-color: var(--info-border); }
+.ds-pill--accent  { background: var(--accent-muted); color: var(--accent); border-color: var(--accent-border); }
+.ds-pill--purple  { background: var(--purple-bg); color: var(--purple); border-color: var(--purple-border); }
+
+/* Subtle divider between sections inside a card */
+.ds-divider {
+  height: 1px;
+  background: var(--surface-4);
+  border: none;
+  margin: var(--space-3) 0;
+}
+
+/* Form row — vertical label + control */
+.ds-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.ds-field__label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.ds-field__hint {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.ds-field__error {
+  font-size: var(--text-xs);
+  color: var(--danger);
+}
+
+/* Surface-input — base styling for text inputs / textareas / selects */
+.ds-input {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s var(--easing), box-shadow 0.15s var(--easing);
+  width: 100%;
+  box-sizing: border-box;
+}
+.ds-input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.ds-input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Tab-style toggle: pill-shaped segmented control */
+.ds-segmented {
+  display: inline-flex;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 2px;
+}
+.ds-segmented button {
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s var(--easing), color 0.15s var(--easing);
+}
+.ds-segmented button[aria-pressed="true"],
+.ds-segmented button.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+

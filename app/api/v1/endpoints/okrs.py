@@ -5,6 +5,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.services import okr_service
 from app.services.okr_service import (
@@ -57,14 +58,18 @@ def update_objective(obj_id: str, payload: ObjectiveUpdate,
     return {"id": obj.id}
 
 
-@router.delete("/{obj_id}", summary="Eliminar objetivo")
+@router.delete("/{obj_id}", summary="Eliminar objetivo (soft delete)")
 def delete_objective(obj_id: str, db: Session = Depends(get_db),
                      cu: User = Depends(require_any_manager)):
+    """Delete (soft) an OKR objective. Blocked if active Key Results exist."""
+    enforce_abac(db, cu, "okr", obj_id, action="delete")
     obj = okr_service.get_objective(db, obj_id)
     if not obj:
         raise HTTPException(404, "Objetivo no encontrado")
-    okr_service.delete_objective(db, obj)
-    return {"deleted": True}
+    result = okr_service.delete_objective(db, obj)
+    if not result["ok"]:
+        raise HTTPException(400, result["message"])
+    return result
 
 
 # ── Key Results CRUD ──────────────────────────────────────────────────────────
@@ -88,14 +93,16 @@ def update_kr(kr_id: str, payload: KeyResultUpdate,
     return _ser_kr(kr)
 
 
-@router.delete("/key-results/{kr_id}", summary="Eliminar Key Result")
+@router.delete("/key-results/{kr_id}", summary="Eliminar Key Result (soft delete)")
 def delete_kr(kr_id: str, db: Session = Depends(get_db),
               cu: User = Depends(require_any_manager)):
+    """Delete (soft) a Key Result from its objective."""
+    enforce_abac(db, cu, "kr", kr_id, action="delete")
     kr = okr_service.get_key_result(db, kr_id)
     if not kr:
         raise HTTPException(404, "KR no encontrado")
-    okr_service.delete_kr(db, kr)
-    return {"deleted": True}
+    result = okr_service.delete_kr(db, kr)
+    return result
 
 
 # ── Check-ins ─────────────────────────────────────────────────────────────────
