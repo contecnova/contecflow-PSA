@@ -17,6 +17,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from './AuthContext'
 import { useToast } from './ToastContext'
 import { collabApi } from '../services/collaborationApi'
+import { API_BASE } from '../constants/api'
+import { resolveWsBase } from '../utils/wsUtils'
 
 const ChatRealtimeContext = createContext({ unread: 0, refresh: () => {}, send: () => false })
 
@@ -56,6 +58,18 @@ export default function ChatRealtimeProvider({ children }) {
     return () => clearInterval(t)
   }, [user?.id, refresh])
 
+  // Pide permiso para notificaciones del SO una vez tras el primer login en
+  // este navegador (idempotente). Si el usuario lo deniega, no insistimos.
+  useEffect(() => {
+    if (!user?.id) return
+    if (typeof Notification === 'undefined') return
+    if (Notification.permission !== 'default') return
+    const KEY = 'collab-notif-asked'
+    if (sessionStorage.getItem(KEY)) return
+    sessionStorage.setItem(KEY, '1')
+    try { Notification.requestPermission().catch(() => {}) } catch { /* noop */ }
+  }, [user?.id])
+
   // Single WebSocket for the whole app
   useEffect(() => {
     if (!user?.id) return
@@ -71,7 +85,7 @@ export default function ChatRealtimeProvider({ children }) {
       if (cancelled || stoppedByLogout || attempt >= 8) return
       attempt += 1
       try {
-        const r = await fetch('/api/v1/ws/ticket', { credentials: 'include' })
+        const r = await fetch(`${API_BASE}/ws/ticket`, { credentials: 'include' })
         if (!r.ok) {
           // Token might have just expired — give up quietly; useEffect will
           // remount when user changes.
@@ -79,8 +93,8 @@ export default function ChatRealtimeProvider({ children }) {
         }
         const { ticket } = await r.json()
         if (!ticket || cancelled) return
-        const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-        ws = new WebSocket(`${proto}://${window.location.host}/api/v1/collaboration/ws?ticket=${encodeURIComponent(ticket)}`)
+        const wsBase = resolveWsBase()
+        ws = new WebSocket(`${wsBase}/api/v1/collaboration/ws?ticket=${encodeURIComponent(ticket)}`)
         wsRef.current = ws
         ws.onopen = () => { attempt = 0 }
         ws.onmessage = (event) => {
@@ -92,6 +106,10 @@ export default function ChatRealtimeProvider({ children }) {
         ws.onclose = (closeEv) => {
           wsRef.current = null
           if (cancelled || stoppedByLogout || closeEv.code === 1000) return
+          // 4401 = ticket inválido/expirado · 4403 = usuario sin permiso (p.ej.
+          // superadmin sin organización). Son rechazos definitivos: no
+          // reintentamos para no spammear consola/red.
+          if (closeEv.code === 4401 || closeEv.code === 4403) return
           reconnectTimer = setTimeout(connect, Math.min(1000 * 2 ** (attempt - 1), 30000))
         }
         if (pingInterval) clearInterval(pingInterval)

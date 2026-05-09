@@ -478,3 +478,235 @@ def test_mention_suggestions_excludes_self(client, admin_token):
     me_in_list = any(u.get("username") == "admin" for u in r["users"])
     assert not me_in_list
 
+
+def test_signed_url_token_cleanup(db):
+    """Defensa contra memory leak: tokens caducados se purgan al firmar nuevos."""
+    import time
+    from app.services.collaboration._storage import (
+        _SIGNED, _purge_expired_signed_tokens, storage,
+    )
+    _SIGNED.clear()
+    # Forzar uno expirado y uno fresco
+    storage.signed_url("a/b", ttl_seconds=3600)
+    _SIGNED["expired-token"] = {"key": "x", "mode": "download", "expires_at": time.time() - 60}
+    assert "expired-token" in _SIGNED
+    n = _purge_expired_signed_tokens()
+    assert n == 1
+    assert "expired-token" not in _SIGNED
+
+
+def test_push_subscription_purge(db):
+    """Las push-subs is_active=False creadas hace > 30 días se eliminan."""
+    from datetime import datetime, timedelta
+    from app.models.collaboration import CollaborationPushSubscription
+    from app.models.user import User
+    from app.services.collaboration._push import purge_stale_subscriptions
+
+    me = db.query(User).filter(User.username == "admin").first()
+    org = me.organization_id
+
+    # Limpia el estado para no contaminar otras tests
+    db.query(CollaborationPushSubscription).delete()
+    db.commit()
+
+    db.add(CollaborationPushSubscription(
+        organization_id=org, user_id=me.id,
+        endpoint="https://stale.example/x", p256dh_key="p", auth_key="a",
+        is_active=False, created_at=datetime.utcnow() - timedelta(days=40),
+    ))
+    db.add(CollaborationPushSubscription(
+        organization_id=org, user_id=me.id,
+        endpoint="https://recent-deactivated.example/x", p256dh_key="p", auth_key="a",
+        is_active=False, created_at=datetime.utcnow() - timedelta(days=2),
+    ))
+    db.add(CollaborationPushSubscription(
+        organization_id=org, user_id=me.id,
+        endpoint="https://active.example/x", p256dh_key="p", auth_key="a",
+        is_active=True, created_at=datetime.utcnow() - timedelta(days=40),
+    ))
+    db.commit()
+
+    n = purge_stale_subscriptions(db, days=30)
+    assert n == 1
+    remaining_endpoints = {
+        s.endpoint for s in db.query(CollaborationPushSubscription).all()
+    }
+    assert "https://stale.example/x" not in remaining_endpoints
+    assert "https://recent-deactivated.example/x" in remaining_endpoints
+    assert "https://active.example/x" in remaining_endpoints
+
+
+def test_audit_chain_lock_present_and_per_org():
+    """El lock por-org existe y es reentrante por el mismo hilo dentro de una
+    misma org; instancias independientes para orgs distintas."""
+    from app.services.collaboration._audit import _lock_for
+    lock_a = _lock_for("org-a")
+    lock_b = _lock_for("org-b")
+    assert lock_a is not None and lock_b is not None
+    # Misma org → mismo objeto lock (idempotente)
+    assert _lock_for("org-a") is lock_a
+    # Org distinta → lock distinto (no se serializan entre sí)
+    assert lock_a is not lock_b
+
+
+def test_per_conversation_mute_silences_notifications(client, admin_token, pm_token, db):
+    """Bug fix: una rule scope=conversation con notify_messages=none silencia
+    notificaciones para esa conversación. Las menciones (everyone) rompen el silencio."""
+    from app.models.user import User
+    from app.models.collaboration import CollaborationNotification
+    h_admin = _auth_headers(admin_token)
+    h_pm = _auth_headers(pm_token)
+    client.get("/api/v1/collaboration/workspace", headers=h_admin)
+    client.get("/api/v1/collaboration/workspace", headers=h_pm)
+
+    pm = db.query(User).filter(User.username == "pm_test").first()
+
+    # 1) Admin abre directo con PM
+    r = client.post(
+        "/api/v1/collaboration/direct/open",
+        json={"user_id": pm.id}, headers=h_admin,
+    )
+    assert r.status_code == 200
+    conv_id = r.json()["conversation_id"]
+
+    # 2) PM silencia esa conversación
+    r = client.put(
+        "/api/v1/collaboration/notification-rules",
+        json={"scope": "conversation", "target_id": conv_id,
+              "notify_messages": "none", "desktop_push": False, "email_digest": "weekly"},
+        headers=h_pm,
+    )
+    assert r.status_code == 200, r.text
+
+    # Limpiar notificaciones previas del PM
+    db.query(CollaborationNotification).filter(
+        CollaborationNotification.user_id == pm.id,
+    ).delete()
+    db.commit()
+
+    # 3) Admin envía mensaje normal — PM NO debe recibir notificación
+    r = client.post(
+        "/api/v1/collaboration/messages",
+        json={"conversation_id": conv_id, "body": "hola en silencio"}, headers=h_admin,
+    )
+    assert r.status_code == 200
+    pm_notifs = db.query(CollaborationNotification).filter(
+        CollaborationNotification.user_id == pm.id,
+        CollaborationNotification.conversation_id == conv_id,
+    ).count()
+    assert pm_notifs == 0, "Mute scope=conversation debería bloquear notificación normal"
+
+    # 4) Admin envía mensaje con @everyone — PM SÍ debe recibir mención
+    r = client.post(
+        "/api/v1/collaboration/messages",
+        json={"conversation_id": conv_id, "body": "atención @everyone", "is_everyone": True},
+        headers=h_admin,
+    )
+    assert r.status_code == 200
+    pm_mentions = db.query(CollaborationNotification).filter(
+        CollaborationNotification.user_id == pm.id,
+        CollaborationNotification.conversation_id == conv_id,
+        CollaborationNotification.kind == "mention",
+    ).count()
+    assert pm_mentions == 1, "Las menciones deben romper el silencio"
+
+
+def test_group_add_and_remove_members(client, admin_token, pm_token, dev_token, db):
+    """Bug fix: se pueden añadir y quitar miembros de un grupo ya creado."""
+    from app.models.user import User
+    h_admin = _auth_headers(admin_token)
+    client.get("/api/v1/collaboration/workspace", headers=h_admin)
+
+    pm = db.query(User).filter(User.username == "pm_test").first()
+    dev = db.query(User).filter(User.username == "dev_test").first()
+
+    # 1) Admin crea un grupo solo con el PM
+    r = client.post(
+        "/api/v1/collaboration/groups",
+        json={"title": "Equipo de prueba", "user_ids": [pm.id], "client_user_ids": []},
+        headers=h_admin,
+    )
+    assert r.status_code == 200
+    conv_id = r.json()["conversation_id"]
+
+    # 2) Listar miembros: deben ser admin + pm (2)
+    r = client.get(f"/api/v1/collaboration/conversations/{conv_id}/members", headers=h_admin)
+    assert r.status_code == 200
+    members = r.json()
+    user_ids = {m["user_id"] for m in members if m.get("user_id")}
+    assert pm.id in user_ids
+    # admin auto-incluido al crear
+    me = db.query(User).filter(User.username == "admin").first()
+    assert me.id in user_ids
+
+    # 3) Añadir al dev
+    r = client.post(
+        f"/api/v1/collaboration/conversations/{conv_id}/members",
+        json={"user_ids": [dev.id]},
+        headers=h_admin,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["added"] == 1
+
+    # 4) Listar de nuevo: ahora 3
+    r = client.get(f"/api/v1/collaboration/conversations/{conv_id}/members", headers=h_admin)
+    user_ids = {m["user_id"] for m in r.json() if m.get("user_id")}
+    assert dev.id in user_ids
+    assert len(user_ids) == 3
+
+    # 5) Re-añadir el mismo dev: idempotente, devuelve added=0
+    r = client.post(
+        f"/api/v1/collaboration/conversations/{conv_id}/members",
+        json={"user_ids": [dev.id]},
+        headers=h_admin,
+    )
+    assert r.status_code == 200
+    assert r.json()["added"] == 0
+
+    # 6) Un no-admin no puede expulsar a otro
+    h_pm = _auth_headers(pm_token)
+    r = client.delete(
+        f"/api/v1/collaboration/conversations/{conv_id}/members/{dev.id}",
+        headers=h_pm,
+    )
+    assert r.status_code == 403
+
+    # 7) El admin sí puede
+    r = client.delete(
+        f"/api/v1/collaboration/conversations/{conv_id}/members/{dev.id}",
+        headers=h_admin,
+    )
+    assert r.status_code == 200
+
+    # 8) Cualquier miembro puede salirse a sí mismo
+    h_dev = _auth_headers(dev_token)
+    # Re-añadir al dev primero
+    client.post(
+        f"/api/v1/collaboration/conversations/{conv_id}/members",
+        json={"user_ids": [dev.id]},
+        headers=h_admin,
+    )
+    r = client.delete(
+        f"/api/v1/collaboration/conversations/{conv_id}/members/{dev.id}",
+        headers=h_dev,
+    )
+    assert r.status_code == 200
+
+    # 9) No se permite añadir miembros a un canal vía esta ruta
+    workspace = client.get("/api/v1/collaboration/workspace", headers=h_admin).json()
+    teams = client.get("/api/v1/collaboration/teams", headers=h_admin).json()
+    if teams:
+        ch = client.post(
+            "/api/v1/collaboration/channels",
+            json={"team_id": teams[0]["id"], "name": "test-add-block", "channel_type": "public"},
+            headers=h_admin,
+        ).json()
+        ch_conv_id = ch["conversation_id"]
+        r = client.post(
+            f"/api/v1/collaboration/conversations/{ch_conv_id}/members",
+            json={"user_ids": [dev.id]},
+            headers=h_admin,
+        )
+        assert r.status_code == 400
+    assert workspace
+

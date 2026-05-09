@@ -109,10 +109,19 @@ def update_team(team_id: str, payload: TeamUpdate, current_user: User = Depends(
 @router.get("/teams/{team_id}/members", response_model=List[TeamMemberOut], summary="Miembros del equipo")
 def list_team_members(team_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     assert_team_access(db, current_user, team_id)
-    rows = db.query(CollaborationTeamMember).filter(CollaborationTeamMember.team_id == team_id).all()
+    org = _org(current_user)
+    rows = db.query(CollaborationTeamMember).filter(
+        CollaborationTeamMember.team_id == team_id,
+        CollaborationTeamMember.organization_id == org,
+    ).all()
+    # Eager-load todos los Users en una sola query (evita N+1)
+    user_ids = [m.user_id for m in rows if m.user_id]
+    users_by_id = {
+        u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()
+    } if user_ids else {}
     out = []
     for m in rows:
-        u = db.query(User).filter(User.id == m.user_id).first()
+        u = users_by_id.get(m.user_id)
         out.append(TeamMemberOut(
             id=m.id, user_id=m.user_id,
             user_name=(u.full_name or u.username) if u else None,
@@ -236,6 +245,141 @@ def create_group(payload: GroupCreate, current_user: User = Depends(get_current_
         user_ids=payload.user_ids, client_user_ids=payload.client_user_ids,
     )
     return {"id": g.id, "conversation_id": g.conversation_id}
+
+
+# ── Conversation members (group + private channel via conversation_id) ──────
+@router.get("/conversations/{conversation_id}/members", summary="Listar miembros de la conversación")
+def list_conversation_members(
+    conversation_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.services.collaboration._permissions import assert_conversation_access
+    assert_conversation_access(db, current_user, conversation_id)
+    rows = db.query(CollaborationConversationMember).filter(
+        CollaborationConversationMember.conversation_id == conversation_id,
+        CollaborationConversationMember.organization_id == _org(current_user),
+    ).all()
+    out = []
+    for m in rows:
+        if m.user_id:
+            u = db.query(User).filter(User.id == m.user_id).first()
+            out.append({
+                "id": m.id, "user_id": m.user_id,
+                "user_name": (u.full_name or u.username) if u else None,
+                "is_admin": bool(m.is_admin), "kind": "user",
+            })
+        elif m.client_user_id:
+            out.append({
+                "id": m.id, "client_user_id": m.client_user_id,
+                "is_admin": False, "kind": "client",
+            })
+    return out
+
+
+@router.post("/conversations/{conversation_id}/members", summary="Añadir miembros a un grupo")
+def add_conversation_members(
+    conversation_id: str,
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.services.collaboration._permissions import assert_conversation_access
+    assert_conversation_access(db, current_user, conversation_id)
+    conv = db.query(CollaborationConversation).filter(
+        CollaborationConversation.id == conversation_id,
+    ).first()
+    if not conv:
+        raise HTTPException(404, "Conversación no encontrada")
+    if conv.kind != "group":
+        raise HTTPException(400, "Solo se pueden añadir miembros a grupos. Para canales usa /channels/{id}/members.")
+    g = db.query(CollaborationGroupConversation).filter(
+        CollaborationGroupConversation.conversation_id == conversation_id,
+    ).first()
+    if not g:
+        raise HTTPException(404, "Grupo no encontrado")
+
+    user_ids = payload.get("user_ids") or []
+    client_user_ids = payload.get("client_user_ids") or []
+    if not user_ids and not client_user_ids:
+        raise HTTPException(400, "Indica user_ids o client_user_ids")
+
+    org = _org(current_user)
+    added = 0
+    for uid in user_ids:
+        exists = db.query(CollaborationConversationMember).filter(
+            CollaborationConversationMember.conversation_id == conversation_id,
+            CollaborationConversationMember.user_id == uid,
+        ).first()
+        if exists:
+            continue
+        db.add(CollaborationConversationMember(
+            organization_id=org, conversation_id=conversation_id, group_id=g.id,
+            user_id=uid, is_admin=False,
+        ))
+        added += 1
+    for cid in client_user_ids:
+        exists = db.query(CollaborationConversationMember).filter(
+            CollaborationConversationMember.conversation_id == conversation_id,
+            CollaborationConversationMember.client_user_id == cid,
+        ).first()
+        if exists:
+            continue
+        db.add(CollaborationConversationMember(
+            organization_id=org, conversation_id=conversation_id, group_id=g.id,
+            client_user_id=cid,
+        ))
+        added += 1
+
+    audit_log.write(
+        db, organization_id=org, actor_user_id=current_user.id, actor_client_id=None,
+        action="group.members.added", entity_type="group", entity_id=g.id,
+        payload={"users": user_ids, "clients": client_user_ids},
+    )
+    db.commit()
+    return {"added": added}
+
+
+@router.delete("/conversations/{conversation_id}/members/{user_id}", summary="Quitar miembro de un grupo")
+def remove_conversation_member(
+    conversation_id: str,
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.services.collaboration._permissions import assert_conversation_access
+    assert_conversation_access(db, current_user, conversation_id)
+    conv = db.query(CollaborationConversation).filter(
+        CollaborationConversation.id == conversation_id,
+    ).first()
+    if not conv:
+        raise HTTPException(404, "Conversación no encontrada")
+    if conv.kind != "group":
+        raise HTTPException(400, "Solo se pueden quitar miembros de grupos.")
+    member = db.query(CollaborationConversationMember).filter(
+        CollaborationConversationMember.conversation_id == conversation_id,
+        CollaborationConversationMember.user_id == user_id,
+    ).first()
+    if not member:
+        raise HTTPException(404, "Miembro no encontrado")
+
+    # Solo un admin puede expulsar a otro miembro; cualquiera puede salirse a sí mismo.
+    if user_id != current_user.id:
+        actor = db.query(CollaborationConversationMember).filter(
+            CollaborationConversationMember.conversation_id == conversation_id,
+            CollaborationConversationMember.user_id == current_user.id,
+        ).first()
+        if not actor or not actor.is_admin:
+            raise HTTPException(403, "Solo un admin del grupo puede quitar miembros")
+
+    db.delete(member)
+    audit_log.write(
+        db, organization_id=_org(current_user), actor_user_id=current_user.id, actor_client_id=None,
+        action="group.member.removed", entity_type="group", entity_id=conv.id,
+        payload={"user_id": user_id},
+    )
+    db.commit()
+    return {"ok": True}
 
 
 # ── Conversation listing (sidebar) ───────────────────────────────────────────

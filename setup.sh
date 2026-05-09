@@ -632,6 +632,24 @@ start_services() {
   resolve_venv_bins
   preflight_start_checks
 
+  # SQLite self-healing for common local crash leftovers (WAL/SHM).
+  if [ -f "contecflow.db" ] && check_command sqlite3; then
+    SQLITE_CHECK_OUTPUT=$(sqlite3 contecflow.db "PRAGMA quick_check;" 2>&1 || true)
+    if ! echo "$SQLITE_CHECK_OUTPUT" | grep -q '^ok$'; then
+      warn "SQLite quick_check falló antes del arranque: $SQLITE_CHECK_OUTPUT"
+      warn "Intentando recuperación local eliminando WAL/SHM..."
+      rm -f contecflow.db-wal contecflow.db-shm
+      SQLITE_RECHECK_OUTPUT=$(sqlite3 contecflow.db "PRAGMA quick_check;" 2>&1 || true)
+      if echo "$SQLITE_RECHECK_OUTPUT" | grep -q '^ok$'; then
+        log "SQLite recuperada correctamente tras limpiar WAL/SHM"
+      else
+        error "SQLite sigue en estado inválido: $SQLITE_RECHECK_OUTPUT"
+        error "Ejecuta: rm -f contecflow.db* && $PY_BIN -m app.db.migrate"
+        exit 1
+      fi
+    fi
+  fi
+
   if [ ! -f "$PY_BIN" ]; then
     error "Entorno virtual no encontrado. Ejecuta primero ./setup.sh demo o ./setup.sh clean"
     exit 1

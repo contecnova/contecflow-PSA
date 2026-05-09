@@ -80,11 +80,16 @@ def run_retention(current_user: User = Depends(get_current_user), db: Session = 
         )
         if held:
             q = q.filter(~CollaborationMessage.id.in_(held))
-        for m in q.all():
-            m.status = "deleted"
-            m.deleted_at = now
-            m.body = "[retention purge]"
-            deleted += 1
+        # Bulk update: una sola sentencia SQL en lugar de N actualizaciones.
+        n = q.update(
+            {
+                CollaborationMessage.status: "deleted",
+                CollaborationMessage.deleted_at: now,
+                CollaborationMessage.body: "[retention purge]",
+            },
+            synchronize_session=False,
+        )
+        deleted += int(n or 0)
     audit_log.write(
         db, organization_id=org, actor_user_id=current_user.id, actor_client_id=None,
         action="retention.run", entity_type="retention", entity_id=None,

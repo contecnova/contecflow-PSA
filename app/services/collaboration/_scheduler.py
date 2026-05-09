@@ -92,10 +92,61 @@ async def _tick():
 _loop_task: asyncio.Task | None = None
 
 
+_DAILY_TASKS_INTERVAL = 24 * 60 * 60  # 24h
+_last_daily_run: float = 0.0
+
+
+def _maybe_run_daily_tasks() -> None:
+    """Tareas que se ejecutan a baja frecuencia (1/día):
+        - Purga de signed-URL tokens expirados (defensivo).
+        - Limpieza de push subscriptions inactivas viejas.
+    """
+    global _last_daily_run
+    import time
+    now = time.time()
+    if now - _last_daily_run < _DAILY_TASKS_INTERVAL:
+        return
+    _last_daily_run = now
+    try:
+        from app.services.collaboration._storage import _purge_expired_signed_tokens
+        _purge_expired_signed_tokens()
+    except Exception as exc:
+        logger.warning("signed-token purge failed: %s", exc)
+    from app.db.session import SessionLocal as _SessionLocal
+    db = _SessionLocal()
+    try:
+        from app.services.collaboration._push import purge_stale_subscriptions
+        n = purge_stale_subscriptions(db, days=30)
+        if n:
+            logger.info("collaboration: purged %s stale push subscriptions", n)
+    except Exception as exc:
+        logger.warning("push-sub purge failed: %s", exc)
+    finally:
+        db.close()
+
+
+def _tick_workflow_engine() -> None:
+    """Despierta runs en estado `waiting` cuyos timers (`wake_at`) hayan expirado."""
+    try:
+        from app.db.session import SessionLocal as _SessionLocal
+        from app.services.service_desk import workflow_engine as _engine
+        db = _SessionLocal()
+        try:
+            n = _engine.tick_waiting(db)
+            if n:
+                logger.info("workflow engine: %s run(s) reanudados desde wait", n)
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.warning("workflow engine tick failed: %s", exc)
+
+
 async def _run_forever(interval: int):
     while True:
         try:
             await _tick()
+            _tick_workflow_engine()
+            _maybe_run_daily_tasks()
         except Exception as exc:
             logger.warning("scheduler tick error: %s", exc)
         await asyncio.sleep(interval)

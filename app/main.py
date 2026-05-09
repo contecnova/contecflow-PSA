@@ -6,7 +6,9 @@ import logging
 import os
 import time
 from pathlib import Path
+from urllib.parse import unquote
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import NullPool
 from app.core.config import settings
 
@@ -34,17 +36,40 @@ from app.api.v2.router import api_v2_router
 
 def _read_alembic_revisions(database_url: str) -> set[str] | None:
     """Read current Alembic revision set from DB without mutating schema."""
-    engine = create_engine(database_url, poolclass=NullPool)
-    try:
-        inspector = inspect(engine)
-        if not inspector.has_table("alembic_version"):
-            return None
-        with engine.connect() as conn:
-            rows = conn.execute(text("SELECT version_num FROM alembic_version")).fetchall()
-            revisions = {str(row[0]) for row in rows if row and row[0]}
-            return revisions or None
-    finally:
-        engine.dispose()
+    is_sqlite = database_url.startswith("sqlite")
+    retries = 3 if is_sqlite else 1
+    last_exc: Exception | None = None
+
+    for attempt in range(1, retries + 1):
+        engine = create_engine(database_url, poolclass=NullPool)
+        try:
+            inspector = inspect(engine)
+            if not inspector.has_table("alembic_version"):
+                return None
+            with engine.connect() as conn:
+                rows = conn.execute(text("SELECT version_num FROM alembic_version")).fetchall()
+                revisions = {str(row[0]) for row in rows if row and row[0]}
+                return revisions or None
+        except OperationalError as exc:
+            last_exc = exc
+            msg = str(exc).lower()
+            transient_sqlite_error = "disk i/o error" in msg or "database is locked" in msg
+            if is_sqlite and transient_sqlite_error and attempt < retries:
+                logger.warning(
+                    "⚠️  SQLite preflight transient error (attempt %s/%s): %s",
+                    attempt,
+                    retries,
+                    exc,
+                )
+                time.sleep(0.25 * attempt)
+                continue
+            raise
+        finally:
+            engine.dispose()
+
+    if last_exc is not None:
+        raise RuntimeError(f"Unable to read alembic revisions: {last_exc}")
+    return None
 
 
 def _read_alembic_heads() -> set[str] | None:
@@ -251,15 +276,6 @@ async def lifespan(_app: FastAPI):
             from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
             from app.services.scheduled_reports import run_due_reports
             from app.services.key_management import run_scheduled_rotation
-            from app.services.alert_service import run_alert_engine as _run_alert_engine
-            from app.db.session import SessionLocal as _SessionLocal
-
-            def _run_alert_engine_job():
-                db = _SessionLocal()
-                try:
-                    _run_alert_engine(db)
-                finally:
-                    db.close()
 
             # Use a SQLAlchemy job store so that in multi-worker deployments only
             # one worker executes each job (the others see it already locked/run).
@@ -287,7 +303,7 @@ async def lifespan(_app: FastAPI):
                 coalesce=True,
             )
             _scheduler.add_job(
-                _run_alert_engine_job,
+                "app.services.alert_jobs:run_alert_engine_job",
                 CronTrigger(hour=8, minute=0),
                 id="scheduled_alert_engine",
                 replace_existing=True,

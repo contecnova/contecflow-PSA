@@ -13,7 +13,8 @@ import {
   Send, Paperclip, AtSign, Plus, Phone, Video, Settings,
   ChevronDown, ChevronRight, Bell, Sparkles, Megaphone, Zap,
   Bot, FileText, AlertCircle, MoreVertical, Trash2, Pencil, X,
-  Headphones, ListChecks, FileSignature,
+  Headphones, ListChecks, FileSignature, BellOff, Link as LinkIcon,
+  UserPlus, LogOut,
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -660,6 +661,219 @@ const inputStyle = {
   outline: 'none', fontFamily: 'inherit',
 }
 
+// ── Modal: añadir miembros a un grupo existente ─────────────────────────────
+function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }) {
+  const toast = useToast()
+  const [search, setSearch] = useState('')
+  const [picked, setPicked] = useState([])
+
+  const { data: suggestions = { users: [] } } = useQuery({
+    queryKey: ['mention-suggestions-add-members', search],
+    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: 16 }),
+  })
+  // Si no nos pasan existingUserIds, los obtenemos del servidor para evitar
+  // que el listado proponga gente ya dentro del grupo.
+  const { data: serverMembers = [] } = useQuery({
+    queryKey: ['collab-members-for-add', conv?.id],
+    queryFn: () => collabApi.listConversationMembers(conv.id),
+    enabled: !existingUserIds && !!conv?.id,
+  })
+  const dedupeIds = existingUserIds && existingUserIds.length
+    ? existingUserIds
+    : serverMembers.map(m => m.user_id).filter(Boolean)
+  const candidates = (suggestions.users || []).filter(u => !dedupeIds.includes(u.id))
+
+  const submit = useMutation({
+    mutationFn: () => collabApi.addConversationMembers(conv.id, { user_ids: picked.map(u => u.id) }),
+    onSuccess: () => onAdded?.(),
+    onError: (e) => toast.error(e?.response?.data?.detail || 'No se pudieron añadir'),
+  })
+
+  const togglePick = (u) => {
+    setPicked(prev => prev.find(x => x.id === u.id) ? prev.filter(x => x.id !== u.id) : [...prev, u])
+  }
+
+  return (
+    <div role="presentation" onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    }}>
+      <div role="dialog" aria-modal="true" tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+        style={{
+          background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+          borderRadius: 12, padding: 20, width: 480, maxWidth: '90vw',
+          maxHeight: '80vh', display: 'flex', flexDirection: 'column', gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>Añadir miembros a {conv.title || 'grupo'}</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}>
+            <X size={16} />
+          </button>
+        </div>
+        <input
+          autoFocus
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Busca por nombre o email…"
+          style={inputStyle}
+        />
+        {picked.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {picked.map(u => (
+              <span key={u.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 12, padding: '3px 8px', fontSize: 'var(--text-xs)' }}>
+                {u.full_name || u.username}
+                <button onClick={() => togglePick(u)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}>
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div style={{ flex: 1, overflowY: 'auto', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
+          {candidates.length === 0 ? (
+            <div style={{ padding: 14, fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
+              {search ? 'Sin resultados' : 'Empieza a escribir un nombre'}
+            </div>
+          ) : candidates.map(u => {
+            const isPicked = !!picked.find(x => x.id === u.id)
+            return (
+              <button key={u.id} onClick={() => togglePick(u)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '8px 10px', background: isPicked ? 'var(--accent-muted)' : 'transparent',
+                  border: 'none', borderBottom: '1px solid var(--surface-4)',
+                  cursor: 'pointer', textAlign: 'left', color: 'var(--text-1)', fontSize: 'var(--text-sm)',
+                }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 800 }}>
+                  {(u.full_name || u.username || '?').charAt(0).toUpperCase()}
+                </div>
+                <span style={{ flex: 1 }}>{u.full_name || u.username}</span>
+                {isPicked && <span style={{ color: 'var(--accent)', fontSize: 'var(--text-xs)' }}>✓</span>}
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button onClick={onClose} style={{
+            background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
+            color: 'var(--text-2)', padding: '8px 14px', cursor: 'pointer', fontSize: 'var(--text-sm)',
+          }}>Cancelar</button>
+          <button
+            disabled={!picked.length || submit.isPending}
+            onClick={() => submit.mutate()}
+            style={{
+              background: picked.length ? 'var(--accent)' : 'var(--surface-4)',
+              color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px',
+              cursor: picked.length ? 'pointer' : 'not-allowed', fontSize: 'var(--text-sm)', fontWeight: 600,
+            }}>
+            {submit.isPending ? 'Añadiendo…' : `Añadir ${picked.length || ''}`.trim()}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Header dropdown: "..." con acciones de la conversación ─────────────────
+function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const ref = useRef(null)
+
+  // Click fuera + Esc cierran
+  useEffect(() => {
+    const onDoc = (e) => { if (!ref.current?.contains(e.target)) onClose() }
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
+
+  // Reglas existentes para esta conv → permite alternar silencio
+  const { data: rules = [] } = useQuery({
+    queryKey: ['collab-rules'],
+    queryFn: () => collabApi.listRules(),
+  })
+  const convRule = rules.find(r => r.scope === 'conversation' && r.target_id === conv.id)
+  const muted = convRule?.notify_messages === 'none'
+
+  const upsertMute = useMutation({
+    mutationFn: (toMute) => collabApi.upsertRule({
+      scope: 'conversation', target_id: conv.id,
+      notify_messages: toMute ? 'none' : 'all',
+      desktop_push: !toMute, email_digest: 'weekly',
+    }),
+    onSuccess: () => { qc.invalidateQueries(['collab-rules']); onClose() },
+  })
+
+  const copyLink = () => {
+    const url = `${window.location.origin}/chat?conv=${encodeURIComponent(conv.id)}`
+    try {
+      navigator.clipboard.writeText(url)
+      toast.success('Enlace copiado')
+    } catch {
+      toast.error('No se pudo copiar')
+    }
+    onClose()
+  }
+
+  const leaveGroup = useMutation({
+    mutationFn: () => collabApi.removeConversationMember(conv.id, currentUser.id),
+    onSuccess: () => {
+      qc.invalidateQueries(['collab-conversations'])
+      toast.success('Has salido del grupo')
+      onClose()
+    },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error'),
+  })
+
+  const item = (icon, label, onClick, danger = false) => (
+    <button onClick={onClick} style={{
+      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+      padding: '8px 12px', border: 'none', background: 'transparent',
+      cursor: 'pointer', fontSize: 'var(--text-sm)', color: danger ? 'var(--danger)' : 'var(--text-1)',
+      textAlign: 'left',
+    }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-3)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+    >
+      {icon}
+      <span style={{ flex: 1 }}>{label}</span>
+    </button>
+  )
+
+  return (
+    <div ref={ref} role="menu" style={{
+      position: 'absolute', top: 38, right: 0, zIndex: 50,
+      background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+      borderRadius: 8, minWidth: 220, padding: '4px 0',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.32)',
+    }}>
+      {item(<LinkIcon size={14} />, 'Copiar enlace', copyLink)}
+      {item(
+        <BellOff size={14} />,
+        muted ? 'Activar notificaciones' : 'Silenciar notificaciones',
+        () => upsertMute.mutate(!muted),
+      )}
+      {conv.kind === 'group' && (
+        <>
+          <div style={{ height: 1, background: 'var(--surface-4)', margin: '4px 0' }} />
+          {item(<UserPlus size={14} />, 'Añadir miembros…', onAddMembers)}
+          {item(<LogOut size={14} />, 'Salir del grupo', () => {
+            if (confirm('¿Salir del grupo? Dejarás de recibir mensajes.')) leaveGroup.mutate()
+          }, true)}
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Conversation pane ────────────────────────────────────────────────────────
 function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlashMenu, setShowSlashMenu }) {
   const realtime = useChatRealtime()
@@ -675,12 +889,14 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
   const [typingUsers, setTypingUsers] = useState({})  // { user_id: ts }
   const [isDragging, setIsDragging] = useState(false)
   const dragCounterRef = useRef(0)
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
+  const [showAddMembers, setShowAddMembers] = useState(false)
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['collab-messages', conv?.id],
     queryFn:  () => collabApi.listMessages(conv.id, { limit: 50 }),
     enabled:  !!conv?.id,
-    refetchInterval: 5_000, // fallback polling alongside websocket
+    refetchInterval: 30_000, // fallback polling — WS invalida casi siempre
   })
 
   // Parse @mentions from raw text → { mention_user_ids, is_everyone }
@@ -747,6 +963,18 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conv?.id, messages.length])
 
+  // Si el drag se cancela fuera del pane (Esc, salir de la ventana), aseguramos
+  // que el overlay se cierra para que no quede pegado.
+  useEffect(() => {
+    const reset = () => { dragCounterRef.current = 0; setIsDragging(false) }
+    window.addEventListener('dragend', reset)
+    window.addEventListener('drop', reset)
+    return () => {
+      window.removeEventListener('dragend', reset)
+      window.removeEventListener('drop', reset)
+    }
+  }, [])
+
   // Scroll to bottom on new messages
   useEffect(() => {
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
@@ -757,9 +985,11 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
     setShowSlashMenu(draft.startsWith('/') && !draft.includes(' '))
   }, [draft, setShowSlashMenu])
 
-  // Mention detection — busca el último @ sin cerrar
+  // Mention detection — busca el último @ sin cerrar.
+  // Sólo dependemos de conv?.id para no relanzar al editar título u otros
+  // campos del objeto conv que no afectan a la búsqueda.
   useEffect(() => {
-    if (!conv) return
+    if (!conv?.id) return
     const m = draft.match(/(^|[\s])@([\w.-]{0,40})$/)
     if (!m) {
       setMentionState(null)
@@ -775,7 +1005,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
       })
       .catch(() => setMentionState(null))
     return () => { cancelled = true }
-  }, [draft, conv])
+  }, [draft, conv?.id])
 
   // Typing emit (debounced)
   useEffect(() => {
@@ -966,12 +1196,33 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
             {conv.channel_type && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Canal {conv.channel_type}</div>}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, position: 'relative' }}>
           <IconBtn onClick={() => onCallStart('audio')} title="Llamada de voz"><Phone size={15} /></IconBtn>
           <IconBtn onClick={() => onCallStart('video')} title="Videollamada"><Video size={15} /></IconBtn>
-          <IconBtn title="Información"><MoreVertical size={15} /></IconBtn>
+          <IconBtn onClick={() => setHeaderMenuOpen(o => !o)} title="Más acciones"><MoreVertical size={15} /></IconBtn>
+          {headerMenuOpen && (
+            <ConvHeaderMenu
+              conv={conv}
+              currentUser={currentUser}
+              onClose={() => setHeaderMenuOpen(false)}
+              onAddMembers={() => { setHeaderMenuOpen(false); setShowAddMembers(true) }}
+            />
+          )}
         </div>
       </div>
+      {showAddMembers && conv.kind === 'group' && (
+        <AddGroupMembersModal
+          conv={conv}
+          onClose={() => setShowAddMembers(false)}
+          onAdded={() => {
+            qc.invalidateQueries(['collab-members', conv.id])
+            qc.invalidateQueries(['collab-members-for-add', conv.id])
+            qc.invalidateQueries(['collab-conversations'])
+            setShowAddMembers(false)
+            toast.success('Miembros añadidos')
+          }}
+        />
+      )}
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', background: 'var(--surface-0)' }}>
@@ -1540,7 +1791,7 @@ function ThreadPanel({ conv, rootId, onClose }) {
     queryKey: ['collab-thread', conv?.id, rootId],
     queryFn: () => collabApi.listMessages(conv.id, { thread_root: rootId, limit: 200 }),
     enabled: !!conv?.id && !!rootId,
-    refetchInterval: 5000,
+    refetchInterval: 30_000,
   })
   const send = useMutation({
     mutationFn: () => collabApi.sendMessage({ conversation_id: conv.id, parent_message_id: rootId, body: reply }),
@@ -1622,22 +1873,39 @@ function SlashMenu({ draft, onPick }) {
 
 // ── Right context panel ─────────────────────────────────────────────────────
 function ContextPanel({ conv }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const { user: me } = useAuth()
+  const [showAddMember, setShowAddMember] = useState(false)
   const { data: pins = [] } = useQuery({
     queryKey: ['collab-pins', conv.id],
     queryFn: () => collabApi.listPins(conv.id),
     enabled: !!conv?.id,
   })
   const { data: members = [] } = useQuery({
-    queryKey: ['collab-members', conv?.team_id || conv?.id],
+    queryKey: ['collab-members', conv?.id, conv?.kind],
     queryFn: async () => {
       if (conv?.kind === 'channel') {
         const all = await collabApi.listChannels()
         const ch = all.find(x => x.conversation_id === conv.id)
         if (ch) return collabApi.listChannelMembers(ch.id)
+        return []
+      }
+      if (conv?.kind === 'group') {
+        return collabApi.listConversationMembers(conv.id)
       }
       return []
     },
     enabled: !!conv?.id,
+  })
+  const removeMember = useMutation({
+    mutationFn: (uid) => collabApi.removeConversationMember(conv.id, uid),
+    onSuccess: () => {
+      qc.invalidateQueries(['collab-members', conv.id])
+      qc.invalidateQueries(['collab-conversations'])
+      toast.success('Miembro eliminado')
+    },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'No se pudo eliminar'),
   })
   const { data: calls = [] } = useQuery({
     queryKey: ['collab-calls', conv.id],
@@ -1694,18 +1962,58 @@ function ContextPanel({ conv }) {
           )
         })}
       </Section>
-      {members.length > 0 && (
-        <Section title={`Miembros (${members.length})`}>
-          {members.slice(0, 10).map(m => (
-            <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 'var(--text-sm)' }}>
-              <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 800 }}>
-                {(m.user_name || '?').charAt(0).toUpperCase()}
+      {(members.length > 0 || conv.kind === 'group') && (
+        <Section
+          title={`Miembros (${members.length})`}
+          right={conv.kind === 'group' ? (
+            <button
+              onClick={() => setShowAddMember(true)}
+              title="Añadir miembro"
+              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, color: 'var(--text-2)', cursor: 'pointer', padding: '2px 6px', fontSize: 'var(--text-xs)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            >
+              <Plus size={11} /> Añadir
+            </button>
+          ) : null}
+        >
+          {members.slice(0, 12).map(m => {
+            const isMe = m.user_id === me?.id
+            const canRemove = conv.kind === 'group' && (isMe || members.find(mm => mm.user_id === me?.id)?.is_admin)
+            return (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 'var(--text-sm)' }}>
+                <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 800 }}>
+                  {(m.user_name || '?').charAt(0).toUpperCase()}
+                </div>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {m.user_name || 'Cliente'}{isMe && ' (yo)'}
+                </span>
+                {(m.role && m.role !== 'member') && <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{m.role}</span>}
+                {m.is_admin && <span style={{ fontSize: 10, color: 'var(--accent)' }}>admin</span>}
+                {canRemove && (
+                  <button
+                    onClick={() => { if (confirm(isMe ? '¿Salir del grupo?' : `¿Quitar a ${m.user_name}?`)) removeMember.mutate(m.user_id) }}
+                    title={isMe ? 'Salir del grupo' : 'Quitar del grupo'}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 2 }}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
               </div>
-              <span>{m.user_name}</span>
-              {m.role !== 'member' && <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 'auto' }}>{m.role}</span>}
-            </div>
-          ))}
+            )
+          })}
         </Section>
+      )}
+      {showAddMember && conv.kind === 'group' && (
+        <AddGroupMembersModal
+          conv={conv}
+          existingUserIds={members.map(m => m.user_id).filter(Boolean)}
+          onClose={() => setShowAddMember(false)}
+          onAdded={() => {
+            qc.invalidateQueries(['collab-members', conv.id])
+            qc.invalidateQueries(['collab-conversations'])
+            setShowAddMember(false)
+            toast.success('Miembros añadidos')
+          }}
+        />
       )}
       <Section title={`Anclados (${pins.length})`}>
         {pins.length === 0 ? <Empty>Ningún mensaje anclado</Empty> : pins.map(p => (
@@ -1746,10 +2054,13 @@ function ContextPanel({ conv }) {
   )
 }
 
-function Section({ title, children }) {
+function Section({ title, children, right }) {
   return (
     <div style={{ marginBottom: 18 }}>
-      <div style={{ fontSize: 'var(--text-2xs, 10px)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{title}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <div style={{ flex: 1, fontSize: 'var(--text-2xs, 10px)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{title}</div>
+        {right}
+      </div>
       {children}
     </div>
   )

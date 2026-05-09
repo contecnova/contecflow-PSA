@@ -5,7 +5,10 @@
       "Bash(awk -F: '{sum+=$2} END {print \"Total inline styles:\", sum}')",
       "Bash(awk '{print $NF}')",
       "Bash(python -c \"from app.services.metrics import METRICS_REGISTRY; print\\('projects_by_type' in METRICS_REGISTRY\\); print\\(METRICS_REGISTRY.get\\('projects_by_type'\\)\\)\")",
-      "Bash(grep -n \"#[0-9a-f]\\\\{3,6\\\\}\\\\|rgba\\\\|rgb\\(\" /Users/oriolvallsanton/Code/contecflow-PSA/frontend/src/components/bi/BiEtlPanel.jsx /Users/oriolvallsanton/Code/contecflow-PSA/frontend/src/components/bi/BiGovernancePanel.jsx /Users/oriolvallsanton/Code/contecflow-PSA/frontend/src/components/bi/BiDashboardCollabPanel.jsx)"
+      "Bash(grep -n \"#[0-9a-f]\\\\{3,6\\\\}\\\\|rgba\\\\|rgb\\(\" /Users/oriolvallsanton/Code/contecflow-PSA/frontend/src/components/bi/BiEtlPanel.jsx /Users/oriolvallsanton/Code/contecflow-PSA/frontend/src/components/bi/BiGovernancePanel.jsx /Users/oriolvallsanton/Code/contecflow-PSA/frontend/src/components/bi/BiDashboardCollabPanel.jsx)",
+      "Bash(sqlite3 /Users/oriolvallsanton/Code/contecflow-PSA/contecflow.db \"SELECT username FROM users;\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"__TRACKED_VAR__\",\"password\":\"contecflow2024!\"}')",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"admin\",\"password\":\"CHANGE_ME_strong_password\"}')"
     ]
   }
 }

@@ -37,9 +37,27 @@ class StoredFile:
     sha256: Optional[str] = None
 
 
-# In-memory signed URL token store (TTL based). For prod with multiple workers
-# replace with Redis / KMS. The token itself is the storage opaque key.
+# In-memory signed URL token store (TTL based). For prod con varios workers
+# usar Redis / KMS. El token es el handle opaco de descarga.
 _SIGNED: dict[str, dict] = {}
+_SIGNED_MAX_ENTRIES = int(os.environ.get("COLLAB_SIGNED_MAX_ENTRIES", "20000"))
+
+
+def _purge_expired_signed_tokens() -> int:
+    """Elimina tokens expirados in-place. Idempotente y barata.
+    Si el dict supera el techo configurado, recorta los más viejos.
+    Devuelve cuántos se eliminaron."""
+    now = time.time()
+    to_drop = [k for k, v in _SIGNED.items() if v.get("expires_at", 0) < now]
+    for k in to_drop:
+        _SIGNED.pop(k, None)
+    # Hard cap defensivo: si seguimos por encima del máximo, drop
+    # los más antiguos por expires_at ascendente.
+    if len(_SIGNED) > _SIGNED_MAX_ENTRIES:
+        oldest = sorted(_SIGNED.items(), key=lambda kv: kv[1].get("expires_at", 0))
+        for k, _ in oldest[: len(_SIGNED) - _SIGNED_MAX_ENTRIES]:
+            _SIGNED.pop(k, None)
+    return len(to_drop)
 
 
 class FileStorage:
@@ -108,6 +126,8 @@ class FileStorage:
 
     # ── Signed URLs ──────────────────────────────────────────────────────────
     def signed_url(self, key: str, *, ttl_seconds: int = 3600, mode: str = "download") -> str:
+        # Lazy purge en cada nueva firma (evita memory leak sin scheduler)
+        _purge_expired_signed_tokens()
         token = secrets.token_urlsafe(24)
         _SIGNED[token] = {
             "key": key,

@@ -397,7 +397,7 @@ def list_conversations_for_user(db: Session, user) -> list[dict]:
             "icon": None,
         })
 
-    # Directs where user participates
+    # Directs where user participates — bulk-load peers para evitar N+1
     direct_rows = db.query(CollaborationDirectConversation).filter(
         CollaborationDirectConversation.organization_id == org,
         or_(
@@ -405,9 +405,13 @@ def list_conversations_for_user(db: Session, user) -> list[dict]:
             CollaborationDirectConversation.user_b_id == user.id,
         ),
     ).all()
+    peer_ids = {d.user_b_id if d.user_a_id == user.id else d.user_a_id for d in direct_rows}
+    peers_by_id = {
+        u.id: u for u in db.query(User).filter(User.id.in_([pid for pid in peer_ids if pid])).all()
+    } if peer_ids else {}
     for d in direct_rows:
         other = d.user_b_id if d.user_a_id == user.id else d.user_a_id
-        u = db.query(User).filter(User.id == other).first()
+        u = peers_by_id.get(other)
         title = (u.full_name or u.username or "Usuario") if u else "Usuario"
         out.append({
             "id": d.conversation_id, "kind": "direct",

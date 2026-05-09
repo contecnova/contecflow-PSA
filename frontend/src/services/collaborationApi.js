@@ -30,6 +30,9 @@ export const collabApi = {
   getConversation:   (id) => api.get(`${root}/conversations/${id}`).then(r => r.data),
   openDirect:        (d) => api.post(`${root}/direct/open`, d).then(r => r.data),
   createGroup:       (d) => api.post(`${root}/groups`, d).then(r => r.data),
+  listConversationMembers:   (cid) => api.get(`${root}/conversations/${cid}/members`).then(r => r.data),
+  addConversationMembers:    (cid, body) => api.post(`${root}/conversations/${cid}/members`, body).then(r => r.data),
+  removeConversationMember:  (cid, uid) => api.delete(`${root}/conversations/${cid}/members/${uid}`).then(r => r.data),
 
   // Messages
   listMessages: (cid, params) => api.get(`${root}/conversations/${cid}/messages`, { params }).then(r => r.data),

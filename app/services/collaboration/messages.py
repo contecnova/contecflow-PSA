@@ -71,48 +71,83 @@ def _resolve_conversation(db: Session, *, conversation_id: Optional[str], channe
 
 # ── Notifications fan-out ────────────────────────────────────────────────────
 def _notify_recipients(db: Session, *, organization_id: str, conv: CollaborationConversation, message: CollaborationMessage, mentions: list[CollaborationMention]) -> None:
-    # Determine recipients (all participants, exclude author)
-    recipients = []
+    """Crea CollaborationNotification para los participantes, respetando:
+        • Channel/Group membership: `notify_level` ('all' | 'mentions' | 'none')
+          y `is_muted` por miembro.
+        • Reglas globales (`CollaborationNotificationRule`) con scope='conversation'
+          y target_id = conv.id por usuario; si `notify_messages='none'` se silencia
+          ese usuario para esa conversación.
+    Cada recipiente entra como (user_id, client_user_id, notify_level, is_muted).
+    Las menciones siempre rompen el filtro 'mentions'.
+    """
+    from app.models.collaboration import CollaborationNotificationRule
+
+    recipients: list[tuple[str | None, str | None, str, bool]] = []
     if conv.kind == "channel":
         ch = db.query(CollaborationChannel).filter(CollaborationChannel.conversation_id == conv.id).first()
         if not ch:
             return
         if ch.channel_type in {"public", "announcement", "project"}:
             from app.models.collaboration import CollaborationTeamMember
-            user_ids = [r[0] for r in db.query(CollaborationTeamMember.user_id).filter(
-                CollaborationTeamMember.team_id == ch.team_id
-            ).all()]
+            # Team members → notify_level por defecto = 'all', no muted
+            for tm in db.query(CollaborationTeamMember).filter(
+                CollaborationTeamMember.team_id == ch.team_id,
+            ).all():
+                recipients.append((tm.user_id, None, "all", False))
         else:
             from app.models.collaboration import CollaborationChannelMember
-            user_ids = [r[0] for r in db.query(CollaborationChannelMember.user_id).filter(
-                CollaborationChannelMember.channel_id == ch.id
-            ).all()]
-        recipients = [(uid, None) for uid in user_ids]
+            for cm in db.query(CollaborationChannelMember).filter(
+                CollaborationChannelMember.channel_id == ch.id,
+            ).all():
+                recipients.append((cm.user_id, None, cm.notify_level or "all", bool(cm.is_muted)))
     elif conv.kind == "direct":
         d = db.query(CollaborationDirectConversation).filter(CollaborationDirectConversation.conversation_id == conv.id).first()
         if d:
             for uid in {d.user_a_id, d.user_b_id}:
-                recipients.append((uid, None))
+                if uid:
+                    recipients.append((uid, None, "all", False))
             for cid in [d.client_user_a_id, d.client_user_b_id]:
                 if cid:
-                    recipients.append((None, cid))
+                    recipients.append((None, cid, "all", False))
     elif conv.kind == "group":
         members = db.query(CollaborationConversationMember).filter(
-            CollaborationConversationMember.conversation_id == conv.id
+            CollaborationConversationMember.conversation_id == conv.id,
         ).all()
         for m in members:
-            recipients.append((m.user_id, m.client_user_id))
+            recipients.append((m.user_id, m.client_user_id, "all", bool(getattr(m, "is_muted", False))))
 
     mentioned_users = {m.mentioned_user_id for m in mentions if m.mentioned_user_id}
     mentioned_clients = {m.mentioned_client_user_id for m in mentions if m.mentioned_client_user_id}
     is_everyone = any(m.is_everyone for m in mentions)
 
-    for u_id, c_id in recipients:
+    # Reglas por-conversación: { user_id: notify_messages }
+    rule_rows = db.query(CollaborationNotificationRule).filter(
+        CollaborationNotificationRule.organization_id == organization_id,
+        CollaborationNotificationRule.scope == "conversation",
+        CollaborationNotificationRule.target_id == conv.id,
+    ).all()
+    rule_by_user = {r.user_id: r.notify_messages for r in rule_rows if r.user_id}
+
+    for u_id, c_id, notify_level, is_muted in recipients:
+        # Excluir al autor
         if message.user_id and u_id == message.user_id:
             continue
         if message.client_user_id and c_id == message.client_user_id:
             continue
         is_mention = (u_id and u_id in mentioned_users) or (c_id and c_id in mentioned_clients) or is_everyone
+        # Per-conversation rule manda — pero las menciones rompen el silencio
+        per_conv = rule_by_user.get(u_id) if u_id else None
+        if per_conv == "none" and not is_mention:
+            continue
+        if per_conv == "mentions" and not is_mention:
+            continue
+        # Membership-level
+        if is_muted and not is_mention:
+            continue
+        if notify_level == "none" and not is_mention:
+            continue
+        if notify_level == "mentions" and not is_mention:
+            continue
         kind = "mention" if is_mention else "message"
         db.add(CollaborationNotification(
             organization_id=organization_id,

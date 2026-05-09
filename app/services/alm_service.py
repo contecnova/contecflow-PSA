@@ -87,110 +87,36 @@ def get_linked_clients_for_contract(contract_id, db: Session) -> list:
         return []
 
 
-# ── Serialisers ───────────────────────────────────────────────────────────────
+# ── Serialisers (Refactored with ModelSerializer base class) ─────────────────
 
-def serialize_vendor(v) -> dict:
-    return {
-        "id": v.id, "name": v.name, "category": v.category,
-        "website": v.website, "support_email": v.support_email,
-        "support_phone": v.support_phone, "account_manager": v.account_manager,
-        "account_number": v.account_number, "country": v.country,
-        "is_active": v.is_active, "notes": v.notes,
-        "contracts_count": len(v.contracts) if v.contracts else 0,
-    }
+from app.core.serializers import VendorSerializer, ContractSerializer, LicenseSerializer, AssetSerializer
 
 
-def serialize_contract(c, db: Optional[Session] = None) -> dict:
-    today = date.today()
-    days_to_renewal = None
-    if c.renewal_date:
-        days_to_renewal = (c.renewal_date - today).days
-    return {
-        "id": c.id, "title": c.title, "reference": c.reference,
-        "type": c.type, "status": c.status,
-        "vendor_id": c.vendor_id,
-        "vendor_name": c.vendor.name if c.vendor else None,
-        "start_date": str(c.start_date) if c.start_date else None,
-        "end_date": str(c.end_date) if c.end_date else None,
-        "renewal_date": str(c.renewal_date) if c.renewal_date else None,
-        "auto_renew": c.auto_renew, "notice_days": c.notice_days,
-        "days_to_renewal": days_to_renewal,
-        "renewal_urgent": days_to_renewal is not None and 0 <= days_to_renewal <= 60,
-        "total_value": c.total_value, "annual_value": c.annual_value,
-        "billing_cycle": c.billing_cycle, "currency": c.currency,
-        "payment_method": c.payment_method, "po_number": c.po_number,
-        "cost_center_id": c.cost_center_id,
-        "owner_id": c.owner_id,
-        "owner_name": c.owner.full_name if c.owner else None,
-        "project_id": c.project_id,
-        "document_url": c.document_url,
-        "notes": c.notes, "tags": c.tags,
-        "licenses_count": len(c.licenses) if c.licenses else 0,
-        "linked_clients": get_linked_clients_for_contract(c.id, db) if db else [],
-    }
+def serialize_vendor(v: ALMVendor) -> dict[str, Any]:
+    """Serialize Vendor using base class."""
+    return VendorSerializer(v).to_dict()
 
 
-def serialize_license(lic, db: Session) -> dict:
-    used  = sum(1 for a in lic.assignments if a.is_active)
-    avail = (lic.total_seats - used) if lic.total_seats else None
-    status = lic.status
-    if lic.expiry_date and lic.expiry_date < date.today():
-        status = "expired"
-    elif lic.total_seats and used > lic.total_seats:
-        status = "overallocated"
-    elif used == 0 and lic.total_seats and lic.total_seats > 0:
-        status = "unassigned"
-    return {
-        "id": lic.id, "name": lic.name, "product_name": lic.product_name,
-        "version": lic.version, "edition": lic.edition,
-        "type": lic.type, "platform": lic.platform, "status": status,
-        "vendor_id": lic.vendor_id,
-        "vendor_name": lic.vendor.name if lic.vendor else None,
-        "contract_id": lic.contract_id,
-        "total_seats": lic.total_seats, "used_seats": used, "available_seats": avail,
-        "expiry_date": str(lic.expiry_date) if lic.expiry_date else None,
-        "purchase_date": str(lic.purchase_date) if lic.purchase_date else None,
-        "purchase_price": lic.purchase_price, "annual_cost": lic.annual_cost,
-        "cost_center_id": lic.cost_center_id, "project_id": lic.project_id,
-        "environment": lic.environment, "is_compliance_req": lic.is_compliance_req,
-        "notes": lic.notes,
-        "assignments_count": used,
-        "days_to_expiry": (lic.expiry_date - date.today()).days if lic.expiry_date else None,
-        "linked_clients": get_linked_clients_for_license(lic.id, db),
-    }
+def serialize_contract(c: ALMContract, db: Optional[Session] = None) -> dict[str, Any]:
+    """Serialize Contract using base class. Note: linked_clients not included by base class."""
+    result = ContractSerializer(c).to_dict()
+    if db:
+        result["linked_clients"] = get_linked_clients_for_contract(c.id, db)
+    else:
+        result["linked_clients"] = []
+    return result
 
 
-def serialize_asset(a) -> dict:
-    age_years  = None
-    book_value = None
-    if a.purchase_date:
-        age_years = (date.today() - a.purchase_date).days / 365
-        if a.purchase_price and a.depreciation_years:
-            depreciated = a.purchase_price * (age_years / a.depreciation_years)
-            book_value  = max(0, a.purchase_price - depreciated)
-    return {
-        "id": a.id, "name": a.name, "type": a.type,
-        "brand": a.brand, "model": a.model,
-        "serial_number": a.serial_number, "asset_tag": a.asset_tag,
-        "status": a.status, "condition": a.condition,
-        "assigned_to_id": a.assigned_to_id,
-        "assigned_to_name": a.assigned_to.full_name if a.assigned_to else None,
-        "location": a.location, "department_id": a.department_id,
-        "project_id": a.project_id,
-        "vendor_id": a.vendor_id,
-        "vendor_name": a.vendor.name if a.vendor else None,
-        "purchase_date": str(a.purchase_date) if a.purchase_date else None,
-        "purchase_price": a.purchase_price, "currency": a.currency,
-        "warranty_expiry": str(a.warranty_expiry) if a.warranty_expiry else None,
-        "warranty_expired": a.warranty_expiry < date.today() if a.warranty_expiry else False,
-        "age_years": round(age_years, 1) if age_years else None,
-        "book_value": round(book_value, 2) if book_value is not None else None,
-        "depreciation_years": a.depreciation_years,
-        "ip_address": a.ip_address, "hostname": a.hostname, "os": a.os,
-        "cpu": a.cpu, "ram_gb": a.ram_gb, "storage_gb": a.storage_gb,
-        "notes": a.notes,
-        "installed_licenses": len(a.installs) if a.installs else 0,
-    }
+def serialize_license(lic: ALMLicense, db: Session) -> dict[str, Any]:
+    """Serialize License using base class. Note: linked_clients not included by base class."""
+    result = LicenseSerializer(lic).to_dict()
+    result["linked_clients"] = get_linked_clients_for_license(lic.id, db)
+    return result
+
+
+def serialize_asset(a: ALMAsset) -> dict[str, Any]:
+    """Serialize Asset using base class."""
+    return AssetSerializer(a).to_dict()
 
 
 # ── Dashboard / KPIs ─────────────────────────────────────────────────────────

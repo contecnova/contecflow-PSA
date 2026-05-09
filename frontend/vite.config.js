@@ -3,7 +3,12 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
   const apiTarget = process.env.VITE_API_URL || process.env.API_URL || 'http://localhost:8000'
-  const apiOrigin = new URL(apiTarget).origin
+  let apiOrigin = 'http://localhost:8000'
+  try {
+    apiOrigin = new URL(apiTarget, 'http://localhost:8000').origin
+  } catch {
+    apiOrigin = 'http://localhost:8000'
+  }
 
   return {
     plugins: [

@@ -12,3 +12,5 @@ Domains:
   platform    — Enterprise integrations, security, compliance, admin tooling
   framework   — Infrastructure concerns: health, websocket, notifications, etc.
 """
+
+from . import core, delivery, ai_domain, platform, framework

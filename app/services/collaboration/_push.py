@@ -71,3 +71,18 @@ def push_to_user(db: Session, user_id: str, payload: dict) -> int:
             s.is_active = False
     db.commit()
     return delivered
+
+
+def purge_stale_subscriptions(db: Session, *, days: int = 30) -> int:
+    """Borra suscripciones `is_active=False` creadas hace más de `days` días.
+    Las recientes se mantienen por si el usuario re-aprueba en el siguiente
+    login (re-activa la fila). Retorna cuántas se eliminaron."""
+    from datetime import datetime, timedelta
+    from app.models.collaboration import CollaborationPushSubscription
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    n = db.query(CollaborationPushSubscription).filter(
+        CollaborationPushSubscription.is_active == False,  # noqa: E712
+        CollaborationPushSubscription.created_at < cutoff,
+    ).delete(synchronize_session=False)
+    db.commit()
+    return int(n or 0)

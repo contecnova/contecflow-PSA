@@ -24,7 +24,8 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
-from app.services.ws_service import consume_ws_ticket_local, get_active_user_by_id
+from app.services.ws_service import get_active_user_by_id
+from app.api.v1.endpoints.ws import _consume_ws_ticket
 from app.services.collaboration._bus import (
     bus, conv_channel, org_channel, user_channel, workspace_channel,
 )
@@ -75,14 +76,8 @@ async def collaboration_ws(
     if not ticket:
         await websocket.close(code=4401)
         return
-    user_id = consume_ws_ticket_local(ticket)
+    user_id = await _consume_ws_ticket(ticket)
     if not user_id:
-        # try redis-backed tickets (best-effort)
-        try:
-            from app.api.v1.endpoints.ws import _validate_jwt  # not used here, only to ensure env loaded
-            del _validate_jwt
-        except Exception:
-            pass
         await websocket.close(code=4401)
         return
 
@@ -92,7 +87,21 @@ async def collaboration_ws(
         if not user:
             await websocket.close(code=4403)
             return
-        ws_obj = get_or_create_workspace(db, user)
+        # Si el usuario no pertenece a una organización (p.ej. superadmin global)
+        # no puede operar en el módulo de chat: cerramos el handshake limpiamente
+        # con 4403 en lugar de propagar HTTPException → 500.
+        if not getattr(user, "organization_id", None):
+            log.info("collab ws: user=%s sin organización — chat no disponible", user_id)
+            await websocket.accept()
+            await websocket.close(code=4403)
+            return
+        try:
+            ws_obj = get_or_create_workspace(db, user)
+        except Exception as exc:
+            log.warning("collab ws: get_or_create_workspace falló para user=%s: %s", user_id, exc)
+            await websocket.accept()
+            await websocket.close(code=4403)
+            return
         await websocket.accept()
 
         # Subscribe to user's channels
@@ -151,9 +160,9 @@ async def collaboration_ws(
                 except Exception:
                     continue
                 
-                # G2 Fix: Revalidate user every 60 messages (roughly every 5-10 minutes)
+                # Revalidación cada 10 mensajes del cliente (más watchdog cada 30s)
                 revalidate_counter += 1
-                if revalidate_counter >= 60:
+                if revalidate_counter >= 10:
                     if not await _ensure_user_still_active():
                         return
                     revalidate_counter = 0
@@ -202,11 +211,33 @@ async def collaboration_ws(
                 if not await _ensure_user_still_active():
                     return
 
+        # Lanzamos las tres tasks y, en cuanto cualquiera termine (cliente
+        # desconecta / revocación / error), cancelamos las otras para que el
+        # producer no quede vivo consumiendo del bus tras un disconnect del
+        # cliente (resource leak).
+        tasks = [
+            asyncio.create_task(producer()),
+            asyncio.create_task(consumer()),
+            asyncio.create_task(revocation_watchdog()),
+        ]
         try:
-            await asyncio.gather(producer(), consumer(), revocation_watchdog())
-        except Exception as exc:
-            log.warning("collab ws closed: %s", exc)
+            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for t in pending:
+                t.cancel()
+            # Drenar excepciones para que no se logueen como "Task exception was never retrieved"
+            for t in done:
+                exc = t.exception()
+                if exc:
+                    log.debug("collab ws task ended: %s", exc)
+            for t in pending:
+                try:
+                    await t
+                except (asyncio.CancelledError, Exception):
+                    pass
         finally:
-            await sub.close()
+            try:
+                await sub.close()
+            except Exception:
+                pass
     finally:
         db.close()

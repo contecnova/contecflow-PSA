@@ -1459,12 +1459,22 @@ export const jiraApi = {
 
 // ── SD Workflow Designer ──────────────────────────────────────────────────────
 export const sdWorkflowDesignerApi = {
-  blueprints:     () => api.get('/sd/workflow-designer/blueprints'),
+  schema:         () => api.get('/sd/workflow-designer/schema'),
+  templates:      () => api.get('/sd/workflow-designer/templates'),
+  blueprints:     (params) => api.get('/sd/workflow-designer/blueprints', { params }),
+  blueprint:      (id) => api.get(`/sd/workflow-designer/blueprints/${id}`),
   createBlueprint:(data) => api.post('/sd/workflow-designer/blueprints', data),
   createVersion:  (id, data) => api.post(`/sd/workflow-designer/blueprints/${id}/versions`, data),
   publish:        (id, version) => api.post(`/sd/workflow-designer/blueprints/${id}/publish/${version}`),
   validate:       (data) => api.post('/sd/workflow-designer/validate', data),
-  versions:       (id) => api.get(`/sd/workflow-designer/blueprints/${id}/versions`),
+  clone:          (id, data) => api.post(`/sd/workflow-designer/blueprints/${id}/clone`, data),
+  archive:        (id) => api.delete(`/sd/workflow-designer/blueprints/${id}`),
+  // Runtime
+  startRun:       (id, data) => api.post(`/sd/workflow-designer/blueprints/${id}/runs`, data),
+  runs:           (params) => api.get('/sd/workflow-designer/runs', { params }),
+  run:            (rid) => api.get(`/sd/workflow-designer/runs/${rid}`),
+  resumeRun:      (rid, data) => api.post(`/sd/workflow-designer/runs/${rid}/resume`, data),
+  cancelRun:      (rid, reason) => api.post(`/sd/workflow-designer/runs/${rid}/cancel`, { reason }),
 }
 
 // ── Mentions & Comments ───────────────────────────────────────────────────────
