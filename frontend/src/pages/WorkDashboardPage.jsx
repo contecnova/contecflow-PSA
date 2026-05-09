@@ -9,7 +9,7 @@ import {
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import {
-  COLOR, DashPageShell, KpiCard, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow, SectionCard, DashEmpty,
+  COLOR, DashPageShell, KpiCard, KpiIcon, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow, SectionCard, DashEmpty,
   dateRange,
 } from '../components/dashboard/DashKit'
 
@@ -122,15 +122,6 @@ function Hero({ navigate, userName }) {
     </div>
   )
 }
-
-// ── Lucide-icon wrapper for KpiCard ──────────────────────────────────────────
-// El KpiCard espera un nodo como icon. Le pasamos el lucide envuelto en un div
-// con tamaño consistente, alineado con la nueva estética.
-const KpiIcon = ({ icon: Icon }) => (
-  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16 }}>
-    <Icon size={14} strokeWidth={2.2} />
-  </span>
-)
 
 // ── Main page ───────────────────────────────────────────────────────────────
 export default function WorkDashboardPage() {
