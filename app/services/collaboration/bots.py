@@ -366,8 +366,12 @@ def _slash_onboard(db: Session, user, conversation_id: str, args: str) -> dict:
 
 def _slash_meet(db: Session, user, conversation_id: str, args: str) -> dict:
     """Inicia llamada inmediata."""
-    from app.api.v1.endpoints.collaboration.calls import _room_name  # noqa: F401
     from app.services.collaboration.livekit import issue_access_token, url as lk_url
+
+    # Pequeño helper que vivía en endpoints/collaboration/calls.py — inlined
+    # aquí para romper la dependencia services → endpoints.
+    def _room_name(call_id: str) -> str:
+        return f"contec-{call_id}"
 
     org = _org(user)
     call = CollaborationCall(

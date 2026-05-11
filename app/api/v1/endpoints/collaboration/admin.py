@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, require_admin
 from app.db.session import get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.models.collaboration import (
     CollaborationIntegration, CollaborationPushSubscription,
 )
@@ -73,6 +74,7 @@ def push_test(current_user: User = Depends(get_current_user), db: Session = Depe
 
 @router.delete("/push/unsubscribe", summary="Borrar suscripción por endpoint")
 def push_unsubscribe(endpoint: str = Body(..., embed=True), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    enforce_abac(db, current_user, "collaboration_push_subscription", str(current_user.id), action="delete")
     n = db.query(CollaborationPushSubscription).filter(
         CollaborationPushSubscription.endpoint == endpoint,
         CollaborationPushSubscription.user_id == current_user.id,

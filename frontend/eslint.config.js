@@ -173,6 +173,13 @@ export default [
           selector: "Property[key.name='fontSize'][value.type='Literal'][value.raw=/^[0-9]+$/]",
           message: 'fontSize literal numérico. Usa var(--text-xs|sm|base|md|lg|xl|2xl|3xl) — escala definida en index.css.',
         },
+        // Anti-patrón "card armada inline": background var(--surface-2) seguido
+        // de borderRadius dentro del mismo style={{...}}. Usa la clase .ds-card
+        // o el componente <Card> en lugar de repetir background + border + radius.
+        {
+          selector: "Property[key.name='background'][value.value='var(--surface-2)'] ~ Property[key.name='borderRadius']",
+          message: 'Card armada inline detectada (background var(--surface-2) + borderRadius). Usa className="ds-card" o el componente <Card>.',
+        },
       ],
     },
   },

@@ -33,7 +33,7 @@ def list_absences(
     limit: int = 50,
 ) -> list[Absence]:
 
-    q = db.query(Absence).options(joinedload(Absence.user))
+    q = db.query(Absence).options(joinedload(Absence.user)).filter(Absence.is_active == True)
     if not is_superadmin and organization_id:
         org_user_ids = db.query(User.id).filter(
             User.organization_id == organization_id
@@ -59,7 +59,7 @@ def get_my_absences(db: Session, user_id: str) -> list[Absence]:
     return (
         db.query(Absence)
         .options(joinedload(Absence.user), joinedload(Absence.approver))
-        .filter(Absence.user_id == user_id)
+        .filter(Absence.user_id == user_id, Absence.is_active == True)
         .order_by(Absence.start_date.desc())
         .all()
     )
@@ -84,6 +84,7 @@ def get_vacation_balance(db: Session, user_id: str, year: int) -> dict:
 
     taken = db.query(func.sum(Absence.working_days)).filter(
         Absence.user_id == user_id,
+        Absence.is_active == True,
         Absence.type == AbsenceType.vacation,
         Absence.status == AbsenceStatus.approved,
         Absence.start_date >= year_start,
@@ -92,6 +93,7 @@ def get_vacation_balance(db: Session, user_id: str, year: int) -> dict:
 
     pending = db.query(func.sum(Absence.working_days)).filter(
         Absence.user_id == user_id,
+        Absence.is_active == True,
         Absence.type == AbsenceType.vacation,
         Absence.status == AbsenceStatus.pending,
         Absence.start_date >= year_start,
@@ -117,6 +119,7 @@ def get_overlap(
 ) -> Optional[Absence]:
     q = db.query(Absence).filter(
         Absence.user_id == user_id,
+        Absence.is_active == True,
         Absence.status.in_([AbsenceStatus.pending, AbsenceStatus.approved]),
         Absence.start_date <= end_date,
         Absence.end_date >= start_date,
@@ -141,11 +144,12 @@ def get_absence_for_user(db: Session, absence_id: str, user_id: str) -> Optional
     return db.query(Absence).filter(
         Absence.id == absence_id,
         Absence.user_id == user_id,
+        Absence.is_active == True,
     ).first()
 
 
 def get_absence_by_id(db: Session, absence_id: str) -> Optional[Absence]:
-    return db.query(Absence).filter(Absence.id == absence_id).first()
+    return db.query(Absence).filter(Absence.id == absence_id, Absence.is_active == True).first()
 
 
 def get_team_absences(
@@ -156,7 +160,7 @@ def get_team_absences(
     status: Optional[str] = None,
 ) -> list[Absence]:
 
-    q = db.query(Absence).options(joinedload(Absence.user), joinedload(Absence.approver))
+    q = db.query(Absence).options(joinedload(Absence.user), joinedload(Absence.approver)).filter(Absence.is_active == True)
     if month:
         year, m = int(month.split("-")[0]), int(month.split("-")[1])
         month_start = date(year, m, 1)
@@ -174,6 +178,7 @@ def get_pending_absences(db: Session) -> list[Absence]:
     return (
         db.query(Absence)
         .options(joinedload(Absence.user))
+        .filter(Absence.is_active == True)
         .filter(Absence.status == AbsenceStatus.pending)
         .order_by(Absence.start_date)
         .all()
@@ -187,6 +192,7 @@ def get_calendar_data(
         db.query(Absence)
         .options(joinedload(Absence.user))
         .filter(
+            Absence.is_active == True,
             Absence.status == AbsenceStatus.approved,
             Absence.start_date <= month_end,
             Absence.end_date >= month_start,
@@ -204,6 +210,7 @@ def get_user_year_absences(
     year_end = date(year + 1, 1, 1)
     return db.query(Absence).filter(
         Absence.user_id == user_id,
+        Absence.is_active == True,
         Absence.status == AbsenceStatus.approved,
         Absence.start_date >= year_start,
         Absence.start_date < year_end,
@@ -238,6 +245,7 @@ def create_absence(
 
 def cancel_absence(db: Session, absence: Absence) -> None:
     absence.status = AbsenceStatus.cancelled
+    absence.is_active = False
     db.commit()
 
 

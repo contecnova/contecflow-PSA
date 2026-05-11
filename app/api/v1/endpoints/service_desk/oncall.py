@@ -6,6 +6,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.schemas.service_desk import OnCallScheduleIn, OnCallEntryIn
 from app.services.service_desk.oncall_service import (
@@ -38,7 +39,8 @@ def update_oncall_schedule(schedule_id: str, payload: OnCallScheduleIn, db: Sess
 
 
 @router.delete("/oncall/schedules/{schedule_id}", summary="Eliminar schedule")
-def delete_oncall_schedule(schedule_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_oncall_schedule(schedule_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    enforce_abac(db, current_user, "sd_oncall_schedule", schedule_id, action="delete")
     delete_oncall_schedule_svc(db, schedule_id)
     _commit_or_rollback(db)
     return {"ok": True}
@@ -52,7 +54,8 @@ def add_oncall_entry(schedule_id: str, payload: OnCallEntryIn, db: Session = Dep
 
 
 @router.delete("/oncall/entries/{entry_id}", summary="Eliminar turno de guardia")
-def delete_oncall_entry(entry_id: str, db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def delete_oncall_entry(entry_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    enforce_abac(db, current_user, "sd_oncall_entry", entry_id, action="delete")
     delete_oncall_entry_svc(db, entry_id)
     _commit_or_rollback(db)
     return {"ok": True}

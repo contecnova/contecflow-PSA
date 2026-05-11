@@ -1,5 +1,7 @@
 """Tests de Training & Certificaciones."""
 import pytest
+from app.models.training import Course
+from app.models.training import CourseEnrollment
 from tests.conftest import auth
 
 
@@ -45,6 +47,15 @@ def test_delete_course(client, admin_token, db):
     res = client.delete(f"/api/v1/training/courses/{course_id}",
         headers=auth(admin_token))
     assert res.status_code == 200
+    assert res.json()["ok"] is True
+
+    listed = client.get("/api/v1/training/courses", headers=auth(admin_token))
+    assert listed.status_code == 200
+    assert all(c["id"] != course_id for c in listed.json())
+
+    row = db.query(Course).filter(Course.id == course_id).first()
+    assert row is not None
+    assert row.is_active is False
 
 
 def test_list_enrollments_empty(client, admin_token, db):
@@ -69,6 +80,38 @@ def test_create_enrollment(client, admin_token, db):
         headers=auth(admin_token),
         json={"course_id": course_id, "user_id": dev["id"], "status": "planned"})
     assert res.status_code == 201
+
+
+def test_delete_enrollment_hard_and_hidden(client, admin_token, db):
+    course_id = client.post(
+        "/api/v1/training/courses",
+        headers=auth(admin_token),
+        json={"title": "Curso para borrar inscripción"},
+    ).json()["id"]
+
+    users = client.get("/api/v1/users", headers=auth(admin_token)).json()
+    if isinstance(users, dict):
+        users = users.get("users", users.get("items", []))
+    dev = next((u for u in users if u["username"] == "dev_test"), None)
+    if not dev:
+        pytest.skip("dev_test no encontrado")
+
+    created = client.post(
+        "/api/v1/training/enrollments",
+        headers=auth(admin_token),
+        json={"course_id": course_id, "user_id": dev["id"], "status": "planned"},
+    ).json()
+
+    res = client.delete(f"/api/v1/training/enrollments/{created['id']}", headers=auth(admin_token))
+    assert res.status_code == 200
+    assert res.json()["ok"] is True
+
+    listed = client.get("/api/v1/training/enrollments", headers=auth(admin_token))
+    assert listed.status_code == 200
+    assert all(e["id"] != created["id"] for e in listed.json())
+
+    row = db.query(CourseEnrollment).filter(CourseEnrollment.id == created["id"]).first()
+    assert row is None
 
 
 def test_add_certification(client, admin_token, db):

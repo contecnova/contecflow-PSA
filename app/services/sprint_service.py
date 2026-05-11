@@ -132,13 +132,18 @@ def add_tasks_to_sprint(
         existing = db.query(SprintTask).filter(
             SprintTask.sprint_id == sprint_id, SprintTask.task_id == task_id
         ).first()
-        if existing:
+        if existing and existing.is_active == True:
             continue
         max_order = (
             db.query(func.max(SprintTask.backlog_order))
-            .filter(SprintTask.sprint_id == sprint_id)
+            .filter(SprintTask.sprint_id == sprint_id, SprintTask.is_active == True)
             .scalar() or 0
         )
+        if existing and existing.is_active == False:
+            existing.is_active = True
+            existing.backlog_order = max_order + 1
+            added += 1
+            continue
         db.add(SprintTask(sprint_id=sprint_id, task_id=task_id, backlog_order=max_order + 1))
         added += 1
     db.commit()
@@ -149,13 +154,13 @@ def get_sprint_task(
     db: Session, sprint_id: str, task_id: str
 ) -> Optional[SprintTask]:
     return db.query(SprintTask).filter(
-        SprintTask.sprint_id == sprint_id, SprintTask.task_id == task_id
+        SprintTask.sprint_id == sprint_id, SprintTask.task_id == task_id, SprintTask.is_active == True
     ).first()
 
 
 def delete_sprint_task(db: Session, st: SprintTask) -> None:
     sprint_id = st.sprint_id
-    db.delete(st)
+    st.is_active = False
     db.commit()
     from app.core.events import emit, EventType
     emit(db, EventType.SPRINT_DELETED,
@@ -168,7 +173,7 @@ def reorder_sprint_backlog(
 ) -> None:
     for i, task_id in enumerate(task_ids):
         st = db.query(SprintTask).filter(
-            SprintTask.sprint_id == sprint_id, SprintTask.task_id == task_id
+            SprintTask.sprint_id == sprint_id, SprintTask.task_id == task_id, SprintTask.is_active == True
         ).first()
         if st:
             st.backlog_order = i
@@ -182,6 +187,7 @@ def get_project_backlog_tasks(db: Session, project_id: str) -> List[Task]:
         .filter(
             Sprint.project_id == project_id,
             Sprint.status.in_([SprintStatus.planning, SprintStatus.active]),
+            SprintTask.is_active == True,
         )
         .scalar_subquery()
     )
@@ -244,10 +250,10 @@ def serialize_sprint(s, include_tasks: bool = False) -> dict:
         "to_improve": s.to_improve,
         "action_items": s.action_items,
         "created_at": str(s.created_at)[:10] if s.created_at else None,
-        "task_count": len(s.sprint_tasks),
+        "task_count": len([st for st in s.sprint_tasks if st.is_active == True]),
     }
     if include_tasks:
-        result["tasks"] = [serialize_task(st.task) for st in s.sprint_tasks if st.task]
+        result["tasks"] = [serialize_task(st.task) for st in s.sprint_tasks if st.task and st.is_active == True]
     return result
 
 
@@ -255,7 +261,7 @@ def compute_sprint_burndown(sprint, db) -> list:
     """Calculate daily burndown data for a sprint."""
     if not sprint.start_date or not sprint.end_date:
         return []
-    tasks = [st.task for st in sprint.sprint_tasks if st.task]
+    tasks = [st.task for st in sprint.sprint_tasks if st.task and st.is_active == True]
     total_points = sum(t.story_points or 0 for t in tasks)
     today = date.today()
     end = min(sprint.end_date, today)

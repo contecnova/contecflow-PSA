@@ -165,6 +165,23 @@ def test_delete_step(client, admin_token, db):
     assert res.json().get("ok") is True
 
 
+def test_delete_group(client, admin_token, db):
+    created = client.post(
+        "/api/v1/approvals/groups",
+        json={"name": "Grupo Delete", "description": "tmp", "member_ids": []},
+        headers=auth(admin_token),
+    )
+    assert created.status_code in (200, 201), created.text
+    gid = created.json()["id"]
+
+    deleted = client.delete(f"/api/v1/approvals/groups/{gid}", headers=auth(admin_token))
+    assert deleted.status_code == 200
+    assert deleted.json().get("ok") is True
+
+    fetched = client.get(f"/api/v1/approvals/groups/{gid}", headers=auth(admin_token))
+    assert fetched.status_code == 404
+
+
 def test_add_step_requires_admin(client, dev_token, db):
     res = client.post("/api/v1/approvals/workflows/any-id/steps", json={
         "step_order": 1, "name": "X", "approver_type": "role", "approver_role": "pm",

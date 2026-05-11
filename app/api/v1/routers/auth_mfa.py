@@ -14,6 +14,10 @@ from app.core.ratelimit import limiter
 from app.core.encryption import encrypt_value, decrypt_value
 from app.models.user import User
 from app.schemas.users import UserPublic
+from app.schemas.auth_payloads import (
+    MfaCodeIn, MfaValidateIn,
+    WebAuthnRegisterFinishIn, WebAuthnAuthStartIn, WebAuthnAuthFinishIn,
+)
 from app.services.session_security import register_or_rotate_user_session
 
 import app.services.auth_service as _svc
@@ -97,7 +101,7 @@ def mfa_setup(
 @limiter.limit("5/minute")
 def mfa_verify_setup(
     request: Request,
-    payload: dict = Body(...),
+    payload: MfaCodeIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -107,7 +111,7 @@ def mfa_verify_setup(
     except ImportError:
         raise HTTPException(500, "pyotp no instalado")
 
-    code   = str(payload.get("code", "")).strip()
+    code   = (payload.code or "").strip()
     raw_secret = current_user.mfa_secret
     secret = decrypt_value(raw_secret) if raw_secret else None
 
@@ -133,7 +137,7 @@ def mfa_verify_setup(
 def mfa_validate(
     request: Request,
     response: Response,
-    payload: dict = Body(...),
+    payload: MfaValidateIn = Body(...),
     db: Session = Depends(get_db),
 ):
     """Valida el código TOTP durante el proceso de login."""
@@ -142,8 +146,8 @@ def mfa_validate(
     except ImportError:
         raise HTTPException(500, "pyotp no instalado")
 
-    challenge_token = payload.get("mfa_challenge_token")
-    code    = str(payload.get("code", "")).strip()
+    challenge_token = payload.mfa_challenge_token
+    code    = (payload.code or "").strip()
 
     if not challenge_token:
         raise HTTPException(400, "mfa_challenge_token requerido")
@@ -209,7 +213,7 @@ def mfa_validate(
 @limiter.limit("5/minute")
 def mfa_disable(
     request: Request,
-    payload: dict = Body(...),
+    payload: MfaCodeIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -219,7 +223,7 @@ def mfa_disable(
     except ImportError:
         raise HTTPException(500, "pyotp no instalado")
 
-    code = str(payload.get("code", "")).strip()
+    code = payload.code.strip()
     if not current_user.mfa_enabled:
         raise HTTPException(400, "2FA no estaba activado")
 
@@ -282,7 +286,7 @@ def webauthn_register_start(
 @limiter.limit("10/minute")
 def webauthn_register_finish(
     request: Request,
-    payload: dict = Body(...),
+    payload: WebAuthnRegisterFinishIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -291,9 +295,9 @@ def webauthn_register_finish(
     except ImportError:
         raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
 
-    challenge_token = payload.get("webauthn_challenge_token")
-    credential = payload.get("credential")
-    nickname = payload.get("name")
+    challenge_token = payload.webauthn_challenge_token
+    credential = payload.credential
+    nickname = payload.name
     if not challenge_token or not credential:
         raise HTTPException(400, "webauthn_challenge_token y credential son obligatorios")
 
@@ -367,7 +371,7 @@ def webauthn_delete_credential(
 @limiter.limit("15/minute")
 def webauthn_auth_start(
     request: Request,
-    payload: dict = Body(...),
+    payload: WebAuthnAuthStartIn = Body(...),
     db: Session = Depends(get_db),
 ):
     try:
@@ -376,7 +380,7 @@ def webauthn_auth_start(
     except ImportError:
         raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
 
-    mfa_challenge_token = payload.get("mfa_challenge_token")
+    mfa_challenge_token = payload.mfa_challenge_token
     if not mfa_challenge_token:
         raise HTTPException(400, "mfa_challenge_token requerido")
     
@@ -417,7 +421,7 @@ def webauthn_auth_start(
 def webauthn_auth_finish(
     request: Request,
     response: Response,
-    payload: dict = Body(...),
+    payload: WebAuthnAuthFinishIn = Body(...),
     db: Session = Depends(get_db),
 ):
     try:
@@ -425,9 +429,9 @@ def webauthn_auth_finish(
     except ImportError:
         raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
 
-    mfa_challenge_token = payload.get("mfa_challenge_token")
-    webauthn_challenge_token = payload.get("webauthn_challenge_token")
-    credential = payload.get("credential")
+    mfa_challenge_token = payload.mfa_challenge_token
+    webauthn_challenge_token = payload.webauthn_challenge_token
+    credential = payload.credential
     if not mfa_challenge_token or not webauthn_challenge_token or not credential:
         raise HTTPException(400, "mfa_challenge_token, webauthn_challenge_token y credential son obligatorios")
 

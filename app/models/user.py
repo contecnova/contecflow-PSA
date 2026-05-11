@@ -36,6 +36,9 @@ class User(Base):
     first_name = Column(String(100))
     last_name = Column(String(100))
     department = Column(String(100), index=True)
+    # Sub-equipo dentro del departamento (p.ej. dept=Engineering, team=Frontend).
+    # Usado por evaluaciones 360° para acotar el pool de "peers".
+    team = Column(String(120), nullable=True, index=True)
     job_title = Column(String(150))
     avatar_url = Column(String(500))
     phone = Column(String(50))

@@ -8,6 +8,7 @@ import logging
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_admin_or_hr
+from app.core.abac_enforce import enforce_abac
 from app.core.config import settings as app_settings
 from app.models.user import User, UserRole
 import app.services.settings_service as _svc
@@ -81,6 +82,7 @@ def update_project_type(item_id: str, payload: ProjectTypeIn, db: Session = Depe
 @router.delete("/project-types/{item_id}")
 def delete_project_type(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
+        enforce_abac(db, _, "custom_project_type", item_id, action="delete")
         return _svc.delete_project_type(item_id, db)
     except ValueError:
         raise HTTPException(404, "No encontrado")
@@ -108,6 +110,7 @@ def update_project_status(item_id: str, payload: ProjectStatusIn, db: Session = 
 @router.delete("/project-statuses/{item_id}")
 def delete_project_status(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
+        enforce_abac(db, _, "custom_project_status", item_id, action="delete")
         return _svc.delete_project_status(item_id, db)
     except ValueError:
         raise HTTPException(404, "No encontrado")
@@ -135,6 +138,7 @@ def update_task_status(item_id: str, payload: TaskStatusIn, db: Session = Depend
 @router.delete("/task-statuses/{item_id}")
 def delete_task_status(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
+        enforce_abac(db, _, "custom_task_status", item_id, action="delete")
         return _svc.delete_task_status(item_id, db)
     except ValueError:
         raise HTTPException(404, "No encontrado")
@@ -162,6 +166,7 @@ def update_department(item_id: str, payload: DepartmentIn, db: Session = Depends
 @router.delete("/departments/{item_id}")
 def delete_department(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     try:
+        enforce_abac(db, _, "department", item_id, action="delete")
         return _svc.delete_department(item_id, db)
     except ValueError:
         raise HTTPException(404, "No encontrado")
@@ -186,6 +191,7 @@ def update_holiday(item_id: str, payload: HolidayIn, db: Session = Depends(get_d
 @router.delete("/holidays/{item_id}")
 def delete_holiday(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     try:
+        enforce_abac(db, _, "holiday", item_id, action="delete")
         return _svc.delete_holiday(item_id, db)
     except ValueError:
         raise HTTPException(404, "No encontrado")

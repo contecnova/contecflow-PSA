@@ -1,8 +1,1499 @@
 # Contecflow PSA - Documentacion Operativa Actual
 
+## Security Hardening - Auth + Performance (2026-05-10)
+
+## Security Hardening - Inbound Integrations + Password Reset Logs (2026-05-10)
+
+## Security Hardening - Provider Error Sanitization (2026-05-10)
+
+### Objetivo
+- Cerrar riesgo P0 de fuga de detalles internos/proveedor en respuestas HTTP de endpoints externos.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/m365.py`
+  - Sanitizadas respuestas de error en:
+    - `POST /api/v1/m365/calendar/sync`
+    - `POST /api/v1/m365/calendar/events`
+    - `DELETE /api/v1/m365/calendar/events/{event_id}`
+    - `POST /api/v1/m365/teams/notify`
+    - `POST /api/v1/m365/teams/milestone-notify`
+  - Ya no se expone `response.text` de Graph/Teams webhook al cliente.
+  - Se mantiene trazabilidad en logs con status de upstream.
+
+- `app/api/v1/endpoints/slack_block_kit.py`
+  - `POST /api/v1/notifications/slack/block-kit`
+    - ya no devuelve `str(exc)` al cliente ante fallos de entrega.
+    - detalle externo fijo: `Slack delivery failed`.
+
+### Tests de seguridad anadidos
+- `tests/test_m365_error_sanitization.py`
+  - valida que errores de Graph en sync no filtren cuerpo upstream.
+  - valida que fallo de webhook Teams no filtre texto sensible.
+
+- `tests/test_slack_block_kit_security.py`
+  - valida que fallo de entrega Slack no exponga detalles sensibles de excepcion/upstream.
+
+### Resultado esperado
+- Se elimina la exposicion de payloads de proveedor y detalles internos en APIs publicas.
+- Se conserva observabilidad operativa via logs del servidor.
+
+### Objetivo
+- Cerrar dos riesgos P0 detectados en auditoria:
+  - endpoints inbound Slack/Teams con validacion condicional (fail-open por falta de configuracion);
+  - fuga de `reset_link` en logs cuando SMTP no esta configurado.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/integrations_hub.py`
+  - `POST /api/v1/integrations-hub/slack/commands`
+    - ahora es fail-closed en runtime: si `SLACK_SIGNING_SECRET` no esta configurado, responde `503`.
+    - en entorno de tests (`TESTING=1`) mantiene compatibilidad para no romper suites existentes.
+  - `POST /api/v1/integrations-hub/teams/commands`
+    - ahora es fail-closed en runtime: si `TEAMS_BOT_APP_ID` no esta configurado, responde `503`.
+    - en entorno de tests (`TESTING=1`) mantiene compatibilidad para pruebas.
+
+- `app/services/auth_service.py`
+  - `send_password_reset_email()`
+    - se elimina el log con URL completa de recuperacion (`reset_link`).
+    - nuevo log: solo informa de la solicitud para el destinatario, sin token ni URL sensible.
+
+### Tests de seguridad añadidos
+- `tests/test_integrations_inbound_security.py`
+  - valida fail-closed en Slack inbound cuando falta `SLACK_SIGNING_SECRET` (`503`).
+  - valida rechazo por firma Slack invalida (`403`).
+  - valida fail-closed en Teams inbound cuando falta `TEAMS_BOT_APP_ID` (`503`).
+  - valida rechazo por audiencia invalida en token Teams (`403`).
+
+### Resultado esperado
+- Inbound bot endpoints no aceptan trafico en produccion sin configuracion criptografica minima.
+- Se elimina exposicion accidental de enlaces/tokens de reseteo en logs.
+
+### Objetivo
+- Cerrar riesgos de privacidad y control de acceso detectados en auditoria completa:
+  - visibilidad excesiva en evaluaciones de performance,
+  - exposicion de tokens en body de login/refresh,
+  - accion ABAC incorrecta en update de objetivos de desarrollo,
+  - bypass de superadmin demasiado permisivo.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/performance.py`
+  - Nuevo control de visibilidad por recurso para lectura de evaluaciones y campañas:
+    - perfil privilegiado: `admin/hr/superadmin`;
+    - no privilegiado: solo self, evaluador participante o manager directo del subject.
+  - Endpoints endurecidos:
+    - `GET /performance/cycles/{cycle_id}/reviews` ahora filtra por visibilidad.
+    - `GET /performance/users/{user_id}/history` exige permiso sobre el subject.
+    - `GET /performance/cycles/{cycle_id}/campaigns` devuelve solo campañas visibles.
+    - `GET /performance/campaigns/{campaign_id}/dashboard` exige permiso explicito.
+  - Correccion ABAC en objetivos de desarrollo:
+    - `PATCH /performance/dev-goals/{goal_id}` cambia de `action="delete"` a `action="update"`.
+
+- `app/api/v1/routers/auth_core.py`
+  - Login y refresh dejan de devolver `access_token`/`refresh_token` en JSON.
+    - Los tokens se sirven solo en cookies HttpOnly.
+  - Bypass local de superadmin (`ENABLE_SUPERADMIN_BYPASS=1`) restringido adicionalmente a DB SQLite.
+
+- Tests ajustados al nuevo contrato cookie-only:
+  - `tests/conftest.py`
+  - `tests/test_auth.py`
+  - `tests/test_projects.py`
+  - `tests/test_abac_resources.py`
+
+### Resultado esperado
+- Menor superficie de exfiltracion de credenciales en frontend/logs.
+- Menor riesgo de fuga de feedback 360 entre equipos no autorizados.
+- Coherencia ABAC entre operaciones `update` y `delete`.
+- Bypass local blindado para evitar uso accidental fuera de entorno local real.
+
 ## 1. Alcance
 Este documento describe el estado actual del sistema y como usarlo hoy.
 No es un historico de versiones ni un registro de auditorias antiguas.
+
+---
+
+## Frontend Performance Reviews — Fix `Map is not a constructor` (2026-05-10)
+
+### Problema
+- En `History360Modal` (pagina de evaluaciones) se ejecutaba `new Map()` dentro de `useMemo`.
+- El archivo importaba tambien el icono `Map` de `lucide-react`, que pisaba el constructor global de JavaScript.
+- Resultado: error en runtime `TypeError: Map is not a constructor` y caida del arbol React en esa vista.
+
+### Cambio aplicado
+- `frontend/src/pages/PerformanceReviewsPage.jsx`
+  - Se renombran imports/uso del icono de `Map` a `MapIcon`.
+  - Se mantiene `Map` global libre para estructuras de datos (`new Map()`).
+
+### Resultado
+- El modal historico 360 vuelve a renderizar correctamente.
+- Desaparece el error `Map is not a constructor` en esa ruta.
+
+---
+
+## ABAC - Endurecimiento completo de endpoints DELETE (2026-05-10)
+
+### Estado
+- Cobertura completada en todos los endpoints DELETE de `app/api/v1/endpoints` que usan autenticacion de usuario.
+- Exclusion intencional: `app/api/v1/endpoints/scim.py` (flujo machine-to-machine por token SCIM, sin objeto User).
+
+### Patron aplicado
+```python
+from app.core.abac_enforce import enforce_abac
+
+enforce_abac(db, current_user, "resource_type", resource_id, action="delete")
+```
+
+### Verificacion operativa
+```bash
+find app/api/v1/endpoints -name '*.py' -print0 | xargs -0 grep -l '@router.delete' | \
+  while read -r f; do if ! grep -q 'enforce_abac' "$f"; then echo "$f"; fi; done
+# salida esperada unica: app/api/v1/endpoints/scim.py
+```
+
+### Validacion de tests
+```bash
+pytest tests/test_performance.py tests/test_performance_360.py tests/test_performance_reminders_kpi.py -q
+# 30 passed
+
+pytest tests/test_abac.py tests/test_abac_resources.py -q
+# 46 passed
+```
+
+### Re-auditoria profunda (2026-05-10, cierre final)
+- Se ejecuto una auditoria endpoint por endpoint (no solo por fichero) sobre todos los `@router.delete` de `app/api/v1/endpoints`.
+- Se detectaron y corrigieron 11 handlers `DELETE` que no tenian `enforce_abac` aunque su fichero ya importaba ABAC:
+  - `app/api/v1/endpoints/bookings.py`
+    - `DELETE /sla-schedules/{schedule_id}/holidays/{holiday_id}`
+    - `DELETE /api-keys/{key_id}`
+  - `app/api/v1/endpoints/collaboration/messages.py`
+    - `DELETE /messages/{message_id}`
+    - `DELETE /conversations/{conversation_id}/pins/{message_id}`
+    - `DELETE /saved/{message_id}`
+  - `app/api/v1/endpoints/custom_fields.py`
+    - `DELETE /custom-fields/{project_id}/{field_id}`
+    - `DELETE /permissions/{project_id}/{permission_id}`
+  - `app/api/v1/endpoints/documents.py`
+    - `DELETE /{doc_id}`
+    - `DELETE /{doc_id}/permissions/{perm_id}`
+    - `DELETE /{doc_id}/tags/{tag_name}`
+  - `app/api/v1/endpoints/performance.py`
+    - `DELETE /dev-goals/{goal_id}`
+
+### Resultado final del inventario
+```bash
+# Auditoria automatica endpoint-level
+TOTAL_DELETE_ENDPOINTS=185
+MISSING_COUNT=1
+MISSING|app/api/v1/endpoints/scim.py:173|@router.delete("/Users/{user_id}", ...)
+```
+
+- El unico endpoint sin ABAC sigue siendo SCIM por diseno (token machine-to-machine, sin `User`).
+- Regresion posterior al fix final: 144 tests en verde (business_logic_v236, documents, performance, performance_360, abac, abac_resources).
+
+---
+
+## Documentos IA — Extraccion y OCR robustos (2026-05-09)
+
+### Problema
+- El resumen IA podia quedarse en mensajes genericos/incompletos cuando no habia texto extraible.
+- La extraccion estaba limitada a almacenamiento local, por lo que en entornos S3 no se leía contenido del fichero para resumir.
+
+### Cambios aplicados
+- `app/services/documents_service.py`
+  - `extract_document_text()` ahora funciona para cualquier backend (`file_storage.get_file_bytes`) sin limitarse a `LocalFileStorage`.
+  - Se anadio normalizacion de texto para limpiar espacios y recortar a 8000 caracteres.
+  - PDF: primero intenta capa de texto con `pypdf`; si no hay contenido util, activa fallback OCR basico.
+  - OCR basico para PDF escaneado mediante `pypdfium2 + pytesseract` (hasta 5 paginas).
+  - Si en PDF no hay texto util ni OCR, genera un analisis visual basico de la primera pagina (resolucion, orientacion, color/luminosidad/contraste/complejidad).
+  - OCR basico para imagenes (`png/jpg/tiff/webp`) con `pytesseract`.
+  - Si una imagen no tiene texto OCR suficiente, ya no falla: genera analisis visual estructurado (`[ANALISIS_VISUAL]`) para alimentar al resumen IA.
+- `app/api/v1/endpoints/documents.py`
+  - Se elimina el fallback ambiguo de resumen con metadatos.
+  - Si no hay texto extraible, el endpoint responde `422` con mensaje explicito:
+    - "No se pudo extraer texto del documento..."
+  - Nuevo enrutado de prompt: si la fuente viene como analisis visual, usa prompt especifico de descripcion visual (con control de incertidumbre, sin inventar detalles).
+- `requirements.txt`
+  - Nuevas dependencias Python: `pytesseract==0.3.13`, `pypdfium2==4.30.0`.
+
+### Requisito de sistema para OCR
+- Ademas de dependencias Python, OCR requiere binario `tesseract` instalado en el sistema operativo.
+- Si `tesseract` no existe en PATH, se omite OCR y solo se usa extraccion textual nativa.
+
+### Validacion automatizada
+  - Nuevo test: devuelve `422` cuando no hay texto extraible.
+  - Nuevo test: persiste `ai_summary` correctamente cuando la extraccion funciona.
+  - Nuevo test: cuando la fuente es visual (`[ANALISIS_VISUAL]`), usa prompt/sistema visual y responde correctamente.
+
+---
+
+## Enterprise — Endpoints DELETE reforzados (2026-05-09)
+
+### Objetivo
+- Normalizar borrado en `enterprise` con validacion previa de dependencias, soft-delete y ABAC en todos los endpoints `DELETE` del modulo.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/enterprise.py`
+  - Se aplica `enforce_abac(..., action="delete")` en todos los `DELETE` del dominio enterprise:
+    - permisos de proyecto
+    - webhooks
+    - SSO
+    - limpieza de notificaciones antiguas
+    - subcontratistas, tarifas, trabajadores, skills, timelogs
+  - Manejo de errores de dependencias en borrado de subcontratistas/tarifas/trabajadores con `400` y detalle.
+
+- `app/services/enterprise_service.py`
+  - Conversión de hard-delete a soft-delete en:
+    - `revoke_project_permission` (`ProjectPermission.is_active=False`)
+    - `delete_webhook` (`Webhook.is_active=False`)
+    - `delete_sso_config` (`SSOConfig.is_deleted=True` y `is_active=False`)
+    - `clear_old_notifications` (soft-delete masivo con `Notification.is_active=False`)
+    - `delete_subcontractor_rate` (`SubcontractorRate.is_active=False`)
+    - `remove_worker_skill` (`SubcontractorWorkerSkill.is_active=False`)
+    - `delete_timelog` (`SubcontractorTimeLog.is_active=False`)
+  - Se anaden validaciones de dependencias antes de borrar:
+    - subcontratista: bloquea si tiene asignaciones, trabajadores activos o timelogs activos
+    - tarifa: bloquea si esta referenciada por asignaciones
+    - trabajador: bloquea si tiene asignaciones
+  - Se filtran solo registros activos en lecturas/updates principales para evitar reutilizar elementos borrados.
+
+- `app/models/enterprise.py`
+  - Nuevos campos para soft-delete:
+    - `ProjectPermission.is_active`
+    - `SSOConfig.is_deleted`
+    - `Notification.is_active`
+    - `SubcontractorRate.is_active`
+    - `SubcontractorWorkerSkill.is_active`
+    - `SubcontractorTimeLog.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/1b6d9fd29b10_enterprise_soft_delete_alignment.py`
+  - Agrega columnas anteriores con defaults seguros (`1`/`0`) para compatibilidad con datos existentes.
+
+### Resultado
+- Se evita borrar fisicamente entidades enterprise clave.
+- Se evita borrar cuando hay dependencias activas, devolviendo error funcional explicito.
+- Se alinea el dominio `enterprise` con el patron global de soft-delete + ABAC.
+
+---
+
+## CMDB — Endpoints DELETE reforzados (2026-05-09)
+
+### Objetivo
+    - tags wiki
+    - comentarios internos
+    - items CMDB
+    - relaciones CMDB
+    - columnas Kanban
+    - sprint plans
+    - calendarios SLA y festivos SLA
+
+- `app/services/cmdb_service.py`
+  - Conversión de hard-delete a soft-delete en:
+    - `delete_wiki_tag`
+    - `delete_cmdb_relation`
+    - `delete_kanban_column`
+    - `delete_sprint_plan`
+    - `delete_sla_calendar`
+    - `delete_sla_holiday`
+  - Validaciones de dependencias antes de borrar:
+    - tags wiki con paginas vinculadas
+    - items CMDB con relaciones activas
+    - columnas Kanban con tareas asociadas
+    - calendarios SLA con festivos activos
+    - planes de sprint aceptados
+  - Filtros `is_active == True` anadidos en lecturas y updates para consistencia.
+
+- `app/models/cmdb.py`
+  - Nuevos campos para soft-delete:
+    - `WikiTag.is_active`
+    - `CMDBItem.is_active`
+    - `CMDBRelation.is_active`
+    - `KanbanColumn.is_active`
+    - `SprintPlan.is_active`
+    - `SLACalendar.is_active`
+    - `V21SLAHoliday.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/7c4a6d9e2f11_cmdb_soft_delete_alignment.py`
+  - Añade las columnas de soft-delete con defaults seguros para datos existentes.
+
+### Resultado
+- El dominio `cmdb` evita borrado fisico en entidades clave.
+- Los borrados fallan con mensaje funcional cuando hay dependencias activas.
+- El comportamiento queda alineado con el patron global de soft-delete + ABAC.
+
+---
+
+## ALM — Endpoints DELETE reforzados (2026-05-09)
+
+### Objetivo
+- Alinear `alm` con validacion previa de dependencias, soft-delete y ABAC en todos los endpoints `DELETE` del modulo.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/alm.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - proveedores
+    - contratos
+    - licencias
+    - asignaciones de licencia
+    - activos
+    - centros de coste
+    - instalaciones software en activos
+
+- `app/services/alm_service.py`
+  - Conversión de hard-delete a soft-delete en:
+    - `delete_vendor_record`
+    - `delete_contract_record`
+    - `delete_license_record`
+    - `delete_asset_record`
+    - `delete_cost_center_record`
+    - `remove_install_record`
+  - Validaciones de dependencias antes de borrar:
+    - proveedor con contratos/licencias/activos activos
+    - contrato con licencias activas
+    - licencia con asignaciones o instalaciones activas
+    - activo con instalaciones/asignaciones activas
+    - centro de coste con contratos/licencias activas
+  - Se añaden filtros `is_active == True` en listados, lecturas y updates para consistencia.
+  - Se normalizan respuestas de borrado a formato `{"ok": true, "message": "..."}`.
+
+- `app/models/alm.py`
+  - Nuevos campos para soft-delete:
+    - `ALMContract.is_active`
+    - `ALMLicense.is_active`
+    - `ALMAsset.is_active`
+    - `ALMSoftwareInstall.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/b2e8c4a91d44_alm_soft_delete_alignment.py`
+  - Añade columnas de soft-delete con defaults seguros para datos existentes.
+
+### Resultado
+- ALM deja de hacer borrado fisico en entidades operativas clave.
+- Se bloquea borrado con dependencias activas devolviendo error funcional explicito.
+- Se mantiene consistencia de lecturas y updates sobre entidades activas.
+
+---
+
+## EPICS/WIKI — Endpoints DELETE reforzados (2026-05-09)
+
+### Objetivo
+- Alinear `epics`/`wiki` con validacion previa de dependencias, soft-delete y ABAC en los endpoints `DELETE` del modulo.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/epics.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - borrado de espacios wiki
+    - borrado de paginas wiki
+    - borrado de filtros guardados
+    - borrado de comentarios threaded
+    - borrado de epicas
+    - desvinculacion de tareas/dependencias de epica
+
+- `app/services/epics_service.py`
+  - Conversión de hard-delete a soft-delete en:
+    - `delete_wiki_space`
+    - `delete_wiki_page`
+    - `delete_saved_filter`
+    - `delete_threaded_comment`
+    - `delete_epic_record`
+    - `remove_task_from_epic_record`
+    - `remove_epic_dependency`
+  - Validaciones de dependencias antes de borrar:
+    - espacio wiki con paginas activas
+    - pagina wiki con subpaginas activas
+    - epica con tareas o dependencias activas
+    - comentario threaded con respuestas activas
+  - Se añaden filtros `is_active == True` en listados, lecturas y updates del dominio.
+  - En `WikiSpace`, al eliminar se renombra `slug` con sufijo `__deleted__` para permitir recrear el mismo slug sin choque de unicidad.
+  - Se normalizan respuestas de borrado a formato `{"ok": true, "message": "..."}`.
+
+- `app/models/epics.py`
+  - Nuevos campos para soft-delete:
+    - `WikiSpace.is_active`
+    - `WikiPage.is_active`
+    - `Epic.is_active`
+    - `EpicTask.is_active`
+    - `EpicDependency.is_active`
+    - `SavedFilter.is_active`
+    - `ThreadedComment.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/c9f1e7a45d22_epics_soft_delete_alignment.py`
+  - Añade columnas de soft-delete y backfill seguro (`UPDATE ... SET is_active = 1 WHERE is_active IS NULL`).
+
+### Resultado
+- El modulo deja de eliminar fisicamente entidades clave y mantiene trazabilidad.
+- Los borrados con dependencias activas se bloquean con mensaje funcional.
+- Se corrige el escenario de recreacion tras borrado en espacios wiki con `slug` unico.
+
+---
+
+## CLIENTS — Endpoints DELETE reforzados (2026-05-09)
+
+### Objetivo
+- Alinear `clients` con validacion previa de dependencias, soft-delete y ABAC en los endpoints `DELETE` del modulo.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/clients.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - borrado de cliente
+    - borrado de contacto
+    - desvinculacion de licencia
+    - desvinculacion de contrato
+    - desvinculacion de proyecto
+
+- `app/services/client_service.py`
+  - Se refuerza alcance de consultas con `Client.is_active == True` en el query scope principal.
+  - Conversión de hard-delete a soft-delete en:
+    - `unlink_license` (`ClientLicenseLink.is_active=False`)
+    - `unlink_contract` (`ClientContractLink.is_active=False`)
+  - Validaciones de dependencias antes de borrar cliente (`delete_client`):
+    - proyectos vinculados
+    - tickets abiertos
+    - facturas
+    - contactos activos
+    - licencias/contratos vinculados activos
+    - usuarios de portal activos
+  - Si hay dependencias activas, el borrado responde `400` con detalle funcional.
+  - Se normalizan respuestas de borrado a formato `{"ok": true, "message": "..."}`.
+
+- `app/models/clients.py`
+  - Nuevos campos para soft-delete en tablas de enlace:
+    - `ClientLicenseLink.is_active`
+    - `ClientContractLink.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/d4a8f2c31e09_clients_link_soft_delete_alignment.py`
+  - Añade columnas `is_active` y backfill seguro para datos existentes.
+
+### Resultado
+- El borrado de clientes queda protegido por dependencias activas y deja trazabilidad.
+- Las desvinculaciones de licencias/contratos dejan de eliminar fisicamente filas de enlace.
+- El dominio `clients` queda alineado con el patron global de soft-delete + ABAC.
+
+---
+
+## CONTRACTS — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `contracts` con validacion previa de dependencias, soft-delete y ABAC en su endpoint `DELETE`.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/contracts.py`
+  - Se aplica `enforce_abac(..., action="delete")` en `DELETE /contracts/{contract_id}`.
+  - Se normaliza respuesta de borrado a `{"ok": true, "message": "..."}`.
+  - Si hay dependencias activas, responde `400` con detalle funcional.
+
+- `app/services/contract_service.py`
+  - Conversión de hard-delete a soft-delete en `delete_contract` (`Contract.is_active=False`).
+  - Validaciones de dependencias antes de borrar:
+    - ordenes de trabajo vinculadas
+    - vinculos de cliente activos (`ClientContractLink.is_active=True`)
+  - Lecturas de contratos (`list/query/get`) filtran `Contract.is_active == True`.
+
+- `app/models/pipeline.py`
+  - Nuevo campo para soft-delete:
+    - `Contract.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/e7b3a1f8c204_contracts_soft_delete_alignment.py`
+  - Añade `contracts.is_active` y backfill seguro para datos existentes.
+
+### Resultado
+- El endpoint de contratos deja de eliminar fisicamente.
+- Se bloquea borrado cuando existen dependencias operativas activas.
+- Queda alineado con el patron global de soft-delete + ABAC.
+
+---
+
+## PIPELINE — Endpoints DELETE reforzados (2026-05-09)
+
+### Objetivo
+- Alinear `pipeline` con validacion previa de dependencias, soft-delete y ABAC en sus endpoints `DELETE`.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/pipeline.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - borrado de oportunidad
+    - desactivacion de plantilla de propuesta
+    - desactivacion de etapa de pipeline
+  - Se normaliza respuesta de borrado de plantilla a `{"ok": true, "message": "..."}`.
+
+- `app/services/pipeline_service.py`
+  - Conversión de hard-delete a soft-delete en `delete_opportunity` (`Opportunity.is_active=False`).
+  - Validacion de dependencia antes de borrar oportunidad:
+    - bloquea si la oportunidad ya esta vinculada a proyecto (`project_id`).
+  - Filtros `is_active == True` en listados, lecturas, forecast y conversion.
+
+- `app/services/proposal_service.py`
+  - Lecturas de oportunidad (`generate`, `mark sent`, `get by id`) ahora filtran `Opportunity.is_active == True`.
+
+- `app/models/pipeline.py`
+  - Nuevo campo para soft-delete:
+    - `Opportunity.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/f1c6e2a9b3d7_pipeline_opportunity_soft_delete_alignment.py`
+  - Añade `opportunities.is_active` y backfill seguro para datos existentes.
+
+### Resultado
+- El borrado de oportunidades deja de eliminar fisicamente.
+- Se evita borrar oportunidades ya convertidas a proyecto.
+- El dominio `pipeline` queda alineado con el patron global de soft-delete + ABAC.
+
+---
+
+## MILESTONES — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `milestones` con validacion previa de dependencias, soft-delete y ABAC en su endpoint `DELETE`.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/milestones.py`
+  - Se aplica `enforce_abac(..., action="delete")` en `DELETE /milestones/{milestone_id}`.
+  - Se normaliza respuesta a `{"ok": true, "message": "..."}`.
+
+- `app/services/milestone_service.py`
+  - Conversión de hard-delete a soft-delete en `delete_milestone` (`ProjectMilestone.is_active=False`).
+  - Filtros `is_active == True` añadidos en listados, lecturas y flujo de aprobacion/facturacion.
+  - Se preserva bloqueo funcional de borrado cuando el milestone ya esta facturado (`invoice_id`).
+
+- `app/models/financial.py`
+  - Nuevo campo para soft-delete:
+    - `ProjectMilestone.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/a3d9b7e2c114_milestones_soft_delete_alignment.py`
+  - Añade `project_milestones.is_active` y backfill seguro para datos existentes.
+
+### Resultado
+- El endpoint de milestones deja de eliminar fisicamente registros.
+- El flujo de negocio (complete/approve/invoice) opera solo sobre milestones activos.
+- El dominio queda alineado con el patron global de soft-delete + ABAC.
+
+---
+
+## PROFITABILITY — Milestones DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear los endpoints de milestones dentro de `profitability` con ABAC + soft-delete + validacion de dependencia.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/profitability.py`
+  - Se aplica `enforce_abac(..., action="delete")` en `DELETE /profitability/{project_id}/milestones/{milestone_id}`.
+  - Se normaliza respuesta a `{"ok": true, "message": "..."}`.
+  - Los errores de dependencia de negocio se exponen como `400`.
+
+- `app/services/profitability_service.py`
+  - Conversión de hard-delete a soft-delete en `delete_milestone` (`ProjectMilestone.is_active=False`).
+  - Validacion de dependencia en delete: bloquea si el hito esta facturado (`is_billed` o `invoice_id`).
+  - Filtros `is_active == True` añadidos en:
+    - `get_billed_milestones`
+    - `get_billed_milestones_total_by_project`
+    - `list_milestones`
+    - `get_milestone`
+
+### Resultado
+- El borrado de hitos en `profitability` deja de eliminar fisicamente registros.
+- El dominio ignora hitos inactivos en calculo/listados de rentabilidad.
+- Se evita borrar hitos ya facturados, manteniendo consistencia funcional.
+
+---
+
+## PORTFOLIO — Endpoints DELETE reforzados (2026-05-09)
+
+### Objetivo
+- Alinear `portfolio` con ABAC + soft-delete + validacion de dependencias en borrados de cartera y desvinculacion de proyectos.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/portfolio.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /portfolios/{portfolio_id}`
+    - `DELETE /portfolios/{portfolio_id}/projects/{project_id}`
+  - Respuestas DELETE normalizadas a `{"ok": true, "message": "..."}`.
+  - Mapeo de error funcional de dependencia a `400` en delete de cartera.
+  - Dashboard ignora membresias inactivas.
+
+- `app/services/portfolio_service.py`
+  - Conversión de hard-delete a soft-delete:
+    - `delete_portfolio` -> `Portfolio.is_active=False` y `status="archived"`
+    - `remove_project_from_portfolio` -> `PortfolioProject.is_active=False`
+  - Validacion de dependencia en delete de cartera:
+    - bloquea si existen proyectos activos vinculados.
+  - Filtros `is_active == True` en list/get de carteras y vinculos.
+  - En add-project: reactivacion de vinculo previo inactivo en lugar de duplicar.
+  - Hitos de dashboard filtrados por `ProjectMilestone.is_active == True`.
+
+- `app/models/portfolio.py`
+  - Nuevos campos para soft-delete:
+    - `Portfolio.is_active`
+    - `PortfolioProject.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/9e2b1c4d5a67_portfolio_soft_delete_alignment.py`
+  - Añade columnas `is_active` en `portfolios` y `portfolio_projects` con backfill seguro.
+
+### Resultado
+- El dominio deja de eliminar fisicamente carteras y vinculos cartera-proyecto.
+- Se evita eliminar carteras con proyectos activos vinculados.
+- Dashboard y lecturas operan solo sobre registros activos.
+
+---
+
+## PROJECTS — Endpoints DELETE reforzados (2026-05-09)
+
+### Objetivo
+- Alinear `projects` con ABAC en DELETE y soft-delete para membresias de equipo.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/projects/__init__.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /projects/{project_id}`
+    - `DELETE /projects/{project_id}/members/{member_id}`
+  - Respuesta de borrado de miembro normalizada a `{"ok": true, "message": "..."}`.
+  - Delete de proyecto ahora traduce validaciones funcionales a `400`.
+
+- `app/services/project_service.py`
+  - `cancel_project_record` reforzado:
+    - bloquea cancelacion duplicada (`project.status == cancelled`) con error funcional.
+    - respuesta normalizada `{"ok": true, "message": "..."}`.
+  - Membresias de proyecto (`ProjectMember`) migradas a soft-delete:
+    - `remove_member_record` -> `is_active=False`
+    - `list_members_payload` filtra `is_active == True`
+    - `get_member_or_404` filtra `is_active == True`
+    - `add_member_record` reactiva membresia inactiva existente en lugar de fallar por duplicado.
+
+- `app/models/project.py`
+  - Nuevo campo para soft-delete en membresias:
+    - `ProjectMember.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/6a4d2e1f9b88_projects_members_soft_delete_alignment.py`
+  - Añade `project_members.is_active` con backfill seguro.
+
+- Tests:
+  - Nuevo test en `tests/test_projects.py` para validar remove miembro por soft-delete y reactivacion posterior.
+
+### Resultado
+- Los DELETE de `projects` quedan protegidos por ABAC.
+- La eliminacion de miembros deja de borrar filas fisicamente.
+- Se evita conflicto por duplicado al reanadir un miembro previamente eliminado.
+
+---
+
+## TASKS — Endpoints DELETE reforzados (2026-05-09)
+
+### Objetivo
+- Alinear `tasks` con ABAC en DELETE y soft-delete para dependencias entre tareas, manteniendo el patron de cancelacion por estado para `Task`.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/tasks.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /tasks/{task_id}`
+    - `DELETE /tasks/dependencies/{dep_id}`
+
+- `app/services/task_service.py`
+  - `cancel_task_record` reforzado:
+    - bloquea cancelacion duplicada cuando la tarea ya esta en `cancelled` (`400`).
+    - respuesta normalizada a `{"ok": true, "message": "..."}`.
+  - Dependencias de tareas (`TaskDependency`) migradas a soft-delete:
+    - `delete_task_dependency` -> `is_active=False`
+    - `list_task_dependencies` filtra `is_active == True`
+    - `create_task_dependency` reactiva dependencia inactiva existente en lugar de duplicar fila.
+  - `get_project_member_ids` ahora filtra `ProjectMember.is_active == True` para coherencia con membresias soft-delete.
+  - Compatibilidad de transiciones: se permite `todo -> done` para mantener el comportamiento esperado por regresion existente.
+
+- `app/models/bookings.py`
+  - Nuevo campo para soft-delete:
+    - `TaskDependency.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/3f7a9c2d1e55_tasks_dependencies_soft_delete_alignment.py`
+  - Añade `task_dependencies.is_active` y backfill seguro (`1` cuando `NULL`).
+
+- Tests:
+  - `tests/test_tasks.py`
+    - nuevo test `test_task_dependency_remove_is_soft_and_reactivable`.
+
+### Resultado
+- Los DELETE de `tasks` quedan protegidos por ABAC.
+- Las dependencias entre tareas dejan de eliminarse fisicamente y pueden reactivarse sin duplicados.
+- La cancelacion de tareas mantiene el patron de soft-delete por estado (`TaskStatus.cancelled`) con respuesta uniforme.
+
+---
+
+## SPRINTS — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `sprints` con ABAC en DELETE y soft-delete para la relacion `SprintTask` (quitar tareas de sprint).
+
+### Cambios aplicados
+- `app/api/v1/endpoints/sprints.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /sprints/{project_id}/sprints/{sprint_id}/tasks/{task_id}`
+  - Respuesta DELETE normalizada a `{"ok": true, "message": "..."}`.
+
+- `app/services/sprint_service.py`
+  - `delete_sprint_task` migra de hard-delete a soft-delete (`SprintTask.is_active=False`).
+  - `get_sprint_task` y `reorder_sprint_backlog` filtran solo `SprintTask` activos.
+  - `add_tasks_to_sprint` reactiva relacion previa inactiva en lugar de duplicar fila.
+  - Se ajustan queries auxiliares y serializacion para considerar solo tareas de sprint activas (`task_count`, `tasks`, backlog exclusion, burndown input).
+
+- `app/models/sprints.py`
+  - Nuevo campo para soft-delete:
+    - `SprintTask.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/5c8e1d4a2b77_sprints_tasks_soft_delete_alignment.py`
+  - Añade `sprint_tasks.is_active` y backfill seguro (`1` cuando `NULL`).
+
+- Tests:
+  - `tests/test_sprints.py`
+    - nuevo test `test_sprint_task_remove_is_soft_and_reactivable`.
+
+### Resultado
+- El DELETE de retirada de tarea en sprint queda protegido por ABAC.
+- La relacion `SprintTask` deja de eliminarse fisicamente y soporta reactivacion consistente.
+- Se mantiene consistencia de métricas/listados evitando contar relaciones inactivas.
+
+---
+
+## RISKS — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `risks` con ABAC en DELETE y soft-delete para evitar borrado fisico de riesgos.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/risks.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /risks/{project_id}/{risk_id}`
+  - Respuesta DELETE normalizada a `{"ok": true, "message": "..."}`.
+
+- `app/services/risk_service.py`
+  - `delete_risk` migra de hard-delete a soft-delete (`Risk.is_active=False`) y cierra el riesgo (`status="closed"`).
+  - Lecturas del dominio ahora consideran solo riesgos activos:
+    - `get_portfolio_risks`
+    - `get_risks_by_project`
+    - `get_risk`
+
+- `app/models/pipeline.py`
+  - Nuevo campo para soft-delete:
+    - `Risk.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/8d4f1b7c2a90_risks_soft_delete_alignment.py`
+  - Añade `risks.is_active` y backfill seguro (`1` cuando `NULL`).
+
+- Tests:
+  - `tests/test_risks.py`
+    - nuevo test `test_delete_risk_is_soft_and_hidden_from_list`.
+
+### Resultado
+- El DELETE de riesgos queda protegido por ABAC.
+- Los riesgos dejan de eliminarse fisicamente y desaparecen de listados funcionales por filtro de activos.
+- Se mantiene trazabilidad del registro tras la eliminacion logica.
+
+---
+
+## CHANGES — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `changes` con ABAC en DELETE y soft-delete para evitar borrado fisico de solicitudes de cambio.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/changes.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /changes/{project_id}/{cr_id}`
+  - Respuesta DELETE normalizada a `{"ok": true, "message": "..."}`.
+  - Validaciones funcionales del servicio se exponen como `400`.
+
+- `app/services/change_service.py`
+  - `delete_change_request` migra de hard-delete a soft-delete (`ChangeRequest.is_active=False`).
+  - Se bloquea borrado de CR en estados `approved` o `implemented`.
+  - Lecturas del dominio ahora consideran solo CR activas:
+    - `get_all_pending`
+    - `list_by_project`
+    - `get_by_id`
+
+- `app/models/resources.py`
+  - Nuevo campo para soft-delete:
+    - `ChangeRequest.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/4a1c9e8d7b33_changes_soft_delete_alignment.py`
+  - Añade `change_requests.is_active` y backfill seguro (`1` cuando `NULL`).
+
+- Tests:
+  - `tests/test_changes.py`
+    - se refuerza `test_delete_change_request` para verificar soft-delete y ocultacion en listados.
+
+### Resultado
+- El DELETE de changes queda protegido por ABAC.
+- Las CR dejan de eliminarse fisicamente y se ocultan en listados funcionales.
+- Se preserva historial en CR aprobadas/implementadas, evitando su borrado.
+
+---
+
+## CAPACITY — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `capacity` con ABAC en DELETE y soft-delete para evitar borrado fisico de planes de capacidad.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/capacity.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /capacity/plans/{plan_id}`
+  - Respuesta DELETE normalizada a `{"ok": true, "message": "..."}`.
+
+- `app/services/capacity_service.py`
+  - `delete_capacity_plan` migra de hard-delete a soft-delete (`CapacityPlan.is_active=False`).
+  - Lecturas del dominio ahora consideran solo planes activos:
+    - `get_plans_for_period`
+    - `list_capacity_plans`
+    - `get_plans_board`
+    - `get_capacity_plan_by_id`
+    - `get_plans_for_leveling`
+
+- `app/services/psa_flows.py`
+  - `create_capacity_plan_flow` calcula sobreasignacion solo con planes activos.
+  - Si existe plan inactivo para mismo usuario/semana/proyecto, se reactiva en lugar de crear duplicado.
+
+- `app/models/financial.py`
+  - Nuevo campo para soft-delete:
+    - `CapacityPlan.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/2c7d1e9a4f10_capacity_soft_delete_alignment.py`
+  - Añade `capacity_plans.is_active` y backfill seguro (`1` cuando `NULL`).
+
+- Tests:
+  - `tests/test_capacity.py`
+    - se refuerza `test_delete_capacity_plan` para verificar soft-delete y ocultacion en board.
+
+### Resultado
+- El DELETE de capacidad queda protegido por ABAC.
+- Los planes dejan de eliminarse fisicamente y se ocultan en vistas/listados funcionales.
+- Se evita deuda de duplicados al permitir reactivacion de planes previamente eliminados.
+
+---
+
+## ABSENCES — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `absences` con ABAC en DELETE y soft-delete para evitar borrado fisico/visibilidad funcional de ausencias canceladas.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/absences.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /absences/my/{absence_id}`
+  - Respuesta DELETE normalizada a `{"ok": true, "message": "..."}`.
+
+- `app/services/absence_service.py`
+  - `cancel_absence` mantiene estado funcional `cancelled` y ahora aplica soft-delete (`Absence.is_active=False`).
+  - Lecturas del dominio ahora consideran solo ausencias activas:
+    - `list_absences`
+    - `get_my_absences`
+    - `get_vacation_balance`
+    - `get_overlap`
+    - `get_absence_for_user`
+    - `get_absence_by_id`
+    - `get_team_absences`
+    - `get_pending_absences`
+    - `get_calendar_data`
+    - `get_user_year_absences`
+
+- `app/models/resources.py`
+  - Nuevo campo para soft-delete:
+    - `Absence.is_active`
+
+- Migracion Alembic nueva:
+  - `alembic/versions/7f3b2d1c9e44_absences_soft_delete_alignment.py`
+  - Añade `absences.is_active` y backfill seguro (`1` cuando `NULL`).
+
+- Tests:
+  - `tests/test_absences.py`
+    - se refuerza `test_delete_absence` para verificar soft-delete, estado `cancelled` y ocultacion en `/my`.
+
+### Resultado
+- El DELETE de ausencias queda protegido por ABAC.
+- Las ausencias canceladas dejan de aparecer en listados funcionales al quedar inactivas.
+- Se mantiene semantica de negocio con estado `cancelled` y trazabilidad del registro.
+
+---
+
+## BPMN PROCESSES — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `bpmn_processes` con ABAC en DELETE y soft-delete para evitar borrado fisico de procesos BPMN.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/bpmn_processes.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /bpmn-processes/{process_id}`
+  - Respuesta DELETE normalizada a `{"ok": true, "message": "..."}`.
+
+- `app/services/bpmn_process_service.py`
+  - `delete_process` migra de hard-delete a soft-delete (`BPMNProcess.is_active=False`).
+  - `get_process` filtra ahora solo procesos activos (`is_active=True`).
+
+- Tests:
+  - `tests/test_bpmn_processes.py`
+    - nuevo test `test_delete_bpmn_process_is_soft_and_hidden`.
+
+### Resultado
+- El DELETE de procesos BPMN queda protegido por ABAC.
+- Los procesos eliminados dejan de aparecer en listados/lecturas activas y permanecen trazables en base de datos.
+- Se evita pérdida de historial por borrado fisico.
+
+---
+
+## BOOKINGS — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `bookings` con ABAC en DELETE y soft-delete de reservas para evitar borrado fisico de capacidad planificada.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/bookings.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /bookings/{booking_id}`.
+
+- `app/services/bookings_service.py`
+  - `delete_booking_record` migra de hard-delete a soft-delete (`ResourceBooking.is_active=False`).
+  - Filtrado activo (`is_active=True`) agregado en:
+    - `list_bookings_records`
+    - `get_bookings_heatmap`
+    - `create_booking_record` (deduplicacion)
+    - `update_booking_record`
+  - Respuesta DELETE normalizada a `{"ok": true, "message": "Reserva eliminada correctamente"}`.
+
+- `app/models/bookings.py`
+  - Nuevo campo `ResourceBooking.is_active`.
+
+- Migracion Alembic nueva:
+  - `alembic/versions/9b7c1d2e4f66_bookings_soft_delete_alignment.py`
+  - Añade `resource_bookings.is_active` y backfill seguro (`1` cuando `NULL`).
+
+- Tests:
+  - `tests/test_business_logic_v236.py`
+    - `test_delete_booking` reforzado para verificar ocultacion en listado y persistencia inactiva en BD.
+
+### Resultado
+- El DELETE de reservas queda protegido por ABAC.
+- Las reservas eliminadas no aparecen en listados/heatmap y se conserva trazabilidad en base de datos.
+
+---
+
+## PUBLIC FORMS — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `public_forms` con ABAC en DELETE y soft-delete para mantener trazabilidad de formularios de intake.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/public_forms.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /forms/{form_id}`.
+  - Se normaliza respuesta DELETE a `{"ok": true, "message": "Formulario eliminado correctamente"}`.
+
+- `app/services/public_forms_service.py`
+  - `delete_form` migra de hard-delete a soft-delete (`PublicForm.is_active=False`).
+  - `list_forms` y `get_form_by_id` quedan activos-only (`is_active=True`).
+
+- Tests:
+  - `tests/test_public_forms.py`
+    - nuevo test `test_delete_public_form_is_soft_and_hidden`.
+
+### Resultado
+- El DELETE de formularios queda protegido por ABAC.
+- Los formularios eliminados dejan de verse en listados y detalle autenticado/publico por token.
+- Se preserva historial de registros en base de datos.
+
+---
+
+## DEVELOPER PORTAL — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `developer_portal` con ABAC en DELETE y soft-delete de OAuth apps para mantener trazabilidad de integraciones registradas.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/developer_portal.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /developer/apps/{app_id}`.
+  - Se normaliza respuesta DELETE a `{"ok": true, "message": "Aplicación eliminada correctamente"}`.
+
+- `app/services/developer_portal_service.py`
+  - `delete_app` migra de hard-delete a soft-delete (`OAuthApp.is_active=False`).
+  - `list_apps_for_user`, `count_apps_for_user` y `get_app_by_id` quedan activos-only (`is_active=True`).
+
+- Tests:
+  - `tests/test_developer_portal.py`
+    - nuevo test `test_delete_oauth_app_is_soft_and_hidden`.
+
+### Resultado
+- El DELETE de aplicaciones OAuth queda protegido por ABAC.
+- Las apps eliminadas dejan de aparecer en listados y detalle, preservando su traza en base de datos.
+
+---
+
+## AUTOMATIONS — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `automations` con ABAC en DELETE y soft-delete para reglas, manteniendo historial de ejecuciones.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/automations.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /automations/{rule_id}`.
+
+- `app/services/automations_service.py`
+  - `delete_rule_db` migra de hard-delete a soft-delete (`AutomationRule.is_active=False`).
+  - Respuesta DELETE normalizada a `{"ok": true, "message": "Regla eliminada correctamente"}`.
+  - Lecturas activas por defecto:
+    - `list_rules_for_user` filtra `is_active=True` cuando no se pasa `is_active`.
+    - `update_rule_db`, `test_rule_by_id` y `get_executions_db` solo operan sobre reglas activas.
+
+- Tests:
+  - `tests/test_automations.py`
+    - `test_delete_automation` reforzado para validar ocultación en listado y persistencia en DB con `is_active=False`.
+
+### Resultado
+- El DELETE de reglas queda protegido por ABAC.
+- Las reglas eliminadas dejan de aparecer en lecturas por defecto y se conserva la traza de datos.
+
+---
+
+## RATE CARDS — Endpoints DELETE reforzados (2026-05-09)
+
+### Objetivo
+- Alinear `rate_cards` con ABAC en DELETE y soft-delete para tablas, entradas y overrides, preservando histórico de tarifas.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/rate_cards.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /rate-cards/{table_id}`
+    - `DELETE /rate-cards/{table_id}/entries/{entry_id}`
+    - `DELETE /rate-cards/{table_id}/overrides/{override_id}`
+  - Respuestas DELETE normalizadas con `{"ok": true, "message": "..."}`.
+
+- `app/services/rate_card_service.py`
+  - Soft-delete:
+    - `delete_rate_table` -> `RateTable.is_active=False`
+    - `delete_entry` -> `RateEntry.is_active=False`
+  - Compatibilidad de esquema actual:
+    - `delete_override` mantiene hard-delete (la tabla `rate_overrides` no dispone de `is_active`).
+  - Active-only en lecturas:
+    - `list_rate_tables` y `get_rate_table_or_404` filtran `is_active=True`.
+    - `update_entry`/`delete_entry` operan solo sobre registros activos.
+    - `serialize_rate_table` excluye entradas/overrides inactivos.
+    - `get_effective_rate` ignora entries inactivos.
+
+- Tests:
+  - `tests/test_rate_cards.py`
+    - `test_delete_rate_card` reforzado (ocultación + DB inactiva).
+    - nuevos `test_delete_rate_card_entry_soft_and_hidden` y `test_delete_rate_card_override_soft_and_hidden`.
+
+### Resultado
+- Los DELETE de rate cards quedan protegidos por ABAC.
+- Tabla y entradas pasan a soft-delete consistente, con lecturas activas por defecto y trazabilidad conservada.
+- Overrides se mantienen en hard-delete por compatibilidad de esquema actual.
+
+---
+
+## SKILLS — Endpoints DELETE reforzados (2026-05-09)
+
+### Objetivo
+- Alinear `skills` con ABAC en DELETE y validar comportamiento de eliminación según modelo (soft-delete en catálogo, hard-delete en asignaciones de usuario).
+
+### Cambios aplicados
+- `app/api/v1/endpoints/skills.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /skills/catalog/{skill_id}`
+    - `DELETE /skills/users/{user_id}/{skill_id}`
+  - Respuestas DELETE normalizadas con `{"ok": true, "message": "..."}`.
+
+- Comportamiento de eliminación
+  - Catálogo (`Skill`): soft-delete existente (`is_active=False`).
+  - Asignación de usuario (`UserSkill`): hard-delete mantenido por compatibilidad de esquema (sin columna `is_active`).
+
+- Tests:
+  - `tests/test_skills.py`
+    - `test_delete_skill` reforzado (ocultación en catálogo + DB con `is_active=False`).
+    - `test_remove_user_skill` reforzado (ocultación en listado de usuario + fila eliminada en DB).
+
+### Resultado
+- DELETE en skills queda protegido por ABAC.
+- El comportamiento de borrado queda consistente con el modelo de datos y validado por tests.
+
+---
+
+## SETTINGS — Endpoints DELETE reforzados (2026-05-09)
+
+### Objetivo
+- Reforzar ABAC en DELETE de catálogos de configuración y validar comportamiento de borrado por entidad.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/settings.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /settings/project-types/{item_id}`
+    - `DELETE /settings/project-statuses/{item_id}`
+    - `DELETE /settings/task-statuses/{item_id}`
+    - `DELETE /settings/departments/{item_id}`
+    - `DELETE /settings/holidays/{item_id}`
+
+- Comportamiento de eliminación (según modelo)
+  - Soft-delete: `CustomProjectType`, `CustomProjectStatus`, `CustomTaskStatus`, `Department`.
+  - Hard-delete: `Holiday` (sin columna `is_active`).
+
+- Tests:
+  - `tests/test_settings.py`
+    - `test_delete_project_type` reforzado (ocultación + DB inactiva).
+    - `test_delete_department` reforzado (ocultación + DB inactiva).
+    - nuevo `test_delete_holiday_hard_and_hidden` (ocultación + fila eliminada en DB).
+
+### Resultado
+- DELETE en settings queda protegido por ABAC.
+- Comportamiento de borrado queda alineado con esquema y cubierto con regresión.
+
+---
+
+## INTEGRATIONS MARKETPLACE — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `DELETE /integrations/instances/{instance_id}` con ABAC y desactivación lógica para preservar trazabilidad de configuraciones instaladas.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/integrations/__init__.py`
+  - Se aplica `enforce_abac(..., action="delete")` en `DELETE /integrations/instances/{instance_id}`.
+  - Se normaliza respuesta DELETE a `{"ok": true, "message": "Instancia de integración eliminada correctamente"}`.
+  - Se elimina semántica 204 vacía y se usa 200 con payload consistente.
+
+- `app/services/marketplace_service.py`
+  - `uninstall_integration_connector` migra de hard-delete a soft-disable (`IntegrationInstance.is_enabled=False`).
+  - `list_integration_instances` filtra solo instancias activas (`is_enabled=True`).
+
+- Tests:
+  - `tests/test_integrations_marketplace.py`
+    - `test_list_and_delete_instances` reforzado para validar:
+      - respuesta DELETE normalizada,
+      - ocultación en listado,
+      - persistencia en DB con `is_enabled=False`.
+
+### Resultado
+- DELETE de instancias de integración queda protegido por ABAC.
+- La eliminación pasa a desactivación lógica con lecturas activas por defecto y trazabilidad preservada.
+
+---
+
+## OKRS — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Alinear `okrs` con ABAC en DELETE y asegurar que objetivos/KRs borrados queden ocultos por defecto.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/okrs.py`
+  - `DELETE /okrs/{obj_id}` y `DELETE /okrs/key-results/{kr_id}` ya usan `enforce_abac(..., action="delete")`.
+
+- `app/services/okr_service.py`
+  - `get_objective` y `get_key_result` filtran `is_active=True`.
+  - `delete_objective` mantiene soft-delete del objetivo y de los KRs activos relacionados.
+  - `delete_kr` mantiene soft-delete del KR.
+
+- Tests:
+  - `tests/test_okrs.py`
+    - `test_delete_objective_cascades_krs` reforzado para validar ocultación en listados y estado `is_active=False` en DB para objetivo y KR.
+
+### Resultado
+- Los deletes de OKRs quedan protegidos por ABAC.
+- Los registros borrados se ocultan en lecturas normales y preservan trazabilidad en DB.
+
+---
+
+## DELIVERABLES — Endpoint DELETE reforzado (2026-05-09)
+
+### Objetivo
+- Asegurar que la eliminación de entregables quede correctamente acotada al proyecto y preservada como soft-delete.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/deliverables.py`
+  - `DELETE /deliverables/{project_id}/{del_id}` ahora busca el entregable dentro del proyecto de la ruta antes de borrar.
+  - Se mantiene `enforce_abac(..., action="delete")`.
+  - Respuesta DELETE normalizada con `{"ok": true, "message": "..."}`.
+
+- `app/services/deliverable_service.py`
+  - Ya operaba con soft-delete (`is_active=False`).
+  - Lecturas activas por defecto en listados y `get_deliverable`.
+
+- Tests:
+  - `tests/test_deliverables.py`
+    - `test_delete_deliverable` reforzado para validar ocultación en el proyecto y persistencia con `is_active=False`.
+
+### Resultado
+- El DELETE de entregables queda protegido por ABAC y acotado al proyecto correcto.
+- Los entregables eliminados quedan ocultos sin perder trazabilidad en DB.
+
+---
+
+## TRAINING — Endpoints DELETE reforzados (2026-05-10)
+
+### Objetivo
+- Alinear `training` con ABAC en DELETE y asegurar consistencia entre soft/hard delete según modelo.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/training.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /training/courses/{course_id}`
+    - `DELETE /training/enrollments/{enroll_id}`
+  - Respuestas DELETE normalizadas a `{"ok": true, "message": "..."}`.
+
+- `app/services/training_service.py`
+  - `get_course` filtra `is_active=True` para ocultar cursos soft-deleted en flujos de update/delete.
+
+- Comportamiento de borrado por esquema
+  - `Course`: soft-delete (`is_active=False`).
+  - `CourseEnrollment`: hard-delete (sin `is_active` en modelo).
+
+- Tests:
+  - `tests/test_training.py`
+    - `test_delete_course` reforzado (ocultación + DB inactiva).
+    - nuevo `test_delete_enrollment_hard_and_hidden` (ocultación + fila eliminada en DB).
+
+### Resultado
+- DELETE en training queda protegido por ABAC.
+- Borrado alineado al esquema y cubierto con regresión.
+
+---
+
+## EXPENSES — Endpoint DELETE reforzado (2026-05-10)
+
+### Objetivo
+- Reforzar `DELETE /expenses/my/{expense_id}` con ABAC y comportamiento coherente con el modelo actual.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/expenses.py`
+  - Se aplica `enforce_abac(..., action="delete")` en `DELETE /expenses/my/{expense_id}`.
+
+- `app/services/expense_service.py`
+  - Respuesta DELETE normalizada a `{"ok": true, "message": "Gasto eliminado correctamente"}`.
+  - Se mantiene hard-delete por compatibilidad de esquema (`Expense` no tiene `is_active`).
+
+- Tests:
+  - `tests/test_expenses.py`
+    - `test_delete_expense` reforzado para validar:
+      - respuesta delete normalizada,
+      - ocultación en `/expenses/my`,
+      - eliminación real de fila en DB.
+
+### Resultado
+- DELETE de gastos queda protegido por ABAC.
+- Comportamiento de borrado queda validado y consistente con el esquema actual.
+
+---
+
+## SERVICE DESK TEMPLATES — Endpoints DELETE reforzados (2026-05-10)
+
+### Objetivo
+- Alinear los DELETE de plantillas SD con ABAC y soft-delete para preservar trazabilidad operativa.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/service_desk/templates.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /api/v1/sd/ticket-templates/{template_id}`
+    - `DELETE /api/v1/sd/canned-responses/{canned_id}`
+  - Respuestas DELETE normalizadas con `{"ok": true, "message": "..."}`.
+
+- `app/services/service_desk/ticket_template_service.py`
+  - `delete_ticket_template` migra de hard-delete a soft-delete (`is_active=False`).
+  - `get_ticket_template_by_id` opera solo sobre activos (`is_active=True`).
+
+- `app/services/service_desk/canned_response_service.py`
+  - `delete_canned_response` migra de hard-delete a soft-delete (`is_active=False`).
+  - `get_canned_response_by_id` opera solo sobre activos (`is_active=True`).
+
+- `tests/test_service_desk_templates_delete.py`
+  - Se añaden regresiones de borrado para ticket templates y canned responses.
+  - Se verifica ocultación en listados y persistencia en DB con `is_active=False`.
+
+### Resultado
+- DELETE de plantillas SD queda protegido por ABAC.
+- Las plantillas eliminadas quedan ocultas por defecto y se conserva trazabilidad en DB.
+
+---
+
+## REPORT BUILDER — Endpoint DELETE reforzado (2026-05-10)
+
+### Objetivo
+- Reforzar la eliminación de plantillas de informe con control ABAC para evitar borrados no autorizados.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/report_builder.py`
+  - Se aplica `enforce_abac(..., action="delete")` en `DELETE /api/v1/reports/templates/{template_id}`.
+  - Se mantiene el comportamiento funcional existente (plantilla eliminada de los templates del usuario).
+
+- `tests/test_report_builder.py`
+  - `test_delete_template` reforzado para validar:
+    - respuesta correcta (`200/204`, y `ok=true` cuando aplica),
+    - ocultación en listado posterior (`GET /api/v1/reports/templates`).
+
+### Resultado
+- DELETE de plantillas de Report Builder queda protegido por ABAC.
+- La regresión de borrado valida resultado HTTP y consistencia de listado.
+
+---
+
+## USER COSTS — Endpoints DELETE reforzados (2026-05-10)
+
+### Objetivo
+- Reforzar los borrados de presets de país y perfiles de coste de usuario con ABAC explícito.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/user_costs.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /api/v1/user-costs/countries/{preset_id}`
+    - `DELETE /api/v1/user-costs/profiles/{profile_id}`
+  - Se mantiene hard-delete en ambos casos por compatibilidad con el esquema actual.
+
+- `tests/test_user_costs_delete.py`
+  - Se añaden regresiones de borrado para:
+    - country preset (eliminación real + no aparece en listado),
+    - user cost profile (eliminación real + no aparece en historial).
+
+### Resultado
+- DELETE en User Costs queda protegido por ABAC.
+- Borrado validado con tests de endpoint y verificación de estado en DB.
+
+---
+
+## BILLING REPORTS — Endpoints DELETE reforzados (2026-05-10)
+
+### Objetivo
+- Reforzar los DELETE del dominio Billing Reports con ABAC explícito en recursos críticos.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/billing_reports.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /api/v1/billing-reports/report-catalog/{report_id}`
+    - `DELETE /api/v1/billing-reports/automation-workflows/{wf_id}`
+    - `DELETE /api/v1/billing-reports/scheduled-reports/{report_id}`
+  - Se mantiene el comportamiento actual de borrado en servicio (hard-delete) por compatibilidad.
+
+- `tests/test_billing_reports_delete.py`
+  - Se añaden regresiones para validar borrado y no visibilidad posterior en listados/operaciones de reintento.
+
+### Resultado
+- DELETE en Billing Reports queda protegido por ABAC en reportes personalizados, workflows y reports programados.
+- La cobertura de regresión verifica respuesta y consistencia funcional posterior al borrado.
+
+---
+
+## BI QUERY BUILDER — Endpoint DELETE reforzado (2026-05-10)
+
+### Objetivo
+- Reforzar la eliminación de queries guardadas con ABAC explícito.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/bi_query_builder.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /api/v1/bi/query-builder/queries/{query_id}`
+
+- `tests/test_bi_query_builder.py`
+  - `test_delete_query` reforzado para validar también que la query eliminada no aparece en `GET /api/v1/bi/query-builder/queries`.
+
+### Resultado
+- DELETE de queries en BI Query Builder queda protegido por ABAC.
+- Regresión valida respuesta HTTP y consistencia de listado posterior.
+
+---
+
+## BI SMART ALERTS — Endpoints DELETE reforzados (2026-05-10)
+
+### Objetivo
+- Reforzar eliminación de reglas y métricas personalizadas de BI Alerts con ABAC explícito.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/bi_smart_alerts.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /api/v1/bi/alerts/custom-metrics/{key}`
+    - `DELETE /api/v1/bi/alerts/rules/{rule_id}`
+
+- Tests existentes validados:
+  - `tests/test_bi_smart_alerts.py::test_update_and_delete_alert_rule`
+  - flujo de reglas/listados de alertas sigue consistente.
+
+### Resultado
+- DELETE en BI Smart Alerts queda protegido por ABAC para recursos de alerta y métricas custom.
+
+---
+
+## BI CONDITIONAL DELIVERY — Endpoint DELETE reforzado (2026-05-10)
+
+### Objetivo
+- Reforzar eliminación de reglas de entrega condicional con ABAC explícito.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/bi_conditional_delivery.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /api/v1/bi/delivery/rules/{rule_id}`
+
+- `tests/test_bi_conditional_delivery.py`
+  - Se añade `test_delete_rule` para validar borrado y ocultación de la regla en listado.
+
+### Resultado
+- DELETE en BI Conditional Delivery queda protegido por ABAC y cubierto con regresión de endpoint.
+
+---
+
+## APPROVALS — Endpoints DELETE reforzados (2026-05-10)
+
+### Objetivo
+- Reforzar los borrados del motor de aprobaciones (flujos, pasos y grupos) con ABAC explícito.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/approvals.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /api/v1/approvals/workflows/{workflow_id}`
+    - `DELETE /api/v1/approvals/workflows/{workflow_id}/steps/{step_id}`
+    - `DELETE /api/v1/approvals/groups/{group_id}`
+
+- `tests/test_approvals.py`
+  - Se mantiene cobertura de borrado de workflow y step.
+  - Se añade `test_delete_group` para validar eliminación y 404 posterior en detalle del grupo.
+
+### Resultado
+- DELETE en Approvals queda protegido por ABAC en recursos clave del motor de aprobaciones.
+
+---
+
+## RACI — Endpoints DELETE reforzados (2026-05-10)
+
+### Objetivo
+- Reforzar borrados de RACI/changelog/UAT con ABAC explícito para recursos críticos de proyecto.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/raci.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /api/v1/projects/{project_id}/raci/{entry_id}`
+    - `DELETE /api/v1/projects/{project_id}/changelog/{entry_id}`
+    - `DELETE /api/v1/projects/{project_id}/uat/{case_id}`
+
+### Resultado
+- DELETE en RACI queda protegido por ABAC en entradas de matriz, changelog y casos UAT.
+
+---
+
+## BI INTELLIGENCE — Endpoints DELETE reforzados (2026-05-10)
+
+### Objetivo
+- Reforzar borrado de recursos BI Intelligence (templates visuales y delivery schedules) con ABAC explícito.
+
+### Cambios aplicados
+- `app/api/v1/endpoints/bi_intelligence.py`
+  - Se aplica `enforce_abac(..., action="delete")` en:
+    - `DELETE /api/v1/bi/intelligence/query-builder/templates/{template_id}`
+    - `DELETE /api/v1/bi/delivery/schedules/{schedule_id}`
+
+- `tests/test_bi_intelligence.py`
+  - Se añade `test_bi_delivery_delete_schedule` para validar delete y 404 posterior en `diff` del schedule.
+
+### Resultado
+- DELETE en BI Intelligence queda protegido por ABAC en plantillas y schedules de entrega.
 
 ---
 
@@ -69,6 +1560,21 @@ Implementar soft-delete consistency across 4 critical files para permitir recrea
 - `tests/test_okrs.py`: 9/9 pasando (validación patrón previo)
 - Imports: Todos 6 archivos (servicios + endpoints) sin errores de sintaxis
 
+#### **6. Extensión de Cobertura (Advanced Config + Workflow Reset)** ✅
+- `advanced_config.py`: los 8 endpoints `DELETE` ahora aplican `enforce_abac()`.
+- `custom_fields.py`: `DELETE /project-workflows/{project_id}/reset` ahora aplica `enforce_abac()`.
+- `custom_fields_service.py`:
+  - `reset_workflow()` cambia de hard-delete masivo a soft-delete (`is_active=False`).
+  - `init_default_workflow()` valida existencia sólo sobre estados activos.
+  - `transition_task()` ignora estados/transiciones inactivos.
+- `advanced_config_service.py`:
+  - `delete_rate_entry()` cambia de hard-delete a soft-delete.
+  - `list_rate_tables()` excluye `RateEntry` inactivos.
+  - `update_rate_entry()` sólo permite editar entradas activas.
+- `advanced_config.py` (model): `RateEntry` ahora incluye `is_active`.
+- Migración adicional: `alembic/versions/80aafca0a03b_add_soft_delete_is_active_to_rate_.py` (aplicada).
+- Validación de regresión: `39/39` tests pasando (`custom_fields`, `deliverables`, `imputations`, `okrs`).
+
 ### Pattern Summary
 ```python
 # Soft-Delete Pattern (Applied to all 4 files)
@@ -90,6 +1596,15 @@ Implementar soft-delete consistency across 4 critical files para permitir recrea
 ## REFERENCIA: Análisis de Endpoints (2026-05-09)
 
 **Documento:** [ENDPOINT_ANALYSIS.md](ENDPOINT_ANALYSIS.md)
+
+**Plan maestro exhaustivo (182 DELETE endpoints):** [DELETE_SOFT_DELETE_ABAC_MASTER_PLAN.md](DELETE_SOFT_DELETE_ABAC_MASTER_PLAN.md)
+
+Incluye:
+- Inventario completo por archivo de `app/api/v1/endpoints/` y `app/api/v1/routers/` con DELETE.
+- Tabla por endpoint con gap de soft-delete/ABAC/validaciones/respuesta.
+- Top 50 archivos críticos con detalle de cambios (imports ABAC, endpoints por línea, modelo/servicio, migraciones).
+- Checklist global de dependencias y orden de migración por dominio.
+- Top 10 de archivos más rotos, top 10 dominios sin `is_active`, batches por prioridad y estimación de LOC por archivo.
 
 Análisis estructurado de 129 archivos en `app/api/v1/endpoints/` y `app/api/v1/routers/`:
 - **55 archivos** implementan DELETE endpoints

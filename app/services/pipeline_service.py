@@ -39,7 +39,7 @@ def scope_opportunity_query(q, db: Session, current_user: User):
 
 
 def get_opportunities(db: Session, current_user: User, stage=None, owner_id=None):
-    q = db.query(Opportunity).options(joinedload(Opportunity.owner))
+    q = db.query(Opportunity).options(joinedload(Opportunity.owner)).filter(Opportunity.is_active == True)
     q = scope_opportunity_query(q, db, current_user)
     if stage:
         q = q.filter(Opportunity.stage == stage)
@@ -49,7 +49,7 @@ def get_opportunities(db: Session, current_user: User, stage=None, owner_id=None
 
 
 def get_pipeline_opps(db: Session, current_user: User):
-    q = db.query(Opportunity).options(joinedload(Opportunity.owner))
+    q = db.query(Opportunity).options(joinedload(Opportunity.owner)).filter(Opportunity.is_active == True)
     q = scope_opportunity_query(q, db, current_user)
     return q.all()
 
@@ -83,7 +83,7 @@ def update_opportunity(
 ) -> Opportunity:
     opp = scope_opportunity_query(
         db.query(Opportunity), db, current_user
-    ).filter(Opportunity.id == opp_id).first()
+    ).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
     if not opp:
         raise HTTPException(404, "Oportunidad no encontrada")
 
@@ -126,12 +126,14 @@ def update_opportunity(
 def delete_opportunity(db: Session, current_user: User, opp_id: str) -> dict:
     opp = scope_opportunity_query(
         db.query(Opportunity), db, current_user
-    ).filter(Opportunity.id == opp_id).first()
+    ).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
     if not opp:
         raise HTTPException(404, "Oportunidad no encontrada")
-    db.delete(opp)
+    if opp.project_id:
+        raise HTTPException(400, "No se puede eliminar: la oportunidad esta vinculada a un proyecto")
+    opp.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Oportunidad eliminada correctamente"}
 
 
 def list_activities(db: Session, opp_id: str):
@@ -162,7 +164,7 @@ def add_activity(
 def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str) -> dict:
     opp = scope_opportunity_query(
         db.query(Opportunity), db, current_user
-    ).filter(Opportunity.id == opp_id).first()
+    ).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
     if not opp:
         raise HTTPException(404, "Oportunidad no encontrada")
     if opp.project_id:
@@ -248,6 +250,7 @@ def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str)
 
 def get_active_opportunities_for_forecast(db: Session):
     return db.query(Opportunity).filter(
+        Opportunity.is_active == True,
         Opportunity.stage.notin_(["won", "lost", "cancelled"])
     ).all()
 

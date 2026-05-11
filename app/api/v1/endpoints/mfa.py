@@ -16,7 +16,11 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
 from app.core.config import settings
+from app.core.abac_enforce import enforce_abac
 import app.services.mfa_service as _svc
+from app.schemas.auth_payloads import (
+    AssignUserOrgIn, SlackTestIn, SlackNotifyIn, AcceptFlagIn, ExportPdfIn,
+)
 
 router = APIRouter()
 
@@ -28,6 +32,7 @@ def remove_user_from_org(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    enforce_abac(db, current_user, "organization", org_id, action="delete")
     try:
         return _svc.remove_user_from_org(org_id, user_id, db)
     except ValueError as e:
@@ -125,6 +130,7 @@ def mfa_disable(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "mfa", str(current_user.id), action="delete")
     try:
         return _svc.disable_mfa(current_user, payload.code, db)
     except ValueError as e:
@@ -185,6 +191,9 @@ def get_organization(
 @router.patch("/organizations/{org_id}", summary="Actualizar organización")
 def update_organization(
     org_id: str,
+    # PATCH parcial: el servicio (`_svc.update_organization`) hace el
+    # whitelist-merge contra el modelo Organization. Mantener dict aquí evita
+    # listar cada campo y rompe menos clientes legacy.
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -198,12 +207,12 @@ def update_organization(
 @router.post("/organizations/{org_id}/assign-user", summary="Asignar usuario a organización")
 def assign_user_to_org(
     org_id: str,
-    payload: dict = Body(...),
+    payload: AssignUserOrgIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.assign_user_to_org(org_id, payload.get("user_id"), db)
+        return _svc.assign_user_to_org(org_id, payload.user_id, db)
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -243,14 +252,14 @@ def create_slack_config(
 
 @router.post("/slack/test", summary="Enviar mensaje de prueba a Slack/Teams")
 def test_slack(
-    payload: dict = Body(...),
+    payload: SlackTestIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     try:
-        config_id = payload.get("config_id")
-        message = payload.get("message", "🔔 Mensaje de prueba desde Contecflow v15")
-        channel = payload.get("channel", "#contecflow-alerts")
+        config_id = payload.config_id
+        message = payload.message or "🔔 Mensaje de prueba desde Contecflow v15"
+        channel = payload.channel or "#contecflow-alerts"
         return _svc.test_slack_config(config_id, message, channel, db)
     except ValueError:
         raise HTTPException(404)
@@ -258,16 +267,16 @@ def test_slack(
 
 @router.post("/slack/notify", summary="Enviar notificación de evento Slack")
 def slack_notify(
-    payload: dict = Body(...),
+    payload: SlackNotifyIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     try:
         return _svc.notify_slack(
-            payload.get("event_type", "manual"),
-            payload.get("message", "Notificación de Contecflow"),
-            payload.get("channel"),
-            payload.get("source_id"),
+            payload.event_type or "manual",
+            payload.message or "Notificación de Contecflow",
+            payload.channel,
+            payload.source_id,
             db,
         )
     except ValueError as e:
@@ -320,6 +329,8 @@ def create_budget(
 @router.patch("/budgets/{budget_id}/entry", summary="Actualizar entrada mensual de presupuesto")
 def update_budget_entry(
     budget_id: str,
+    # PATCH parcial: el servicio whitelistea claves (month, planned, actual…)
+    # contra el modelo BudgetEntry. Mantener dict simplifica el contrato.
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
@@ -373,12 +384,12 @@ def estimate_task_hours(
 @router.post("/ai-planning/estimate/{task_id}/accept", summary="Aceptar o rechazar estimación IA")
 def accept_estimate(
     task_id: str,
-    payload: dict = Body(...),
+    payload: AcceptFlagIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.accept_task_estimate(task_id, payload.get("accepted", True), db)
+        return _svc.accept_task_estimate(task_id, payload.accepted, db)
     except ValueError:
         raise HTTPException(404)
 
@@ -402,12 +413,12 @@ def ai_triage_ticket(
 @router.post("/ai-planning/triage/{ticket_id}/accept", summary="Aplicar triaje IA al ticket")
 def accept_triage(
     ticket_id: str,
-    payload: dict = Body(...),
+    payload: AcceptFlagIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.accept_ticket_triage(ticket_id, payload.get("accepted", True), current_user.id, db)
+        return _svc.accept_ticket_triage(ticket_id, payload.accepted, current_user.id, db)
     except ValueError:
         raise HTTPException(404)
 
@@ -471,6 +482,7 @@ def delete_scenario(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "scenario", scenario_id, action="delete")
     try:
         return _svc.delete_scenario(scenario_id, db)
     except ValueError:
@@ -484,16 +496,16 @@ def delete_scenario(
 @router.post("/pdf/export", summary="Exportar informe o factura a PDF con logo")
 def export_pdf(
     background_tasks: BackgroundTasks,
-    payload: dict = Body(...),
+    payload: ExportPdfIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    export_type = payload.get("export_type", "generic")
-    source_id = payload.get("source_id")
+    export_type = payload.export_type or "generic"
+    source_id = payload.source_id
     params = {
-        "company_name": payload.get("company_name", "Contecflow"),
-        "primary_color": payload.get("primary_color", "#1C2833"),
-        "logo_b64": payload.get("logo_b64"),
+        "company_name": payload.company_name or "Contecflow",
+        "primary_color": payload.primary_color or "#1C2833",
+        "logo_b64": payload.logo_b64,
     }
 
     try:
@@ -551,6 +563,7 @@ def revoke_bi_token(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    enforce_abac(db, current_user, "bi_token", token_id, action="delete")
     try:
         return _svc.revoke_bi_token(token_id, db)
     except ValueError:

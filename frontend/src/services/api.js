@@ -960,8 +960,42 @@ export const performanceApi = {
   createCycle:   (data)         => api.post('/performance/cycles', data),
   activateCycle: (id)           => api.post(`/performance/cycles/${id}/activate`),
   closeCycle:    (id)           => api.post(`/performance/cycles/${id}/close`),
+  // Asignar evaluación (qué evaluador evalúa a qué evaluado dentro de un ciclo)
+  createReview:  (cycleId, data) => api.post(`/performance/cycles/${cycleId}/reviews`, data),
   updateReview:  (id, data)     => api.patch(`/performance/reviews/${id}`, data),
   submitReview:  (id)           => api.post(`/performance/reviews/${id}/submit`),
+  userHistory:   (userId)       => api.get(`/performance/users/${userId}/history`),
+  // Plantilla de preguntas por ciclo
+  listQuestions:    (cycleId)            => api.get(`/performance/cycles/${cycleId}/questions`),
+  addQuestion:      (cycleId, data)      => api.post(`/performance/cycles/${cycleId}/questions`, data),
+  updateQuestion:   (qId, data)          => api.patch(`/performance/questions/${qId}`, data),
+  deleteQuestion:   (qId)                => api.delete(`/performance/questions/${qId}`),
+  seedDefaultQuestions: (cycleId)        => api.post(`/performance/cycles/${cycleId}/questions/seed-default`),
+  cloneQuestions:   (cycleId, sourceId)  => api.post(`/performance/cycles/${cycleId}/clone-questions/${sourceId}`),
+  // Smart 360°: pool de evaluadores elegibles según tipo de revisión
+  eligibleReviewers: (cycleId, revieweeId, type) =>
+    api.get(`/performance/cycles/${cycleId}/eligible-reviewers/${revieweeId}/${type}`),
+  // Campañas 360° (subject + multi-evaluator + dashboard agregado anonimizado)
+  listCampaigns:    (cycleId)        => api.get(`/performance/cycles/${cycleId}/campaigns`),
+  createCampaign:   (cycleId, data)  => api.post(`/performance/cycles/${cycleId}/campaigns`, data),
+  closeCampaign:    (id)             => api.post(`/performance/campaigns/${id}/close`),
+  campaignDashboard:(id)             => api.get(`/performance/campaigns/${id}/dashboard`),
+  campaignDashboardPdf:(id)          => api.get(`/performance/campaigns/${id}/dashboard.pdf`,
+                                                { responseType: 'blob' }),
+  campaignReviews:  (id)             => api.get(`/performance/campaigns/${id}/reviews`),
+  history360:       (userId)         => api.get(`/performance/users/${userId}/360-history`),
+  // KPIs operativos (HR)
+  orgKpis:          ()               => api.get('/performance/kpis'),
+  cycleKpis:        (id)             => api.get(`/performance/cycles/${id}/kpis`),
+  runReminders:     ()               => api.post('/performance/admin/run-reminders'),
+  // Development plans
+  listUserPlans:    (userId)         => api.get(`/performance/users/${userId}/dev-plans`),
+  getPlan:          (id)             => api.get(`/performance/dev-plans/${id}`),
+  createPlan:       (data)           => api.post('/performance/dev-plans', data),
+  updatePlan:       (id, data)       => api.patch(`/performance/dev-plans/${id}`, data),
+  addGoal:          (planId, data)   => api.post(`/performance/dev-plans/${planId}/goals`, data),
+  updateGoal:       (id, data)       => api.patch(`/performance/dev-goals/${id}`, data),
+  deleteGoal:       (id)             => api.delete(`/performance/dev-goals/${id}`),
 }
 
 // ── Capacity Planning ─────────────────────────────────────────────────────────

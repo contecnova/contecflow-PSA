@@ -487,7 +487,7 @@ def delete_my_expense(db: Session, expense_id: str, user_id: str) -> dict:
         raise HTTPException(400, "Solo se pueden eliminar gastos en borrador o rechazados")
     db.delete(expense)
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Gasto eliminado correctamente"}
 
 
 # ── Label constants + serialization helpers ────────────────────────────────

@@ -6,11 +6,9 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { predictiveObservabilityApi, aiProvidersApi } from '../services/api'
 import { PROVIDER_DOCS } from '../constants/api'
-import { Button, Spinner, Modal, Tabs } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
+import { Button, Spinner, Modal, Tabs, Page } from '../components/ui'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
-import { Cpu, X } from 'lucide-react'
+import { Cpu, X, Search, Plus, Activity } from 'lucide-react'
 
 
 const getStatusCfg = (t) => ({
@@ -392,49 +390,46 @@ export default function AIHubPage() {
   const intFmt = new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES')
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={<Cpu size={18} />}
-        title={t('ai.hub_title')}
-        subtitle={t('ai.hub_subtitle')}
-        actions={(
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button
-              variant="secondary"
-              onClick={() => diagnoseAll()}
-              disabled={diagnosing}
-              loading={diagnosing}
-            >
-              {diagnosing ? 'Diagnosticando...' : '🔍 Diagnóstico'}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => syncAllModels()}
-              disabled={syncingAllModels}
-              loading={syncingAllModels}
-            >
-              {syncingAllModels ? 'Sincronizando modelos...' : 'Sincronizar todos los modelos'}
-            </Button>
-            <Button onClick={() => setModal({})} icon="＋">{t('ai.add_provider')}</Button>
-          </div>
-        )}
-        showListExport={tab === 'providers' && providers.length > 0}
-        exportTargetSelector='[data-export-table="ai-providers-list"]'
-        exportFilePrefix='ai_providers'
-      />
-
+    <Page
+      icon={<Cpu size={18} />}
+      title={t('ai.hub_title')}
+      subtitle={t('ai.hub_subtitle')}
+      rightActions={(
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <Button
+            variant="secondary"
+            onClick={() => diagnoseAll()}
+            disabled={diagnosing}
+            loading={diagnosing}
+          >
+            <Search size={13} /> {diagnosing ? 'Diagnosticando...' : 'Diagnóstico'}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => syncAllModels()}
+            disabled={syncingAllModels}
+            loading={syncingAllModels}
+          >
+            {syncingAllModels ? 'Sincronizando modelos...' : 'Sincronizar todos los modelos'}
+          </Button>
+          <Button onClick={() => setModal({})}>
+            <Plus size={13} /> {t('ai.add_provider')}
+          </Button>
+        </div>
+      )}
+    >
       {/* Tabs */}
       <Tabs
         items={[
           { id: 'providers',     label: t('ai.providers') },
           { id: 'stats',         label: t('ai.usage') },
-          { id: 'observability', label: '🔬 Observabilidad' },
+          { id: 'observability', label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Activity size={11} /> Observabilidad</span> },
           { id: 'guide',         label: t('ai.guide') },
         ]}
         active={tab}
         onChange={setTab}
         ariaLabel={t('ai.hub_title')}
-        style={{ marginBottom: 24, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }}
+        style={{ marginBottom: 'var(--space-5)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--surface-4)' }}
       />
 
       {/* PROVIDERS TAB */}
@@ -452,10 +447,10 @@ export default function AIHubPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {(diagResults.providers || []).map(pr => {
-                  const dot = pr.status === 'ok' ? '🟢' : pr.status === 'warning' ? '🟡' : '🔴'
+                  const dotKind = pr.status === 'ok' ? 'success' : pr.status === 'warning' ? 'warning' : 'danger'
                   return (
                     <div key={pr.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: "var(--text-base)" }}>
-                      <span style={{ fontSize: "var(--text-lg)", lineHeight: 1.4 }}>{dot}</span>
+                      <span className={`ds-status-dot ds-status-dot--${dotKind}`} style={{ marginTop: 7, flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
                         <span style={{ fontWeight: 600 }}>{pr.name}</span>
                         <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: "var(--text-sm)" }}>{pr.provider_type}</span>
@@ -497,7 +492,7 @@ export default function AIHubPage() {
               <div style={{ fontSize: "var(--text-md)", color: 'var(--text-2)', marginBottom: 24, maxWidth: 500, margin: '0 auto 24px' }}>
                 {t('ai.no_providers_desc')}
               </div>
-              <Button onClick={() => setModal({})}>＋ {t('ai.add_first_provider')}</Button>
+              <Button onClick={() => setModal({})}><Plus size={13} /> {t('ai.add_first_provider')}</Button>
             </div>
           ) : (
             <div data-export-table="ai-providers-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
@@ -723,6 +718,6 @@ export default function AIHubPage() {
         />
       )}
       {testModal && <TestModal provider={testModal} onClose={() => setTestModal(null)} />}
-    </PageShell>
+    </Page>
   )
 }

@@ -159,6 +159,13 @@ def install_integration_connector(
     sync_direction: str, sync_frequency: str,
     organization_id: Optional[str], user_id: str, db: Session,
 ) -> dict:
+    valid_directions = {"inbound", "outbound", "bidirectional"}
+    valid_frequencies = {"realtime", "hourly", "daily", "manual"}
+    if sync_direction not in valid_directions:
+        raise HTTPException(422, f"Invalid sync_direction. Allowed: {sorted(valid_directions)}")
+    if sync_frequency not in valid_frequencies:
+        raise HTTPException(422, f"Invalid sync_frequency. Allowed: {sorted(valid_frequencies)}")
+
     _seed_connectors(db)
 
     connector = db.query(IntegrationConnector).filter(
@@ -204,6 +211,7 @@ def list_integration_instances(organization_id: Optional[str], db: Session) -> l
         return []
     instances = db.query(IntegrationInstance).filter(
         IntegrationInstance.organization_id == organization_id,
+        IntegrationInstance.is_enabled == True,
     ).all()
     result = []
     for inst in instances:
@@ -232,8 +240,9 @@ def uninstall_integration_connector(
     inst = db.query(IntegrationInstance).filter(
         IntegrationInstance.id == instance_id,
         IntegrationInstance.organization_id == organization_id,
+        IntegrationInstance.is_enabled == True,
     ).first()
     if not inst:
         raise HTTPException(404, "Integration instance not found")
-    db.delete(inst)
+    inst.is_enabled = False
     db.commit()

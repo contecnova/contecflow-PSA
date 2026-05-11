@@ -197,6 +197,12 @@ class TestReportTemplates:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 204), res.text
+        if res.status_code == 200:
+            assert res.json().get("ok") is True
+
+        listed = client.get("/api/v1/reports/templates", headers=auth(admin_token))
+        assert listed.status_code == 200
+        assert all(t.get("id") != template_id for t in listed.json())
 
     def test_template_can_be_used_for_preview(self, client, admin_token, db):
         """A saved template's config should work when passed to the preview endpoint."""

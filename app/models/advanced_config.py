@@ -185,6 +185,7 @@ class RateEntry(Base):
     valid_to     = Column(Date, nullable=True)
     escalation_pct = Column(Float, default=0.0)          # % escalado anual
     notes        = Column(String(255), nullable=True)
+    is_active    = Column(Boolean, default=True)
 
     table = relationship("RateTable", back_populates="entries")
 

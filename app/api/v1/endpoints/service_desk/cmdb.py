@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.models.cmdb import CMDBDiscoveryProvider, CMDBDiscoveryJob
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.schemas.service_desk import CIIn
@@ -495,9 +496,10 @@ def list_agents(
 def revoke_agent(
     agent_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
     """Revoke an agent's token (soft-disable).  The agent will be rejected at next check-in."""
+    enforce_abac(db, current_user, "sd_cmdb_agent", agent_id, action="delete")
     revoke_agent_token(db, agent_id)
     _commit_or_rollback(db)
     return {"ok": True, "agent_id": agent_id, "revoked": True}

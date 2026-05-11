@@ -183,28 +183,36 @@ def client():
 def admin_token(client, db):
     res = client.post("/api/v1/auth/login", json={"username": "admin", "password": _TEST_PASSWORD})
     assert res.status_code == 200, f"Login admin falló: {res.text}"
-    return res.json()["access_token"]
+    token = res.cookies.get("access_token")
+    assert token
+    return token
 
 
 @pytest.fixture(scope="function")
 def pm_token(client, db):
     res = client.post("/api/v1/auth/login", json={"username": "pm_test", "password": _TEST_PASSWORD})
     assert res.status_code == 200
-    return res.json()["access_token"]
+    token = res.cookies.get("access_token")
+    assert token
+    return token
 
 
 @pytest.fixture(scope="function")
 def dev_token(client, db):
     res = client.post("/api/v1/auth/login", json={"username": "dev_test", "password": _TEST_PASSWORD})
     assert res.status_code == 200
-    return res.json()["access_token"]
+    token = res.cookies.get("access_token")
+    assert token
+    return token
 
 
 @pytest.fixture(scope="function")
 def hr_token(client, db):
     res = client.post("/api/v1/auth/login", json={"username": "hr_test", "password": _TEST_PASSWORD})
     assert res.status_code == 200
-    return res.json()["access_token"]
+    token = res.cookies.get("access_token")
+    assert token
+    return token
 
 
 def auth(token):

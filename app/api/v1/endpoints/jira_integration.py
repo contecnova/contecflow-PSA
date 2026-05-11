@@ -33,6 +33,7 @@ from app.models.jira_integration import (
 )
 from app.models.service_desk import Ticket
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services.service_desk.jira_sync_service import (
     apply_jira_update_to_ticket,
     pull_jira_issue,
@@ -189,6 +190,7 @@ def delete_jira_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
+    enforce_abac(db, current_user, "jira_config", config_id, action="delete")
     config = db.query(JiraConfig).filter(JiraConfig.id == config_id).first()
     if not config:
         raise HTTPException(404, "Jira config not found")

@@ -1,6 +1,7 @@
 """Tests del planificador de capacidad."""
 from tests.conftest import auth
 from datetime import date, timedelta
+from app.models.financial import CapacityPlan
 
 def next_monday():
     today = date.today()
@@ -36,7 +37,18 @@ def test_delete_capacity_plan(client, pm_token, db):
         "user_id": "pm-test-id", "week_start": next_monday(), "planned_hours": 10,
     }, headers=auth(pm_token)).json()
     res = client.delete(f"/api/v1/capacity/plans/{plan['id']}", headers=auth(pm_token))
-    assert res.status_code in (200, 204)
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload.get("ok") is True
+
+    board = client.get("/api/v1/capacity/board", headers=auth(pm_token))
+    assert board.status_code == 200
+    ids = [item["id"] for item in board.json()]
+    assert plan["id"] not in ids
+
+    row = db.query(CapacityPlan).filter(CapacityPlan.id == plan["id"]).first()
+    assert row is not None
+    assert row.is_active is False
 
 def test_capacity_board_with_range(client, admin_token, db):
     today = str(date.today())

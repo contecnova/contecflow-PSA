@@ -16,8 +16,7 @@ import {
   FileClock, FileMinus, TrendingUp, Eye, Info, Share2, Users,
   CheckCircle, XCircle, ExternalLink, Loader
 } from 'lucide-react';
-import PageHeader from '../components/layout/PageHeader';
-import PageShell from '../components/layout/PageShell'
+import { Page, Button } from '../components/ui'
 
 // ── Utilidades ─────────────────────────────────────────
 function fmtBytes(b) {
@@ -1286,45 +1285,50 @@ export default function DocumentsPage() {
   const toggleTag = t => setActiveTags(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
   const selectAll = () => setSelectedIds(docs.length === selectedIds.size ? new Set() : new Set(docs.map(d => d.id)));
 
-  const ctrlBtn = { padding: '8px 12px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit', outline: 'none' };
-
   return (
-    <PageShell>
-
-      <PageHeader
-        icon={<Files size={18} />}
-        title={_t('documents.title')}
-        subtitle={_t('documents.subtitle')}
-        actions={
-          <button onClick={() => setShowUpload(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 8, border: 'none', backgroundColor: 'var(--accent)', color: 'white', fontSize: "var(--text-base)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            <Plus size={15} /> {_t('documents.upload')}
-          </button>
-        }
-      />
-
+    <Page
+      icon={<Files size={18} />}
+      title={_t('documents.title')}
+      subtitle={_t('documents.subtitle')}
+      rightActions={
+        <Button onClick={() => setShowUpload(true)}>
+          <Plus size={13} /> {_t('documents.upload')}
+        </Button>
+      }
+    >
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 22 }}>
+      <div className="ds-grid-stats">
         <KpiCard icon={Files}      label="Total documentos" value={stats.total} color="var(--accent)" sub="en la plataforma" />
-        <KpiCard icon={FileClock}  label="Pendientes" value={stats.pending} color="#f59e0b" sub="requieren revision" />
-        <KpiCard icon={FileCheck}  label="Aprobados" value={stats.approved} color="var(--success)" sub="documentos validos" />
-        <KpiCard icon={FileMinus}  label="Sin aprobación" value={stats.noApproval} color="var(--text-3)" sub="no requieren revision" />
+        <KpiCard icon={FileClock}  label="Pendientes" value={stats.pending} color="var(--warning)" sub="requieren revisión" />
+        <KpiCard icon={FileCheck}  label="Aprobados" value={stats.approved} color="var(--success)" sub="documentos válidos" />
+        <KpiCard icon={FileMinus}  label="Sin aprobación" value={stats.noApproval} color="var(--text-3)" sub="no requieren revisión" />
         <KpiCard icon={TrendingUp} label="Esta semana" value={stats.thisWeek} color="var(--purple)" sub="nuevos documentos" />
       </div>
 
-      {/* Filter bar */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '12px 16px', marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 160 }}>
-          <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por titulo, archivo o etiqueta"
-            style={{ width: '100%', paddingLeft: 30, paddingRight: 10, paddingTop: 8, paddingBottom: 8, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+      {/* Filter bar — toolbar plana, sin caja contenedora (consistente con
+          TasksPage / ProjectsPage / TicketListTab) */}
+      <div className="ds-toolbar">
+        <div style={{ position: 'relative', flex: '2 1 280px', minWidth: 200, maxWidth: 420 }}>
+          <Search size={14} aria-hidden style={{
+            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--text-3)', pointerEvents: 'none',
+          }} />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por título, archivo o etiqueta"
+            aria-label="Buscar documentos"
+            className="ds-input"
+            style={{ paddingLeft: 32 }} />
         </div>
-        <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={ctrlBtn}>
-          <option value="">Todas las categors</option>
+        <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
+          aria-label="Filtrar por categoría"
+          className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
+          <option value="">Todas las categorías</option>
           {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
         </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={ctrlBtn}>
-          <option value="">Todos</option>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          aria-label="Filtrar por estado de aprobación"
+          className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
+          <option value="">Todos los estados</option>
           <optgroup label="Estado de aprobación">
             <option value="pending">Pendientes</option>
             <option value="approved">Aprobados</option>
@@ -1334,33 +1338,37 @@ export default function DocumentsPage() {
             <option value="no_approval">Sin aprobación requerida</option>
           </optgroup>
         </select>
-        <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={ctrlBtn}>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+          aria-label="Ordenar"
+          className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
           {SORT_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
         </select>
-        <div style={{ flex: 1 }} />
-        {/* View toggle */}
-        <div style={{ display: 'flex', gap: 2, background: 'var(--surface-3)', borderRadius: 8, padding: 3 }}>
-          {[['grid', <Grid3X3 key="grid" size={14} />], ['list', <List key="list" size={14} />]].map(([m, icon]) => (
-            <button key={m} onClick={() => setViewMode(m)}
-              style={{ padding: '5px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', backgroundColor: viewMode === m ? 'var(--accent)' : 'transparent', color: viewMode === m ? 'white' : 'var(--text-2)', transition: 'all 0.12s', display: 'flex', alignItems: 'center' }}>
-              {icon}
-            </button>
-          ))}
+        <div className="ds-toolbar__spacer" />
+        <div className="ds-segmented" role="group" aria-label="Vista">
+          <button type="button" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title="Tarjetas">
+            <Grid3X3 size={12} />
+          </button>
+          <button type="button" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title="Lista">
+            <List size={12} />
+          </button>
         </div>
       </div>
 
       {/* Tag chips */}
       {allTags.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
+        <div className="ds-row-wrap">
           {allTags.map(t => (
             <button key={t} onClick={() => toggleTag(t)}
-              style={{ padding: '3px 10px', borderRadius: 20, border: `1px solid ${activeTags.includes(t) ? 'var(--accent)' : 'var(--surface-4)'}`, backgroundColor: activeTags.includes(t) ? 'var(--accent)15' : 'transparent', color: activeTags.includes(t) ? 'var(--accent)' : 'var(--text-3)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s' }}>
+              className={`ds-pill${activeTags.includes(t) ? ' ds-pill--accent' : ''}`}
+              style={{ cursor: 'pointer', fontFamily: 'inherit' }}>
               #{t}
             </button>
           ))}
           {activeTags.length > 0 && (
-            <button onClick={() => setActiveTags([])} style={{ padding: '3px 9px', borderRadius: 20, border: '1px solid var(--danger)40', backgroundColor: 'transparent', color: 'var(--danger)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
- Limpiar              
+            <button onClick={() => setActiveTags([])}
+              className="ds-pill ds-pill--danger"
+              style={{ cursor: 'pointer', fontFamily: 'inherit' }}>
+              Limpiar
             </button>
           )}
         </div>
@@ -1368,50 +1376,55 @@ export default function DocumentsPage() {
 
       {/* Bulk actions */}
       {selectedIds.size > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', background: 'var(--surface-3)', border: '1px solid var(--accent)40', borderRadius: 10, marginBottom: 12 }}>
-          <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', fontWeight: 600 }}>{selectedIds.size} seleccionado(s)</span>
-            <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar ${selectedIds.size} documento(s)?`, onConfirm: () => bulkDeleteMutation.mutate(), danger: true }) }} disabled={bulkDeleteMutation.isPending}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', borderRadius: 7, border: 'none', backgroundColor: 'var(--danger)', color: 'white', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
+          padding: '8px 14px',
+          background: 'var(--accent-muted)', border: '1px solid var(--accent-border)',
+          borderRadius: 'var(--radius-md)',
+        }}>
+          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--accent)', fontWeight: 600 }}>
+            {selectedIds.size} seleccionado(s)
+          </span>
+          <Button size="sm" variant="danger"
+            disabled={bulkDeleteMutation.isPending}
+            onClick={() => { openConfirmGlobal({ message: `¿Eliminar ${selectedIds.size} documento(s)?`, onConfirm: () => bulkDeleteMutation.mutate(), danger: true }) }}>
             <Trash2 size={12} /> Eliminar seleccionados
-          </button>
-          <button onClick={() => setSelectedIds(new Set())} style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid var(--surface-5)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => setSelectedIds(new Set())}>
             Cancelar
-          </button>
+          </Button>
         </div>
       )}
 
       {/* Count */}
-      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 14 }}>
+      <div className="ds-muted" style={{ fontSize: 'var(--text-sm)' }}>
         {isLoading ? 'Cargando...' : `${docs.length} documento${docs.length !== 1 ? 's' : ''}${(search || filterCat || filterStatus || activeTags.length) ? ' (filtrado)' : ''}`}
       </div>
 
       {/* Content */}
       {isLoading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
+        <div className="ds-grid-cards">
           {[...Array(8)].map((_, i) => (
-            <div key={i} style={{ height: 190, background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--surface-4)', opacity: 0.5 }} />
+            <div key={i} style={{ height: 190, background: 'var(--surface-2)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-4)', opacity: 0.5 }} />
           ))}
         </div>
       ) : docs.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 24px', gap: 14 }}>
-          <div style={{ width: 72, height: 72, borderRadius: 18, backgroundColor: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <FolderOpen size={30} style={{ color: 'var(--text-3)' }} />
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 6 }}>Sin documentos</div>
-            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-3)' }}>
-              {search || filterCat ? 'No hay resultados para los filtros aplicados.' : 'Sube tu primer documento con el botón "Nuevo documento".'}
-            </div>
+        <div className="ds-empty">
+          <FolderOpen size={36} className="ds-empty__icon" />
+          <div className="ds-empty__title">Sin documentos</div>
+          <div className="ds-empty__desc">
+            {search || filterCat ? 'No hay resultados para los filtros aplicados.' : 'Sube tu primer documento con el botón “Nuevo documento”.'}
           </div>
           {!search && !filterCat && (
-            <button onClick={() => setShowUpload(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 20px', borderRadius: 10, border: 'none', backgroundColor: 'var(--accent)', color: 'white', fontSize: "var(--text-base)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-              <Upload size={14} /> Subir primer documento
-            </button>
+            <div style={{ marginTop: 'var(--space-3)' }}>
+              <Button onClick={() => setShowUpload(true)}>
+                <Upload size={14} /> Subir primer documento
+              </Button>
+            </div>
           )}
         </div>
       ) : viewMode === 'grid' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(228px, 1fr))', gap: 14 }}>
+        <div className="ds-grid-cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(228px, 1fr))' }}>
           {docs.map(doc => (
             <DocCard key={doc.id} doc={doc}
               onView={setDrawerDocId}
@@ -1423,7 +1436,7 @@ export default function DocumentsPage() {
           ))}
         </div>
       ) : (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="ds-card" style={{ padding: 0, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ backgroundColor: 'var(--surface-3)', borderBottom: '1px solid var(--surface-4)' }}>
@@ -1461,6 +1474,6 @@ export default function DocumentsPage() {
         <DocumentDrawer documentId={drawerDocId} onClose={() => setDrawerDocId(null)}
           onRefresh={() => qc.invalidateQueries({ queryKey: ['documents'] })} />
       )}
-    </PageShell>
+    </Page>
   );
 }

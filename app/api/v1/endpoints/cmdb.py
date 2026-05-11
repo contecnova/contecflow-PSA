@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 import app.services.cmdb_service as svc
 
@@ -48,6 +49,7 @@ def update_tag(tag_id: str, p: WikiTagIn,
 @router.delete("/wiki-tags/{tag_id}")
 def delete_tag(tag_id: str, db: Session = Depends(get_db),
                cu: User = Depends(require_admin_or_pm)):
+    enforce_abac(db, cu, "wiki_tag", tag_id, action="delete")
     return svc.delete_wiki_tag(tag_id, db)
 
 
@@ -60,6 +62,7 @@ def add_page_tag(page_id: str, tag_id: str,
 @router.delete("/wiki-pages/{page_id}/tags/{tag_id}")
 def remove_page_tag(page_id: str, tag_id: str,
                     db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    enforce_abac(db, cu, "wiki_page_tag", tag_id, action="delete")
     return svc.remove_page_tag(page_id, tag_id, db)
 
 
@@ -104,6 +107,7 @@ def update_internal_comment_route(ticket_id: str, comment_id: str, p: InternalCo
 @sd_router.delete("/tickets/{ticket_id}/internal-comments/{comment_id}")
 def delete_internal_comment_route(ticket_id: str, comment_id: str,
                                    db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    enforce_abac(db, cu, "ticket_internal_comment", comment_id, action="delete")
     return svc.delete_internal_comment(ticket_id, comment_id, cu.id, db)
 
 
@@ -250,6 +254,7 @@ def update_cmdb_item(item_id: str, p: CMDBItemUpdate,
 @router.delete("/items/{item_id}")
 def delete_cmdb_item(item_id: str, db: Session = Depends(get_db),
                      cu: User = Depends(require_admin_or_pm)):
+    enforce_abac(db, cu, "cmdb_item", item_id, action="delete")
     return svc.delete_cmdb_item(item_id, db)
 
 
@@ -278,6 +283,7 @@ def create_cmdb_relation(p: CMDBRelationIn, db: Session = Depends(get_db),
 @router.delete("/relations/{relation_id}")
 def delete_cmdb_relation(relation_id: str, db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
+    enforce_abac(db, cu, "cmdb_relation", relation_id, action="delete")
     return svc.delete_cmdb_relation(relation_id, db)
 
 
@@ -360,6 +366,7 @@ def update_kanban_column(column_id: str, p: KanbanColumnIn,
 @router.delete("/kanban/columns/{column_id}")
 def delete_kanban_column(column_id: str, db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
+    enforce_abac(db, cu, "kanban_column", column_id, action="delete")
     return svc.delete_kanban_column(column_id, db)
 
 
@@ -406,6 +413,7 @@ def update_plan_status(plan_id: str, status: str,
 @router.delete("/sprint-plans/{plan_id}")
 def delete_sprint_plan(plan_id: str, db: Session = Depends(get_db),
                        cu: User = Depends(require_admin_or_pm)):
+    enforce_abac(db, cu, "sprint_plan", plan_id, action="delete")
     return svc.delete_sprint_plan(plan_id, db)
 
 
@@ -447,6 +455,7 @@ def update_sla_calendar(cal_id: str, p: SLACalendarIn,
 @router.delete("/sla-calendars/{cal_id}")
 def delete_sla_calendar(cal_id: str, db: Session = Depends(get_db),
                         cu: User = Depends(require_admin_or_pm)):
+    enforce_abac(db, cu, "sla_calendar", cal_id, action="delete")
     return svc.delete_sla_calendar(cal_id, db)
 
 
@@ -471,6 +480,7 @@ def update_holiday(cal_id: str, holiday_id: str, p: SLAHolidayIn,
 @router.delete("/sla-calendars/{cal_id}/holidays/{holiday_id}")
 def delete_holiday(cal_id: str, holiday_id: str,
                    db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+    enforce_abac(db, cu, "sla_holiday", holiday_id, action="delete")
     return svc.delete_sla_holiday(cal_id, holiday_id, db)
 
 

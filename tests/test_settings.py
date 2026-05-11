@@ -1,4 +1,7 @@
 """Tests de Configuración Global — tipos de proyecto, departamentos, festivos, ajustes."""
+from app.models.settings import CustomProjectType
+from app.models.settings import Department
+from app.models.settings import Holiday
 from tests.conftest import auth
 
 
@@ -39,7 +42,16 @@ def test_delete_project_type(client, admin_token, db):
         headers=auth(admin_token)).json()
     res = client.delete(f"/api/v1/settings/project-types/{created['id']}",
         headers=auth(admin_token))
-    assert res.status_code in (200, 204)
+    assert res.status_code == 200
+    assert res.json()["ok"] is True
+
+    listed = client.get("/api/v1/settings/project-types", headers=auth(admin_token))
+    assert listed.status_code == 200
+    assert all(pt["id"] != created["id"] for pt in listed.json())
+
+    row = db.query(CustomProjectType).filter(CustomProjectType.id == created["id"]).first()
+    assert row is not None
+    assert row.is_active is False
 
 
 def test_list_departments(client, admin_token, db):
@@ -63,7 +75,16 @@ def test_delete_department(client, admin_token, db):
         headers=auth(admin_token)).json()
     res = client.delete(f"/api/v1/settings/departments/{dept['id']}",
         headers=auth(admin_token))
-    assert res.status_code in (200, 204)
+    assert res.status_code == 200
+    assert res.json()["ok"] is True
+
+    listed = client.get("/api/v1/settings/departments", headers=auth(admin_token))
+    assert listed.status_code == 200
+    assert all(d["id"] != dept["id"] for d in listed.json())
+
+    row = db.query(Department).filter(Department.id == dept["id"]).first()
+    assert row is not None
+    assert row.is_active is False
 
 
 def test_list_holidays(client, admin_token, db):
@@ -79,6 +100,24 @@ def test_create_holiday(client, admin_token, db):
     assert res.status_code in (200, 201)
     data = res.json()
     assert "id" in data
+
+
+def test_delete_holiday_hard_and_hidden(client, admin_token, db):
+    created = client.post(
+        "/api/v1/settings/holidays",
+        json={"name": "Fiesta Borrable", "date": "2026-12-08"},
+        headers=auth(admin_token),
+    ).json()
+    res = client.delete(f"/api/v1/settings/holidays/{created['id']}", headers=auth(admin_token))
+    assert res.status_code == 200
+    assert res.json()["ok"] is True
+
+    listed = client.get("/api/v1/settings/holidays", headers=auth(admin_token))
+    assert listed.status_code == 200
+    assert all(h["id"] != created["id"] for h in listed.json())
+
+    row = db.query(Holiday).filter(Holiday.id == created["id"]).first()
+    assert row is None
 
 
 def test_settings_require_admin(client, dev_token, db):

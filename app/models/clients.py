@@ -166,6 +166,7 @@ class ClientLicenseLink(Base):
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     client_id  = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     license_id = Column(String(36), ForeignKey("alm_licenses.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_active  = Column(Boolean, default=True)
     notes      = Column(Text, nullable=True)
     linked_at  = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -179,6 +180,7 @@ class ClientContractLink(Base):
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     client_id   = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     contract_id = Column(String(36), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_active   = Column(Boolean, default=True)
     linked_at   = Column(DateTime(timezone=True), server_default=func.now())
 
     client   = relationship("Client", back_populates="contract_links")

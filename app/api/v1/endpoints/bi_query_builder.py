@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
 from app.db.session import get_db
@@ -164,6 +165,7 @@ def delete_query(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "bi_saved_query", query_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     try:
         svc.delete_query(db, org_id=org_id, query_id=query_id)

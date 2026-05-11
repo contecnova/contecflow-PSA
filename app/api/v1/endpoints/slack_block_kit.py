@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+import logging
 
 from app.core.config import settings
 from app.core.deps import get_current_user, get_db, require_any_manager
@@ -7,6 +8,7 @@ from app.models.user import User
 import app.services.integrations as _svc
 
 router = APIRouter(tags=["Notifications", "Slack"])
+logger = logging.getLogger(__name__)
 
 
 def _build_block_kit_message(event_type: str, payload: dict) -> dict:
@@ -97,7 +99,8 @@ def send_slack_block_kit(
             resp = client.post(webhook_url, json=block_kit)
             resp.raise_for_status()
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Slack delivery failed: {exc}")
+        logger.warning("Slack block kit delivery failed: %s", exc)
+        raise HTTPException(status_code=502, detail="Slack delivery failed")
 
     return {"ok": True, "event_type": event_type, "blocks_count": len(block_kit.get("blocks", []))}
 

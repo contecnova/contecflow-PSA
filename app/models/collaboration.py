@@ -373,7 +373,12 @@ class CollaborationMessage(Base):
     id = Column(String(36), primary_key=True, default=_uid)
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     conversation_id = Column(String(36), ForeignKey("collaboration_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
-    thread_id = Column(String(36), ForeignKey("collaboration_threads.id", ondelete="SET NULL"), nullable=True, index=True)
+    # use_alter rompe el ciclo FK con collaboration_threads.root_message_id
+    # para que el metadata sepa ordenar las DDL operations (CREATE/DROP TABLE).
+    thread_id = Column(String(36), ForeignKey(
+        "collaboration_threads.id", ondelete="SET NULL",
+        use_alter=True, name="fk_collab_msgs_thread_id",
+    ), nullable=True, index=True)
     parent_message_id = Column(String(36), ForeignKey("collaboration_messages.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Author: either user OR client_user OR bot
@@ -425,7 +430,12 @@ class CollaborationThread(Base):
     id = Column(String(36), primary_key=True, default=_uid)
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     conversation_id = Column(String(36), ForeignKey("collaboration_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
-    root_message_id = Column(String(36), ForeignKey("collaboration_messages.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    # use_alter completa el "knot" — la otra mitad del ciclo está en
+    # collaboration_messages.thread_id.
+    root_message_id = Column(String(36), ForeignKey(
+        "collaboration_messages.id", ondelete="CASCADE",
+        use_alter=True, name="fk_collab_threads_root_msg",
+    ), nullable=False, unique=True, index=True)
     title = Column(String(200), nullable=True)
     reply_count = Column(Integer, nullable=False, default=0)
     last_reply_at = Column(DateTime(timezone=True), nullable=True)

@@ -79,6 +79,7 @@ def edit_message(message_id: str, payload: MessageUpdate, current_user: User = D
 
 @router.delete("/messages/{message_id}", summary="Borrar mensaje")
 def delete_message(message_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    enforce_abac(db, current_user, "collaboration_message", message_id, action="delete")
     msg_svc.delete_message(db, current_user, message_id)
     return {"deleted": True}
 
@@ -113,6 +114,7 @@ def pin(conversation_id: str, payload: PinIn, current_user: User = Depends(get_c
 
 @router.delete("/conversations/{conversation_id}/pins/{message_id}", summary="Quitar pin")
 def unpin(conversation_id: str, message_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    enforce_abac(db, current_user, "collaboration_message", message_id, action="delete")
     msg_svc.unpin_message(db, current_user, message_id)
     return {"ok": True}
 
@@ -131,6 +133,7 @@ def save_msg(payload: SaveIn, current_user: User = Depends(get_current_user), db
 
 @router.delete("/saved/{message_id}", summary="Quitar de guardados")
 def unsave_msg(message_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    enforce_abac(db, current_user, "collaboration_saved_message", message_id, action="delete")
     msg_svc.unsave_message(db, current_user, message_id)
     return {"ok": True}
 

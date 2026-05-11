@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.models.sprints import Sprint, SprintStatus
 from app.services.psa_flows import close_sprint_flow
@@ -199,10 +200,11 @@ def remove_task_from_sprint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "sprint_task", task_id, action="delete")
     st = svc.get_sprint_task(db, sprint_id, task_id)
     if not st: raise HTTPException(404)
     svc.delete_sprint_task(db, st)
-    return {"ok": True}
+    return {"ok": True, "message": "Tarea retirada del sprint correctamente"}
 
 
 @router.put("/{project_id}/sprints/{sprint_id}/reorder", summary="Reordenar backlog del sprint")

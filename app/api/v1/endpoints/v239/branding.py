@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, require_admin
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 
 router = APIRouter()
 
@@ -160,6 +161,7 @@ def reset_branding(
 ):
     from app.models.white_label import OrgBranding
 
+    enforce_abac(db, current_user, "org_branding", org_id, action="delete")
     branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
     if branding:
         db.delete(branding)

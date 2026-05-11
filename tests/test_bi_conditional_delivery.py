@@ -44,6 +44,22 @@ def test_evaluate_rule(client, admin_token):
     assert "should_deliver" in data
 
 
+def test_delete_rule(client, admin_token):
+    res = client.post(
+        "/api/v1/bi/delivery/rules",
+        json={"name": "delete-rule", "report_id": "rpt-5", "condition_type": "always"},
+        headers=auth(admin_token),
+    )
+    rule_id = res.json()["id"]
+
+    deleted = client.delete(f"/api/v1/bi/delivery/rules/{rule_id}", headers=auth(admin_token))
+    assert deleted.status_code in (200, 204)
+
+    listed = client.get("/api/v1/bi/delivery/rules", headers=auth(admin_token))
+    assert listed.status_code == 200
+    assert all(r["id"] != rule_id for r in listed.json().get("items", []))
+
+
 def test_conditional_delivery_requires_auth(client):
     r = client.get("/api/v1/bi/delivery/rules")
     assert r.status_code == 401

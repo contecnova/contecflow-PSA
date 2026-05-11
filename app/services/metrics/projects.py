@@ -324,7 +324,9 @@ def metric_risks_by_level(
     """Distribución de riesgos por nivel de severidad."""
     try:
         from app.models.pipeline import Risk
-        from app.api.v1.endpoints.risks import _risk_level, _risk_score
+        from app.services.risk_scoring import (
+            risk_level as _risk_level, risk_score as _risk_score,
+        )
 
         risks_q = db.query(Risk).filter(Risk.status.notin_(["closed"]))
         if project_ids and hasattr(Risk, "project_id"):

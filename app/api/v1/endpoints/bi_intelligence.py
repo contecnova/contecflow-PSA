@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSock
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.core.abac_enforce import enforce_abac
 from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.security import create_access_token, decode_token
@@ -274,6 +275,7 @@ def phase2_delete_visual_query_builder_template(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "bi_visual_query_template", template_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     try:
         svc.delete_visual_query_template(
@@ -617,6 +619,7 @@ def delete_delivery_schedule(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "bi_delivery_schedule", schedule_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     try:
         delivery_svc.delete_schedule(db, organization_id=org_id, schedule_id=schedule_id)

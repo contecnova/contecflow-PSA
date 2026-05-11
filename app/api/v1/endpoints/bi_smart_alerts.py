@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
@@ -97,6 +98,7 @@ def delete_custom_metric(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "bi_custom_metric", key, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     deleted = svc.delete_custom_metric(db, organization_id=org_id, key=key)
     if not deleted:
@@ -159,6 +161,7 @@ def delete_alert_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "bi_alert_rule", rule_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     deleted = svc.delete_alert_rule(db, organization_id=org_id, rule_id=rule_id)
     if not deleted:

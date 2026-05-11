@@ -157,6 +157,7 @@ class ALMContract(Base):
     reference        = Column(String(100), nullable=True)   # Nº contrato interno
     type             = Column(Enum(ALMContractType), nullable=False)
     status           = Column(Enum(ALMContractStatus), default=ALMContractStatus.active)
+    is_active        = Column(Boolean, default=True)
 
     # Fechas
     start_date       = Column(Date, nullable=True)
@@ -210,6 +211,7 @@ class ALMLicense(Base):
     type                 = Column(Enum(LicenseType), nullable=False)
     platform             = Column(Enum(LicensePlatform), default=LicensePlatform.any)
     status               = Column(Enum(LicenseStatus), default=LicenseStatus.active)
+    is_active            = Column(Boolean, default=True)
 
     # Seats / tokens
     total_seats          = Column(Integer, nullable=True)    # null = ilimitado
@@ -274,6 +276,7 @@ class ALMAsset(Base):
 
     status              = Column(Enum(AssetStatus), default=AssetStatus.available)
     condition           = Column(Enum(AssetCondition), default=AssetCondition.good)
+    is_active           = Column(Boolean, default=True)
 
     # Asignación
     assigned_to_id      = Column(String(36), ForeignKey("users.id",        ondelete="SET NULL"), nullable=True)
@@ -318,6 +321,7 @@ class ALMSoftwareInstall(Base):
     installed_at = Column(DateTime(timezone=True), server_default=func.now())
     installed_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     version      = Column(String(50), nullable=True)
+    is_active    = Column(Boolean, default=True)
     notes        = Column(String(500), nullable=True)
 
     license      = relationship("ALMLicense", back_populates="installs")

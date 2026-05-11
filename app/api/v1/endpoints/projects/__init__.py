@@ -4,6 +4,7 @@ from typing import Optional, List
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_admin_or_pm
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User, UserRole
 from app.models.project import Project, ProjectStatus, ProjectType
 from app.schemas import (
@@ -164,9 +165,13 @@ def update_project(
 def delete_project(
     project_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
-    result = cancel_project_record(db, project_id)
+    enforce_abac(db, current_user, "project", project_id, action="delete")
+    try:
+        result = cancel_project_record(db, project_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return result
 
 
@@ -219,8 +224,9 @@ def update_member(project_id: str, member_id: str, data: dict,
 def remove_member(project_id: str, member_id: str, db: Session = Depends(get_db),
                   current_user: User = Depends(require_admin_or_pm)):
     m = get_member_or_404(db, project_id, member_id)
+    enforce_abac(db, current_user, "project_member", member_id, action="delete")
     remove_member_record(db, m)
-    return {"ok": True}
+    return {"ok": True, "message": "Miembro eliminado correctamente"}
 
 
 # ── EVM ───────────────────────────────────────────────────────────────────────

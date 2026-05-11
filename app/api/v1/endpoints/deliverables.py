@@ -135,7 +135,7 @@ def delete_deliverable(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    d = deliverable_service.get_deliverable(db, del_id)
+    d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
         raise HTTPException(404, "No encontrado")
     enforce_abac(db, current_user, "deliverable", del_id, action="delete")

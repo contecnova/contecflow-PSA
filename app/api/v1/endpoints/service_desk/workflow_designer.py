@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, require_any_manager
 from app.db.session import get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.models.workflow_designer import (
     WorkflowBlueprint, WorkflowBlueprintVersion,
     WorkflowRun, WorkflowRunStatus,
@@ -197,6 +198,7 @@ def delete_blueprint(
     blueprint_id: str,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "sd_workflow_blueprint", blueprint_id, action="delete")
     bp = db.query(WorkflowBlueprint).filter(WorkflowBlueprint.id == blueprint_id).first()
     if not bp:
         raise HTTPException(404, "Blueprint not found")

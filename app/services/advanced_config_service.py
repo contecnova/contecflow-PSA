@@ -442,7 +442,7 @@ def list_rate_tables(db: Session) -> list:
                     "billing_rate": e.billing_rate,
                     "currency": getattr(e, "currency", settings.DEFAULT_CURRENCY),
                 }
-                for e in (t.entries or [])
+                for e in (t.entries or []) if getattr(e, "is_active", True)
             ],
         }
         for t in tables
@@ -468,7 +468,11 @@ def add_rate_entry(table_id: str, data: dict, db: Session) -> dict:
 
 
 def update_rate_entry(table_id: str, entry_id: str, data: dict, db: Session) -> dict:
-    e = db.query(RateEntry).filter(RateEntry.id == entry_id, RateEntry.table_id == table_id).first()
+    e = db.query(RateEntry).filter(
+        RateEntry.id == entry_id,
+        RateEntry.table_id == table_id,
+        RateEntry.is_active == True,
+    ).first()
     if not e:
         raise NotFoundError("No encontrado")
     for k, v in data.items():
@@ -479,12 +483,16 @@ def update_rate_entry(table_id: str, entry_id: str, data: dict, db: Session) -> 
 
 
 def delete_rate_entry(table_id: str, entry_id: str, db: Session) -> dict:
-    e = db.query(RateEntry).filter(RateEntry.id == entry_id, RateEntry.table_id == table_id).first()
+    e = db.query(RateEntry).filter(
+        RateEntry.id == entry_id,
+        RateEntry.table_id == table_id,
+        RateEntry.is_active == True,
+    ).first()
     if not e:
         raise NotFoundError("No encontrado")
-    db.delete(e)
+    e.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Tarifa eliminada"}
 
 
 def delete_rate_table(table_id: str, db: Session) -> dict:

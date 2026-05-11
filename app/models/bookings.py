@@ -38,6 +38,7 @@ class TaskDependency(Base):
     predecessor_id  = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     successor_id    = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     dependency_type = Column(Enum(DependencyType), default=DependencyType.finish_to_start, nullable=False)
+    is_active       = Column(Boolean, default=True)
     lag_days        = Column(Integer, default=0)   # positive = delay, negative = overlap
     created_by      = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
@@ -73,6 +74,7 @@ class ResourceBooking(Base):
     created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
+    is_active   = Column(Boolean, default=True)
 
     user    = relationship("User", foreign_keys=[user_id])
     project = relationship("Project")

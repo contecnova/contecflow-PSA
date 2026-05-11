@@ -420,7 +420,10 @@ def list_processes(db: Session, organization_id: Optional[str] = None,
 
 
 def get_process(db: Session, process_id: str) -> Optional[BPMNProcess]:
-    return db.query(BPMNProcess).filter(BPMNProcess.id == process_id).first()
+    return db.query(BPMNProcess).filter(
+        BPMNProcess.id == process_id,
+        BPMNProcess.is_active.is_(True),
+    ).first()
 
 
 def get_latest_version(db: Session, process_id: str) -> Optional[BPMNProcessVersion]:
@@ -520,7 +523,8 @@ def delete_process(db: Session, process_id: str) -> bool:
     proc = get_process(db, process_id)
     if not proc:
         return False
-    db.delete(proc)
+    proc.is_active = False
+    proc.updated_at = datetime.now(timezone.utc)
     db.commit()
     return True
 

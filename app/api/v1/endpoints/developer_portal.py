@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User, UserRole
 from app.services import developer_portal_service as svc
 
@@ -127,14 +128,16 @@ def update_app(
     return _app_out(app)
 
 
-@router.delete("/apps/{app_id}", summary="Eliminar aplicación", status_code=204)
+@router.delete("/apps/{app_id}", summary="Eliminar aplicación")
 def delete_app(app_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     app = svc.get_app_by_id(db, app_id)
     if not app:
         raise HTTPException(404, "Aplicación no encontrada")
     if app.owner_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(403, "Acceso denegado")
+    enforce_abac(db, current_user, "oauth_app", app_id, action="delete")
     svc.delete_app(db, app)
+    return {"ok": True, "message": "Aplicación eliminada correctamente"}
 
 
 @router.post("/apps/{app_id}/rotate-secret", summary="Rotar secreto de cliente")

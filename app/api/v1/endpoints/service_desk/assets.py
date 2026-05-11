@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services.service_desk.asset_service import (
     asset_stats_payload,
     assign_asset_record,
@@ -286,6 +287,7 @@ def retire_asset(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "sd_asset", asset_id, action="delete")
     asset = retire_asset_record(db, asset_id, changed_by=current_user.id)
     db.commit()
     return {"status": "retired", "asset_id": asset_id, "code": asset.code}

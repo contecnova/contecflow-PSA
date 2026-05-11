@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db
 from app.models.bpmn_process import BPMNProcess
 from app.models.user import User
@@ -172,8 +173,9 @@ def delete_process(
         raise HTTPException(404, "Process not found")
     if proc.is_seeded:
         raise HTTPException(400, "Seeded processes cannot be deleted; archive instead.")
+    enforce_abac(db, current_user, "bpmn_process", process_id, action="delete")
     svc.delete_process(db, process_id)
-    return {"ok": True}
+    return {"ok": True, "message": "Proceso BPMN eliminado correctamente"}
 
 
 @router.post("/{process_id}/duplicate", summary="Duplicate a process")

@@ -327,9 +327,19 @@ def create_capacity_plan_flow(
     project_id: Optional[str],
     notes: Optional[str],
 ) -> CapacityPlan:
+    project_filter = (
+        CapacityPlan.project_id == project_id
+        if project_id is not None
+        else CapacityPlan.project_id.is_(None)
+    )
+
     existing_hours = (
         db.query(func.sum(CapacityPlan.planned_hours))
-        .filter(CapacityPlan.user_id == user_id, CapacityPlan.week_start == week_start)
+        .filter(
+            CapacityPlan.user_id == user_id,
+            CapacityPlan.week_start == week_start,
+            CapacityPlan.is_active == True,
+        )
         .scalar()
         or 0.0
     )
@@ -359,6 +369,26 @@ def create_capacity_plan_flow(
                 f"{conflict.start_date} al {conflict.end_date}."
             ),
         )
+
+    inactive_same_slot = (
+        db.query(CapacityPlan)
+        .filter(
+            CapacityPlan.user_id == user_id,
+            CapacityPlan.week_start == week_start,
+            project_filter,
+            CapacityPlan.is_active == False,
+        )
+        .order_by(CapacityPlan.created_at.desc())
+        .first()
+    )
+    if inactive_same_slot:
+        inactive_same_slot.is_active = True
+        inactive_same_slot.planned_hours = new_hours
+        inactive_same_slot.notes = notes
+        inactive_same_slot.created_by = current_user.id
+        db.commit()
+        db.refresh(inactive_same_slot)
+        return inactive_same_slot
 
     plan = CapacityPlan(
         user_id=user_id,

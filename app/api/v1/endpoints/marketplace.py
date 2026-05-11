@@ -1,5 +1,8 @@
 from fastapi import APIRouter, status, Depends
-from app.api.deps import get_current_user
+from sqlalchemy.orm import Session
+from app.api.deps import get_current_user, get_db
+from app.core.abac_enforce import enforce_abac
+from app.models.user import User
 
 router = APIRouter()
 
@@ -30,5 +33,6 @@ def list_installed_instances(user=Depends(get_current_user)):
 
 # Uninstall integration
 @router.delete("/uninstall", status_code=status.HTTP_200_OK)
-def uninstall_integration(user=Depends(get_current_user)):
+def uninstall_integration(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    enforce_abac(db, user, "marketplace_integration", str(user.id), action="delete")
     return {"result": "ok"}

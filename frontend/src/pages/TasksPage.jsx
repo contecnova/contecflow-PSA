@@ -10,7 +10,9 @@ import { SkeletonTable } from '../components/ui/Skeletons'
 import VirtualList from '../components/ui/VirtualList'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { CheckSquare, X } from 'lucide-react'
+import {
+  CheckSquare, X, Plus, Search, LayoutGrid, List, Lightbulb, Loader2,
+} from 'lucide-react'
 import { fmtDate, STATUS_LABELS, PRIORITY_LABELS, extractErr} from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import DocumentsPanel from '../components/DocumentsPanel'
@@ -881,77 +883,73 @@ export default function TasksPage() {
         exportTargetSelector='[data-export-table="tasks-list"]'
         exportFilePrefix='tasks'
         actions={
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
-            <div style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
-              {['kanban', 'list'].map(v => (
-                <button key={v} onClick={() => setView(v)}
-                  style={{
-                    padding: '7px 14px', background: view === v ? 'var(--accent-muted)' : 'transparent',
-                    border: 'none', color: view === v ? 'var(--accent)' : 'var(--text-2)',
-                    fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                  }}>
-                  {v === 'kanban' ? '⊞ Kanban' : '☰ Lista'}
-                </button>
-              ))}
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
+            <div className="ds-segmented" role="group" aria-label="Vista">
+              <button type="button" onClick={() => setView('kanban')} aria-pressed={view === 'kanban'}>
+                <LayoutGrid size={12} /> Kanban
+              </button>
+              <button type="button" onClick={() => setView('list')} aria-pressed={view === 'list'}>
+                <List size={12} /> Lista
+              </button>
             </div>
             {hasRole('admin', 'pm', 'team_lead') && (
-              <Button onClick={() => setShowCreate(true)} icon="＋">{t('tasks.new_task')}</Button>
+              <Button onClick={() => setShowCreate(true)}>
+                <Plus size={13} /> {t('tasks.new_task')}
+              </Button>
             )}
           </div>
         }
       />
 
-      {/* Filters */}
+      {/* Quick filter pills */}
       {quickFilterPills.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="ds-row-wrap" style={{ marginBottom: 'var(--space-3)' }}>
           {quickFilterPills.map(pill => (
-            <span key={pill.key} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)',
-              color: 'var(--accent)', borderRadius: 999, padding: '4px 10px',
-              fontSize: 'var(--text-xs)', fontWeight: 700,
-            }}>
+            <span key={pill.key} className="ds-pill ds-pill--accent">
               {pill.label}
-              <button type="button" onClick={pill.onClear} aria-label={`Quitar filtro ${pill.label}`} style={{
-                background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer',
-                fontSize: 'var(--text-sm)', lineHeight: 1, padding: 0,
-              }}>×</button>
+              <button type="button" onClick={pill.onClear} aria-label={`Quitar filtro ${pill.label}`}
+                style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center' }}>
+                <X size={11} />
+              </button>
             </span>
           ))}
-          <button type="button" onClick={clearQuickFilters} style={{
-            background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 999,
-            color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-xs)',
-            fontWeight: 600, padding: '4px 10px', fontFamily: 'inherit',
-          }}>
+          <button type="button" onClick={clearQuickFilters} className="ds-pill"
+            style={{ cursor: 'pointer', fontFamily: 'inherit' }}>
             Limpiar filtros rápidos
           </button>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 2, minWidth: 200 }}>
-          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', fontSize: "var(--text-md)" }}>🔍</span>
+
+      {/* Filters toolbar */}
+      <div className="ds-toolbar" style={{ marginBottom: 'var(--space-5)' }}>
+        <div style={{ position: 'relative', flex: '2 1 240px', minWidth: 200 }}>
+          <Search size={14} aria-hidden style={{
+            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--text-3)', pointerEvents: 'none',
+          }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder={t('tasks.search_placeholder')}
-            style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px 9px 34px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            className="ds-input"
+            style={{ paddingLeft: 32 }} />
         </div>
         <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
-          style={{ flex: 1, minWidth: isMobile ? '100%' : 200, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          className="ds-input" style={{ flex: '1 1 180px', minWidth: 160 }}>
           <option value="">{t('tasks.all_projects')}</option>
           {projectOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: priorityFilter ? 'var(--warning)' : 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          className="ds-input" style={{ width: 'auto', minWidth: 140, color: priorityFilter ? 'var(--warning)' : 'var(--text-1)' }}>
           <option value="">{t('tasks.filter_priority')}</option>
           {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
         <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: assigneeFilter ? 'var(--accent)' : 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          className="ds-input" style={{ width: 'auto', minWidth: 140, color: assigneeFilter ? 'var(--accent)' : 'var(--text-1)' }}>
           <option value="">{t('tasks.all_assignees')}</option>
           {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
         </select>
         {view === 'list' && (
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+            className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
             <option value="">{t('tasks.filter_status')}</option>
             {TASK_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
@@ -960,43 +958,51 @@ export default function TasksPage() {
 
       {/* ── Bulk Action Bar ─────────────────────────────────────────────── */}
       {selected.size > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', marginBottom: 12,
-          background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10,
-          flexWrap: 'wrap' }}>
-          <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
-            ☑ {selected.size} {t('tasks.selected')}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+          padding: '8px 14px', marginBottom: 'var(--space-3)',
+          background: 'var(--accent-muted)',
+          border: '1px solid var(--accent-border)',
+          borderRadius: 'var(--radius-md)',
+          flexWrap: 'wrap',
+        }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
+            <CheckSquare size={13} /> {selected.size} {t('tasks.selected')}
           </span>
           <div style={{ width: 1, height: 20, background: 'var(--surface-4)' }} />
           <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}
-            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '5px 10px', color: bulkStatus ? 'var(--text-1)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
+            className="ds-input" style={{ width: 'auto', padding: '6px 10px' }}>
             <option value="">{t('tasks.bulk_status_ph')}</option>
-            <option value="todo">○ {t('tasks.status_todo')}</option>
-            <option value="in_progress">◑ {t('tasks.status_in_progress')}</option>
-            <option value="review">◐ {t('tasks.status_review')}</option>
-            <option value="blocked">✕ {t('tasks.status_blocked')}</option>
-            <option value="done">● {t('tasks.status_done')}</option>
+            <option value="todo">{t('tasks.status_todo')}</option>
+            <option value="in_progress">{t('tasks.status_in_progress')}</option>
+            <option value="review">{t('tasks.status_review')}</option>
+            <option value="blocked">{t('tasks.status_blocked')}</option>
+            <option value="done">{t('tasks.status_done')}</option>
           </select>
           <select value={bulkPriority} onChange={e => setBulkPriority(e.target.value)}
-            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '5px 10px', color: bulkPriority ? 'var(--text-1)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
+            className="ds-input" style={{ width: 'auto', padding: '6px 10px' }}>
             <option value="">{t('tasks.bulk_priority_ph')}</option>
-            <option value="low">🟢 {t('tasks.priority_low')}</option>
-            <option value="medium">🟡 {t('tasks.priority_medium')}</option>
-            <option value="high">🔴 {t('tasks.priority_high')}</option>
-            <option value="critical">🚨 {t('tasks.priority_critical')}</option>
+            <option value="low">{t('tasks.priority_low')}</option>
+            <option value="medium">{t('tasks.priority_medium')}</option>
+            <option value="high">{t('tasks.priority_high')}</option>
+            <option value="critical">{t('tasks.priority_critical')}</option>
           </select>
           <select value={bulkAssignee} onChange={e => setBulkAssignee(e.target.value)}
-            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '5px 10px', color: bulkAssignee ? 'var(--text-1)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
+            className="ds-input" style={{ width: 'auto', padding: '6px 10px' }}>
             <option value="">{t('tasks.bulk_assignee_ph')}</option>
             {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
-          <button onClick={applyBulk} disabled={bulkPending || (!bulkStatus && !bulkPriority && !bulkAssignee)}
-            style={{ background: 'var(--accent)', border: 'none', borderRadius: 7, padding: '6px 14px', color: '#000', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: (!bulkStatus && !bulkPriority && !bulkAssignee) ? 0.5 : 1 }}>
-            {bulkPending ? '⏳' : t('tasks.bulk_apply')}
-          </button>
-          <button onClick={() => { setSelected(new Set()); setBulkStatus(''); setBulkPriority(''); setBulkAssignee('') }}
-            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '5px 10px', color: 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
+          <Button size="sm" onClick={applyBulk}
+            disabled={bulkPending || (!bulkStatus && !bulkPriority && !bulkAssignee)}>
+            {bulkPending
+              ? <><Loader2 size={12} style={{ animation: 'spin 0.7s linear infinite' }} /> Aplicando…</>
+              : t('tasks.bulk_apply')}
+          </Button>
+          <Button size="sm" variant="secondary"
+            onClick={() => { setSelected(new Set()); setBulkStatus(''); setBulkPriority(''); setBulkAssignee('') }}>
             {t('common.cancel')}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -1026,9 +1032,14 @@ export default function TasksPage() {
           flatTasks.length === 0 ? (
             <EmptyState icon="tasks" title={t('tasks.no_tasks')} description={t('tasks.col_task')} ctaLabel={t('tasks.new_task')} onCta={() => setShowCreate(true)} />
           ) : (
-            <div data-export-table="tasks-list" style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                💡 {t('tasks.select_project')} · {flatTasks.length} {t('tasks.col_task')}
+            <div data-export-table="tasks-list" className="ds-card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                padding: '10px 20px', borderBottom: '1px solid var(--surface-4)',
+                fontSize: 'var(--text-sm)', color: 'var(--text-2)',
+              }}>
+                <Lightbulb size={13} style={{ color: 'var(--warning)', flexShrink: 0 }} />
+                <span>{t('tasks.select_project')} · {flatTasks.length} {t('tasks.col_task')}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
                 <input type="checkbox" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
@@ -1110,7 +1121,7 @@ export default function TasksPage() {
             })}
           </div>
         ) : (
-          <div data-export-table="tasks-list" style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+          <div data-export-table="tasks-list" className="ds-card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
               <input type="checkbox" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
               <SortableTH col="title" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_task')}</SortableTH>

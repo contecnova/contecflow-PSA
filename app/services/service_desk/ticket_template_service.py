@@ -46,7 +46,10 @@ def build_ticket_template(payload: dict) -> TicketTemplate:
 
 
 def get_ticket_template_by_id(db: Session, template_id: str):
-    return db.query(TicketTemplate).filter(TicketTemplate.id == template_id).first()
+    return db.query(TicketTemplate).filter(
+        TicketTemplate.id == template_id,
+        TicketTemplate.is_active == True,
+    ).first()
 
 
 def get_ticket_template_or_404(db: Session, template_id: str, detail: str = "Plantilla no encontrada") -> TicketTemplate:
@@ -82,4 +85,4 @@ def get_ticket_template_for_delete_or_404(db: Session, template_id: str) -> Tick
 
 def delete_ticket_template(db: Session, template_id: str) -> None:
     t = get_ticket_template_or_404(db, template_id, detail="Plantilla no encontrada")
-    db.delete(t)
+    t.is_active = False

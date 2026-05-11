@@ -29,6 +29,7 @@ from app.core.deps import get_current_user, get_db, require_admin
 from app.models.esign import ESignEnvelope, ESignProvider, ESignStatus
 from app.models.user import User
 from app.models.settings import AppSetting
+from app.core.abac_enforce import enforce_abac
 from app.services import esign_service
 
 router = APIRouter()
@@ -321,8 +322,9 @@ def mark_signer_signed(
 def void_envelope(
     envelope_id: int,
     db:          Session = Depends(get_db),
-    _:           User    = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "esign_envelope", str(envelope_id), action="delete")
     env = esign_service.get_envelope(db, envelope_id)
     if not env:
         raise HTTPException(404)

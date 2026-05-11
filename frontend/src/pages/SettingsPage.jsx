@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { Tabs } from '../components/ui'
+import { Tabs, Page } from '../components/ui'
 import { Settings } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
@@ -71,20 +69,22 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id || 'general')
 
   return (
-    <PageShell>
-      <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} icon={<Settings size={18} />} showListExport={false} />
-
-      <div style={{ marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 14 }}>
-        {TAB_GROUPS.map((group, gi) => {
+    <Page
+      icon={<Settings size={18} />}
+      title={t('settings.title')}
+      subtitle={t('settings.subtitle')}
+    >
+      <div style={{
+        borderBottom: '1px solid var(--surface-4)',
+        paddingBottom: 'var(--space-3)',
+        display: 'flex', flexDirection: 'column', gap: 'var(--space-2)',
+      }}>
+        {TAB_GROUPS.map(group => {
           const groupVisible = group.tabs.filter(tab => tab.roles.includes(user?.role))
           if (groupVisible.length === 0) return null
           return (
-            <div key={group.label} style={{ marginBottom: gi < TAB_GROUPS.length - 1 ? 10 : 0 }}>
-              <div style={{
-                fontSize: "var(--text-3xs-h)", fontWeight: 700, color: 'var(--text-4)',
-                textTransform: 'uppercase', letterSpacing: '0.09em',
-                marginBottom: 5, paddingLeft: 2,
-              }}>
+            <div key={group.label}>
+              <div className="ds-eyebrow" style={{ marginBottom: 5, paddingLeft: 2 }}>
                 {group.label}
               </div>
               <Tabs
@@ -118,6 +118,6 @@ export default function SettingsPage() {
       {activeTab === 'log-level'     && <LogLevelSection />}
       {activeTab === 'system-state'  && <SystemStateSection />}
       {activeTab === 'esign'         && <ESignSettingsSection />}
-    </PageShell>
+    </Page>
   )
 }

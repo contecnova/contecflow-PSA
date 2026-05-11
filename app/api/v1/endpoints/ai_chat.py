@@ -26,6 +26,7 @@ import asyncio
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services.ai_dispatch import call_ai, get_default_provider
 from app.services.ai_governance import check_prompt, check_output
 
@@ -408,6 +409,7 @@ def archive_conversation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "ai_conversation", conv_id, action="delete")
     try:
         return _svc.archive_conversation(db, conv_id, current_user.id)
     except ValueError:
@@ -419,6 +421,7 @@ def archive_all_conversations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "ai_conversation", str(current_user.id), action="delete")
     return _svc.archive_all_conversations(db, current_user.id)
 
 
@@ -767,6 +770,7 @@ def delete_prompt(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    enforce_abac(db, current_user, "ai_prompt_template", prompt_id, action="delete")
     try:
         return _svc.delete_prompt_template(db, prompt_id)
     except ValueError:

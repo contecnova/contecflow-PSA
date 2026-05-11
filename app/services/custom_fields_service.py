@@ -292,7 +292,10 @@ def delete_transition(project_id: str, transition_id: str, db: Session) -> dict:
 
 def init_default_workflow(project_id: str, db: Session) -> dict:
     get_project_or_404(project_id, db)
-    existing = db.query(WorkflowState).filter(WorkflowState.project_id == project_id).count()
+    existing = db.query(WorkflowState).filter(
+        WorkflowState.project_id == project_id,
+        WorkflowState.is_active == True,
+    ).count()
     if existing > 0:
         raise HTTPException(400, "Este proyecto ya tiene un workflow definido")
 
@@ -339,6 +342,7 @@ def transition_task(project_id: str, task_id: str, payload, current_user, db: Se
     to_state = db.query(WorkflowState).filter(
         WorkflowState.id == payload.to_state_id,
         WorkflowState.project_id == project_id,
+        WorkflowState.is_active == True,
     ).first()
     if not to_state:
         raise HTTPException(404, "Estado destino no encontrado")
@@ -347,7 +351,9 @@ def transition_task(project_id: str, task_id: str, payload, current_user, db: Se
     ).filter(
         WorkflowTransition.to_state_id == payload.to_state_id,
         WorkflowTransition.project_id == project_id,
+        WorkflowTransition.is_active == True,
         WorkflowState.value == task.status,
+        WorkflowState.is_active == True,
     ).first()
     if not transition:
         raise HTTPException(400, f"No existe transición de '{task.status}' a '{to_state.value}'")
@@ -372,10 +378,16 @@ def transition_task(project_id: str, task_id: str, payload, current_user, db: Se
 
 
 def reset_workflow(project_id: str, db: Session) -> dict:
-    """Elimina todos los estados y transiciones personalizados y recrea el Scrum estándar."""
+    """Soft-delete de estados/transiciones actuales y recreación de workflow estándar."""
     get_project_or_404(project_id, db)
-    db.query(WorkflowTransition).filter(WorkflowTransition.project_id == project_id).delete()
-    db.query(WorkflowState).filter(WorkflowState.project_id == project_id).delete()
+    db.query(WorkflowTransition).filter(
+        WorkflowTransition.project_id == project_id,
+        WorkflowTransition.is_active == True,
+    ).update({"is_active": False}, synchronize_session=False)
+    db.query(WorkflowState).filter(
+        WorkflowState.project_id == project_id,
+        WorkflowState.is_active == True,
+    ).update({"is_active": False}, synchronize_session=False)
     db.commit()
     return init_default_workflow(project_id, db)
 

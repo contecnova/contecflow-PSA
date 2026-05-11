@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, 
 from sqlalchemy.orm import Session
 from typing import Any, Dict, Optional, List
 
+from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.deps import get_current_user, require_any_manager
@@ -148,6 +149,7 @@ def delete_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "billing_report_definition", report_id, action="delete")
     return _svc.delete_report_definition(report_id, current_user.id, db)
 
 
@@ -411,6 +413,7 @@ def delete_workflow(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "billing_automation_workflow", wf_id, action="delete")
     return _svc.delete_workflow(wf_id, db)
 
 
@@ -560,6 +563,7 @@ def delete_scheduled_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "scheduled_report", report_id, action="delete")
     return _svc.delete_scheduled_report(report_id, db)
 
 

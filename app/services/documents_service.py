@@ -69,7 +69,6 @@ from app.models.user import UserRole
 from app.models.user import User
 from app.schemas.documents import DocumentOut, DocumentVersionOut, DocumentPermissionOut
 from app.services.s3_service import file_storage
-from app.services.s3_service import LocalFileStorage
 from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy import and_
@@ -342,26 +341,244 @@ def build_doc_list(docs: list) -> list:
 
 # ── AI summary extraction ─────────────────────────────────────────────────────
 
+_MAX_SUMMARY_SOURCE_CHARS = 8000
+_VISUAL_MARKER = "[ANALISIS_VISUAL]"
+
+
+def _normalize_extracted_text(text: str) -> str:
+    """Normalize extracted text and collapse excessive whitespace."""
+    normalized = " ".join((text or "").split())
+    return normalized[:_MAX_SUMMARY_SOURCE_CHARS]
+
+
+def _classify_basic_color(rgb: tuple[int, int, int]) -> str:
+    palette = {
+        "negro": (20, 20, 20),
+        "gris": (128, 128, 128),
+        "blanco": (235, 235, 235),
+        "rojo": (190, 60, 60),
+        "naranja": (215, 130, 50),
+        "amarillo": (220, 200, 70),
+        "verde": (70, 150, 80),
+        "azul": (70, 110, 180),
+        "morado": (140, 95, 170),
+        "marron": (130, 95, 65),
+    }
+    best_name = "gris"
+    best_dist = None
+    r, g, b = rgb
+    for name, (pr, pg, pb) in palette.items():
+        dist = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2
+        if best_dist is None or dist < best_dist:
+            best_dist = dist
+            best_name = name
+    return best_name
+
+
+def _describe_pil_image(image, *, file_name: str) -> str:
+    from PIL import ImageFilter, ImageStat
+
+    rgb = image.convert("RGB")
+    width, height = rgb.size
+    orientation = "horizontal" if width > height else ("vertical" if height > width else "cuadrada")
+
+    # Reduce to make statistics stable and fast.
+    sample = rgb.resize((min(width, 240), min(height, 240)))
+    stat = ImageStat.Stat(sample)
+    avg_rgb = tuple(int(v) for v in stat.mean[:3])
+    brightness = sum(avg_rgb) / 3.0
+    contrast = sum(stat.stddev[:3]) / 3.0
+
+    quantized = sample.quantize(colors=5)
+    ranked = sorted((quantized.getcolors() or []), key=lambda x: x[0], reverse=True)
+    palette = quantized.getpalette() or []
+    dominant = []
+    for _count, color_idx in ranked[:3]:
+        base = color_idx * 3
+        if base + 2 < len(palette):
+            name = _classify_basic_color((palette[base], palette[base + 1], palette[base + 2]))
+            if name not in dominant:
+                dominant.append(name)
+
+    edges = sample.convert("L").filter(ImageFilter.FIND_EDGES)
+    edge_strength = ImageStat.Stat(edges).mean[0]
+    complexity = "alta" if edge_strength > 38 else ("media" if edge_strength > 20 else "baja")
+
+    brightness_label = "alta" if brightness > 170 else ("media" if brightness > 95 else "baja")
+    contrast_label = "alto" if contrast > 55 else ("medio" if contrast > 30 else "bajo")
+    colors_label = ", ".join(dominant) if dominant else "sin predominio claro"
+
+    return (
+        f"{_VISUAL_MARKER}\n"
+        f"Archivo: {file_name or 'imagen'}\n"
+        f"Tipo: imagen\n"
+        f"Resolucion: {width}x{height} px\n"
+        f"Orientacion: {orientation}\n"
+        f"Colores dominantes aproximados: {colors_label}\n"
+        f"Luminosidad: {brightness_label}\n"
+        f"Contraste: {contrast_label}\n"
+        f"Complejidad visual: {complexity}\n"
+        "Nota: este analisis es visual y aproximado; no usa reconocimiento semantico avanzado de objetos."
+    )
+
+
+def _visual_summary_from_image_bytes(raw: bytes, *, file_name: str) -> str:
+    import io
+    from PIL import Image
+
+    with Image.open(io.BytesIO(raw)) as image:
+        return _describe_pil_image(image, file_name=file_name)
+
+
+def _visual_summary_from_pdf_first_page(raw: bytes, *, file_name: str) -> str:
+    import tempfile
+
+    try:
+        import pypdfium2 as pdfium
+    except Exception:
+        return ""
+
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+        tmp.write(raw)
+        tmp.flush()
+        pdf = pdfium.PdfDocument(tmp.name)
+        if len(pdf) == 0:
+            pdf.close()
+            return ""
+        page = pdf[0]
+        bitmap = page.render(scale=1.8)
+        pil_image = bitmap.to_pil()
+        try:
+            summary = _describe_pil_image(pil_image, file_name=file_name)
+        finally:
+            pil_image.close()
+            bitmap.close()
+            page.close()
+            pdf.close()
+        return summary
+
+
+def _extract_text_from_pdf(raw: bytes, max_pages: int = 10) -> str:
+    import io
+    from pypdf import PdfReader
+
+    reader = PdfReader(io.BytesIO(raw))
+    chunks = []
+    for page in reader.pages[:max_pages]:
+        txt = page.extract_text() or ""
+        if txt:
+            chunks.append(txt)
+    return "\n".join(chunks)
+
+
+def _ocr_pdf_bytes(raw: bytes, max_pages: int = 5) -> str:
+    """OCR fallback for scanned PDFs using pypdfium2 + pytesseract when available."""
+    import shutil
+    import tempfile
+
+    if shutil.which("tesseract") is None:
+        logger.info("Skipping PDF OCR fallback: tesseract binary not found")
+        return ""
+
+    try:
+        import pypdfium2 as pdfium
+        import pytesseract
+    except Exception:
+        logger.info("Skipping PDF OCR fallback: OCR python dependencies are missing")
+        return ""
+
+    text_chunks = []
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+        tmp.write(raw)
+        tmp.flush()
+        pdf = pdfium.PdfDocument(tmp.name)
+        page_count = min(len(pdf), max_pages)
+        for page_index in range(page_count):
+            page = pdf[page_index]
+            bitmap = page.render(scale=2.0)
+            pil_image = bitmap.to_pil()
+            text = (pytesseract.image_to_string(pil_image, lang="spa+eng") or "").strip()
+            if text:
+                text_chunks.append(text)
+            pil_image.close()
+            bitmap.close()
+            page.close()
+        pdf.close()
+    return "\n".join(text_chunks)
+
+
+def _ocr_image_bytes(raw: bytes) -> str:
+    """OCR helper for common image formats."""
+    import io
+    import shutil
+
+    if shutil.which("tesseract") is None:
+        return ""
+
+    try:
+        from PIL import Image
+        import pytesseract
+    except Exception:
+        return ""
+
+    image = Image.open(io.BytesIO(raw))
+    try:
+        return (pytesseract.image_to_string(image, lang="spa+eng") or "").strip()
+    finally:
+        image.close()
+
 def extract_document_text(file_key: str, file_name: str, file_mime_type: str) -> Optional[str]:
-    """Try to extract text from a locally stored file for AI summarization."""
-    if not isinstance(file_storage, LocalFileStorage):
-        return None
+    """Try to extract text from a stored file for AI summarization."""
     try:
         raw = file_storage.get_file_bytes(file_key)
         mime = file_mime_type or ""
         file_name_lower = (file_name or "").lower()
+
         if "text" in mime or file_name_lower.endswith((".md", ".txt", ".csv")):
-            return raw.decode("utf-8", errors="ignore")[:8000]
+            return _normalize_extracted_text(raw.decode("utf-8", errors="ignore")) or None
+
         if "pdf" in mime:
             try:
-                import io
-                from pypdf import PdfReader
-                reader = PdfReader(io.BytesIO(raw))
-                return "\n".join(p.extract_text() or "" for p in reader.pages[:10])[:8000]
+                extracted = _extract_text_from_pdf(raw, max_pages=10)
+                normalized = _normalize_extracted_text(extracted)
+                if len(normalized) >= 60:
+                    return normalized
+
+                ocr_text = _ocr_pdf_bytes(raw, max_pages=5)
+                normalized_ocr = _normalize_extracted_text(ocr_text)
+                if normalized_ocr:
+                    logger.info("PDF OCR fallback used for document file=%s", file_name)
+                    return normalized_ocr
+
+                visual_summary = _visual_summary_from_pdf_first_page(raw, file_name=file_name)
+                if visual_summary:
+                    logger.info("PDF visual-analysis fallback used for document file=%s", file_name)
+                    return visual_summary
             except Exception:
                 logger.warning("Failed to extract text from PDF for AI summary", exc_info=True)
+
+        if mime.startswith("image/") or file_name_lower.endswith((".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp")):
+            try:
+                ocr_text = _ocr_image_bytes(raw)
+                normalized_ocr = _normalize_extracted_text(ocr_text)
+                if len(normalized_ocr) >= 40:
+                    logger.info("Image OCR used for document file=%s", file_name)
+                    return normalized_ocr
+
+                visual_summary = _visual_summary_from_image_bytes(raw, file_name=file_name)
+                if visual_summary:
+                    logger.info("Image visual-analysis fallback used for document file=%s", file_name)
+                    if normalized_ocr:
+                        # Keep short OCR hints if available, without requiring full text extraction.
+                        ocr_hint = _normalize_extracted_text(normalized_ocr)[:400]
+                        return f"{visual_summary}\nTexto detectado parcialmente (OCR): {ocr_hint}"
+                    return visual_summary
+            except Exception:
+                logger.warning("Failed to OCR image for AI summary", exc_info=True)
+
     except Exception:
         logger.warning("Failed to read document file content for AI summary", exc_info=True)
+
     return None
 
 

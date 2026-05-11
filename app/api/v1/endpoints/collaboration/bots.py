@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.models.collaboration import (
     CollaborationBotApp, CollaborationIntegration, CollaborationWebhook,
 )
@@ -100,6 +101,7 @@ def create_integration(payload: IntegrationCreate, current_user: User = Depends(
 
 @router.delete("/integrations/{integration_id}", summary="Eliminar integración")
 def delete_integration(integration_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    enforce_abac(db, current_user, "collaboration_integration", integration_id, action="delete")
     row = db.query(CollaborationIntegration).filter(
         CollaborationIntegration.id == integration_id, CollaborationIntegration.organization_id == _org(current_user)
     ).first()

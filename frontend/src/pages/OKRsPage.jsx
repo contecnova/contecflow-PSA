@@ -5,11 +5,9 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { okrsApi } from '../services/api'
-import { Button, Modal, Spinner, EmptyState } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { Trophy } from 'lucide-react'
+import { okrsApi, usersApi, projectsApi } from '../services/api'
+import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
+import { Trophy, Plus } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
@@ -198,53 +196,114 @@ function ObjModal({ obj, onClose }) {
     title: obj?.title || '', description: obj?.description || '',
     period: obj?.period || 'Q1', year: obj?.year || new Date().getFullYear(),
     status: obj?.status || 'active',
+    owner_id: obj?.owner_id || '',
+    project_id: obj?.project_id || '',
+    team_id: obj?.team_id || '',
   })
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
-    outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+
+  const { data: users = [] } = useQuery({
+    queryKey: ['okr-users-pick'],
+    queryFn: () => usersApi.list({ page_size: 200 }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+  })
+  const { data: projects = [] } = useQuery({
+    queryKey: ['okr-projects-pick'],
+    queryFn: () => projectsApi.list({ page_size: 200 }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+  })
+  const { data: departments = [] } = useQuery({
+    queryKey: ['okr-departments-pick'],
+    queryFn: async () => {
+      try {
+        const { settingsApi } = await import('../services/settingsApi')
+        const r = await settingsApi.getDepartments()
+        return Array.isArray(r.data) ? r.data : []
+      } catch { return [] }
+    },
+  })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit
-      ? okrsApi.update(obj.id, d)
-      : okrsApi.create(d),
+    mutationFn: () => {
+      // Limpiamos cadenas vacías → null para que el backend no falle al castear UUIDs.
+      const payload = Object.fromEntries(
+        Object.entries(form).map(([k, v]) => [k, v === '' ? null : v])
+      )
+      return isEdit ? okrsApi.update(obj.id, payload) : okrsApi.create(payload)
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['okrs'] }); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Editar objetivo' : 'Nuevo objetivo'} width={540}>
-      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-        <div>
-          <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Título *</label>
-          <input value={form.title} onChange={e => setForm(f => ({...f, title:e.target.value}))}
-            style={IS} placeholder="Ej: Incrementar retencion de clientes" autoFocus />
+    <Modal open onClose={onClose} title={isEdit ? 'Editar objetivo' : 'Nuevo objetivo'} width={580}>
+      <div className="ds-stack">
+        <div className="ds-field">
+          <label className="ds-field__label">Título *</label>
+          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+            className="ds-input" placeholder="Ej: Incrementar retención de clientes" autoFocus />
         </div>
-        <div>
-          <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Descripción</label>
-          <textarea value={form.description} onChange={e => setForm(f => ({...f, description:e.target.value}))}
-            rows={2} style={{ ...IS, resize:'vertical' }} placeholder="Descripcion del objetivo..." />
+        <div className="ds-field">
+          <label className="ds-field__label">Descripción</label>
+          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            rows={2} className="ds-input" style={{ resize: 'vertical' }}
+            placeholder="¿Qué problema resuelve y cómo se medirá su éxito?" />
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
-          <div>
-            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Periodo</label>
-            <select value={form.period} onChange={e => setForm(f => ({...f, period:e.target.value}))} style={IS}>
+
+        {/* Asignaciones */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+          <div className="ds-field">
+            <label className="ds-field__label">Responsable</label>
+            <select value={form.owner_id} onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}
+              className="ds-input">
+              <option value="">— Sin asignar —</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
+            </select>
+            <div className="ds-field__hint">Persona que rinde cuentas del objetivo</div>
+          </div>
+          <div className="ds-field">
+            <label className="ds-field__label">Departamento / equipo</label>
+            <select value={form.team_id} onChange={e => setForm(f => ({ ...f, team_id: e.target.value }))}
+              className="ds-input">
+              <option value="">— Compañía —</option>
+              {departments.map(d => <option key={d.id || d.name} value={d.id || d.name}>{d.name || d}</option>)}
+            </select>
+            <div className="ds-field__hint">Vacío = OKR de empresa</div>
+          </div>
+        </div>
+
+        <div className="ds-field">
+          <label className="ds-field__label">Proyecto vinculado</label>
+          <select value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}
+            className="ds-input">
+            <option value="">— Ninguno —</option>
+            {projects.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} · ` : ''}{p.name}</option>)}
+          </select>
+          <div className="ds-field__hint">Si lo vinculas, los KRs pueden sincronizar progreso desde las tareas del proyecto.</div>
+        </div>
+
+        {/* Período + estado */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-2)' }}>
+          <div className="ds-field">
+            <label className="ds-field__label">Período</label>
+            <select value={form.period} onChange={e => setForm(f => ({ ...f, period: e.target.value }))} className="ds-input">
               {PERIOD_OPTS.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
-          <div>
-            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Año</label>
-            <input type="number" value={form.year} onChange={e => setForm(f => ({...f, year:parseInt(e.target.value)}))} style={IS} />
+          <div className="ds-field">
+            <label className="ds-field__label">Año</label>
+            <input type="number" value={form.year}
+              onChange={e => setForm(f => ({ ...f, year: parseInt(e.target.value) || f.year }))}
+              className="ds-input" />
           </div>
-          <div>
-            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Estado</label>
-            <select value={form.status} onChange={e => setForm(f => ({...f, status:e.target.value}))} style={IS}>
-              {Object.entries(STATUS_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
+          <div className="ds-field">
+            <label className="ds-field__label">Estado</label>
+            <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="ds-input">
+              {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
         </div>
-        <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:4 }}>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', marginTop: 4 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}>
+          <Button onClick={() => mutate()} disabled={isPending || !form.title} loading={isPending}>
             {isEdit ? 'Guardar cambios' : 'Crear objetivo'}
           </Button>
         </div>
@@ -257,49 +316,85 @@ function KRModal({ objective, onClose }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [form, setForm] = useState({
-    objective_id: objective.id, title:'', kr_type:'percentage',
-    target_value:100, current_value:0, unit:'', notes:''
+    objective_id: objective.id, title: '', kr_type: 'percentage',
+    target_value: 100, current_value: 0, unit: '',
+    owner_id: '', due_date: '', notes: '',
   })
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
-    outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+
+  const { data: users = [] } = useQuery({
+    queryKey: ['okr-users-pick'],
+    queryFn: () => usersApi.list({ page_size: 200 }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+  })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => okrsApi.createKR(d),
+    mutationFn: () => {
+      const payload = Object.fromEntries(
+        Object.entries(form).map(([k, v]) => [k, v === '' ? null : v])
+      )
+      // El KR siempre vive bajo un objective: aseguramos el id por si la limpieza lo borrara
+      payload.objective_id = objective.id
+      return okrsApi.createKR(payload)
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['okrs'] }); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   return (
-    <Modal open onClose={onClose} title={`Nuevo KR — ${objective.title}`} width={480}>
-      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-        <div>
-          <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Descripción del resultado *</label>
-          <input value={form.title} onChange={e => setForm(f => ({...f, title:e.target.value}))}
-            style={IS} placeholder="Ej: Aumentar NPS a 60" autoFocus />
+    <Modal open onClose={onClose}
+      title="Nuevo Key Result"
+      subtitle={`Para el objetivo: ${objective.title}`}
+      width={560}>
+      <div className="ds-stack">
+        <div className="ds-field">
+          <label className="ds-field__label">Descripción del resultado *</label>
+          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+            className="ds-input" placeholder="Ej: Aumentar NPS a 60" autoFocus />
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
-          <div>
-            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Tipo</label>
-            <select value={form.kr_type} onChange={e => setForm(f => ({...f, kr_type:e.target.value}))} style={IS}>
-              {Object.entries(KR_TYPE_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-2)' }}>
+          <div className="ds-field">
+            <label className="ds-field__label">Tipo</label>
+            <select value={form.kr_type} onChange={e => setForm(f => ({ ...f, kr_type: e.target.value }))} className="ds-input">
+              {Object.entries(KR_TYPE_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
-          <div>
-            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Objetivo</label>
+          <div className="ds-field">
+            <label className="ds-field__label">Meta</label>
             <input type="number" value={form.target_value}
-              onChange={e => setForm(f => ({...f, target_value:parseFloat(e.target.value)}))} style={IS} />
+              onChange={e => setForm(f => ({ ...f, target_value: parseFloat(e.target.value) || 0 }))}
+              className="ds-input" />
           </div>
-          <div>
-            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Unidad</label>
-            <input value={form.unit} onChange={e => setForm(f => ({...f, unit:e.target.value}))}
-              style={IS} placeholder="%, puntos, unidades..." />
+          <div className="ds-field">
+            <label className="ds-field__label">Unidad</label>
+            <input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
+              className="ds-input" placeholder="%, puntos, €, NPS…" />
           </div>
         </div>
-        <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+          <div className="ds-field">
+            <label className="ds-field__label">Responsable del KR</label>
+            <select value={form.owner_id} onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}
+              className="ds-input">
+              <option value="">— Hereda del objetivo —</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
+            </select>
+          </div>
+          <div className="ds-field">
+            <label className="ds-field__label">Fecha límite</label>
+            <input type="date" value={form.due_date}
+              onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
+              className="ds-input" />
+          </div>
+        </div>
+        <div className="ds-field">
+          <label className="ds-field__label">Notas (opcional)</label>
+          <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+            rows={2} className="ds-input" style={{ resize: 'vertical' }}
+            placeholder="Detalles, criterios de éxito, dependencias…" />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}>
-            Añadir KR
+          <Button onClick={() => mutate()} disabled={isPending || !form.title} loading={isPending}>
+            <Plus size={13} /> Añadir KR
           </Button>
         </div>
       </div>
@@ -341,54 +436,45 @@ export default function OKRsPage() {
   const onTrack = objectives.filter(o => (o.progress || 0) >= 60).length
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={<Trophy size={18} />}
-        title={t('okrs.title')}
-        subtitle={t('okrs.subtitle')}
-        actions={
-          <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-            <select value={period} onChange={e => setPeriod(e.target.value)}
-              style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-                borderRadius:8, padding:'7px 12px', color:'var(--text-1)',
-                fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit' }}>
-              <option value="">Todos los periodos</option>
-              {PERIOD_OPTS.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-            <select value={year} onChange={e => setYear(parseInt(e.target.value))}
-              style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-                borderRadius:8, padding:'7px 12px', color:'var(--text-1)',
-                fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit' }}>
-              {[2024,2025,2026].map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-            <Button onClick={() => { setEditingObj(null); setShowObjModal(true) }}>
-              + Nuevo objetivo
-            </Button>
-          </div>
-        }
-        showListExport={objectives.length > 0}
-        exportTargetSelector='[data-export-table="okrs-list"]'
-        exportFilePrefix='okrs'
-      />
-
+    <Page
+      icon={<Trophy size={18} />}
+      title={t('okrs.title')}
+      subtitle={t('okrs.subtitle')}
+      actions={
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+          <select value={period} onChange={e => setPeriod(e.target.value)}
+            className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
+            <option value="">Todos los periodos</option>
+            {PERIOD_OPTS.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <select value={year} onChange={e => setYear(parseInt(e.target.value))}
+            className="ds-input" style={{ width: 'auto', minWidth: 100 }}>
+            {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <Button onClick={() => { setEditingObj(null); setShowObjModal(true) }}>
+            <Plus size={13} /> Nuevo objetivo
+          </Button>
+        </div>
+      }
+    >
       {/* KPI cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:24 }}>
+      <div className="ds-grid-stats">
         {[
-          { label:'Objetivos activos', value:totalObjs, color:'var(--accent)' },
-          { label:'Progreso medio', value:`${avgProgress}%`, color: avgProgress >= 60 ? 'var(--success)' : 'var(--warning)' },
-          { label:'En camino (≥60%)', value:onTrack, color:'var(--success)' },
+          { label: 'Objetivos activos', value: totalObjs, color: 'var(--accent)' },
+          { label: 'Progreso medio',    value: `${avgProgress}%`, color: avgProgress >= 60 ? 'var(--success)' : 'var(--warning)' },
+          { label: 'En camino (≥60%)',  value: onTrack, color: 'var(--success)' },
         ].map(kpi => (
-          <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-            borderRadius:12, padding:'16px 20px' }}>
-            <div style={{ fontSize: "var(--text-2xl-em)", fontWeight:800, color:kpi.color,
-              fontFamily: 'var(--font-mono)' }}>{kpi.value}</div>
-            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginTop:2 }}>{kpi.label}</div>
+          <div key={kpi.label} className="ds-card" style={{ padding: '14px 16px', gap: 4 }}>
+            <div style={{ fontSize: 'var(--text-2xl-em)', fontWeight: 800, color: kpi.color,
+              fontFamily: 'var(--font-mono)', lineHeight: 1.1 }}>{kpi.value}</div>
+            <div className="ds-eyebrow">{kpi.label}</div>
           </div>
         ))}
       </div>
 
       {isLoading ? <Spinner /> : objectives.length === 0 ? (
-        <EmptyState icon="🎯" title="Sin objetivos" description="Crea tu primer OKR para alinear al equipo" />
+        <EmptyState svgIcon={<Trophy size={36} />} title="Sin objetivos"
+          description="Crea tu primer OKR para alinear al equipo. Un OKR define un objetivo cualitativo y 3-5 resultados clave medibles." />
       ) : (
         <div data-export-table="okrs-list" style={{ display:'flex', flexDirection:'column', gap:12 }}>
           {objectives.map(obj => (
@@ -406,6 +492,6 @@ export default function OKRsPage() {
         <ObjModal obj={editingObj} onClose={() => { setShowObjModal(false); setEditingObj(null) }} />
       )}
       {addKRFor && <KRModal objective={addKRFor} onClose={() => setAddKRFor(null)} />}
-    </PageShell>
+    </Page>
   )
 }

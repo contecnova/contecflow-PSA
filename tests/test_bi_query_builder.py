@@ -99,6 +99,11 @@ def test_delete_query(client, admin_token):
     r = client.delete(f"/api/v1/bi/query-builder/queries/{qid}", headers=auth(admin_token))
     assert r.status_code in (200, 204)
 
+    listed = client.get("/api/v1/bi/query-builder/queries", headers=auth(admin_token))
+    assert listed.status_code == 200
+    items = listed.json().get("items", [])
+    assert all(i.get("id") != qid for i in items)
+
 
 def test_query_builder_requires_auth(client):
     r = client.get("/api/v1/bi/query-builder/schema")

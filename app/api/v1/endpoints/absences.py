@@ -5,6 +5,7 @@ from datetime import date, timedelta
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User, UserRole
 from app.models.resources import AbsenceStatus
 from app.services import absence_service
@@ -103,10 +104,11 @@ def cancel_absence(
     a = absence_service.get_absence_for_user(db, absence_id, current_user.id)
     if not a:
         raise HTTPException(404, "Ausencia no encontrada")
+    enforce_abac(db, current_user, "absence", absence_id, action="delete")
     if a.status == AbsenceStatus.approved and a.start_date <= date.today():
         raise HTTPException(400, "No puedes cancelar una ausencia ya iniciada")
     absence_service.cancel_absence(db, a)
-    return {"ok": True}
+    return {"ok": True, "message": "Ausencia cancelada correctamente"}
 
 
 @router.patch("/my/{absence_id}", summary="Editar ausencia pendiente")

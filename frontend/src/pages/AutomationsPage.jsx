@@ -8,10 +8,10 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, automationsApi, autoWorkflowsApi, workflowsLegacyApi } from '../services/api'
-import { Button, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { Bot } from 'lucide-react'
+import { Button, Modal, Spinner, EmptyState, Tabs, Page } from '../components/ui'
+import {
+  Bot, FileStack, Plus, Zap, Pause, Play, Settings as SettingsIcon, Search,
+} from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 
@@ -665,7 +665,7 @@ function WorkflowsTab() {
       </div>
 
       {isLoading ? <Spinner /> : searchedWorkflows.length === 0 ? (
-        <EmptyState icon="⚡" title={t('automations.no_workflows_title')} description={t('automations.no_workflows_desc')} />
+        <EmptyState svgIcon={<Zap size={36} />} title={t('automations.no_workflows_title')} description={t('automations.no_workflows_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {searchedWorkflows.map(wf => {
@@ -794,80 +794,87 @@ export default function AutomationsPage() {
   const active = rules.filter(r => r.is_active).length
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={<Bot size={18} />}
-        title={t('automations.title')}
-        subtitle={t('automations.subtitle')}
-        actions={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setShowTemplates(true)}
-              style={{ background: 'transparent', border: '1px solid var(--purple-border-strong)', borderRadius: 8, padding: '9px 16px', color: 'var(--purple)', cursor: 'pointer', fontSize: "var(--text-base)", fontFamily: 'inherit', fontWeight: 600 }}>
-              📋 {t('automations.templates_btn')}
-            </button>
-            <Button onClick={() => setShowCreate(true)}>＋ {t('automations.new_rule_btn')}</Button>
-          </div>
-        }
-      />
-
+    <Page
+      icon={<Bot size={18} />}
+      title={t('automations.title')}
+      subtitle={t('automations.subtitle')}
+      rightActions={
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <Button variant="secondary" onClick={() => setShowTemplates(true)}>
+            <FileStack size={13} /> {t('automations.templates_btn')}
+          </Button>
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus size={13} /> {t('automations.new_rule_btn')}
+          </Button>
+        </div>
+      }
+    >
       {/* Tab selector */}
       <Tabs
         items={[
-          { id: 'rules',     label: '⚙️ ' + t('automations.rules_tab') },
-          { id: 'workflows', label: '⚡ ' + t('automations.workflows_tab') },
+          { id: 'rules',     label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><SettingsIcon size={11} /> {t('automations.rules_tab')}</span> },
+          { id: 'workflows', label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Zap size={11} /> {t('automations.workflows_tab')}</span> },
         ]}
         active={tab}
         onChange={setTab}
         ariaLabel={t('automations.sections_aria_lbl')}
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: 'var(--space-5)' }}
       />
 
       {tab === 'workflows' && <div id="automations-panel-workflows" role="tabpanel" aria-labelledby="automations-tab-workflows"><WorkflowsTab /></div>}
 
       {tab === 'rules' && <div id="automations-panel-rules" role="tabpanel" aria-labelledby="automations-tab-rules">
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+      <div className="ds-grid-stats" style={{ marginBottom: 'var(--space-5)' }}>
         {[
-          { label: t('automations.stats_active'), value: active, color: 'var(--accent)', icon: '⚡' },
-          { label: t('automations.stats_paused'), value: rules.length - active, color: 'var(--text-2)', icon: '⏸' },
-          { label: t('automations.stats_total_exec'), value: rules.reduce((s, r) => s + (r.run_count || 0), 0), color: 'var(--success)', icon: '▷' },
-          { label: t('automations.stats_total_rules'), value: rules.length, color: 'var(--purple)', icon: '⚙️' },
-        ].map(({ label, value, color, icon }) => (
-          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px' }}>
-            <div style={{ fontSize: "var(--text-xl)", marginBottom: 6 }}>{icon}</div>
-            <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color }}>{value}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+          { label: t('automations.stats_active'),      value: active,                                              color: 'var(--accent)',  Icon: Zap },
+          { label: t('automations.stats_paused'),      value: rules.length - active,                               color: 'var(--text-2)',  Icon: Pause },
+          { label: t('automations.stats_total_exec'),  value: rules.reduce((s, r) => s + (r.run_count || 0), 0),    color: 'var(--success)', Icon: Play },
+          { label: t('automations.stats_total_rules'), value: rules.length,                                        color: 'var(--purple)',  Icon: SettingsIcon },
+        ].map(({ label, value, color, Icon }) => (
+          <div key={label} className="ds-card" style={{ padding: '14px 16px', gap: 4 }}>
+            <Icon size={16} style={{ color, marginBottom: 2 }} />
+            <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, color, lineHeight: 1.1 }}>{value}</div>
+            <div className="ds-eyebrow">{label}</div>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, marginBottom: 20 }}>
-        <input
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder={t('automations.search_placeholder', 'Buscar automatizaciones (nombre, trigger, accion...)')}
-          aria-label={t('automations.search_aria', 'Buscar automatizaciones')}
-          style={fs}
-        />
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-        {[
-          [null, t('automations.filter_all')],
-          [true, t('automations.filter_active')],
-          [false, t('automations.filter_paused')],
-        ].map(([val, label]) => (
-          <button key={String(val)} aria-pressed={filterActive === val} onClick={() => setFilterActive(val)}
-            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${filterActive === val ? 'var(--accent)' : 'var(--surface-4)'}`, background: filterActive === val ? 'var(--accent-muted)' : 'transparent', color: filterActive === val ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
-            {label}
-          </button>
-        ))}
+      <div className="ds-toolbar" style={{ marginBottom: 'var(--space-5)' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+          <Search size={14} aria-hidden style={{
+            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--text-3)', pointerEvents: 'none',
+          }} />
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder={t('automations.search_placeholder', 'Buscar automatizaciones (nombre, trigger, acción...)')}
+            aria-label={t('automations.search_aria', 'Buscar automatizaciones')}
+            className="ds-input"
+            style={{ paddingLeft: 32 }}
+          />
+        </div>
+        <div className="ds-segmented" role="group" aria-label="Filtro estado">
+          {[
+            [null,  t('automations.filter_all')],
+            [true,  t('automations.filter_active')],
+            [false, t('automations.filter_paused')],
+          ].map(([val, label]) => (
+            <button key={String(val)} type="button"
+              aria-pressed={filterActive === val}
+              onClick={() => setFilterActive(val)}>
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Rules list */}
       {isLoading ? <Spinner /> : searched.length === 0 ? (
         <EmptyState
-          icon="⚙️"
+          svgIcon={<SettingsIcon size={36} />}
           title={t('automations.no_rules_title')}
           description={t('automations.no_rules_desc')}
           action={<Button onClick={() => setShowTemplates(true)}>{t('automations.view_templates_btn')}</Button>}
@@ -941,6 +948,6 @@ export default function AutomationsPage() {
       )}
       </div>
       }
-    </PageShell>
+    </Page>
   )
 }

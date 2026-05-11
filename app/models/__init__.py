@@ -80,7 +80,12 @@ from app.models.cmdb import (  # noqa: F401
     CMDBDiscoveryProvider, CMDBDiscoveryJob,
 )
 from app.models.okrs import Objective, KeyResult, KRCheckin  # noqa: F401
-from app.models.performance import ReviewCycle, PerformanceReview  # noqa: F401
+from app.models.performance import (  # noqa: F401
+    ReviewCycle, PerformanceReview, ReviewQuestion, QuestionKind,
+    ReviewCycleStatus, ReviewStatus,
+    Review360Campaign, Review360CampaignStatus,
+    DevelopmentPlan, DevGoal, DevPlanStatus, DevGoalStatus,
+)
 from app.models.training import Course, CourseEnrollment, Certification  # noqa: F401
 from app.models.documents import (  # noqa: F401
     Document, DocumentVersion, DocumentPermission, DocumentTag,

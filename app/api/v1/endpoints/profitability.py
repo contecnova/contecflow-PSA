@@ -5,6 +5,7 @@ from datetime import date, timedelta
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User, UserRole
 from app.services import profitability_service
 from app.schemas.milestones import MilestoneIn, MilestoneUpdate
@@ -213,5 +214,9 @@ def delete_milestone(
     m = profitability_service.get_milestone(db, milestone_id, project_id)
     if not m:
         raise HTTPException(404, "Hito no encontrado")
-    profitability_service.delete_milestone(db, m)
-    return {"ok": True}
+    enforce_abac(db, current_user, "project_milestone", milestone_id, action="delete")
+    try:
+        profitability_service.delete_milestone(db, m)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "message": "Hito eliminado correctamente"}

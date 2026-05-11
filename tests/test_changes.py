@@ -1,6 +1,7 @@
 """Tests de Cambios (Change Requests) — flujo completo de solicitudes de cambio."""
 from tests.conftest import auth
 from datetime import date, timedelta
+from app.models.resources import ChangeRequest
 
 
 def _create_project(client, token, code="CHG-01"):
@@ -66,7 +67,18 @@ def test_delete_change_request(client, pm_token, db):
     }, headers=auth(pm_token)).json()
     res = client.delete(f"/api/v1/changes/{pid}/{cr['id']}",
         headers=auth(pm_token))
-    assert res.status_code in (200, 204)
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload.get("ok") is True
+
+    listed = client.get(f"/api/v1/changes/{pid}", headers=auth(pm_token))
+    assert listed.status_code == 200
+    ids = [item["id"] for item in listed.json().get("change_requests", [])]
+    assert cr["id"] not in ids
+
+    row = db.query(ChangeRequest).filter(ChangeRequest.id == cr["id"]).first()
+    assert row is not None
+    assert row.is_active is False
 
 
 def test_all_pending_changes(client, admin_token, db):

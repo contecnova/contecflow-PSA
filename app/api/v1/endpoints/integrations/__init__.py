@@ -2,6 +2,7 @@ from fastapi import APIRouter, status, Depends, Body, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_current_org_id, get_db, require_admin
+from app.core.abac_enforce import enforce_abac
 from app.services import marketplace_service
 
 router = APIRouter()
@@ -55,14 +56,15 @@ def list_instances(
     return marketplace_service.list_integration_instances(organization_id=org_id, db=db)
 
 
-@router.delete("/instances/{instance_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/instances/{instance_id}", status_code=status.HTTP_200_OK)
 def uninstall_integration(
     instance_id: str,
     org_id: str = Depends(get_current_org_id),
     db: Session = Depends(get_db),
     user=Depends(require_admin),
 ):
+    enforce_abac(db, user, "integration_instance", instance_id, action="delete")
     marketplace_service.uninstall_integration_connector(
         instance_id=instance_id, organization_id=org_id, db=db
     )
-    return None
+    return {"ok": True, "message": "Instancia de integración eliminada correctamente"}

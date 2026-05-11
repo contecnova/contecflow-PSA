@@ -6,6 +6,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.schemas.service_desk import CannedResponseIn
@@ -46,9 +47,10 @@ def update_ticket_template(template_id: str, payload: dict = Body(...), db: Sess
 
 @router.delete("/ticket-templates/{template_id}", summary="Eliminar plantilla")
 def delete_ticket_template(template_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    enforce_abac(db, _, "ticket_template", template_id, action="delete")
     delete_ticket_template_svc(db, template_id)
     _commit_or_rollback(db)
-    return {"ok": True}
+    return {"ok": True, "message": "Plantilla eliminada correctamente"}
 
 
 @router.get("/agent/customer-context/{requester_id}", summary="Contexto 360 del solicitante")
@@ -77,9 +79,10 @@ def update_canned_response(canned_id: str, payload: CannedResponseIn, db: Sessio
 
 @router.delete("/canned-responses/{canned_id}", summary="Eliminar respuesta rápida")
 def delete_canned_response(canned_id: str, db: Session = Depends(get_db), cu: User = Depends(require_any_manager)):
+    enforce_abac(db, cu, "canned_response", canned_id, action="delete")
     delete_canned_response_svc(db, canned_id)
     _commit_or_rollback(db)
-    return {"deleted": True}
+    return {"ok": True, "message": "Respuesta rápida eliminada correctamente"}
 
 
 @router.post("/inbound-email", summary="Email-to-ticket — webhook de email entrante", include_in_schema=True, status_code=201)

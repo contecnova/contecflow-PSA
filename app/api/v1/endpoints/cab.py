@@ -25,6 +25,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.core.ratelimit import limiter
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.models.cab import (
     WebhookTrigger,
 )
@@ -249,6 +250,7 @@ def delete_webhook_trigger(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    enforce_abac(db, current_user, "cab_webhook", trigger_id, action="delete")
     try:
         return _svc.delete_webhook_trigger(trigger_id, db)
     except ValueError as e:
@@ -415,6 +417,7 @@ def reset_widgets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "dashboard_widget", str(current_user.id), action="delete")
     return _svc.reset_widgets(current_user.id, db)
 
 

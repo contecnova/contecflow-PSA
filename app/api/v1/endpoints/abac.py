@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_user
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services.abac import ABACService, DEFAULT_ABAC_ATTRIBUTES
 from app.schemas.abac import (
     AttributeDefinitionSchema, UserAttributeAssignSchema, UserAttributeSchema, ABACPolicyCreateSchema, ABACPolicySchema, AccessEvaluationRequestSchema, AccessEvaluationResponseSchema
@@ -151,6 +152,7 @@ def revoke_user_attribute(
 ):
     """Revoke an attribute from a user (admin/governance only)."""
     verify_admin_or_governance_role(current_user)
+    enforce_abac(db, current_user, "abac_user_attribute", user_id, action="delete")
     org_id = current_user.organization_id
     if not org_id:
         raise HTTPException(status_code=400, detail="User organization not set")
@@ -263,6 +265,7 @@ def delete_policy(
 ):
     """Delete (soft) an ABAC policy (admin/governance only)."""
     verify_admin_or_governance_role(current_user)
+    enforce_abac(db, current_user, "abac_policy", policy_id, action="delete")
     org_id = current_user.organization_id
     if not org_id:
         raise HTTPException(status_code=400, detail="User organization not set")

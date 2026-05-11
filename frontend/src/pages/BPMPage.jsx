@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import PageShell from '../components/layout/PageShell'
-import PageHeader from '../components/layout/PageHeader'
-import { Button } from '../components/ui'
-import { Network, Plus, X, ChevronLeft, Edit3, Download } from 'lucide-react'
+import { Button, Page } from '../components/ui'
+import { Network, Plus, X, ChevronLeft, Edit3, Download, Search } from 'lucide-react'
 import { bpmnProcessesApi, apiErrorMsg } from '../services/api'
 import { useToast } from '../context/ToastContext'
 
@@ -1566,36 +1564,35 @@ export default function BPMPage() {
   const catColor = selectedProcess ? CAT_COLOR[selectedProcess.category] : 'var(--accent)'
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={<Network size={18} />}
-        title="BPM — Procesos de Negocio"
-        subtitle={`${allProcesses.length} procesos · ${PROCESS_CATALOG.length} del sistema · ${allProcesses.filter(p => p.isCustom).length} personalizados`}
-        actions={
-          <Button onClick={() => { setShowAddForm(true); setSelectedProcess(null) }}>
-            <Plus size={14} style={{ marginRight: 4 }} />Nuevo proceso
-          </Button>
-        }
-      showListExport={false}
-      />
-
-      <div style={{ display: 'flex', gap: 16, height: 'calc(100vh - 180px)', minHeight: 600 }}>
+    <Page
+      icon={<Network size={18} />}
+      title="BPM — Procesos de Negocio"
+      subtitle={`${allProcesses.length} procesos · ${PROCESS_CATALOG.length} del sistema · ${allProcesses.filter(p => p.isCustom).length} personalizados`}
+      rightActions={
+        <Button onClick={() => { setShowAddForm(true); setSelectedProcess(null) }}>
+          <Plus size={13} /> Nuevo proceso
+        </Button>
+      }
+    >
+      <div style={{ display: 'flex', gap: 'var(--space-4)', height: 'calc(100vh - 180px)', minHeight: 600 }}>
 
         {/* ── SIDEBAR ─────────────────────────────────────────────── */}
-        <div style={{
-          width: 220, flexShrink: 0,
-          background: 'var(--surface-2)',
-          border: '1px solid var(--surface-4)',
-          borderRadius: 12,
+        <div className="ds-card" style={{
+          width: 220, flexShrink: 0, padding: 0,
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
         }}>
-          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--surface-4)' }}>
+          <div style={{ padding: 'var(--space-3)', borderBottom: '1px solid var(--surface-4)', position: 'relative' }}>
+            <Search size={13} aria-hidden style={{
+              position: 'absolute', left: 22, top: '50%', transform: 'translateY(-50%)',
+              color: 'var(--text-3)', pointerEvents: 'none',
+            }} />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar proceso..."
-              style={{ ...inp, padding: '7px 10px', fontSize: 'var(--text-sm)' }}
+              className="ds-input"
+              style={{ paddingLeft: 30, fontSize: 'var(--text-sm)' }}
             />
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
@@ -1832,6 +1829,6 @@ export default function BPMPage() {
           )}
         </div>
       </div>
-    </PageShell>
+    </Page>
   )
 }

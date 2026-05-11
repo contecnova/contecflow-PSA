@@ -40,6 +40,7 @@ def get_plans_for_period(
         CapacityPlan.week_start >= week_from,
         CapacityPlan.week_start <= week_to,
         CapacityPlan.user_id.in_(user_ids),
+        CapacityPlan.is_active == True,
     ).all()
 
 
@@ -75,7 +76,7 @@ def list_capacity_plans(
     q = db.query(CapacityPlan).options(
         joinedload(CapacityPlan.user),
         joinedload(CapacityPlan.project),
-    )
+    ).filter(CapacityPlan.is_active == True)
     if user_id:
         q = q.filter(CapacityPlan.user_id == user_id)
     if project_id:
@@ -92,7 +93,7 @@ def get_plans_board(
     week_from: Optional[date] = None,
     week_to: Optional[date] = None,
 ) -> List[CapacityPlan]:
-    q = db.query(CapacityPlan)
+    q = db.query(CapacityPlan).filter(CapacityPlan.is_active == True)
     if week_from:
         q = q.filter(CapacityPlan.week_start >= week_from)
     if week_to:
@@ -110,7 +111,7 @@ def get_project_names(db: Session, project_ids: set) -> dict:
 
 
 def get_capacity_plan_by_id(db: Session, plan_id: str) -> Optional[CapacityPlan]:
-    return db.query(CapacityPlan).filter(CapacityPlan.id == plan_id).first()
+    return db.query(CapacityPlan).filter(CapacityPlan.id == plan_id, CapacityPlan.is_active == True).first()
 
 
 def update_capacity_plan(db: Session, plan: CapacityPlan, payload: dict) -> CapacityPlan:
@@ -125,7 +126,7 @@ def update_capacity_plan(db: Session, plan: CapacityPlan, payload: dict) -> Capa
 
 
 def delete_capacity_plan(db: Session, plan: CapacityPlan) -> None:
-    db.delete(plan)
+    plan.is_active = False
     db.commit()
 
 
@@ -139,6 +140,7 @@ def get_plans_for_leveling(
         CapacityPlan.week_start >= week_from,
         CapacityPlan.week_start <= week_to,
         CapacityPlan.user_id.in_(user_ids),
+        CapacityPlan.is_active == True,
     ).all()
 
 

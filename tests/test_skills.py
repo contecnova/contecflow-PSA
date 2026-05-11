@@ -1,4 +1,6 @@
 """Tests de Skills y Catálogo de Habilidades — CRUD, asignación a usuarios, matriz."""
+from app.models.resources import Skill
+from app.models.resources import UserSkill
 from tests.conftest import auth
 
 
@@ -36,7 +38,17 @@ def test_delete_skill(client, admin_token, db):
     }, headers=auth(admin_token)).json()
     res = client.delete(f"/api/v1/skills/catalog/{skill['id']}",
         headers=auth(admin_token))
-    assert res.status_code in (200, 204)
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["ok"] is True
+
+    listed = client.get("/api/v1/skills/catalog", headers=auth(admin_token))
+    assert listed.status_code == 200
+    assert all(s["id"] != skill["id"] for s in listed.json())
+
+    row = db.query(Skill).filter(Skill.id == skill["id"]).first()
+    assert row is not None
+    assert row.is_active is False
 
 
 def test_assign_skill_to_user(client, admin_token, db):
@@ -87,4 +99,13 @@ def test_remove_user_skill(client, admin_token, db):
     us_id = assign["id"]
     res = client.delete(f"/api/v1/skills/users/dev-test-id/{us_id}",
         headers=auth(admin_token))
-    assert res.status_code in (200, 204)
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["ok"] is True
+
+    listed = client.get("/api/v1/skills/users/dev-test-id", headers=auth(admin_token))
+    assert listed.status_code == 200
+    assert all(us["id"] != us_id for us in listed.json())
+
+    row = db.query(UserSkill).filter(UserSkill.id == us_id).first()
+    assert row is None

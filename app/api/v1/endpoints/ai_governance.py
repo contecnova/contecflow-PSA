@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_user
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services.ai_governance import (
     check_prompt, check_output, _PII_PATTERNS,
     create_policy as svc_create_policy,
@@ -195,6 +196,7 @@ def deactivate_policy(
     current_user: User = Depends(get_current_user),
 ):
     verify_admin_or_governance_role(current_user)
+    enforce_abac(db, current_user, "ai_governance_policy", policy_id, action="delete")
     p = svc_get_policy(db, policy_id=policy_id, org_id=_org(current_user))
     if not p:
         raise HTTPException(404, "Policy not found")

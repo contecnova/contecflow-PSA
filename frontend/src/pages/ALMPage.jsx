@@ -4,10 +4,10 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi } from '../services/api'
-import { Button, Spinner, EmptyState, Modal, Tabs } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { Layers } from 'lucide-react'
+import { Button, Spinner, EmptyState, Modal, Tabs, Page } from '../components/ui'
+import {
+  Layers, Building2, FileText, Key, Monitor, Briefcase,
+} from 'lucide-react'
 import { fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
 import { sanitizeUrl } from '../utils/security'
 import { useAppT } from '../i18n/AppLangContext'
@@ -291,7 +291,7 @@ function VendorsTab() {
       </div>
 
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="🏢" title={t('alm.vendors_empty_title')} description={t('alm.vendors_empty_desc')} />
+        <EmptyState svgIcon={<Building2 size={36} />} title={t('alm.vendors_empty_title')} description={t('alm.vendors_empty_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
           {filtered.map(v => {
@@ -626,7 +626,7 @@ function ContractsTab() {
       )}
 
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="📄" title={t('alm.no_contracts')} description={t('alm.contracts_empty_desc')} />
+        <EmptyState svgIcon={<FileText size={36} />} title={t('alm.no_contracts')} description={t('alm.contracts_empty_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(c => {
@@ -907,7 +907,7 @@ function LicensesTab() {
       )}
 
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="🔑" title={t('alm.no_licenses')} description={t('alm.licenses_empty_desc')} />
+        <EmptyState svgIcon={<Key size={36} />} title={t('alm.no_licenses')} description={t('alm.licenses_empty_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(lic => {
@@ -1152,7 +1152,7 @@ function AssetsTab() {
       )}
 
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="🖥️" title={t('alm.no_assets')} description={t('alm.assets_empty_desc')} />
+        <EmptyState svgIcon={<Monitor size={36} />} title={t('alm.no_assets')} description={t('alm.assets_empty_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
           {filtered.map(a => {
@@ -1242,7 +1242,7 @@ function CostCentersTab() {
         </div>
       )}
       {isLoading ? <Spinner /> : centers.length === 0 ? (
-        <EmptyState icon="💼" title={t('alm.no_cost_centers')} description={t('alm.cost_centers_empty_desc')} />
+        <EmptyState svgIcon={<Briefcase size={36} />} title={t('alm.no_cost_centers')} description={t('alm.cost_centers_empty_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
           {centers.map(c => (
@@ -1353,22 +1353,18 @@ export default function ALMPage() {
   ]
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={<Layers size={18} />}
-        title={t('alm.title')}
-        subtitle={t('alm.subtitle')}
-        showListExport={tab !== 'dashboard'}
-        exportFilePrefix='alm'
-      />
-
+    <Page
+      icon={<Layers size={18} />}
+      title={t('alm.title')}
+      subtitle={t('alm.subtitle')}
+    >
       {/* Tab bar */}
       <Tabs
         items={TABS}
         active={tab}
         onChange={setTab}
         ariaLabel={t('alm.tablist_aria')}
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: 'var(--space-5)' }}
       />
 
       {/* Content */}
@@ -1379,6 +1375,6 @@ export default function ALMPage() {
       {tab === 'assets'     && <div id="alm-panel-assets" role="tabpanel" aria-labelledby="alm-tab-assets"><AssetsTab /></div>}
       {tab === 'cost'       && <div id="alm-panel-cost" role="tabpanel" aria-labelledby="alm-tab-cost"><CostCentersTab /></div>}
       {tab === 'compliance' && <div id="alm-panel-compliance" role="tabpanel" aria-labelledby="alm-tab-compliance"><ComplianceTab /></div>}
-    </PageShell>
+    </Page>
   )
 }

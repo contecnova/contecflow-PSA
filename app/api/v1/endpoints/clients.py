@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.services.client_service import (
     get_client_detail as _out_detail,
@@ -76,6 +77,7 @@ def delete_client(cid: str, db: Session = Depends(get_db), cu: User = Depends(ge
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
+    enforce_abac(db, cu, "client", cid, action="delete")
     return _svc.delete_client(cid, cu, db)
 
 
@@ -99,6 +101,7 @@ def update_contact(cid: str, contact_id: str, data: dict = Body(...),
 
 @router.delete("/{cid}/contacts/{contact_id}")
 def delete_contact(cid: str, contact_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    enforce_abac(db, cu, "client_contact", contact_id, action="delete")
     return _svc.delete_contact(cid, contact_id, db)
 
 
@@ -116,6 +119,7 @@ def link_license(cid: str, data: dict = Body(...), db: Session = Depends(get_db)
 
 @router.delete("/{cid}/licenses/{link_id}")
 def unlink_license(cid: str, link_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    enforce_abac(db, cu, "client_license_link", link_id, action="delete")
     return _svc.unlink_license(cid, link_id, db)
 
 
@@ -137,6 +141,7 @@ def unlink_contract(cid: str, link_id: str, db: Session = Depends(get_db), cu: U
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
+    enforce_abac(db, cu, "client_contract_link", link_id, action="delete")
     return _svc.unlink_contract(cid, link_id, db)
 
 
@@ -253,6 +258,7 @@ def unlink_project(cid: str, project_id: str, db: Session = Depends(get_db), cu:
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
+    enforce_abac(db, cu, "client", cid, action="delete")
     return _svc.unlink_project(cid, project_id, db)
 
 

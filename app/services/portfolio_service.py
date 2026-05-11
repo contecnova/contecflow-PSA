@@ -76,7 +76,7 @@ def get_evm_quick(db: Session, project_id: str) -> dict:
 # ── Portfolio CRUD ────────────────────────────────────────────────────────────
 
 def list_portfolios(db: Session, *, is_superadmin: bool, organization_id) -> list:
-    q = db.query(Portfolio)
+    q = db.query(Portfolio).filter(Portfolio.is_active == True)
     if not is_superadmin and organization_id:
         org_user_ids = (
             db.query(User.id)
@@ -96,7 +96,7 @@ def create_portfolio(db: Session, *, owner_id: str, data: dict) -> Portfolio:
 
 
 def get_portfolio(db: Session, portfolio_id: str):
-    return db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+    return db.query(Portfolio).filter(Portfolio.id == portfolio_id, Portfolio.is_active == True).first()
 
 
 def get_project(db: Session, project_id: str):
@@ -112,7 +112,14 @@ def update_portfolio(db: Session, p: Portfolio, updates: dict) -> Portfolio:
 
 
 def delete_portfolio(db: Session, p: Portfolio) -> None:
-    db.delete(p)
+    active_members = db.query(func.count(PortfolioProject.id)).filter(
+        PortfolioProject.portfolio_id == p.id,
+        PortfolioProject.is_active == True,
+    ).scalar() or 0
+    if active_members > 0:
+        raise ValueError(f"No se puede eliminar: la cartera tiene {active_members} proyecto(s) vinculados")
+    p.is_active = False
+    p.status = "archived"
     db.commit()
 
 
@@ -124,6 +131,7 @@ def get_portfolio_project(db: Session, portfolio_id: str, project_id: str):
         .filter(
             PortfolioProject.portfolio_id == portfolio_id,
             PortfolioProject.project_id == project_id,
+            PortfolioProject.is_active == True,
         )
         .first()
     )
@@ -136,6 +144,21 @@ def add_project_to_portfolio(
     rag_override=None,
     display_order: float = 0.0,
 ) -> PortfolioProject:
+    existing = (
+        db.query(PortfolioProject)
+        .filter(
+            PortfolioProject.portfolio_id == portfolio_id,
+            PortfolioProject.project_id == project_id,
+        )
+        .first()
+    )
+    if existing:
+        existing.is_active = True
+        existing.rag_override = rag_override
+        existing.display_order = display_order
+        db.commit()
+        return existing
+
     pp = PortfolioProject(
         id=str(uuid.uuid4()),
         portfolio_id=portfolio_id,
@@ -149,7 +172,7 @@ def add_project_to_portfolio(
 
 
 def remove_project_from_portfolio(db: Session, pp: PortfolioProject) -> None:
-    db.delete(pp)
+    pp.is_active = False
     db.commit()
 
 
@@ -162,6 +185,7 @@ def get_upcoming_milestones(
         db.query(ProjectMilestone)
         .filter(
             ProjectMilestone.project_id == project_id,
+            ProjectMilestone.is_active == True,
             ProjectMilestone.due_date >= from_date,
         )
         .order_by(ProjectMilestone.due_date)
@@ -179,6 +203,6 @@ def serialize_portfolio(p) -> dict:
         "start_date": p.start_date.isoformat() if p.start_date else None,
         "end_date": p.end_date.isoformat() if p.end_date else None,
         "owner_id": p.owner_id,
-        "project_count": len(p.members),
+        "project_count": len([m for m in (p.members or []) if m.is_active]),
         "created_at": p.created_at.isoformat() if p.created_at else None,
     }

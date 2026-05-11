@@ -4,6 +4,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_hr
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User, UserRole
 from app.services import skill_service
 from app.schemas.skills import SkillIn, UserSkillIn
@@ -63,11 +64,12 @@ def delete_skill(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_hr),
 ):
+    enforce_abac(db, current_user, "skill", skill_id, action="delete")
     s = skill_service.get_skill_by_id(db, skill_id)
     if not s:
         raise HTTPException(404, "Skill no encontrado")
     skill_service.deactivate_skill(db, s)
-    return {"ok": True}
+    return {"ok": True, "message": "Skill eliminada correctamente"}
 
 
 # ── User skills ───────────────────────────────────────────────────────────────
@@ -119,11 +121,12 @@ def remove_user_skill(
 ):
     if current_user.role not in [UserRole.admin, UserRole.hr] and current_user.id != user_id:
         raise HTTPException(403, "Acceso denegado")
+    enforce_abac(db, current_user, "user_skill", skill_id, action="delete")
     us = skill_service.get_user_skill_by_id(db, skill_id)
     if not us:
         raise HTTPException(404, "No encontrado")
     skill_service.remove_user_skill(db, us)
-    return {"ok": True}
+    return {"ok": True, "message": "Skill de usuario eliminada correctamente"}
 
 
 # ── Staffing search ───────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ from datetime import date, timedelta
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.core.config import settings
 from app.services.psa_flows import create_capacity_plan_flow
@@ -255,8 +256,9 @@ def delete_capacity_plan(
     plan = capacity_service.get_capacity_plan_by_id(db, plan_id)
     if not plan:
         raise HTTPException(404)
+    enforce_abac(db, current_user, "capacity_plan", plan_id, action="delete")
     capacity_service.delete_capacity_plan(db, plan)
-    return {"ok": True}
+    return {"ok": True, "message": "Plan de capacidad eliminado correctamente"}
 
 
 @router.get("/leveling", summary="Nivelacion de recursos -- detecta conflictos y sugiere redistribucion")

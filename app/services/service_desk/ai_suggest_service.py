@@ -131,7 +131,7 @@ def build_ai_ticket_suggestion(db: Session, ticket_id: str, payload: Optional[di
     ]
 
     try:
-        from app.api.v1.endpoints.ai_providers import call_ai
+        from app.services.ai_provider_service import call_ai
 
         draft = call_ai(
             db,

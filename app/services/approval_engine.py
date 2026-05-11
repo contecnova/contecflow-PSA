@@ -1150,7 +1150,7 @@ def _is_authorized(step, current_user: User, requested_by: str, db: Session) -> 
 
 def _record_sod_violation(req, current_user: User, db: Session) -> None:
     try:
-        from app.api.v1.endpoints.grc import record_sod_violation
+        from app.services.grc_sod import record_sod_violation
         from app.models.billing_reports import SodRule
         matching = db.query(SodRule).filter(
             SodRule.module_a == req.entity_type,

@@ -19,6 +19,7 @@ def get_all_pending(db: Session) -> list[ChangeRequest]:
             joinedload(ChangeRequest.project),
         )
         .filter(ChangeRequest.status.in_(["submitted", "under_review"]))
+        .filter(ChangeRequest.is_active == True)
         .order_by(ChangeRequest.created_at.desc())
         .all()
     )
@@ -36,6 +37,7 @@ def list_by_project(
             joinedload(ChangeRequest.approver_user),
         )
         .filter(ChangeRequest.project_id == project_id)
+        .filter(ChangeRequest.is_active == True)
     )
     if status:
         q = q.filter(ChangeRequest.status == status)
@@ -61,7 +63,7 @@ def create_change_request(
 
 
 def get_by_id(db: Session, cr_id: str, project_id: Optional[str] = None) -> Optional[ChangeRequest]:
-    q = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id)
+    q = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id, ChangeRequest.is_active == True)
     if project_id is not None:
         q = q.filter(ChangeRequest.project_id == project_id)
     return q.first()
@@ -106,5 +108,7 @@ def implement_change_request(db: Session, cr: ChangeRequest) -> ChangeRequest:
 
 
 def delete_change_request(db: Session, cr: ChangeRequest) -> None:
-    db.delete(cr)
+    if cr.status in [ChangeRequestStatus.approved, ChangeRequestStatus.implemented]:
+        raise ValueError("No se puede eliminar una CR aprobada o implementada")
+    cr.is_active = False
     db.commit()

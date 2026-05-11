@@ -4,6 +4,8 @@ Auth SSO Router — OAuth2 / OIDC single sign-on providers (Google, Azure AD, Ok
 from fastapi import APIRouter, Depends, HTTPException, Response, status, Body, Request, Query
 from sqlalchemy.orm import Session
 from typing import Optional
+
+from app.schemas.auth_payloads import SSOCallbackIn
 import logging
 import secrets
 import urllib.parse
@@ -141,7 +143,7 @@ def sso_callback(
     config_id: str,
     request: Request,
     response: Response,
-    payload: dict = Body(...),
+    payload: SSOCallbackIn = Body(...),
     db: Session = Depends(get_db),
 ):
     """
@@ -151,9 +153,9 @@ def sso_callback(
     try:
         config = _svc.get_sso_config_or_404(db, config_id)
 
-        code         = payload.get("code")
-        redirect_uri = payload.get("redirect_uri")
-        state_param  = payload.get("state")
+        code         = payload.code
+        redirect_uri = payload.redirect_uri
+        state_param  = payload.state
         if not code or not redirect_uri:
             raise HTTPException(400, "Faltan code o redirect_uri")
         _allowed = list(settings.ALLOWED_ORIGINS) + [settings.FRONTEND_URL]

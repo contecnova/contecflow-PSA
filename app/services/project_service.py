@@ -526,13 +526,15 @@ def cancel_project_record(db: Session, project_id: str) -> dict:
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(404, "Proyecto no encontrado")
+    if project.status == ProjectStatus.cancelled:
+        raise ValueError("El proyecto ya esta cancelado")
     project.status = ProjectStatus.cancelled
     db.commit()
     from app.core.events import emit, EventType
     emit(db, EventType.PROJECT_STATUS_CHANGED,
          {"name": project.name, "status": "cancelled", "project_id": project_id},
          resource_type="project", resource_id=project_id, project_id=project_id)
-    return {"message": "Proyecto cancelado"}
+    return {"ok": True, "message": "Proyecto cancelado correctamente"}
 
 
 def add_project_phase_record(db: Session, project_id: str, payload):
@@ -567,7 +569,7 @@ def list_members_payload(db: Session, project_id: str) -> list:
     members = (
         db.query(ProjectMember)
         .options(joinedload(ProjectMember.user))
-        .filter(ProjectMember.project_id == project_id)
+        .filter(ProjectMember.project_id == project_id, ProjectMember.is_active == True)
         .all()
     )
     result = []
@@ -595,8 +597,18 @@ def add_member_record(db: Session, project_id: str, data: dict):
         ProjectMember.project_id == project_id,
         ProjectMember.user_id == data["user_id"],
     ).first()
-    if existing:
+    if existing and existing.is_active:
         raise HTTPException(409, "El usuario ya es miembro del proyecto")
+    if existing and not existing.is_active:
+        existing.is_active = True
+        existing.role = data.get("role", existing.role or "developer")
+        existing.allocation_pct = data.get("allocation_pct", existing.allocation_pct or 100)
+        existing.start_date = data.get("start_date")
+        existing.end_date = data.get("end_date")
+        existing.notes = data.get("notes")
+        db.commit()
+        db.refresh(existing)
+        return existing
     m = ProjectMember(
         project_id=project_id,
         user_id=data["user_id"],
@@ -621,6 +633,7 @@ def get_member_or_404(db: Session, project_id: str, member_id: str):
     m = db.query(ProjectMember).filter(
         ProjectMember.id == member_id,
         ProjectMember.project_id == project_id,
+        ProjectMember.is_active == True,
     ).first()
     if not m:
         raise HTTPException(404, "Miembro no encontrado")
@@ -681,7 +694,7 @@ def remove_member_record(db: Session, m) -> None:
     """Delete a ProjectMember and commit."""
     project_id = m.project_id
     user_id = m.user_id
-    db.delete(m)
+    m.is_active = False
     db.commit()
     from app.core.events import emit, EventType
     emit(db, EventType.PROJECT_MEMBER_REMOVED,

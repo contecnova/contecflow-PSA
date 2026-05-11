@@ -8,6 +8,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.schemas.bookings import (
     BookingCreate,
@@ -95,6 +96,7 @@ def update_booking(booking_id: str, payload: BookingUpdate,
 @router.delete("/{booking_id}")
 def delete_booking(booking_id: str, db: Session = Depends(get_db),
                    current_user: User = Depends(require_any_manager)):
+    enforce_abac(db, current_user, "resource_booking", booking_id, action="delete")
     return svc.delete_booking_record(booking_id, db)
 
 
@@ -129,6 +131,7 @@ def add_holidays(schedule_id: str, payload: dict = Body(...),
 def delete_holiday(schedule_id: str, holiday_id: str,
                    db: Session = Depends(get_db),
                    current_user: User = Depends(require_admin)):
+    enforce_abac(db, current_user, "booking_sla_holiday", holiday_id, action="delete")
     return svc.delete_holiday_record(schedule_id, holiday_id, db)
 
 
@@ -150,6 +153,7 @@ def create_api_key(payload: ApiKeyCreate, db: Session = Depends(get_db),
 @router.delete("/api-keys/{key_id}")
 def revoke_api_key(key_id: str, db: Session = Depends(get_db),
                    current_user: User = Depends(get_current_user)):
+    enforce_abac(db, current_user, "booking_api_key", key_id, action="delete")
     return svc.revoke_api_key_record(key_id, current_user.id, db)
 
 

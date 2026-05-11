@@ -157,6 +157,7 @@ class ProjectMember(Base):
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id    = Column(String(36), ForeignKey("users.id",    ondelete="CASCADE"), nullable=False, index=True)
+    is_active  = Column(Boolean, default=True)
     role       = Column(Enum(ProjectMemberRole), default=ProjectMemberRole.developer)
     allocation_pct = Column(Integer, default=100)   # % de dedicación 1-100
     start_date = Column(Date, nullable=True)

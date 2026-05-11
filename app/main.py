@@ -310,8 +310,16 @@ async def lifespan(_app: FastAPI):
                 misfire_grace_time=900,
                 coalesce=True,
             )
+            _scheduler.add_job(
+                "app.services.perf_reminder_service:run_perf_reminders_job",
+                CronTrigger(hour=9, minute=0),
+                id="scheduled_perf_reminders",
+                replace_existing=True,
+                misfire_grace_time=900,
+                coalesce=True,
+            )
             _scheduler.start()
-            logger.info("   ✅ Scheduler activo (informes + rotación + motor de alertas)")
+            logger.info("   ✅ Scheduler activo (informes + rotación + alertas + recordatorios perf)")
             logger.info("✅ Modo scheduler: APScheduler")
         except Exception as e:
             logger.warning(f"   ⚠️  Scheduler no iniciado: {e}")

@@ -1,4 +1,5 @@
 """Tests de Automatizaciones — reglas, ejecución, plantillas."""
+from app.models.automations import AutomationRule
 from tests.conftest import auth
 
 
@@ -43,7 +44,17 @@ def test_delete_automation(client, admin_token, db):
         "actions": [{"type": "notify_assignee"}],
     }, headers=auth(admin_token)).json()
     res = client.delete(f"/api/v1/automations/{rule['id']}", headers=auth(admin_token))
-    assert res.status_code in (200, 204)
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["ok"] is True
+
+    listed = client.get("/api/v1/automations", headers=auth(admin_token))
+    assert listed.status_code == 200
+    assert all(r["id"] != rule["id"] for r in listed.json())
+
+    row = db.query(AutomationRule).filter(AutomationRule.id == rule["id"]).first()
+    assert row is not None
+    assert row.is_active is False
 
 
 def test_automation_templates(client, admin_token, db):

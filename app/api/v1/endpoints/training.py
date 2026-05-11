@@ -5,6 +5,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_hr, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User, UserRole
 from app.services import training_service
 from app.services.training_service import (
@@ -62,8 +63,9 @@ def delete_course(course_id: str, db: Session = Depends(get_db),
     c = training_service.get_course(db, course_id)
     if not c:
         raise HTTPException(404, "Curso no encontrado")
+    enforce_abac(db, cu, "training_course", course_id, action="delete")
     training_service.soft_delete_course(db, c)
-    return {"deleted": True}
+    return {"ok": True, "message": "Curso eliminado correctamente"}
 
 
 @router.get("/enrollments", summary="Listar inscripciones")
@@ -113,8 +115,9 @@ def delete_enrollment(enroll_id: str, db: Session = Depends(get_db),
     e = training_service.get_enrollment(db, enroll_id)
     if not e:
         raise HTTPException(404, "Inscripción no encontrada")
+    enforce_abac(db, cu, "training_enrollment", enroll_id, action="delete")
     training_service.delete_enrollment(db, e)
-    return {"deleted": True}
+    return {"ok": True, "message": "Inscripción eliminada correctamente"}
 
 
 @router.get("/certifications", summary="Certificaciones de usuarios")

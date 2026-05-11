@@ -1,5 +1,6 @@
 """Tests de Ausencias."""
 from tests.conftest import auth
+from app.models.resources import Absence, AbsenceStatus
 
 
 def test_list_absences(client, admin_token, db):
@@ -47,3 +48,15 @@ def test_delete_absence(client, dev_token, db):
     ).json()["id"]
     res = client.delete(f"/api/v1/absences/my/{abs_id}", headers=auth(dev_token))
     assert res.status_code == 200
+    payload = res.json()
+    assert payload.get("ok") is True
+
+    my_abs = client.get("/api/v1/absences/my", headers=auth(dev_token))
+    assert my_abs.status_code == 200
+    ids = [a["id"] for a in my_abs.json()]
+    assert abs_id not in ids
+
+    row = db.query(Absence).filter(Absence.id == abs_id).first()
+    assert row is not None
+    assert row.is_active is False
+    assert row.status == AbsenceStatus.cancelled

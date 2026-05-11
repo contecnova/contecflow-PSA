@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Query, Request
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
+import os
 from pydantic import BaseModel
 
 from app.core.config import settings
@@ -210,7 +211,7 @@ def manual_event_notify(
 # ── Inbound bot — Slack slash commands ────────────────────────────────────────
 @router.post("/slack/commands", summary="Receptor de slash commands desde Slack", include_in_schema=False)
 async def slack_inbound_command(
-    request,  # starlette Request injected via FastAPI
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """
@@ -229,6 +230,9 @@ async def slack_inbound_command(
     # ── Signature verification ────────────────────────────────────────────────
     signing_secret = settings.SLACK_SIGNING_SECRET
     body_bytes = await request.body()
+    if not signing_secret:
+        if os.getenv("TESTING") != "1":
+            raise HTTPException(503, "Slack inbound commands are not configured")
     if signing_secret:
         ts  = request.headers.get("X-Slack-Request-Timestamp", "")
         sig = request.headers.get("X-Slack-Signature", "")
@@ -316,6 +320,9 @@ async def teams_inbound_command(
 
     # ── Bearer token validation ───────────────────────────────────────────────
     bot_app_id = settings.TEAMS_BOT_APP_ID
+    if not bot_app_id:
+        if os.getenv("TESTING") != "1":
+            raise HTTPException(503, "Teams inbound commands are not configured")
     if bot_app_id:
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.startswith("Bearer "):

@@ -293,7 +293,11 @@ def get_imputations_by_day(db: Session, project_id: str) -> list:
 def get_billed_milestones(db: Session, project_id: str) -> list:
     return (
         db.query(ProjectMilestone)
-        .filter(ProjectMilestone.project_id == project_id, ProjectMilestone.is_billed == True)
+        .filter(
+            ProjectMilestone.project_id == project_id,
+            ProjectMilestone.is_active == True,
+            ProjectMilestone.is_billed == True,
+        )
         .all()
     )
 
@@ -308,6 +312,7 @@ def get_billed_milestones_total_by_project(db: Session, project_ids: list) -> di
         )
         .filter(
             ProjectMilestone.project_id.in_(project_ids),
+            ProjectMilestone.is_active == True,
             ProjectMilestone.is_billed == True,
         )
         .group_by(ProjectMilestone.project_id)
@@ -319,7 +324,7 @@ def get_billed_milestones_total_by_project(db: Session, project_ids: list) -> di
 def list_milestones(db: Session, project_id: str) -> list:
     return (
         db.query(ProjectMilestone)
-        .filter(ProjectMilestone.project_id == project_id)
+        .filter(ProjectMilestone.project_id == project_id, ProjectMilestone.is_active == True)
         .order_by(ProjectMilestone.sort_order)
         .all()
     )
@@ -328,7 +333,11 @@ def list_milestones(db: Session, project_id: str) -> list:
 def get_milestone(db: Session, milestone_id: str, project_id: str) -> Optional[ProjectMilestone]:
     return (
         db.query(ProjectMilestone)
-        .filter(ProjectMilestone.id == milestone_id, ProjectMilestone.project_id == project_id)
+        .filter(
+            ProjectMilestone.id == milestone_id,
+            ProjectMilestone.project_id == project_id,
+            ProjectMilestone.is_active == True,
+        )
         .first()
     )
 
@@ -350,7 +359,9 @@ def update_milestone(db: Session, m: ProjectMilestone, updates: dict) -> Project
 
 
 def delete_milestone(db: Session, m: ProjectMilestone) -> None:
-    db.delete(m)
+    if m.is_billed or m.invoice_id:
+        raise ValueError("No se puede eliminar un hito ya facturado")
+    m.is_active = False
     db.commit()
 
 

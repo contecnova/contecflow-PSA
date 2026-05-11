@@ -12,6 +12,7 @@ from app.schemas.enterprise import (
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.models.enterprise import WebhookEvent
 import app.services.enterprise_service as _svc
@@ -80,6 +81,7 @@ def revoke_project_permission(
     project_id: str, permission_id: str,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "project_permission", permission_id, action="delete")
     try:
         return _svc.revoke_project_permission(project_id, permission_id, current_user, db)
     except ValueError:
@@ -123,6 +125,7 @@ def update_webhook(
 def delete_webhook(
     hook_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin),
 ):
+    enforce_abac(db, current_user, "webhook", hook_id, action="delete")
     try:
         return _svc.delete_webhook(hook_id, current_user, db)
     except ValueError:
@@ -178,6 +181,7 @@ def update_sso(
 def delete_sso(
     config_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin),
 ):
+    enforce_abac(db, current_user, "sso_config", config_id, action="delete")
     try:
         return _svc.delete_sso_config(config_id, db)
     except ValueError:
@@ -223,6 +227,7 @@ def clear_old_notifications(
     days: int = Query(90, ge=30),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "notification", current_user.id, action="delete")
     return _svc.clear_old_notifications(current_user, days, db)
 
 
@@ -261,9 +266,14 @@ def update_subcontractor(
 def delete_subcontractor(
     sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "subcontractor", sub_id, action="delete")
     try:
         return _svc.delete_subcontractor(sub_id, db)
-    except ValueError:
+    except ValueError as e:
+        msg = str(e)
+        if "has_dependencies" in msg:
+            detail = msg.split("has_dependencies:", 1)[1] if ":" in msg else "Tiene dependencias"
+            raise HTTPException(400, f"No se puede eliminar: {detail}")
         raise HTTPException(404, "Subcontratista no encontrado")
 
 
@@ -283,10 +293,12 @@ def delete_rate(
     sub_id: str, rate_id: str,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "subcontractor_rate", rate_id, action="delete")
     try:
         return _svc.delete_subcontractor_rate(sub_id, rate_id, db)
-    except ValueError:
-        raise HTTPException(404)
+    except ValueError as e:
+        msg = str(e)
+        raise HTTPException(400 if "dependencies" in msg else 404, msg)
 
 
 @router.get("/subcontractors/{sub_id}/assignments", summary="Asignaciones del subcontratista")
@@ -350,10 +362,12 @@ def update_worker(
 def delete_worker(
     worker_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "subcontractor_worker", worker_id, action="delete")
     try:
         return _svc.delete_worker(worker_id, db)
-    except ValueError:
-        raise HTTPException(404)
+    except ValueError as e:
+        msg = str(e)
+        raise HTTPException(400 if "dependencies" in msg else 404, msg)
 
 
 @router.post("/subcontractors/workers/{worker_id}/skills", summary="Asignar skill al trabajador", status_code=201)
@@ -372,6 +386,7 @@ def remove_worker_skill(
     worker_id: str, skill_id: str,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "subcontractor_worker_skill", skill_id, action="delete")
     try:
         return _svc.remove_worker_skill(worker_id, skill_id, db)
     except ValueError:
@@ -402,6 +417,7 @@ def delete_timelog(
     sub_id: str, log_id: str,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "subcontractor_timelog", log_id, action="delete")
     try:
         return _svc.delete_timelog(sub_id, log_id, db)
     except ValueError as e:

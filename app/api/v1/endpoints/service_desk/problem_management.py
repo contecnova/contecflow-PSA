@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.schemas.service_desk import ProblemIn
 from app.services.service_desk import problem_management_service as svc
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
@@ -429,6 +430,7 @@ def delete_rca_template(
     current_user: User = Depends(get_current_user),
 ):
     """Soft-delete (deactivate) a non-system custom RCA template."""
+    enforce_abac(db, current_user, "sd_rca_template", template_id, action="delete")
     tpl = svc.get_rca_template(db, template_id=template_id)
     if not tpl:
         raise HTTPException(status_code=404, detail='RCA template not found')

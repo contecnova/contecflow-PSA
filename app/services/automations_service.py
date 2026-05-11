@@ -428,7 +428,9 @@ def list_rules_for_user(db: Session, current_user, project_id, is_active):
         q = q.filter(
             (AutomationRule.project_id == project_id) | (AutomationRule.is_global == True)  # noqa
         )
-    if is_active is not None:
+    if is_active is None:
+        q = q.filter(AutomationRule.is_active == True)
+    else:
         q = q.filter(AutomationRule.is_active == is_active)
     return [serialize_rule(r) for r in q.order_by(AutomationRule.created_at.desc()).all()]
 
@@ -454,7 +456,10 @@ def create_rule_db(payload, db: Session, current_user_id: str) -> dict:
 
 
 def update_rule_db(rule_id: str, payload, db: Session) -> dict:
-    rule = db.query(AutomationRule).filter(AutomationRule.id == rule_id).first()
+    rule = db.query(AutomationRule).filter(
+        AutomationRule.id == rule_id,
+        AutomationRule.is_active == True,
+    ).first()
     if not rule:
         raise HTTPException(404, "Regla no encontrada")
     data = payload.model_dump(exclude_unset=True)
@@ -472,15 +477,24 @@ def update_rule_db(rule_id: str, payload, db: Session) -> dict:
 
 
 def delete_rule_db(rule_id: str, db: Session) -> dict:
-    rule = db.query(AutomationRule).filter(AutomationRule.id == rule_id).first()
+    rule = db.query(AutomationRule).filter(
+        AutomationRule.id == rule_id,
+        AutomationRule.is_active == True,
+    ).first()
     if not rule:
         raise HTTPException(404)
-    db.delete(rule)
+    rule.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Regla eliminada correctamente"}
 
 
 def get_executions_db(rule_id: str, limit: int, db: Session) -> list:
+    rule = db.query(AutomationRule).filter(
+        AutomationRule.id == rule_id,
+        AutomationRule.is_active == True,
+    ).first()
+    if not rule:
+        raise HTTPException(404, "Regla no encontrada")
     executions = db.query(AutomationExecution).filter(
         AutomationExecution.rule_id == rule_id
     ).order_by(AutomationExecution.executed_at.desc()).limit(limit).all()
@@ -498,7 +512,10 @@ def get_executions_db(rule_id: str, limit: int, db: Session) -> list:
 
 
 def test_rule_by_id(rule_id: str, user_id: str, db: Session) -> dict:
-    rule = db.query(AutomationRule).filter(AutomationRule.id == rule_id).first()
+    rule = db.query(AutomationRule).filter(
+        AutomationRule.id == rule_id,
+        AutomationRule.is_active == True,
+    ).first()
     if not rule:
         raise HTTPException(404)
     return test_automation_rule(rule, user_id, db)

@@ -21,8 +21,8 @@ def test_login_admin(client, db):
     res = client.post("/api/v1/auth/login", json={"username": "admin", "password": TEST_PASSWORD})
     assert res.status_code == 200
     data = res.json()
-    assert "access_token" in data
-    assert "refresh_token" in data
+    assert data.get("access_token") in (None, "")
+    assert data.get("refresh_token") in (None, "")
     assert data["user"]["role"] == "admin"
     assert res.cookies.get("access_token")
     assert res.cookies.get("refresh_token")
@@ -92,10 +92,11 @@ def test_get_me_invalid_token(client, db):
 
 def test_refresh_token(client, db):
     login = client.post("/api/v1/auth/login", json={"username": "admin", "password": TEST_PASSWORD})
-    refresh = login.json()["refresh_token"]
+    refresh = login.cookies.get("refresh_token")
+    assert refresh
     res = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh})
     assert res.status_code == 200
-    assert "access_token" in res.json()
+    assert res.json().get("access_token") in (None, "")
 
 
 def test_refresh_token_works_with_cookie_only(client, db):
@@ -105,7 +106,7 @@ def test_refresh_token_works_with_cookie_only(client, db):
 
     res = client.post("/api/v1/auth/refresh")
     assert res.status_code == 200
-    assert "access_token" in res.json()
+    assert res.json().get("access_token") in (None, "")
     assert res.cookies.get("refresh_token")
 
 
@@ -266,7 +267,8 @@ def test_active_sessions_panel_and_revoke_device(client, admin_token, db):
 def test_refresh_rotates_same_session_row(client, db):
     login = client.post("/api/v1/auth/login", json={"username": "admin", "password": TEST_PASSWORD})
     assert login.status_code == 200
-    old_refresh = login.json()["refresh_token"]
+    old_refresh = login.cookies.get("refresh_token")
+    assert old_refresh
 
     before = db.query(UserSession).count()
     refresh = client.post("/api/v1/auth/refresh", json={"refresh_token": old_refresh})

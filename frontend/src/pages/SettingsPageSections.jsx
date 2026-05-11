@@ -4,12 +4,10 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, advancedConfigApi } from '../services/settingsApi'
 import { usersApi, biSmartAlertsApi, esignApi } from '../services/api'
-import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
-import { Settings } from 'lucide-react'
+import { Button, Modal, Spinner, EmptyState } from '../components/ui'
+import { Search, Layers, Sparkles, Building2 } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { extractErr } from '../utils/helpers'
-import { useAuth } from '../context/AuthContext'
 import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSection } from './settings-sections/SettingsAdvancedSections'
 
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
@@ -19,13 +17,19 @@ const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)'
 
 function Section({ icon, title, description, children }) {
   return (
-    <Card style={{ marginBottom: 24 }}>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: "var(--text-lg)", fontWeight: 700 }}>{icon} {title}</div>
-        {description && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginTop: 4 }}>{description}</div>}
+    <div className="ds-card" style={{ marginBottom: 'var(--space-6)' }}>
+      <div className="ds-stack-sm" style={{ marginBottom: 'var(--space-3)' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+          fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-1)',
+        }}>
+          {icon && <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--accent)' }}>{icon}</span>}
+          <span>{title}</span>
+        </div>
+        {description && <div className="ds-muted">{description}</div>}
       </div>
       {children}
-    </Card>
+    </div>
   )
 }
 
@@ -128,10 +132,20 @@ function UsersSection() {
   const { mutate: deletePermanent } = useMutation({ mutationFn: usersApi.deletePermanent, onSuccess: () => { qc.invalidateQueries(['users']); qc.invalidateQueries(['users-settings']); qc.invalidateQueries(['resources']); } , onError: e => toast.error(extractErr(e, 'Error'))})
   const filtered = users.filter(u => !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.username?.toLowerCase().includes(search.toLowerCase()))
   return (
-    <Section icon="👤" title="Usuarios" description="Gestiona accesos y datos del equipo">
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar usuario por nombre o alias" aria-label="Buscar usuario por nombre o alias" style={{ ...fs, flex: 1 }} />
-        <Button onClick={() => setShowCreate(true)} icon="＋">Nuevo usuario</Button>
+    <Section title="Usuarios" description="Gestiona accesos y datos del equipo">
+      <div className="ds-toolbar" style={{ marginBottom: 'var(--space-4)' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+          <Search size={14} aria-hidden style={{
+            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--text-3)', pointerEvents: 'none',
+          }} />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar usuario por nombre o alias"
+            aria-label="Buscar usuario por nombre o alias"
+            className="ds-input"
+            style={{ paddingLeft: 32 }} />
+        </div>
+        <Button onClick={() => setShowCreate(true)}>+ Nuevo usuario</Button>
       </div>
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -763,7 +777,7 @@ function CustomFieldsSection() {
               </div>
             </div>
           ))}
-          {fields.length === 0 && <EmptyState icon="🧩" title={t('settings.empty_custom_fields_title')} description={t('settings.empty_custom_fields_desc')} />}
+          {fields.length === 0 && <EmptyState svgIcon={<Layers size={36} />} title={t('settings.empty_custom_fields_title')} description={t('settings.empty_custom_fields_desc')} />}
         </div>
       )}
       <div style={{ padding: '14px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
@@ -802,7 +816,7 @@ function TemplatesSection() {
   return (
     <Section icon="📐" title="Plantillas" description="Define plantillas de proyecto y fases">
       {isLoading ? <Spinner /> : templates.length === 0 ? (
-        <EmptyState icon="📐" title={t('settings.empty_templates_title')} description={t('settings.empty_templates_desc')} />
+        <EmptyState svgIcon={<Sparkles size={36} />} title={t('settings.empty_templates_title')} description={t('settings.empty_templates_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 16 }}>
           {templates.map(t => (
@@ -1083,7 +1097,7 @@ function OfficesSection() {
             )}
           </div>
         ))}
-        {offices.length === 0 && <EmptyState icon="🏢" title="Sin sedes registradas" description="Anade la primera sede para tu organizacion" />}
+        {offices.length === 0 && <EmptyState svgIcon={<Building2 size={36} />} title="Sin sedes registradas" description="Añade la primera sede para tu organización" />}
       </div>
       <div style={{ display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div style={{ flex: 2 }}><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre de la sede" aria-label="Nombre de la sede" /></div>

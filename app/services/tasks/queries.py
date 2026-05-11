@@ -24,17 +24,29 @@ if TYPE_CHECKING:
 
 
 def task_query_for_user(db: Session, current_user):
-    """Return a Task query scoped to the current user's organization."""
+    """Return a Task query scoped to the current user's organization.
+
+    Superadmin bypass: ver project_for_user para la justificación.
+    """
     q = db.query(Task).join(Project, Task.project_id == Project.id)
-    if current_user.organization_id:
+    is_super = bool(getattr(current_user, "is_superadmin", False))
+    if not is_super and current_user.organization_id:
         q = q.filter(Project.organization_id == current_user.organization_id)
     return q
 
 
 def project_for_user(db: Session, project_id: str, current_user) -> Optional[Project]:
-    """Return a Project scoped to the current user's organization or None."""
+    """Return a Project scoped to the current user's organization or None.
+
+    Superadmin bypass: si el user es superadmin se omite el filtro de
+    organización (mismo patrón que pipeline_service, approval_engine,
+    ai_provider_service). Antes este query devolvía None para un superadmin
+    de la org "default" intentando acceder a proyectos de otra tenancy,
+    rompiendo la vista de kanban con 404 "Proyecto no encontrado".
+    """
     q = db.query(Project).filter(Project.id == project_id)
-    if current_user.organization_id:
+    is_super = bool(getattr(current_user, "is_superadmin", False))
+    if not is_super and current_user.organization_id:
         q = q.filter(Project.organization_id == current_user.organization_id)
     return q.first()
 

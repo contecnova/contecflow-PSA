@@ -39,6 +39,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services import revenue_service as svc
 
 router = APIRouter(tags=["Revenue Recognition"])
@@ -93,6 +94,7 @@ def delete_contract(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "revenue_contract", contract_id, action="delete")
     svc.delete_contract(db, contract_id)
     return {"ok": True}
 
@@ -137,6 +139,7 @@ def delete_obligation(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "revenue_obligation", obligation_id, action="delete")
     svc.delete_obligation(db, obligation_id)
     return {"ok": True}
 
@@ -199,6 +202,7 @@ def reopen_period(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "revenue_period_close", f"{year}-{month}", action="delete")
     svc.reopen_period(db, current_user.organization_id, year, month)
     return {"ok": True}
 

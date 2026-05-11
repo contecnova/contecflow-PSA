@@ -6,6 +6,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.models.service_desk import Ticket, AgentGroupMember
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.services.sla_service import ticket_out as _ticket_out
@@ -263,6 +264,7 @@ def link_tickets(ticket_id: str, payload: dict = Body(...), db: Session = Depend
 
 @router.delete("/tickets/{ticket_id}/links/{link_id}", summary="Eliminar vínculo")
 def delete_ticket_link(ticket_id: str, link_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    enforce_abac(db, current_user, "sd_ticket_link", link_id, action="delete")
     delete_ticket_link_svc(db, link_id)
     _commit_or_rollback(db)
     return {"ok": True}
@@ -301,6 +303,7 @@ def watch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: Us
 
 @router.delete("/tickets/{ticket_id}/watch", summary="Dejar de seguir ticket")
 def unwatch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    enforce_abac(db, current_user, "sd_ticket", ticket_id, action="delete")
     result = unwatch_ticket_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
     return result

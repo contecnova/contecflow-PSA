@@ -99,6 +99,7 @@ class Absence(Base):
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     type = Column(Enum(AbsenceType), nullable=False)
     status = Column(Enum(AbsenceStatus), default=AbsenceStatus.pending, nullable=False, index=True)
+    is_active = Column(Boolean, default=True)
 
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
@@ -155,6 +156,7 @@ class ChangeRequest(Base):
     scope_impact = Column(Text, nullable=True)        # Description of scope change
 
     status = Column(Enum(ChangeRequestStatus), default=ChangeRequestStatus.draft, nullable=False, index=True)
+    is_active = Column(Boolean, default=True)
 
     # People
     requested_by = Column(String(36), ForeignKey("users.id"), nullable=True)

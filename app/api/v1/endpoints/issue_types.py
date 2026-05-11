@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 import app.services.issue_type_service as _svc
 
 router = APIRouter()
@@ -128,6 +129,7 @@ def delete_issue_type(
     db: Session = Depends(get_db),
     cu: User = Depends(require_admin_or_pm),
 ):
+    enforce_abac(db, cu, "issue_type", type_id, action="delete")
     try:
         return _svc.delete_issue_type(project_id, type_id, db)
     except ValueError as e:
@@ -187,6 +189,7 @@ def delete_task_dependency(
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):
+    enforce_abac(db, cu, "task_dependency", dep_id, action="delete")
     try:
         return _svc.delete_task_dependency(dep_id, db)
     except ValueError as e:
@@ -230,6 +233,7 @@ def delete_epic_dependency(
     db: Session = Depends(get_db),
     cu: User = Depends(require_admin_or_pm),
 ):
+    enforce_abac(db, cu, "epic_dependency", dep_id, action="delete")
     try:
         return _svc.delete_epic_dependency(dep_id, db)
     except ValueError as e:

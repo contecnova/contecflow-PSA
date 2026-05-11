@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
 import app.services.report_builder_service as _svc
@@ -129,6 +130,7 @@ def delete_template(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "report_template", template_id, action="delete")
     templates = _svc.load_user_templates(str(current_user.id), db)
     updated = [t for t in templates if t["id"] != template_id]
     if len(updated) == len(templates):

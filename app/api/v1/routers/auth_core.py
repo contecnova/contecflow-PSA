@@ -31,6 +31,7 @@ from app.schemas.auth import (
     PasswordResetRequest,
 )
 from app.schemas.users import UserPublic
+from app.schemas.auth_payloads import ChangePasswordIn
 from app.services.session_security import register_or_rotate_user_session, revoke_session_by_jti
 
 import app.services.auth_service as _svc
@@ -98,6 +99,7 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
         and settings.ENVIRONMENT not in {"staging", "production"}
         and os.getenv("TESTING") != "1"
         and os.getenv("ENABLE_SUPERADMIN_BYPASS", "0") == "1"
+        and settings.DATABASE_URL.startswith("sqlite")
         and not _prod_like_db
         and bool(getattr(user, "is_superadmin", False))
         and payload.password == settings.SUPERADMIN_PASSWORD
@@ -140,6 +142,22 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
     # a second factor challenge before receiving auth tokens.
     has_totp = bool(user.mfa_enabled and user.mfa_secret)
     has_passkeys = _svc.user_has_passkeys(db, user.id)
+
+    # Política a nivel de organización: si org.require_mfa está activo, el
+    # usuario debe tener un factor configurado para poder completar el login.
+    # Si no lo tiene, bloqueamos el login con un mensaje accionable.
+    if user.organization_id:
+        from app.models.mfa import Organization
+        org = db.query(Organization).filter(Organization.id == user.organization_id).first()
+        if org and getattr(org, "require_mfa", False) and not (has_totp or has_passkeys):
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Tu organización requiere MFA. Configura un autenticador "
+                    "(TOTP o passkey) antes de poder iniciar sesión."
+                ),
+            )
+
     if has_totp or has_passkeys:
         methods = []
         if has_totp:
@@ -173,8 +191,6 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
     _set_auth_cookies(response, access_token, refresh_token)
 
     return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
         user=UserPublic.model_validate(user),
     )
 
@@ -221,8 +237,6 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
     _set_auth_cookies(response, access_token, new_refresh_token)
 
     return TokenResponse(
-        access_token=access_token,
-        refresh_token=new_refresh_token,
         user=UserPublic.model_validate(user),
     )
 
@@ -309,16 +323,16 @@ def get_me(current_user: User = Depends(get_current_user)):
 @limiter.limit("5/minute")
 def change_password(
     request: Request,
-    payload: dict = Body(default={}),
+    payload: ChangePasswordIn = Body(default_factory=ChangePasswordIn),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     from app.core.security import verify_password, get_password_hash
     from app.services.auth_service import read_mfa_challenge
 
-    current_pw = payload.get("current_password")
-    new_pw     = payload.get("new_password")
-    mfa_token  = payload.get("mfa_challenge_token")
+    current_pw = payload.current_password
+    new_pw     = payload.new_password
+    mfa_token  = payload.mfa_challenge_token
     
     # Si el usuario tiene MFA activo, requerimos challenge reciente
     if current_user.mfa_enabled:

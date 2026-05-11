@@ -4,6 +4,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User, UserRole
 from app.services import risk_service
 from app.services.risk_scoring import risk_level, risk_score
@@ -106,7 +107,8 @@ def delete_risk(
     risk = risk_service.get_risk(db, risk_id, project_id)
     if not risk:
         raise HTTPException(404, "Riesgo no encontrado")
+    enforce_abac(db, current_user, "risk", risk_id, action="delete")
     risk_service.delete_risk(db, risk)
-    return {"ok": True}
+    return {"ok": True, "message": "Riesgo eliminado correctamente"}
 _risk_level = risk_level
 _risk_score = risk_score

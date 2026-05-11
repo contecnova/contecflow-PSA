@@ -173,7 +173,7 @@ def generate_proposal(
     Render the proposal for an opportunity and persist it.
     If template_id is None, uses DEFAULT_TEMPLATE_CONTENT.
     """
-    opp = db.query(Opportunity).filter(Opportunity.id == opp_id).first()
+    opp = db.query(Opportunity).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
     if not opp:
         raise HTTPException(404, "Oportunidad no encontrada")
 
@@ -197,7 +197,7 @@ def generate_proposal(
 
 
 def mark_proposal_sent(db: Session, opp_id: str) -> Opportunity:
-    opp = db.query(Opportunity).filter(Opportunity.id == opp_id).first()
+    opp = db.query(Opportunity).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
     if not opp:
         raise HTTPException(404, "Oportunidad no encontrada")
     if not opp.proposal_content:
@@ -223,7 +223,7 @@ def serialize_template(t: ProposalTemplate) -> dict:
 
 def get_opportunity_by_id(db: Session, opp_id: str) -> Opportunity:
     """Fetch an Opportunity by id, raising 404 if not found."""
-    opp = db.query(Opportunity).filter(Opportunity.id == opp_id).first()
+    opp = db.query(Opportunity).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
     if not opp:
         raise HTTPException(404, "Oportunidad no encontrada")
     return opp

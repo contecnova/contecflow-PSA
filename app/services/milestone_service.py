@@ -36,7 +36,7 @@ from fastapi import HTTPException
 def list_milestones_by_project(db: Session, project_id: str):
     return (
         db.query(ProjectMilestone)
-        .filter(ProjectMilestone.project_id == project_id)
+        .filter(ProjectMilestone.project_id == project_id, ProjectMilestone.is_active == True)
         .order_by(ProjectMilestone.sort_order, ProjectMilestone.due_date)
         .all()
     )
@@ -56,7 +56,10 @@ def create_milestone(db: Session, project_id: str, **kwargs):
 
 
 def get_milestone_by_id(db: Session, milestone_id: str):
-    return db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
+    return db.query(ProjectMilestone).filter(
+        ProjectMilestone.id == milestone_id,
+        ProjectMilestone.is_active == True,
+    ).first()
 
 
 def update_milestone_fields(db: Session, m, fields: dict):
@@ -67,14 +70,17 @@ def update_milestone_fields(db: Session, m, fields: dict):
 
 
 def delete_milestone(db: Session, m) -> None:
-    db.delete(m)
+    m.is_active = False
     db.commit()
 
 
 def get_pending_milestones_dashboard(db: Session):
     ms = (
         db.query(ProjectMilestone)
-        .filter(ProjectMilestone.billing_status.in_(["completed", "pending_approval", "approved"]))
+        .filter(
+            ProjectMilestone.is_active == True,
+            ProjectMilestone.billing_status.in_(["completed", "pending_approval", "approved"]),
+        )
         .order_by(ProjectMilestone.due_date)
         .all()
     )
@@ -109,7 +115,10 @@ def compute_billing_amount(milestone, db: Session) -> Optional[float]:
 
 def complete_milestone(milestone_id: str, current_user: User, db: Session):
 
-    m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
+    m = db.query(ProjectMilestone).filter(
+        ProjectMilestone.id == milestone_id,
+        ProjectMilestone.is_active == True,
+    ).first()
     if not m:
         raise HTTPException(404)
     if m.billing_status not in ("pending", "rejected"):
@@ -133,7 +142,10 @@ def complete_milestone(milestone_id: str, current_user: User, db: Session):
 
 def uncomplete_milestone(milestone_id: str, current_user: User, db: Session):
 
-    m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
+    m = db.query(ProjectMilestone).filter(
+        ProjectMilestone.id == milestone_id,
+        ProjectMilestone.is_active == True,
+    ).first()
     if not m:
         raise HTTPException(404)
     if m.billing_status in ("approved", "invoiced"):
@@ -156,7 +168,10 @@ def request_milestone_approval(
     db: Session,
 ):
 
-    m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
+    m = db.query(ProjectMilestone).filter(
+        ProjectMilestone.id == milestone_id,
+        ProjectMilestone.is_active == True,
+    ).first()
     if not m:
         raise HTTPException(404)
     if m.billing_status != "completed":
@@ -184,7 +199,10 @@ def decide_milestone_approval(
     db: Session,
 ):
 
-    m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
+    m = db.query(ProjectMilestone).filter(
+        ProjectMilestone.id == milestone_id,
+        ProjectMilestone.is_active == True,
+    ).first()
     if not m:
         raise HTTPException(404)
     if m.billing_status != "pending_approval":
@@ -216,7 +234,10 @@ def decide_milestone_approval(
 
 def generate_milestone_invoice(milestone_id: str, current_user: User, db: Session) -> dict:
 
-    m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
+    m = db.query(ProjectMilestone).filter(
+        ProjectMilestone.id == milestone_id,
+        ProjectMilestone.is_active == True,
+    ).first()
     if not m:
         raise HTTPException(404)
     if m.billing_status != "approved":

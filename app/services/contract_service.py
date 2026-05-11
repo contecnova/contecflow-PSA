@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 
 from app.models.pipeline import Contract, WorkOrder
+from app.models.clients import ClientContractLink
 from app.models.project import Project
 from app.models.user import User
 from app.services.numbering import next_numbered_code
@@ -13,7 +14,7 @@ def query_contracts(
     client_id: Optional[str] = None,
     status: Optional[str] = None,
 ):
-    q = db.query(Contract).options(joinedload(Contract.work_orders))
+    q = db.query(Contract).options(joinedload(Contract.work_orders)).filter(Contract.is_active == True)
     q = scope_contract_query(q, db, current_user)
     if project_id:
         q = q.filter(Contract.project_id == project_id)
@@ -51,7 +52,7 @@ def list_contracts(
     client_id: Optional[str] = None,
     status: Optional[str] = None,
 ):
-    q = db.query(Contract).options(joinedload(Contract.work_orders))
+    q = db.query(Contract).options(joinedload(Contract.work_orders)).filter(Contract.is_active == True)
     q = scope_contract_query(q, db, current_user)
     if project_id:
         q = q.filter(Contract.project_id == project_id)
@@ -83,7 +84,7 @@ def create_contract(db: Session, current_user_id: str, **kwargs) -> Contract:
 def get_contract(db: Session, contract_id: str, current_user: User) -> Optional[Contract]:
     return (
         scope_contract_query(db.query(Contract), db, current_user)
-        .filter(Contract.id == contract_id)
+        .filter(Contract.id == contract_id, Contract.is_active == True)
         .first()
     )
 
@@ -118,7 +119,18 @@ def update_contract(db: Session, c: Contract, updates: dict) -> Contract:
 
 
 def delete_contract(db: Session, c: Contract) -> None:
-    db.delete(c)
+    active_work_orders = db.query(WorkOrder).filter(WorkOrder.contract_id == c.id).count()
+    if active_work_orders > 0:
+        raise ValueError(f"No se puede eliminar: {active_work_orders} orden(es) de trabajo vinculadas")
+
+    linked_clients = db.query(ClientContractLink).filter(
+        ClientContractLink.contract_id == c.id,
+        ClientContractLink.is_active == True,
+    ).count()
+    if linked_clients > 0:
+        raise ValueError(f"No se puede eliminar: {linked_clients} vinculo(s) de cliente activos")
+
+    c.is_active = False
     db.commit()
 
 

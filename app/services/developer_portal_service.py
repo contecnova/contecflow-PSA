@@ -14,15 +14,24 @@ from app.models.user import User
 # ── App queries ─────────────────────────────────────────────────────────────────
 
 def list_apps_for_user(db: Session, user_id: str) -> list[OAuthApp]:
-    return db.query(OAuthApp).filter(OAuthApp.owner_id == user_id).all()
+    return db.query(OAuthApp).filter(
+        OAuthApp.owner_id == user_id,
+        OAuthApp.is_active == True,
+    ).all()
 
 
 def count_apps_for_user(db: Session, user_id: str) -> int:
-    return db.query(sa_func.count(OAuthApp.id)).filter(OAuthApp.owner_id == user_id).scalar() or 0
+    return db.query(sa_func.count(OAuthApp.id)).filter(
+        OAuthApp.owner_id == user_id,
+        OAuthApp.is_active == True,
+    ).scalar() or 0
 
 
 def get_app_by_id(db: Session, app_id: str) -> OAuthApp | None:
-    return db.query(OAuthApp).filter(OAuthApp.id == app_id).first()
+    return db.query(OAuthApp).filter(
+        OAuthApp.id == app_id,
+        OAuthApp.is_active == True,
+    ).first()
 
 
 def get_app_by_client_id(db: Session, client_id: str) -> OAuthApp | None:
@@ -74,7 +83,7 @@ def update_app(db: Session, app: OAuthApp, updates: dict) -> OAuthApp:
 
 
 def delete_app(db: Session, app: OAuthApp) -> None:
-    db.delete(app)
+    app.is_active = False
     db.commit()
 
 

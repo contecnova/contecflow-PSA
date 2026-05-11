@@ -220,8 +220,9 @@ def get_movement_log(
 def delete_task(
     task_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(require_admin_or_pm),
 ):
+    enforce_abac(db, current_user, "task", task_id, action="delete")
     return cancel_task_record(db, task_id)
 
 
@@ -320,5 +321,6 @@ def delete_dependency(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "task_dependency", dep_id, action="delete")
     return svc_delete_task_dependency(db, dep_id)
 

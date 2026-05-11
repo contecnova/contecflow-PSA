@@ -2,6 +2,7 @@
 from tests.conftest import auth
 
 from app.models.advanced_config import NumberingSequence
+from app.models.expenses import Expense
 
 
 def _get_project_id(client, token):
@@ -83,3 +84,11 @@ def test_delete_expense(client, admin_token, db):
     ).json()["id"]
     res = client.delete(f"/api/v1/expenses/my/{exp_id}", headers=auth(admin_token))
     assert res.status_code == 200
+    assert res.json()["ok"] is True
+
+    mine = client.get("/api/v1/expenses/my", headers=auth(admin_token))
+    assert mine.status_code == 200
+    assert all(e["id"] != exp_id for e in mine.json())
+
+    row = db.query(Expense).filter(Expense.id == exp_id).first()
+    assert row is None

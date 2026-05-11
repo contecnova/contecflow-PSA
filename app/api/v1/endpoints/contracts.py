@@ -5,6 +5,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import require_admin, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.services import contract_service
 from app.services.contract_service import serialize_contract as _contract_out
@@ -75,8 +76,12 @@ def delete_contract(
     c = contract_service.get_contract(db, contract_id, current_user)
     if not c:
         raise HTTPException(404, "Contrato no encontrado")
-    contract_service.delete_contract(db, c)
-    return {"ok": True}
+    enforce_abac(db, current_user, "contract", contract_id, action="delete")
+    try:
+        contract_service.delete_contract(db, c)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "message": "Contrato eliminado correctamente"}
 
 
 @router.post("/{contract_id}/work-orders", summary="Crear orden de trabajo")

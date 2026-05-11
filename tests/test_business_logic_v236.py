@@ -538,9 +538,22 @@ class TestResourceSchedulerBookings:
         assert r.status_code == 400
 
     def test_delete_booking(self, client, pm_token, db):
+        from app.models.bookings import ResourceBooking
+
         b = self._make_booking(client, pm_token, pm_token)
         r = client.delete(f"/api/v1/bookings/{b['id']}", headers=auth(pm_token))
         assert r.status_code == 200
+        payload = r.json()
+        assert payload.get("ok") is True
+
+        listed = client.get("/api/v1/bookings", headers=auth(pm_token))
+        assert listed.status_code == 200
+        ids = [item["id"] for item in listed.json()]
+        assert b["id"] not in ids
+
+        row = db.query(ResourceBooking).filter(ResourceBooking.id == b["id"]).first()
+        assert row is not None
+        assert row.is_active is False
 
     def test_employee_cannot_patch_booking(self, client, dev_token, pm_token, db):
         b = self._make_booking(client, pm_token, pm_token)

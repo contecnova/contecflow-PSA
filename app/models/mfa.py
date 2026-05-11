@@ -44,6 +44,10 @@ class Organization(Base):
     locale       = Column(String(10), default=settings.DEFAULT_LANGUAGE)
     admin_email  = Column(String(255), nullable=True)
     imputation_lockout_days = Column(Integer, default=settings.DEFAULT_IMPUTATION_LOCKOUT_DAYS)  # Days before imputations are locked
+    # Política de seguridad: si está activa, todos los usuarios de esta
+    # organización deben tener MFA habilitada para poder completar el login.
+    # Aplicado en auth_core.py durante el flujo de password+MFA.
+    require_mfa  = Column(Boolean, default=False, nullable=False, server_default="0")
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     updated_at   = Column(DateTime(timezone=True), onupdate=func.now())
 

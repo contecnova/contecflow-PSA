@@ -83,6 +83,7 @@ class Opportunity(Base):
     # Notes
     notes = Column(Text, nullable=True)
     lost_reason = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -139,6 +140,7 @@ class Contract(Base):
     # Contract terms
     contract_type = Column(Enum(ContractType), nullable=False)
     status = Column(Enum(ContractStatus), default=ContractStatus.draft, nullable=False, index=True)
+    is_active = Column(Boolean, default=True)
     total_amount = Column(Float, nullable=True)          # € total
     hourly_rate = Column(Float, nullable=True)           # For T&M
     hours_bag = Column(Float, nullable=True)             # For hourly bag
@@ -230,6 +232,7 @@ class Risk(Base):
     risk_score = Column(Float, nullable=True)  # probability_num × impact_num
 
     status = Column(Enum(RiskStatus), default=RiskStatus.identified, nullable=False, index=True)
+    is_active = Column(Boolean, default=True)
 
     # Response
     mitigation_plan = Column(Text, nullable=True)

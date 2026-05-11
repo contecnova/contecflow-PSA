@@ -52,6 +52,7 @@ class CapacityPlan(Base):
 
     week_start = Column(Date, nullable=False, index=True)
     planned_hours = Column(Float, nullable=False, default=0)
+    is_active = Column(Boolean, default=True)
     notes = Column(String(255), nullable=True)
 
     created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
@@ -73,6 +74,7 @@ class ProjectMilestone(Base):
 
     name        = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
+    is_active   = Column(Boolean, default=True)
     due_date    = Column(Date, nullable=True)
     sort_order  = Column(Integer, default=0)
 

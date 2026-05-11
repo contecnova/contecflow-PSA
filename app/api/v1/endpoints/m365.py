@@ -21,6 +21,7 @@ NOTE: Real Graph API calls require AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_T
 
 from datetime import datetime, timedelta
 from typing import Optional
+import logging
 import httpx
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -30,9 +31,11 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services import m365_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 GRAPH_BASE = m365_service.GRAPH_BASE
 
@@ -94,7 +97,8 @@ async def sync_calendar_events(
         events = data.get("value", [])
         return {"pulled": len(events), "events": events}
     except httpx.HTTPStatusError as e:
-        raise HTTPException(e.response.status_code, f"Graph API error: {e.response.text}")
+        logger.warning("Graph API sync failed: status=%s", e.response.status_code)
+        raise HTTPException(e.response.status_code, "Graph API request failed")
 
 
 @router.post("/calendar/events")
@@ -119,20 +123,24 @@ async def create_calendar_event(
         result = await _graph_post(f"/users/{body.user_upn}/events", payload)
         return {"id": result.get("id"), "webLink": result.get("webLink"), "subject": result.get("subject")}
     except httpx.HTTPStatusError as e:
-        raise HTTPException(e.response.status_code, f"Graph API error: {e.response.text}")
+        logger.warning("Graph API create event failed: status=%s", e.response.status_code)
+        raise HTTPException(e.response.status_code, "Graph API request failed")
 
 
 @router.delete("/calendar/events/{event_id}")
 async def delete_calendar_event(
     event_id: str,
     user_upn: str,
-    _: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "m365_calendar_event", event_id, action="delete")
     _require_m365()
     try:
         await _graph_delete(f"/users/{user_upn}/events/{event_id}")
     except httpx.HTTPStatusError as e:
-        raise HTTPException(e.response.status_code, f"Graph API error: {e.response.text}")
+        logger.warning("Graph API delete event failed: status=%s", e.response.status_code)
+        raise HTTPException(e.response.status_code, "Graph API request failed")
     return {"ok": True}
 
 
@@ -198,7 +206,8 @@ async def send_teams_notification(
         resp = await client.post(webhook_url, json=card)
 
     if resp.status_code not in (200, 202):
-        raise HTTPException(502, f"Teams webhook error: {resp.text}")
+        logger.warning("Teams webhook notify failed: status=%s", resp.status_code)
+        raise HTTPException(502, "Teams webhook delivery failed")
     return {"ok": True, "status": resp.status_code}
 
 
@@ -229,7 +238,8 @@ async def notify_project_milestone(
         resp = await client.post(webhook_url, json=card)
 
     if resp.status_code not in (200, 202):
-        raise HTTPException(502, f"Teams webhook error: {resp.text}")
+        logger.warning("Teams milestone webhook notify failed: status=%s", resp.status_code)
+        raise HTTPException(502, "Teams webhook delivery failed")
     return {"ok": True}
 
 

@@ -31,7 +31,7 @@ def _date_valid(valid_from, valid_to, today: str) -> bool:
 # ── RateTable ──────────────────────────────────────────────────────────────────
 
 def list_rate_tables(db: Session, org_id, is_superadmin: bool):
-    q = db.query(RateTable)
+    q = db.query(RateTable).filter(RateTable.is_active == True)
     q = _org_filter(q, RateTable, org_id, is_superadmin)
     return q.order_by(RateTable.is_default.desc(), RateTable.name).all()
 
@@ -49,7 +49,10 @@ def create_rate_table(db: Session, payload_dict: dict, org_id, is_superadmin: bo
 
 
 def get_rate_table_or_404(db: Session, table_id: str, org_id, is_superadmin: bool):
-    q = db.query(RateTable).filter(RateTable.id == table_id)
+    q = db.query(RateTable).filter(
+        RateTable.id == table_id,
+        RateTable.is_active == True,
+    )
     q = _org_filter(q, RateTable, org_id, is_superadmin)
     t = q.first()
     if not t:
@@ -73,7 +76,7 @@ def update_rate_table(db: Session, table_id: str, payload: dict, org_id, is_supe
 
 def delete_rate_table(db: Session, table_id: str, org_id, is_superadmin: bool):
     t = get_rate_table_or_404(db, table_id, org_id, is_superadmin)
-    db.delete(t)
+    t.is_active = False
     db.commit()
 
 
@@ -135,7 +138,9 @@ def update_entry(
 ):
     get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     e = db.query(RateEntry).filter(
-        RateEntry.id == entry_id, RateEntry.table_id == table_id
+        RateEntry.id == entry_id,
+        RateEntry.table_id == table_id,
+        RateEntry.is_active == True,
     ).first()
     if not e:
         raise HTTPException(404)
@@ -150,11 +155,13 @@ def update_entry(
 def delete_entry(db: Session, table_id: str, entry_id: str, org_id, is_superadmin: bool):
     get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     e = db.query(RateEntry).filter(
-        RateEntry.id == entry_id, RateEntry.table_id == table_id
+        RateEntry.id == entry_id,
+        RateEntry.table_id == table_id,
+        RateEntry.is_active == True,
     ).first()
     if not e:
         raise HTTPException(404)
-    db.delete(e)
+    e.is_active = False
     db.commit()
 
 
@@ -174,7 +181,8 @@ def add_override(db: Session, table_id: str, payload_dict: dict, org_id, is_supe
 def delete_override(db: Session, table_id: str, override_id: str, org_id, is_superadmin: bool):
     get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     o = db.query(RateOverride).filter(
-        RateOverride.id == override_id, RateOverride.table_id == table_id
+        RateOverride.id == override_id,
+        RateOverride.table_id == table_id,
     ).first()
     if not o:
         raise HTTPException(404)
@@ -226,6 +234,8 @@ def get_effective_rate(
 
     for table in tables_sorted:
         for entry in (table.entries or []):
+            if not entry.is_active:
+                continue
             if entry.label.lower() == role_label.lower():
                 if _date_valid(entry.valid_from, entry.valid_to, today):
                     rate = entry.billing_rate or 0
@@ -274,8 +284,8 @@ def serialize_rate_table(t, include_entries: bool = False) -> dict:
         "created_at": str(t.created_at)[:10] if t.created_at else None,
     }
     if include_entries:
-        d["entries"]   = [serialize_rate_entry(e) for e in (t.entries or [])]
-        d["overrides"] = [serialize_rate_override(o) for o in getattr(t, "overrides", [])]
+        d["entries"]   = [serialize_rate_entry(e) for e in (t.entries or []) if e.is_active]
+        d["overrides"] = [serialize_rate_override(o) for o in getattr(t, "overrides", []) if getattr(o, "is_active", True)]
     else:
-        d["entry_count"] = len(t.entries or [])
+        d["entry_count"] = len([e for e in (t.entries or []) if e.is_active])
     return d

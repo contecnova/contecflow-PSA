@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_admin_or_hr
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.core.config import settings
 import app.services.advanced_config_service as _svc
@@ -138,7 +139,8 @@ def update_role(role_id: str, payload: CustomRoleUpdate, db: Session = Depends(g
         raise HTTPException(400, str(e))
 
 @router.delete("/roles/{role_id}", summary="Eliminar rol")
-def delete_role(role_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_role(role_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    enforce_abac(db, user, "custom_role", role_id, action="delete")
     try:
         return _svc.delete_role(role_id, db)
     except _svc.NotFoundError as e:
@@ -172,7 +174,8 @@ def update_task_type(type_id: str, payload: TaskTypeIn, db: Session = Depends(ge
         raise HTTPException(404, str(e))
 
 @router.delete("/task-types/{type_id}", summary="Eliminar tipo de tarea")
-def delete_task_type(type_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_task_type(type_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    enforce_abac(db, user, "task_type", type_id, action="delete")
     try:
         return _svc.delete_task_type(type_id, db)
     except _svc.NotFoundError as e:
@@ -215,14 +218,16 @@ def update_rate_entry(table_id: str, entry_id: str, payload: RateEntryIn, db: Se
         raise HTTPException(404, str(e))
 
 @router.delete("/rate-tables/{table_id}/entries/{entry_id}", summary="Eliminar tarifa")
-def delete_rate_entry(table_id: str, entry_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_rate_entry(table_id: str, entry_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    enforce_abac(db, user, "rate_entry", entry_id, action="delete")
     try:
         return _svc.delete_rate_entry(table_id, entry_id, db)
     except _svc.NotFoundError as e:
         raise HTTPException(404, str(e))
 
 @router.delete("/rate-tables/{table_id}", summary="Eliminar tabla de tarifas")
-def delete_rate_table(table_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_rate_table(table_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    enforce_abac(db, user, "rate_table", table_id, action="delete")
     try:
         return _svc.delete_rate_table(table_id, db)
     except _svc.NotFoundError as e:
@@ -247,7 +252,8 @@ def update_vacation_policy(policy_id: str, payload: VacationPolicyIn, db: Sessio
         raise HTTPException(404, str(e))
 
 @router.delete("/vacation-policies/{policy_id}", summary="Eliminar política")
-def delete_vacation_policy(policy_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_vacation_policy(policy_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    enforce_abac(db, user, "vacation_policy", policy_id, action="delete")
     try:
         return _svc.delete_vacation_policy(policy_id, db)
     except _svc.NotFoundError as e:
@@ -280,7 +286,8 @@ def update_office(office_id: str, payload: OfficeIn, db: Session = Depends(get_d
         raise HTTPException(404, str(e))
 
 @router.delete("/offices/{office_id}", summary="Eliminar sede")
-def delete_office(office_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_office(office_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    enforce_abac(db, user, "office", office_id, action="delete")
     try:
         return _svc.delete_office(office_id, db)
     except _svc.NotFoundError as e:
@@ -326,7 +333,8 @@ def update_custom_field(field_id: str, payload: CustomFieldIn, db: Session = Dep
         raise HTTPException(404, str(e))
 
 @router.delete("/custom-fields/{field_id}", summary="Eliminar campo")
-def delete_custom_field(field_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_custom_field(field_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    enforce_abac(db, user, "custom_field", field_id, action="delete")
     try:
         return _svc.delete_custom_field(field_id, db)
     except _svc.NotFoundError as e:
@@ -357,7 +365,8 @@ def create_template(payload: TemplateIn, db: Session = Depends(get_db), current_
     )
 
 @router.delete("/templates/{template_id}", summary="Eliminar plantilla")
-def delete_template(template_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_template(template_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    enforce_abac(db, user, "project_template", template_id, action="delete")
     try:
         return _svc.delete_template(template_id, db)
     except _svc.NotFoundError as e:

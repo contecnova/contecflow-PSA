@@ -588,7 +588,7 @@ class SemanticAssigner(ServiceBase):
                      item_type: str) -> Optional[dict]:
         """Nivel 4: usa el LLM configurado para desempatar."""
         try:
-            from app.api.v1.endpoints.ai_providers import call_ai
+            from app.services.ai_provider_service import call_ai
             profile_descs = "\n".join(
                 f"- user_id={p.user_id}: {p.profile_text[:200]}"
                 for p in profiles if p.profile_text

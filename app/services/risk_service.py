@@ -11,6 +11,7 @@ def get_portfolio_risks(db: Session) -> list:
     return (
         db.query(Risk)
         .options(joinedload(Risk.owner), joinedload(Risk.project))
+        .filter(Risk.is_active == True)
         .filter(Risk.status.notin_(["closed"]))
         .order_by(Risk.risk_score.desc().nullslast())
         .limit(50)
@@ -19,7 +20,10 @@ def get_portfolio_risks(db: Session) -> list:
 
 
 def get_risks_by_project(db: Session, project_id: str, status: Optional[str] = None) -> list:
-    q = db.query(Risk).options(joinedload(Risk.owner)).filter(Risk.project_id == project_id)
+    q = db.query(Risk).options(joinedload(Risk.owner)).filter(
+        Risk.project_id == project_id,
+        Risk.is_active == True,
+    )
     if status:
         q = q.filter(Risk.status == status)
     return q.order_by(Risk.risk_score.desc().nullslast()).all()
@@ -49,7 +53,7 @@ def create_risk(db: Session, project_id: str, identified_by: str, **fields) -> R
 def get_risk(db: Session, risk_id: str, project_id: str) -> Optional[Risk]:
     return (
         db.query(Risk)
-        .filter(Risk.id == risk_id, Risk.project_id == project_id)
+        .filter(Risk.id == risk_id, Risk.project_id == project_id, Risk.is_active == True)
         .first()
     )
 
@@ -103,7 +107,8 @@ def update_risk(db: Session, risk: Risk, updates: dict) -> Risk:
 
 def delete_risk(db: Session, risk: Risk) -> None:
     risk_id, project_id, code = risk.id, risk.project_id, risk.code
-    db.delete(risk)
+    risk.is_active = False
+    risk.status = "closed"
     db.commit()
     from app.core.events import emit, EventType
     emit(db, EventType.RISK_CLOSED,

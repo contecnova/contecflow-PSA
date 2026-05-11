@@ -176,9 +176,9 @@ def serialize_subcontractor(s) -> dict:
             "currency": r.currency,
             "valid_from": str(r.valid_from) if r.valid_from else None,
             "valid_until": str(r.valid_until) if r.valid_until else None,
-        } for r in (s.rates or [])],
+        } for r in (s.rates or []) if r.is_active],
         "assignment_count": len(s.assignments or []),
-        "worker_count": len(s.workers or []),
+        "worker_count": len([w for w in (s.workers or []) if w.is_active]),
     }
 
 
@@ -210,7 +210,7 @@ def serialize_worker(w) -> dict:
             "certified": sk.certified,
             "cert_name": sk.cert_name,
             "notes": sk.notes,
-        } for sk in (w.skills or [])],
+        } for sk in (w.skills or []) if sk.is_active],
         "assignment_count": len(w.assignments or []),
     }
 
@@ -386,7 +386,7 @@ def get_portfolio_forecast(db: Session, year: int) -> dict:
 
 
 def get_subcontractor(db: Session, sub_id: str):
-    return db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    return db.query(Subcontractor).filter(Subcontractor.id == sub_id, Subcontractor.is_active == True).first()
 
 
 def create_worker_with_user(sub, payload, current_user, db: Session) -> dict:
@@ -483,7 +483,10 @@ def get_audit_log(db: Session, resource, resource_id, user_id, action, date_from
 def get_project_permissions(project_id: str, db: Session) -> list:
     perms = db.query(ProjectPermission).options(
         joinedload(ProjectPermission.user)
-    ).filter(ProjectPermission.project_id == project_id).all()
+    ).filter(
+        ProjectPermission.project_id == project_id,
+        ProjectPermission.is_active == True,
+    ).all()
     return [{
         "id": p.id, "user_id": p.user_id,
         "user_name": p.user.full_name if p.user else None,
@@ -505,6 +508,7 @@ def grant_project_permission(project_id: str, payload, current_user, db: Session
     existing = db.query(ProjectPermission).filter(
         ProjectPermission.project_id == project_id,
         ProjectPermission.user_id == payload.user_id,
+        ProjectPermission.is_active == True,
     ).first()
     if existing:
         for k, v in payload.model_dump(exclude_unset=True).items():
@@ -527,7 +531,9 @@ def grant_project_permission(project_id: str, payload, current_user, db: Session
 
 def update_project_permission(project_id: str, permission_id: str, payload, db: Session) -> dict:
     perm = db.query(ProjectPermission).filter(
-        ProjectPermission.id == permission_id, ProjectPermission.project_id == project_id
+        ProjectPermission.id == permission_id,
+        ProjectPermission.project_id == project_id,
+        ProjectPermission.is_active == True,
     ).first()
     if not perm:
         raise ValueError("not_found")
@@ -539,21 +545,25 @@ def update_project_permission(project_id: str, permission_id: str, payload, db: 
 
 def revoke_project_permission(project_id: str, permission_id: str, current_user, db: Session) -> dict:
     perm = db.query(ProjectPermission).filter(
-        ProjectPermission.id == permission_id, ProjectPermission.project_id == project_id
+        ProjectPermission.id == permission_id,
+        ProjectPermission.project_id == project_id,
+        ProjectPermission.is_active == True,
     ).first()
     if not perm:
         raise ValueError("not_found")
     audit_log(db, current_user, "REVOKE_PERMISSION", "projects", project_id,
               new_values={"user_id": perm.user_id})
-    db.delete(perm)
+    perm.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Permiso revocado correctamente"}
 
 
 # ── Webhooks ──────────────────────────────────────────────────────────────────
 
 def list_webhooks(db: Session) -> list:
-    hooks = db.query(Webhook).options(joinedload(Webhook.project)).order_by(Webhook.created_at.desc()).all()
+    hooks = db.query(Webhook).options(joinedload(Webhook.project)).filter(
+        Webhook.is_active == True
+    ).order_by(Webhook.created_at.desc()).all()
     return [serialize_webhook(h) for h in hooks]
 
 
@@ -574,7 +584,7 @@ def create_webhook(payload, current_user, db: Session) -> dict:
 
 def update_webhook(hook_id: str, payload, current_user, db: Session) -> dict:
     import json as _json
-    hook = db.query(Webhook).filter(Webhook.id == hook_id).first()
+    hook = db.query(Webhook).filter(Webhook.id == hook_id, Webhook.is_active == True).first()
     if not hook:
         raise ValueError("not_found")
     data = payload.model_dump(exclude_unset=True)
@@ -589,13 +599,13 @@ def update_webhook(hook_id: str, payload, current_user, db: Session) -> dict:
 
 
 def delete_webhook(hook_id: str, current_user, db: Session) -> dict:
-    hook = db.query(Webhook).filter(Webhook.id == hook_id).first()
+    hook = db.query(Webhook).filter(Webhook.id == hook_id, Webhook.is_active == True).first()
     if not hook:
         raise ValueError("not_found")
     audit_log(db, current_user, "DELETE", "webhooks", hook.id, hook.name)
-    db.delete(hook)
+    hook.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Webhook eliminado correctamente"}
 
 
 def get_webhook_deliveries(hook_id: str, limit: int, db: Session) -> list:
@@ -610,13 +620,13 @@ def get_webhook_deliveries(hook_id: str, limit: int, db: Session) -> list:
 
 
 def get_webhook_for_test(hook_id: str, db: Session):
-    return db.query(Webhook).filter(Webhook.id == hook_id).first()
+    return db.query(Webhook).filter(Webhook.id == hook_id, Webhook.is_active == True).first()
 
 
 # ── SSO ───────────────────────────────────────────────────────────────────────
 
 def list_sso_configs(db: Session) -> list:
-    return [serialize_sso(c) for c in db.query(SSOConfig).all()]
+    return [serialize_sso(c) for c in db.query(SSOConfig).filter(SSOConfig.is_deleted == False).all()]
 
 
 def create_sso_config(payload, current_user, db: Session) -> dict:
@@ -635,7 +645,7 @@ def create_sso_config(payload, current_user, db: Session) -> dict:
 
 def update_sso_config(config_id: str, payload, current_user, db: Session) -> dict:
     import json as _json
-    config = db.query(SSOConfig).filter(SSOConfig.id == config_id).first()
+    config = db.query(SSOConfig).filter(SSOConfig.id == config_id, SSOConfig.is_deleted == False).first()
     if not config:
         raise ValueError("not_found")
     data = payload.model_dump(exclude_unset=True)
@@ -652,27 +662,33 @@ def update_sso_config(config_id: str, payload, current_user, db: Session) -> dic
 
 
 def delete_sso_config(config_id: str, db: Session) -> dict:
-    config = db.query(SSOConfig).filter(SSOConfig.id == config_id).first()
+    config = db.query(SSOConfig).filter(SSOConfig.id == config_id, SSOConfig.is_deleted == False).first()
     if not config:
         raise ValueError("not_found")
-    db.delete(config)
+    config.is_active = False
+    config.is_deleted = True
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Configuracion SSO eliminada correctamente"}
 
 
 def get_sso_config_for_test(config_id: str, db: Session):
-    return db.query(SSOConfig).filter(SSOConfig.id == config_id).first()
+    return db.query(SSOConfig).filter(SSOConfig.id == config_id, SSOConfig.is_deleted == False).first()
 
 
 # ── Notifications ─────────────────────────────────────────────────────────────
 
 def get_my_notifications(current_user, unread_only: bool, page: int, page_size: int, db: Session) -> dict:
-    q = db.query(Notification).filter(Notification.user_id == current_user.id)
+    q = db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.is_active == True,
+    )
     if unread_only:
         q = q.filter(Notification.is_read == False)
     total = q.count()
     unread_count = db.query(_func.count(Notification.id)).filter(
-        Notification.user_id == current_user.id, Notification.is_read == False
+        Notification.user_id == current_user.id,
+        Notification.is_read == False,
+        Notification.is_active == True,
     ).scalar()
     items = q.order_by(Notification.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
     return {
@@ -690,7 +706,9 @@ def get_my_notifications(current_user, unread_only: bool, page: int, page_size: 
 def mark_all_notifications_read(current_user, db: Session) -> dict:
     now = datetime.now(timezone.utc)
     db.query(Notification).filter(
-        Notification.user_id == current_user.id, Notification.is_read == False
+        Notification.user_id == current_user.id,
+        Notification.is_read == False,
+        Notification.is_active == True,
     ).update({"is_read": True, "read_at": now})
     db.commit()
     return {"ok": True}
@@ -698,7 +716,9 @@ def mark_all_notifications_read(current_user, db: Session) -> dict:
 
 def mark_notification_read(notif_id: str, current_user, db: Session) -> dict:
     n = db.query(Notification).filter(
-        Notification.id == notif_id, Notification.user_id == current_user.id
+        Notification.id == notif_id,
+        Notification.user_id == current_user.id,
+        Notification.is_active == True,
     ).first()
     if not n:
         raise ValueError("not_found")
@@ -712,11 +732,12 @@ def clear_old_notifications(current_user, days: int, db: Session) -> dict:
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     deleted = db.query(Notification).filter(
         Notification.user_id == current_user.id,
+        Notification.is_active == True,
         Notification.is_read == True,
         Notification.created_at < cutoff,
-    ).delete()
+    ).update({"is_active": False}, synchronize_session=False)
     db.commit()
-    return {"deleted": deleted}
+    return {"ok": True, "deleted": deleted, "message": "Notificaciones antiguas eliminadas correctamente"}
 
 
 # ── Subcontractors ────────────────────────────────────────────────────────────
@@ -742,7 +763,7 @@ def create_subcontractor(payload, current_user, db: Session) -> dict:
 
 
 def update_subcontractor(sub_id: str, payload, db: Session) -> dict:
-    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id, Subcontractor.is_active == True).first()
     if not sub:
         raise ValueError("not_found")
     for k, v in payload.model_dump(exclude_unset=True).items():
@@ -757,16 +778,48 @@ def update_subcontractor(sub_id: str, payload, db: Session) -> dict:
 
 
 def delete_subcontractor(sub_id: str, db: Session) -> dict:
-    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id, Subcontractor.is_active == True).first()
     if not sub:
         raise ValueError("not_found")
+    dependencies = []
+    assignment_count = db.query(_func.count(SubcontractorAssignment.id)).filter(
+        SubcontractorAssignment.subcontractor_id == sub_id
+    ).scalar() or 0
+    if assignment_count > 0:
+        dependencies.append(f"{assignment_count} asignaciones")
+
+    worker_count = db.query(_func.count(SubcontractorWorker.id)).filter(
+        SubcontractorWorker.subcontractor_id == sub_id,
+        SubcontractorWorker.is_active == True,
+    ).scalar() or 0
+    if worker_count > 0:
+        dependencies.append(f"{worker_count} trabajadores activos")
+
+    timelog_count = db.query(_func.count(SubcontractorTimeLog.id)).filter(
+        SubcontractorTimeLog.subcontractor_id == sub_id,
+        SubcontractorTimeLog.is_active == True,
+    ).scalar() or 0
+    if timelog_count > 0:
+        dependencies.append(f"{timelog_count} partes de horas")
+
+    if dependencies:
+        raise ValueError(f"has_dependencies:{', '.join(dependencies)}")
+
     sub.is_active = False
+    db.query(SubcontractorRate).filter(
+        SubcontractorRate.subcontractor_id == sub_id,
+        SubcontractorRate.is_active == True,
+    ).update({"is_active": False}, synchronize_session=False)
+    db.query(SubcontractorWorker).filter(
+        SubcontractorWorker.subcontractor_id == sub_id,
+        SubcontractorWorker.is_active == True,
+    ).update({"is_active": False}, synchronize_session=False)
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Subcontratista eliminado correctamente"}
 
 
 def add_subcontractor_rate(sub_id: str, payload, db: Session) -> dict:
-    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id, Subcontractor.is_active == True).first()
     if not sub:
         raise ValueError("not_found")
     rate = SubcontractorRate(subcontractor_id=sub_id, **payload.model_dump())
@@ -777,13 +830,20 @@ def add_subcontractor_rate(sub_id: str, payload, db: Session) -> dict:
 
 def delete_subcontractor_rate(sub_id: str, rate_id: str, db: Session) -> dict:
     rate = db.query(SubcontractorRate).filter(
-        SubcontractorRate.id == rate_id, SubcontractorRate.subcontractor_id == sub_id
+        SubcontractorRate.id == rate_id,
+        SubcontractorRate.subcontractor_id == sub_id,
+        SubcontractorRate.is_active == True,
     ).first()
     if not rate:
         raise ValueError("not_found")
-    db.delete(rate)
+    assignments_using_rate = db.query(_func.count(SubcontractorAssignment.id)).filter(
+        SubcontractorAssignment.rate_id == rate_id
+    ).scalar() or 0
+    if assignments_using_rate > 0:
+        raise ValueError("has_dependencies")
+    rate.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Tarifa eliminada correctamente"}
 
 
 def get_subcontractor_assignments(sub_id: str, db: Session) -> list:
@@ -806,7 +866,7 @@ def get_subcontractor_assignments(sub_id: str, db: Session) -> list:
 
 
 def create_subcontractor_assignment(sub_id: str, payload, current_user, db: Session) -> dict:
-    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id, Subcontractor.is_active == True).first()
     if not sub:
         raise ValueError("not_found")
     assignment = SubcontractorAssignment(subcontractor_id=sub_id, **payload.model_dump())
@@ -829,7 +889,8 @@ def list_all_workers(skill_id, is_active, db: Session) -> list:
         q = q.filter(SubcontractorWorker.is_active == is_active)
     if skill_id:
         q = q.join(SubcontractorWorkerSkill, SubcontractorWorker.id == SubcontractorWorkerSkill.worker_id).filter(
-            SubcontractorWorkerSkill.skill_id == skill_id
+            SubcontractorWorkerSkill.skill_id == skill_id,
+            SubcontractorWorkerSkill.is_active == True,
         )
     result = []
     for w in q.order_by(SubcontractorWorker.name).all():
@@ -841,14 +902,17 @@ def list_all_workers(skill_id, is_active, db: Session) -> list:
 
 
 def get_workers_for_subcontractor(sub_id: str, db: Session) -> list:
-    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id, Subcontractor.is_active == True).first()
     if not sub:
         raise ValueError("not_found")
     workers = db.query(SubcontractorWorker).options(
         joinedload(SubcontractorWorker.skills).joinedload(SubcontractorWorkerSkill.skill),
         joinedload(SubcontractorWorker.assignments),
         joinedload(SubcontractorWorker.user),
-    ).filter(SubcontractorWorker.subcontractor_id == sub_id).order_by(SubcontractorWorker.name).all()
+    ).filter(
+        SubcontractorWorker.subcontractor_id == sub_id,
+        SubcontractorWorker.is_active == True,
+    ).order_by(SubcontractorWorker.name).all()
     return [serialize_worker(w) for w in workers]
 
 
@@ -857,7 +921,7 @@ def update_worker(worker_id: str, payload, db: Session) -> dict:
         joinedload(SubcontractorWorker.skills).joinedload(SubcontractorWorkerSkill.skill),
         joinedload(SubcontractorWorker.assignments),
         joinedload(SubcontractorWorker.user),
-    ).filter(SubcontractorWorker.id == worker_id).first()
+    ).filter(SubcontractorWorker.id == worker_id, SubcontractorWorker.is_active == True).first()
     if not worker:
         raise ValueError("not_found")
     update_data = payload.model_dump(exclude_unset=True)
@@ -888,25 +952,37 @@ def update_worker(worker_id: str, payload, db: Session) -> dict:
 
 
 def delete_worker(worker_id: str, db: Session) -> dict:
-    worker = db.query(SubcontractorWorker).filter(SubcontractorWorker.id == worker_id).first()
+    worker = db.query(SubcontractorWorker).filter(
+        SubcontractorWorker.id == worker_id,
+        SubcontractorWorker.is_active == True,
+    ).first()
     if not worker:
         raise ValueError("not_found")
+    assignment_count = db.query(_func.count(SubcontractorAssignment.id)).filter(
+        SubcontractorAssignment.worker_id == worker_id
+    ).scalar() or 0
+    if assignment_count > 0:
+        raise ValueError("has_dependencies")
     worker.is_active = False
     if worker.user_id:
         linked_user = db.query(User).filter(User.id == worker.user_id).first()
         if linked_user:
             linked_user.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Trabajador eliminado correctamente"}
 
 
 def add_worker_skill(worker_id: str, payload, db: Session) -> dict:
-    worker = db.query(SubcontractorWorker).filter(SubcontractorWorker.id == worker_id).first()
+    worker = db.query(SubcontractorWorker).filter(
+        SubcontractorWorker.id == worker_id,
+        SubcontractorWorker.is_active == True,
+    ).first()
     if not worker:
         raise ValueError("not_found")
     existing = db.query(SubcontractorWorkerSkill).filter(
         SubcontractorWorkerSkill.worker_id == worker_id,
         SubcontractorWorkerSkill.skill_id == payload.skill_id,
+        SubcontractorWorkerSkill.is_active == True,
     ).first()
     if existing:
         for k, v in payload.model_dump(exclude_unset=True).items():
@@ -923,18 +999,22 @@ def remove_worker_skill(worker_id: str, skill_id: str, db: Session) -> dict:
     ws = db.query(SubcontractorWorkerSkill).filter(
         SubcontractorWorkerSkill.worker_id == worker_id,
         SubcontractorWorkerSkill.skill_id == skill_id,
+        SubcontractorWorkerSkill.is_active == True,
     ).first()
     if not ws:
         raise ValueError("not_found")
-    db.delete(ws)
+    ws.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Skill eliminada correctamente"}
 
 
 # ── Subcontractor Time Logs ───────────────────────────────────────────────────
 
 def get_timelogs(sub_id: str, project_id, db: Session) -> list:
-    q = db.query(SubcontractorTimeLog).filter(SubcontractorTimeLog.subcontractor_id == sub_id)
+    q = db.query(SubcontractorTimeLog).filter(
+        SubcontractorTimeLog.subcontractor_id == sub_id,
+        SubcontractorTimeLog.is_active == True,
+    )
     if project_id:
         q = q.filter(SubcontractorTimeLog.project_id == project_id)
     return [{
@@ -948,7 +1028,7 @@ def get_timelogs(sub_id: str, project_id, db: Session) -> list:
 
 def create_timelog(sub_id: str, payload: dict, db: Session) -> dict:
     import uuid as _uuid
-    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id, Subcontractor.is_active == True).first()
     if not sub:
         raise ValueError("not_found")
     cost_amount = payload.get("cost_amount")
@@ -975,15 +1055,17 @@ def create_timelog(sub_id: str, payload: dict, db: Session) -> dict:
 
 def delete_timelog(sub_id: str, log_id: str, db: Session) -> dict:
     log = db.query(SubcontractorTimeLog).filter(
-        SubcontractorTimeLog.id == log_id, SubcontractorTimeLog.subcontractor_id == sub_id
+        SubcontractorTimeLog.id == log_id,
+        SubcontractorTimeLog.subcontractor_id == sub_id,
+        SubcontractorTimeLog.is_active == True,
     ).first()
     if not log:
         raise ValueError("not_found")
     if log.is_invoiced:
         raise ValueError("already_invoiced")
-    db.delete(log)
+    log.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Parte de horas eliminado correctamente"}
 
 
 # ── Subcontractor Invoices ────────────────────────────────────────────────────
@@ -1004,7 +1086,7 @@ def get_sub_invoices(sub_id: str, db: Session) -> list:
 
 def create_sub_invoice(sub_id: str, payload: dict, current_user, db: Session) -> dict:
     import uuid as _uuid
-    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id, Subcontractor.is_active == True).first()
     if not sub:
         raise ValueError("not_found")
     amount = float(payload.get("amount", 0))
@@ -1022,7 +1104,9 @@ def create_sub_invoice(sub_id: str, payload: dict, current_user, db: Session) ->
     db.add(inv)
     if payload.get("timelog_ids"):
         db.query(SubcontractorTimeLog).filter(
-            SubcontractorTimeLog.id.in_(payload["timelog_ids"])
+            SubcontractorTimeLog.id.in_(payload["timelog_ids"]),
+            SubcontractorTimeLog.subcontractor_id == sub_id,
+            SubcontractorTimeLog.is_active == True,
         ).update({"is_invoiced": True, "invoice_id": inv.id}, synchronize_session=False)
     db.commit()
     audit_log(db, current_user, "CREATE", "subcontractor_invoices", inv.id, sub.name)
@@ -1050,7 +1134,7 @@ def get_subcontractors_dashboard(db: Session) -> dict:
     pending_invs = db.query(func.count(SubcontractorInvoice.id)).filter(SubcontractorInvoice.status == "received").scalar()
     total_cost   = db.query(func.sum(SubcontractorInvoice.total)).filter(SubcontractorInvoice.status.in_(["approved", "paid"])).scalar() or 0
     pending_cost = db.query(func.sum(SubcontractorInvoice.total)).filter(SubcontractorInvoice.status == "received").scalar() or 0
-    total_hours  = db.query(func.sum(SubcontractorTimeLog.hours)).scalar() or 0
+    total_hours  = db.query(func.sum(SubcontractorTimeLog.hours)).filter(SubcontractorTimeLog.is_active == True).scalar() or 0
     return {
         "total_active_subs": total_subs, "active_assignments": active_assgn,
         "pending_invoices": pending_invs, "total_paid_cost": round(total_cost, 2),

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services import bi_report_builder_v2_service as svc
 
 router = APIRouter()
@@ -90,6 +91,7 @@ def reset_preset_customization(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "bi_report_preset", preset_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     try:
         return svc.reset_preset_customization(db, organization_id=org_id, preset_id=preset_id)
@@ -272,6 +274,7 @@ def delete_template(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "bi_report_template", template_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     try:
         svc.delete_template(db, organization_id=org_id, template_id=template_id)

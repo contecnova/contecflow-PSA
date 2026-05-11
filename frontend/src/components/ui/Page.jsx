@@ -12,16 +12,20 @@ export default function Page({
   title,
   subtitle,
   rightActions,
+  actions,    // alias compatible (PageHeader nativo usa 'actions')
   children,
 }) {
+  // PageHeader espera la prop con nombre 'actions'. Aceptamos ambos nombres
+  // para mantener compatibilidad con páginas migradas que usaron rightActions.
+  const headerActions = rightActions ?? actions
   return (
     <PageShell>
-      {(title || icon || rightActions) && (
+      {(title || icon || headerActions) && (
         <PageHeader
           icon={icon}
           title={title}
           subtitle={subtitle}
-          rightActions={rightActions}
+          actions={headerActions}
         />
       )}
       <div className="ds-page">{children}</div>

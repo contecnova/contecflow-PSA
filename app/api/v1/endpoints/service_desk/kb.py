@@ -6,6 +6,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.schemas.service_desk import KBArticleIn, KBArticleUpdate
 from app.services.service_desk.kb_service import (
@@ -59,6 +60,7 @@ def update_kb_article(article_id: str, payload: KBArticleUpdate, db: Session = D
 
 @router.delete("/kb/{article_id}", summary="Eliminar artículo KB")
 def delete_kb_article(article_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    enforce_abac(db, current_user, "sd_kb_article", article_id, action="delete")
     delete_kb_article_svc(db, current_user, article_id)
     _commit_or_rollback(db)
     return {"ok": True}

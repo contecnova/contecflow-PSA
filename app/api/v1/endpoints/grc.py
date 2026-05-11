@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.deps import require_admin, require_any_manager
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services.grc_sod import record_sod_violation as _record_sod_violation
 import app.services.grc_service as grc_svc
 
@@ -254,6 +255,7 @@ def delete_sod_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    enforce_abac(db, current_user, "grc_sod_rule", rule_id, action="delete")
     rule = grc_svc.get_sod_rule_or_404(db, rule_id)
     grc_svc.delete_sod_rule_db(db, rule)
     return {"ok": True}

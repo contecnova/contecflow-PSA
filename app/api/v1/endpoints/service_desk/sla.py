@@ -6,6 +6,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.schemas.service_desk import SLAPolicyIn, HolidayIn, EscalationRuleIn
 from app.services.service_desk.sla_policy_service import (
@@ -44,7 +45,8 @@ def update_sla_policy(policy_id: str, payload: SLAPolicyIn, db: Session = Depend
 
 
 @router.delete("/sla-policies/{policy_id}", summary="Eliminar política SLA")
-def delete_sla_policy(policy_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_sla_policy(policy_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    enforce_abac(db, current_user, "sd_sla_policy", policy_id, action="delete")
     deactivate_sla_policy_record(db, policy_id)
     _commit_or_rollback(db)
     return {"ok": True}
@@ -77,7 +79,8 @@ def create_holiday(payload: HolidayIn, db: Session = Depends(get_db), _: User = 
 
 
 @router.delete("/sla-holidays/{holiday_id}", summary="Eliminar festivo")
-def delete_holiday(holiday_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_holiday(holiday_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    enforce_abac(db, current_user, "sd_sla_holiday", holiday_id, action="delete")
     delete_holiday_svc(db, holiday_id)
     _commit_or_rollback(db)
     return {"ok": True}
@@ -103,7 +106,8 @@ def update_escalation_rule(rule_id: str, payload: EscalationRuleIn, db: Session 
 
 
 @router.delete("/escalation-rules/{rule_id}", summary="Eliminar regla de escalada")
-def delete_escalation_rule(rule_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_escalation_rule(rule_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    enforce_abac(db, current_user, "sd_escalation_rule", rule_id, action="delete")
     delete_escalation_rule_svc(db, rule_id)
     _commit_or_rollback(db)
     return {"ok": True}

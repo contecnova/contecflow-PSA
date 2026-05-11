@@ -21,6 +21,7 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
+from app.core.abac_enforce import enforce_abac
 from app.core.ratelimit import limiter
 from app.models.user import User, UserRole
 from app.services import public_forms_service
@@ -127,14 +128,16 @@ def update_form(
     return _form_out(form)
 
 
-@router.delete("/{form_id}", summary="Eliminar formulario", status_code=204)
+@router.delete("/{form_id}", summary="Eliminar formulario")
 def delete_form(form_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     form = public_forms_service.get_form_by_id(db, form_id)
     if not form:
         raise HTTPException(404, "Formulario no encontrado")
     if form.created_by != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(403, "Acceso denegado")
+    enforce_abac(db, current_user, "public_form", form_id, action="delete")
     public_forms_service.delete_form(db, form)
+    return {"ok": True, "message": "Formulario eliminado correctamente"}
 
 
 @router.get("/{form_id}/submissions", summary="Envíos de un formulario")

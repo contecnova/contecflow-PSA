@@ -3,7 +3,7 @@ Portfolio model — agrupa proyectos en carteras con seguimiento RAG y presupues
 """
 import enum
 import uuid
-from sqlalchemy import Column, String, Float, Text, Enum, ForeignKey, Date, DateTime, func
+from sqlalchemy import Column, String, Float, Text, Enum, ForeignKey, Date, DateTime, func, Boolean
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
@@ -21,6 +21,7 @@ class Portfolio(Base):
     name        = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     status      = Column(Enum(PortfolioStatus), default=PortfolioStatus.active, nullable=False)
+    is_active   = Column(Boolean, default=True)
 
     # Budget aggregation
     budget_total   = Column(Float, nullable=True)   # Total budget envelope (€)
@@ -51,6 +52,7 @@ class PortfolioProject(Base):
 
     # Manual RAG override (when not auto-computed from EVM)
     rag_override   = Column(String(10), nullable=True)   # green | yellow | red
+    is_active      = Column(Boolean, default=True)
     display_order  = Column(Float, default=0.0)
 
     portfolio = relationship("Portfolio", back_populates="members")

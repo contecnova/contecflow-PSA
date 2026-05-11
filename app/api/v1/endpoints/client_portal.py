@@ -25,6 +25,7 @@ from app.core.config import settings
 from app.core.deps import require_any_manager
 from app.core.ratelimit import limiter
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.models.client_portal import (
     ClientUser
 )
@@ -244,6 +245,7 @@ def delete_client(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "client_portal_client", client_id, action="delete")
     try:
         return _svc.delete_client(client_id, db)
     except ValueError as e:

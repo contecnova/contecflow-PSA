@@ -190,6 +190,7 @@ def delete_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "expense", expense_id, action="delete")
     return svc_delete_my_expense(db, expense_id, current_user.id)
 
 @router.get("/export", summary="Exportar gastos a Excel")

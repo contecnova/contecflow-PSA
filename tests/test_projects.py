@@ -78,6 +78,38 @@ def test_delete_project(client, admin_token, db):
     assert res.status_code in (200, 204)
 
 
+def test_project_member_remove_is_soft_and_reactivable(client, admin_token, db):
+    create = client.post("/api/v1/projects", json={**PROJECT_PAYLOAD, "code": "ALPHA-MEM"}, headers=auth(admin_token))
+    pid = create.json()["id"]
+
+    me = client.get("/api/v1/auth/me", headers=auth(admin_token))
+    uid = me.json()["id"]
+
+    add = client.post(
+        f"/api/v1/projects/{pid}/members",
+        json={"user_id": uid},
+        headers=auth(admin_token),
+    )
+    assert add.status_code in (200, 201), add.text
+    member_id = add.json()["id"]
+
+    remove = client.delete(f"/api/v1/projects/{pid}/members/{member_id}", headers=auth(admin_token))
+    assert remove.status_code == 200
+
+    listed = client.get(f"/api/v1/projects/{pid}/members", headers=auth(admin_token))
+    assert listed.status_code == 200
+    ids = [m["id"] for m in listed.json()]
+    assert member_id not in ids
+
+    # Re-adding same user should reactivate previous row (no duplicate conflict)
+    add_again = client.post(
+        f"/api/v1/projects/{pid}/members",
+        json={"user_id": uid},
+        headers=auth(admin_token),
+    )
+    assert add_again.status_code in (200, 201), add_again.text
+
+
 # ── Multi-tenancy org isolation tests ─────────────────────────────────────────
 
 def _create_org_and_user(db, role="admin"):
@@ -116,7 +148,8 @@ def test_project_auto_assigns_org_on_create(client, db):
     # Login as the new org user
     res = client.post("/api/v1/auth/login", json={"username": user.username, "password": "TestPass123!"})
     assert res.status_code == 200
-    token = res.json()["access_token"]
+    token = res.cookies.get("access_token")
+    assert token
 
     create = client.post("/api/v1/projects", json={
         **PROJECT_PAYLOAD, "code": f"ORG-{org_id[:4]}",
@@ -138,7 +171,8 @@ def test_project_list_scoped_to_org(client, db):
 
     # Login as user_a and create a project
     login_a = client.post("/api/v1/auth/login", json={"username": user_a.username, "password": "TestPass123!"})
-    token_a = login_a.json()["access_token"]
+    token_a = login_a.cookies.get("access_token")
+    assert token_a
     create_a = client.post("/api/v1/projects", json={
         **PROJECT_PAYLOAD, "code": f"A-{org_a_id[:4]}",
     }, headers=auth(token_a))
@@ -146,7 +180,8 @@ def test_project_list_scoped_to_org(client, db):
 
     # Login as user_b — should NOT see project from org_a
     login_b = client.post("/api/v1/auth/login", json={"username": user_b.username, "password": "TestPass123!"})
-    token_b = login_b.json()["access_token"]
+    token_b = login_b.cookies.get("access_token")
+    assert token_b
 
     list_b = client.get("/api/v1/projects", headers=auth(token_b))
     assert list_b.status_code == 200
@@ -160,14 +195,16 @@ def test_project_get_cross_org_returns_404(client, db):
     org_b_id, user_b = _create_org_and_user(db)
 
     login_a = client.post("/api/v1/auth/login", json={"username": user_a.username, "password": "TestPass123!"})
-    token_a = login_a.json()["access_token"]
+    token_a = login_a.cookies.get("access_token")
+    assert token_a
     create_a = client.post("/api/v1/projects", json={
         **PROJECT_PAYLOAD, "code": f"XA-{org_a_id[:4]}",
     }, headers=auth(token_a))
     proj_a_id = create_a.json()["id"]
 
     login_b = client.post("/api/v1/auth/login", json={"username": user_b.username, "password": "TestPass123!"})
-    token_b = login_b.json()["access_token"]
+    token_b = login_b.cookies.get("access_token")
+    assert token_b
 
     res = client.get(f"/api/v1/projects/{proj_a_id}", headers=auth(token_b))
     assert res.status_code == 404, "Cross-org project GET must return 404"

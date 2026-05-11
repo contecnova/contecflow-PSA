@@ -28,6 +28,7 @@ import asyncio
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services.activity_service import (
     activity_feed_payload,
     project_activity_payload,
@@ -215,8 +216,9 @@ def update_recurring_task(
 def delete_recurring_task(
     rt_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "recurring_task", rt_id, action="delete")
     return delete_recurring_task_record(db, rt_id)
 
 
@@ -355,8 +357,9 @@ def create_demand_line(
 def delete_demand_line(
     line_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "resource_demand_line", line_id, action="delete")
     return delete_demand_line_record(db, line_id)
 
 

@@ -197,7 +197,10 @@ def create_objective(db: Session, data: dict) -> Objective:
 
 
 def get_objective(db: Session, obj_id: str) -> Optional[Objective]:
-    return db.query(Objective).filter(Objective.id == obj_id).first()
+    return db.query(Objective).filter(
+        Objective.id == obj_id,
+        Objective.is_active == True,
+    ).first()
 
 
 def update_objective(db: Session, obj: Objective, data: dict) -> Objective:
@@ -231,7 +234,10 @@ def delete_objective(db: Session, obj: Objective) -> dict:
 
 
 def get_key_result(db: Session, kr_id: str) -> Optional[KeyResult]:
-    return db.query(KeyResult).filter(KeyResult.id == kr_id).first()
+    return db.query(KeyResult).filter(
+        KeyResult.id == kr_id,
+        KeyResult.is_active == True,
+    ).first()
 
 
 def create_kr(db: Session, data: dict) -> KeyResult:

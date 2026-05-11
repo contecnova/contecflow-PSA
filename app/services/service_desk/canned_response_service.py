@@ -67,7 +67,10 @@ def build_canned_response(payload: CannedResponseIn, created_by: str) -> CannedR
 
 
 def get_canned_response_by_id(db: Session, canned_id: str) -> CannedResponse:
-    canned = db.query(CannedResponse).filter(CannedResponse.id == canned_id).first()
+    canned = db.query(CannedResponse).filter(
+        CannedResponse.id == canned_id,
+        CannedResponse.is_active == True,
+    ).first()
     if not canned:
         raise HTTPException(404, "Respuesta rápida no encontrada")
     return canned
@@ -96,4 +99,4 @@ def get_canned_response_for_delete(db: Session, canned_id: str) -> CannedRespons
 
 def delete_canned_response(db: Session, canned_id: str) -> None:
     c = get_canned_response_by_id(db, canned_id)
-    db.delete(c)
+    c.is_active = False

@@ -37,7 +37,10 @@ def map_priority(p: str) -> TicketPriority:
 # ── Form CRUD ──────────────────────────────────────────────────────────────────
 
 def list_forms(db: Session, user_id: str) -> list[PublicForm]:
-    return db.query(PublicForm).filter(PublicForm.created_by == user_id).all()
+    return db.query(PublicForm).filter(
+        PublicForm.created_by == user_id,
+        PublicForm.is_active == True,
+    ).all()
 
 
 def create_form(
@@ -77,7 +80,10 @@ def create_form(
 
 
 def get_form_by_id(db: Session, form_id: str) -> Optional[PublicForm]:
-    return db.query(PublicForm).filter(PublicForm.id == form_id).first()
+    return db.query(PublicForm).filter(
+        PublicForm.id == form_id,
+        PublicForm.is_active == True,
+    ).first()
 
 
 def update_form(db: Session, form: PublicForm, updates: dict) -> PublicForm:
@@ -92,7 +98,7 @@ def update_form(db: Session, form: PublicForm, updates: dict) -> PublicForm:
 
 
 def delete_form(db: Session, form: PublicForm) -> None:
-    db.delete(form)
+    form.is_active = False
     db.commit()
 
 

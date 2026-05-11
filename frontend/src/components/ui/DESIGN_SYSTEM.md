@@ -272,7 +272,39 @@ Esta v2 está pensada para **adopción gradual** sin romper páginas existentes:
 
 1. Las páginas viejas siguen funcionando — los tokens no han cambiado.
 2. Cuando toques una página, migra a `.ds-*` o primitivos.
-3. Pantallas faro recomendadas para migrar primero: dashboard principal,
-   listados (tickets, projects), chat, settings.
-4. La página `WorkflowDesignerPage` ya es referencia migrada — léela para ver
+3. La página `WorkflowDesignerPage` ya es referencia migrada — léela para ver
    el patrón en acción.
+
+### Páginas ya migradas (referencia visual)
+
+Las siguientes páginas usan el sistema completo y son intercambiables como
+"plantilla viva" cuando empieces una migración:
+
+| Página | Tipo | Patrones que aplica |
+|---|---|---|
+| `WorkflowDesignerPage` | Listado + editor visual | Page, Card, EmptyState, Modal, Section, StatusBadge |
+| `WorkDashboardPage` | Dashboard | Page, .ds-grid-stats, .ds-card, KpiIcon, gauges |
+| 5 Dashboards (Projects/Team/Finance/Agent/Support) | Dashboard | Mismo patrón vía DashKit + KpiIcon Lucide |
+| `TasksPage` | Listado grande | .ds-segmented, .ds-toolbar, .ds-pill (filter chips), bulk bar |
+| `ProjectsPage` | Listado + cards | .ds-grid-cards, ProjectCard con .ds-card |
+| `ApprovalsPage` | Inbox + workflows | .ds-grid-stats, .ds-pill (entity types), .ds-empty |
+| `DocumentsPage` | Listado + grid/list toggle | .ds-segmented, .ds-toolbar, .ds-pill toggle (tags) |
+| `TicketListTab` | Listado interno | .ds-toolbar, .ds-card padding 0 (tabla) |
+| `SettingsPage` + 17 secciones | Configuración | .ds-card vía Section, .ds-eyebrow para grupos de tabs |
+| `ClientPortalPage` | Portal admin | Page, .ds-segmented (tabs), .ds-input |
+| `BPMPage` | Editor visual | Page, sidebar como .ds-card |
+| `AIHubPage` | Hub de proveedores | Page, .ds-status-dot--success/warning/danger |
+| `AutomationsPage` | Reglas + workflows | .ds-grid-stats, .ds-toolbar, .ds-segmented |
+
+## Reglas ESLint activas
+
+`eslint.config.js` aplica estas reglas para evitar regresiones:
+
+1. **Hex literales obsoletos** (`#00d4ff`/`#0ea5e9`/`#7c3aed`) → usar tokens.
+2. **`fontSize` numérico** (e.g. `fontSize: 13`) → usar `var(--text-base)` etc.
+3. **"Card armada inline"** — cuando ves `background: var(--surface-2)` seguido
+   de `borderRadius` en el mismo `style={{}}`, ESLint sugiere `className="ds-card"`
+   o el componente `<Card>`. Se ha demostrado que esta combinación detecta el
+   anti-patrón principal de "cada página reinventa cómo se ve un card".
+
+Las violaciones son `warn`, no `error` — adopción gradual.

@@ -18,6 +18,7 @@ from datetime import date
 from app.core.ratelimit import limiter
 from app.schemas.raci import RACIBatchIn, RetroNotesIn, ChangelogEntryIn, ChangelogEntryPatch, UATCaseIn
 
+from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
@@ -95,6 +96,7 @@ def delete_raci_entry(
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
+    enforce_abac(db, current_user, "raci_entry", entry_id, action="delete")
     try:
         _svc.delete_raci_entry(project_id, entry_id, db)
     except ValueError as e:
@@ -248,6 +250,7 @@ def delete_changelog_entry(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "project_changelog_entry", entry_id, action="delete")
     try:
         _svc.delete_changelog_entry(project_id, entry_id, db)
     except ValueError as e:
@@ -310,6 +313,7 @@ def delete_uat_case(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "uat_case", case_id, action="delete")
     try:
         _svc.delete_uat_case(project_id, case_id, db)
     except ValueError as e:

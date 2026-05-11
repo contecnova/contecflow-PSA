@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.models.collaboration import (
     CollaborationAttachment, CollaborationAttachmentVersion, CollaborationModerationCase,
 )
@@ -253,7 +254,8 @@ async def tus_patch(
 
 
 @router.delete("/tus/{uid}")
-def tus_delete(uid: str, current_user: User = Depends(get_current_user)) -> Response:
+def tus_delete(uid: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> Response:
+    enforce_abac(db, current_user, "collaboration_file", uid, action="delete")
     meta = _read_meta(uid)
     if meta and meta.get("user_id") == current_user.id:
         for p in (_data_path(uid), _meta_path(uid)):

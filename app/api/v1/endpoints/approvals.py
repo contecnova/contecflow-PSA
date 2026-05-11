@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 import logging
 
+from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User, UserRole
@@ -177,6 +178,7 @@ def delete_workflow_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    enforce_abac(db, current_user, "approval_workflow", workflow_id, action="delete")
     if not delete_workflow(db, workflow_id):
         raise HTTPException(404)
     return {"ok": True}
@@ -215,6 +217,7 @@ def delete_step(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    enforce_abac(db, current_user, "approval_workflow_step", step_id, action="delete")
     if not delete_workflow_step(db, workflow_id, step_id):
         raise HTTPException(404)
     return {"ok": True}
@@ -434,6 +437,7 @@ def delete_group(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    enforce_abac(db, current_user, "approval_group", group_id, action="delete")
     if not delete_approval_group(db, group_id):
         raise HTTPException(404)
     return {"ok": True}

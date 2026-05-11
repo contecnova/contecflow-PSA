@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 import app.services.rate_card_service as _svc
 
@@ -131,8 +132,9 @@ def delete_rate_table(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "rate_table", table_id, action="delete")
     _svc.delete_rate_table(db, table_id, current_user.organization_id, current_user.is_superadmin)
-    return {"ok": True}
+    return {"ok": True, "message": "Tabla eliminada correctamente"}
 
 
 @router.post("/{table_id}/duplicate", summary="Duplicar tabla con escalado anual opcional")
@@ -179,8 +181,9 @@ def delete_entry(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "rate_entry", entry_id, action="delete")
     _svc.delete_entry(db, table_id, entry_id, current_user.organization_id, current_user.is_superadmin)
-    return {"ok": True}
+    return {"ok": True, "message": "Entrada eliminada correctamente"}
 
 
 # ── Overrides ──────────────────────────────────────────────────────────────────
@@ -201,5 +204,6 @@ def delete_override(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "rate_override", override_id, action="delete")
     _svc.delete_override(db, table_id, override_id, current_user.organization_id, current_user.is_superadmin)
-    return {"ok": True}
+    return {"ok": True, "message": "Override eliminado correctamente"}

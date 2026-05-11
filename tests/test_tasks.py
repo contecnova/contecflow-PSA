@@ -70,3 +70,42 @@ def test_delete_task(client, pm_token, db):
     task = client.post("/api/v1/tasks", json={"title":"T","project_id":pid,"status":"todo","priority":"medium"}, headers=auth(pm_token)).json()
     res = client.delete(f"/api/v1/tasks/{task['id']}", headers=auth(pm_token))
     assert res.status_code in (200, 204)
+
+
+def test_task_dependency_remove_is_soft_and_reactivable(client, pm_token, db):
+    pid = make_project(client, pm_token)
+    t1 = client.post(
+        "/api/v1/tasks",
+        json={"title": "T1", "project_id": pid, "status": "todo", "priority": "medium"},
+        headers=auth(pm_token),
+    ).json()
+    t2 = client.post(
+        "/api/v1/tasks",
+        json={"title": "T2", "project_id": pid, "status": "todo", "priority": "medium"},
+        headers=auth(pm_token),
+    ).json()
+
+    created = client.post(
+        "/api/v1/tasks/dependencies",
+        json={"predecessor_id": t1["id"], "successor_id": t2["id"], "dependency_type": "FS", "lag_days": 0},
+        headers=auth(pm_token),
+    )
+    assert created.status_code == 201
+    dep_id = created.json()["id"]
+
+    deleted = client.delete(f"/api/v1/tasks/dependencies/{dep_id}", headers=auth(pm_token))
+    assert deleted.status_code == 200
+    assert deleted.json().get("ok") is True
+
+    listed_after_delete = client.get(f"/api/v1/tasks/dependencies/{pid}", headers=auth(pm_token))
+    assert listed_after_delete.status_code == 200
+    assert all(dep["id"] != dep_id for dep in listed_after_delete.json())
+
+    recreated = client.post(
+        "/api/v1/tasks/dependencies",
+        json={"predecessor_id": t1["id"], "successor_id": t2["id"], "dependency_type": "FS", "lag_days": 1},
+        headers=auth(pm_token),
+    )
+    assert recreated.status_code == 201
+    assert recreated.json()["id"] == dep_id
+    assert recreated.json()["lag_days"] == 1

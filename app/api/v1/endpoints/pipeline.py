@@ -4,6 +4,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.services import pipeline_service
 from app.services.pipeline_service import STAGE_LABELS, serialize_opportunity as _opp_out
@@ -88,6 +89,7 @@ def delete_opportunity(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "opportunity", opp_id, action="delete")
     return pipeline_service.delete_opportunity(db, current_user, opp_id)
 
 
@@ -220,8 +222,9 @@ def delete_template(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "proposal_template", template_id, action="delete")
     proposal_svc.delete_template(db, template_id)
-    return {"ok": True}
+    return {"ok": True, "message": "Plantilla desactivada correctamente"}
 
 
 # ── Weighted Forecast ─────────────────────────────────────────────────────────
@@ -349,5 +352,6 @@ def delete_stage_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    enforce_abac(db, current_user, "pipeline_stage_config", stage_id, action="delete")
     pipeline_service.delete_stage_config(db, stage_id)
     return None

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, require_admin
 from app.db.session import get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services.ai_provider_service import (
     PROVIDER_CATALOG,
     call_ai,
@@ -84,6 +85,7 @@ def update_provider(pid: str, data: dict = Body(...), db: Session = Depends(get_
 
 @router.delete("/{pid}")
 def delete_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_admin)):
+    enforce_abac(db, _, "ai_provider", pid, action="delete")
     p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
         raise HTTPException(status_code=404, detail="AI provider not found")

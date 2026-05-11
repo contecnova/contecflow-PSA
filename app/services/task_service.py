@@ -102,7 +102,7 @@ def _auto_assign_task_on_create(db: Session, task: Task) -> None:
 # cancelled is terminal; todo cannot jump directly to in_review.
 _TASK_VALID_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
     TaskStatus.backlog:     {TaskStatus.todo, TaskStatus.cancelled},
-    TaskStatus.todo:        {TaskStatus.in_progress, TaskStatus.backlog, TaskStatus.cancelled},
+    TaskStatus.todo:        {TaskStatus.in_progress, TaskStatus.done, TaskStatus.backlog, TaskStatus.cancelled},
     TaskStatus.in_progress: {TaskStatus.in_review, TaskStatus.todo, TaskStatus.done,
                               TaskStatus.blocked, TaskStatus.cancelled},
     TaskStatus.in_review:   {TaskStatus.done, TaskStatus.in_progress, TaskStatus.cancelled},
@@ -305,15 +305,20 @@ def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) 
 # ── Query helpers (scoped to org) ──────────────────────────────────────────────
 
 def task_query_for_user(db: Session, current_user):
+    # Superadmin bypass — sin este check, un superadmin de la org "default"
+    # nunca vería tareas de otras organizaciones (filtro vacío).
     q = db.query(Task).join(Project, Task.project_id == Project.id)
-    if current_user.organization_id:
+    is_super = bool(getattr(current_user, "is_superadmin", False))
+    if not is_super and current_user.organization_id:
         q = q.filter(Project.organization_id == current_user.organization_id)
     return q
 
 
 def project_for_user(db: Session, project_id: str, current_user) -> Optional["Project"]:
+    # Superadmin bypass (mismo patrón que app/services/tasks/queries.py)
     q = db.query(Project).filter(Project.id == project_id)
-    if current_user.organization_id:
+    is_super = bool(getattr(current_user, "is_superadmin", False))
+    if not is_super and current_user.organization_id:
         q = q.filter(Project.organization_id == current_user.organization_id)
     return q.first()
 
@@ -505,6 +510,8 @@ def cancel_task_record(db: Session, task_id: str) -> dict:
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
+    if task.status == TaskStatus.cancelled:
+        raise HTTPException(status_code=400, detail="La tarea ya esta cancelada")
     task.status = TaskStatus.cancelled
     try:
         db.commit()
@@ -520,7 +527,7 @@ def cancel_task_record(db: Session, task_id: str) -> dict:
     emit(db, EventType.TASK_DELETED,
          {"title": task.title, "project_id": task.project_id, "reason": "cancelled"},
          resource_type="task", resource_id=task_id, project_id=task.project_id)
-    return {"message": "Tarea cancelada"}
+    return {"ok": True, "message": "Tarea cancelada correctamente"}
 
 
 # ── Comment ────────────────────────────────────────────────────────────────────
@@ -665,6 +672,7 @@ def list_task_dependencies(db: Session, project_id: str) -> list:
         )
         .join(Task, TaskDependency.predecessor_id == Task.id)
         .filter(Task.project_id == project_id)
+        .filter(TaskDependency.is_active == True)
     )
     return [
         {
@@ -697,11 +705,23 @@ def create_task_dependency(
         .filter(
             TaskDependency.predecessor_id == predecessor_id,
             TaskDependency.successor_id == successor_id,
-        )
-        .first()
+        ).first()
     )
-    if existing:
+    if existing and existing.is_active:
         raise HTTPException(409, "La dependencia ya existe")
+    if existing and not existing.is_active:
+        existing.is_active = True
+        existing.dependency_type = dependency_type
+        existing.lag_days = lag_days
+        db.commit()
+        db.refresh(existing)
+        return {
+            "id": existing.id,
+            "predecessor_id": existing.predecessor_id,
+            "successor_id": existing.successor_id,
+            "dependency_type": existing.dependency_type,
+            "lag_days": existing.lag_days,
+        }
     dep = TaskDependency(
         predecessor_id=predecessor_id,
         successor_id=successor_id,
@@ -723,12 +743,12 @@ def create_task_dependency(
 
 def delete_task_dependency(db: Session, dep_id: str) -> dict:
     """Delete a task dependency by id. Raises 404 if not found."""
-    dep = db.query(TaskDependency).filter(TaskDependency.id == dep_id).first()
+    dep = db.query(TaskDependency).filter(TaskDependency.id == dep_id, TaskDependency.is_active == True).first()
     if not dep:
         raise HTTPException(404, "Dependencia no encontrada")
-    db.delete(dep)
+    dep.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Dependencia eliminada correctamente"}
 
 
 # ── Extracted query helpers (moved from endpoint layer) ───────────────────────
@@ -757,7 +777,7 @@ def get_project_member_ids(project_id: str, db: Session) -> list[str]:
     """Return user_ids of all members of a project."""
     members = (
         db.query(ProjectMember)
-        .filter(ProjectMember.project_id == project_id)
+        .filter(ProjectMember.project_id == project_id, ProjectMember.is_active == True)
         .all()
     )
     return [m.user_id for m in members if getattr(m, "user_id", None)]

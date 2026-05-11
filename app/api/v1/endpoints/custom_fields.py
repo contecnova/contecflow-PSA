@@ -60,8 +60,9 @@ def update_project_custom_field(
 def delete_project_custom_field(
     project_id: str, field_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(require_admin_or_pm),
 ):
+    enforce_abac(db, current_user, "custom_field", field_id, action="delete")
     return _svc.delete_project_custom_field(project_id, field_id, db)
 
 
@@ -170,8 +171,9 @@ def init_default_workflow(
 def reset_workflow(
     project_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    user: User = Depends(require_admin_or_pm),
 ):
+    enforce_abac(db, user, "project_workflow", project_id, action="delete")
     return _svc.reset_workflow(project_id, db)
 
 
@@ -224,6 +226,7 @@ def update_permission(
 def revoke_permission(
     project_id: str, permission_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(require_admin_or_pm),
 ):
+    enforce_abac(db, current_user, "project_permission", permission_id, action="delete")
     return _svc.revoke_permission(project_id, permission_id, db)

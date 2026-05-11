@@ -16,6 +16,7 @@ from app.core.deps import get_current_user
 from app.core.security import create_access_token
 from app.db.session import get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services import bi_platform_service as svc
 
 router = APIRouter()
@@ -193,6 +194,7 @@ def phase3_delete_custom_connector(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "bi_custom_connector", connector_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     deleted = svc.delete_custom_connector(db, organization_id=org_id, connector_id=connector_id)
     if not deleted:
@@ -350,6 +352,7 @@ def phase3_delete_field_sensitivity(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "bi_field_sensitivity", sensitivity_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     deleted = svc.delete_field_sensitivity(db, organization_id=org_id, sensitivity_id=sensitivity_id)
     if not deleted:

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 import app.services.automations_service as _svc
 from app.models.automations import TriggerType, ActionType
@@ -86,6 +87,7 @@ def delete_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "automation_rule", rule_id, action="delete")
     return _svc.delete_rule_db(rule_id, db)
 
 

@@ -1,4 +1,5 @@
 """Tests de Entregables — ciclo de vida completo: crear, entregar, aceptar, rechazar."""
+from app.models.resources import Deliverable
 from tests.conftest import auth
 from datetime import date, timedelta
 
@@ -90,7 +91,17 @@ def test_delete_deliverable(client, pm_token, db):
         headers=auth(pm_token)).json()
     res = client.delete(f"/api/v1/deliverables/{pid}/{deliv['id']}",
         headers=auth(pm_token))
-    assert res.status_code in (200, 204)
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["ok"] is True
+
+    listed = client.get(f"/api/v1/deliverables/{pid}", headers=auth(pm_token))
+    assert listed.status_code == 200
+    assert all(d["id"] != deliv["id"] for d in listed.json()["deliverables"])
+
+    row = db.query(Deliverable).filter(Deliverable.id == deliv["id"]).first()
+    assert row is not None
+    assert row.is_active is False
 
 
 def test_deliverables_overview(client, admin_token, db):

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.services.alm_service import (
     get_alm_dashboard,
     list_vendors_records, create_vendor_record, get_vendor_record,
@@ -52,7 +53,8 @@ def update_vendor(vid: str, data: dict = Body(...), db: Session = Depends(get_db
     return update_vendor_record(vid, data, db)
 
 @router.delete("/vendors/{vid}")
-def delete_vendor(vid: str, db: Session = Depends(get_db), _=Depends(require_any_manager)):
+def delete_vendor(vid: str, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
+    enforce_abac(db, cu, "alm_vendor", vid, action="delete")
     return delete_vendor_record(vid, db)
 
 
@@ -76,7 +78,8 @@ def update_contract(cid: str, data: dict = Body(...), db: Session = Depends(get_
     return update_contract_record(cid, data, db)
 
 @router.delete("/contracts/{cid}")
-def delete_contract(cid: str, db: Session = Depends(get_db), _=Depends(require_any_manager)):
+def delete_contract(cid: str, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
+    enforce_abac(db, cu, "alm_contract", cid, action="delete")
     return delete_contract_record(cid, db)
 
 
@@ -100,7 +103,8 @@ def update_license(lid: str, data: dict = Body(...), db: Session = Depends(get_d
     return update_license_record(lid, data, db)
 
 @router.delete("/licenses/{lid}")
-def delete_license(lid: str, db: Session = Depends(get_db), _=Depends(require_any_manager)):
+def delete_license(lid: str, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
+    enforce_abac(db, cu, "alm_license", lid, action="delete")
     return delete_license_record(lid, db)
 
 
@@ -110,7 +114,8 @@ def assign_license(lid: str, data: dict = Body(...), db: Session = Depends(get_d
     return assign_license_record(lid, data, cu.id, db)
 
 @router.delete("/licenses/{lid}/assignments/{aid}")
-def revoke_assignment(lid: str, aid: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def revoke_assignment(lid: str, aid: str, db: Session = Depends(get_db), cu=Depends(get_current_user)):
+    enforce_abac(db, cu, "alm_license_assignment", aid, action="delete")
     return revoke_assignment_record(lid, aid, db)
 
 
@@ -134,7 +139,8 @@ def update_asset(aid: str, data: dict = Body(...), db: Session = Depends(get_db)
     return update_asset_record(aid, data, db)
 
 @router.delete("/assets/{aid}")
-def delete_asset(aid: str, db: Session = Depends(get_db), _=Depends(require_any_manager)):
+def delete_asset(aid: str, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
+    enforce_abac(db, cu, "alm_asset", aid, action="delete")
     return delete_asset_record(aid, db)
 
 @router.post("/assets/{aid}/assign")
@@ -156,7 +162,8 @@ def update_cost_center(cid: str, data: dict = Body(...), db: Session = Depends(g
     return update_cost_center_record(cid, data, db)
 
 @router.delete("/cost-centers/{cid}")
-def delete_cost_center(cid: str, db: Session = Depends(get_db), _=Depends(require_any_manager)):
+def delete_cost_center(cid: str, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
+    enforce_abac(db, cu, "alm_cost_center", cid, action="delete")
     return delete_cost_center_record(cid, db)
 
 
@@ -166,7 +173,8 @@ def add_install(aid: str, data: dict = Body(...), db: Session = Depends(get_db),
     return add_install_record(aid, data, cu.id, db)
 
 @router.delete("/assets/{aid}/installs/{iid}")
-def remove_install(aid: str, iid: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def remove_install(aid: str, iid: str, db: Session = Depends(get_db), cu=Depends(get_current_user)):
+    enforce_abac(db, cu, "alm_software_install", iid, action="delete")
     return remove_install_record(aid, iid, db)
 
 

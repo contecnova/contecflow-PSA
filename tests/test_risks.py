@@ -75,6 +75,31 @@ def test_delete_risk(client, admin_token, db):
     assert res.status_code in (200, 204)
 
 
+def test_delete_risk_is_soft_and_hidden_from_list(client, admin_token, db):
+    from app.models.pipeline import Risk
+
+    pid = _create_project(client, admin_token, code="RSK-05")
+    risk = client.post(f"/api/v1/risks/{pid}", json={
+        "title": "Riesgo soft-delete",
+        "probability": "medium",
+        "impact": "major",
+    }, headers=auth(admin_token)).json()
+
+    deleted = client.delete(f"/api/v1/risks/{pid}/{risk['id']}", headers=auth(admin_token))
+    assert deleted.status_code == 200
+    body = deleted.json()
+    assert body["ok"] is True
+
+    listed = client.get(f"/api/v1/risks/{pid}", headers=auth(admin_token))
+    assert listed.status_code == 200
+    listed_ids = {r["id"] for r in listed.json()["risks"]}
+    assert risk["id"] not in listed_ids
+
+    row = db.query(Risk).filter(Risk.id == risk["id"]).first()
+    assert row is not None
+    assert row.is_active is False
+
+
 def test_portfolio_risks(client, admin_token, db):
     """Vista de riesgos de todos los proyectos."""
     res = client.get("/api/v1/risks/all/portfolio", headers=auth(admin_token))

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.models.resources import ChangeRequest
 from app.services import change_service
@@ -227,5 +228,9 @@ def delete_cr(
     cr = change_service.get_by_id(db, cr_id)
     if not cr:
         raise HTTPException(404, "CR no encontrada")
-    change_service.delete_change_request(db, cr)
-    return {"ok": True}
+    enforce_abac(db, current_user, "change_request", cr_id, action="delete")
+    try:
+        change_service.delete_change_request(db, cr)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "message": "Solicitud de cambio eliminada correctamente"}

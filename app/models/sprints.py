@@ -1,7 +1,7 @@
 """
 Sprint / Scrum models — full Agile sprint management.
 """
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Integer, Enum, Date
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Integer, Enum, Date, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -58,6 +58,7 @@ class SprintTask(Base):
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     sprint_id    = Column(String(36), ForeignKey("sprints.id", ondelete="CASCADE"), nullable=False, index=True)
     task_id      = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_active    = Column(Boolean, default=True)
     backlog_order = Column(Integer, default=0)             # Order within the sprint backlog
     added_at     = Column(DateTime(timezone=True), server_default=func.now())
 

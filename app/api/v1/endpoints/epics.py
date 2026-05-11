@@ -8,6 +8,7 @@ from app.schemas.epics import (
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.services.epics_service import (
     list_wiki_spaces, create_wiki_space, update_wiki_space, delete_wiki_space,
@@ -54,6 +55,7 @@ def update_space(space_id: str, p: WikiSpaceIn,
 @router.delete("/wiki/spaces/{space_id}")
 def delete_space(space_id: str, db: Session = Depends(get_db),
                  cu: User = Depends(require_admin_or_pm)):
+    enforce_abac(db, cu, "wiki_space", space_id, action="delete")
     return delete_wiki_space(space_id, db)
 
 
@@ -90,6 +92,7 @@ def update_page(page_id: str, p: WikiPageIn,
 @router.delete("/wiki/pages/{page_id}")
 def delete_page(page_id: str, db: Session = Depends(get_db),
                 cu: User = Depends(require_admin_or_pm)):
+    enforce_abac(db, cu, "wiki_page", page_id, action="delete")
     return delete_wiki_page(page_id, db)
 
 
@@ -190,6 +193,7 @@ def save_filter(p: SavedFilterIn, db: Session = Depends(get_db), cu: User = Depe
 
 @router.delete("/filters/{filter_id}")
 def delete_filter(filter_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    enforce_abac(db, cu, "saved_filter", filter_id, action="delete")
     return delete_saved_filter(filter_id, cu.id, db)
 
 
@@ -253,6 +257,7 @@ def resolve_comment(comment_id: str, db: Session = Depends(get_db),
 @router.delete("/comments/{comment_id}")
 def delete_comment(comment_id: str, db: Session = Depends(get_db),
                    cu: User = Depends(get_current_user)):
+    enforce_abac(db, cu, "threaded_comment", comment_id, action="delete")
     return delete_threaded_comment(comment_id, cu.id, db)
 
 
@@ -272,6 +277,7 @@ def update_epic(epic_id: str, p: EpicIn,
 @router.delete("/{epic_id}")
 def delete_epic(epic_id: str, db: Session = Depends(get_db),
                 cu: User = Depends(require_admin_or_pm)):
+    enforce_abac(db, cu, "epic", epic_id, action="delete")
     return delete_epic_record(epic_id, db)
 
 
@@ -284,6 +290,7 @@ def add_task_to_epic(epic_id: str, task_id: str,
 @router.delete("/{epic_id}/tasks/{task_id}")
 def remove_task_from_epic(epic_id: str, task_id: str,
                           db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    enforce_abac(db, cu, "epic", epic_id, action="delete")
     return remove_task_from_epic_record(epic_id, task_id, db)
 
 
@@ -296,4 +303,5 @@ def add_dependency(epic_id: str, depends_on_id: str,
 @router.delete("/{epic_id}/dependencies/{depends_on_id}")
 def remove_dependency(epic_id: str, depends_on_id: str,
                       db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+    enforce_abac(db, cu, "epic", epic_id, action="delete")
     return remove_epic_dependency(epic_id, depends_on_id, db)

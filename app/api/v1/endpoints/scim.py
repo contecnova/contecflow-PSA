@@ -177,8 +177,32 @@ def delete_scim_user(
     db: Session = Depends(get_db),
     _auth: None = Depends(_require_scim_token),
 ):
+    # SCIM se autentica con un bearer token estático: no hay current_user
+    # contra el que evaluar ABAC. La capa de servicio ya valida que el user
+    # pertenece al org_id (get_user_by_id_and_org). Para que cualquier
+    # deactivation provisionada vía SCIM quede trazada, dejamos un audit
+    # log explícito — la idempotencia 204 del estándar SCIM no nos ayuda
+    # a detectar abusos sin esta pista.
     _ensure_org(db, org_id)
-    _delete_scim_user_record(db, user_id, org_id)
+    deleted = _delete_scim_user_record(db, user_id, org_id)
+    try:
+        import json
+        from app.models.enterprise import AuditLog
+        db.add(AuditLog(
+            user_id=None,  # SCIM token, sin user humano
+            action="DELETE",
+            resource="users",
+            resource_id=user_id,
+            metadata_=json.dumps({
+                "source": "scim",
+                "org_id": org_id,
+                "applied": bool(deleted),
+            }),
+        ))
+        db.commit()
+    except Exception:  # pragma: no cover — audit best-effort
+        import logging
+        logging.getLogger(__name__).exception("SCIM delete audit failed")
     return None
 
 

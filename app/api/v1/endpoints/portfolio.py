@@ -14,6 +14,7 @@ from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.abac_enforce import enforce_abac
 from app.core.events import emit_event, EventType
 from app.models.user import User
 from app.services import portfolio_service
@@ -89,11 +90,15 @@ def delete_portfolio(portfolio_id: str, db: Session = Depends(get_db),
     p = portfolio_service.get_portfolio(db, portfolio_id)
     if not p:
         raise HTTPException(404, "Cartera no encontrada")
+    enforce_abac(db, cu, "portfolio", portfolio_id, action="delete")
     name = p.name
-    portfolio_service.delete_portfolio(db, p)
+    try:
+        portfolio_service.delete_portfolio(db, p)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     emit_event(db, EventType.PORTFOLIO_DELETED, {"name": name},
                actor=cu, resource_type="portfolio", resource_id=portfolio_id)
-    return {"deleted": True}
+    return {"ok": True, "message": "Cartera eliminada correctamente"}
 
 
 # ── Projects within portfolio ──────────────────────────────────────────────────
@@ -129,11 +134,12 @@ def remove_project(portfolio_id: str, project_id: str,
     pp = portfolio_service.get_portfolio_project(db, portfolio_id, project_id)
     if not pp:
         raise HTTPException(404, "El proyecto no está en esta cartera")
+    enforce_abac(db, cu, "portfolio_project", pp.id, action="delete")
     portfolio_service.remove_project_from_portfolio(db, pp)
     emit_event(db, EventType.PORTFOLIO_PROJECT_REMOVED,
                {"portfolio_id": portfolio_id, "project_id": project_id},
                actor=cu, resource_type="portfolio", resource_id=portfolio_id)
-    return {"deleted": True}
+    return {"ok": True, "message": "Proyecto eliminado de la cartera correctamente"}
 
 
 # ── Portfolio Dashboard ────────────────────────────────────────────────────────
@@ -157,6 +163,8 @@ def portfolio_dashboard(portfolio_id: str, db: Session = Depends(get_db),
     today         = date.today()
 
     for pp in port.members:
+        if not pp.is_active:
+            continue
         proj = pp.project
         if not proj:
             continue

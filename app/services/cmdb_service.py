@@ -45,7 +45,7 @@ def _404(m):
 # ──────────────────────────────────────────────────────────────────────────────
 
 def list_wiki_tags(space_id: str, db: Session) -> list:
-    tags = db.query(WikiTag).filter(WikiTag.space_id == space_id).all()
+    tags = db.query(WikiTag).filter(WikiTag.space_id == space_id, WikiTag.is_active == True).all()
     counts = dict(db.query(WikiPageTag.tag_id, func.count(WikiPageTag.id))
                    .filter(WikiPageTag.tag_id.in_([t.id for t in tags]))
                    .group_by(WikiPageTag.tag_id).all())
@@ -62,17 +62,21 @@ def create_wiki_tag(space_id: str, name: str, color: str, user_id: str, db: Sess
 
 
 def update_wiki_tag(tag_id: str, name: str, color: str, db: Session) -> dict:
-    t = db.query(WikiTag).filter(WikiTag.id == tag_id).first()
+    t = db.query(WikiTag).filter(WikiTag.id == tag_id, WikiTag.is_active == True).first()
     if not t: _404("Etiqueta")
     t.name = name; t.color = color; db.commit(); db.refresh(t)
     return {"id": t.id, "name": t.name, "color": t.color}
 
 
 def delete_wiki_tag(tag_id: str, db: Session) -> dict:
-    t = db.query(WikiTag).filter(WikiTag.id == tag_id).first()
+    t = db.query(WikiTag).filter(WikiTag.id == tag_id, WikiTag.is_active == True).first()
     if not t: _404("Etiqueta")
-    db.delete(t); db.commit()
-    return {"deleted": True}
+    linked_pages = db.query(func.count(WikiPageTag.id)).filter(WikiPageTag.tag_id == tag_id).scalar() or 0
+    if linked_pages > 0:
+        raise HTTPException(400, f"No se puede eliminar: la etiqueta esta asociada a {linked_pages} pagina(s)")
+    t.is_active = False
+    db.commit()
+    return {"ok": True, "message": "Etiqueta eliminada correctamente"}
 
 
 def add_page_tag(page_id: str, tag_id: str, db: Session) -> dict:
@@ -94,10 +98,13 @@ def get_page_tags(page_id: str, db: Session) -> list:
     pts = db.query(WikiPageTag).options(joinedload(WikiPageTag.tag)).filter(
         WikiPageTag.page_id == page_id).all()
     return [{"id": pt.tag.id, "name": pt.tag.name, "color": pt.tag.color}
-            for pt in pts if pt.tag]
+            for pt in pts if pt.tag and pt.tag.is_active]
 
 
 def get_pages_by_tag(space_id: str, tag_id: str, db: Session) -> list:
+    tag = db.query(WikiTag).filter(WikiTag.id == tag_id, WikiTag.is_active == True).first()
+    if not tag:
+        _404("Etiqueta")
     pts = db.query(WikiPageTag).filter(WikiPageTag.tag_id == tag_id).all()
     page_ids = [p.page_id for p in pts]
     pages = db.query(WikiPage).filter(
@@ -176,7 +183,7 @@ def merge_ci_attrs(payload) -> str:
 def list_cmdb_categories(db: Session) -> list:
     cats = db.query(CMDBCategory).all()
     counts = dict(db.query(CMDBItem.category_id, func.count(CMDBItem.id))
-                   .filter(CMDBItem.category_id.in_([c.id for c in cats]))
+                   .filter(CMDBItem.category_id.in_([c.id for c in cats]), CMDBItem.is_active == True)
                    .group_by(CMDBItem.category_id).all())
     return [{"id": c.id, "name": c.name, "icon": c.icon, "color": c.color,
              "item_count": counts.get(c.id, 0)} for c in cats]
@@ -214,6 +221,7 @@ def list_cmdb_items(
         CMDBItem.name.ilike(f"%{q}%"),
         CMDBItem.hostname.ilike(f"%{q}%"),
         CMDBItem.ip_address.ilike(f"%{q}%")))
+    query = query.filter(CMDBItem.is_active == True)
     return [serialize_cmdb_item(i) for i in query.order_by(CMDBItem.name).all()]
 
 
@@ -230,7 +238,7 @@ def create_cmdb_item(payload, user_id: str, db: Session) -> dict:
 
 
 def update_cmdb_item(item_id: str, payload, user_id: str, db: Session) -> dict:
-    i = db.query(CMDBItem).filter(CMDBItem.id == item_id).first()
+    i = db.query(CMDBItem).filter(CMDBItem.id == item_id, CMDBItem.is_active == True).first()
     if not i: _404("Activo")
     update_data = payload.model_dump(exclude_unset=True)
     existing_attrs = json.loads(i.attributes or '{}')
@@ -252,10 +260,23 @@ def update_cmdb_item(item_id: str, payload, user_id: str, db: Session) -> dict:
 
 
 def delete_cmdb_item(item_id: str, db: Session) -> dict:
-    i = db.query(CMDBItem).filter(CMDBItem.id == item_id).first()
+    i = db.query(CMDBItem).filter(CMDBItem.id == item_id, CMDBItem.is_active == True).first()
     if not i: _404("Activo")
-    db.delete(i); db.commit()
-    return {"deleted": True}
+    outgoing = db.query(func.count(CMDBRelation.id)).filter(
+        CMDBRelation.from_item_id == item_id,
+        CMDBRelation.is_active == True,
+    ).scalar() or 0
+    incoming = db.query(func.count(CMDBRelation.id)).filter(
+        CMDBRelation.to_item_id == item_id,
+        CMDBRelation.is_active == True,
+    ).scalar() or 0
+    if outgoing > 0 or incoming > 0:
+        raise HTTPException(400, f"No se puede eliminar: relaciones activas salientes={outgoing}, entrantes={incoming}")
+    i.is_active = False
+    i.status = "decommissioned"
+    _log_cmdb_change(db, i.id, None, "deleted", summary="Activo eliminado")
+    db.commit()
+    return {"ok": True, "message": "Activo eliminado correctamente"}
 
 
 def _log_cmdb_change(
@@ -275,7 +296,7 @@ def _log_cmdb_change(
 
 
 def get_cmdb_changelog(item_id: str, limit: int, db: Session) -> list:
-    item = db.query(CMDBItem).filter(CMDBItem.id == item_id).first()
+    item = db.query(CMDBItem).filter(CMDBItem.id == item_id, CMDBItem.is_active == True).first()
     if not item: _404("Activo")
     entries = (
         db.query(CMDBChangelog)
@@ -297,12 +318,19 @@ def get_cmdb_changelog(item_id: str, limit: int, db: Session) -> list:
 
 
 def get_item_relations(item_id: str, db: Session) -> dict:
+    item = db.query(CMDBItem).filter(CMDBItem.id == item_id, CMDBItem.is_active == True).first()
+    if not item:
+        _404("Activo")
     rels_from = db.query(CMDBRelation).options(
         joinedload(CMDBRelation.to_item)).filter(
-        CMDBRelation.from_item_id == item_id).all()
+        CMDBRelation.from_item_id == item_id,
+        CMDBRelation.is_active == True,
+    ).all()
     rels_to = db.query(CMDBRelation).options(
         joinedload(CMDBRelation.from_item)).filter(
-        CMDBRelation.to_item_id == item_id).all()
+        CMDBRelation.to_item_id == item_id,
+        CMDBRelation.is_active == True,
+    ).all()
     return {
         "outgoing": [{"id": r.id, "rel_type": r.rel_type,
                       "to_item": serialize_cmdb_item(r.to_item)} for r in rels_from],
@@ -315,7 +343,7 @@ def create_cmdb_relation(from_item_id: str, to_item_id: str, rel_type: str, db: 
     if from_item_id == to_item_id:
         raise HTTPException(400, "Un activo no puede relacionarse consigo mismo")
     for iid in [from_item_id, to_item_id]:
-        if not db.query(CMDBItem).filter(CMDBItem.id == iid).first():
+        if not db.query(CMDBItem).filter(CMDBItem.id == iid, CMDBItem.is_active == True).first():
             raise HTTPException(404, f"Activo {iid} no encontrado")
     r = CMDBRelation(from_item_id=from_item_id, to_item_id=to_item_id, rel_type=rel_type)
     db.add(r); db.commit(); db.refresh(r)
@@ -323,10 +351,11 @@ def create_cmdb_relation(from_item_id: str, to_item_id: str, rel_type: str, db: 
 
 
 def delete_cmdb_relation(relation_id: str, db: Session) -> dict:
-    r = db.query(CMDBRelation).filter(CMDBRelation.id == relation_id).first()
+    r = db.query(CMDBRelation).filter(CMDBRelation.id == relation_id, CMDBRelation.is_active == True).first()
     if not r: _404("Relación")
-    db.delete(r); db.commit()
-    return {"deleted": True}
+    r.is_active = False
+    db.commit()
+    return {"ok": True, "message": "Relacion eliminada correctamente"}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -439,7 +468,7 @@ def get_kanban_config(project_id: str, db: Session) -> dict:
         "columns": [
             {"id": col.id, "status": col.status, "label": col.label,
              "wip_limit": col.wip_limit, "color": col.color, "sort_order": col.sort_order}
-            for col in (cfg.columns or [])
+            for col in (cfg.columns or []) if col.is_active
         ],
     }
 
@@ -472,7 +501,10 @@ def add_kanban_column(
     cfg = db.query(KanbanConfig).filter(KanbanConfig.project_id == project_id).first()
     if not cfg: raise HTTPException(400, "Configura el tablero Kanban primero")
     existing = db.query(KanbanColumn).filter(
-        KanbanColumn.config_id == cfg.id, KanbanColumn.status == status).first()
+        KanbanColumn.config_id == cfg.id,
+        KanbanColumn.status == status,
+        KanbanColumn.is_active == True,
+    ).first()
     if existing:
         raise HTTPException(400, f"El estado '{status}' ya tiene columna")
     col = KanbanColumn(config_id=cfg.id, status=status, label=label,
@@ -485,7 +517,7 @@ def update_kanban_column(
     column_id: str, label: Optional[str], wip_limit: Optional[int],
     color: Optional[str], sort_order: int, db: Session,
 ) -> dict:
-    col = db.query(KanbanColumn).filter(KanbanColumn.id == column_id).first()
+    col = db.query(KanbanColumn).filter(KanbanColumn.id == column_id, KanbanColumn.is_active == True).first()
     if not col: _404("Columna")
     col.label = label; col.wip_limit = wip_limit
     col.color = color; col.sort_order = sort_order
@@ -494,10 +526,17 @@ def update_kanban_column(
 
 
 def delete_kanban_column(column_id: str, db: Session) -> dict:
-    col = db.query(KanbanColumn).filter(KanbanColumn.id == column_id).first()
+    col = db.query(KanbanColumn).filter(KanbanColumn.id == column_id, KanbanColumn.is_active == True).first()
     if not col: _404("Columna")
-    db.delete(col); db.commit()
-    return {"deleted": True}
+    tasks_using_column = db.query(func.count(Task.id)).filter(
+        Task.project_id == col.config.project_id,
+        Task.status == col.status,
+    ).scalar() or 0
+    if tasks_using_column > 0:
+        raise HTTPException(400, f"No se puede eliminar: {tasks_using_column} tarea(s) usan esta columna")
+    col.is_active = False
+    db.commit()
+    return {"ok": True, "message": "Columna eliminada correctamente"}
 
 
 def get_kanban_board(
@@ -506,7 +545,7 @@ def get_kanban_board(
 ) -> dict:
     cfg = db.query(KanbanConfig).options(joinedload(KanbanConfig.columns)).filter(
         KanbanConfig.project_id == project_id).first()
-    cols = cfg.columns if cfg else []
+    cols = [c for c in cfg.columns if c.is_active] if cfg else []
     statuses = [c.status for c in cols] if cols else []
 
     q = db.query(Task).filter(Task.project_id == project_id)
@@ -641,7 +680,8 @@ def generate_sprint_plan(
 
 def list_sprint_plans(project_id: str, db: Session) -> list:
     plans = db.query(SprintPlan).filter(
-        SprintPlan.project_id == project_id
+        SprintPlan.project_id == project_id,
+        SprintPlan.is_active == True,
     ).order_by(SprintPlan.created_at.desc()).all()
     return [{"id": p.id, "name": p.name, "status": p.status,
              "total_points": p.total_points, "team_capacity": p.team_capacity,
@@ -653,17 +693,20 @@ def list_sprint_plans(project_id: str, db: Session) -> list:
 def update_sprint_plan_status(plan_id: str, status: str, db: Session) -> dict:
     if status not in ("draft", "accepted", "rejected"):
         raise HTTPException(400, "Estado válido: draft, accepted, rejected")
-    plan = db.query(SprintPlan).filter(SprintPlan.id == plan_id).first()
+    plan = db.query(SprintPlan).filter(SprintPlan.id == plan_id, SprintPlan.is_active == True).first()
     if not plan: _404("Plan")
     plan.status = status; db.commit()
     return {"id": plan.id, "status": plan.status}
 
 
 def delete_sprint_plan(plan_id: str, db: Session) -> dict:
-    plan = db.query(SprintPlan).filter(SprintPlan.id == plan_id).first()
+    plan = db.query(SprintPlan).filter(SprintPlan.id == plan_id, SprintPlan.is_active == True).first()
     if not plan: _404("Plan")
-    db.delete(plan); db.commit()
-    return {"deleted": True}
+    if plan.status == "accepted":
+        raise HTTPException(400, "No se puede eliminar un plan aceptado")
+    plan.is_active = False
+    db.commit()
+    return {"ok": True, "message": "Plan eliminado correctamente"}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -671,11 +714,11 @@ def delete_sprint_plan(plan_id: str, db: Session) -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 
 def list_sla_calendars(db: Session) -> list:
-    cals = db.query(SLACalendar).options(joinedload(SLACalendar.holidays)).all()
+    cals = db.query(SLACalendar).options(joinedload(SLACalendar.holidays)).filter(SLACalendar.is_active == True).all()
     return [{"id": c.id, "name": c.name, "timezone": c.timezone,
              "work_start": c.work_start, "work_end": c.work_end,
              "work_days": c.work_days,
-             "holiday_count": len(c.holidays)} for c in cals]
+             "holiday_count": len([h for h in c.holidays if h.is_active])} for c in cals]
 
 
 def create_sla_calendar(
@@ -688,7 +731,7 @@ def create_sla_calendar(
 
 
 def update_sla_calendar(cal_id: str, payload, db: Session) -> dict:
-    c = db.query(SLACalendar).filter(SLACalendar.id == cal_id).first()
+    c = db.query(SLACalendar).filter(SLACalendar.id == cal_id, SLACalendar.is_active == True).first()
     if not c: _404("Calendario")
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(c, k, v)
@@ -697,21 +740,29 @@ def update_sla_calendar(cal_id: str, payload, db: Session) -> dict:
 
 
 def delete_sla_calendar(cal_id: str, db: Session) -> dict:
-    c = db.query(SLACalendar).filter(SLACalendar.id == cal_id).first()
+    c = db.query(SLACalendar).filter(SLACalendar.id == cal_id, SLACalendar.is_active == True).first()
     if not c: _404("Calendario")
-    db.delete(c); db.commit()
-    return {"deleted": True}
+    holiday_count = db.query(func.count(V21SLAHoliday.id)).filter(
+        V21SLAHoliday.calendar_id == cal_id,
+        V21SLAHoliday.is_active == True,
+    ).scalar() or 0
+    if holiday_count > 0:
+        raise HTTPException(400, f"No se puede eliminar: el calendario tiene {holiday_count} festivo(s) activos")
+    c.is_active = False
+    db.commit()
+    return {"ok": True, "message": "Calendario eliminado correctamente"}
 
 
 def list_sla_holidays(cal_id: str, db: Session) -> list:
     hs = db.query(V21SLAHoliday).filter(
-        V21SLAHoliday.calendar_id == cal_id
+        V21SLAHoliday.calendar_id == cal_id,
+        V21SLAHoliday.is_active == True,
     ).order_by(V21SLAHoliday.holiday_date).all()
     return [{"id": h.id, "holiday_date": h.holiday_date, "name": h.name} for h in hs]
 
 
 def add_sla_holiday(cal_id: str, holiday_date: str, name: Optional[str], db: Session) -> dict:
-    if not db.query(SLACalendar).filter(SLACalendar.id == cal_id).first():
+    if not db.query(SLACalendar).filter(SLACalendar.id == cal_id, SLACalendar.is_active == True).first():
         _404("Calendario")
     h = V21SLAHoliday(calendar_id=cal_id, holiday_date=holiday_date, name=name)
     db.add(h); db.commit(); db.refresh(h)
@@ -722,7 +773,10 @@ def update_sla_holiday(
     cal_id: str, holiday_id: str, holiday_date: str, name: Optional[str], db: Session,
 ) -> dict:
     h = db.query(V21SLAHoliday).filter(
-        V21SLAHoliday.id == holiday_id, V21SLAHoliday.calendar_id == cal_id).first()
+        V21SLAHoliday.id == holiday_id,
+        V21SLAHoliday.calendar_id == cal_id,
+        V21SLAHoliday.is_active == True,
+    ).first()
     if not h: _404("Festivo")
     h.holiday_date = holiday_date
     if name is not None:
@@ -733,14 +787,18 @@ def update_sla_holiday(
 
 def delete_sla_holiday(cal_id: str, holiday_id: str, db: Session) -> dict:
     h = db.query(V21SLAHoliday).filter(
-        V21SLAHoliday.id == holiday_id, V21SLAHoliday.calendar_id == cal_id).first()
+        V21SLAHoliday.id == holiday_id,
+        V21SLAHoliday.calendar_id == cal_id,
+        V21SLAHoliday.is_active == True,
+    ).first()
     if not h: _404("Festivo")
-    db.delete(h); db.commit()
-    return {"deleted": True}
+    h.is_active = False
+    db.commit()
+    return {"ok": True, "message": "Festivo eliminado correctamente"}
 
 
 def check_is_business_day(cal_id: str, check_date: str, db: Session) -> dict:
-    c = db.query(SLACalendar).filter(SLACalendar.id == cal_id).first()
+    c = db.query(SLACalendar).filter(SLACalendar.id == cal_id, SLACalendar.is_active == True).first()
     if not c: _404("Calendario")
     try:
         d = date.fromisoformat(check_date)
@@ -751,7 +809,9 @@ def check_is_business_day(cal_id: str, check_date: str, db: Session) -> dict:
     is_weekend  = dow not in work_days
     holiday_obj = db.query(V21SLAHoliday).filter(
         V21SLAHoliday.calendar_id == cal_id,
-        V21SLAHoliday.holiday_date == check_date).first()
+        V21SLAHoliday.holiday_date == check_date,
+        V21SLAHoliday.is_active == True,
+    ).first()
     is_holiday   = holiday_obj is not None
     holiday_name = holiday_obj.name if holiday_obj else None
 

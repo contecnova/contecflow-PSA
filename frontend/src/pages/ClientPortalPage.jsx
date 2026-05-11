@@ -12,10 +12,10 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { portalApi, projectsApi, deliverablesApi, wikiApi } from '../services/api'
-import { Button, Modal, Spinner, EmptyState } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { Globe } from 'lucide-react'
+import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
+import {
+  Globe, Users, FlaskConical, Lightbulb, FileText, BookOpen,
+} from 'lucide-react'
 import { fmtDate, fmtCurrency, extractErr} from '../utils/helpers'
 import { STATUS_CFG, FR_STATUS_CFG } from '../constants/sharedStatus'
 import { useAppT } from '../i18n/AppLangContext'
@@ -111,7 +111,7 @@ function ClientUsersTab({ projectId }) {
         <Button onClick={() => setShowCreate(true)} icon="＋">{t('client_portal.add_contact')}</Button>
       </div>
       {isLoading ? <Spinner /> : clients.length === 0 ? (
-        <EmptyState icon="👤" title={t('client_portal.empty_contacts_title')} description={t('client_portal.empty_contacts_desc')} />
+        <EmptyState svgIcon={<Users size={36} />} title={t('client_portal.empty_contacts_title')} description={t('client_portal.empty_contacts_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {clients.map(c => (
@@ -370,7 +370,7 @@ function UATTab({ projectId }) {
         {projectId && <Button onClick={() => setShowCreate(true)} icon="＋">{t('client_portal.uat_new_session')}</Button>}
       </div>
       {isLoading ? <Spinner /> : sessions.length === 0 ? (
-        <EmptyState icon="🧪" title={t('client_portal.uat_empty_title')} description={t('client_portal.uat_empty_desc')} />
+        <EmptyState svgIcon={<FlaskConical size={36} />} title={t('client_portal.uat_empty_title')} description={t('client_portal.uat_empty_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {sessions.map(s => (
@@ -630,7 +630,7 @@ function FeatureRequestsTab({ projectId }) {
   return (
     <div>
       {isLoading ? <Spinner /> : frs.length === 0 ? (
-        <EmptyState icon="💡" title={t('client_portal.fr_empty_title')} description={t('client_portal.fr_empty_desc')} />
+        <EmptyState svgIcon={<Lightbulb size={36} />} title={t('client_portal.fr_empty_title')} description={t('client_portal.fr_empty_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {frs.map(fr => (
@@ -762,7 +762,7 @@ function DocumentsTab({ projectId }) {
         <Button onClick={() => setShowAdd(true)} icon="＋">{t('client_portal.docs_add')}</Button>
       </div>
       {isLoading ? <Spinner /> : docs.length === 0 ? (
-        <EmptyState icon="📄" title={t('client_portal.docs_empty_title')} description={t('client_portal.docs_empty_desc')} />
+        <EmptyState svgIcon={<FileText size={36} />} title={t('client_portal.docs_empty_title')} description={t('client_portal.docs_empty_desc')} />
       ) : (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
           {docs.map((doc, i) => {
@@ -863,7 +863,7 @@ function WikiPortalTab({ projectId }) {
       </div>
       {isLoading && <Spinner />}
       {selectedSpace && !isLoading && pages.length === 0 && (
-        <EmptyState icon="📚" title={t('client_portal.wiki_empty_title')} description={t('client_portal.wiki_empty_desc')} />
+        <EmptyState svgIcon={<BookOpen size={36} />} title={t('client_portal.wiki_empty_title')} description={t('client_portal.wiki_empty_desc')} />
       )}
       {pages.length > 0 && (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
@@ -941,34 +941,35 @@ export default function ClientPortalPage() {
   ]
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={<Globe size={18} />}
-        title={t('client_portal.title')}
-        subtitle={t('client_portal.subtitle')}
-        actions={
-          <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer', minWidth: 240 }}>
-            <option value="">{t('client_portal.select_project')}</option>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </select>
-        }
-      showListExport={false}
-      />
-
+    <Page
+      icon={<Globe size={18} />}
+      title={t('client_portal.title')}
+      subtitle={t('client_portal.subtitle')}
+      rightActions={
+        <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+          className="ds-input"
+          style={{ minWidth: 240 }}>
+          <option value="">{t('client_portal.select_project')}</option>
+          {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+        </select>
+      }
+    >
       {selectedProject && <StatsPanel projectId={selectedProject} />}
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
+      <div className="ds-segmented" role="tablist" aria-label="Secciones del portal cliente"
+        style={{ alignSelf: 'flex-start' }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+          <button key={t.id} type="button" role="tab"
+            aria-pressed={tab === t.id}
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}>
             {t.label}
           </button>
         ))}
       </div>
 
       {!selectedProject ? (
-        <EmptyState icon="🌐" title={t('client_portal.empty_select_title')} description={t('client_portal.empty_select_desc')} />
+        <EmptyState svgIcon={<Globe size={36} />} title={t('client_portal.empty_select_title')} description={t('client_portal.empty_select_desc')} />
       ) : (
         <>
           {tab === 'clients'   && <ClientUsersTab projectId={selectedProject} />}
@@ -979,6 +980,6 @@ export default function ClientPortalPage() {
           {tab === 'wiki'      && <WikiPortalTab projectId={selectedProject} />}
         </>
       )}
-    </PageShell>
+    </Page>
   )
 }

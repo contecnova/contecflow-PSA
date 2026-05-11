@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.models.collaboration import (
     CollaborationChannel, CollaborationChannelMember,
     CollaborationConversation,
@@ -139,6 +140,7 @@ def add_team_members(team_id: str, payload: TeamMemberUpsert, current_user: User
 
 @router.delete("/teams/{team_id}/members/{user_id}", summary="Quitar miembro del equipo")
 def remove_team_member(team_id: str, user_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    enforce_abac(db, current_user, "collaboration_team", team_id, action="delete")
     ws_svc.remove_team_member(db, current_user, team_id, user_id)
     return {"removed": True}
 
@@ -347,6 +349,7 @@ def remove_conversation_member(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    enforce_abac(db, current_user, "collaboration_conversation", conversation_id, action="delete")
     from app.services.collaboration._permissions import assert_conversation_access
     assert_conversation_access(db, current_user, conversation_id)
     conv = db.query(CollaborationConversation).filter(
@@ -583,6 +586,7 @@ def save_search(payload: dict, current_user: User = Depends(get_current_user), d
 
 @router.delete("/search/saved/{saved_id}", summary="Eliminar búsqueda guardada")
 def delete_saved_search(saved_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    enforce_abac(db, current_user, "collaboration_saved_search", saved_id, action="delete")
     from app.models.collaboration import CollaborationSavedSearch
     row = db.query(CollaborationSavedSearch).filter(
         CollaborationSavedSearch.id == saved_id,

@@ -78,6 +78,43 @@ def test_global_sprints_list(client, admin_token, db):
     assert res.status_code == 200
 
 
+def test_sprint_task_remove_is_soft_and_reactivable(client, pm_token, db):
+    pid = _create_project(client, pm_token, code="SPR-06")
+    sprint = client.post(
+        f"/api/v1/sprints/{pid}/sprints",
+        json={"name": "Sprint Soft Delete"},
+        headers=auth(pm_token),
+    ).json()
+    task = client.post(
+        "/api/v1/tasks",
+        json={"title": "Task in sprint", "project_id": pid, "status": "todo", "priority": "medium"},
+        headers=auth(pm_token),
+    ).json()
+
+    added = client.post(
+        f"/api/v1/sprints/{pid}/sprints/{sprint['id']}/tasks",
+        json={"task_ids": [task["id"]]},
+        headers=auth(pm_token),
+    )
+    assert added.status_code == 200
+    assert added.json().get("added") == 1
+
+    removed = client.delete(
+        f"/api/v1/sprints/{pid}/sprints/{sprint['id']}/tasks/{task['id']}",
+        headers=auth(pm_token),
+    )
+    assert removed.status_code == 200
+    assert removed.json().get("ok") is True
+
+    readded = client.post(
+        f"/api/v1/sprints/{pid}/sprints/{sprint['id']}/tasks",
+        json={"task_ids": [task["id"]]},
+        headers=auth(pm_token),
+    )
+    assert readded.status_code == 200
+    assert readded.json().get("added") == 1
+
+
 def test_sprint_requires_auth(client, db):
     res = client.get("/api/v1/sprints")
     assert res.status_code in (401, 403)

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.services.milestone_service import (
     complete_milestone as svc_complete_milestone,
@@ -87,10 +88,11 @@ def delete_milestone(
 ):
     m = svc_get_milestone_by_id(db, milestone_id)
     if not m: raise HTTPException(404)
+    enforce_abac(db, current_user, "project_milestone", milestone_id, action="delete")
     if m.invoice_id:
         raise HTTPException(400, "No se puede eliminar un milestone ya facturado")
     svc_delete_milestone(db, m)
-    return {"ok": True}
+    return {"ok": True, "message": "Milestone eliminado correctamente"}
 
 
 # ── Flujo: Completar ───────────────────────────────────────────────────────────

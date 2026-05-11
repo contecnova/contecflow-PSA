@@ -26,6 +26,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, require_admin_or_hr
 from app.db.session import get_db
 from app.models.user import User
@@ -164,6 +165,7 @@ def delete_country(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_hr),
 ):
+    enforce_abac(db, current_user, "country_preset", preset_id, action="delete")
     row = db.query(CountryEmployerCost).filter(CountryEmployerCost.id == preset_id).first()
     if not row:
         raise HTTPException(404, "Preset not found")
@@ -270,8 +272,9 @@ def update_profile(
 def delete_profile(
     profile_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(require_admin_or_hr),
 ):
+    enforce_abac(db, current_user, "user_cost_profile", profile_id, action="delete")
     if not svc.delete_profile(db, profile_id):
         raise HTTPException(404, "Profile not found")
     return {"ok": True}

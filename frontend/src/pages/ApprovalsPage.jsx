@@ -8,10 +8,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { approvalsApi } from '../services/api'
 import _api, { usersApi } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { CheckCircle } from 'lucide-react'
-import { Button, Modal, EmptyState, Tabs } from '../components/ui'
+import {
+  CheckCircle, CheckCircle2, Info, Trash2,
+  Clock as ClockIcon, Users, BarChart3, Sparkles, Layers,
+} from 'lucide-react'
+import { Button, Modal, EmptyState, Tabs, Page } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
 const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
@@ -330,7 +331,7 @@ function WorkflowDetail({ workflowId, onBack }) {
       </div>
 
       {steps.length === 0 ? (
-        <EmptyState icon="○" title={t('approvals.no_steps_defined')} description={t('approvals.no_steps_description')} />
+        <EmptyState svgIcon={<Layers size={36} />} title={t('approvals.no_steps_defined')} description={t('approvals.no_steps_description')} />
       ) : (
         <div style={{ position: 'relative' }}>
           {steps.map((step, i) => {
@@ -482,44 +483,50 @@ function MyPendingTab() {
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>{t('approvals.loading')}</div>
 
   if (pending.length === 0) return (
-    <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-2)' }}>
-      <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>✅</div>
-      <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 4 }}>{t('approvals.no_pending_title')}</div>
-      <div style={{ fontSize: "var(--text-base)" }}>{t('approvals.no_pending_desc')}</div>
+    <div className="ds-empty">
+      <CheckCircle2 size={36} className="ds-empty__icon" style={{ color: 'var(--success)' }} />
+      <div className="ds-empty__title">{t('approvals.no_pending_title')}</div>
+      <div className="ds-empty__desc">{t('approvals.no_pending_desc')}</div>
     </div>
   )
 
   return (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginBottom: 14 }}>
-        <div style={{ ...panel, padding: '10px 12px' }}>
-          <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('approvals.total_pending')}</div>
-          <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--warning)' }}>{pending.length}</div>
+    <div className="ds-stack-lg">
+      {/* Mini KPI strip */}
+      <div className="ds-grid-stats">
+        <div className="ds-card" style={{ padding: '12px 14px', gap: 4 }}>
+          <div className="ds-eyebrow">{t('approvals.total_pending')}</div>
+          <div style={{ fontSize: 'var(--text-xl-em)', fontWeight: 800, color: 'var(--warning)', lineHeight: 1.1 }}>{pending.length}</div>
         </div>
         {Object.entries(statsByEntity).slice(0, 3).map(([k, count]) => {
           const entity = entityLabels(t)[k] || { label: k, icon: '○', color: 'var(--text-2)' }
           return (
-            <div key={k} style={{ ...panel, padding: '10px 12px' }}>
-              <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{entity.icon} {entity.label}</div>
-              <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: entity.color }}>{count}</div>
+            <div key={k} className="ds-card" style={{ padding: '12px 14px', gap: 4 }}>
+              <div className="ds-eyebrow">{entity.icon} {entity.label}</div>
+              <div style={{ fontSize: 'var(--text-xl-em)', fontWeight: 800, color: entity.color, lineHeight: 1.1 }}>{count}</div>
             </div>
           )
         })}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <select aria-label={t('approvals.filter_by_entity')} value={entityFilter} onChange={e => setEntityFilter(e.target.value)} style={{ ...inp, width: 220 }}>
+      {/* Filters */}
+      <div className="ds-toolbar">
+        <select aria-label={t('approvals.filter_by_entity')} value={entityFilter}
+          onChange={e => setEntityFilter(e.target.value)}
+          className="ds-input" style={{ width: 'auto', minWidth: 200 }}>
           <option value="all">{t('approvals.all_entities')}</option>
           {Object.entries(entityLabels(t)).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
-        <select aria-label={t('approvals.sort_requests')} value={sortMode} onChange={e => setSortMode(e.target.value)} style={{ ...inp, width: 220 }}>
+        <select aria-label={t('approvals.sort_requests')} value={sortMode}
+          onChange={e => setSortMode(e.target.value)}
+          className="ds-input" style={{ width: 'auto', minWidth: 200 }}>
           <option value="oldest">{t('approvals.sort_oldest')}</option>
           <option value="newest">{t('approvals.sort_newest')}</option>
         </select>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <label htmlFor="approvals-select-all" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", color: 'var(--text-2)', cursor: 'pointer' }}>
+      <div className="ds-row-between">
+        <label htmlFor="approvals-select-all" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--text-base)', color: 'var(--text-2)', cursor: 'pointer' }}>
           <input
             id="approvals-select-all"
             type="checkbox"
@@ -538,14 +545,18 @@ function MyPendingTab() {
           </Button>
         )}
       </div>
-      <div data-export-table="approvals-export">
+      <div data-export-table="approvals-export" className="ds-stack-sm">
         {queue.map(req => {
           const entity = entityLabels(t)[req.entity_type] || { label: req.entity_type, icon: '○', color: 'var(--text-2)' }
           const ageHours = Math.max(0, Math.floor((Date.now() - new Date(req.created_at || Date.now()).getTime()) / 3600000))
           const isUrgent = ageHours >= 24
           return (
-            <div key={req.id} style={{ background: selectedIds.has(req.id) ? 'var(--surface-3)' : 'var(--surface-2)', border: `1px solid ${selectedIds.has(req.id) ? 'var(--accent)' : isUrgent ? 'rgba(245,158,11,0.35)' : 'var(--surface-4)'}`, borderRadius: 12, padding: '16px 20px', marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+            <div key={req.id} className="ds-card" style={{
+              background: selectedIds.has(req.id) ? 'var(--surface-3)' : 'var(--surface-2)',
+              borderColor: selectedIds.has(req.id) ? 'var(--accent)' : isUrgent ? 'var(--warning-border)' : 'var(--surface-4)',
+              padding: '16px 20px', gap: 0,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-3)' }}>
                 <input
                   type="checkbox"
                   aria-label={t('approvals.select_request_aria', { name: req.entity_summary || req.entity_id })}
@@ -553,37 +564,41 @@ function MyPendingTab() {
                   onChange={() => toggleSelect(req.id)}
                   style={{ width: 15, height: 15, marginTop: 4, cursor: 'pointer', flexShrink: 0, accentColor: 'var(--accent)' }}
                 />
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ fontSize: "var(--text-sm)", padding: '2px 8px', borderRadius: 20, background: entity.color + '20', color: entity.color, fontWeight: 700 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="ds-row-wrap" style={{ marginBottom: 6 }}>
+                    <span className="ds-pill" style={{
+                      background: entity.color + '20', color: entity.color,
+                      borderColor: entity.color + '40',
+                    }}>
                       {entity.icon} {entity.label}
                     </span>
                     {req.step_name && (
-                      <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('approvals.step_n', { order: req.step_order })}: {req.step_name}</span>
+                      <span className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+                        {t('approvals.step_n', { order: req.step_order })}: {req.step_name}
+                      </span>
                     )}
                   </div>
-                  <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>
+                  <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 4 }}>
                     {req.entity_summary || req.entity_id}
                   </div>
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+                  <div className="ds-muted">
                     {t('approvals.request_by')}: {req.requester_name} · {req.created_at}
                   </div>
                   {isUrgent && (
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--warning)', marginTop: 4, fontWeight: 700 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--warning)', marginTop: 4, fontWeight: 700 }}>
+                      <ClockIcon size={11} />
                       {t('approvals.pending_since', { hours: ageHours })}
                     </div>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                  <button
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexShrink: 0 }}>
+                  <Button size="sm" variant="danger"
                     aria-label={t('approvals.reject_request_aria', { name: req.entity_summary || req.entity_id })}
                     onClick={() => decide({ id: req.id, decision: 'rejected', note: '' })}
-                    disabled={deciding}
-                    style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '7px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
+                    disabled={deciding}>
                     {t('approvals.reject_action')}
-                  </button>
-                  <Button
-                    size="sm"
+                  </Button>
+                  <Button size="sm"
                     onClick={() => decide({ id: req.id, decision: 'approved' })}
                     loading={deciding}>
                     {t('approvals.approve_action')}
@@ -742,7 +757,7 @@ function WorkflowTemplatesTab() {
       {isLoading && <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-2)' }}>Cargando plantillas...</div>}
 
       {!isLoading && !templates.length && (
-        <EmptyState icon="🧩" title="Sin plantillas" description="No hay plantillas disponibles" />
+        <EmptyState svgIcon={<Sparkles size={36} />} title="Sin plantillas" description="No hay plantillas disponibles" />
       )}
 
       {!isLoading && templates.length > 0 && (
@@ -1037,7 +1052,7 @@ function WorkflowBottlenecksTab() {
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: 28, color: 'var(--text-2)' }}>Cargando cuellos de botella...</div>
       ) : items.length === 0 ? (
-        <EmptyState icon="📉" title="Sin datos suficientes" description="No hay decisiones historicas para calcular cuellos de botella." />
+        <EmptyState svgIcon={<BarChart3 size={36} />} title="Sin datos suficientes" description="No hay decisiones historicas para calcular cuellos de botella." />
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
@@ -1187,7 +1202,7 @@ function ApprovalGroupsTab() {
         <Button onClick={() => { setEditGroup(null); setForm({ name: '', description: '', member_ids: [] }); setShowCreate(true) }}>+ Nuevo grupo</Button>
       </div>
       {groups.length === 0 ? (
-        <EmptyState icon="👥" title="Sin grupos" description="Crea grupos de aprobadores para asignarlos a pasos de flujo." />
+        <EmptyState svgIcon={<Users size={36} />} title="Sin grupos" description="Crea grupos de aprobadores para asignarlos a pasos de flujo." />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
           {groups.map(g => {
@@ -1440,33 +1455,32 @@ export default function ApprovalsPage({ mode = 'inbox' }) {
   if (selected) return <WorkflowDetail workflowId={selected} onBack={() => setSelected(null)} />
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={<CheckCircle size={18} />}
-        title={isConfigMode ? t('approvals.page_title_config') : t('approvals.page_title_inbox')}
-        subtitle={isConfigMode ? t('approvals.page_subtitle_config') : t('approvals.page_subtitle_inbox')}
-        exportTargetSelector='[data-export-table="approvals-export"]'
-        exportFilePrefix='approvals'
-      />
-
-      <div style={{ ...panel, padding: '10px 14px', marginBottom: 14 }}>
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+    <Page
+      icon={<CheckCircle size={18} />}
+      title={isConfigMode ? t('approvals.page_title_config') : t('approvals.page_title_inbox')}
+      subtitle={isConfigMode ? t('approvals.page_subtitle_config') : t('approvals.page_subtitle_inbox')}
+    >
+      <div className="ds-card--inset" style={{
+        display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)',
+      }}>
+        <Info size={14} aria-hidden style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 2 }} />
+        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
           {isConfigMode ? t('approvals.info_config') : t('approvals.info_inbox')}
         </div>
       </div>
 
       {/* KPIs */}
       {stats && tab === 'workflows' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+        <div className="ds-grid-stats">
           {[
-            { label: t('approvals.pending'), value: stats.pending, color: 'var(--warning)' },
+            { label: t('approvals.pending'),  value: stats.pending,  color: 'var(--warning)' },
             { label: t('approvals.approved'), value: stats.approved, color: 'var(--success)' },
-            { label: t('approvals.rejected'), value: stats.rejected, color: 'var(--danger)' },
+            { label: t('approvals.rejected'), value: stats.rejected, color: 'var(--danger)'  },
             { label: t('approvals.active_flows'), value: workflows.filter(w => w.is_active).length, color: 'var(--accent)' },
           ].map(k => (
-            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
-              <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>{k.value}</div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 4 }}>{k.label}</div>
+            <div key={k.label} className="ds-card" style={{ padding: '14px 16px', textAlign: 'center', gap: 4 }}>
+              <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)', lineHeight: 1.1 }}>{k.value}</div>
+              <div className="ds-eyebrow">{k.label}</div>
             </div>
           ))}
         </div>
@@ -1506,7 +1520,7 @@ export default function ApprovalsPage({ mode = 'inbox' }) {
           {isLoading ? (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>{t('approvals.loading')}</div>
           ) : workflows.length === 0 ? (
-            <EmptyState icon="✅" title={t('approvals.no_workflows')}
+            <EmptyState svgIcon={<CheckCircle2 size={36} />} title={t('approvals.no_workflows')}
               description={t('approvals.workflows_description')} />
           ) : (
             <div data-export-table="approvals-export" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
@@ -1551,9 +1565,15 @@ export default function ApprovalsPage({ mode = 'inbox' }) {
                         <button onClick={(e) => runValidate(e, wf.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Validar</button>
                         <button onClick={(e) => runPublish(e, wf.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Publicar</button>
                         <button onClick={(e) => runClone(e, wf.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Clonar v</button>
-                        <button aria-label={t('approvals.workflow_delete_aria', { name: wf.name })} onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: t('approvals.workflow_delete_confirm', { name: wf.name }), onConfirm:()=>del(wf.id),danger:true}) }}
-                          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
-                          🗑
+                        <button aria-label={t('approvals.workflow_delete_aria', { name: wf.name })}
+                          onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: t('approvals.workflow_delete_confirm', { name: wf.name }), onConfirm: () => del(wf.id), danger: true }) }}
+                          style={{
+                            background: 'transparent', border: '1px solid var(--surface-4)',
+                            borderRadius: 'var(--radius-sm)', padding: '4px 8px',
+                            color: 'var(--danger)', cursor: 'pointer',
+                            display: 'inline-flex', alignItems: 'center',
+                          }}>
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     </div>
@@ -1650,6 +1670,6 @@ export default function ApprovalsPage({ mode = 'inbox' }) {
           </div>
         </Modal>
       )}
-    </PageShell>
+    </Page>
   )
 }

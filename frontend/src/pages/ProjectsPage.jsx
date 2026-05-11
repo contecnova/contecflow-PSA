@@ -6,12 +6,15 @@ import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, portalApi, templatesApi, dependenciesApi } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
-import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, Toolbar } from '../components/ui'
+import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH } from '../components/ui'
 import ProjectRiskBadge from '../components/ui/ProjectRiskBadge'
 import { SkeletonProjects } from '../components/ui/Skeletons'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { FolderOpen } from 'lucide-react'
+import {
+  FolderOpen, Plus, Search, LayoutGrid, List, Calendar, FileStack,
+  Pencil, ArrowRight, ClipboardList,
+} from 'lucide-react'
 import GanttChart from '../components/GanttChart'
 import DocumentsPanel from '../components/DocumentsPanel'
 import { fmtDate, fmtCurrency, TYPE_LABELS, extractErr} from '../utils/helpers'
@@ -151,39 +154,36 @@ function StatusDropdown({ project, onUpdate }) {
 
 function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
   return (
-    <div style={{
-      background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12,
-      padding: '20px 24px', transition: 'all 0.2s', position: 'relative',
-    }}
-      onPointerEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
+    <div className="ds-card"
+      onPointerEnter={e => e.currentTarget.style.borderColor = 'var(--accent-border)'}
       onPointerLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <button type="button" style={{ cursor: 'pointer', flex: 1, background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>{project.code}</div>
-          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{project.name}</div>
-          {project.pm_name && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>PM: {project.pm_name}</div>}
-          {project.department && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 1 }}>Depto: {project.department}</div>}
-          {project.client_name && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 1 }}>Cliente: {project.client_name}</div>}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-3)' }}>
+        <button type="button" style={{ cursor: 'pointer', flex: 1, minWidth: 0, background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
+          <div className="ds-muted" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>{project.code}</div>
+          <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, color: 'var(--text-1)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</div>
+          {project.pm_name && <div className="ds-muted" style={{ marginTop: 2 }}>PM: {project.pm_name}</div>}
+          {project.department && <div className="ds-muted">Depto: {project.department}</div>}
+          {project.client_name && <div className="ds-muted">Cliente: {project.client_name}</div>}
         </button>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
           <StatusDropdown project={project} onUpdate={(status) => onStatusChange(project.id, status)} />
           <Badge label={project.risk_level} />
           <ProjectRiskBadge projectId={project.id} hasData={(project.task_count ?? project.team_size ?? 1) > 0} />
         </div>
       </div>
 
-      <button type="button" style={{ marginBottom: 12, cursor: 'pointer', width: '100%', background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+      <button type="button" style={{ cursor: 'pointer', width: '100%', background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
           <span>{TYPE_LABELS[project.project_type] || project.project_type}</span>
           <span>{project.progress_pct?.toFixed(0) ?? 0}% completado</span>
         </div>
         <LoadBar value={project.progress_pct ?? 0} />
       </button>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: "var(--text-sm)" }}>
-        <button type="button" style={{ cursor: 'pointer', display: 'flex', gap: 16, background: 'transparent', border: 'none', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
-          <span style={{ color: 'var(--text-2)' }}>Equipo: <span style={{ color: 'var(--text-1)' }}>{project.team_size}</span></span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--text-sm)' }}>
+        <button type="button" style={{ cursor: 'pointer', display: 'flex', gap: 'var(--space-4)', background: 'transparent', border: 'none', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
+          <span className="ds-muted">Equipo: <span style={{ color: 'var(--text-1)' }}>{project.team_size}</span></span>
           {project.budget_amount && (
             <span style={{ color: project.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
               {project.budget_used_pct?.toFixed(0) ?? 0}% presupuesto
@@ -192,12 +192,23 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
         </button>
         <div style={{ display: 'flex', gap: 6 }}>
           <Link to={`/projects/${project.id}`} onClick={e => e.stopPropagation()}
-            style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', fontSize: "var(--text-xs)", fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            Ver →
+            style={{
+              background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)',
+              borderRadius: 'var(--radius-sm)', padding: '4px 10px',
+              color: 'var(--accent)', fontSize: 'var(--text-xs)', fontWeight: 600,
+              textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+            }}>
+            Ver <ArrowRight size={11} />
           </Link>
           <button onClick={e => { e.stopPropagation(); onEdit(project) }}
-            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
-            ✏️ Editar
+            style={{
+              background: 'transparent', border: '1px solid var(--surface-4)',
+              borderRadius: 'var(--radius-sm)', padding: '4px 10px',
+              color: 'var(--text-2)', cursor: 'pointer',
+              fontSize: 'var(--text-xs)', fontFamily: 'inherit',
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+            }}>
+            <Pencil size={11} /> Editar
           </button>
         </div>
       </div>
@@ -801,7 +812,7 @@ function TemplatesTab() {
       </div>
 
       {isLoading ? <Spinner /> : templates.length === 0 ? (
-        <EmptyState icon="📋" title="Sin plantillas" description="Crea una plantilla para reutilizar fases y tareas" />
+        <EmptyState svgIcon={<ClipboardList size={36} />} title="Sin plantillas" description="Crea una plantilla para reutilizar fases y tareas" />
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:16}}>
           {templates.map(t => (
@@ -959,72 +970,81 @@ export default function ProjectsPage() {
         exportTargetSelector='[data-export-table="projects-list"]'
         exportFilePrefix='projects'
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
-              {[['grid', '⊞'], ['list', '☰'], ['gantt', '📅'], ['templates', '📋']].map(([v, icon]) => (
-                <button key={v} onClick={() => setView(v)}
-                  style={{ padding: '7px 14px', background: view === v ? 'var(--accent-muted)' : 'transparent', border: 'none', color: view === v ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-md)", cursor: 'pointer', fontFamily: 'inherit' }}>
-                  {icon}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <div className="ds-segmented" role="group" aria-label="Vista">
+              {[
+                { v: 'grid',      label: 'Tarjetas',  icon: LayoutGrid },
+                { v: 'list',      label: 'Lista',     icon: List },
+                { v: 'gantt',     label: 'Gantt',     icon: Calendar },
+                { v: 'templates', label: 'Plantillas',icon: FileStack },
+              ].map(({ v, label, icon: Icon }) => (
+                <button key={v} type="button" aria-pressed={view === v}
+                  onClick={() => setView(v)} title={label}>
+                  <Icon size={12} />
                 </button>
               ))}
             </div>
             {hasRole('admin', 'pm') && (
-              <Button onClick={() => setShowCreate(true)} icon="＋">Nuevo proyecto</Button>
+              <Button onClick={() => setShowCreate(true)}>
+                <Plus size={13} /> Nuevo proyecto
+              </Button>
             )}
           </div>
         }
       />
 
       {/* Stats strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="ds-grid-stats" style={{ marginBottom: 'var(--space-5)' }}>
         {[
-          { label: 'Total', value: stats.total, color: 'var(--text-2)' },
+          { label: 'Total', value: stats.total, color: 'var(--text-1)' },
           { label: 'Activos', value: stats.active, color: 'var(--accent)' },
           { label: 'En riesgo', value: stats.atRisk, color: 'var(--warning)' },
           { label: '>90% presupuesto', value: stats.overBudget, color: 'var(--danger)' },
         ].map(s => (
-          <div key={s.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 16px' }}>
-            <div style={{ fontSize: "var(--text-2xl)", fontWeight: 700, color: s.color }}>{s.value}</div>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{s.label}</div>
+          <div key={s.label} className="ds-card" style={{ padding: '14px 16px', gap: 4 }}>
+            <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: s.color, lineHeight: 1.1 }}>{s.value}</div>
+            <div className="ds-eyebrow">{s.label}</div>
           </div>
         ))}
       </div>
 
-      <Toolbar
-        style={{ marginBottom: 24 }}
-        left={
-          <>
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar proyecto por nombre o código"
-              style={{ flex: '2 1 240px', minWidth: 0, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}
-            />
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-              style={{ flex: '1 1 160px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-              <option value="">Todos los estados</option>
-              {PROJECT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-              style={{ flex: '1 1 160px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-              <option value="">Todos los tipos</option>
-              {PROJECT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </>
-        }
-      />
+      {/* Toolbar */}
+      <div className="ds-toolbar" style={{ marginBottom: 'var(--space-5)' }}>
+        <div style={{ position: 'relative', flex: '2 1 240px', minWidth: 200 }}>
+          <Search size={14} aria-hidden style={{
+            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--text-3)', pointerEvents: 'none',
+          }} />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar proyecto por nombre o código"
+            className="ds-input"
+            style={{ paddingLeft: 32 }} />
+        </div>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="ds-input" style={{ flex: '1 1 160px', minWidth: 140 }}>
+          <option value="">Todos los estados</option>
+          {PROJECT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+          className="ds-input" style={{ flex: '1 1 160px', minWidth: 140 }}>
+          <option value="">Todos los tipos</option>
+          {PROJECT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
+      </div>
 
       {isLoading ? (
         <SkeletonProjects />
       ) : filtered.length === 0 && view !== 'templates' ? (
         <EmptyState icon="folder" title="Sin proyectos" description="Crea el primer proyecto para empezar a planificar" ctaLabel="Crear proyecto" onCta={() => setShowCreate(true)} />
       ) : view === 'grid' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <div className="ds-grid-cards">
           {sortedProjects.map(p => (
             <ProjectCard key={p.id} project={p} onClick={setSelected}
               onStatusChange={(id, status) => updateStatus({ id, status })} onEdit={setEditTarget} />
           ))}
         </div>
       ) : view === 'list' ? (
-        <div data-export-table="projects-list" style={{ overflowX: 'auto', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }}>
+        <div data-export-table="projects-list" className="ds-card" style={{ padding: 0, overflowX: 'auto' }}>
           <div style={{ minWidth: 920 }}>
           <div style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             {visibleCols.map(c => (

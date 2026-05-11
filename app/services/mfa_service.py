@@ -867,12 +867,36 @@ def update_organization(org_id: str, payload: dict, db: Session) -> dict:
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise ValueError("not_found")
+    # `require_mfa` es política de seguridad — además de whitelist, lo
+    # registramos en audit_log cuando cambia para que el toggle sea trazable.
     allowed = {"name", "plan", "max_users", "max_projects", "is_active", "admin_email",
-               "timezone", "locale", "primary_color", "logo_url"}
+               "timezone", "locale", "primary_color", "logo_url",
+               "require_mfa"}
+    require_mfa_before = bool(getattr(org, "require_mfa", False))
     for k, v in payload.items():
         if k in allowed:
             setattr(org, k, v)
+    require_mfa_after = bool(getattr(org, "require_mfa", False))
     db.commit()
+    if require_mfa_before != require_mfa_after:
+        # Cambio de política MFA: auditarlo de manera explícita
+        try:
+            import json
+            from app.models.enterprise import AuditLog
+            db.add(AuditLog(
+                action="UPDATE",
+                resource="organizations",
+                resource_id=org.id,
+                metadata_=json.dumps({
+                    "field": "require_mfa",
+                    "before": require_mfa_before,
+                    "after": require_mfa_after,
+                }),
+            ))
+            db.commit()
+        except Exception:  # pragma: no cover — audit best-effort
+            import logging
+            logging.getLogger(__name__).exception("require_mfa audit failed")
     return {"ok": True}
 
 

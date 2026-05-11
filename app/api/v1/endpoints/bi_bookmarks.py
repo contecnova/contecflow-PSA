@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services import bi_bookmarks_service as svc
 
 router = APIRouter()
@@ -117,6 +118,7 @@ def delete_bookmark(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "bi_bookmark", bookmark_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     try:
         deleted = svc.delete_bookmark(

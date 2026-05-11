@@ -371,5 +371,94 @@ def test_archived_documents_filtered_by_default(db: Session, doc_client):
     assert len(archived_docs) == 1  # Should be in archived list
 
 
+def test_document_ai_summary_returns_422_when_text_not_extractable(db: Session, doc_client, monkeypatch):
+    client, token = doc_client
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = client.post("/api/v1/documents", json={"title": "No text doc"}, headers=headers)
+    doc_id = create_response.json()["id"]
+
+    upload_response = client.post(
+        f"/api/v1/documents/{doc_id}/versions",
+        files={"file": ("scan.pdf", BytesIO(b"%PDF-1.4 fake binary"), "application/pdf")},
+        headers=headers,
+    )
+    assert upload_response.status_code == 200
+
+    monkeypatch.setattr("app.api.v1.endpoints.documents.doc_svc.extract_document_text", lambda *_args, **_kwargs: None)
+
+    response = client.post(f"/api/v1/documents/{doc_id}/ai-summary", headers=headers)
+    assert response.status_code == 422
+    assert "No se pudo extraer texto" in response.json()["detail"]
+
+
+def test_document_ai_summary_persists_text_when_extraction_works(db: Session, doc_client, monkeypatch):
+    client, token = doc_client
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = client.post("/api/v1/documents", json={"title": "Text doc"}, headers=headers)
+    doc_id = create_response.json()["id"]
+
+    upload_response = client.post(
+        f"/api/v1/documents/{doc_id}/versions",
+        files={"file": ("source.txt", BytesIO(b"source"), "text/plain")},
+        headers=headers,
+    )
+    assert upload_response.status_code == 200
+
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.documents.doc_svc.extract_document_text",
+        lambda *_args, **_kwargs: "Contenido del documento para resumen",
+    )
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.documents.call_ai",
+        lambda *_args, **_kwargs: "Resumen IA de prueba",
+    )
+
+    response = client.post(f"/api/v1/documents/{doc_id}/ai-summary", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["summary"] == "Resumen IA de prueba"
+
+    detail = client.get(f"/api/v1/documents/{doc_id}", headers=headers)
+    assert detail.status_code == 200
+    assert detail.json()["ai_summary"] == "Resumen IA de prueba"
+
+
+def test_document_ai_summary_uses_visual_prompt_for_image_analysis(db: Session, doc_client, monkeypatch):
+    client, token = doc_client
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = client.post("/api/v1/documents", json={"title": "Image doc"}, headers=headers)
+    doc_id = create_response.json()["id"]
+
+    upload_response = client.post(
+        f"/api/v1/documents/{doc_id}/versions",
+        files={"file": ("mock.png", BytesIO(b"fake"), "image/png")},
+        headers=headers,
+    )
+    assert upload_response.status_code == 200
+
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.documents.doc_svc.extract_document_text",
+        lambda *_args, **_kwargs: "[ANALISIS_VISUAL]\nTipo: imagen\nResolucion: 1200x800",
+    )
+
+    captured = {}
+
+    def _fake_call_ai(*_args, **kwargs):
+        captured["user_prompt"] = kwargs["messages"][0]["content"]
+        captured["system"] = kwargs["system"]
+        return "Descripcion visual de prueba"
+
+    monkeypatch.setattr("app.api.v1.endpoints.documents.call_ai", _fake_call_ai)
+
+    response = client.post(f"/api/v1/documents/{doc_id}/ai-summary", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["summary"] == "Descripcion visual de prueba"
+    assert "descripcion visual panoramica" in captured["user_prompt"].lower()
+    assert "analisis visual" in captured["user_prompt"].lower()
+    assert "descripcion visual" in captured["system"].lower()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

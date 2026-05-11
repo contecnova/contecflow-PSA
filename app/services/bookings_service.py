@@ -196,7 +196,7 @@ def list_bookings_records(user_id, project_id, start_date, end_date, booking_typ
     q = db.query(ResourceBooking).options(
         joinedload(ResourceBooking.user),
         joinedload(ResourceBooking.project),
-    )
+    ).filter(ResourceBooking.is_active == True)
     if org_id:
         org_user_ids = [r.id for r in db.query(User.id).filter(User.organization_id == org_id).all()]
         q = q.filter(ResourceBooking.user_id.in_(org_user_ids))
@@ -217,6 +217,7 @@ def get_bookings_heatmap(weeks: int, org_id, db) -> dict:
     users = users_q.order_by(User.full_name).all()
     heatmap_user_ids = [u.id for u in users]
     bookings = db.query(ResourceBooking).filter(
+        ResourceBooking.is_active == True,
         ResourceBooking.start_date <= monday + timedelta(weeks=weeks),
         ResourceBooking.end_date >= monday,
         ResourceBooking.user_id.in_(heatmap_user_ids),
@@ -274,6 +275,7 @@ def create_booking_record(payload, created_by_id, db) -> dict:
     # Only block exact duplicate: same user + same project already booked in overlapping dates
     if payload.project_id:
         duplicate = db.query(ResourceBooking).filter(
+            ResourceBooking.is_active == True,
             ResourceBooking.user_id == payload.user_id,
             ResourceBooking.project_id == payload.project_id,
             ResourceBooking.start_date <= payload.end_date,
@@ -304,7 +306,10 @@ def create_booking_record(payload, created_by_id, db) -> dict:
 
 
 def update_booking_record(booking_id: str, payload, db) -> dict:
-    b = db.query(ResourceBooking).filter(ResourceBooking.id == booking_id).first()
+    b = db.query(ResourceBooking).filter(
+        ResourceBooking.id == booking_id,
+        ResourceBooking.is_active == True,
+    ).first()
     if not b: raise HTTPException(404)
     updates = payload.model_dump(exclude_unset=True)
     if "end_date" in updates and "start_date" in updates and updates["end_date"] < updates["start_date"]:
@@ -318,14 +323,21 @@ def update_booking_record(booking_id: str, payload, db) -> dict:
     db.commit()
     return serialize_booking(db.query(ResourceBooking).options(
         joinedload(ResourceBooking.user), joinedload(ResourceBooking.project)
-    ).filter(ResourceBooking.id == booking_id).first())
+    ).filter(
+        ResourceBooking.id == booking_id,
+        ResourceBooking.is_active == True,
+    ).first())
 
 
 def delete_booking_record(booking_id: str, db) -> dict:
-    b = db.query(ResourceBooking).filter(ResourceBooking.id == booking_id).first()
+    b = db.query(ResourceBooking).filter(
+        ResourceBooking.id == booking_id,
+        ResourceBooking.is_active == True,
+    ).first()
     if not b: raise HTTPException(404)
-    db.delete(b); db.commit()
-    return {"ok": True}
+    b.is_active = False
+    db.commit()
+    return {"ok": True, "message": "Reserva eliminada correctamente"}
 
 
 # ── Exchange Rates ────────────────────────────────────────────────────────────

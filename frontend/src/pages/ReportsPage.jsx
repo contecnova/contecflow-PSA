@@ -4,9 +4,11 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { analyticsApi, scheduledReportsApi } from '../services/api'
 import { Card, Button, Spinner, EmptyState } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { BarChart2 } from 'lucide-react'
+import { Page } from '../components/ui'
+import {
+  BarChart2, Grid3X3, Search, Zap, TrendingUp, Pin, Calendar,
+  Table as TableIcon, BarChartBig,
+} from 'lucide-react'
 import BiAdvancedViz from '../components/bi/BiAdvancedViz'
 import { fmtCurrency, extractErr } from '../utils/helpers'
 import { CHART_COLORS_EXTENDED } from '../constants/theme'
@@ -217,7 +219,7 @@ const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }) => {
 // ── Heatmap component ─────────────────────────────────────────────────────────
 function HeatmapChart({ data, meta }) {
   const weeks = meta?.weeks || []
-  if (!data.length || !weeks.length) return <EmptyState icon="▦" title="Sin datos disponibles" />
+  if (!data.length || !weeks.length) return <EmptyState svgIcon={<Grid3X3 size={36} />} title="Sin datos disponibles" />
   const maxVal = Math.max(...data.flatMap(r => weeks.map(w => r[w] || 0)))
   const getColor = (v) => {
     if (!v) return 'var(--surface-3)'
@@ -267,7 +269,7 @@ function HeatmapChart({ data, meta }) {
 
 // ── Data table ────────────────────────────────────────────────────────────────
 function DataTable({ data, isCurrency, isPercent }) {
-  if (!data.length) return <EmptyState icon="☰" title="Sin datos disponibles" />
+  if (!data.length) return <EmptyState svgIcon={<TableIcon size={36} />} title="Sin datos disponibles" />
   const keys = Object.keys(data[0]).filter(k => k !== 'status')
   const fmt = (v) => {
     if (typeof v !== 'number') return v
@@ -301,7 +303,7 @@ function DataTable({ data, isCurrency, isPercent }) {
 
 // ── Chart renderer ────────────────────────────────────────────────────────────
 function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height = 320 }) {
-  if (!data || data.length === 0) return <EmptyState icon="📊" title="Sin datos" description="No hay datos disponibles para este grafico" />
+  if (!data || data.length === 0) return <EmptyState svgIcon={<BarChartBig size={36} />} title="Sin datos" description="No hay datos disponibles para este gráfico" />
 
   const isCurrency = meta?.y_label?.includes('€')
   const isPercent = meta?.y_label?.includes('%')
@@ -1128,30 +1130,32 @@ export default function ReportsPage() {
     : null
 
   const [_schedTab, _setSchedTab] = useState('main')
+  const MODES = [
+    { id: 'overview',  label: 'Métricas',         Icon: Grid3X3 },
+    { id: 'explorer',  label: 'Explorador',       Icon: Search },
+    { id: 'presets',   label: 'Plantillas',       Icon: Zap },
+    { id: 'advanced',  label: 'Visualizaciones',  Icon: TrendingUp },
+    { id: 'dashboard', label: `Guardados${saved.length ? ` (${saved.length})` : ''}`, Icon: Pin },
+    { id: 'scheduled', label: 'Programados',      Icon: Calendar },
+  ]
+
   return (
-    <PageShell>
-      <PageHeader
-        icon={<BarChart2 size={18} />}
-        title={t('reports.title')}
-        subtitle={t('reports.subtitle')}
-        actions={
-          <div style={{ display: 'flex', gap: 6 }}>
-            {[
-              ['overview',  '🗂 Métricas'],
-              ['explorer',  '🔍 Explorador'],
-              ['presets',   '⚡ Plantillas'],
-              ['advanced',  '📈 Visualizaciones'],
-              ['dashboard', `📌 Guardados${saved.length ? ` (${saved.length})` : ''}`],
-              ['scheduled', '📅 Programados'],
-            ].map(([m, label]) => (
-              <button key={m} onClick={() => setMode(m)}
-                style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${mode === m ? 'var(--accent)' : 'var(--surface-4)'}`, background: mode === m ? 'var(--accent-muted)' : 'transparent', color: mode === m ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                {label}
-              </button>
-            ))}
-          </div>
-        }
-      />
+    <Page
+      icon={<BarChart2 size={18} />}
+      title={t('reports.title')}
+      subtitle={t('reports.subtitle')}
+      rightActions={
+        <div className="ds-segmented" role="group" aria-label="Modo de informe">
+          {MODES.map(({ id, label, Icon }) => (
+            <button key={id} type="button"
+              aria-pressed={mode === id}
+              onClick={() => setMode(id)}>
+              <Icon size={11} /> {label}
+            </button>
+          ))}
+        </div>
+      }
+    >
 
       {/* Plantillas */}
       {mode === 'presets' && <PresetsTab presets={PRESETS} supportedMetrics={supportedMetrics} onOpen={(p) => { setEditingReport({ metric: p.metric, chartType: p.chart, color: p.color }); setMode('explorer') }} />}
@@ -1202,7 +1206,7 @@ export default function ReportsPage() {
       {/* Dashboard */}
       {mode === 'dashboard' && (
         saved.length === 0 ? (
-          <EmptyState icon="📌" title="Sin informes guardados" description="Genera un informe y guardalo para verlo aqui" />
+          <EmptyState svgIcon={<Pin size={36} />} title="Sin informes guardados" description="Genera un informe y guárdalo para verlo aquí" />
         ) : (
           <ReportsDashboard saved={saved} onRemove={removeReport} onOpen={openReport} />
         )
@@ -1212,6 +1216,6 @@ export default function ReportsPage() {
 
       {/* Scheduled Reports */}
       {mode === 'scheduled' && <ScheduledReportsTab />}
-    </PageShell>
+    </Page>
   )
 }

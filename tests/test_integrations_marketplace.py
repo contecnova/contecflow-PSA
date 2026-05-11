@@ -1,3 +1,6 @@
+from app.models.marketplace import IntegrationInstance
+
+
 def test_install_and_configure_connector(client, admin_token, db):
     headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -48,7 +51,19 @@ def test_list_and_delete_instances(client, admin_token, db):
 
     # Delete the instance
     res = client.delete(f"/api/v1/integrations/instances/{instance_id}", headers=headers)
-    assert res.status_code == 204
+    assert res.status_code == 200
+    assert res.json()["ok"] is True
+
+    # List no longer includes deleted instance
+    res = client.get("/api/v1/integrations/instances", headers=headers)
+    assert res.status_code == 200
+    ids = [i["id"] for i in res.json()]
+    assert instance_id not in ids
+
+    # DB row remains but disabled
+    row = db.query(IntegrationInstance).filter(IntegrationInstance.id == instance_id).first()
+    assert row is not None
+    assert row.is_enabled is False
 
 
 def test_marketplace_catalog(client, admin_token, db):

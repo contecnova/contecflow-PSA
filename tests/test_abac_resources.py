@@ -28,7 +28,9 @@ def admin_no_org_token(client, db):
     db.commit()
     res = client.post("/api/v1/auth/login", json={"username": "admin_no_org", "password": TEST_PASSWORD})
     assert res.status_code == 200
-    return res.json()["access_token"]
+    token = res.cookies.get("access_token")
+    assert token
+    return token
 
 
 @pytest.fixture()

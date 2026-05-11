@@ -250,3 +250,28 @@ def test_bi_delivery_diff_unknown_schedule_returns_404(client, admin_token):
         headers=auth(admin_token),
     )
     assert res.status_code == 404
+
+
+def test_bi_delivery_delete_schedule(client, admin_token):
+    created = client.post(
+        "/api/v1/bi/delivery/schedules",
+        json={
+            "name": "Delete Schedule",
+            "report_preset_id": "finance_revenue_by_client",
+            "channels": ["email"],
+            "recipients": ["ops@example.com"],
+            "frequency": "weekly",
+            "export_format": "json",
+            "is_active": True,
+        },
+        headers=auth(admin_token),
+    )
+    assert created.status_code == 201, created.text
+    schedule_id = created.json()["id"]
+
+    deleted = client.delete(f"/api/v1/bi/delivery/schedules/{schedule_id}", headers=auth(admin_token))
+    assert deleted.status_code == 200
+    assert deleted.json().get("ok") is True
+
+    diff = client.get(f"/api/v1/bi/delivery/schedules/{schedule_id}/diff", headers=auth(admin_token))
+    assert diff.status_code == 404

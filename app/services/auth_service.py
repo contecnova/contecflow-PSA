@@ -205,12 +205,53 @@ def validate_https_discovery_url(discovery_url: str) -> str:
 
 # ── Redis / SSO state store ───────────────────────────────────────────────────
 
+# Cuándo reintentar conectar a Redis tras un fallo (segundos).
+#
+# Multi-worker note: cada worker mantiene su propio circuit breaker en
+# memoria. Mientras dura el backoff, el rate limiter degrada a in-memory
+# por-worker (un atacante que rota IPs alcanzaría el límite por worker
+# independientemente). Mantenemos el backoff corto para que cualquier flap
+# transitorio de Redis se recupere automáticamente antes de comprometer
+# la protección global.
+_REDIS_RECONNECT_BACKOFF = float(os.getenv("REDIS_RECONNECT_BACKOFF_SECONDS", "30"))
+# Última vez que intentamos crear el cliente (epoch seconds).
+_redis_last_attempt_at: float = 0.0
+
+
+def force_redis_reconnect() -> None:
+    """Forzar reintento de conexión a Redis en la siguiente llamada.
+
+    Útil para administración (endpoint admin / repl) cuando se sabe que
+    Redis ha vuelto y no se quiere esperar al backoff. Es thread-safe en
+    cuanto a corrupciones — la próxima llamada a get_sso_redis() volverá a
+    crear el cliente bajo el bloqueo implícito de Python (GIL).
+    """
+    global _redis_client, _redis_client_init, _redis_last_attempt_at
+    _redis_client = None
+    _redis_client_init = False
+    _redis_last_attempt_at = 0.0
+
+
 def get_sso_redis():
-    """Return a shared Redis client if Redis is reachable, else None."""
-    global _redis_client, _redis_client_init
-    if _redis_client_init:
+    """Return a shared Redis client if Redis is reachable, else None.
+
+    Si Redis estaba caído al primer intento, antes el cliente se quedaba
+    cacheado como None para siempre. Ahora reintentamos cada
+    `_REDIS_RECONNECT_BACKOFF` segundos para recuperarnos automáticamente
+    tras una caída transitoria.
+    """
+    global _redis_client, _redis_client_init, _redis_last_attempt_at
+    now = time.time()
+    # Si el cliente está disponible, lo devolvemos directamente.
+    if _redis_client_init and _redis_client is not None:
         return _redis_client
+    # Si la última inicialización falló y aún no ha pasado el backoff,
+    # devolvemos None sin volver a intentarlo (evita tormenta de reintentos).
+    if _redis_client_init and _redis_client is None:
+        if (now - _redis_last_attempt_at) < _REDIS_RECONNECT_BACKOFF:
+            return None
     _redis_client_init = True
+    _redis_last_attempt_at = now
     try:
         import redis as _redis_module
         r = _redis_module.from_url(
@@ -225,14 +266,15 @@ def get_sso_redis():
     except Exception as _e:
         if settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1":
             logger.info(
-                "SSO state store: Redis unavailable in development (%s). Using in-memory fallback.",
-                _e,
+                "SSO state store: Redis unavailable in development (%s). Using in-memory fallback "
+                "(reintento en %ss).",
+                _e, int(_REDIS_RECONNECT_BACKOFF),
             )
         else:
             logger.warning(
                 "SSO state store: Redis unavailable (%s). Falling back to in-memory — "
-                "NOT SAFE for multi-worker deployments. Set REDIS_URL to fix.",
-                _e,
+                "NOT SAFE for multi-worker deployments. Reintentando en %ss. Set REDIS_URL to fix.",
+                _e, int(_REDIS_RECONNECT_BACKOFF),
             )
         _redis_client = None
     return _redis_client
@@ -245,7 +287,7 @@ def register_sso_state(state_raw: str) -> None:
             r.setex(f"{SSO_KEY_PREFIX}{state_raw}", SSO_STATE_TTL, "1")
             return
         except Exception as _e:
-            logger.warning("Redis setex failed for SSO state: %s — using in-memory fallback", _e)
+            _redis_circuit_break(f"SSO setex: {_e}")
     with _sso_states_lock:
         now = time.time()
         expired = [k for k, v in _sso_states_fallback.items() if v < now]
@@ -262,7 +304,7 @@ def consume_sso_state(state_raw: str) -> bool:
             deleted = r.delete(f"{SSO_KEY_PREFIX}{state_raw}")
             return deleted > 0
         except Exception as _e:
-            logger.warning("Redis delete failed for SSO state: %s — using in-memory fallback", _e)
+            _redis_circuit_break(f"SSO delete: {_e}")
     with _sso_states_lock:
         expiry = _sso_states_fallback.pop(state_raw, None)
     return expiry is not None and time.time() < expiry
@@ -285,7 +327,7 @@ def login_lock_ttl(bucket: str) -> int:
             ttl = r.ttl(lock_key)
             return int(ttl) if ttl and ttl > 0 else 0
         except Exception as exc:
-            logger.warning("Redis TTL read failed for login lockout: %s", exc)
+            _redis_circuit_break(f"login lockout TTL read: {exc}")
     with _sso_states_lock:
         st = _login_fail_fallback.get(bucket)
         if not st:
@@ -295,6 +337,14 @@ def login_lock_ttl(bucket: str) -> int:
         if lock_until > now:
             return int(lock_until - now)
         return 0
+
+
+def _redis_circuit_break(reason: str) -> None:
+    """Marcar el cliente como caído para que get_sso_redis() haga reintento
+    según el backoff configurado. Aísla el coste de fallos intermitentes."""
+    global _redis_client
+    logger.warning("Redis op failed (%s) — entrando en circuit-break", reason)
+    _redis_client = None  # _redis_client_init stays True; backoff aplica
 
 
 def register_login_failure(bucket: str) -> int:
@@ -315,7 +365,7 @@ def register_login_failure(bucket: str) -> int:
                 return settings.LOGIN_LOCKOUT_SECONDS
             return 0
         except Exception as exc:
-            logger.warning("Redis write failed for login lockout: %s", exc)
+            _redis_circuit_break(str(exc))
 
     now = time.time()
     with _sso_states_lock:
@@ -344,7 +394,7 @@ def clear_login_failure(bucket: str) -> None:
             r.delete(f"{LOGIN_LOCK_PREFIX}{bucket}")
             return
         except Exception as exc:
-            logger.warning("Redis clear failed for login lockout: %s", exc)
+            _redis_circuit_break(f"login lockout clear: {exc}")
     with _sso_states_lock:
         _login_fail_fallback.pop(bucket, None)
 
@@ -566,7 +616,7 @@ def send_password_reset_email(recipient: str, reset_link: str) -> None:
             server.send_message(msg)
         return
 
-    logger.info("Password reset link for %s: %s", recipient, reset_link)
+    logger.info("Password reset requested for %s (email backend not configured)", recipient)
 
 
 # ── DB helpers ────────────────────────────────────────────────────────────────

@@ -19,6 +19,7 @@ from app.core.security import decode_token
 from app.db.session import get_db
 from app.db.session import SessionLocal
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services import bi_collaboration_service as svc
 
 router = APIRouter()
@@ -363,6 +364,7 @@ def revoke_dashboard_share(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "bi_dashboard_share", share_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     deleted = svc.revoke_dashboard_share(
         db, organization_id=org_id, dashboard_key=dashboard_key, share_id=share_id

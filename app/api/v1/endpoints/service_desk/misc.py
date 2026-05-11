@@ -8,6 +8,7 @@ import logging
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.abac_enforce import enforce_abac
 from app.core.ratelimit import limiter
 from app.models.user import User
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
@@ -93,7 +94,8 @@ def update_category(cat_id: str, payload: ServiceCategoryIn, db: Session = Depen
     return {"id": c.id, "name": c.name}
 
 @router.delete("/catalog/categories/{cat_id}", summary="Desactivar categoría")
-def delete_category(cat_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_category(cat_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    enforce_abac(db, current_user, "sd_catalog_category", cat_id, action="delete")
     deactivate_category_record(db, cat_id)
     _commit_or_rollback(db)
     return {"ok": True}
@@ -111,7 +113,8 @@ def update_service(service_id: str, payload: ServiceItemUpdate, db: Session = De
     return {"ok": True}
 
 @router.delete("/catalog/services/{service_id}", summary="Desactivar servicio")
-def delete_service(service_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_service(service_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    enforce_abac(db, current_user, "sd_catalog_service", service_id, action="delete")
     deactivate_service_record(db, service_id)
     _commit_or_rollback(db)
     return {"ok": True}
@@ -135,7 +138,8 @@ def update_group(group_id: str, payload: AgentGroupIn, db: Session = Depends(get
     return {"id": g.id, "name": g.name}
 
 @router.delete("/groups/{group_id}", summary="Eliminar grupo")
-def delete_group(group_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_group(group_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    enforce_abac(db, current_user, "sd_agent_group", group_id, action="delete")
     deactivate_group_record(db, group_id)
     _commit_or_rollback(db)
     return {"ok": True}
@@ -147,7 +151,8 @@ def add_group_member(group_id: str, user_id: str, is_lead: bool = False, db: Ses
     return {"ok": True}
 
 @router.delete("/groups/{group_id}/members/{user_id}", summary="Eliminar miembro de grupo")
-def remove_group_member(group_id: str, user_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def remove_group_member(group_id: str, user_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    enforce_abac(db, current_user, "sd_agent_group", group_id, action="delete")
     remove_group_member_record(db, group_id, user_id)
     _commit_or_rollback(db)
     return {"ok": True}
@@ -201,7 +206,8 @@ def create_announcement(payload: AnnouncementIn, db: Session = Depends(get_db), 
     return {"id": a.id}
 
 @router.delete("/announcements/{ann_id}", summary="Desactivar anuncio")
-def deactivate_announcement(ann_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def deactivate_announcement(ann_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    enforce_abac(db, current_user, "sd_announcement", ann_id, action="delete")
     deactivate_announcement_record(db, ann_id)
     _commit_or_rollback(db)
     return {"ok": True}
@@ -227,6 +233,7 @@ def update_routing_rule(rule_id: str, payload: dict = Body(...), db: Session = D
 
 @router.delete("/routing-rules/{rule_id}", summary="Eliminar regla de routing")
 def delete_routing_rule(rule_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    enforce_abac(db, current_user, "sd_routing_rule", rule_id, action="delete")
     delete_routing_rule_svc(db, rule_id)
     _commit_or_rollback(db)
     return {"ok": True}
@@ -442,6 +449,7 @@ def update_asset(asset_id: str, payload: AssetUpdate, db: Session = Depends(get_
 
 @router.delete("/assets/{asset_id}", summary="Dar de baja activo (retired)")
 def retire_asset(asset_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    enforce_abac(db, current_user, "sd_asset", asset_id, action="delete")
     retire_asset_record(db, asset_id, current_user.id)
     _commit_or_rollback(db)
     return {"ok": True}
@@ -479,7 +487,8 @@ def update_status_component(component_id: str, payload: StatusComponentIn, db: S
     return {"ok": True}
 
 @router.delete("/status-page/components/{component_id}", summary="Eliminar componente")
-def delete_status_component(component_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_status_component(component_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    enforce_abac(db, current_user, "sd_status_component", component_id, action="delete")
     delete_status_component_svc(db, component_id)
     _commit_or_rollback(db)
     return {"ok": True}

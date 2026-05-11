@@ -167,6 +167,7 @@ def delete_document(
     current_user: User = Depends(get_current_user),
 ):
     """Soft delete document (mark as archived)."""
+    enforce_abac(db, current_user, "document", doc_id, action="delete")
     doc = get_document_or_404(db, doc_id)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
     doc_svc.archive_document(db, doc)
@@ -310,6 +311,7 @@ def remove_permission(
     current_user: User = Depends(get_current_user),
 ):
     """Revoke user access to document."""
+    enforce_abac(db, current_user, "document_permission", perm_id, action="delete")
     doc = get_document_or_404(db, doc_id)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
@@ -599,6 +601,7 @@ def remove_tag(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "document_tag", f"{doc_id}:{tag_name}", action="delete")
     doc = get_document_or_404(db, doc_id)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
     doc_svc.remove_tag(db, doc_id, tag_name)
@@ -631,41 +634,73 @@ def ai_summary(
     text_content = doc_svc.extract_document_text(latest.file_key, latest.file_name or "", latest.file_mime_type or "")
 
     if not text_content:
-        # Fallback: summarise from metadata only
-        text_content = (
-            f"Document: {doc.title}\n"
-            f"Category: {doc.category}\n"
-            f"Description: {doc.description or 'None'}\n"
-            f"File: {latest.file_name} ({latest.file_mime_type})"
+        raise HTTPException(
+            422,
+            (
+                "No se pudo extraer texto del documento. "
+                "Sube una version con capa de texto o habilita OCR (tesseract + pytesseract + pypdfium2)."
+            ),
         )
+
+    visual_marker = "[ANALISIS_VISUAL]"
+    is_visual_source = isinstance(text_content, str) and text_content.startswith(visual_marker)
+    source_payload = text_content.replace(visual_marker, "", 1).strip() if is_visual_source else text_content
+
+    user_prompt = (
+        (
+            "Genera una descripcion visual panoramica (entre 180 y 320 palabras, en 2-4 parrafos) "
+            "a partir del analisis visual proporcionado, indicando: "
+            "(1) que tipo de imagen o documento visual parece ser, "
+            "(2) que elementos visuales principales contiene, "
+            "(3) para que podria servir dentro de un contexto empresarial, "
+            "(4) si hay texto parcial OCR, que sugiere de forma general. "
+            "Si hay incertidumbre, dilo explicitamente sin inventar detalles. "
+            "El objetivo es ayudar a decidir si merece abrir/revisar el archivo completo.\n\n"
+            "Analisis visual:\n" + source_payload
+        )
+        if is_visual_source else
+        (
+            "Genera un resumen panorámico (entre 250 y 400 palabras, en 3-5 párrafos) "
+            "de este documento, indicando: (1) qué tipo de documento es, "
+            "(2) cuál es su propósito y a qué área de negocio aplica, "
+            "(3) qué temas o secciones cubre a alto nivel, "
+            "(4) por qué tendría utilidad consultarlo. "
+            "El objetivo es ayudar a alguien a decidir si abrir el documento sin tener que leerlo.\n\n"
+            "Documento:\n" + source_payload
+        )
+    )
+
+    system_prompt = (
+        (
+            "Eres un asistente experto en descripcion visual de documentos empresariales. "
+            "Responde siempre en espanol claro. "
+            "No inventes detalles no soportados por el analisis de entrada; expresa la incertidumbre cuando aplique. "
+            "No incluyas datos sensibles ni suposiciones de personas concretas, importes exactos, fechas concretas, "
+            "nombres reales de clientes/proveedores o identificadores privados."
+        )
+        if is_visual_source else
+        (
+            "Eres un asistente experto en análisis de documentos empresariales. "
+            "Responde SIEMPRE en el idioma del documento. "
+            "REGLA DE PRIVACIDAD ESTRICTA: NO incluyas en el resumen ningún dato sensible "
+            "del contenido — específicamente: nombres propios de personas, importes o cifras "
+            "concretas, fechas concretas, números de identificación (NIF/IBAN/IDs), nombres "
+            "comerciales de clientes/proveedores específicos, ni transcribas literalmente "
+            "cláusulas, condiciones o párrafos. Habla siempre a alto nivel y en términos "
+            "genéricos (\"el cliente\", \"el importe pactado\", \"la fecha de vigencia\", etc.). "
+            "Si el documento es muy técnico, describe los temas tratados sin reproducir "
+            "fórmulas, parámetros o configuraciones específicas."
+        )
+    )
 
     try:
         summary_text = call_ai(
             db,
             messages=[{
                 "role": "user",
-                "content": (
-                    "Genera un resumen panorámico (entre 250 y 400 palabras, en 3-5 párrafos) "
-                    "de este documento, indicando: (1) qué tipo de documento es, "
-                    "(2) cuál es su propósito y a qué área de negocio aplica, "
-                    "(3) qué temas o secciones cubre a alto nivel, "
-                    "(4) por qué tendría utilidad consultarlo. "
-                    "El objetivo es ayudar a alguien a decidir si abrir el documento sin tener que leerlo.\n\n"
-                    "Documento:\n" + text_content
-                ),
+                "content": user_prompt,
             }],
-            system=(
-                "Eres un asistente experto en análisis de documentos empresariales. "
-                "Responde SIEMPRE en el idioma del documento. "
-                "REGLA DE PRIVACIDAD ESTRICTA: NO incluyas en el resumen ningún dato sensible "
-                "del contenido — específicamente: nombres propios de personas, importes o cifras "
-                "concretas, fechas concretas, números de identificación (NIF/IBAN/IDs), nombres "
-                "comerciales de clientes/proveedores específicos, ni transcribas literalmente "
-                "cláusulas, condiciones o párrafos. Habla siempre a alto nivel y en términos "
-                "genéricos (\"el cliente\", \"el importe pactado\", \"la fecha de vigencia\", etc.). "
-                "Si el documento es muy técnico, describe los temas tratados sin reproducir "
-                "fórmulas, parámetros o configuraciones específicas."
-            ),
+            system=system_prompt,
             module="document_summary",
             user_id=current_user.id,
             max_tokens=700,

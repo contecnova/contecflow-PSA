@@ -37,7 +37,7 @@ from sqlalchemy.exc import IntegrityError
 # ── Scoped query helpers ───────────────────────────────────────────────────────
 
 def scoped_client_query(db: Session, current_user: User):
-    q = db.query(Client)
+    q = db.query(Client).filter(Client.is_active == True)
     if current_user.is_superadmin or not current_user.organization_id:
         return q
     org_user_ids = db.query(User.id).filter(
@@ -164,7 +164,10 @@ def get_client_detail(client, db: Session) -> dict:
     ]
 
     # Licenses
-    lic_links = db.query(ClientLicenseLink).filter(ClientLicenseLink.client_id == client.id).all()
+    lic_links = db.query(ClientLicenseLink).filter(
+        ClientLicenseLink.client_id == client.id,
+        ClientLicenseLink.is_active == True,
+    ).all()
     licenses = []
     for ll in lic_links:
         lic = db.query(ALMLicense).filter(ALMLicense.id == ll.license_id).first()
@@ -179,7 +182,10 @@ def get_client_detail(client, db: Session) -> dict:
     out["licenses"] = licenses
 
     # Contracts
-    con_links = db.query(ClientContractLink).filter(ClientContractLink.client_id == client.id).all()
+    con_links = db.query(ClientContractLink).filter(
+        ClientContractLink.client_id == client.id,
+        ClientContractLink.is_active == True,
+    ).all()
     contracts_list = []
     for cl in con_links:
         con = db.query(Contract).filter(Contract.id == cl.contract_id).first()
@@ -208,7 +214,10 @@ def get_client_detail(client, db: Session) -> dict:
     ]
 
     # Portal users
-    portal_users = db.query(ClientUser).filter(ClientUser.client_org_id == client.id).all()
+    portal_users = db.query(ClientUser).filter(
+        ClientUser.client_org_id == client.id,
+        ClientUser.is_active == True,
+    ).all()
     out["portal_users"] = [
         {
             "id": u.id, "full_name": u.full_name, "email": u.email,
@@ -268,7 +277,7 @@ def create_portal_user(
         if current_count >= cfg.max_portal_users:
             raise HTTPException(400, f"Límite de usuarios de portal alcanzado ({cfg.max_portal_users})")
 
-    if db.query(ClientUser).filter(ClientUser.email == data.get("email")).first():
+    if db.query(ClientUser).filter(ClientUser.email == data.get("email"), ClientUser.is_active == True).first():
         raise HTTPException(409, "Email ya registrado en el portal")
 
     provided_pwd = data.pop("password", None)
@@ -313,7 +322,7 @@ def create_portal_user(
 def get_client_360(client_id: str, db: Session) -> dict:
     """Executive 360 summary: KPIs, health score, recent alerts."""
 
-    c = db.query(Client).filter(Client.id == client_id).first()
+    c = db.query(Client).filter(Client.id == client_id, Client.is_active == True).first()
     if not c:
         raise HTTPException(404)
 
@@ -334,14 +343,20 @@ def get_client_360(client_id: str, db: Session) -> dict:
         if t.created_at and _to_aware(t.created_at) > thirty_days_ago
     ]
 
-    con_links = db.query(ClientContractLink).filter(ClientContractLink.client_id == client_id).all()
+    con_links = db.query(ClientContractLink).filter(
+        ClientContractLink.client_id == client_id,
+        ClientContractLink.is_active == True,
+    ).all()
     contract_value = 0
     for cl in con_links:
         con = db.query(Contract).filter(Contract.id == cl.contract_id).first()
         if con and con.total_amount:
             contract_value += con.total_amount
 
-    lic_links = db.query(ClientLicenseLink).filter(ClientLicenseLink.client_id == client_id).all()
+    lic_links = db.query(ClientLicenseLink).filter(
+        ClientLicenseLink.client_id == client_id,
+        ClientLicenseLink.is_active == True,
+    ).all()
     expiring_soon = 0
     for ll in lic_links:
         lic = db.query(ALMLicense).filter(ALMLicense.id == ll.license_id).first()
@@ -411,10 +426,57 @@ def delete_client(cid: str, current_user: User, db: Session) -> dict:
     if current_user.role not in ('admin', 'pm') and not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Solo admin o PM pueden eliminar clientes")
     c = get_scoped_client_or_404(db, current_user, cid)
-    db.query(Project).filter(Project.client_id == cid).update({"client_id": None})
+    dependencies = []
+    project_count = db.query(func.count(Project.id)).filter(Project.client_id == cid).scalar() or 0
+    if project_count > 0:
+        dependencies.append(f"{project_count} proyecto(s)")
+
+    open_ticket_count = db.query(func.count(Ticket.id)).filter(
+        Ticket.client_id == cid,
+        Ticket.status.notin_(["resolved", "closed"]),
+    ).scalar() or 0
+    if open_ticket_count > 0:
+        dependencies.append(f"{open_ticket_count} ticket(s) abiertos")
+
+    invoice_count = db.query(func.count(Invoice.id)).filter(Invoice.client_id == cid).scalar() or 0
+    if invoice_count > 0:
+        dependencies.append(f"{invoice_count} factura(s)")
+
+    active_contacts = db.query(func.count(ClientContact.id)).filter(
+        ClientContact.client_id == cid,
+        ClientContact.is_active == True,
+    ).scalar() or 0
+    if active_contacts > 0:
+        dependencies.append(f"{active_contacts} contacto(s) activos")
+
+    active_license_links = db.query(func.count(ClientLicenseLink.id)).filter(
+        ClientLicenseLink.client_id == cid,
+        ClientLicenseLink.is_active == True,
+    ).scalar() or 0
+    if active_license_links > 0:
+        dependencies.append(f"{active_license_links} licencia(s) vinculadas")
+
+    active_contract_links = db.query(func.count(ClientContractLink.id)).filter(
+        ClientContractLink.client_id == cid,
+        ClientContractLink.is_active == True,
+    ).scalar() or 0
+    if active_contract_links > 0:
+        dependencies.append(f"{active_contract_links} contrato(s) vinculados")
+
+    active_portal_users = db.query(func.count(ClientUser.id)).filter(
+        ClientUser.client_org_id == cid,
+        ClientUser.is_active == True,
+    ).scalar() or 0
+    if active_portal_users > 0:
+        dependencies.append(f"{active_portal_users} usuario(s) de portal activos")
+
+    if dependencies:
+        raise HTTPException(400, f"No se puede eliminar: {', '.join(dependencies)}")
+
     c.is_active = False
+    c.status = "inactive"
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Cliente eliminado correctamente"}
 
 
 # ── Contacts ──────────────────────────────────────────────────────────────────
@@ -431,7 +493,7 @@ def list_contacts(cid: str, db: Session) -> list:
 
 
 def add_contact(cid: str, data: dict, db: Session) -> dict:
-    c = db.query(Client).filter(Client.id == cid).first()
+    c = db.query(Client).filter(Client.id == cid, Client.is_active == True).first()
     if not c:
         raise HTTPException(404)
     ct = ClientContact(client_id=cid, **{k: v for k, v in data.items() if hasattr(ClientContact, k)})
@@ -445,7 +507,9 @@ def add_contact(cid: str, data: dict, db: Session) -> dict:
 
 def update_contact(cid: str, contact_id: str, data: dict, db: Session) -> dict:
     ct = db.query(ClientContact).filter(
-        ClientContact.id == contact_id, ClientContact.client_id == cid
+        ClientContact.id == contact_id,
+        ClientContact.client_id == cid,
+        ClientContact.is_active == True,
     ).first()
     if not ct:
         raise HTTPException(404)
@@ -459,19 +523,24 @@ def update_contact(cid: str, contact_id: str, data: dict, db: Session) -> dict:
 
 def delete_contact(cid: str, contact_id: str, db: Session) -> dict:
     ct = db.query(ClientContact).filter(
-        ClientContact.id == contact_id, ClientContact.client_id == cid
+        ClientContact.id == contact_id,
+        ClientContact.client_id == cid,
+        ClientContact.is_active == True,
     ).first()
     if not ct:
         raise HTTPException(404)
     ct.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Contacto eliminado correctamente"}
 
 
 # ── Licenses ──────────────────────────────────────────────────────────────────
 
 def list_client_licenses(cid: str, db: Session) -> list:
-    links = db.query(ClientLicenseLink).filter(ClientLicenseLink.client_id == cid).all()
+    links = db.query(ClientLicenseLink).filter(
+        ClientLicenseLink.client_id == cid,
+        ClientLicenseLink.is_active == True,
+    ).all()
     result = []
     for ll in links:
         lic = db.query(ALMLicense).filter(ALMLicense.id == ll.license_id).first()
@@ -487,16 +556,22 @@ def list_client_licenses(cid: str, db: Session) -> list:
 
 
 def link_license(cid: str, data: dict, db: Session) -> dict:
-    if not db.query(Client).filter(Client.id == cid).first():
+    if not db.query(Client).filter(Client.id == cid, Client.is_active == True).first():
         raise HTTPException(404, "Cliente no encontrado")
     lic_id = data.get("license_id")
     if not lic_id or not db.query(ALMLicense).filter(ALMLicense.id == lic_id).first():
         raise HTTPException(404, "Licencia no encontrada")
     existing = db.query(ClientLicenseLink).filter(
-        ClientLicenseLink.client_id == cid, ClientLicenseLink.license_id == lic_id
+        ClientLicenseLink.client_id == cid,
+        ClientLicenseLink.license_id == lic_id,
     ).first()
-    if existing:
+    if existing and existing.is_active:
         raise HTTPException(409, "Licencia ya vinculada a este cliente")
+    if existing and not existing.is_active:
+        existing.is_active = True
+        existing.notes = data.get("notes")
+        db.commit()
+        return {"link_id": existing.id, "license_id": lic_id, "notes": existing.notes}
     ll = ClientLicenseLink(client_id=cid, license_id=lic_id, notes=data.get("notes"))
     db.add(ll)
     db.commit()
@@ -506,19 +581,24 @@ def link_license(cid: str, data: dict, db: Session) -> dict:
 
 def unlink_license(cid: str, link_id: str, db: Session) -> dict:
     ll = db.query(ClientLicenseLink).filter(
-        ClientLicenseLink.id == link_id, ClientLicenseLink.client_id == cid
+        ClientLicenseLink.id == link_id,
+        ClientLicenseLink.client_id == cid,
+        ClientLicenseLink.is_active == True,
     ).first()
     if not ll:
         raise HTTPException(404)
-    db.delete(ll)
+    ll.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Licencia desvinculada correctamente"}
 
 
 # ── Contracts ─────────────────────────────────────────────────────────────────
 
 def list_client_contracts(cid: str, db: Session) -> list:
-    links = db.query(ClientContractLink).filter(ClientContractLink.client_id == cid).all()
+    links = db.query(ClientContractLink).filter(
+        ClientContractLink.client_id == cid,
+        ClientContractLink.is_active == True,
+    ).all()
     linked_ids: set = set()
     result = []
     for cl in links:
@@ -553,16 +633,21 @@ def list_client_contracts(cid: str, db: Session) -> list:
 
 
 def link_contract(cid: str, data: dict, db: Session) -> dict:
-    if not db.query(Client).filter(Client.id == cid).first():
+    if not db.query(Client).filter(Client.id == cid, Client.is_active == True).first():
         raise HTTPException(404, "Cliente no encontrado")
     con_id = data.get("contract_id")
     if not con_id or not db.query(Contract).filter(Contract.id == con_id).first():
         raise HTTPException(404, "Contrato no encontrado")
     existing = db.query(ClientContractLink).filter(
-        ClientContractLink.client_id == cid, ClientContractLink.contract_id == con_id
+        ClientContractLink.client_id == cid,
+        ClientContractLink.contract_id == con_id,
     ).first()
-    if existing:
+    if existing and existing.is_active:
         raise HTTPException(409, "Contrato ya vinculado")
+    if existing and not existing.is_active:
+        existing.is_active = True
+        db.commit()
+        return {"link_id": existing.id, "contract_id": con_id}
     cl = ClientContractLink(client_id=cid, contract_id=con_id)
     db.add(cl)
     db.commit()
@@ -572,18 +657,22 @@ def link_contract(cid: str, data: dict, db: Session) -> dict:
 
 def unlink_contract(cid: str, link_id: str, db: Session) -> dict:
     cl = db.query(ClientContractLink).filter(
-        ClientContractLink.id == link_id, ClientContractLink.client_id == cid
+        ClientContractLink.id == link_id,
+        ClientContractLink.client_id == cid,
+        ClientContractLink.is_active == True,
     ).first()
     if not cl:
         raise HTTPException(404)
-    db.delete(cl)
+    cl.is_active = False
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "Contrato desvinculado correctamente"}
 
 
 # ── Portal config ─────────────────────────────────────────────────────────────
 
 def get_portal_config(cid: str, db: Session) -> dict:
+    if not db.query(Client).filter(Client.id == cid, Client.is_active == True).first():
+        raise HTTPException(404)
     cfg = db.query(ClientPortalConfig).filter(ClientPortalConfig.client_id == cid).first()
     if not cfg:
         return {"client_id": cid, "enabled_modules": ["service_desk", "projects"], "sd_without_project": True}
@@ -603,7 +692,7 @@ def get_portal_config(cid: str, db: Session) -> dict:
 
 
 def update_portal_config(cid: str, data: dict, db: Session) -> dict:
-    if not db.query(Client).filter(Client.id == cid).first():
+    if not db.query(Client).filter(Client.id == cid, Client.is_active == True).first():
         raise HTTPException(404)
     cfg = db.query(ClientPortalConfig).filter(ClientPortalConfig.client_id == cid).first()
     if not cfg:
@@ -670,7 +759,7 @@ def list_client_tickets(cid: str, status: "Optional[str]", db: Session) -> list:
 # ── Portal users ──────────────────────────────────────────────────────────────
 
 def list_portal_users(cid: str, db: Session) -> list:
-    users = db.query(ClientUser).filter(ClientUser.client_org_id == cid).all()
+    users = db.query(ClientUser).filter(ClientUser.client_org_id == cid, ClientUser.is_active == True).all()
     return [
         {"id": u.id, "full_name": u.full_name, "email": u.email,
          "job_title": u.job_title, "is_active": u.is_active,
@@ -684,7 +773,9 @@ def list_portal_users(cid: str, db: Session) -> list:
 
 def update_portal_user(cid: str, uid: str, data: dict, db: Session) -> dict:
     u = db.query(ClientUser).filter(
-        ClientUser.id == uid, ClientUser.client_org_id == cid
+        ClientUser.id == uid,
+        ClientUser.client_org_id == cid,
+        ClientUser.is_active == True,
     ).first()
     if not u:
         raise HTTPException(404)
@@ -736,7 +827,7 @@ def list_available_projects(cid: str, db: Session) -> list:
 
 
 def link_project(cid: str, project_id: str, db: Session) -> dict:
-    client = db.query(Client).filter(Client.id == cid).first()
+    client = db.query(Client).filter(Client.id == cid, Client.is_active == True).first()
     if not client:
         raise HTTPException(404, "Cliente no encontrado")
     project = db.query(Project).filter(Project.id == project_id).first()

@@ -21,6 +21,7 @@ class WikiSpace(Base):
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     name        = Column(String(200), nullable=False)
     slug        = Column(String(100), nullable=False, unique=True, index=True)
+    is_active   = Column(Boolean, default=True)
     description = Column(Text, nullable=True)
     is_public   = Column(Boolean, default=False)
     created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
@@ -35,6 +36,7 @@ class WikiPage(Base):
     parent_id    = Column(String(36), ForeignKey("wiki_pages.id",  ondelete="SET NULL"),  nullable=True,  index=True)
     title        = Column(String(500), nullable=False)
     slug         = Column(String(200), nullable=False)
+    is_active    = Column(Boolean, default=True)
     content      = Column(Text, nullable=True)       # JSON blocks
     visibility   = Column(String(20), default='team')   # team | portal | public (client-visible)
     content_text = Column(Text, nullable=True)       # texto plano para búsqueda
@@ -96,6 +98,7 @@ class Epic(Base):
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     title       = Column(String(500), nullable=False)
+    is_active   = Column(Boolean, default=True)
     description = Column(Text, nullable=True)
     color       = Column(String(20), default="#7c3aed")
     status      = Column(String(30), default="open")    # open, in_progress, done, cancelled
@@ -116,6 +119,7 @@ class EpicTask(Base):
     id       = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     epic_id  = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False, index=True)
     task_id  = Column(String(36), ForeignKey("tasks.id",     ondelete="CASCADE"), nullable=False, index=True)
+    is_active = Column(Boolean, default=True)
     epic     = relationship("Epic", back_populates="epic_tasks")
 
 
@@ -124,6 +128,7 @@ class EpicDependency(Base):
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     epic_id       = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False, index=True)
     depends_on_id = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False)
+    is_active     = Column(Boolean, default=True)
     epic          = relationship("Epic", foreign_keys=[epic_id],       back_populates="dependencies")
     depends_on    = relationship("Epic", foreign_keys=[depends_on_id])
 
@@ -136,6 +141,7 @@ class SavedFilter(Base):
     name        = Column(String(200), nullable=False)
     entity_type = Column(String(30), nullable=False, index=True)  # task, ticket, project, epic
     nql_query   = Column(Text, nullable=False)
+    is_active   = Column(Boolean, default=True)
     is_shared   = Column(Boolean, default=False)
     created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
@@ -175,6 +181,7 @@ class ThreadedComment(Base):
     entity_id   = Column(String(36), nullable=False, index=True)
     parent_id   = Column(String(36), ForeignKey("threaded_comments.id", ondelete="CASCADE"), nullable=True)
     content     = Column(Text, nullable=False)
+    is_active   = Column(Boolean, default=True)
     is_resolved = Column(Boolean, default=False)
     created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())

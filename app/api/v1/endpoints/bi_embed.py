@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 from app.services import bi_embed_service as svc
 
 router = APIRouter(prefix="/bi/embed", tags=["BI Embedded SDK"])
@@ -45,6 +46,7 @@ def revoke_embed_token(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "bi_embed_token", jti, action="delete")
     org_id = str(current_user.organization_id or "global")
     svc.revoke_embed_token(db, org_id, jti)
     return {"revoked": True, "jti": jti}

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, require_any_manager
 from app.models.user import User
+from app.core.abac_enforce import enforce_abac
 
 router = APIRouter()
 
@@ -202,6 +203,7 @@ def delete_baseline(
 ):
     from app.models.marketplace import GanttBaseline
 
+    enforce_abac(db, current_user, "gantt_baseline", baseline_id, action="delete")
     b = (
         db.query(GanttBaseline)
         .filter(GanttBaseline.id == baseline_id, GanttBaseline.project_id == project_id)

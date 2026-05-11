@@ -31,7 +31,10 @@ def create_course(db: Session, data: dict) -> Course:
 
 
 def get_course(db: Session, course_id: str) -> Optional[Course]:
-    return db.query(Course).filter(Course.id == course_id).first()
+    return db.query(Course).filter(
+        Course.id == course_id,
+        Course.is_active == True,
+    ).first()
 
 
 def update_course(db: Session, course: Course, data: dict) -> Course:
