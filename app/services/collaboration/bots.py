@@ -485,15 +485,19 @@ def _escalate_to_ticket(db: Session, user, conversation_id: str, query: str, *, 
     org = _org(user)
     title = (query or "Solicitud desde chat").strip()[:120]
     description = query or "Generado desde chat"
+    # FIX: el modelo Ticket usa ``requester_user_id`` (no ``reporter_user_id``)
+    # → pasar la clave incorrecta lanzaba TypeError en runtime al crear ticket
+    # desde el bot de chat. Verificado con `Ticket(reporter_user_id=...)`.
     ticket = Ticket(
         title=title, description=description,
         ticket_type=TicketType.question if not force else TicketType.incident,
         priority=TicketPriority.p3_medium if priority == "p3_medium" else TicketPriority.p2_high,
         status=TicketStatus.new,
-        reporter_user_id=user.id,
+        requester_user_id=user.id,
     )
-    if hasattr(ticket, "organization_id"):
-        ticket.organization_id = org
+    # NOTA: Ticket no tiene columna organization_id; el scope multi-tenant
+    # viene vía project_id → Project.organization_id. El bot crea tickets
+    # ad-hoc sin project, así que la org se deriva del requester user.
     if hasattr(ticket, "number"):
         ticket.number = f"SD-{int(datetime.utcnow().timestamp()) % 1_000_000:06d}"
     db.add(ticket)

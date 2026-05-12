@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.models.service_desk import (
     KBArticle,
     KBStatus,
+    ServiceItem,
     Ticket,
     TicketHistory,
     TicketPriority,
@@ -27,6 +28,27 @@ from app.models.user import User
 from app.services.sla_service import SLA_HOURS, compute_sla_status
 
 logger = logging.getLogger(__name__)
+
+
+def _ticket_category_value(t) -> Optional[str]:
+    """FIX: ``Ticket`` no expone columna ``category`` directa. La "categoría"
+    real vive en ``service_item.category_id`` (cuando hay service_item) o se
+    aproxima con ``ticket_type``. Centralizamos el accessor para evitar
+    AttributeError en runtime.
+    """
+    if t is None:
+        return None
+    try:
+        si = getattr(t, "service_item", None)
+        cat_id = getattr(si, "category_id", None) if si is not None else None
+        if cat_id:
+            return str(cat_id)
+    except Exception:
+        pass
+    tt = getattr(t, "ticket_type", None)
+    if tt is None:
+        return None
+    return str(getattr(tt, "value", tt))
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -131,27 +153,34 @@ def score_auto_resolution(db: Session, ticket: Ticket) -> dict:
     kb_score = kb_sim * 100.0
 
     # Historical resolution rate for same category + priority (closed tickets < 10 min)
-    total_similar = (
-        db.query(func.count(Ticket.id))
-        .filter(
-            Ticket.category == ticket.category,
-            Ticket.priority == ticket.priority,
-            Ticket.status == TicketStatus.closed,
-        )
-        .scalar()
-    ) or 0
+    # FIX: Ticket no tiene .category; usamos service_item.category_id via JOIN
+    # cuando aplica. Si el ticket no tiene service_item, caemos a un filtro
+    # solo por ticket_type (fallback razonable, mismo grupo de incidencias).
+    cat_value = _ticket_category_value(ticket)
+    si_cat_id = getattr(getattr(ticket, "service_item", None), "category_id", None)
+
+    def _filter_by_category(q):
+        if si_cat_id:
+            return q.join(ServiceItem, Ticket.service_item_id == ServiceItem.id).filter(
+                ServiceItem.category_id == si_cat_id
+            )
+        if cat_value and getattr(ticket, "ticket_type", None) is not None:
+            return q.filter(Ticket.ticket_type == ticket.ticket_type)
+        return q
+
+    base_q = db.query(func.count(Ticket.id)).filter(
+        Ticket.priority == ticket.priority,
+        Ticket.status == TicketStatus.closed,
+    )
+    total_similar = (_filter_by_category(base_q).scalar()) or 0
 
     if total_similar > 0:
-        fast_closed = (
-            db.query(func.count(Ticket.id))
-            .filter(
-                Ticket.category == ticket.category,
-                Ticket.priority == ticket.priority,
-                Ticket.status == TicketStatus.closed,
-                Ticket.first_response_minutes <= 10,
-            )
-            .scalar()
-        ) or 0
+        fast_q = db.query(func.count(Ticket.id)).filter(
+            Ticket.priority == ticket.priority,
+            Ticket.status == TicketStatus.closed,
+            Ticket.first_response_minutes <= 10,
+        )
+        fast_closed = (_filter_by_category(fast_q).scalar()) or 0
         historical_rate = (fast_closed / total_similar) * 100.0
     else:
         historical_rate = 40.0  # neutral default
@@ -247,7 +276,9 @@ def find_duplicate_alert(db: Session, ticket: Ticket) -> Optional[Ticket]:
     - Not the same ticket id
     - Status not resolved/closed/cancelled
     """
-    if not ticket.category:
+    # FIX: usamos helper en lugar de ticket.category (no existe en el modelo).
+    cat_value = _ticket_category_value(ticket)
+    if not cat_value:
         return None
 
     window_start = (ticket.created_at or datetime.now(timezone.utc)) - timedelta(
@@ -258,7 +289,6 @@ def find_duplicate_alert(db: Session, ticket: Ticket) -> Optional[Ticket]:
         db.query(Ticket)
         .filter(
             Ticket.id != ticket.id,
-            Ticket.category == ticket.category,
             Ticket.priority == ticket.priority,
             Ticket.status.not_in(
                 [TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled]
@@ -266,6 +296,16 @@ def find_duplicate_alert(db: Session, ticket: Ticket) -> Optional[Ticket]:
             Ticket.created_at >= window_start,
         )
     )
+
+    # FIX: filtrar por categoría vía service_item.category_id (si aplica) o
+    # ticket_type como fallback.
+    si_cat_id = getattr(getattr(ticket, "service_item", None), "category_id", None)
+    if si_cat_id:
+        q = q.join(ServiceItem, Ticket.service_item_id == ServiceItem.id).filter(
+            ServiceItem.category_id == si_cat_id
+        )
+    elif getattr(ticket, "ticket_type", None) is not None:
+        q = q.filter(Ticket.ticket_type == ticket.ticket_type)
 
     if ticket.ci_id:
         q = q.filter(Ticket.ci_id == ticket.ci_id)

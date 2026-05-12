@@ -172,7 +172,7 @@ def score_agent_for_ticket(db: Session, user_id: str, ticket: Ticket) -> float:
     """Compute a composite 0-1 routing score for assigning *ticket* to *user_id*.
 
     Formula:
-      - Skill match (40%): keyword overlap agent_skills ↔ ticket.category
+      - Skill match (40%): keyword overlap agent_skills ↔ ticket category (derived via service_item.category_id or ticket_type)
       - Availability (30%): 1 - (open_tickets / max_capacity_10)
       - CSAT quality (30%): avg_csat / 5
     """
@@ -183,7 +183,18 @@ def score_agent_for_ticket(db: Session, user_id: str, ticket: Ticket) -> float:
     csat = _agent_csat_score(db, user_id)
     csat_norm = csat / 5.0
 
-    skill_match = _agent_skills_match(db, user_id, ticket.category)
+    # FIX: Ticket no tiene .category directa — derivamos de service_item o
+    # ticket_type. Sin esta corrección saltaba AttributeError al routear.
+    _si = getattr(ticket, "service_item", None)
+    _cat_id = getattr(_si, "category_id", None) if _si is not None else None
+    if _cat_id:
+        _cat_name = getattr(_si, "name", None) or str(_cat_id)
+    elif getattr(ticket, "ticket_type", None) is not None:
+        _tt = ticket.ticket_type
+        _cat_name = str(getattr(_tt, "value", _tt))
+    else:
+        _cat_name = None
+    skill_match = _agent_skills_match(db, user_id, _cat_name)
 
     score = skill_match * 0.40 + availability * 0.30 + csat_norm * 0.30
     return round(score, 4)

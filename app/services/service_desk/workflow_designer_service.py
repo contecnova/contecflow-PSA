@@ -23,8 +23,13 @@ from app.models.workflow_designer import (
 # qué metadatos puede llevar el nodo y qué outputs produce.
 NODE_CATALOG: list[dict] = [
     {"type": "start",        "label": "Inicio",          "outputs": ["next"],                    "fields": []},
-    {"type": "end",          "label": "Fin",             "outputs": [],                          "fields": []},
+    {"type": "end",          "label": "Fin",             "outputs": [],                          "fields": ["final_status"]},
     {"type": "state",        "label": "Estado",          "outputs": ["next"],                    "fields": ["status", "assignee_role", "sla_hours"]},
+    # FIX: el tipo "action" se usaba en tests y workflows existentes pero no
+    # estaba registrado en el catálogo → validate_graph rechazaba como tipo
+    # desconocido. Es un nodo genérico que ejecuta una acción nombrada
+    # (set_priority, set_assignee, set_status, run_script, etc.) con params.
+    {"type": "action",       "label": "Acción",          "outputs": ["next"],                    "fields": ["action", "params"]},
     {"type": "decision",     "label": "Decisión",        "outputs": ["true", "false"],           "fields": ["expression"]},
     {"type": "approval",     "label": "Aprobación",      "outputs": ["approved", "rejected"],    "fields": ["approver_role", "deadline_hours"]},
     {"type": "wait",         "label": "Espera / Timer",  "outputs": ["next"],                    "fields": ["wait_minutes", "until_field"]},
