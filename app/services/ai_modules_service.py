@@ -235,6 +235,96 @@ def map_reduce_analysis(
 # NEXUSORACLE — run_oracle business logic
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _project_internal_cost(db: Session, project_id: str) -> dict:
+    """Calcula el coste INTERNO de un proyecto (lo que gastamos en sueldos +
+    overhead), no lo que facturamos al cliente.
+
+    Item #83: antes Oracle solo conocía ``hours × billing_rate`` (revenue).
+    Para detectar pérdidas reales necesitamos comparar el presupuesto contra
+    el coste real, que viene de ``UserCostProfile.cost_per_hour`` (salario +
+    impuestos + overhead) por user, válido en la fecha de cada imputación.
+
+    Cascada de fuentes (en orden de preferencia):
+      1. ``Imputation.cost_amount`` si está populado → usarlo directamente.
+      2. ``hours × UserCostProfile.cost_per_hour`` válido para esa fecha.
+      3. ``hours × AI_REVENUE_HOURLY_RATE_FALLBACK`` (último recurso).
+
+    Devuelve ``{"cost_eur": float, "method": str, "coverage_pct": float}``
+    donde ``coverage_pct`` indica qué porcentaje de las horas se calculó con
+    datos reales (cost_amount o cost_profile) vs fallback global.
+    """
+    from app.models.user_cost import UserCostProfile  # noqa: PLC0415
+    from app.core.config import settings as _s  # noqa: PLC0415
+
+    fallback_rate = float(getattr(_s, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
+    imps = db.query(Imputation).filter(Imputation.project_id == project_id).all()
+    if not imps:
+        return {"cost_eur": 0.0, "method": "no_data", "coverage_pct": 0.0}
+
+    # Cargamos todos los cost profiles de los users involucrados de una sola vez
+    # (evita N queries por user).
+    user_ids = {i.user_id for i in imps if i.user_id}
+    profiles_by_user: dict = {}
+    if user_ids:
+        rows = db.query(UserCostProfile).filter(
+            UserCostProfile.user_id.in_(list(user_ids))
+        ).all()
+        for r in rows:
+            profiles_by_user.setdefault(r.user_id, []).append(r)
+
+    def _rate_for(user_id, imp_date):
+        profiles = profiles_by_user.get(user_id, [])
+        if not profiles:
+            return None
+        # Buscar el profile cuya vigencia [valid_from, valid_to|None] contenga imp_date
+        for prof in profiles:
+            vf = prof.valid_from
+            vt = prof.valid_to
+            if vf and imp_date < vf:
+                continue
+            if vt is not None and imp_date > vt:
+                continue
+            return float(prof.cost_per_hour or 0)
+        # Si ninguno aplica, tomar el más reciente con vt=None (current)
+        current_open = [p for p in profiles if p.valid_to is None]
+        if current_open:
+            current_open.sort(key=lambda p: p.valid_from or 0, reverse=True)
+            return float(current_open[0].cost_per_hour or 0)
+        return None
+
+    total_cost = 0.0
+    real_hours = 0.0
+    fallback_hours = 0.0
+
+    for imp in imps:
+        hours = float(imp.hours or 0)
+        if hours <= 0:
+            continue
+        if imp.cost_amount is not None and imp.cost_amount > 0:
+            total_cost += float(imp.cost_amount)
+            real_hours += hours
+            continue
+        rate = _rate_for(imp.user_id, imp.date) if imp.user_id else None
+        if rate is not None and rate > 0:
+            total_cost += hours * rate
+            real_hours += hours
+        else:
+            total_cost += hours * fallback_rate
+            fallback_hours += hours
+
+    total_hours = real_hours + fallback_hours
+    coverage = (real_hours / total_hours * 100) if total_hours > 0 else 0.0
+
+    if fallback_hours == 0 and real_hours > 0:
+        method = "cost_profile"
+    elif real_hours == 0:
+        method = "fallback_only"
+    else:
+        method = "mixed"
+
+    return {"cost_eur": round(total_cost, 2), "method": method, "coverage_pct": round(coverage, 1)}
+
+
 def run_oracle_analysis(db: Session, current_user) -> dict:
     """
     Runs all rule-based risk analyses and stores results as AIPrediction records.
@@ -275,7 +365,13 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
         # → inconsistente). Centralizamos en AI_REVENUE_HOURLY_RATE_FALLBACK.
         from app.core.config import settings as _s  # noqa: PLC0415
         _rate_fb = float(getattr(_s, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
-        budget_consumed_pct = (hours_total * (getattr(p, "billing_rate", _rate_fb) or _rate_fb)) / max(budget, 1)
+        revenue_consumed_pct = (hours_total * (getattr(p, "billing_rate", _rate_fb) or _rate_fb)) / max(budget, 1)
+        # Item #83: añadimos coste interno como segunda métrica. El riesgo se
+        # dispara con el PEOR de los dos — un proyecto que quema horas más
+        # rápido de lo que factura debe surgir aunque parezca OK por revenue.
+        cost_info_d = _project_internal_cost(db, p.id)
+        cost_consumed_pct = (float(cost_info_d["cost_eur"]) / max(budget, 1)) if budget else 0.0
+        budget_consumed_pct = max(revenue_consumed_pct, cost_consumed_pct)
 
         risk_score = 0
         if overdue > 0:
@@ -294,7 +390,9 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
         explanation = (
             f"El proyecto tiene {overdue} tareas vencidas de {len(tasks)} totales "
             f"({round(pct_done*100)}% completado). "
-            f"Consumo de presupuesto estimado: {round(budget_consumed_pct*100)}%."
+            f"Consumo facturable: {round(revenue_consumed_pct*100)}%, "
+            f"coste interno: {round(cost_consumed_pct*100)}% "
+            f"(método={cost_info_d['method']}, cobertura={cost_info_d['coverage_pct']}%)."
         )
         action = "Revisar tareas bloqueadas con el PM. Considerar reasignación de recursos."
 
@@ -317,6 +415,11 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
                     "overdue_ratio": round(overdue / max(len(tasks), 1), 2),
                     "pct_done": round(pct_done, 2),
                     "budget_consumed": round(budget_consumed_pct, 2),
+                    # Item #83: ambas vistas explícitas para auditoría
+                    "revenue_consumed_pct": round(revenue_consumed_pct, 2),
+                    "cost_consumed_pct": round(cost_consumed_pct, 2),
+                    "cost_method": cost_info_d["method"],
+                    "cost_coverage_pct": cost_info_d["coverage_pct"],
                 }),
             )
             db.add(pred)
@@ -409,33 +512,79 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
             generated.append({"type": "burnout", "entity": u.full_name, "probability": probability})
 
     # ── 4. Budget overrun anomaly detection ──────────────────────────────────
+    # Item #83: ahora exponemos DOS métricas:
+    #   - revenue_ratio = hours × billing_rate / budget  (lo facturable al cliente)
+    #   - cost_ratio    = internal_cost      / budget    (lo que NOS cuesta, vía UserCostProfile)
+    # La alerta dispara cuando CUALQUIERA supera 85% (más conservador).
+    # La severidad usa el peor ratio. La probabilidad también.
+    # Si cost_ratio > revenue_ratio + 0.10, marcamos margen erosionado.
+    from app.core.config import settings as _s_oracle  # noqa: PLC0415
+    _rate_fb_oracle = float(getattr(_s_oracle, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
     for p in projects:
         if not p.budget_amount:
             continue
         hours = db.query(func.sum(Imputation.hours)).filter(Imputation.project_id == p.id).scalar() or 0
-        # Consistencia con la sección 1 (oracle health) — tarifa única vía settings.
-        from app.core.config import settings as _s  # noqa: PLC0415
-        _rate_fb = float(getattr(_s, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
-        rate  = getattr(p, "billing_rate", _rate_fb) or _rate_fb
-        spent = hours * rate
-        ratio = spent / p.budget_amount
-        if ratio < 0.85:
+        # Revenue (lo que facturas)
+        rate  = getattr(p, "billing_rate", _rate_fb_oracle) or _rate_fb_oracle
+        revenue_spent = hours * rate
+        revenue_ratio = revenue_spent / p.budget_amount
+        # Internal cost (lo que gastas)
+        cost_info = _project_internal_cost(db, p.id)
+        cost_spent = float(cost_info["cost_eur"] or 0.0)
+        cost_ratio = cost_spent / p.budget_amount if p.budget_amount else 0.0
+        # Decisión: la peor de las dos manda
+        worst_ratio = max(revenue_ratio, cost_ratio)
+        if worst_ratio < 0.85:
             continue
+        margin_eroded = cost_ratio > revenue_ratio + 0.10  # >10pp de gap = mal margen
         existing = db.query(AIPrediction).filter(
             AIPrediction.entity_id == p.id,
             AIPrediction.prediction_type == "budget_overrun",
             AIPrediction.is_acknowledged == False,
         ).first()
         if not existing:
+            margin_note = ""
+            if margin_eroded:
+                margin_note = (
+                    f" ⚠ Margen erosionado: coste interno {round(cost_ratio*100)}% > "
+                    f"facturación {round(revenue_ratio*100)}% → posibles pérdidas reales."
+                )
             db.add(AIPrediction(
                 prediction_type="budget_overrun", entity_type="project", entity_id=p.id,
-                probability=min(ratio - 0.5, 0.99),
-                severity="critical" if ratio > 1 else "high",
+                probability=min(worst_ratio - 0.5, 0.99),
+                severity="critical" if worst_ratio > 1 else "high",
                 title=f"Desviación presupuestaria — {p.name}",
-                explanation=f"Consumo estimado: {round(ratio*100)}% del presupuesto ({round(spent/1000,1)}k€ de {round(p.budget_amount/1000,1)}k€).",
-                recommended_action="Revisar alcance con el cliente. Preparar change order si hay trabajo extra.",
+                explanation=(
+                    f"Consumo facturable: {round(revenue_ratio*100)}% "
+                    f"({round(revenue_spent/1000,1)}k€ de {round(p.budget_amount/1000,1)}k€). "
+                    f"Coste interno: {round(cost_ratio*100)}% "
+                    f"({round(cost_spent/1000,1)}k€, método={cost_info['method']}, "
+                    f"cobertura datos reales={cost_info['coverage_pct']}%)."
+                    f"{margin_note}"
+                ),
+                recommended_action=(
+                    "Revisar alcance con el cliente. Preparar change order si hay trabajo extra."
+                    + (" Auditar costes internos y replantear pricing del proyecto." if margin_eroded else "")
+                ),
+                features_used=json.dumps({
+                    "revenue_ratio": round(revenue_ratio, 3),
+                    "cost_ratio": round(cost_ratio, 3),
+                    "hours_total": round(hours, 1),
+                    "budget_eur": round(p.budget_amount, 2),
+                    "revenue_eur": round(revenue_spent, 2),
+                    "cost_eur": round(cost_spent, 2),
+                    "cost_method": cost_info["method"],
+                    "cost_coverage_pct": cost_info["coverage_pct"],
+                    "margin_eroded": margin_eroded,
+                }),
             ))
-            generated.append({"type": "budget_overrun", "entity": p.name, "probability": round(ratio - 0.5, 2)})
+            generated.append({
+                "type": "budget_overrun", "entity": p.name,
+                "probability": round(worst_ratio - 0.5, 2),
+                "revenue_ratio": round(revenue_ratio, 2),
+                "cost_ratio": round(cost_ratio, 2),
+                "margin_eroded": margin_eroded,
+            })
 
     log_action(db, current_user.id, "contecfloworacle", "run",
                "oracle_full_analysis", f"Generated {len(generated)} predictions")
@@ -1079,11 +1228,39 @@ def get_meeting(db: Session, meeting_id: str) -> dict:
 # AI CONTRACT INTELLIGENCE
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def list_ai_contracts(db: Session, project_id=None):
-
+def list_ai_contracts(db: Session, project_id=None, current_user=None):
+    # H22: filtro multi-tenant — los AIContract sin project_id (textos pegados
+    # ad-hoc) se filtran por created_by; los enlazados a project se filtran
+    # vía Project.organization_id. Superadmin sin filtro.
     q = db.query(AIContract).options(joinedload(AIContract.clauses))
-    if project_id: q = q.filter(AIContract.project_id == project_id)
-    contracts = q.order_by(AIContract.created_at.desc()).limit(50).all()
+    if project_id:
+        q = q.filter(AIContract.project_id == project_id)
+    if current_user is not None and not bool(getattr(current_user, "is_superadmin", False)):
+        cu_org = getattr(current_user, "organization_id", None)
+        cu_id  = getattr(current_user, "id", None)
+        if cu_org:
+            # AIContract ligado a project: filtrar por org del proyecto
+            q_proj = q.join(Project, AIContract.project_id == Project.id).filter(
+                Project.organization_id == cu_org
+            )
+            # AIContract ad-hoc (sin project) creado por el caller
+            q_adhoc = q.filter(AIContract.project_id.is_(None), AIContract.created_by == cu_id)
+            contracts = (q_proj.all() + q_adhoc.all())
+            # Dedupe + sort
+            seen = set()
+            uniq = []
+            for c in sorted(contracts, key=lambda c: c.created_at or datetime.min, reverse=True):
+                if c.id in seen:
+                    continue
+                seen.add(c.id)
+                uniq.append(c)
+            contracts = uniq[:50]
+        else:
+            contracts = q.filter(AIContract.created_by == cu_id).order_by(
+                AIContract.created_at.desc()
+            ).limit(50).all()
+    else:
+        contracts = q.order_by(AIContract.created_at.desc()).limit(50).all()
     return [{
         "id": c.id, "client_name": c.client_name, "project_id": c.project_id,
         "filename": c.filename, "status": c.status,
@@ -1093,6 +1270,71 @@ def list_ai_contracts(db: Session, project_id=None):
         "at_risk_clauses": sum(1 for cl in c.clauses if cl.is_at_risk),
         "created_at": str(c.created_at)[:16],
     } for c in contracts]
+
+
+def get_ai_contract(db: Session, contract_id: str, current_user=None) -> dict:
+    """Detalle de un AIContract con todas sus cláusulas. Respeta multi-tenant."""
+    contract = db.query(AIContract).options(joinedload(AIContract.clauses)).filter(
+        AIContract.id == contract_id
+    ).first()
+    if not contract:
+        return None
+    # Visibility check: o eres superadmin, o lo creaste, o el project pertenece
+    # a tu org.
+    if current_user is not None and not bool(getattr(current_user, "is_superadmin", False)):
+        cu_id  = getattr(current_user, "id", None)
+        cu_org = getattr(current_user, "organization_id", None)
+        allowed = False
+        if contract.created_by and contract.created_by == cu_id:
+            allowed = True
+        elif contract.project_id and cu_org:
+            proj = db.query(Project).filter(Project.id == contract.project_id).first()
+            if proj and getattr(proj, "organization_id", None) == cu_org:
+                allowed = True
+        if not allowed:
+            return None
+    return {
+        "id": contract.id,
+        "client_name": contract.client_name,
+        "project_id": contract.project_id,
+        "filename": contract.filename,
+        "status": contract.status,
+        "total_value": contract.total_value,
+        "scope_summary": contract.scope_summary,
+        "risk_level": contract.risk_level,
+        "scope_creep_alerts": contract.scope_creep_alerts,
+        "created_at": str(contract.created_at)[:16],
+        "clauses": [{
+            "id": cl.id,
+            "clause_type": cl.clause_type,
+            "title": cl.title,
+            "description": cl.description,
+            "original_text": cl.original_text,
+            "impact_amount": cl.impact_amount,
+            "due_date": str(cl.due_date)[:10] if cl.due_date else None,
+            "is_at_risk": cl.is_at_risk,
+            "risk_reason": cl.risk_reason,
+        } for cl in contract.clauses],
+    }
+
+
+def extract_pdf_text(pdf_bytes: bytes) -> str:
+    """Extrae texto plano de un PDF (pypdf). Devuelve "" si falla."""
+    try:
+        from pypdf import PdfReader  # noqa: PLC0415
+        from io import BytesIO  # noqa: PLC0415
+        reader = PdfReader(BytesIO(pdf_bytes))
+        chunks = []
+        for page in reader.pages:
+            try:
+                chunks.append(page.extract_text() or "")
+            except Exception:
+                continue
+        return "\n\n".join(chunks).strip()
+    except Exception as exc:
+        import logging  # noqa: PLC0415
+        logging.getLogger(__name__).warning("PDF extraction failed: %s", exc)
+        return ""
 
 
 def analyze_contract(db: Session, payload, current_user) -> dict:
@@ -1349,6 +1591,24 @@ def client_portal_chat(db: Session, payload: dict) -> dict:
     if not client_user:
         raise ValueError("invalid_token")
 
+    return _client_portal_chat_for_user(db, client_user, message, session_id)
+
+
+def client_portal_chat_authenticated(db: Session, client_user, message: str, session_id: str | None = None) -> dict:
+    """Variante del chat del portal que recibe el ``client_user`` ya autenticado
+    (vía cookie portal en el endpoint). Reusa toda la lógica de sesión, history
+    y guardrails. Se añadió para I26 — el widget flotante en el portal usa
+    autenticación por cookie httponly, que no es legible desde JS, así que no
+    podemos pasar el JWT como ``client_token`` en el body.
+    """
+    if not message:
+        raise ValueError("missing_fields")
+    if not client_user:
+        raise ValueError("invalid_token")
+    return _client_portal_chat_for_user(db, client_user, message, session_id)
+
+
+def _client_portal_chat_for_user(db: Session, client_user, message: str, session_id: str | None) -> dict:
     session = None
     if session_id:
         session = db.query(AIClientChatSession).filter(
@@ -1385,6 +1645,25 @@ def client_portal_chat(db: Session, payload: dict) -> dict:
     db.commit()
 
     return {"session_id": session.id, "response": response_text}
+
+
+def list_client_chat_messages(db: Session, client_user, session_id: str, limit: int = 50) -> list:
+    """Lee historial de mensajes de una sesión, verificando ownership. Útil
+    para que el widget muestre la conversación al reabrirlo."""
+    session = db.query(AIClientChatSession).filter(
+        AIClientChatSession.id == session_id,
+        AIClientChatSession.client_user_id == client_user.id,
+    ).first()
+    if not session:
+        return []
+    msgs = db.query(AIClientChatMessage).filter(
+        AIClientChatMessage.session_id == session.id
+    ).order_by(AIClientChatMessage.created_at.asc()).limit(limit).all()
+    return [{
+        "role": m.role,
+        "content": m.content,
+        "created_at": str(m.created_at)[:16],
+    } for m in msgs]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

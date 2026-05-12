@@ -81,7 +81,22 @@ def get_ai_gantt_suggestions(project_id: str, db: Session, current_user=None) ->
     }
 
 
-def get_ai_timesheet_anomalies(user_id: str, db: Session) -> dict:
+def get_ai_timesheet_anomalies(user_id: str, db: Session, current_user=None) -> dict:
+    # Multi-tenant: solo se permite consultar anomalías propias O de users de la
+    # misma organización (managers). Superadmin bypassa. Sin este check, un
+    # employee podría enumerar imputaciones de cualquier user del sistema vía
+    # /ai/suggestions/timesheets/{cualquier_uuid}.
+    if current_user is not None:
+        is_super = bool(getattr(current_user, "is_superadmin", False))
+        cu_id = getattr(current_user, "id", None)
+        if not is_super and str(user_id) != str(cu_id):
+            from app.models.user import User as _User  # noqa: PLC0415
+            target = db.query(_User).filter(_User.id == user_id).first()
+            if not target:
+                raise HTTPException(404, "User not found")
+            cu_org = getattr(current_user, "organization_id", None)
+            if cu_org and getattr(target, "organization_id", None) != cu_org:
+                raise HTTPException(404, "User not found")
 
     cutoff = date.today() - timedelta(days=30)
     entries = db.query(Imputation).filter(

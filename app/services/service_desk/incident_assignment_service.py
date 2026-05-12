@@ -212,8 +212,16 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
             .filter(Ticket.assigned_to_user_id.isnot(None))
             .filter(Ticket.status.notin_(active_states))
         )
+        # FIX: Ticket no tiene columna organization_id propia (la org se deriva
+        # vía Project.organization_id o Client.organization_id). Hacemos JOIN
+        # opcional con Project; los tickets sin project son del propio user
+        # asignado, ya filtrado upstream por agent groups de la org.
         if org_id:
-            load_q = load_q.filter(Ticket.organization_id == org_id)
+            from app.models.project import Project as _Project  # noqa: PLC0415
+            from sqlalchemy import or_ as _or  # noqa: PLC0415
+            load_q = load_q.outerjoin(_Project, Ticket.project_id == _Project.id).filter(
+                _or(Ticket.project_id.is_(None), _Project.organization_id == org_id)
+            )
         load_q = load_q.group_by(Ticket.assigned_to_user_id)
         load_by_user: dict[str, int] = {row.assigned_to_user_id: int(row.cnt or 0) for row in load_q.all()}
 
@@ -247,7 +255,14 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
             Ticket.status.notin_(active_states),
         )
         if org_id:
-            unassigned_q = unassigned_q.filter(Ticket.organization_id == org_id)
+            # FIX: Ticket no tiene organization_id propia; scope vía Project.
+            from app.models.project import Project as _Project  # noqa: PLC0415
+            from sqlalchemy import or_ as _or  # noqa: PLC0415
+            unassigned_q = unassigned_q.outerjoin(
+                _Project, Ticket.project_id == _Project.id
+            ).filter(
+                _or(Ticket.project_id.is_(None), _Project.organization_id == org_id)
+            )
         total_unassigned = int(unassigned_q.scalar() or 0)
 
         agent_loads = sorted(agg.values(), key=lambda a: a["open_tickets"], reverse=True)

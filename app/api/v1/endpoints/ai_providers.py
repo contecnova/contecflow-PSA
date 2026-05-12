@@ -113,18 +113,48 @@ def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_adm
         result = _call_provider(p, [{"role": "user", "content": "Di solo 'OK' sin nada más."}],
                                 system="Eres un asistente de prueba.", max_tokens=10)
         latency = int((time.time() - t0) * 1000)
-        update_provider_test_result(db, p, success=True)
+        try:
+            update_provider_test_result(db, p, success=True)
+        except Exception as db_exc:
+            _logger.error("Failed to update provider test result in DB: %s", db_exc)
+            # Continue anyway - test succeeded even if we can't update DB
         return {"ok": True, "response": result.get("text", ""), "latency_ms": latency,
                 "model": result.get("model", p.default_model)}
     except ValueError as e:
-        update_provider_test_result(db, p, success=False, error=str(e))
-        raise HTTPException(400, f"Error de datos: {str(e)}")
+        try:
+            update_provider_test_result(db, p, success=False, error=str(e))
+        except Exception as db_exc:
+            _logger.error("Failed to update provider test result in DB: %s", db_exc)
+        raise HTTPException(400, f"Error de datos: {str(e)[:200]}")
     except ConnectionError as e:
-        update_provider_test_result(db, p, success=False, error=str(e))
-        raise HTTPException(503, f"No se pudo conectar con el proveedor: {str(e)}")
+        try:
+            update_provider_test_result(db, p, success=False, error=str(e))
+        except Exception as db_exc:
+            _logger.error("Failed to update provider test result in DB: %s", db_exc)
+        raise HTTPException(503, f"No se pudo conectar con el proveedor: {str(e)[:200]}")
     except Exception as e:
-        update_provider_test_result(db, p, success=False, error=str(e))
-        raise HTTPException(500, f"Error inesperado: {str(e)}")
+        msg = str(e)
+        msg_lower = msg.lower()
+        try:
+            update_provider_test_result(db, p, success=False, error=msg)
+        except Exception as db_exc:
+            _logger.error("Failed to update provider test result in DB: %s", db_exc)
+
+        # Auth/credenciales: API key inválida o sin permisos
+        if any(k in msg_lower for k in (
+            "api key not valid", "api key invalid", "invalid api key",
+            "unauthorized", " 401", "authentication", "permission denied",
+            " 403", "forbidden",
+        )):
+            raise HTTPException(401, f"Credenciales inválidas en el proveedor: {msg[:300]}")
+        # Rate limit
+        if any(k in msg_lower for k in ("rate limit", "rate_limit", " 429", "too many requests", "quota")):
+            raise HTTPException(429, f"Límite de uso alcanzado en el proveedor: {msg[:300]}")
+        # Modelo desconocido / endpoint no encontrado
+        if any(k in msg_lower for k in ("model not found", "not_found", " 404", "no such model")):
+            raise HTTPException(404, f"Modelo o endpoint no encontrado: {msg[:300]}")
+        # Cualquier otro fallo aguas arriba → 502 Bad Gateway (no es bug nuestro)
+        raise HTTPException(502, f"El proveedor devolvió un error: {msg[:300]}")
 
 
 @router.post("/{pid}/sync-models")

@@ -33,6 +33,7 @@ export default defineConfig(({ mode }) => {
           "script-src  'self' 'unsafe-inline' 'unsafe-eval'; " +
           "style-src   'self' 'unsafe-inline' https://fonts.googleapis.com; " +
           "img-src     'self' data: blob:; " +
+          "media-src   'self' blob:; " +
           "font-src    'self' data: https://fonts.gstatic.com; " +
           `connect-src 'self' ${apiOrigin} ws: wss:; ` +
           "object-src  'none'; " +

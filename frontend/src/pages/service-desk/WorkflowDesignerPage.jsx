@@ -109,6 +109,8 @@ function BlueprintList({ onOpen }) {
   const [filter, setFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
+  const [cloneTarget, setCloneTarget] = useState(null)   // { id, name } | null
+  const [archiveTarget, setArchiveTarget] = useState(null) // { id, name } | null
 
   const { data: blueprints = [], isLoading } = useQuery({
     queryKey: ['sd-wf-blueprints', filter],
@@ -183,13 +185,8 @@ function BlueprintList({ onOpen }) {
           {filtered.map(bp => (
             <BlueprintCard key={bp.id} bp={bp}
               onOpen={() => onOpen(bp.id)}
-              onClone={() => {
-                const name = prompt(`Nombre para la copia de "${bp.name}":`, `${bp.name} (copia)`)
-                if (name?.trim()) clone.mutate({ id: bp.id, name: name.trim() })
-              }}
-              onArchive={() => {
-                if (confirm(`¿Archivar "${bp.name}"? Podrás verlo activando "Mostrar archivados" en el futuro.`)) archive.mutate(bp.id)
-              }}
+              onClone={() => setCloneTarget({ id: bp.id, name: bp.name })}
+              onArchive={() => setArchiveTarget({ id: bp.id, name: bp.name })}
             />
           ))}
         </div>
@@ -205,6 +202,22 @@ function BlueprintList({ onOpen }) {
         <TemplatePickerModal
           onClose={() => setShowTemplates(false)}
           onPicked={(bp) => { setShowTemplates(false); onOpen(bp.id) }}
+        />
+      )}
+      {cloneTarget && (
+        <CloneBlueprintModal
+          bp={cloneTarget}
+          onClose={() => setCloneTarget(null)}
+          onConfirm={(name) => { setCloneTarget(null); clone.mutate({ id: cloneTarget.id, name }) }}
+        />
+      )}
+      {archiveTarget && (
+        <ConfirmModal
+          title="Archivar blueprint"
+          message={`¿Archivar "${archiveTarget.name}"? Podrás recuperarlo activando "Mostrar archivados".`}
+          confirmLabel="Archivar"
+          onClose={() => setArchiveTarget(null)}
+          onConfirm={() => { setArchiveTarget(null); archive.mutate(archiveTarget.id) }}
         />
       )}
     </>
@@ -263,6 +276,38 @@ function BlueprintCard({ bp, onOpen, onClone, onArchive }) {
         <Button size="sm" variant="secondary" onClick={onArchive}><Trash2 size={12} /> Archivar</Button>
       </div>
     </div>
+  )
+}
+
+function CloneBlueprintModal({ bp, onClose, onConfirm }) {
+  const [name, setName] = useState(`${bp.name} (copia)`)
+  return (
+    <Modal title="Clonar blueprint" onClose={onClose}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <label style={labelStyle}>Nombre de la copia</label>
+          <input autoFocus value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button onClick={() => onConfirm(name.trim())} disabled={!name.trim()}>Clonar</Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function ConfirmModal({ title, message, confirmLabel = 'Confirmar', onClose, onConfirm }) {
+  return (
+    <Modal title={title} onClose={onClose}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <p style={{ color: 'var(--text-1)', margin: 0 }}>{message}</p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button onClick={onConfirm}>{confirmLabel}</Button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

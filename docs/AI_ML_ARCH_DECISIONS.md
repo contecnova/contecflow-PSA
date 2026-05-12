@@ -78,20 +78,43 @@ to JSON. No usamos streaming ni context caching de Anthropic.
 **Cuándo reconsiderar.** Si la latencia user-perceived supera 30s en docs de
 50+ páginas. Hoy es ~12s p95.
 
-## #80 — Whisper STT solo OpenAI (no local) por defecto
+## #80 — STT multi-provider (Item #51 cerrado)
 
-**Decisión.** El endpoint `/ai-modules/voice/transcribe` usa Whisper de OpenAI
-vía HTTP. El módulo de colaboración (`_transcription.py`) admite `WHISPER_LOCAL=1`
-para whisper.cpp pero NO está activado por defecto.
+**Decisión.** El sistema soporta **4 providers STT intercambiables** vía
+``settings.STT_PROVIDER``:
 
-**Por qué.**
-- whisper.cpp local requiere ~2 GB RAM, no viable en plan SaaS.
-- El precio de Whisper API (~$0.006/min) es marginal vs gpt-4o.
-- gpt-4o-mini-transcribe (item #50) reduce coste y mejora calidad en
-  audios cortos.
+- ``openai`` — Whisper / gpt-4o-mini-transcribe (default, mejor latencia/calidad)
+- ``azure`` — Azure Speech-to-Text REST API (cliente con compliance europeo)
+- ``google`` — Google Cloud Speech-to-Text v1 (API key auth)
+- ``whisper_local`` — whisper.cpp local (on-prem / air-gapped)
 
-**Privacidad.** Para clientes con requisitos de no-cloud audio: activar
-`WHISPER_LOCAL=1` + binario whisper.cpp pre-instalado.
+**Arquitectura.** [app/services/stt/](app/services/stt/) — `STTProvider` ABC en
+`base.py`, una implementación por provider, factory `transcribe_audio()` en
+`__init__.py` que respeta ``STT_PROVIDER`` y ``STT_FALLBACK_PROVIDERS`` (CSV
+ordenado).
+
+**Fallback chain.** Si el primario falla (timeout, auth, 502), el factory
+intenta los providers de fallback en orden. Providers sin credenciales se
+saltan silenciosamente (no cuentan como intento). Si todos fallan, se propaga
+el último ``STTError`` con su HTTP status code.
+
+**Tradeoffs por provider.**
+- OpenAI: mejor relación calidad/precio, requiere envío de audio a cloud US.
+- Azure: latencia menor para clientes europeos, endpoint síncrono <=60s
+  (audios largos requerirían batch transcription).
+- Google: API key auth (no service account, ahorra dependencia google-auth),
+  encoding inferido del content-type.
+- Whisper local: requiere binario whisper.cpp + modelo, lento sin GPU, gratis
+  y sin red.
+
+**Por qué cuatro y no más.** Cubre los tres casos comerciales reales (default
+OpenAI, Europa con Azure, on-prem con whisper.cpp) más Google como tercer
+cloud alternativo. Añadir más (AssemblyAI, Deepgram, etc.) sin un cliente
+concreto que lo pida = construir por hipótesis.
+
+**Limitación.** Los endpoints síncronos de Azure/Google aceptan audios
+<=60s. Para audios más largos habría que migrar a las APIs de batch
+transcription (long-running operations). Tracked si surge la necesidad.
 
 ## #81 — Modelo ML local (`GradientBoostingClassifier`) firmado con HMAC
 
@@ -137,11 +160,24 @@ calcula sumando `imputaciones × user_cost_profile.cost_per_hour`, no
 - `cost_per_hour` es lo que cuesta INTERNAMENTE → margen real = revenue - cost.
 - El margen por proyecto se vuelve calculable sin estimaciones grosso.
 
-**Migración pendiente.** El AI Oracle (`run_oracle_analysis`) y `ml_features.py`
-todavía usan el fallback `AI_REVENUE_HOURLY_RATE_FALLBACK` (85€/h) cuando no
-hay `billing_rate`. Sería más exacto usar `user_cost_profile.cost_per_hour`
-del owner del proyecto, pero el cambio toca 4 funciones y requiere tests de
-regresión específicos. Tracked para Wave H.
+**Estado.** ✅ **Cerrado en Item #83** — Oracle ahora calcula AMBAS métricas:
+- **Revenue ratio**: `hours × billing_rate / budget` (lo que facturas al cliente)
+- **Cost ratio**: coste interno real vía `_project_internal_cost()` helper, con
+  cascada: ``cost_amount`` populado → ``UserCostProfile.cost_per_hour`` por
+  user × hours (respetando ventana ``valid_from/valid_to``) → fallback
+  ``AI_REVENUE_HOURLY_RATE_FALLBACK``.
+
+**Comportamiento.** La regla `budget_overrun` dispara cuando CUALQUIERA de los
+dos supera 85%; severidad/probabilidad usan el peor de los dos. Cuando
+`cost_ratio > revenue_ratio + 10pp` se marca explícitamente como "margen
+erosionado" — alerta sobre proyectos que pierden dinero aunque facturen bien.
+`features_used` JSON expone los dos ratios + método de cálculo + cobertura de
+datos reales para auditoría. La regla `project_delay` también usa el peor de
+los dos para detectar consumo excesivo.
+
+`ml_features.py` no migrado deliberadamente — su contrato es entrenar un
+modelo binario de overrun donde `actual_cost` ya respeta `cost_amount`. La
+migración de Oracle es donde el impacto user-facing es mayor.
 
 ---
 

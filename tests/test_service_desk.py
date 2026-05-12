@@ -84,6 +84,46 @@ def test_update_ticket_status(client, admin_token, db):
     assert res.status_code == 200
 
 
+def test_ticket_dynamic_fields_roundtrip(client, admin_token, db):
+    created = client.post(
+        "/api/v1/sd/tickets",
+        headers=auth(admin_token),
+        json={
+            "title": "Ticket con campos dinámicos",
+            "description": "Prueba dinámica",
+            "ticket_type": "incident",
+            "dynamic_fields": {
+                "affected_environment": "produccion",
+                "business_impact_details": "caida parcial",
+            },
+        },
+    )
+    assert created.status_code in (200, 201)
+    tid = created.json()["id"]
+
+    detail = client.get(f"/api/v1/sd/tickets/{tid}", headers=auth(admin_token))
+    assert detail.status_code == 200
+    assert detail.json().get("dynamic_fields", {}).get("affected_environment") == "produccion"
+
+    updated = client.patch(
+        f"/api/v1/sd/tickets/{tid}",
+        headers=auth(admin_token),
+        json={
+            "dynamic_fields": {
+                "affected_environment": "preproduccion",
+                "requested_due_date": "2026-06-01",
+            },
+        },
+    )
+    assert updated.status_code == 200
+
+    detail_after = client.get(f"/api/v1/sd/tickets/{tid}", headers=auth(admin_token))
+    assert detail_after.status_code == 200
+    dyn = detail_after.json().get("dynamic_fields", {})
+    assert dyn.get("affected_environment") == "preproduccion"
+    assert dyn.get("requested_due_date") == "2026-06-01"
+
+
 def test_update_ticket_status_legacy_waiting_client_maps_to_pending_client(client, admin_token, db):
     create = client.post(
         "/api/v1/sd/tickets",
@@ -223,6 +263,128 @@ def test_client_ticket_uses_client_sla_policy(client, admin_token, db):
     t = db.query(Ticket).filter(Ticket.id == tid).first()
     assert t is not None
     assert t.sla_policy_id == policy.id
+
+
+def test_portal_dynamic_forms_public_endpoint(client, db):
+    cuser = ClientUser(
+        full_name="Portal Dynamic User",
+        email="portal.dynamic@test.com",
+        is_active=True,
+    )
+    db.add(cuser)
+    db.commit()
+
+    client_token = jwt.encode({"sub": cuser.id, "type": "client"}, settings.CLIENT_PORTAL_SECRET, algorithm="HS256")
+    res = client.get(
+        "/api/v1/sd/dynamic-forms/public",
+        headers={"Authorization": f"Bearer {client_token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert isinstance(data, dict)
+    assert isinstance(data.get("fields", []), list)
+
+
+def test_client_ticket_dynamic_fields_roundtrip(client, db):
+    cuser = ClientUser(
+        full_name="Portal Dynamic Ticket",
+        email="portal.dynamic.ticket@test.com",
+        is_active=True,
+    )
+    db.add(cuser)
+    db.commit()
+
+    client_token = jwt.encode({"sub": cuser.id, "type": "client"}, settings.CLIENT_PORTAL_SECRET, algorithm="HS256")
+
+    created = client.post(
+        "/api/v1/sd/tickets/client",
+        headers={"Authorization": f"Bearer {client_token}"},
+        json={
+            "title": "Portal ticket con dynamic fields",
+            "description": "Roundtrip portal",
+            "ticket_type": "incident",
+            "dynamic_fields": {
+                "affected_environment": "produccion",
+                "business_impact_details": "impacto portal",
+            },
+        },
+    )
+    assert created.status_code in (200, 201)
+    tid = created.json()["id"]
+
+    detail = client.get(
+        f"/api/v1/sd/tickets/client/{tid}",
+        headers={"Authorization": f"Bearer {client_token}"},
+    )
+    assert detail.status_code == 200
+    dyn = detail.json().get("dynamic_fields", {})
+    assert dyn.get("affected_environment") == "produccion"
+    assert dyn.get("business_impact_details") == "impacto portal"
+
+
+def test_dynamic_forms_diff_and_context_options(client, admin_token, db):
+    ctx = client.get(
+        "/api/v1/sd/dynamic-forms/context-options",
+        headers=auth(admin_token),
+    )
+    assert ctx.status_code == 200
+    payload = ctx.json()
+    assert "clients" in payload
+    assert "services" in payload
+    assert "cis" in payload
+
+    diff = client.post(
+        "/api/v1/sd/dynamic-forms/diff",
+        headers=auth(admin_token),
+        json={},
+    )
+    assert diff.status_code == 200
+    out = diff.json()
+    assert "summary" in out
+    assert "fields" in out
+
+
+def test_ticket_restore_pending_and_time_unit_dropdown_backend(client, admin_token, db):
+    created = client.post(
+        "/api/v1/sd/tickets",
+        headers=auth(admin_token),
+        json={
+            "title": "Ticket restore pending",
+            "description": "Prueba restore pending + timelog unit",
+            "ticket_type": "incident",
+        },
+    )
+    assert created.status_code in (200, 201)
+    tid = created.json()["id"]
+
+    to_progress = client.patch(
+        f"/api/v1/sd/tickets/{tid}",
+        headers=auth(admin_token),
+        json={"status": "in_progress"},
+    )
+    assert to_progress.status_code == 200
+
+    to_pending = client.patch(
+        f"/api/v1/sd/tickets/{tid}",
+        headers=auth(admin_token),
+        json={"status": "pending_client"},
+    )
+    assert to_pending.status_code == 200
+
+    restored = client.post(
+        f"/api/v1/sd/tickets/{tid}/restore-pending",
+        headers=auth(admin_token),
+    )
+    assert restored.status_code == 200
+    assert restored.json().get("restored") is True
+
+    timelog = client.post(
+        f"/api/v1/sd/tickets/{tid}/time-log",
+        headers=auth(admin_token),
+        json={"minutes": 2, "unit": "hours"},
+    )
+    assert timelog.status_code == 200
+    assert timelog.json().get("logged_minutes") == 120
 
 
 def test_public_status_and_embed_routes(client, db):

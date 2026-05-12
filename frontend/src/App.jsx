@@ -59,6 +59,7 @@ const AIHubPage              = lazy(() => import('./pages/AIHubPage'))
 const ContecflowAgentPage    = lazy(() => import('./pages/NexusAgentPage'))
 const OraclePage             = lazy(() => import('./pages/OraclePage'))
 const MeetingsAIPage         = lazy(() => import('./pages/MeetingsAIPage'))
+const ContractsAIPage        = lazy(() => import('./pages/ContractsAIPage'))
 const SemanticEnginePage     = lazy(() => import('./pages/SemanticEnginePage'))
 const ResourceForecastPage   = lazy(() => import('./pages/ResourceForecastPage'))
 const ResourceSchedulerPage  = lazy(() => import('./pages/ResourceSchedulerPage'))
@@ -502,6 +503,7 @@ function AppRoutes() {
       <Route path="/nexus-agent" element={<ProtectedRoute roles={['admin','pm']}><Layout><ContecflowAgentPage /></Layout></ProtectedRoute>} />
       <Route path="/oracle" element={<ProtectedRoute roles={['admin','pm']}><Layout><OraclePage /></Layout></ProtectedRoute>} />
       <Route path="/meetings-ai" element={<ProtectedRoute><Layout><MeetingsAIPage /></Layout></ProtectedRoute>} />
+      <Route path="/contracts-ai" element={<ProtectedRoute roles={['admin','pm']}><Layout><ContractsAIPage /></Layout></ProtectedRoute>} />
       <Route path="/custom-fields" element={
         <ProtectedRoute roles={['admin','pm']}>
           <Layout><CustomFieldsPage /></Layout>
@@ -582,7 +584,8 @@ function AppRoutes() {
       <Route path="/bpm" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><BPMPage /></Layout></ProtectedRoute>} />
       <Route path="/user-costs" element={<ProtectedRoute roles={['admin','hr']}><Layout><UserCostsPage /></Layout></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Layout><ChatPage /></Layout></ProtectedRoute>} />
-      <Route path="/chat/admin" element={<ProtectedRoute roles={['admin']}><Layout><ChatAdminPage /></Layout></ProtectedRoute>} />
+      <Route path="/settings/chat-admin" element={<ProtectedRoute roles={['admin']}><Layout><ChatAdminPage /></Layout></ProtectedRoute>} />
+      <Route path="/chat/admin" element={<ProtectedRoute roles={['admin']}><Navigate to="/settings/chat-admin" replace /></ProtectedRoute>} />
       <Route path="/chat/call/:callId" element={<ProtectedRoute><CallPage /></ProtectedRoute>} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

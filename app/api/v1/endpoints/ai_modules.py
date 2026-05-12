@@ -1,6 +1,7 @@
 """
 ai_modules — thin router delegating to app.services.ai_modules_service
 """
+import os
 from app.core.config import settings
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body
 from sqlalchemy.orm import Session
@@ -172,18 +173,66 @@ def list_ai_contracts(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_ai_contracts(db, project_id=project_id)
+    return _svc.list_ai_contracts(db, project_id=project_id, current_user=current_user)
+
+
+@router.get("/contracts-ai/{contract_id}", summary="Detalle de un contrato analizado")
+def get_ai_contract(
+    contract_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    result = _svc.get_ai_contract(db, contract_id, current_user=current_user)
+    if result is None:
+        raise HTTPException(404, "Contrato no encontrado o sin permisos")
+    return result
 
 
 from app.schemas.ai_modules import ContractAnalyzePayload
 
 
-@router.post("/contracts-ai/analyze", summary="Analizar contrato con IA")
+@router.post("/contracts-ai/analyze", summary="Analizar contrato con IA (texto)")
 def analyze_contract(
     payload: ContractAnalyzePayload,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    return _svc.analyze_contract(db, payload, current_user)
+
+
+@router.post("/contracts-ai/analyze-pdf", summary="Analizar contrato con IA desde PDF")
+def analyze_contract_pdf(
+    file: UploadFile = File(..., description="Archivo PDF del contrato"),
+    project_id: Optional[str] = Body(None),
+    client_name: Optional[str] = Body(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    # H22: extracción de texto del PDF y delegación al mismo pipeline de análisis.
+    # Limit 10MB — los contratos típicos son <2MB; >10MB suele indicar PDF
+    # con imágenes (requeriría OCR, fuera de scope).
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(400, "Solo se aceptan archivos .pdf")
+    pdf_bytes = file.file.read()
+    if not pdf_bytes:
+        raise HTTPException(400, "El archivo está vacío.")
+    if len(pdf_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(413, "El PDF no puede superar 10 MB.")
+
+    text = _svc.extract_pdf_text(pdf_bytes)
+    if not text or len(text) < 50:
+        raise HTTPException(
+            422,
+            "No se pudo extraer texto del PDF (¿es un PDF escaneado sin OCR?)."
+        )
+
+    # Construimos un payload equivalente al endpoint /analyze de texto.
+    payload = ContractAnalyzePayload(
+        project_id=project_id,
+        client_name=client_name,
+        filename=file.filename or "contract.pdf",
+        contract_text=text,
+    )
     return _svc.analyze_contract(db, payload, current_user)
 
 
@@ -249,51 +298,60 @@ def update_kb(
 # VOICE INTERFACE
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.post("/voice/transcribe", summary="Transcribir audio con Whisper y procesar como comando")
+@router.post("/voice/transcribe", summary="Transcribir audio (OpenAI / Azure / Google / whisper local) y procesar como comando")
 def transcribe_voice_audio(
     audio: UploadFile = File(..., description="Archivo de audio (.mp3, .wav, .m4a, .webm, .ogg)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    openai_key = (settings.OPENAI_API_KEY or None) or _openai_key_from_db(db)
-    if not openai_key:
-        raise HTTPException(
-            400,
-            "Se requiere OPENAI_API_KEY para la transcripción de audio con Whisper. "
-            "Configura la variable de entorno o añade un proveedor OpenAI en IA & Conectores."
-        )
-
+    # Item #51: multi-provider STT vía factory. El provider primario y los
+    # fallbacks se configuran en settings.STT_PROVIDER / STT_FALLBACK_PROVIDERS.
+    # Default: OpenAI (compatibilidad con configuraciones existentes).
     audio_bytes = audio.file.read()
     if not audio_bytes:
         raise HTTPException(400, "El archivo de audio está vacío.")
     if len(audio_bytes) > 25 * 1024 * 1024:
         raise HTTPException(413, "El archivo de audio no puede superar 25 MB.")
 
-    import httpx as _httpx
+    # Para retrocompatibilidad: si el provider primario es OpenAI y no hay
+    # OPENAI_API_KEY en env, intentamos recuperarla de un provider en DB.
+    if (getattr(settings, "STT_PROVIDER", "openai") or "openai").lower() == "openai" and not settings.OPENAI_API_KEY:
+        legacy_key = _openai_key_from_db(db)
+        if legacy_key:
+            os.environ["OPENAI_API_KEY"] = legacy_key  # el factory leerá esto
+
+    from app.services.stt import transcribe_audio as _stt_transcribe, STTError as _STTError  # noqa: PLC0415
     try:
-        with _httpx.Client(timeout=60) as client:
-            resp = client.post(
-                f"{settings.OPENAI_API_URL}/audio/transcriptions",
-                headers={"Authorization": f"Bearer {openai_key}"},
-                files={"file": (audio.filename or "audio.wav", audio_bytes, audio.content_type or "audio/wav")},
-                # OpenAI STT model: configurable; defecto gpt-4o-mini-transcribe
-                # (sucesor de whisper-1, mejor latencia/calidad). Permitimos
-                # override por settings.OPENAI_STT_MODEL para mantener whisper-1
-                # como fallback en despliegues legacy.
-                data={"model": getattr(settings, "OPENAI_STT_MODEL", None) or "gpt-4o-mini-transcribe"},
+        result = _stt_transcribe(
+            audio_bytes,
+            audio.filename or "audio.wav",
+            audio.content_type or "audio/wav",
+            language=None,
+        )
+        transcript = (result.text or "").strip()
+    except _STTError as exc:
+        exc_str = str(exc)
+        # Verificar primero si es "sin proveedores disponibles" (message check)
+        if "Ningún STT provider está disponible" in exc_str:
+            raise HTTPException(
+                503,
+                "No hay un proveedor STT configurado. Activa OPENAI_API_KEY o configura otro proveedor de transcripción.",
             )
-        if resp.status_code != 200:
-            raise HTTPException(502, f"Whisper API devolvió {resp.status_code}: {resp.text[:200]}")
-        transcript = resp.json().get("text", "").strip()
-    except _httpx.TimeoutException:
-        raise HTTPException(504, "Timeout esperando respuesta de Whisper API.")
-    except HTTPException:
-        raise
+        # Mapeo de status code interno a HTTP code apropiado.
+        sc = exc.status_code or 502  # Default a 502 para errores genéricos de STT
+        if sc == 504:
+            raise HTTPException(504, f"Timeout esperando respuesta STT: {exc_str[:200]}")
+        if sc in (401, 403):
+            raise HTTPException(401, f"Credenciales STT inválidas: {exc_str[:200]}")
+        if sc == 422:
+            raise HTTPException(422, f"No se pudo transcribir el audio: {exc_str[:200]}")
+        # Default para otros STTError
+        raise HTTPException(sc, f"Error de STT: {exc_str[:200]}")
     except Exception as exc:
-        raise HTTPException(500, f"Error de transcripción: {str(exc)[:150]}")
+        raise HTTPException(500, f"Error inesperado de transcripción: {str(exc)[:150]}")
 
     if not transcript:
-        raise HTTPException(422, "Whisper no pudo transcribir el audio (resultado vacío).")
+        raise HTTPException(422, "El proveedor STT no pudo transcribir el audio (resultado vacío).")
 
     # /voice/transcribe entra siempre en modo dry-run: requiere confirmación
     # humana después de ver la transcripción.

@@ -817,3 +817,47 @@ async def save_portal_translations(
     global _TRANSLATIONS_STORE
     _TRANSLATIONS_STORE.update(data)
     return {"ok": True}
+
+
+# ── AI Chat (I26) — cookie-auth para el widget flotante del portal ───────────
+
+class _PortalAIChatIn(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+
+
+@router.post("/ai-chat", summary="Chat IA del portal (auth por cookie)")
+def portal_ai_chat(
+    payload: _PortalAIChatIn,
+    current_client: ClientUser = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """Variante cookie-auth de ``/ai-modules/portal-ai/chat``.
+
+    El portal cliente se autentica por cookie httponly (``portal_access_token``)
+    que no es legible desde JavaScript, así que no podemos pasar el JWT como
+    ``client_token`` en el body. Este endpoint usa ``get_current_client`` como
+    dependencia y delega la lógica al servicio compartido.
+    """
+    import app.services.ai_modules_service as _ai_svc  # noqa: PLC0415
+    try:
+        return _ai_svc.client_portal_chat_authenticated(
+            db, current_client, payload.message, payload.session_id
+        )
+    except ValueError as e:
+        err = str(e)
+        if "missing_fields" in err:
+            raise HTTPException(400, "message required")
+        if "invalid_token" in err:
+            raise HTTPException(401, "Token inválido")
+        raise HTTPException(400, err)
+
+
+@router.get("/ai-chat/{session_id}/messages", summary="Histórico de la sesión IA del portal")
+def portal_ai_chat_history(
+    session_id: str,
+    current_client: ClientUser = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    import app.services.ai_modules_service as _ai_svc  # noqa: PLC0415
+    return _ai_svc.list_client_chat_messages(db, current_client, session_id)

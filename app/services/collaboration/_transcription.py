@@ -17,7 +17,24 @@ logger = logging.getLogger(__name__)
 
 
 def transcribe_audio_chunk(data: bytes, filename: str = "chunk.webm") -> str:
-    """Devuelve el texto transcrito o ""."""
+    """Devuelve el texto transcrito o "".
+
+    Item #51: ahora delegamos primero al factory STT (que respeta
+    ``STT_PROVIDER`` + fallbacks). Si el factory no tiene providers
+    disponibles, mantenemos el comportamiento legacy de este módulo
+    (OpenAI directo / whisper local) como red de seguridad para chunks
+    pequeños del módulo de colaboración.
+    """
+    try:
+        from app.services.stt import transcribe_audio as _factory_transcribe, STTError as _STTError  # noqa: PLC0415
+        result = _factory_transcribe(data, filename, "audio/webm", language="es")
+        return (result.text or "").strip()
+    except _STTError as exc:
+        logger.warning("Factory STT failed for chunk: %s", exc)
+    except Exception as exc:
+        logger.warning("Factory STT crash for chunk: %s", exc)
+
+    # Fallback legacy — solo si el factory completo no pudo.
     if os.environ.get("OPENAI_API_KEY"):
         return _via_openai(data, filename) or ""
     if os.environ.get("WHISPER_LOCAL") == "1":

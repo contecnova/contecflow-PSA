@@ -11,6 +11,7 @@ from app.models.user import User
 from app.services.service_desk.scoping import scope_ticket_query
 from app.services.service_desk.status_compat import normalize_ticket_status, sanitize_legacy_ticket_statuses
 from app.services.service_desk.ticket_query_service import build_ticket_list_query
+from app.services.service_desk.dynamic_ticket_fields_service import get_ticket_dynamic_fields
 
 
 def list_tickets_payload(
@@ -47,7 +48,13 @@ def list_tickets_payload(
     total = query.count()
     tickets = query.order_by(Ticket.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
     return {
-        "tickets": [ticket_out(ticket) for ticket in tickets],
+        "tickets": [
+            {
+                **ticket_out(ticket),
+                "dynamic_fields": get_ticket_dynamic_fields(db, ticket.id),
+            }
+            for ticket in tickets
+        ],
         "total": total,
         "page": page,
         "pages": math.ceil(total / page_size),
@@ -168,6 +175,7 @@ def client_ticket_detail_payload(db: Session, client_id: str, ticket_id: str, ti
             joinedload(Ticket.assigned_to),
             joinedload(Ticket.assigned_group),
             joinedload(Ticket.project),
+            joinedload(Ticket.service_item),
             joinedload(Ticket.comments).joinedload(TicketComment.author_user),
             joinedload(Ticket.comments).joinedload(TicketComment.author_client),
         )
@@ -181,7 +189,10 @@ def client_ticket_detail_payload(db: Session, client_id: str, ticket_id: str, ti
     if not ticket:
         raise HTTPException(404, "Ticket no encontrado")
 
-    return ticket_out(ticket, include_comments=True)
+    return {
+        **ticket_out(ticket, include_comments=True),
+        "dynamic_fields": get_ticket_dynamic_fields(db, ticket.id),
+    }
 
 
 def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticket_out) -> dict:
@@ -193,6 +204,7 @@ def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticke
         joinedload(Ticket.assigned_group),
         joinedload(Ticket.project),
         joinedload(Ticket.ci),
+        joinedload(Ticket.service_item),
         joinedload(Ticket.comments).joinedload(TicketComment.author_user),
         joinedload(Ticket.comments).joinedload(TicketComment.author_client),
         joinedload(Ticket.history).joinedload(TicketHistory.changed_by),
@@ -203,7 +215,10 @@ def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticke
     if not ticket:
         raise HTTPException(404, "Ticket no encontrado")
 
-    payload = ticket_out(ticket, include_comments=True)
+    payload = {
+        **ticket_out(ticket, include_comments=True),
+        "dynamic_fields": get_ticket_dynamic_fields(db, ticket.id),
+    }
 
     # Merge threaded comments (Mentions page) so ticket detail shows the same
     # discussion history as the threaded comments module.

@@ -2,7 +2,7 @@
  * PortalSupportDesk — service desk del cliente con el lenguaje del backoffice.
  * Tickets, KB y comunicados.
  */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Headphones, Plus, Search, ArrowLeft, Megaphone, Bug, BookOpen,
@@ -51,7 +51,7 @@ export function PortalSupportDesk() {
   const [newComment, setNewComment] = useState('')
   const [createForm, setCreateForm] = useState({
     title: '', description: '', ticket_type: 'incident',
-    urgency: 'medium', impact: 'user', service_item_id: '',
+    urgency: 'medium', impact: 'user', service_item_id: '', ci_id: '',
   })
 
   const { data: tickets = [] } = useQuery({
@@ -75,13 +75,26 @@ export function PortalSupportDesk() {
     queryFn: () => CLIENT_API.get(`/sd/tickets/client/${selectedId}`).then(r => r.data),
     enabled: !!selectedId,
   })
+  const { data: dynamicRules } = useQuery({
+    queryKey: ['portal-sd-dynamic-forms'],
+    queryFn: () => CLIENT_API.get('/sd/dynamic-forms/public').then(r => r.data),
+  })
+  const { data: contextOptions = { clients: [], services: [], cis: [] } } = useQuery({
+    queryKey: ['portal-sd-dynamic-forms-context', createForm.service_item_id],
+    queryFn: () => CLIENT_API.get('/sd/dynamic-forms/public/context-options', {
+      params: { service_item_id: createForm.service_item_id || undefined, limit: 60 },
+    }).then(r => r.data),
+  })
+
+  const [dynamicValues, setDynamicValues] = useState({})
 
   const { mutate: createTicket, isPending: creatingTicket } = useMutation({
     mutationFn: d => CLIENT_API.post('/sd/tickets/client', d),
     onSuccess: () => {
       qc.invalidateQueries(['portal-sd-tickets'])
       setShowCreate(false)
-      setCreateForm({ title: '', description: '', ticket_type: 'incident', urgency: 'medium', impact: 'user', service_item_id: '' })
+      setCreateForm({ title: '', description: '', ticket_type: 'incident', urgency: 'medium', impact: 'user', service_item_id: '', ci_id: '' })
+      setDynamicValues({})
       toast.success('Ticket abierto')
     },
     onError: e => toast.error(extractErr(e, 'Error')),
@@ -99,6 +112,57 @@ export function PortalSupportDesk() {
 
   const pendingClient = tickets.filter(t => t.status === 'pending_client').length
   const openTickets = tickets.filter(t => !['closed', 'cancelled', 'resolved'].includes(t.status)).length
+
+  const visibleDynamicFields = useMemo(() => {
+    const fields = dynamicRules?.fields || []
+    const source = { ...createForm, ...dynamicValues }
+    return fields.filter(f => {
+      const cond = f?.visible_when
+      if (!cond || !cond.field) return true
+      const current = source[cond.field]
+      if (Object.prototype.hasOwnProperty.call(cond, 'equals')) return current === cond.equals
+      if (Array.isArray(cond.in)) return cond.in.includes(current)
+      return true
+    })
+  }, [dynamicRules, createForm, dynamicValues])
+
+  const routingHint = useMemo(() => {
+    const hints = dynamicRules?.routing_hints || []
+    for (const h of hints) {
+      const w = h?.when || {}
+      if (!w.field) continue
+      const current = createForm[w.field]
+      if ((Object.prototype.hasOwnProperty.call(w, 'equals') && current === w.equals) ||
+          (Array.isArray(w.in) && w.in.includes(current))) {
+        return h?.set || null
+      }
+    }
+    return null
+  }, [dynamicRules, createForm])
+
+  const upcomingEvents = useMemo(() => {
+    return (announcements || [])
+      .filter(a => a.show_to_clients && a.starts_at)
+      .sort((a, b) => String(a.starts_at || '').localeCompare(String(b.starts_at || '')))
+      .slice(0, 5)
+  }, [announcements])
+
+  const contextSuggestionsForField = (f) => {
+    const source = f?.data_source || (f?.type || '').replace('context_', '')
+    if (source === 'ci') {
+      const attr = (f?.data_attribute || 'name').toLowerCase()
+      return (contextOptions.cis || []).map(ci => String(ci[attr] || ci.name || ci.code || ''))
+    }
+    if (source === 'service') {
+      const attr = (f?.data_attribute || 'name').toLowerCase()
+      return (contextOptions.services || []).map(s => String(s[attr] || s.name || ''))
+    }
+    if (source === 'client') {
+      const attr = (f?.data_attribute || 'name').toLowerCase()
+      return (contextOptions.clients || []).map(c => String(c[attr] || c.name || ''))
+    }
+    return []
+  }
 
   const tabs = [
     { id: 'tickets', label: `Tickets (${tickets.length})`, icon: <Headphones size={13} /> },
@@ -135,9 +199,43 @@ export function PortalSupportDesk() {
             </div>
 
             <PortalCard style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Objetos vinculados</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', textTransform: 'uppercase' }}>Cliente</div>
+                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', marginTop: 2 }}>{ticketDetail.client_name || '—'}</div>
+                </div>
+                <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', textTransform: 'uppercase' }}>Servicio</div>
+                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', marginTop: 2 }}>{ticketDetail.service_item_name || '—'}</div>
+                </div>
+                <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', gridColumn: '1/-1' }}>
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', textTransform: 'uppercase' }}>CI vinculado</div>
+                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', marginTop: 2 }}>{ticketDetail.ci_name || '—'}</div>
+                </div>
+              </div>
+            </PortalCard>
+
+              <PortalCard style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Descripción original</div>
               <p style={{ fontSize: 'var(--text-sm)', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{ticketDetail.description}</p>
             </PortalCard>
+
+            {ticketDetail.dynamic_fields && Object.keys(ticketDetail.dynamic_fields).length > 0 && (
+              <PortalCard style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  Campos adicionales
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {Object.entries(ticketDetail.dynamic_fields).map(([k, v]) => (
+                    <div key={k} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', textTransform: 'uppercase' }}>{k}</div>
+                      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', marginTop: 2, whiteSpace: 'pre-wrap' }}>{String(v ?? '—')}</div>
+                    </div>
+                  ))}
+                </div>
+              </PortalCard>
+            )}
 
             {ticketDetail.resolution && (
               <PortalCard style={{ marginBottom: 14, borderColor: 'var(--success-border, rgba(16,185,129,0.3))' }}>
@@ -167,6 +265,36 @@ export function PortalSupportDesk() {
             )}
             {ticketDetail.csat_score && (
               <PortalBanner tone="success" icon={<Star size={16} />} title={`Valoración: ${ticketDetail.csat_score}/5`} body="Gracias por tu feedback" />
+            )}
+
+            {Array.isArray(ticketDetail.history) && ticketDetail.history.length > 0 && (
+              <PortalCard style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Actividad del ticket</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {ticketDetail.history.slice(-8).reverse().map((h, idx) => (
+                    <div key={`${h.changed_at}-${idx}`} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{h.changed_at} · {h.changed_by || 'Sistema'}</div>
+                      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', marginTop: 2 }}>
+                        {h.field}: {String(h.old_value ?? '—')} → {String(h.new_value ?? '—')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </PortalCard>
+            )}
+
+            {upcomingEvents.length > 0 && (
+              <PortalCard style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Calendario de eventos</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {upcomingEvents.map((ev) => (
+                    <div key={ev.id} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', fontWeight: 700 }}>{ev.title}</div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>{ev.starts_at}{ev.ends_at ? ` → ${ev.ends_at}` : ''}</div>
+                    </div>
+                  ))}
+                </div>
+              </PortalCard>
             )}
 
             <div style={{ marginBottom: 16 }}>
@@ -229,7 +357,7 @@ export function PortalSupportDesk() {
           { value: announcements.length, label: 'comunicados activos' },
         ]}
         actions={
-          <PortalButton icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>Abrir ticket</PortalButton>
+          <PortalButton icon={<Plus size={14} />} onClick={() => { setDynamicValues({}); setShowCreate(true) }}>Abrir ticket</PortalButton>
         }
       />
 
@@ -268,7 +396,7 @@ export function PortalSupportDesk() {
         tickets.length === 0 ? (
           <PortalEmpty icon={Headphones} title="No tienes tickets"
             description="¿Necesitas ayuda? Abre un ticket y el equipo te atenderá en plazo SLA."
-            action={<PortalButton icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>Abrir ticket</PortalButton>}
+            action={<PortalButton icon={<Plus size={14} />} onClick={() => { setDynamicValues({}); setShowCreate(true) }}>Abrir ticket</PortalButton>}
           />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -379,15 +507,15 @@ export function PortalSupportDesk() {
 
       <PortalModal
         open={showCreate}
-        onClose={() => setShowCreate(false)}
+        onClose={() => { setDynamicValues({}); setShowCreate(false) }}
         title="Abrir nuevo ticket"
         subtitle="Cuéntanos qué necesitas. Sigue las plantillas si te ayuda."
         width={620}
         footer={
           <>
-            <PortalButton variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</PortalButton>
+            <PortalButton variant="secondary" onClick={() => { setDynamicValues({}); setShowCreate(false) }}>Cancelar</PortalButton>
             <PortalButton loading={creatingTicket} disabled={!createForm.title || !createForm.description}
-              onClick={() => createTicket(createForm)}>Abrir ticket</PortalButton>
+              onClick={() => createTicket({ ...createForm, dynamic_fields: dynamicValues })}>Abrir ticket</PortalButton>
           </>
         }
       >
@@ -403,6 +531,17 @@ export function PortalSupportDesk() {
                 <optgroup key={cat.id} label={`${cat.icon || ''} ${cat.name}`}>
                   {cat.services.map(s => <option key={s.id} value={s.id}>{s.name} — SLA {s.sla_resolution_hours}h</option>)}
                 </optgroup>
+              ))}
+            </PortalSelect>
+          </PortalField>
+        )}
+        {(contextOptions.cis || []).length > 0 && (
+          <PortalField label="CI afectado (opcional)">
+            <PortalSelect value={createForm.ci_id || ''}
+              onChange={e => setCreateForm(f => ({ ...f, ci_id: e.target.value }))}>
+              <option value="">Seleccionar...</option>
+              {(contextOptions.cis || []).map(ci => (
+                <option key={ci.id} value={ci.id}>{ci.code ? `${ci.code} - ` : ''}{ci.name}</option>
               ))}
             </PortalSelect>
           </PortalField>
@@ -452,6 +591,52 @@ export function PortalSupportDesk() {
               </PortalSelect>
             </PortalField>
           </div>
+
+          {routingHint && (
+            <PortalBanner
+              tone="info"
+              icon={<GitBranch size={14} />}
+              title="Ruta sugerida automáticamente"
+              body={Object.entries(routingHint).map(([k, v]) => `${k}=${v}`).join(', ')}
+            />
+          )}
+
+          {visibleDynamicFields.map((f) => (
+            <PortalField key={f.id} label={f.label + (f.required ? ' *' : '')}>
+              {f.type === 'select' ? (
+                <PortalSelect
+                  value={dynamicValues[f.id] || ''}
+                  onChange={e => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
+                >
+                  <option value="">Seleccionar...</option>
+                  {(f.options || []).map(op => <option key={op} value={op}>{op}</option>)}
+                </PortalSelect>
+              ) : f.type === 'textarea' ? (
+                <PortalTextarea
+                  rows={4}
+                  value={dynamicValues[f.id] || ''}
+                  onChange={e => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
+                />
+              ) : (f.type || '').startsWith('context_') ? (
+                <>
+                  <PortalInput
+                    list={`portal-dyn-${f.id}-options`}
+                    value={dynamicValues[f.id] || ''}
+                    onChange={e => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
+                  />
+                  <datalist id={`portal-dyn-${f.id}-options`}>
+                    {contextSuggestionsForField(f).map((op, idx) => <option key={`${f.id}-${idx}`} value={op} />)}
+                  </datalist>
+                </>
+              ) : (
+                <PortalInput
+                  type={f.type === 'date' ? 'date' : 'text'}
+                  value={dynamicValues[f.id] || ''}
+                  onChange={e => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
+                />
+              )}
+            </PortalField>
+          ))}
         </div>
       </PortalModal>
     </div>

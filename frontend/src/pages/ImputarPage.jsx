@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { imputationsApi, projectsApi, tasksApi } from '../services/api'
+import { imputationsApi, projectsApi, tasksApi, aiCopilotApi } from '../services/api'
 import { queueImputation } from '../services/offlineQueue'
 import { Button, Card } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -14,14 +14,34 @@ import { useAppT } from '../i18n/AppLangContext'
 
 const HOUR_OPTIONS = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8]
 
-function WeekGrid({ weekData, t }) {
+function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }) {
   if (!weekData) return null
   const days = ['L', 'M', 'X', 'J', 'V']
   const byDay = weekData.by_day || []
 
   return (
     <Card style={{ marginTop: 20 }}>
-      <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>{t('imputa_page.week_title')}</h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, margin: 0 }}>{t('imputa_page.week_title')}</h3>
+        {/* Item #48: badge global de anomalías detectadas en los últimos 30 días.
+            Click → abre drawer con detalle de high_hours/gaps/closed_project. */}
+        {hasAnyAnomaly && (
+          <button
+            onClick={onOpenDrawer}
+            style={{
+              background: 'var(--warning-glow, rgba(251,146,60,0.12))',
+              border: '1px solid var(--warning)',
+              color: 'var(--warning)',
+              borderRadius: 8, padding: '4px 10px',
+              fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
+            title="Ver anomalías detectadas en tus imputaciones"
+          >
+            ⚠ Anomalías detectadas
+          </button>
+        )}
+      </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {days.map((d, i) => {
           // Compute the ISO date for this weekday from week_start to avoid index-based mapping bugs
@@ -33,17 +53,38 @@ function WeekGrid({ weekData, t }) {
           }
           const entry = dayIso ? byDay.find(e => e.date === dayIso) : byDay[i]
           const hasHours = entry && entry.hours > 0
+          const dayAnomaly = dayIso ? anomaliesByDate?.[dayIso] : null
           return (
-            <div key={d} style={{ flex: 1, textAlign: 'center' }}>
+            <div key={d} style={{ flex: 1, textAlign: 'center', position: 'relative' }}>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>{d}</div>
-              <div style={{
-                background: hasHours ? 'var(--accent-glow)' : 'var(--surface-3)',
-                border: `1px solid ${hasHours ? 'var(--accent)' : 'var(--surface-4)'}`,
-                borderRadius: 8, padding: '12px 4px',
-                fontFamily: 'var(--font-mono)', fontSize: "var(--text-base)", fontWeight: 700,
-                color: hasHours ? 'var(--accent)' : 'var(--text-3)',
-              }}>
+              <div
+                onClick={dayAnomaly ? onOpenDrawer : undefined}
+                style={{
+                  background: dayAnomaly
+                    ? 'var(--warning-glow, rgba(251,146,60,0.18))'
+                    : hasHours ? 'var(--accent-glow)' : 'var(--surface-3)',
+                  border: `1px solid ${dayAnomaly ? 'var(--warning)' : hasHours ? 'var(--accent)' : 'var(--surface-4)'}`,
+                  borderRadius: 8, padding: '12px 4px',
+                  fontFamily: 'var(--font-mono)', fontSize: "var(--text-base)", fontWeight: 700,
+                  color: dayAnomaly ? 'var(--warning)' : hasHours ? 'var(--accent)' : 'var(--text-3)',
+                  cursor: dayAnomaly ? 'pointer' : 'default',
+                  position: 'relative',
+                }}
+                title={dayAnomaly ? dayAnomaly.message : undefined}
+              >
                 {hasHours ? `${fmtNumber(entry.hours, 2)}h` : '—'}
+                {dayAnomaly && (
+                  <span
+                    style={{
+                      position: 'absolute', top: -6, right: -6,
+                      width: 18, height: 18, borderRadius: '50%',
+                      background: 'var(--warning)', color: 'white',
+                      fontSize: 11, fontWeight: 700,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: '1px solid var(--surface-0)',
+                    }}
+                  >!</span>
+                )}
               </div>
             </div>
           )
@@ -57,6 +98,71 @@ function WeekGrid({ weekData, t }) {
         </span>
       </div>
     </Card>
+  )
+}
+
+
+function AnomaliesDrawer({ open, onClose, anomaliesData }) {
+  if (!open) return null
+  const items = anomaliesData?.anomalies || []
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+        zIndex: 1000, display: 'flex', justifyContent: 'flex-end',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: 420, maxWidth: '92vw', height: '100%',
+          background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',
+          padding: '20px 22px', overflowY: 'auto',
+          display: 'flex', flexDirection: 'column', gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h3 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 700 }}>
+            ⚠ Anomalías en imputaciones
+          </h3>
+          <button onClick={onClose}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-2)', fontSize: 20, cursor: 'pointer' }}>
+            ✕
+          </button>
+        </div>
+        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
+          Periodo analizado: {anomaliesData?.period?.from} → {anomaliesData?.period?.to}
+          {' · '}{anomaliesData?.total_entries} imputaciones
+        </div>
+        {items.length === 0 ? (
+          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)' }}>
+            Sin anomalías detectadas.
+          </div>
+        ) : items.map((a, idx) => (
+          <div key={idx} style={{
+            background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+            borderRadius: 10, padding: 14,
+          }}>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--warning)' }}>
+              {a.type === 'high_hours'
+                ? `⏰ Día con muchas horas — ${a.date}`
+                : a.type === 'gap'
+                  ? `📉 Periodo sin imputaciones`
+                  : `🗂 Proyectos cerrados`}
+            </div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', marginBottom: 6 }}>
+              {a.message}
+            </div>
+            {a.suggestion && (
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+                💡 {a.suggestion}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -105,6 +211,33 @@ export default function ImputarPage() {
     queryKey: ['imputations-today'],
     queryFn: () => imputationsApi.list({ date_from: today, date_to: today, user_id: user?.id }).then(r => r.data),
   })
+
+  // Item #48: anomalías de imputación del propio user (últimos 30 días).
+  // Heurística + estadística (mean + 2σ con n≥7). Solo se invoca si hay user.
+  const { data: anomaliesData } = useQuery({
+    queryKey: ['ai-timesheet-anomalies', user?.id],
+    queryFn: () =>
+      user?.id
+        ? aiCopilotApi.timesheetSuggestions(user.id)
+            .then(r => r.data)
+            .catch(() => ({ anomalies: [] }))
+        : Promise.resolve({ anomalies: [] }),
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,  // 5 min — heurística suave, no refrescar agresivamente
+  })
+
+  // Map ISO date → high_hours anomaly para badge inline en WeekGrid.
+  const anomaliesByDate = useMemo(() => {
+    const out = {}
+    for (const a of (anomaliesData?.anomalies || [])) {
+      if (a?.type === 'high_hours' && a?.date) out[a.date] = a
+    }
+    return out
+  }, [anomaliesData])
+
+  const hasAnyAnomaly = (anomaliesData?.anomalies?.length || 0) > 0
+
+  const [anomaliesDrawerOpen, setAnomaliesDrawerOpen] = useState(false)
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => imputationsApi.create(data),
@@ -475,7 +608,18 @@ export default function ImputarPage() {
         </Card>
       )}
 
-      <WeekGrid weekData={weekData} t={t} />
+      <WeekGrid
+        weekData={weekData}
+        anomaliesByDate={anomaliesByDate}
+        hasAnyAnomaly={hasAnyAnomaly}
+        onOpenDrawer={() => setAnomaliesDrawerOpen(true)}
+        t={t}
+      />
+      <AnomaliesDrawer
+        open={anomaliesDrawerOpen}
+        onClose={() => setAnomaliesDrawerOpen(false)}
+        anomaliesData={anomaliesData}
+      />
     </PageShell>
   )
 }

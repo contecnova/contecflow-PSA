@@ -1,5 +1,114 @@
 # Contecflow PSA - Documentacion Operativa Actual
 
+## UX IA: Admin Chat movido a Configuracion (2026-05-12)
+
+### Objetivo
+- Separar uso operativo del chat (mensajeria diaria) de tareas administrativas (politicas y gobierno).
+
+### Cambios aplicados
+- `frontend/src/App.jsx`
+  - Nueva ruta principal de administracion: `/settings/chat-admin`.
+  - Ruta legacy `/chat/admin` mantenida como redireccion a `/settings/chat-admin` para no romper enlaces existentes.
+- `frontend/src/pages/ChatPage.jsx`
+  - Eliminado el tab `Admin` del rail lateral del chat para evitar mezclar operacion y configuracion.
+  - CTA interna de administracion actualizada a `/settings/chat-admin`.
+- `frontend/src/components/layout/Layout.jsx`
+  - Actualizados mapeos de seccion/titulo para tratar `/settings/chat-admin` como parte de `Settings`.
+
+### Resultado
+- La administracion de chat queda ubicada en Configuracion, alineada con el resto de ajustes del sistema.
+- El chat operativo queda limpio para uso diario de conversaciones.
+- Compatibilidad retroactiva preservada mediante redireccion desde la ruta antigua.
+
+## Fix UI: Scroll en modal de proveedores IA (2026-05-12)
+
+### Problema
+- En AI Hub, al sincronizar proveedores con muchos modelos, el listado podia crecer fuera de pantalla.
+- No habia scroll util dentro del drawer, por lo que no se podia navegar correctamente por todos los modelos.
+
+### Solucion aplicada
+- `frontend/src/pages/AIHubPage.jsx`
+  - El drawer ahora tiene altura maxima de viewport: `maxHeight: calc(100vh - 24px)`.
+  - El body del modal usa `overflowY: auto` con `flex: 1` para mantener header/footer visibles y permitir desplazamiento.
+  - El bloque de `available_models` tiene scroll interno (`maxHeight: 220`, `overflowY: auto`) para listas largas.
+
+### Resultado
+- Se puede recorrer todo el contenido aunque el proveedor tenga muchos modelos.
+- El footer con acciones permanece accesible.
+
+## Correcciones: Errores en Voice/AI & Password Form Validation (2026-05-12)
+
+### Problema 1: /voice/transcribe devolvía 502 en lugar de 503 cuando no hay STT provider
+**Síntoma:** Endpoint devolvía `502 Bad Gateway` cuando se intentaba transcribir sin tener credenciales de STT configuradas.
+
+**Causa:** El orden de validación de excepciones en el endpoint permitía que el chequeo genérico de status_code (que defaulteaba a 500 luego 502) se ejecutara antes del chequeo específico del mensaje "Ningún STT provider está disponible".
+
+**Fix aplicado:**
+- `app/api/v1/endpoints/ai_modules.py` — Línea 324-349
+  - Reordenar validaciones: chequear primero el mensaje específico de "sin proveedores disponibles"
+  - Cambiar default de status_code a 502 (más apropiado que 500 para errores de proveedor)
+  - Ahora devuelve correctamente **503 Service Unavailable** cuando no hay STT provider configurado
+
+**Estado:** ✅ Arreglado. Backend ahora devuelve 503 correctamente.
+
+### Problema 2: /ai-providers/{id}/test devolvía 500 cuando fallaba db.commit()
+**Síntoma:** Endpoint devolvía `500 Internal Server Error` repetidamente (10+ veces) cuando se probaba conexión de proveedor.
+
+**Causa:** Si `update_provider_test_result()` fallaba en `db.commit()`, la excepción no era capturada, causando que FastAPI devolviera 500 genérico.
+
+**Fix aplicado:**
+- `app/api/v1/endpoints/ai_providers.py` — Línea 104-153
+  - Envolturar todas las llamadas a `update_provider_test_result()` en try-except
+  - Loguear errores de DB pero no bloquear la respuesta del endpoint
+  - Si el test de conexión tuvo éxito, devolver respuesta positiva incluso si DB falla
+  - Mapeo de errores mejorado para diferenciar entre auth (401), rate limit (429), modelo no encontrado (404), etc.
+
+**Estado:** ✅ Arreglado. Endpoint ahora maneja fallos de DB sin crashes.
+
+### Problema 3: Password field not in form (warning del navegador)
+**Síntoma:** Consola mostraba warning `[DOM] Password field is not contained in a form`.
+
+**Causa:** En `AIHubPage.jsx`, el input password para API Key no estaba dentro de un elemento `<form>`.
+
+**Fix aplicado:**
+- `frontend/src/pages/AIHubPage.jsx` — Línea 109-239
+  - Envolver todo el contenido del formulario en un elemento `<form>` real
+  - Cambiar provider selector buttons a `type="button"` para no interferir con form submission
+  - El form ahora tiene handler `onSubmit` que dispara el `mutate(form)`
+  
+**Estado:** ✅ Arreglado. Password field ahora está dentro de `<form>` válido.
+
+### Requerimientos para Voice Recording
+Para que la grabación de voz funcione completamente, necesitas configurar al menos un STT (Speech-to-Text) provider:
+
+**Opción 1: OpenAI Whisper (recomendado)**
+```bash
+# En .env, agrega:
+OPENAI_API_KEY=sk-...your-key-here...
+```
+
+**Opción 2: Azure Speech Services**
+```bash
+AZURE_SPEECH_KEY=your-key
+AZURE_SPEECH_REGION=your-region
+```
+
+**Opción 3: Google Speech-to-Text**
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+```
+
+**Opción 4: Local Whisper (sin API key)**
+```bash
+# Instala whisper.cpp:
+# https://github.com/ggerganov/whisper.cpp
+STT_PROVIDER=whisper_local
+```
+
+Después de configurar, reinicia el backend: `Ctrl+C` en el terminal uvicorn y vuelve a correr.
+
+---
+
 ## Usuarios Multi-Organizacion desde Ficha de Usuario (2026-05-12)
 
 ### Objetivo
@@ -148,6 +257,129 @@
 
 - `frontend/src/context/ChatRealtimeContext.jsx`
   - Se exponen helpers `consumeUnread(count)` y `clearUnread()` para actualizacion optimista del badge global sin esperar roundtrip de red.
+
+## Service Desk - Diferenciales MVP (2026-05-12)
+
+### 1) Dynamic Service Desk (formularios vivos + routing hints)
+- `app/api/v1/endpoints/service_desk/dynamic_forms.py` (nuevo)
+  - `GET /sd/dynamic-forms`: obtiene reglas dinámicas por tenant.
+  - `PUT /sd/dynamic-forms`: guarda reglas dinámicas (admin).
+  - Soporte de `fields` con `visible_when` y `routing_hints` (motor declarativo base).
+
+- `frontend/src/pages/service-desk/CreateTicketModal.jsx`
+  - Render dinámico de campos en alta de ticket (`text|textarea|select|date`) según `visible_when`.
+  - Limpieza automática de valores ocultos cuando cambia la condición.
+  - Hint visual de routing aplicado en tiempo real según reglas.
+
+### 2) Configuración auditable y reversible
+- `app/api/v1/endpoints/service_desk/dynamic_forms.py`
+  - `GET /sd/dynamic-forms/history`: historial de snapshots de configuración.
+  - `POST /sd/dynamic-forms/rollback`: restaurar snapshot por `snapshot_id`.
+  - Cada cambio crea snapshot previo con metadata (`created_at`, `created_by`, `reason`).
+
+### 3) Wizard de importación/mapeo de campos
+- `app/api/v1/endpoints/service_desk/dynamic_forms.py`
+  - `POST /sd/dynamic-forms/import/preview`: parsea CSV, infiere campos y tipos.
+  - `POST /sd/dynamic-forms/import/apply`: aplica import (`upsert|replace`) en reglas dinámicas.
+
+- `frontend/src/pages/service-desk/CreateTicketModal.jsx`
+  - Nuevo botón `Wizard campos` en creación de ticket.
+  - Flujo de 2 pasos: pegar CSV -> previsualizar/editar campos -> aplicar.
+  - Incluye restauración rápida de snapshots recientes desde el propio wizard.
+
+- `frontend/src/services/api.js`
+  - Cliente `sdDynamicFormsApi` para get/save/history/rollback/import preview/apply.
+
+### 4) Persistencia nativa de campos dinámicos por ticket
+- `app/services/service_desk/dynamic_ticket_fields_service.py` (nuevo)
+  - Persistencia de `dynamic_fields` por ticket con clave dedicada en `AppSetting`.
+  - Lectura/escritura robusta JSON y fallback seguro a `{}`.
+
+- `app/schemas/service_desk.py`
+  - `TicketCreateIn` y `TicketUpdateIn` aceptan `dynamic_fields`.
+
+- `app/services/service_desk/ticket_creation_service.py`
+  - En creación interna y portal, guarda `dynamic_fields` tras generar `ticket.id`.
+
+- `app/services/service_desk/ticket_update_service.py`
+  - Maneja `dynamic_fields` fuera del update plano de columnas y persiste cambios.
+  - Registra trazabilidad en historial (`dynamic_fields`).
+
+- `app/services/service_desk/ticket_read_service.py`
+  - Incluye `dynamic_fields` en listados y detalle de ticket.
+
+- `frontend/src/pages/service-desk/CreateTicketModal.jsx`
+  - Envía `dynamic_fields` en payload nativo de creación (sin incrustarlo en descripción).
+
+- `frontend/src/pages/service-desk/TicketDetail.jsx`
+  - Muestra bloque "Campos dinámicos" en detalle.
+  - Edición avanzada en `TicketEditModal` vía JSON (`dynamic_fields`) con validación.
+
+- Test de regresión:
+  - `tests/test_service_desk.py::test_ticket_dynamic_fields_roundtrip`
+    - verifica persistencia y lectura de `dynamic_fields` en create + update + detail.
+
+### 5) Portal cliente: paridad de campos dinamicos
+- `app/api/v1/endpoints/service_desk/dynamic_forms.py`
+  - Nuevo `GET /sd/dynamic-forms/public` con autenticacion de portal (`Bearer` o cookie portal).
+  - Devuelve reglas dinamicas para que el formulario de cliente pueda renderizar campos condicionales.
+
+- `frontend/src/pages/portal-client/PortalSupportDesk.jsx`
+  - Alta de ticket cliente ahora consume reglas dinamicas (`/sd/dynamic-forms/public`).
+  - Render condicional de campos dinamicos (`visible_when`) en el modal "Abrir ticket".
+  - Hint visual de routing en tiempo real para el cliente.
+  - Envio de `dynamic_fields` en `POST /sd/tickets/client`.
+  - Visualizacion de `dynamic_fields` en detalle del ticket cliente.
+
+- Tests de regresion:
+  - `tests/test_service_desk.py::test_portal_dynamic_forms_public_endpoint`
+    - valida acceso autenticado de portal al endpoint publico de reglas dinamicas.
+  - `tests/test_service_desk.py::test_client_ticket_dynamic_fields_roundtrip`
+    - valida create client + detail con persistencia de `dynamic_fields`.
+
+### 6) Workflow Designer: fix clonar/archivar con modales React
+- `frontend/src/pages/service-desk/WorkflowDesignerPage.jsx`
+  - `onClone` usaba `window.prompt()` — reemplazado por `CloneBlueprintModal` (input de nombre + Cancelar/Clonar).
+  - `onArchive` usaba `window.confirm()` — reemplazado por `ConfirmModal` (mensaje + Cancelar/Archivar).
+  - Ambos dialogs son componentes React controlados por estado (`cloneTarget`, `archiveTarget`).
+  - Eliminacion de dependencias en APIs nativas del navegador incompatibles con CSP estricto y entornos headless.
+
+### 7) Dynamic Fields contextuales + diff de configuración + portal extendido
+- `app/api/v1/endpoints/service_desk/dynamic_forms.py`
+  - Nuevo `GET /sd/dynamic-forms/context-options` (interno) y `GET /sd/dynamic-forms/public/context-options` (portal): devuelve opciones contextuales de `clients/services/cis` para autocompletado.
+  - Nuevo `POST /sd/dynamic-forms/diff`: compara snapshots (o current vs current) y devuelve resumen (`added/removed/changed`) para `fields` y cambios en `routing_hints`.
+  - Import preview ahora soporta mapeo enriquecido (`mapping` string o dict) con detección contextual (`context_ci/context_service/context_client`) y metadata `data_source/data_attribute`.
+
+- `frontend/src/pages/service-desk/CreateTicketModal.jsx`
+  - Campos dinámicos `context_*` con autocompletado (`datalist`) alimentado por opciones contextuales.
+
+- `frontend/src/pages/portal-client/PortalSupportDesk.jsx`
+  - Selector de CI en apertura de ticket cliente (`ci_id`) con opciones contextuales.
+  - En detalle de ticket cliente se añade bloque de objetos vinculados (cliente/servicio/CI), actividad del ticket (historial) y calendario de eventos (comunicados con ventana temporal).
+  - Campos dinámicos `context_*` con autocompletado en portal.
+
+- `app/services/sla_service.py` + `app/services/service_desk/ticket_read_service.py`
+  - Serialización y carga de `service_item_name`/`service_item_id` para visibilidad de linking en frontend.
+
+### 8) Restore pending + unidad de tiempo en timelog
+- `app/services/service_desk/ticket_ops_service.py`
+  - Soporte de unidades de tiempo (`minutes|hours|days`) con normalización a minutos.
+  - Snapshot de contexto al entrar en `pending_*` y comando de restauración (`restore_pending_snapshot`).
+
+- `app/services/service_desk/ticket_update_service.py`
+  - Al entrar en `pending_client`/`pending_third`, se guarda snapshot restaurable.
+
+- `app/api/v1/endpoints/service_desk/tickets.py`
+  - `POST /sd/tickets/{id}/restore-pending` para restaurar estado/contexto previo.
+  - `POST /sd/tickets/{id}/time-log` acepta `unit` en payload.
+
+- `frontend/src/pages/service-desk/TicketDetail.jsx`
+  - Dropdown de unidad (`min/h/d`) en registro de tiempo.
+  - Acción `Restaurar pendiente` cuando el ticket está en estado pendiente.
+
+- Tests
+  - `tests/test_service_desk.py::test_dynamic_forms_diff_and_context_options`
+  - `tests/test_service_desk.py::test_ticket_restore_pending_and_time_unit_dropdown_backend`
 
 ### 3) Preferencias de notificacion en panel global
 - `frontend/src/components/layout/GlobalChatPanel.jsx`

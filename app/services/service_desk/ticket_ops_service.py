@@ -1,8 +1,10 @@
 from typing import Optional
+import json
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.models.settings import AppSetting
 from app.models.service_desk import Ticket, TicketComment, TicketTimeLog
 from app.models.user import User
 from app.services.service_desk.scoping import scope_ticket_query as _scope_ticket_query
@@ -16,11 +18,77 @@ def get_scoped_ticket_or_404(db: Session, current_user: User, ticket_id: str) ->
     return ticket
 
 
-def add_ticket_time(db: Session, ticket: Ticket, ticket_id: str, user_id: str, minutes: int, description: Optional[str] = None) -> dict:
-    time_log = TicketTimeLog(ticket_id=ticket_id, user_id=user_id, minutes=minutes, description=description)
+def _to_minutes(value: int, unit: str) -> int:
+    unit_l = (unit or "minutes").strip().lower()
+    if unit_l in {"minute", "minutes", "min", "m"}:
+        return max(0, int(value))
+    if unit_l in {"hour", "hours", "h"}:
+        return max(0, int(value) * 60)
+    if unit_l in {"day", "days", "d"}:
+        return max(0, int(value) * 60 * 8)
+    return max(0, int(value))
+
+
+def add_ticket_time(
+    db: Session,
+    ticket: Ticket,
+    ticket_id: str,
+    user_id: str,
+    minutes: int,
+    description: Optional[str] = None,
+    unit: str = "minutes",
+) -> dict:
+    minutes_norm = _to_minutes(minutes, unit)
+    time_log = TicketTimeLog(ticket_id=ticket_id, user_id=user_id, minutes=minutes_norm, description=description)
     db.add(time_log)
-    ticket.time_spent_minutes = (ticket.time_spent_minutes or 0) + minutes
-    return {"ok": True, "total_minutes": ticket.time_spent_minutes}
+    ticket.time_spent_minutes = (ticket.time_spent_minutes or 0) + minutes_norm
+    return {"ok": True, "total_minutes": ticket.time_spent_minutes, "logged_minutes": minutes_norm}
+
+
+def _pending_snapshot_key(ticket_id: str) -> str:
+    return f"sd.ticket.pending_snapshot.{ticket_id}"
+
+
+def save_pending_snapshot(db: Session, ticket: Ticket) -> None:
+    snapshot = {
+        "status": str(ticket.status.value) if hasattr(ticket.status, "value") else str(ticket.status),
+        "assigned_to_user_id": ticket.assigned_to_user_id,
+        "assigned_group_id": ticket.assigned_group_id,
+        "support_level": str(ticket.support_level.value) if hasattr(ticket.support_level, "value") else str(ticket.support_level),
+        "priority": str(ticket.priority.value) if hasattr(ticket.priority, "value") else str(ticket.priority),
+    }
+    serialized = json.dumps(snapshot, ensure_ascii=False)
+    key = _pending_snapshot_key(ticket.id)
+    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == None).first()  # noqa: E711
+    if row:
+        row.value = serialized
+        row.description = "Ticket pending snapshot"
+    else:
+        db.add(AppSetting(key=key, organization_id=None, value=serialized, description="Ticket pending snapshot"))
+
+
+def restore_pending_snapshot(db: Session, ticket: Ticket, current_user_id: str) -> dict:
+    key = _pending_snapshot_key(ticket.id)
+    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == None).first()  # noqa: E711
+    if not row or not row.value:
+        return {"ok": False, "restored": False, "detail": "No pending snapshot"}
+
+    try:
+        snap = json.loads(row.value)
+    except Exception:
+        snap = {}
+
+    old_status = str(ticket.status.value) if hasattr(ticket.status, "value") else str(ticket.status)
+    ticket.status = snap.get("status") or "in_progress"
+    ticket.assigned_to_user_id = snap.get("assigned_to_user_id")
+    ticket.assigned_group_id = snap.get("assigned_group_id")
+    ticket.support_level = snap.get("support_level") or ticket.support_level
+    ticket.priority = snap.get("priority") or ticket.priority
+    ticket.sla_paused_at = None
+    _log_history(db, ticket.id, "status", old_status, str(ticket.status), current_user_id)
+
+    db.delete(row)
+    return {"ok": True, "restored": True, "status": str(ticket.status)}
 
 
 def escalate_ticket_level(

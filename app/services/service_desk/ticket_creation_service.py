@@ -8,6 +8,7 @@ from app.models.service_desk import ServiceItem, Ticket, TicketStatus
 from app.schemas.service_desk import TicketCreateIn
 from app.services.service_desk.routing_rule_service import apply_routing_rules
 from app.services.service_desk.scoping import resolve_sla_policy_for_ticket as _resolve_sla_policy_for_ticket
+from app.services.service_desk.dynamic_ticket_fields_service import save_ticket_dynamic_fields
 from app.services.sla_service import (
     PRIORITY_MATRIX,
     calculate_sla_due as _calculate_sla_due,
@@ -180,6 +181,8 @@ def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_i
     db.add(ticket)
     apply_routing_rules(ticket, db)
     _auto_assign_ticket_on_create(db, ticket)
+    db.flush()
+    save_ticket_dynamic_fields(db, ticket.id, payload.dynamic_fields)
     return ticket
 
 
@@ -230,4 +233,6 @@ def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: Cli
     db.add(ticket)
     apply_routing_rules(ticket, db)
     _auto_assign_ticket_on_create(db, ticket)
+    db.flush()
+    save_ticket_dynamic_fields(db, ticket.id, payload.dynamic_fields)
     return ticket

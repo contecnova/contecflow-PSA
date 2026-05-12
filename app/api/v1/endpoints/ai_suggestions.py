@@ -18,7 +18,7 @@ def gantt_suggestions(project_id: str, db: Session = Depends(get_db), user=Depen
 @router.get("/timesheets/{user_id}", status_code=status.HTTP_200_OK)
 def timesheet_anomalies(user_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     try:
-        return get_ai_timesheet_anomalies(user_id, db)
+        return get_ai_timesheet_anomalies(user_id, db, current_user=user)
     except HTTPException as e:
         if e.status_code == 404:
             raise

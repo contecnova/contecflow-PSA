@@ -638,6 +638,7 @@ export const ticketsApi = {
   links:   (id)       => api.get(`/sd/tickets/${id}/links`),
   addLink:    (id, data) => api.post(`/sd/tickets/${id}/links`, data),
   timelog:    (id, data)         => api.post(`/sd/tickets/${id}/time-log`, data),
+  restorePending: (id)           => api.post(`/sd/tickets/${id}/restore-pending`, {}),
   escalate:   (id, level = 'l2') => api.post(`/sd/tickets/${id}/escalate?to_level=${level}`, {}),
   slaPause:   (id, data) => api.post(`/sd/tickets/${id}/sla/pause`, data),
   slaResume:  (id)       => api.post(`/sd/tickets/${id}/sla/resume`),
@@ -671,6 +672,17 @@ export const changesApi = {
   update:  (id, data) => api.patch(`/sd/changes/${id}`, data),
   delete:  (id)       => api.delete(`/sd/changes/${id}`),
   approve: (id, data) => api.post(`/sd/changes/${id}/approve`, data),
+}
+
+export const sdDynamicFormsApi = {
+  get:           () => api.get('/sd/dynamic-forms'),
+  save:          (data) => api.put('/sd/dynamic-forms', data),
+  history:       () => api.get('/sd/dynamic-forms/history'),
+  diff:          (data) => api.post('/sd/dynamic-forms/diff', data),
+  contextOptions:(params) => api.get('/sd/dynamic-forms/context-options', { params }),
+  rollback:      (snapshot_id) => api.post('/sd/dynamic-forms/rollback', { snapshot_id }),
+  importPreview: (data) => api.post('/sd/dynamic-forms/import/preview', data),
+  importApply:   (data) => api.post('/sd/dynamic-forms/import/apply', data),
 }
 
 // ── Revenue (legacy engine) ───────────────────────────────────────────────────
@@ -1653,6 +1665,34 @@ export const meetingsAIApi = {
   get:         (id) => api.get(`/ai-modules/meetings/${id}`),
   process:     (data) => api.post('/ai-modules/meetings/process', data),
   createTasks: (id) => api.post(`/ai-modules/meetings/${id}/create-tasks`, {}),
+}
+
+// ── Contracts AI (H22) ────────────────────────────────────────────────────────
+export const contractsAIApi = {
+  list:       (params) => api.get('/ai-modules/contracts-ai', { params }),
+  get:        (id)     => api.get(`/ai-modules/contracts-ai/${id}`),
+  analyze:    (data)   => api.post('/ai-modules/contracts-ai/analyze', data),
+  analyzePdf: (formData) => api.post('/ai-modules/contracts-ai/analyze-pdf', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+}
+
+// ── Voice commands (I25) ──────────────────────────────────────────────────────
+// /voice/transcribe → multipart audio, devuelve {whisper_transcript, intent,
+//                       entities, action, pending_action?}  (dry-run forzado)
+// /voice/command    → JSON {transcript, confirm: true} → ejecuta la acción
+export const voiceApi = {
+  transcribe: (formData) => api.post('/ai-modules/voice/transcribe', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  command:    (data) => api.post('/ai-modules/voice/command', data),
+}
+
+// ── Smart Schedule (I27) ──────────────────────────────────────────────────────
+// Devuelve sugerencias de planificación; aplicar selectivamente vía
+// taskDependenciesApi.bulkDates(updates) o tasksApi.bulkUpdate.
+export const smartScheduleApi = {
+  suggest: (data) => api.post('/ai-modules/smart-schedule', data),
 }
 
 // ── MFA ───────────────────────────────────────────────────────────────────────

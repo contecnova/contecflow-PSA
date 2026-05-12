@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { tasksApi, projectsApi } from '../../services/api'
-import { X, CheckSquare, Clock, Ticket, FileText, Building2, ScrollText, AlertTriangle, Receipt, FolderOpen } from 'lucide-react'
+import { X, CheckSquare, Clock, Ticket, FileText, Building2, ScrollText, AlertTriangle, Receipt, FolderOpen, Sparkles } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
+import SmartScheduleModal from '../SmartScheduleModal'
 
 const ACTIONS = [
   { id: 'task',     icon: CheckSquare,  label: 'Nueva tarea',     color: 'var(--accent)',  inline: true },
@@ -15,6 +16,8 @@ const ACTIONS = [
   { id: 'risk',     icon: AlertTriangle,label: 'Nuevo riesgo',    color: 'var(--danger)',  path: '/risks?create=1' },
   { id: 'expense',  icon: Receipt,      label: 'Reportar gasto',  color: 'var(--orange)',  path: '/expenses?create=1' },
   { id: 'project',  icon: FolderOpen,   label: 'Nuevo proyecto',  color: 'var(--accent)',  path: '/projects?create=1' },
+  // I27: quick action — auto-planificar tareas sin fecha
+  { id: 'smart_schedule', icon: Sparkles, label: 'Auto-planificar tareas IA', color: 'var(--purple)', inline: true },
 ]
 
 function CreateTaskForm({ onClose }) {
@@ -136,6 +139,15 @@ export default function QuickCreateMenu({ onClose }) {
       >
         {activeAction === 'task' ? (
           <CreateTaskForm onClose={onClose} />
+        ) : activeAction === 'smart_schedule' ? (
+          /* I27: quick action delega al modal compartido. Sin projectId →
+             el backend planifica todas las tareas sin fecha visibles. */
+          <SmartScheduleModal
+            open={true}
+            onClose={onClose}
+            projectId={null}
+            projectName={null}
+          />
         ) : (
           <>
             <div style={{

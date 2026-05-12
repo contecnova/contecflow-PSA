@@ -456,7 +456,9 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     if settings.ENVIRONMENT == "production":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    # Permissions-Policy: el voice modal (Item I25) necesita el micrófono en
+    # same-origin para grabar comandos. Cámara y geo siguen denegadas.
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(self), geolocation=()"
     if is_docs_route:
         # Swagger/ReDoc HTML uses CDN assets and an inline bootstrap script.
         response.headers["Content-Security-Policy"] = (
@@ -464,6 +466,7 @@ async def security_headers_middleware(request: Request, call_next):
             "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
             "img-src 'self' data: blob: https://fastapi.tiangolo.com; "
+            "media-src 'self' blob:; "
             "font-src 'self' data: https://fonts.gstatic.com; "
             "connect-src 'self' ws: wss:; "
             "frame-ancestors 'none'; "
@@ -479,6 +482,9 @@ async def security_headers_middleware(request: Request, call_next):
             "script-src 'self'; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "img-src 'self' data: blob:; "
+            # Item I25: media-src blob: necesario para preview de audio
+            # grabado con MediaRecorder en el voice command modal.
+            "media-src 'self' blob:; "
             "font-src 'self' data: https://fonts.gstatic.com; "
             "connect-src 'self' ws: wss:; "
             "frame-ancestors 'none'; "

@@ -91,6 +91,7 @@ function ProviderModal({ provider, catalog, onClose }) {
         style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)' }} />
       <div role="dialog" aria-modal="true" aria-label={title}
         style={{ position: 'fixed', top: 12, right: 12, width: 640, maxWidth: 'calc(100vw - 24px)',
+          maxHeight: 'calc(100vh - 24px)',
           background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12,
           zIndex: 201, display: 'flex', flexDirection: 'column',
           boxShadow: '-8px 0 32px rgba(0,0,0,0.4)' }}>
@@ -104,14 +105,15 @@ function ProviderModal({ provider, catalog, onClose }) {
           </button>
         </div>
         {/* Body */}
-        <div style={{ padding: '20px' }}>
+        <div style={{ padding: '20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
+      <form onSubmit={e => { e.preventDefault(); mutate(form) }}>
       {/* Selector de proveedor */}
       {!isEdit && (
         <div style={{ marginBottom: 20 }}>
           <label style={ls}>{t('ai.provider')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
             {Object.entries(PROVIDER_META).map(([key, meta]) => (
-              <button key={key} aria-pressed={providerType === key} aria-label={`${t('ai.select_provider')} ${meta.name}`} onClick={() => handleProviderChange(key)}
+              <button key={key} type="button" aria-pressed={providerType === key} aria-label={`${t('ai.select_provider')} ${meta.name}`} onClick={() => handleProviderChange(key)}
                 style={{ padding: '10px 8px', borderRadius: 8, border: `2px solid ${providerType === key ? meta.color + '80' : 'var(--surface-4)'}`, background: providerType === key ? meta.color + '15' : 'transparent', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
                 <div style={{ fontSize: "var(--text-lg-em)", marginBottom: 4 }}>{meta.icon}</div>
                 <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: providerType === key ? meta.color : 'var(--text-2)' }}>{meta.name}</div>
@@ -226,7 +228,7 @@ function ProviderModal({ provider, catalog, onClose }) {
       {models.length > 0 && (
         <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--text-1)' }}>{t('ai.available_models')}:</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 6, maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
             {models.map(m => (
               <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-2)' }}>{m.name}</span>
@@ -239,12 +241,13 @@ function ProviderModal({ provider, catalog, onClose }) {
         </div>
       )}
 
+      </form>
         </div>
         {/* Fixed footer */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10,
           padding: '12px 20px', borderTop: '1px solid var(--surface-4)',
           background: 'var(--surface-1)', flexShrink: 0 }}>
-          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.provider} loading={isPending}>
             {isPending ? t('common.saving') : isEdit ? t('ai.save_changes') : t('ai.add_provider_action')}
           </Button>

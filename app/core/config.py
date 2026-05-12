@@ -214,6 +214,21 @@ class Settings(BaseSettings):
 
     # ── OpenAI (fallback key — prefer DB-configured provider) ────────────────
     OPENAI_API_KEY: str = Field(default="", env="OPENAI_API_KEY")
+    # OpenAI Speech-to-Text model (gpt-4o-mini-transcribe es el sucesor de whisper-1)
+    OPENAI_STT_MODEL: str = Field(default="gpt-4o-mini-transcribe", env="OPENAI_STT_MODEL")
+
+    # ── STT (Speech-to-Text) provider — Item #51 ─────────────────────────────
+    # Provider primario: openai | azure | google | whisper_local
+    STT_PROVIDER: str = Field(default="openai", env="STT_PROVIDER")
+    # Fallbacks (CSV ordenado) — se intentan si el primario falla
+    STT_FALLBACK_PROVIDERS: str = Field(default="", env="STT_FALLBACK_PROVIDERS")
+    # Azure Speech-to-Text
+    AZURE_SPEECH_KEY: str = Field(default="", env="AZURE_SPEECH_KEY")
+    AZURE_SPEECH_REGION: str = Field(default="westeurope", env="AZURE_SPEECH_REGION")
+    AZURE_STT_LANGUAGE: str = Field(default="es-ES", env="AZURE_STT_LANGUAGE")
+    # Google Cloud Speech-to-Text (API key auth — service account no soportado por simplicidad)
+    GOOGLE_STT_API_KEY: str = Field(default="", env="GOOGLE_STT_API_KEY")
+    GOOGLE_STT_LANGUAGE: str = Field(default="es-ES", env="GOOGLE_STT_LANGUAGE")
 
     # ── Slack integration ─────────────────────────────────────────────────────
     SLACK_API_BASE: str = Field(default="https://slack.com/api", env="SLACK_API_BASE")

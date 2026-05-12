@@ -28,7 +28,7 @@ from app.services.service_desk.comment_service import (
 from app.services.service_desk.csat_service import submit_ticket_csat
 from app.services.service_desk.ticket_ops_service import (
     get_scoped_ticket_or_404 as get_scoped_ticket_for_ops_or_404,
-    add_ticket_time, escalate_ticket_level,
+    add_ticket_time, escalate_ticket_level, restore_pending_snapshot,
 )
 from app.services.service_desk.link_service import (
     list_ticket_links_payload, create_ticket_link_record,
@@ -177,6 +177,7 @@ def update_ticket(
         db=db, ticket=ticket, ticket_id=ticket_id, payload=payload,
         current_user_id=current_user.id,
         old_assigned_to=old_assigned_to, old_support_level=old_support_level,
+        organization_id=getattr(current_user, "organization_id", None),
     )
     _commit_or_rollback(db); db.refresh(ticket)
     if effects["refresh_profile"]:
@@ -221,7 +222,19 @@ def add_client_comment(
 @router.post("/tickets/{ticket_id}/time-log", summary="Registrar tiempo")
 def log_time(ticket_id: str, payload: TimeLogIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
-    result = add_ticket_time(db, ticket, ticket_id, current_user.id, payload.minutes, payload.description)
+    result = add_ticket_time(db, ticket, ticket_id, current_user.id, payload.minutes, payload.description, payload.unit)
+    _commit_or_rollback(db)
+    return result
+
+
+@router.post("/tickets/{ticket_id}/restore-pending", summary="Restaurar información previa al estado pendiente")
+def restore_pending(
+    ticket_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
+    result = restore_pending_snapshot(db, ticket, current_user.id)
     _commit_or_rollback(db)
     return result
 

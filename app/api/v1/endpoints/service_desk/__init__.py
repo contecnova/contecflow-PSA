@@ -47,6 +47,7 @@ from app.api.v1.endpoints.service_desk import (
     change_rollout,
     cmdb_3d,
     voice_agent,
+    dynamic_forms,
 )
 
 router = APIRouter()
@@ -78,3 +79,4 @@ router.include_router(incident_assignment.router)
 router.include_router(change_rollout.router)
 router.include_router(cmdb_3d.router)
 router.include_router(voice_agent.router)
+router.include_router(dynamic_forms.router)

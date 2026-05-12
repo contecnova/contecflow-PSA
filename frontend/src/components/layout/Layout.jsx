@@ -8,6 +8,7 @@ import GlobalSearch from './GlobalSearch'
 import QuickCreateMenu from './QuickCreateMenu'
 import NexusAssistPanel from './NexusAssistPanel'
 import GlobalChatPanel from './GlobalChatPanel'
+import VoiceCommandModal from './VoiceCommandModal'
 import UserProfilePanel from './UserProfilePanel'
 import AlertsDrawer from './AlertsDrawer'
 import Breadcrumbs from './Breadcrumbs'
@@ -65,7 +66,7 @@ const ROUTE_LABELS = {
   '/semantic-engine': 'AI Assignment', '/automations': 'Automations',
   '/bpm': 'BPM Procesos',
   '/chat': 'Chat',
-  '/chat/admin': 'Admin Collaboration',
+  '/settings/chat-admin': 'Admin Collaboration',
   '/settings': 'Settings', '/workflows': 'Workflows', '/issue-types': 'Issue Types',
   '/custom-fields': 'Custom Fields', '/project-permissions': 'Project Permissions',
   '/ai-hub': 'AI Hub', '/esign': 'E-Signature', '/m365': 'Microsoft 365',
@@ -86,7 +87,7 @@ const ROUTE_SECTION = {
   '/work-dashboard': 'My Work', '/projects-dashboard': 'Projects',
   '/team-dashboard': 'Team', '/finance-dashboard': 'Finance',
   '/support-dashboard': 'Support',
-  '/tasks': 'My Work', '/time': 'My Work', '/kanban-advanced': 'My Work', '/imputar': 'My Work', '/chat': 'My Work', '/chat/admin': 'Settings',
+  '/tasks': 'My Work', '/time': 'My Work', '/kanban-advanced': 'My Work', '/imputar': 'My Work', '/chat': 'My Work', '/settings/chat-admin': 'Settings',
   '/timer': 'My Work', '/timesheets': 'My Work', '/calendar': 'My Work',
   '/absences': 'My Work', '/documents': 'My Work', '/expenses': 'My Work',
   '/approvals': 'My Work',
@@ -695,7 +696,7 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
   )
 }
 
-function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, chatUnread, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen, onQuickCreate }) {
+function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, chatUnread, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen, onQuickCreate, onVoiceOpen }) {
   const location = useLocation()
   const [chatBadgeVisible, setChatBadgeVisible] = useState(chatUnread > 0)
   const [chatBadgeCount, setChatBadgeCount] = useState(chatUnread)
@@ -841,6 +842,22 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         >
           <Brain size={13} />
           <span>{text.ai_short}</span>
+        </button>
+        {/* I25: Voice command modal — accesible desde cualquier página */}
+        <button
+          onClick={onVoiceOpen}
+          title="Comando de voz (imputar, crear ticket/tarea, consultar)"
+          aria-label="Abrir comando de voz"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 30, height: 30,
+            background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+            borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)' }}
+        >
+          <Mic size={14} />
         </button>
         <button
           onClick={onChatToggle}
@@ -1092,6 +1109,7 @@ export default function Layout({ children }) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false)
   const [quickCreateOpen, setQuickCreateOpen] = useState(false)
+  const [voiceOpen, setVoiceOpen] = useState(false)
   const [navSearch, setNavSearch] = useState('')
   const [workspace, setWorkspace] = useState(() => localStorage.getItem(NAV_WORKSPACE_KEY) || 'all')
   const [timerElapsed, setTimerElapsed] = useState(0)
@@ -1395,6 +1413,7 @@ export default function Layout({ children }) {
           timerElapsed={timerElapsed}
           onAlertsOpen={() => setAlertsDrawerOpen(true)}
           onQuickCreate={() => setQuickCreateOpen(o => !o)}
+          onVoiceOpen={() => setVoiceOpen(true)}
         />
         {children}
       </main>
@@ -1416,6 +1435,7 @@ export default function Layout({ children }) {
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} text={text} />}
       {alertsDrawerOpen && <AlertsDrawer onClose={() => setAlertsDrawerOpen(false)} />}
       {quickCreateOpen && <QuickCreateMenu onClose={() => setQuickCreateOpen(false)} />}
+      <VoiceCommandModal open={voiceOpen} onClose={() => setVoiceOpen(false)} />
       <OfflineIndicator />
     </div>
   )

@@ -223,7 +223,6 @@ function NavRail({ activeTab, onTab, unreadNotifs }) {
     { id: 'chats',    label: 'Chat',      icon: MessageSquare },
     { id: 'teams',    label: 'Equipos',   icon: Users },
     { id: 'calls',    label: 'Llamadas',  icon: Phone },
-    { id: 'admin',    label: 'Admin',     icon: Settings },
   ]
   return (
     <div style={{
@@ -285,7 +284,6 @@ function ConversationsList({ activeTab, conversations, teams, channels, presence
   })()
 
   if (activeTab === 'activity') return <ActivityList />
-  if (activeTab === 'admin') return <AdminPanelEntry />
 
   const directs = conversations.filter(c => c.kind === 'direct')
   const groups = conversations.filter(c => c.kind === 'group')
@@ -2108,7 +2106,7 @@ function ActivityList() {
   )
 }
 
-// ── Admin panel placeholder ─────────────────────────────────────────────────
+// ── Admin panel placeholder (legacy CTA) ────────────────────────────────────
 function AdminPanelEntry() {
   return (
     <div style={{ width: 360, background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)', padding: 16, color: 'var(--text-2)' }}>
@@ -2116,7 +2114,7 @@ function AdminPanelEntry() {
         <p style={{ fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
           Configura políticas de retención, legal hold, integraciones y auditoría desde la página dedicada.
         </p>
-        <a href="/chat/admin" style={{
+        <a href="/settings/chat-admin" style={{
           display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10,
           padding: '8px 14px', borderRadius: 8,
           background: 'var(--accent)', color: '#fff', fontSize: 'var(--text-sm)',

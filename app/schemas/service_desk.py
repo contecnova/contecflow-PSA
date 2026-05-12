@@ -31,6 +31,7 @@ class TicketCreateIn(BaseModel):
     requester_name: Optional[str] = None
     requester_email: Optional[str] = None
     source: str = "portal"
+    dynamic_fields: Optional[dict] = None
 
     @field_validator('service_item_id', 'project_id', 'contract_id', 'client_id', 'ci_id',
                      'assigned_to_user_id', 'assigned_group_id', mode='before')
@@ -55,6 +56,7 @@ class TicketUpdateIn(BaseModel):
     resolution: Optional[str] = None
     resolution_code: Optional[str] = None
     problem_id: Optional[str] = None
+    dynamic_fields: Optional[dict] = None
 
     @field_validator('assigned_to_user_id', 'assigned_group_id', 'ci_id',
                      'project_id', 'problem_id', mode='before')
@@ -70,6 +72,7 @@ class CommentIn(BaseModel):
 
 class TimeLogIn(BaseModel):
     minutes: int
+    unit: str = "minutes"
     description: Optional[str] = None
     billable: bool = False
 

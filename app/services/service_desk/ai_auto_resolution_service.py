@@ -698,7 +698,12 @@ def run_daily_auto_resolution_job(db: Session, *, limit: int | None = None,
             )
         )
         if organization_id:
-            q = q.filter(Ticket.organization_id == organization_id)
+            # FIX: Ticket no tiene organization_id propia; scope vía Project.
+            from app.models.project import Project as _Project  # noqa: PLC0415
+            from sqlalchemy import or_ as _or  # noqa: PLC0415
+            q = q.outerjoin(_Project, Ticket.project_id == _Project.id).filter(
+                _or(Ticket.project_id.is_(None), _Project.organization_id == organization_id)
+            )
         open_tickets = q.order_by(Ticket.created_at.desc()).limit(safe_limit).all()
 
         for ticket in open_tickets:

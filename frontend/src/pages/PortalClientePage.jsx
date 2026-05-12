@@ -31,6 +31,7 @@ import {
 } from './portal-client/PortalAdvancedSections'
 import { PortalSupportDesk } from './portal-client/PortalSupportDesk'
 import { PortalSurveys } from './portal-client/PortalSurveys'
+import PortalAIChatWidget from './portal-client/PortalAIChatWidget'
 
 // ── Inner app (con cliente autenticado) ──────────────────────────────────────
 function PortalApp({ changeLang }) {
@@ -191,6 +192,8 @@ function PortalApp({ changeLang }) {
       {section === 'invoices'   && <PortalInvoices />}
       {section === 'surveys'    && <PortalSurveys />}
       {section === 'profile'    && <PortalMyProfile changeLang={changeLang} />}
+      {/* I26: widget flotante de IA, visible desde cualquier sección del portal */}
+      <PortalAIChatWidget />
     </PortalShell>
   )
 }

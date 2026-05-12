@@ -105,6 +105,31 @@ def _category_hash(category: Optional[str]) -> float:
     return (digest % 10_000) / 10_000.0
 
 
+def _ticket_category(t) -> Optional[str]:
+    """Devuelve un identificador estable de "categoría" para un Ticket usando
+    la mejor fuente disponible: service_item.category_id si está enlazado,
+    de lo contrario el ticket_type.
+
+    FIX: ``Ticket`` no expone una columna ``category`` directa — el atributo
+    estaba mal asumido y rompía clustering / stats con AttributeError. La
+    semántica que el clustering necesita es solo un discriminador estable,
+    cualquiera de los dos sirve.
+    """
+    if t is None:
+        return None
+    try:
+        si = getattr(t, "service_item", None)
+        cat_id = getattr(si, "category_id", None) if si is not None else None
+        if cat_id:
+            return str(cat_id)
+    except Exception:
+        pass
+    tt = getattr(t, "ticket_type", None)
+    if tt is None:
+        return None
+    return str(getattr(tt, "value", tt))
+
+
 def _time_offset(created_at: Optional[datetime], window_start: datetime) -> float:
     """Return fraction of window elapsed (0-1) at ticket creation time."""
     if not created_at:
@@ -122,7 +147,7 @@ def _build_feature_matrix(tickets: list[Ticket], window_start: datetime) -> list
     return [
         [
             _ci_hash(t.ci_id),
-            _category_hash(t.category),
+            _category_hash(_ticket_category(t)),
             _PRIORITY_NUM.get(t.priority, 0.5),
             _time_offset(t.created_at, window_start),
         ]
@@ -248,11 +273,13 @@ def cluster_open_alerts(
 
         # Compute correlation score: fraction of members sharing same CI+category
         ci_ids = [t.ci_id for t in members if t.ci_id]
-        categories = [t.category for t in members if t.category]
+        # FIX: usar helper _ticket_category — Ticket no tiene .category directa.
+        member_cats = [_ticket_category(t) for t in members]
+        categories = [c for c in member_cats if c]
         dominant_ci = max(set(ci_ids), key=ci_ids.count) if ci_ids else None
         dominant_cat = max(set(categories), key=categories.count) if categories else None
         same_ci = sum(1 for t in members if t.ci_id == dominant_ci) / len(members) if dominant_ci else 0.0
-        same_cat = sum(1 for t in members if t.category == dominant_cat) / len(members) if dominant_cat else 0.0
+        same_cat = sum(1 for c in member_cats if c == dominant_cat) / len(members) if dominant_cat else 0.0
         correlation_score = round((same_ci * 0.6 + same_cat * 0.4), 3)
 
         priorities = [t.priority for t in members if t.priority]
@@ -313,7 +340,8 @@ def merge_cluster_to_problem(
     if not tickets:
         raise ValueError("No se encontraron tickets para el cluster")
 
-    categories = [t.category for t in tickets if t.category]
+    # FIX: helper para evitar AttributeError ('Ticket' no tiene .category directa)
+    categories = [c for c in (_ticket_category(t) for t in tickets) if c]
     category = max(set(categories), key=categories.count) if categories else "general"
 
     priorities = [t.priority for t in tickets if t.priority]

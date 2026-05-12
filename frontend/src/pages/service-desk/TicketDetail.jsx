@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -133,12 +133,18 @@ function SplitTicketModal({ ticket, onClose, onCreated }) {
 function TicketEditModal({ ticket, onClose, onSaved }) {
   const t = useAppT()
   const toast = useToast()
+  const initialDynamic = useMemo(() => {
+    const raw = ticket?.dynamic_fields
+    if (!raw || typeof raw !== 'object') return '{}'
+    try { return JSON.stringify(raw, null, 2) } catch { return '{}' }
+  }, [ticket?.dynamic_fields])
   const [form, setForm] = useState({
     title: ticket.title || '', description: ticket.description || '',
     priority: ticket.priority || 'p3_medium', ticket_type: ticket.ticket_type || 'incident',
     urgency: ticket.urgency || 'medium', impact: ticket.impact || 'user',
     status: ticket.status || 'new', resolution: ticket.resolution || '', tags: ticket.tags || '',
   })
+  const [dynamicFieldsText, setDynamicFieldsText] = useState(initialDynamic)
   const { mutate, isPending } = useMutation({
     mutationFn: data => ticketsApi.update(ticket.id, data),
     onSuccess: onSaved,
@@ -207,9 +213,26 @@ function TicketEditModal({ ticket, onClose, onSaved }) {
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending || !form.title.trim() || !form.description.trim()} loading={isPending}>
+          <Button onClick={() => {
+            let parsedDynamic = {}
+            try {
+              parsedDynamic = JSON.parse(dynamicFieldsText || '{}')
+              if (!parsedDynamic || typeof parsedDynamic !== 'object' || Array.isArray(parsedDynamic)) {
+                toast.error('Campos dinámicos inválidos: se esperaba un objeto JSON')
+                return
+              }
+            } catch {
+              toast.error('Campos dinámicos inválidos: JSON no válido')
+              return
+            }
+            mutate({ ...form, dynamic_fields: parsedDynamic })
+          }} disabled={isPending || !form.title.trim() || !form.description.trim()} loading={isPending}>
             {t('common.save')}
           </Button>
+        </div>
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={LS}>Campos dinámicos (JSON)</label>
+          <textarea value={dynamicFieldsText} onChange={e => setDynamicFieldsText(e.target.value)} rows={6} style={{ ...IS, resize: 'vertical', fontFamily: 'var(--font-mono)' }} />
         </div>
       </div>
     </Modal>
@@ -233,6 +256,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
   const [commentText, setCommentText] = useState('')
   const [showCanned, setShowCanned] = useState(false)
   const [timeMin, setTimeMin] = useState('')
+  const [timeUnit, setTimeUnit] = useState('minutes')
   const [editAssign, setEditAssign] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showSplit, setShowSplit] = useState(false)
@@ -274,9 +298,14 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
     onError: e => toast.error(extractErr(e, 'Error al sugerir respuesta IA')),
   })
   const { mutate: logTime, isPending: loggingTime } = useMutation({
-    mutationFn: () => ticketsApi.timelog(ticketId, { minutes: Number(timeMin) }),
+    mutationFn: () => ticketsApi.timelog(ticketId, { minutes: Number(timeMin), unit: timeUnit }),
     onSuccess: () => { invalidate(); setTimeMin(''); toast.success(`${timeMin} min`) },
     onError: e => toast.error(extractErr(e, 'Error')),
+  })
+  const { mutate: restorePending, isPending: restoringPending } = useMutation({
+    mutationFn: () => ticketsApi.restorePending(ticketId),
+    onSuccess: () => { invalidate(); toast.success('Estado previo restaurado') },
+    onError: e => toast.error(extractErr(e, 'Error al restaurar estado pendiente')),
   })
   const { mutate: updateTicket } = useMutation({
     mutationFn: data => ticketsApi.update(ticketId, data),
@@ -345,6 +374,9 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
               <button onClick={() => updateTicket({ status: 'in_progress' })} style={{ ...qaBtnStyle, background: `${COLOR.accent}20`, color: COLOR.accent }}>▶ {t('service_desk.ticket_status')}</button>
               <button onClick={() => updateTicket({ status: 'resolved', resolution: 'Resuelto' })} style={{ ...qaBtnStyle, background: `${COLOR.success}20`, color: COLOR.success }}>✓ {t('service_desk.ticket_status')}</button>
               <button onClick={() => escalate()} style={{ ...qaBtnStyle, background: `${COLOR.warning}20`, color: COLOR.warning }}>↑ {t('service_desk.ticket_escalated')}</button>
+              {(ticket.status === 'pending_client' || ticket.status === 'pending_third') && (
+                <button onClick={() => restorePending()} disabled={restoringPending} style={qaBtnStyle}>↺ Restaurar pendiente</button>
+              )}
               {ticket.sla_paused_at
                 ? <button onClick={() => resumeSLA()} style={qaBtnStyle}>▶ {t('service_desk.sla_resumed')}</button>
                 : <button onClick={() => pauseSLA()} style={qaBtnStyle}>⏸ {t('service_desk.sla_paused')}</button>}
@@ -418,6 +450,22 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
             </div>
           </div>
 
+          {ticket.dynamic_fields && Object.keys(ticket.dynamic_fields).length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>
+                Campos dinámicos
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {Object.entries(ticket.dynamic_fields).map(([k, v]) => (
+                  <div key={k} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{k}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', fontWeight: 500, whiteSpace: 'pre-wrap' }}>{String(v ?? '—')}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {ticket.resolution && (
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: COLOR.success, marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.edit_resolution')}</div>
@@ -448,6 +496,11 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
             <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.detail_log_time')}</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <input type="number" aria-label={t('service_desk.detail_time_spent')} placeholder={t('service_desk.detail_time_spent')} value={timeMin} onChange={e => setTimeMin(e.target.value)} style={{ ...IS, flex: 1 }} />
+              <select value={timeUnit} onChange={e => setTimeUnit(e.target.value)} style={{ ...IS, width: 120 }}>
+                <option value="minutes">min</option>
+                <option value="hours">h</option>
+                <option value="days">d (8h)</option>
+              </select>
               <Button onClick={() => logTime()} disabled={loggingTime || !timeMin} loading={loggingTime}>{t('service_desk.detail_add_btn')}</Button>
             </div>
           </div>

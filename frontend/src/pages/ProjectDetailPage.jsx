@@ -5,7 +5,8 @@ import { projectsApi, tasksApi, risksApi } from '../services/api'
 import { Spinner, LoadBar } from '../components/ui'
 import { fmtDate, fmtCurrency, TYPE_LABELS } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
-import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check } from 'lucide-react'
+import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check, Sparkles } from 'lucide-react'
+import SmartScheduleModal from '../components/SmartScheduleModal'
 
 const TABS = [
   { id: 'overview',  label: 'Overview',    icon: FolderOpen },
@@ -369,6 +370,7 @@ export default function ProjectDetailPage() {
   const qc = useQueryClient()
   const [tab, setTab] = useState('overview')
   const [editing, setEditing] = useState(false)
+  const [smartScheduleOpen, setSmartScheduleOpen] = useState(false)
 
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', id],
@@ -494,6 +496,28 @@ export default function ProjectDetailPage() {
             }}>
               <BarChart2 size={12} /> Gantt
             </Link>
+            {/* H22: shortcut a /contracts-ai con project_id pre-rellenado */}
+            <Link to={`/contracts-ai?project_id=${project.id}`} style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
+              background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+              borderRadius: 8, color: 'var(--text-2)', textDecoration: 'none',
+              fontSize: "var(--text-sm)", fontWeight: 600, transition: 'all 0.1s',
+            }}>
+              🤖 Analizar contrato IA
+            </Link>
+            {/* I27: Auto-planificar tareas del proyecto */}
+            <button
+              onClick={() => setSmartScheduleOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
+                background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+                borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer',
+                fontSize: "var(--text-sm)", fontWeight: 600,
+              }}
+              title="Sugerir fechas para tareas sin planificar usando IA"
+            >
+              <Sparkles size={12} /> Auto-planificar
+            </button>
           </div>
         </div>
 
@@ -533,6 +557,12 @@ export default function ProjectDetailPage() {
           : null
         }
       </div>
+      <SmartScheduleModal
+        open={smartScheduleOpen}
+        onClose={() => setSmartScheduleOpen(false)}
+        projectId={id}
+        projectName={project?.name}
+      />
     </div>
   )
 }

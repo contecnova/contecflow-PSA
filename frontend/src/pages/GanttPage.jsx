@@ -13,6 +13,8 @@ import { Button, Spinner, EmptyState } from '../components/ui'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useAppT } from '../i18n/AppLangContext'
 import GanttChart from '../components/GanttChart'
+import SmartScheduleModal from '../components/SmartScheduleModal'
+import { Sparkles } from 'lucide-react'
 
 export default function GanttPage() {
   const t            = useAppT()
@@ -23,6 +25,7 @@ export default function GanttPage() {
   const [projectId, setProjectId] = useState('')
   const [filter, setFilter]       = useState('')
   const [showBaseline, setShowBaseline] = useState(false)
+  const [smartScheduleOpen, setSmartScheduleOpen] = useState(false)
 
   // ── data ────────────────────────────────────────────────────────────────────
   const { data: projects = [] } = useQuery({
@@ -159,6 +162,15 @@ export default function GanttPage() {
               >
                 {t('gantt.baseline')}
               </Button>
+              {/* I27: Auto-planificar tareas sin fecha (botón en Gantt) */}
+              <Button
+                size="sm"
+                variant="subtle"
+                onClick={() => setSmartScheduleOpen(true)}
+                title="Sugerir fechas para tareas sin planificar usando IA"
+              >
+                <Sparkles size={13} style={{ marginRight: 4 }} /> Auto-planificar
+              </Button>
             </div>
           }
           showListExport={false}
@@ -191,6 +203,12 @@ export default function GanttPage() {
           />
         </div>
       )}
+      <SmartScheduleModal
+        open={smartScheduleOpen}
+        onClose={() => setSmartScheduleOpen(false)}
+        projectId={projectId || null}
+        projectName={projects.find(p => p.id === projectId)?.name}
+      />
     </div>
   )
 }

@@ -11,8 +11,9 @@ import VirtualList from '../components/ui/VirtualList'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import {
-  CheckSquare, X, Plus, Search, LayoutGrid, List, Lightbulb, Loader2,
+  CheckSquare, X, Plus, Search, LayoutGrid, List, Lightbulb, Loader2, Sparkles,
 } from 'lucide-react'
+import SmartScheduleModal from '../components/SmartScheduleModal'
 import { fmtDate, STATUS_LABELS, PRIORITY_LABELS, extractErr} from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import DocumentsPanel from '../components/DocumentsPanel'
@@ -771,6 +772,7 @@ export default function TasksPage() {
   ].filter(Boolean)
   const [selectedTask, setSelectedTask] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [smartScheduleOpen, setSmartScheduleOpen] = useState(false)
   const [selected, setSelected] = useState(new Set())  // bulk selection
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
 
@@ -895,6 +897,16 @@ export default function TasksPage() {
             {hasRole('admin', 'pm', 'team_lead') && (
               <Button onClick={() => setShowCreate(true)}>
                 <Plus size={13} /> {t('tasks.new_task')}
+              </Button>
+            )}
+            {/* I27: Auto-planificar tareas sin fecha (botón en Tasks) */}
+            {hasRole('admin', 'pm', 'team_lead') && (
+              <Button
+                variant="subtle"
+                onClick={() => setSmartScheduleOpen(true)}
+                title="Sugerir fechas para tareas sin planificar usando IA"
+              >
+                <Sparkles size={13} /> Auto-planificar
               </Button>
             )}
           </div>
@@ -1168,6 +1180,12 @@ export default function TasksPage() {
 
       <TaskDetailModal task={selectedTask} open={!!selectedTask} onClose={() => setSelectedTask(null)} />
       <CreateTaskModal open={showCreate} onClose={() => setShowCreate(false)} projects={projects} />
+      <SmartScheduleModal
+        open={smartScheduleOpen}
+        onClose={() => setSmartScheduleOpen(false)}
+        projectId={projectFilter || null}
+        projectName={projects?.find(p => p.id === projectFilter)?.name}
+      />
     </PageShell>
   )
 }

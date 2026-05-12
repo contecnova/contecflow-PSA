@@ -8,6 +8,8 @@ from app.models.user import User
 from app.schemas.service_desk import TicketUpdateIn
 from app.services.service_desk.scoping import scope_ticket_query as _scope_ticket_query
 from app.services.service_desk.status_compat import normalize_ticket_status
+from app.services.service_desk.dynamic_ticket_fields_service import save_ticket_dynamic_fields
+from app.services.service_desk.ticket_ops_service import save_pending_snapshot
 from app.services.sla_service import (
     PRIORITY_MATRIX,
     calculate_sla_due as _calculate_sla_due,
@@ -31,8 +33,10 @@ def apply_ticket_update(
     current_user_id: str,
     old_assigned_to: str,
     old_support_level,
+    organization_id: str | None = None,
 ) -> dict:
     changes = payload.model_dump(exclude_unset=True)
+    dynamic_fields = changes.pop("dynamic_fields", None)
     normalized_status = normalize_ticket_status(payload.status)
     if "status" in changes:
         changes["status"] = normalized_status
@@ -91,6 +95,10 @@ def apply_ticket_update(
             if not ticket.csat_requested_at:
                 ticket.csat_requested_at = now
         elif normalized_status == "pending_client":
+            save_pending_snapshot(db, ticket)
+            ticket.sla_paused_at = now
+        elif normalized_status == "pending_third":
+            save_pending_snapshot(db, ticket)
             ticket.sla_paused_at = now
         else:
             if ticket.sla_paused_at:
@@ -124,6 +132,10 @@ def apply_ticket_update(
 
     if payload.support_level:
         _log_history(db, ticket_id, "escalation", old_support_level, payload.support_level, current_user_id)
+
+    if dynamic_fields is not None:
+        save_ticket_dynamic_fields(db, ticket_id, dynamic_fields)
+        _log_history(db, ticket_id, "dynamic_fields", "updated", "updated", current_user_id)
 
     return {
         "refresh_profile": normalized_status in ("resolved", "closed") and bool(ticket.assigned_to_user_id),

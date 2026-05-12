@@ -1,0 +1,98 @@
+"""Azure Speech-to-Text provider.
+
+API: POST https://{region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1
+Headers:
+  - ``Ocp-Apim-Subscription-Key``: subscription key
+  - ``Content-Type``: audio mime (audio/wav, audio/ogg;codecs=opus, ...)
+Query:
+  - language=es-ES (BCP-47, default ``settings.AZURE_STT_LANGUAGE``)
+  - format=detailed
+
+Respuesta short JSON: ``{"RecognitionStatus": "Success", "DisplayText": "..."}``.
+
+Limitación: el endpoint short-recognize de Azure solo acepta audios <= 60s y sin
+chunks. Para audios largos se necesitaría batch transcription (otra API).
+Documentado: si esto resulta limitante, migrar a la API de batch.
+"""
+from __future__ import annotations
+
+import os
+from typing import Optional
+
+import httpx
+
+from app.core.config import settings
+from app.services.stt.base import STTError, STTProvider, STTResult
+
+
+def _azure_setting(name: str, default: str = "") -> str:
+    return getattr(settings, name, None) or os.environ.get(name, default) or default
+
+
+class AzureSTTProvider(STTProvider):
+    name = "azure"
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        region: Optional[str] = None,
+        language: Optional[str] = None,
+    ) -> None:
+        self._api_key = api_key or _azure_setting("AZURE_SPEECH_KEY")
+        self._region = region or _azure_setting("AZURE_SPEECH_REGION", "westeurope")
+        self._default_language = language or _azure_setting("AZURE_STT_LANGUAGE", "es-ES")
+
+    def is_available(self) -> bool:
+        return bool(self._api_key and self._region)
+
+    def transcribe(self, audio_bytes, filename, content_type, language=None):
+        if not self.is_available():
+            raise STTError(self.name, "AZURE_SPEECH_KEY/REGION no configurados")
+
+        url = (
+            f"https://{self._region}.stt.speech.microsoft.com"
+            "/speech/recognition/conversation/cognitiveservices/v1"
+        )
+        params = {
+            "language": language or self._default_language,
+            "format": "detailed",
+        }
+        headers = {
+            "Ocp-Apim-Subscription-Key": self._api_key,
+            "Content-Type": content_type or "audio/wav",
+            "Accept": "application/json",
+        }
+
+        try:
+            with httpx.Client(timeout=60) as client:
+                resp = client.post(url, params=params, headers=headers, content=audio_bytes)
+        except httpx.TimeoutException as exc:
+            raise STTError(self.name, "Timeout esperando respuesta", status_code=504) from exc
+        except Exception as exc:
+            raise STTError(self.name, f"Error de red: {exc}") from exc
+
+        if resp.status_code != 200:
+            raise STTError(
+                self.name,
+                f"API devolvió {resp.status_code}: {resp.text[:200]}",
+                status_code=resp.status_code,
+            )
+
+        data = resp.json() or {}
+        status = data.get("RecognitionStatus")
+        if status != "Success":
+            raise STTError(self.name, f"RecognitionStatus={status}", status_code=422)
+
+        text = (data.get("DisplayText") or "").strip()
+        if not text:
+            # Cuando hay alternativas detalladas, intentar la mejor de ``NBest``.
+            nbest = data.get("NBest") or []
+            if nbest:
+                text = (nbest[0].get("Display") or nbest[0].get("Lexical") or "").strip()
+        if not text:
+            raise STTError(self.name, "Resultado vacío", status_code=422)
+
+        return STTResult(
+            text=text, provider=self.name, model="azure-stt-short",
+            language=language or self._default_language,
+        )

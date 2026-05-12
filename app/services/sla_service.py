@@ -408,6 +408,8 @@ def ticket_out(t: "Ticket", include_comments: bool = False) -> dict:
         "client_name": (t.client.name if t.client else None) if hasattr(t, "client") else None,
         "ci_id": t.ci_id,
         "ci_name": t.ci.name if t.ci else None,
+        "service_item_id": t.service_item_id,
+        "service_item_name": t.service_item.name if t.service_item else None,
         "problem_id": t.problem_id,
         "sla_response_due": str(t.sla_response_due)[:16] if t.sla_response_due else None,
         "sla_resolution_due": str(t.sla_resolution_due)[:16] if t.sla_resolution_due else None,
