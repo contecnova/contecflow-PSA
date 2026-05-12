@@ -1982,30 +1982,6 @@ Implementar soft-delete consistency across 4 critical files para permitir recrea
 
 ---
 
-## REFERENCIA: Análisis de Endpoints (2026-05-09)
-
-**Documento:** [ENDPOINT_ANALYSIS.md](ENDPOINT_ANALYSIS.md)
-
-**Plan maestro exhaustivo (182 DELETE endpoints):** [DELETE_SOFT_DELETE_ABAC_MASTER_PLAN.md](DELETE_SOFT_DELETE_ABAC_MASTER_PLAN.md)
-
-Incluye:
-- Inventario completo por archivo de `app/api/v1/endpoints/` y `app/api/v1/routers/` con DELETE.
-- Tabla por endpoint con gap de soft-delete/ABAC/validaciones/respuesta.
-- Top 50 archivos críticos con detalle de cambios (imports ABAC, endpoints por línea, modelo/servicio, migraciones).
-- Checklist global de dependencias y orden de migración por dominio.
-- Top 10 de archivos más rotos, top 10 dominios sin `is_active`, batches por prioridad y estimación de LOC por archivo.
-
-Análisis estructurado de 129 archivos en `app/api/v1/endpoints/` y `app/api/v1/routers/`:
-- **55 archivos** implementan DELETE endpoints
-- **30 archivos** usan soft-delete (is_active)
-- **15 archivos** tienen validaciones explícitas de dependencias
-- **7 patrones inconsistentes** identificados (soft-delete, ABAC, error handling)
-- **Crítico:** okrs.py, custom_fields.py, deliverables.py, imputations.py sin validaciones de dependencias
-
-**Matriz de estado:** 16 archivos auditados por nivel CRUD + ABAC + soft-delete coverage.
-
----
-
 ## 0. P1 REFACTORING — Code Quality Initiative (2026-05-08)
 
 ### Workflow Designer + Migraciones Iniciales Limpias (2026-05-09)
