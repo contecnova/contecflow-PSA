@@ -9,7 +9,7 @@ router = APIRouter()
 @router.get("/gantt/{project_id}", status_code=status.HTTP_200_OK)
 def gantt_suggestions(project_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     try:
-        return get_ai_gantt_suggestions(project_id, db)
+        return get_ai_gantt_suggestions(project_id, db, current_user=user)
     except HTTPException as e:
         if e.status_code == 404:
             raise

@@ -576,9 +576,17 @@ def get_default_provider(
     base_q = db.query(AIProvider).filter(AIProvider.status != "error")
 
     def _pick(q):
-        p = q.filter(AIProvider.is_default == True).first()
+        # Determinism: si hay default explícito, gana. Si no, orden estable por
+        # (status='active' primero, created_at asc, id asc) para evitar que dos
+        # providers idénticos elijan uno u otro arbitrariamente entre requests.
+        p = q.filter(AIProvider.is_default == True).order_by(
+            AIProvider.created_at.asc(), AIProvider.id.asc()
+        ).first()
         if not p:
-            p = q.first()
+            # active > otros estados; luego más antiguo primero, id como tie-breaker
+            from sqlalchemy import case as sql_case  # noqa: PLC0415
+            order_status = sql_case((AIProvider.status == "active", 0), else_=1)
+            p = q.order_by(order_status, AIProvider.created_at.asc(), AIProvider.id.asc()).first()
         return p
 
     if is_superadmin:
@@ -680,23 +688,61 @@ def call_ai(
     provider_id: str = None,
     is_superadmin: bool = True,
     organization_id=None,
+    skip_guardrails: bool = False,
 ) -> str:
     """
     Main AI dispatch function (provider-agnostic).
-    
+
     Resolution order:
     1. Explicit provider_id (if provided)
     2. Default provider for organization
     3. Any available provider as fallback
     4. No provider available → error message
-    
-    Selects configured provider, makes the call, logs usage.
-    Returns the response text.
+
+    Multi-tenant aware: filtra providers por ``organization_id`` cuando no es
+    superadmin. Cost tracking real desde PROVIDER_CATALOG. Fallback automático
+    si el primary provider falla.
+
+    Governance: aplica ``check_prompt`` sobre el último mensaje de usuario
+    antes de llamar al LLM y ``check_output`` sobre la respuesta. Pasa
+    ``skip_guardrails=True`` SOLO para llamadas internas que no son
+    user-facing (p. ej. construcción de embeddings, sondas de salud).
+    Antes los guardrails sólo se aplicaban en ``ai_chat.py`` → 54% del
+    tráfico IA bypasaba policies.
     """
+
+    # ── Guardrail: prompt (input) ─────────────────────────────────────────
+    # Resolvemos el user de governance una vez para reusarlo en output.
+    governance_user = None
+    if not skip_guardrails and user_id:
+        try:
+            governance_user = db.query(User).filter(User.id == user_id).first()
+        except Exception:
+            governance_user = None
+
+    if not skip_guardrails and governance_user and messages:
+        last_user_msg = next(
+            (m for m in reversed(messages) if m.get("role") == "user"),
+            None,
+        )
+        if last_user_msg and isinstance(last_user_msg.get("content"), str):
+            try:
+                from app.services.ai_governance import check_prompt as _gr_check_prompt  # noqa: PLC0415
+                gr = _gr_check_prompt(last_user_msg["content"], governance_user, module, db)
+                if not gr.allowed:
+                    blocked = (
+                        "[Mensaje bloqueado por política de gobernanza: "
+                        f"{gr.blocked_by or 'policy'}]"
+                    )
+                    return blocked
+                if gr.redacted_text:
+                    last_user_msg["content"] = gr.redacted_text
+            except Exception as gr_exc:
+                _logger.warning("Guardrail prompt check failed (continuing): %s", gr_exc)
 
     # ── Step 1: Select primary provider ────────────────────────────────────
     p = None
-    
+
     if provider_id:
         p_q = db.query(AIProvider).filter(AIProvider.id == provider_id)
         if not is_superadmin and organization_id:
@@ -797,7 +843,26 @@ def call_ai(
         except Exception as alert_exc:
             _logger.debug("Cost alert check failed (non-critical): %s", alert_exc)
 
-    return result["text"]
+    # ── Guardrail: output ──────────────────────────────────────────────────
+    final_text = result.get("text", "") or ""
+    if (not skip_guardrails and governance_user and final_text
+            and error_msg is None):
+        try:
+            from app.services.ai_governance import check_output as _gr_check_output  # noqa: PLC0415
+            gr_out = _gr_check_output(final_text, governance_user, module, db)
+            if not gr_out.allowed:
+                final_text = "[Respuesta bloqueada por política de gobernanza]"
+            elif gr_out.redacted_text:
+                final_text = gr_out.redacted_text
+        except Exception as gr_exc:
+            _logger.warning("Guardrail output check failed (continuing): %s", gr_exc)
+
+    # Si falló el provider, devolvemos un texto explícito de error que el
+    # caller puede distinguir (#43): prefijo "⚠️" + flag implícito por longitud.
+    if error_msg is not None:
+        return f"⚠️ AI provider error: {error_msg[:200]}"
+
+    return final_text
 
 
 # ── Diagnóstico por proveedor ─────────────────────────────────────────────────

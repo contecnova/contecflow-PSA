@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, advancedConfigApi } from '../services/settingsApi'
-import { usersApi, biSmartAlertsApi, esignApi } from '../services/api'
+import { usersApi, organizationsApi, biSmartAlertsApi, esignApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import { Search, Layers, Sparkles, Building2 } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
@@ -122,15 +122,29 @@ function UsersSection() {
   const [showCreate, setShowCreate] = useState(false)
   const [editUser, setEditUser] = useState(null)
   const [search, setSearch] = useState('')
+  const [orgFilter, setOrgFilter] = useState('')
   const { data: users = [], isLoading } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
   const { data: roles = [] } = useQuery({ queryKey: ['custom-roles'], queryFn: () => advancedConfigApi.getRoles().then(r => r.data) })
   const { data: departments = [] } = useQuery({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
+  const { data: organizations = [] } = useQuery({ queryKey: ['orgs-for-users'], queryFn: () => organizationsApi.list().then(r => r.data) })
   const roleMap = Object.fromEntries(roles.map(r => [r.name, r]))
   const { mutate: createUser, isPending: creating } = useMutation({ mutationFn: usersApi.create, onSuccess: () => { qc.invalidateQueries(['users']); setShowCreate(false) } , onError: e => toast.error(extractErr(e, 'Error'))})
   const { mutate: updateUser, isPending: updating } = useMutation({ mutationFn: ({ id, data }) => usersApi.update(id, data), onSuccess: () => { qc.invalidateQueries(['users']); setEditUser(null) } , onError: e => toast.error(extractErr(e, 'Error'))})
   const { mutate: deactivate } = useMutation({ mutationFn: usersApi.deactivate, onSuccess: () => qc.invalidateQueries(['users']) , onError: e => toast.error(extractErr(e, 'Error'))})
   const { mutate: deletePermanent } = useMutation({ mutationFn: usersApi.deletePermanent, onSuccess: () => { qc.invalidateQueries(['users']); qc.invalidateQueries(['users-settings']); qc.invalidateQueries(['resources']); } , onError: e => toast.error(extractErr(e, 'Error'))})
-  const filtered = users.filter(u => !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.username?.toLowerCase().includes(search.toLowerCase()))
+  const filtered = users.filter((u) => {
+    const bySearch = !search
+      || u.full_name?.toLowerCase().includes(search.toLowerCase())
+      || u.username?.toLowerCase().includes(search.toLowerCase())
+
+    if (!bySearch) return false
+    if (!orgFilter) return true
+
+    const orgs = Array.isArray(u.organizations) ? u.organizations : []
+    const hasInMemberships = orgs.some((o) => String(o.id) === String(orgFilter))
+    const hasPrimary = String(u.organization_id || '') === String(orgFilter)
+    return hasInMemberships || hasPrimary
+  })
   return (
     <Section title="Usuarios" description="Gestiona accesos y datos del equipo">
       <div className="ds-toolbar" style={{ marginBottom: 'var(--space-4)' }}>
@@ -145,6 +159,29 @@ function UsersSection() {
             className="ds-input"
             style={{ paddingLeft: 32 }} />
         </div>
+        <select
+          value={orgFilter}
+          onChange={(e) => setOrgFilter(e.target.value)}
+          className="ds-input"
+          aria-label="Filtrar usuarios por organización"
+          style={{ minWidth: 220, maxWidth: 320 }}
+        >
+          <option value="">Todas las organizaciones</option>
+          {organizations.filter(o => o.is_active !== false).map((o) => (
+            <option key={o.id} value={o.id}>{o.name}</option>
+          ))}
+        </select>
+        {(search || orgFilter) && (
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setSearch('')
+              setOrgFilter('')
+            }}
+          >
+            Limpiar filtros
+          </Button>
+        )}
         <Button onClick={() => setShowCreate(true)}>+ Nuevo usuario</Button>
       </div>
       {isLoading ? <Spinner /> : (
@@ -152,6 +189,8 @@ function UsersSection() {
           {filtered.map(u => {
             const roleColor = roleMap[u.role]?.color || ROLE_COLORS[u.role] || 'var(--text-2)'
             const roleLabel = roleMap[u.role]?.description || ROLE_LABELS[u.role] || u.role
+            const orgs = Array.isArray(u.organizations) ? u.organizations : []
+            const primaryOrgId = u.organization_id || ''
             return (
             <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${u.is_active ? 'var(--surface-4)' : 'var(--danger-border)'}`, borderRadius: 10, opacity: u.is_active ? 1 : 0.6 }}>
               <div style={{ width: 34, height: 34, borderRadius: '50%', background: `linear-gradient(135deg, ${roleColor}, var(--surface-0))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0 }}>
@@ -162,6 +201,34 @@ function UsersSection() {
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{u.username} · {u.email}</div>
               </div>
               <span style={{ fontSize: "var(--text-xs)", background: `${roleColor}15`, color: roleColor, border: `1px solid ${roleColor}30`, borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>{roleLabel}</span>
+              {orgs.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  {orgs.slice(0, 3).map((org) => {
+                    const isPrimary = String(org.id || '') === String(primaryOrgId)
+                    return (
+                      <span key={org.id} style={{
+                        fontSize: "var(--text-xs)",
+                        borderRadius: 20,
+                        padding: '2px 8px',
+                        border: `1px solid ${isPrimary ? 'var(--accent)' : 'var(--surface-4)'}`,
+                        color: isPrimary ? 'var(--accent)' : 'var(--text-2)',
+                        background: isPrimary ? 'var(--accent-muted)' : 'var(--surface-3)',
+                        fontWeight: isPrimary ? 700 : 500,
+                      }}>
+                        {org.name || org.slug || org.id}{isPrimary ? ' (Principal)' : ''}
+                      </span>
+                    )
+                  })}
+                  {orgs.length > 3 && (
+                    <span
+                      title={orgs.map((org) => `${org.name || org.slug || org.id}${String(org.id || '') === String(primaryOrgId) ? ' (Principal)' : ''}`).join('\n')}
+                      style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', cursor: 'help' }}
+                    >
+                      +{orgs.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
               {u.department && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{u.department}</span>}
               {!u.is_active && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>Inactivo</span>}
               <button onClick={() => setEditUser(u)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️ Editar</button>
@@ -172,8 +239,8 @@ function UsersSection() {
           )})}
         </div>
       )}
-      <UserFormModal open={showCreate} roles={roles} departments={departments} onClose={() => setShowCreate(false)} onSave={createUser} isPending={creating} />
-      {editUser && <UserFormModal open roles={roles} departments={departments} user={editUser} onClose={() => setEditUser(null)} onSave={(data) => updateUser({ id: editUser.id, data })} isPending={updating} />}
+      <UserFormModal open={showCreate} roles={roles} departments={departments} organizations={organizations} onClose={() => setShowCreate(false)} onSave={createUser} isPending={creating} />
+      {editUser && <UserFormModal open roles={roles} departments={departments} organizations={organizations} user={editUser} onClose={() => setEditUser(null)} onSave={(data) => updateUser({ id: editUser.id, data })} isPending={updating} />}
     </Section>
   )
 }
@@ -187,10 +254,34 @@ const COMMON_TIMEZONES = [
   'Australia/Sydney', 'Pacific/Auckland',
 ]
 
-function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], departments = [] }) {
+function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], departments = [], organizations = [] }) {
   const isEdit = !!user
-  const [form, setForm] = useState({ username: user?.username || '', email: user?.email || '', full_name: user?.full_name || '', role: user?.role || 'employee', department: user?.department || '', job_title: user?.job_title || '', weekly_capacity_hours: user?.weekly_capacity_hours || 40, hourly_rate: user?.hourly_rate || '', timezone: user?.timezone || '', password: '' })
+  const [form, setForm] = useState({
+    username: user?.username || '',
+    email: user?.email || '',
+    full_name: user?.full_name || '',
+    role: user?.role || 'employee',
+    department: user?.department || '',
+    job_title: user?.job_title || '',
+    weekly_capacity_hours: user?.weekly_capacity_hours || 40,
+    hourly_rate: user?.hourly_rate || '',
+    timezone: user?.timezone || '',
+    organization_ids: (Array.isArray(user?.organization_ids) && user.organization_ids.length > 0)
+      ? user.organization_ids
+      : (user?.organization_id ? [user.organization_id] : []),
+    organization_id: user?.organization_id || '',
+    password: '',
+  })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const setOrganizations = (e) => {
+    const values = Array.from(e.target.selectedOptions).map(o => o.value)
+    setForm((f) => {
+      const nextPrimary = values.includes(f.organization_id)
+        ? f.organization_id
+        : (values[0] || '')
+      return { ...f, organization_ids: values, organization_id: nextPrimary }
+    })
+  }
   const handleSubmit = (e) => {
     e.preventDefault()
     onSave(form)
@@ -215,6 +306,24 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         <div><label style={ls}>Cargo</label><input value={form.job_title} onChange={set('job_title')} style={fs} /></div>
         <div><label style={ls}>Horas semanales</label><input type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} style={fs} /></div>
         <div><label style={ls}>Tarifa €/hora</label><input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={fs} /></div>
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={ls}>Organizaciones (selección múltiple)</label>
+          <select multiple value={form.organization_ids} onChange={setOrganizations} style={{ ...fs, minHeight: 112 }}>
+            {organizations.filter(o => o.is_active !== false).map(o => (
+              <option key={o.id} value={o.id}>{o.name} ({o.slug})</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={ls}>Organización principal</label>
+          <select value={form.organization_id} onChange={set('organization_id')} style={fs}>
+            <option value="">— Sin organización principal —</option>
+            {form.organization_ids.map((orgId) => {
+              const org = organizations.find(o => o.id === orgId)
+              return <option key={orgId} value={orgId}>{org?.name || orgId}</option>
+            })}
+          </select>
+        </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Zona horaria</label>
           <select value={form.timezone} onChange={set('timezone')} style={fs}>

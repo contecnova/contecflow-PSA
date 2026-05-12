@@ -36,7 +36,9 @@ class TestPIIDetection:
 
     def test_nie_detected(self):
         from app.services.ai_governance import detect_pii
-        matches = detect_pii("NIE: X1234567Z")
+        # X1234567 → 01234567 % 23 = 19 → letra correcta = L.
+        # (Item #65: ahora se valida checksum, así que el fixture debe ser válido.)
+        matches = detect_pii("NIE: X1234567L")
         types = [m.entity_type for m in matches]
         assert "dni_nie" in types
 
@@ -76,7 +78,9 @@ class TestPIIDetection:
 
     def test_multiple_entities_same_text(self):
         from app.services.ai_governance import detect_pii
-        text = "Email: user@test.com, Tel: 612000111, DNI: 12345678A"
+        # 12345678Z es DNI válido (12345678 % 23 = 14 → 'Z').
+        # (Item #65: checksum validation activado.)
+        text = "Email: user@test.com, Tel: 612000111, DNI: 12345678Z"
         matches = detect_pii(text)
         types = {m.entity_type for m in matches}
         assert "email" in types

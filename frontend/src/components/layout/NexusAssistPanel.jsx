@@ -95,12 +95,33 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
     restore()
   }, [open, restoredOnce, convId, messages.length, conversations])
 
+  // Detección de contexto entity-level desde la URL (project_id, ticket_id, etc.)
+  // Cableando A2 que estaba muerto: el backend soporta context_type/context_id
+  // pero antes solo se pasaba {page: path}. Ahora si la URL es /projects/{id}
+  // o /service-desk/{ticketId}, propagamos esa entity al chat.
+  const _entityCtx = (() => {
+    if (!context?.page) return {}
+    const path = context.page
+    const m1 = path.match(/^\/projects\/([\w-]+)/)
+    if (m1) return { context_type: 'project', context_id: m1[1] }
+    const m2 = path.match(/^\/service-desk\/tickets?\/([\w-]+)/)
+    if (m2) return { context_type: 'ticket', context_id: m2[1] }
+    const m3 = path.match(/^\/sprints?\/([\w-]+)/)
+    if (m3) return { context_type: 'sprint', context_id: m3[1] }
+    return {}
+  })()
+
   const sendMessage = async (text) => {
     if (!text.trim() || loading) return
     const userText = text.trim(); setInput(''); setLoading(true)
     setMessages(prev => [...prev, { role: 'user', content: userText }])
     try {
-      const { data } = await nexusAgentApi.chat({ message: userText, conversation_id: convId, context: context || undefined })
+      const { data } = await nexusAgentApi.chat({
+        message: userText,
+        conversation_id: convId,
+        context: context || undefined,
+        ..._entityCtx,
+      })
       setConvId(data.conversation_id)
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
       qc.invalidateQueries(['ai-conversations'])

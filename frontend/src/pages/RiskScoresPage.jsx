@@ -63,14 +63,27 @@ function MLPredictionsTab() {
     mutationFn: () => predictionsApi.train(),
     onSuccess: (res) => {
       qc.invalidateQueries(['ml-models'])
-      const d = res.data
-      toast.success(d.message || `Modelo entrenado: ${d.samples_used || 0} muestras`)
+      const d = res.data || {}
+      // Backend devuelve {status, samples, accuracy_roc_auc, reason?} no {message, samples_used}
+      if (d.status === 'skipped') {
+        toast.warning(d.reason || 'No se pudo entrenar el modelo')
+      } else {
+        toast.success(`Modelo v${d.version} entrenado con ${d.samples || 0} muestras` + (d.accuracy_roc_auc ? ` (AUC ${d.accuracy_roc_auc})` : ''))
+      }
     },
     onError: e => toast.error(extractErr(e, 'Error al entrenar el modelo')),
   })
 
-  const projects = portfolio?.projects || []
-  const summary  = portfolio?.summary  || {}
+  // Backend devuelve {total_projects, risk_counts:{critical,high,medium,low}, at_risk_projects}
+  // Antes la UI buscaba portfolio.projects / portfolio.summary que NO existen → 0 en todos los KPIs.
+  const projects = portfolio?.at_risk_projects || []
+  const summary  = {
+    total: portfolio?.total_projects || 0,
+    critical: portfolio?.risk_counts?.critical || 0,
+    high: portfolio?.risk_counts?.high || 0,
+    medium: portfolio?.risk_counts?.medium || 0,
+    low: portfolio?.risk_counts?.low || 0,
+  }
 
   return (
     <div>
@@ -153,7 +166,7 @@ function MLPredictionsTab() {
                   </div>
                   <div style={{ color: 'var(--text-3)', marginTop: 2 }}>
                     {m.samples_used || 0} muestras · {m.trained_at?.slice(0, 10) || ''}
-                    {m.accuracy_score != null && <span> · AUC {m.accuracy_score.toFixed(2)}</span>}
+                    {m.accuracy != null && <span> · AUC {Number(m.accuracy).toFixed(2)}</span>}
                   </div>
                 </div>
               ))}

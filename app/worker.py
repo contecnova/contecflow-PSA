@@ -665,7 +665,7 @@ def run_agent_task(
         SYSTEM = _build_agent_system_prompt(db, current_user)
 
         from app.api.v1.endpoints.ai_providers import get_default_provider as _gdp
-        from app.api.v1.endpoints.ai_providers import call_ai
+        from app.services.ai_provider_service import call_ai
         active_prov = _gdp(db)
         has_anthropic_tools = bool(
             _api_key() or (
@@ -705,56 +705,43 @@ def run_agent_task(
             else settings.CONTECFLOW_AI_MODEL
         )
 
-        messages = [{"role": "user", "content": instruction}]
-        max_steps = 20
+        # Loop centralizado (item #54). Antes este loop estaba duplicado
+        # respecto al SSE endpoint en ai_chat.py. El endpoint mantiene su
+        # versión inline por necesidad de yield mid-iteration; aquí (Celery
+        # background, sin streaming) usamos el helper directamente.
+        from app.services.ai_chat.agent_loop import run_tool_use_loop
+        from app.services.ai_chat.tool_execution_service import WRITE_ACTION_TOOLS
 
-        while step_num < max_steps:
-            resp = _call_claude(
-                messages, system=SYSTEM, tools=AGENT_TOOLS,
-                model=agent_model, max_tokens=4096, api_key=agent_api_key,
+        def _persist_step(step_data: dict):
+            tool_result = step_data["output"]
+            step = AIAgentStep(
+                execution_id=execution.id,
+                step_number=step_data["step"],
+                tool_name=step_data["tool"],
+                tool_input=json.dumps(step_data["input"]),
+                tool_output=json.dumps(tool_result),
+                status="done" if "error" not in tool_result else "failed",
             )
-            stop_reason = resp.get("stop_reason")
-            content = resp.get("content", [])
-            messages.append({"role": "assistant", "content": content})
+            db.add(step)
+            db.flush()
 
-            if stop_reason == "end_turn":
-                result_summary = _extract_text(resp)
-                break
-
-            if stop_reason == "tool_use":
-                tool_results_content = []
-                for block in content:
-                    if block.get("type") != "tool_use":
-                        continue
-                    tool_name = block["name"]
-                    tool_input = block.get("input", {})
-                    tool_use_id = block["id"]
-                    step_num += 1
-
-                    tool_result = _execute_tool(tool_name, tool_input, db, current_user)
-
-                    step = AIAgentStep(
-                        execution_id=execution.id,
-                        step_number=step_num,
-                        tool_name=tool_name,
-                        tool_input=json.dumps(tool_input),
-                        tool_output=json.dumps(tool_result),
-                        status="done" if "error" not in tool_result else "failed",
-                    )
-                    db.add(step)
-                    db.flush()
-                    tool_results_content.append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_use_id,
-                        "content": json.dumps(tool_result),
-                    })
-                messages.append({"role": "user", "content": tool_results_content})
-            else:
-                result_summary = _extract_text(resp)
-                break
-
-        if not result_summary:
-            result_summary = f"Agente completó {step_num} pasos."
+        result_summary, _steps, step_num = run_tool_use_loop(
+            call_claude=_call_claude,
+            execute_tool=_execute_tool,
+            extract_text=_extract_text,
+            instruction=instruction,
+            system=SYSTEM,
+            tools=AGENT_TOOLS,
+            db=db,
+            current_user=current_user,
+            model=agent_model,
+            api_key=agent_api_key,
+            max_tokens=4096,
+            max_steps=20,
+            auto_approve=bool(auto_approve),
+            write_action_tools=WRITE_ACTION_TOOLS,
+            on_step_done=_persist_step,
+        )
 
         latency = int((time.time() - t0) * 1000)
         execution.status = "done"

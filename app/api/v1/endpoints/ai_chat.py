@@ -163,17 +163,11 @@ def chat(
     if limit_err:
         raise HTTPException(429, limit_err)
 
-    # Guardrail: PII & policy check on incoming prompt
-    try:
-        gr = check_prompt(payload.message, current_user, "nexusassist", db)
-        if not gr.allowed:
-            raise HTTPException(400, f"Mensaje bloqueado por política de gobernanza: {gr.blocked_by}")
-        effective_message = gr.redacted_text if gr.redacted_text else payload.message
-    except HTTPException:
-        raise
-    except Exception as e:
-        _logger.warning("Guardrail check_prompt failed, continuing without redaction: %s", e)
-        effective_message = payload.message
+    # NOTA: los guardrails check_prompt / check_output ahora se aplican en
+    # el dispatcher central `call_ai()`. Aquí ya no se invocan para evitar
+    # auditoría duplicada. Si `call_ai` recibe un mensaje bloqueado, devuelve
+    # un texto con prefijo "[Mensaje bloqueado por política de gobernanza...]"
+    effective_message = payload.message
 
     # Obtener o crear conversación, persistir mensaje y construir historial
     conv = None
@@ -189,7 +183,7 @@ def chat(
         system = NEXUSASSIST_SYSTEM.format(context=json.dumps(ctx, ensure_ascii=False))
         messages = [{"role": "user", "content": effective_message}]
 
-    # Llamada al proveedor configurado (multi-proveedor vía call_ai)
+    # Llamada al proveedor (guardrails aplicados dentro)
     try:
         assistant_text = call_ai(
             db, messages, system=system,
@@ -206,15 +200,9 @@ def chat(
         logging.getLogger(__name__).error(f"Error inesperado en IA chat: {e}", exc_info=True)
         raise HTTPException(500, f"Error inesperado en el proveedor IA: {str(e)}")
 
-    # Guardrail: PII check on outgoing response
-    try:
-        gr_out = check_output(assistant_text, current_user, "nexusassist", db)
-        if not gr_out.allowed:
-            assistant_text = "[Respuesta bloqueada por política de gobernanza]"
-        elif gr_out.redacted_text:
-            assistant_text = gr_out.redacted_text
-    except Exception as e:
-        _logger.warning("Guardrail check_output failed, returning raw model response: %s", e)
+    # Si el mensaje fue bloqueado por governance, propagamos 400 al cliente
+    if assistant_text.startswith("[Mensaje bloqueado por política de gobernanza"):
+        raise HTTPException(400, assistant_text.strip("[]"))
 
     # Guardar respuesta
     latency = int((time.time() - t0) * 1000)
@@ -512,7 +500,9 @@ def run_agent_stream(
         raise HTTPException(429, limit_err)
 
     instruction   = payload.instruction
-    auto_approve  = getattr(payload, "auto_approve", True) # noqa: F841 F401
+    # Item #55: default conservador (False). Antes era True (override del
+    # schema default) → todas las acciones write se ejecutaban sin gate humano.
+    auto_approve  = bool(getattr(payload, "auto_approve", False))
     user_id       = current_user.id # noqa: F841 F401
 
     active_prov = get_default_provider(
@@ -549,8 +539,18 @@ Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
         step_num   = 0
         try:
             if not has_anthropic_tools:
-                # No Anthropic provider — use call_ai() with any configured provider (Gemini, OpenAI, etc.)
-                # and simulate streaming with a rich analysis
+                # No Anthropic configured → NO podemos usar tool-use real.
+                # Avisamos al cliente desde el primer evento SSE para que la
+                # UI muestre que está en modo degradado (analysis-only).
+                yield _event({
+                    "type": "warning",
+                    "message": (
+                        "El agente está en modo degradado: el proveedor IA "
+                        "configurado no soporta tool-use real. Solo se generará "
+                        "un análisis textual sin ejecutar acciones. "
+                        "Configura Anthropic Claude para habilitar el agente completo."
+                    ),
+                })
                 try:
                     fallback_text = call_ai(
                         _db,
@@ -580,6 +580,12 @@ Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
             messages = [{"role": "user", "content": instruction}]
             max_steps = 20
 
+            # NOTA: el loop está inline aquí (no usa app.services.ai_chat.agent_loop)
+            # porque necesita `yield` mid-iteration para emitir eventos SSE en
+            # tiempo real (step start ANTES de ejecutar la tool, step done
+            # DESPUÉS). El helper centralizado se usa en worker.py donde no hay
+            # streaming. Cualquier cambio de semántica del loop debe replicarse
+            # en ambos sitios — el helper actúa como referencia canónica.
             while step_num < max_steps:
                 resp = _call_claude(
                     messages, system=SYSTEM, tools=AGENT_TOOLS,
@@ -613,7 +619,20 @@ Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
                             "thinking": f"Ejecutando {tool_name}…",
                         })
 
-                        tool_result = _execute_tool(tool_name, tool_input, _db, current_user)
+                        # Item #55: gate humano en acciones write.
+                        from app.services.ai_chat.tool_execution_service import WRITE_ACTION_TOOLS
+                        if tool_name in WRITE_ACTION_TOOLS and not auto_approve:
+                            tool_result = {
+                                "status": "pending_approval",
+                                "tool": tool_name,
+                                "input": tool_input,
+                                "message": (
+                                    f"Acción '{tool_name}' requiere confirmación humana. "
+                                    "No se ha ejecutado."
+                                ),
+                            }
+                        else:
+                            tool_result = _execute_tool(tool_name, tool_input, _db, current_user)
 
                         # Update step event with result
                         step_data = {

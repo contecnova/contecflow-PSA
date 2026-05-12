@@ -1,7 +1,7 @@
 import { PROVIDER_META } from '../constants/api'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
-import { useId, useState } from 'react'
+import { useId, useState, useEffect } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { predictiveObservabilityApi, aiProvidersApi } from '../services/api'
@@ -305,6 +305,112 @@ function TestModal({ provider, onClose }) {
   )
 }
 
+// ── Governance Tab ───────────────────────────────────────────────────────────
+function GovernanceTab() {
+  // Read-only viewer del audit log + stats. El CRUD de policies se gestiona
+  // vía API directa hasta que se complete la UI dedicada (decisión ARCH).
+  const [policies, setPolicies] = useState([])
+  const [auditLog, setAuditLog] = useState([])
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+    Promise.all([
+      fetch('/api/v1/ai-governance/policies', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+      fetch('/api/v1/ai-governance/audit-log?limit=50', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+      fetch('/api/v1/ai-governance/audit-log/stats', { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+    ]).then(([pol, log, st]) => {
+      if (!mounted) return
+      setPolicies(Array.isArray(pol) ? pol : (pol.items || []))
+      setAuditLog(Array.isArray(log) ? log : (log.items || []))
+      setStats(st)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+    return () => { mounted = false }
+  }, [])
+
+  if (loading) return <div style={{ padding: 24 }}><Spinner /></div>
+
+  return (
+    <div id="aihub-panel-governance" role="tabpanel" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Stats summary */}
+      {stats && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          {[
+            { label: 'Evaluaciones', value: stats.total_evaluations || 0, color: 'var(--accent)' },
+            { label: 'Bloqueadas', value: stats.blocked || 0, color: 'var(--danger)' },
+            { label: 'Redacted', value: stats.redacted || 0, color: 'var(--warning)' },
+            { label: 'PII detectado', value: stats.pii_total || 0, color: 'var(--purple)' },
+          ].map(k => (
+            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px' }}>
+              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: k.color }}>{k.value}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{k.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Policies list */}
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontWeight: 700 }}>🛡 Políticas configuradas ({policies.length})</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+            CRUD via <code>POST /api/v1/ai-governance/policies</code> · UI completa pendiente
+          </div>
+        </div>
+        {policies.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>
+            Sin policies activas. Los guardrails (detección PII, keywords prohibidas) están listos pero requieren al menos una policy configurada vía API.
+          </div>
+        ) : (
+          <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+            {policies.map(p => (
+              <div key={p.id} style={{ padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-sm)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 600 }}>{p.name}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 4, background: p.is_active ? 'var(--success-bg)' : 'var(--surface-3)', color: p.is_active ? 'var(--success)' : 'var(--text-3)' }}>
+                    {p.is_active ? 'Activa' : 'Inactiva'}
+                  </span>
+                </div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
+                  scope={p.scope} · action={p.action} · roles=[{(p.applies_to_roles || []).join(',')}]
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Audit log */}
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700 }}>
+          📋 Audit log — últimas 50 evaluaciones
+        </div>
+        {auditLog.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Sin actividad reciente</div>
+        ) : (
+          <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+            {auditLog.map(l => (
+              <div key={l.id} style={{ padding: '8px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-xs)', display: 'flex', gap: 12, alignItems: 'center' }}>
+                <span style={{ minWidth: 100, color: 'var(--text-3)' }}>{(l.evaluated_at || '').slice(0, 16)}</span>
+                <span style={{ minWidth: 80, fontWeight: 600 }}>{l.module || '—'}</span>
+                <span style={{ minWidth: 60 }}>{l.scope}</span>
+                <span style={{ padding: '1px 6px', borderRadius: 4, background: l.was_blocked ? 'var(--danger-bg)' : l.action_taken === 'redacted' ? 'var(--warning-bg)' : 'var(--surface-3)', color: l.was_blocked ? 'var(--danger)' : l.action_taken === 'redacted' ? 'var(--warning)' : 'var(--text-2)' }}>
+                  {l.action_taken || 'none'}
+                </span>
+                {(l.pii_types_found || []).length > 0 && (
+                  <span style={{ color: 'var(--warning)' }}>PII: {l.pii_types_found.join(',')}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function AIHubPage() {
   const { lang } = useAppLang()
   const t = useAppT()
@@ -423,6 +529,7 @@ export default function AIHubPage() {
         items={[
           { id: 'providers',     label: t('ai.providers') },
           { id: 'stats',         label: t('ai.usage') },
+          { id: 'governance',    label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>🛡 Governance</span> },
           { id: 'observability', label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Activity size={11} /> Observabilidad</span> },
           { id: 'guide',         label: t('ai.guide') },
         ]}
@@ -431,6 +538,8 @@ export default function AIHubPage() {
         ariaLabel={t('ai.hub_title')}
         style={{ marginBottom: 'var(--space-5)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--surface-4)' }}
       />
+
+      {tab === 'governance' && <GovernanceTab />}
 
       {/* PROVIDERS TAB */}
       {tab === 'providers' && (

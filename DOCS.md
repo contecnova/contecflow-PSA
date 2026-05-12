@@ -1,5 +1,162 @@
 # Contecflow PSA - Documentacion Operativa Actual
 
+## Usuarios Multi-Organizacion desde Ficha de Usuario (2026-05-12)
+
+### Objetivo
+- Permitir asignar y cambiar organizaciones directamente desde la ficha de usuario.
+- Permitir que un usuario pertenezca a mas de una organizacion.
+- Mantener compatibilidad con el modelo existente de organizacion principal (`organization_id`).
+
+### Cambios aplicados
+- Backend
+  - `app/models/user.py`
+    - Nuevo modelo `UserOrganizationMembership` (`user_organization_memberships`) para relacion N:M usuario-organizacion.
+    - Nuevas relaciones en `User`:
+      - `organization_memberships` (membresias explicitas)
+      - `organizations` (organizaciones asociadas)
+    - Nuevo helper `organization_ids` para exponer todas las organizaciones del usuario.
+  - `app/models/mfa.py`
+    - `Organization` ahora expone `user_memberships` y `member_users`.
+  - `app/services/user_service.py`
+    - `create_user_record` y `update_user_record` aceptan/gestionan `organization_ids` y `organization_id`.
+    - Sincronizacion de membresias N:M al crear/editar usuario.
+    - `scope_users_query` y `ensure_same_org_user_access` adaptados para contemplar membresias.
+  - `app/services/mfa_service.py`
+    - Conteos por organizacion (`user_count`, limites) migrados a tabla de membresias.
+    - `assign_user_to_org` y `remove_user_from_org` actualizados a N:M.
+    - Si se quita la organizacion principal, se recalcula automaticamente una nueva principal.
+  - `app/schemas/users.py`
+    - `UserCreate`/`UserUpdate`/`UserPublic` incluyen soporte para `organization_id` y `organization_ids`.
+    - Nuevo esquema `UserOrganizationOut` para exponer organizaciones asociadas.
+
+- Frontend
+  - `frontend/src/pages/SettingsPageSections.jsx`
+    - En `UserFormModal` se anade:
+      - selector multiple de organizaciones,
+      - selector de organizacion principal (entre las seleccionadas).
+    - `UsersSection` carga organizaciones y las pasa al modal de alta/edicion de usuario.
+
+### Compatibilidad
+- Se conserva `organization_id` como organizacion principal para no romper flujos existentes de tenant actual.
+- Las nuevas membresias amplian la pertenencia sin eliminar el comportamiento previo.
+
+### Correccion: evitar desaparicion al quitar organizacion (2026-05-12)
+- Problema detectado:
+  - Al quitar un usuario de una organizacion, podia quedarse sin ninguna membresia y dejar de verse en listados con scoping tenant (parecia "eliminado" del sistema).
+- Fix aplicado:
+  - `app/services/mfa_service.py`
+    - `remove_user_from_org` ahora bloquea la operacion si esa es la ultima organizacion del usuario.
+    - Mensaje de error explicito: `No puedes quitar al usuario de su ultima organizacion`.
+- Test de regresion:
+  - `tests/test_users_multi_org.py`
+    - Nuevo caso `test_remove_user_from_last_organization_is_blocked` para asegurar que:
+      - no se borra el usuario,
+      - no se elimina su ultima membresia,
+      - la API responde `400`.
+
+### UX: mensajes claros al quitar usuario de organizacion (2026-05-12)
+- `frontend/src/pages/OrganizationsPage.jsx`
+  - El modal de quitar usuario pasa a ser una confirmacion neutra (ya no muestra un bloqueo antes de ejecutar).
+  - Se muestra el nombre del usuario y la organizacion en la confirmacion.
+  - Si backend responde bloqueos de negocio, se muestran mensajes explicitos:
+    - `No se puede quitar al usuario de su ultima organizacion`.
+    - `No se puede quitar el ultimo usuario de la organizacion`.
+
+### Hotfix frontend: orden de inicializacion en OrganizationsPage (2026-05-12)
+- `frontend/src/pages/OrganizationsPage.jsx`
+  - Corregido `ReferenceError: Cannot access 'detail' before initialization`.
+  - Causa: `removingUser` se calculaba antes de inicializar `detail`.
+  - Fix: mover el calculo de `removingUser` despues del `useQuery` que define `detail`.
+
+## Rediseño Chat Global en Topbar (2026-05-12)
+
+### Objetivo
+- Hacer el chat accesible desde cualquier pantalla sin depender del menu de Work ni de una pagina full-screen.
+
+### Cambios aplicados
+- `frontend/src/components/layout/Layout.jsx`
+  - Nuevo boton `Chat` en topbar con estado abierto/cerrado.
+  - Badge de no leidos en tiempo real usando `ChatRealtimeContext`.
+  - Montaje de panel flotante global y accion para abrir el chat completo (`/chat`) cuando se necesite.
+
+- `frontend/src/components/layout/GlobalChatPanel.jsx` (nuevo)
+  - Panel flotante con apertura/cierre desde topbar.
+  - Lista de conversaciones y vista de hilo activo en el mismo panel.
+  - Envio de mensajes en linea.
+  - Busqueda de conversaciones.
+  - Inicio rapido de chat directo (nuevo) mediante sugerencias de usuarios.
+  - Acceso rapido a "chat completo".
+  - Al abrir, marca notificaciones como leidas y sincroniza estado.
+
+### Notificaciones
+- Se mantiene la infraestructura realtime existente (`ChatRealtimeProvider`):
+  - toast cuando entra mensaje nuevo,
+  - notificacion nativa del navegador (si permisos concedidos),
+  - contador de no leidos actualizado para mostrar badge en topbar.
+
+### Iteracion 2 UX (2026-05-12)
+- `frontend/src/components/layout/GlobalChatPanel.jsx`
+  - Panel minimizable con estado persistente en `localStorage`.
+  - Dock/burbuja minimizada con contador de no leidos.
+  - Apertura/cierre con animacion suave (entrada/salida).
+  - `Esc` para cerrar y backdrop para cerrar con click fuera.
+  - Adaptacion movil: modo drawer fullscreen (`100dvh`) para uso comodo en pantallas pequenas.
+  - Persistencia de ultima conversacion activa.
+
+- `frontend/src/components/layout/Layout.jsx`
+  - El panel recibe contador realtime para mostrar badge tambien cuando esta minimizado.
+
+### Iteracion 3 UX (2026-05-12)
+- `frontend/src/components/layout/GlobalChatPanel.jsx`
+  - Indicador de `escribiendo...` en la conversacion activa (realtime via eventos `collab:typing`).
+  - Badge de no leidos por conversacion en la lista lateral del panel.
+  - Toggle de sonido en cabecera del panel (on/off) con preferencia persistente en `localStorage`.
+  - Aviso sonoro corto al aumentar no leidos cuando el panel esta minimizado o la pestana no esta visible.
+
+## Chat Global - Endgame UX/Backend (2026-05-12)
+
+### 1) `unread_count` consistente desde backend
+- `app/services/collaboration/workspaces.py`
+  - `list_conversations_for_user` ahora calcula `unread_count` por conversacion a partir de notificaciones no leidas (`collaboration_notifications`) agrupadas por `conversation_id`.
+  - Se añade metadata de conversacion (`last_activity_at`, `last_message_id`) y ordenacion descendente por actividad.
+
+- `app/services/collaboration/messages.py`
+  - `mark_read` ahora tambien marca como leidas las notificaciones no leidas de esa conversacion para ese usuario.
+  - Resultado: el contador de pendientes por conversacion se limpia de forma inmediata al abrir/leer.
+
+- Test de regresion:
+  - `tests/test_collaboration.py`
+    - `test_conversations_include_unread_count_and_mark_all_read_updates_it`
+      - verifica que `GET /api/v1/collaboration/conversations` devuelve `unread_count` > 0 tras mensaje no leido,
+      - y vuelve a `0` tras `POST /api/v1/collaboration/notifications/mark-all-read`.
+    - `test_mark_read_clears_conversation_unread_count_immediately`
+      - verifica que `POST /api/v1/collaboration/conversations/{id}/read` limpia `unread_count` inmediatamente.
+
+### 2) Scroll y foco tipo app de chat
+- `frontend/src/components/layout/GlobalChatPanel.jsx`
+  - Auto-scroll al final y foco en composer al cambiar de conversacion.
+  - Auto-scroll en llegada de nuevos mensajes solo si el usuario esta cerca del final (respeta lectura historica si esta arriba).
+  - Limpieza optimista del badge al abrir una conversacion con pendientes (sin esperar polling).
+  - Sincronizacion inmediata del contador global via `ChatRealtimeContext.refresh()`.
+  - Fix de layout `flex/minHeight`: el scroll queda confinado al panel de mensajes y el composer permanece fijo abajo.
+  - Al abrir panel: limpieza optimista instantanea del contador global (`realtime.clearUnread()`), seguida de `markAllRead` + resync.
+  - Al abrir conversacion con pendientes: decremento optimista del global (`realtime.consumeUnread(unreadCount)`) para que "mensajes nuevos" desaparezca al instante.
+  - Animacion de salida del badge de no leidos (fade + scale, 120ms) en burbuja minimizada.
+
+- `frontend/src/components/layout/Layout.jsx`
+  - Animacion de salida del badge del boton `Chat` en topbar (fade + scale, 120ms) para evitar efecto de contador "atascado" al limpiarse.
+
+- `frontend/src/context/ChatRealtimeContext.jsx`
+  - Se exponen helpers `consumeUnread(count)` y `clearUnread()` para actualizacion optimista del badge global sin esperar roundtrip de red.
+
+### 3) Preferencias de notificacion en panel global
+- `frontend/src/components/layout/GlobalChatPanel.jsx`
+  - Selector de modo de notificacion: `Todas`, `Solo menciones`, `Silencio`.
+  - Toggle `No molestar (22:00-08:00)`.
+  - Persistencia y sincronizacion via API existente:
+    - `GET /api/v1/collaboration/notification-rules`
+    - `PUT /api/v1/collaboration/notification-rules`
+
 ## Security Hardening - Auth + Performance (2026-05-10)
 
 ## Security Hardening - Inbound Integrations + Password Reset Logs (2026-05-10)

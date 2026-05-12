@@ -34,6 +34,20 @@ from app.services.ai_chat.context_service import build_tenant_context
 
 _logger = logging.getLogger("v16_core")
 
+# Tools que mutan estado del sistema. Item #55: cuando ``auto_approve=False``,
+# el agente debe pedir confirmación humana antes de ejecutarlas. La lista vive
+# aquí (no en el endpoint) para que SSE + worker compartan la misma clasificación.
+WRITE_ACTION_TOOLS = frozenset({
+    "create_task",
+    "update_task",
+    "create_risk",
+    "update_project_status",
+    "update_ticket_status",
+    "reassign_tickets",
+    "send_notification",
+})
+
+
 AGENT_TOOLS = [
     # ── Read: Projects ────────────────────────────────────────────────────────
     {

@@ -293,7 +293,21 @@ class AIContractClause(Base):
 # ── AI Knowledge Base ─────────────────────────────────────────────────────────
 
 class AIKBArticle(Base):
-    """An AI-generated or AI-enriched knowledge base article."""
+    """An AI-generated or AI-enriched knowledge base article.
+
+    **Item #62 — Duplicidad con ``KBArticle`` (service_desk):**
+    Existen DOS sistemas KB en paralelo:
+    - ``KBArticle`` (service_desk) — KB humano del módulo SD, sin embedding precalculado.
+    - ``AIKBArticle`` (este) — KB generado/curado por IA, con ``embedding`` JSON.
+
+    Razón histórica: cada flow (humano vs. AI auto-gen) creció separado. La
+    consecuencia es que la UI de KB del Service Desk solo edita ``KBArticle``
+    mientras que ``ai_auto_resolution_service._search_kb`` consulta ambos.
+
+    Migración futura: unificar en ``KBArticle`` añadiendo ``is_ai_generated``,
+    ``embedding`` y mover la lógica de embedding background a un job común.
+    No urgente; tracked como deuda P2.
+    """
     __tablename__ = "ai_kb_articles"
 
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

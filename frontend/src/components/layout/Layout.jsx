@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { Avatar, IconButton } from '../ui'
@@ -7,6 +7,7 @@ import api, { projectsApi, tasksApi } from '../../services/api'
 import GlobalSearch from './GlobalSearch'
 import QuickCreateMenu from './QuickCreateMenu'
 import NexusAssistPanel from './NexusAssistPanel'
+import GlobalChatPanel from './GlobalChatPanel'
 import UserProfilePanel from './UserProfilePanel'
 import AlertsDrawer from './AlertsDrawer'
 import Breadcrumbs from './Breadcrumbs'
@@ -694,8 +695,21 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
   )
 }
 
-function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen, onQuickCreate }) {
+function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, chatUnread, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen, onQuickCreate }) {
   const location = useLocation()
+  const [chatBadgeVisible, setChatBadgeVisible] = useState(chatUnread > 0)
+  const [chatBadgeCount, setChatBadgeCount] = useState(chatUnread)
+
+  useEffect(() => {
+    if (chatUnread > 0) {
+      setChatBadgeCount(chatUnread)
+      setChatBadgeVisible(true)
+      return undefined
+    }
+    const id = setTimeout(() => setChatBadgeVisible(false), 120)
+    return () => clearTimeout(id)
+  }, [chatUnread])
+
   const section = getSectionLabel(location.pathname, t) || ROUTE_SECTION[location.pathname]
   const currentNavItem = allNavItems
     .filter(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/'))
@@ -827,6 +841,38 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
         >
           <Brain size={13} />
           <span>{text.ai_short}</span>
+        </button>
+        <button
+          onClick={onChatToggle}
+          title="Abrir chat interno"
+          aria-label="Abrir chat interno"
+          aria-pressed={chatOpen}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
+            background: chatOpen ? 'var(--accent-muted)' : 'var(--surface-3)',
+            border: `1px solid ${chatOpen ? 'rgba(79,142,247,0.35)' : 'var(--surface-4)'}`,
+            borderRadius: 8, color: chatOpen ? 'var(--accent)' : 'var(--text-2)',
+            cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit',
+            position: 'relative',
+          }}
+        >
+          <MessageSquare size={13} />
+          <span>Chat</span>
+          {chatBadgeVisible && (
+            <span style={{
+              position: 'absolute', top: -5, right: -5,
+              minWidth: 16, height: 16, borderRadius: 999,
+              background: 'var(--danger)', color: '#fff',
+              fontSize: "var(--text-3xs)", fontWeight: 800,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              padding: '0 4px',
+              opacity: chatUnread > 0 ? 1 : 0,
+              transform: chatUnread > 0 ? 'scale(1)' : 'scale(0.9)',
+              transition: 'opacity .12s ease, transform .12s ease',
+            }}>
+              {chatBadgeCount > 99 ? '99+' : chatBadgeCount}
+            </span>
+          )}
         </button>
         {activeTimer && !activeTimer.paused_at && (
           <NavLink to="/timer"
@@ -989,10 +1035,12 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
 
 export default function Layout({ children }) {
   const { user, logout, hasRole } = useAuth()
+  const navigate = useNavigate()
   const { prefs, save } = useUserPreferences()
   const { t, lang } = useAppLang()
   const text = LAYOUT_TEXT[lang] || LAYOUT_TEXT.es
   const { alertCount, approvalCount } = useNotificationBadges()
+  const { unread: chatUnread } = useChatRealtime()
 
   useEffect(() => {
     const density = prefs?.ui_density || 'normal'
@@ -1039,6 +1087,7 @@ export default function Layout({ children }) {
   })
   const [searchOpen, setSearchOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false)
@@ -1331,6 +1380,9 @@ export default function Layout({ children }) {
           onSearchOpen={() => setSearchOpen(true)}
           onAiToggle={() => setAiOpen(o => !o)}
           aiOpen={aiOpen}
+          onChatToggle={() => setChatOpen(o => !o)}
+          chatOpen={chatOpen}
+          chatUnread={chatUnread}
           user={user}
           onProfileOpen={() => setProfileOpen(true)}
           onLogout={logout}
@@ -1349,6 +1401,17 @@ export default function Layout({ children }) {
 
       {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
       {aiOpen && <NexusAssistPanel open={aiOpen} onClose={() => setAiOpen(false)} context={{ page: location.pathname }} />}
+      {chatOpen && (
+        <GlobalChatPanel
+          open={chatOpen}
+          unread={chatUnread}
+          onClose={() => setChatOpen(false)}
+          onOpenFull={() => {
+            navigate('/chat')
+            setChatOpen(false)
+          }}
+        />
+      )}
       {profileOpen && <UserProfilePanel onClose={() => setProfileOpen(false)} />}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} text={text} />}
       {alertsDrawerOpen && <AlertsDrawer onClose={() => setAlertsDrawerOpen(false)} />}

@@ -19,29 +19,42 @@ from app.models.user import User, UserRole
 from app.core.config import settings
 
 def _filter_by_org(query, model, org_id):
-    """Apply organization filter only when the model actually has organization_id."""
+    """Apply organization filter only when the model actually has organization_id.
+
+    When ``org_id`` is None (caller marked superadmin or unauthenticated context
+    build), the query is returned unchanged so cross-org data is visible.
+    """
     if org_id and hasattr(model, "organization_id"):
         return query.filter(getattr(model, "organization_id") == org_id)
     return query
 
 
 def build_tenant_context(db: Session, user: User = None) -> dict:
-    """Build a rich data context for the current tenant for AI assistants."""
+    """Build a rich data context for the current tenant for AI assistants.
+
+    Superadmin bypass: si ``user.is_superadmin`` es True, el ``org_id`` que
+    se propaga a las queries es ``None`` → el motor lee proyectos / tickets /
+    imputaciones de TODAS las organizaciones. Sin este bypass un superadmin
+    asignado a la org "default" veía 0 proyectos cuando los datos vivían en
+    otra organización.
+    """
     now = datetime.now(timezone.utc)
+    is_super = bool(getattr(user, "is_superadmin", False)) if user else False
     can_see_financials = (
         user is None
-        or getattr(user, "is_superadmin", False)
+        or is_super
         or getattr(user, "role", None) in (UserRole.admin, UserRole.hr)
     )
     can_see_capacity = (
         user is None
-        or getattr(user, "is_superadmin", False)
+        or is_super
         or getattr(user, "role", None) in (UserRole.admin, UserRole.hr, UserRole.pm, UserRole.team_lead)
     )
     can_see_org_wide = can_see_capacity
     can_see_people_data = can_see_capacity
 
-    org_id = getattr(user, "organization_id", None) if user else None
+    # Superadmin → org_id = None → _filter_by_org no aplica filtro.
+    org_id = None if is_super else (getattr(user, "organization_id", None) if user else None)
     org_project_ids = None
     if org_id:
         q_org_projects = db.query(Project.id)

@@ -32,7 +32,10 @@ def _via_openai(data: bytes, filename: str) -> Optional[str]:
         r = httpx.post(
             "https://api.openai.com/v1/audio/transcriptions",
             headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"},
-            data={"model": "whisper-1", "language": "es"},
+            data={
+                "model": os.environ.get("OPENAI_STT_MODEL") or "gpt-4o-mini-transcribe",
+                "language": "es",
+            },
             files=files,
             timeout=30,
         )

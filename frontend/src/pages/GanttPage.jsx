@@ -6,7 +6,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { tasksApi, taskDependenciesApi, projectsApi } from '../services/api'
+import { tasksApi, taskDependenciesApi, projectsApi, aiCopilotApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { BarChart2 } from 'lucide-react'
 import { Button, Spinner, EmptyState } from '../components/ui'
@@ -50,6 +50,30 @@ export default function GanttPage() {
         : Promise.resolve([]),
     staleTime: 30000,
   })
+
+  // Item #47: sugerencias IA (overdue/stalled) por proyecto. Solo cargamos
+  // cuando hay project_id seleccionado — sin él la heurística no puede
+  // contextualizar y el endpoint requiere proyecto específico.
+  const { data: aiSuggestionsResp } = useQuery({
+    queryKey: ['ai-gantt-suggestions', projectId],
+    queryFn: () =>
+      projectId
+        ? aiCopilotApi.ganttSuggestions(projectId)
+            .then(r => r.data)
+            .catch(() => ({ suggestions: [] }))
+        : Promise.resolve({ suggestions: [] }),
+    enabled: !!projectId,
+    staleTime: 60000,
+  })
+
+  // Map task_id → suggestion para lookup O(1) en GanttChart.
+  const aiSuggestionsByTask = useMemo(() => {
+    const out = {}
+    for (const s of (aiSuggestionsResp?.suggestions || [])) {
+      if (s?.task_id) out[s.task_id] = s
+    }
+    return out
+  }, [aiSuggestionsResp])
 
   // Optimistic local overrides for in-flight drags
   const [localDates, setLocalDates] = useState({})
@@ -163,6 +187,7 @@ export default function GanttPage() {
             onDepCreate={handleDepCreate}
             showBaseline={showBaseline}
             dependencies={dependencies}
+            aiSuggestions={aiSuggestionsByTask}
           />
         </div>
       )}

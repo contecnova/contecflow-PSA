@@ -130,6 +130,7 @@ export default function GanttChart({
   onDepCreate,
   showBaseline = false,
   dependencies = [],
+  aiSuggestions = {},
 }) {
     const t = useAppT()
   const [zoom, setZoom]           = useState('month')
@@ -552,6 +553,25 @@ export default function GanttChart({
                       title={onDepCreate ? 'Redimensionar · Shift+drag = crear dependencia' : 'Redimensionar'}
                       onMouseDown={e => { e.stopPropagation(); startDrag(e, item, 'resize') }} />
                   )}
+
+                  {/* Item #47: badge IA si la tarea tiene sugerencia (overdue/stalled).
+                      Color por severidad (high=danger, medium=warning). El tooltip
+                      mostrará el detalle al hover sobre el bar entero. */}
+                  {aiSuggestions[item.id] && (() => {
+                    const sug = aiSuggestions[item.id]
+                    const sevColor = sug.severity === 'high'
+                      ? 'var(--danger)'
+                      : 'var(--warning)'
+                    return (
+                      <g style={{ pointerEvents: 'none' }}>
+                        <circle cx={x1 - 8} cy={bY + bH / 2} r={7}
+                          fill={sevColor} stroke="var(--surface-0)" strokeWidth={1.5} />
+                        <text x={x1 - 8} y={bY + bH / 2 + 3.5} fontSize={9}
+                          fill="white" fontFamily="inherit" fontWeight={700}
+                          textAnchor="middle">!</text>
+                      </g>
+                    )
+                  })()}
                 </g>
               )
             })}
@@ -598,17 +618,25 @@ export default function GanttChart({
               </g>
             )}
 
-            {/* Tooltip */}
+            {/* Tooltip — item #47: si la tarea tiene sugerencia IA, ampliamos
+                la altura del tooltip y añadimos el mensaje + primera sugerencia. */}
             {tooltip && (() => {
               const { item, x, y } = tooltip
-              const TW = 180
-              const tx = Math.min(x - TW / 2, chartW - TW - 4)
-              const ty = y - 56
+              const sug = aiSuggestions[item.id]
+              const TW = sug ? 240 : 180
+              const TH = sug ? 92 : 50
+              const tx = Math.min(Math.max(x - TW / 2, 4), chartW - TW - 4)
+              const ty = y - (TH + 6)
+              const sevColor = sug?.severity === 'high'
+                ? 'var(--danger)'
+                : sug?.severity === 'medium'
+                  ? 'var(--warning)'
+                  : 'var(--text-3)'
               return (
                 <g style={{ pointerEvents: 'none' }}>
-                  <rect x={tx} y={ty} width={TW} height={50} rx={7} fill="var(--surface-1)" stroke="var(--surface-4)" />
+                  <rect x={tx} y={ty} width={TW} height={TH} rx={7} fill="var(--surface-1)" stroke="var(--surface-4)" />
                   <text x={tx + 8} y={ty + 16} fontSize={11} fill="var(--text-1)" fontFamily="inherit" fontWeight={600}>
-                    {(item.title || item.name || '').slice(0, 24)}
+                    {(item.title || item.name || '').slice(0, 32)}
                   </text>
                   <text x={tx + 8} y={ty + 30} fontSize={10} fill="var(--text-3)" fontFamily="inherit">
                     {item.start_date || '?'} {'→'} {item.due_date || item.end_date_planned || '?'}
@@ -616,6 +644,19 @@ export default function GanttChart({
                   <text x={tx + 8} y={ty + 44} fontSize={10} fill={STATUS_COLOR[item.status] || 'var(--text-3)'} fontFamily="inherit">
                     {item.status}{item.progress_pct != null ? ` · ${item.progress_pct}%` : ''}{item.story_points ? ` · ${item.story_points}p` : ''}
                   </text>
+                  {sug && (
+                    <>
+                      <line x1={tx + 8} y1={ty + 52} x2={tx + TW - 8} y2={ty + 52}
+                        stroke="var(--surface-4)" strokeWidth={1} />
+                      <text x={tx + 8} y={ty + 65} fontSize={10} fill={sevColor}
+                        fontFamily="inherit" fontWeight={600}>
+                        {sug.type === 'overdue' ? '⚠ Retraso' : '⏳ Estancada'} · {sug.message?.slice(0, 32)}
+                      </text>
+                      <text x={tx + 8} y={ty + 80} fontSize={9} fill="var(--text-2)" fontFamily="inherit">
+                        💡 {(sug.suggestions?.[0] || '').slice(0, 38)}
+                      </text>
+                    </>
+                  )}
                 </g>
               )
             })()}

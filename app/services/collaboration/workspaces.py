@@ -5,7 +5,7 @@ import re
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import Session
 
 from app.models.collaboration import (
@@ -15,6 +15,7 @@ from app.models.collaboration import (
     CollaborationConversation,
     CollaborationConversationMember,
     CollaborationDirectConversation, CollaborationGroupConversation,
+    CollaborationNotification,
     CollaborationTeam, CollaborationTeamMember,
     CollaborationWorkspace,
 )
@@ -387,14 +388,32 @@ def list_conversations_for_user(db: Session, user) -> list[dict]:
     org = _org(user)
     out = []
 
+    # Build a per-conversation unread counter from unread notifications.
+    # This keeps unread_count consistent across all conversation kinds.
+    unread_rows = db.query(
+        CollaborationNotification.conversation_id,
+        func.count(CollaborationNotification.id),
+    ).filter(
+        CollaborationNotification.user_id == user.id,
+        CollaborationNotification.is_read == False,
+        CollaborationNotification.conversation_id.isnot(None),
+    ).group_by(
+        CollaborationNotification.conversation_id,
+    ).all()
+    unread_by_conv = {str(conv_id): int(cnt) for conv_id, cnt in unread_rows if conv_id}
+
+    conv_ids = set()
+
     # Channels via team membership + private channel membership
     channels = list_channels(db, user)
     for ch in channels:
+        conv_ids.add(str(ch.conversation_id))
         out.append({
             "id": ch.conversation_id, "kind": "channel",
             "title": f"# {ch.name}", "team_id": ch.team_id,
             "channel_type": ch.channel_type, "project_id": ch.project_id,
             "icon": None,
+            "unread_count": unread_by_conv.get(str(ch.conversation_id), 0),
         })
 
     # Directs where user participates — bulk-load peers para evitar N+1
@@ -413,9 +432,11 @@ def list_conversations_for_user(db: Session, user) -> list[dict]:
         other = d.user_b_id if d.user_a_id == user.id else d.user_a_id
         u = peers_by_id.get(other)
         title = (u.full_name or u.username or "Usuario") if u else "Usuario"
+        conv_ids.add(str(d.conversation_id))
         out.append({
             "id": d.conversation_id, "kind": "direct",
             "title": title, "peer_user_id": other,
+            "unread_count": unread_by_conv.get(str(d.conversation_id), 0),
         })
 
     # Groups via membership
@@ -427,8 +448,36 @@ def list_conversations_for_user(db: Session, user) -> list[dict]:
         ),
     ).filter(CollaborationGroupConversation.organization_id == org).all()
     for g in group_rows:
+        conv_ids.add(str(g.conversation_id))
         out.append({
             "id": g.conversation_id, "kind": "group",
             "title": g.title or "Grupo",
+            "unread_count": unread_by_conv.get(str(g.conversation_id), 0),
         })
+
+    if conv_ids:
+        conv_meta_rows = db.query(
+            CollaborationConversation.id,
+            CollaborationConversation.last_activity_at,
+            CollaborationConversation.last_message_id,
+        ).filter(
+            CollaborationConversation.organization_id == org,
+            CollaborationConversation.id.in_(list(conv_ids)),
+        ).all()
+        meta_by_conv = {
+            str(cid): {
+                "last_activity_at": last_activity_at,
+                "last_message_id": last_message_id,
+            }
+            for cid, last_activity_at, last_message_id in conv_meta_rows
+        }
+        for item in out:
+            meta = meta_by_conv.get(str(item.get("id"))) or {}
+            item["last_activity_at"] = meta.get("last_activity_at")
+            item["last_message_id"] = meta.get("last_message_id")
+
+    out.sort(
+        key=lambda c: (c.get("last_activity_at").timestamp() if c.get("last_activity_at") else 0),
+        reverse=True,
+    )
     return out

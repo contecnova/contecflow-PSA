@@ -18,6 +18,8 @@ class UserBase(BaseModel):
     role: str = "employee"
     status: UserStatus = UserStatus.active
     weekly_capacity_hours: float = settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    organization_id: Optional[str] = None
+    organization_ids: Optional[list[str]] = None
 
 
 class UserCreate(UserBase):
@@ -39,6 +41,8 @@ class UserUpdate(BaseModel):
     avatar_url: Optional[str] = None
     manager_id: Optional[str] = None
     timezone: Optional[str] = None
+    organization_id: Optional[str] = None
+    organization_ids: Optional[list[str]] = None
 
 
 class UserSelfUpdate(BaseModel):
@@ -54,6 +58,15 @@ class UserSelfUpdate(BaseModel):
     timezone: Optional[str] = None
 
 
+class UserOrganizationOut(BaseModel):
+    id: str
+    name: Optional[str] = None
+    slug: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class UserPublic(UserBase):
     id: str
     is_active: bool = True
@@ -63,6 +76,7 @@ class UserPublic(UserBase):
     manager_id: Optional[str] = None
     manager_name: Optional[str] = None
     phone: Optional[str] = None
+    organizations: Optional[list[UserOrganizationOut]] = None
 
     class Config:
         from_attributes = True

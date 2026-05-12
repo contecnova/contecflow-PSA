@@ -47,7 +47,10 @@ async def overrun_risk(
             "can_predict": False,
         }
     
-    result = ml_trainer.predict_project(db, project_id, current_user.organization_id)
+    result = ml_trainer.predict_project(
+        db, project_id, current_user.organization_id,
+        is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
+    )
     if "error" in result:
         # Return 200 with error flag instead of 422 to avoid spam warnings
         return {
@@ -64,7 +67,11 @@ def portfolio_risk(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return ml_trainer.portfolio_risk_summary(db, current_user.organization_id)
+    return ml_trainer.portfolio_risk_summary(
+        db,
+        current_user.organization_id,
+        is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
+    )
 
 
 @router.post("/train", summary="Reentrenar modelo ML de predicción")

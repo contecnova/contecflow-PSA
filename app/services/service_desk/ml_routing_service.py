@@ -1,8 +1,14 @@
-"""ITSM-P07 — ML Routing Service
+"""ITSM-P07 — Data-driven Routing Service (heuristic + histórico)
+
+**Sobre el nombre "ML"** (item #61): este módulo se llama históricamente
+"ML routing" pero en realidad es **scoring rule-based con features
+históricas** (avg resolution time, CSAT) — NO entrena ni infiere un modelo.
+Mantenemos el nombre por compatibilidad de imports; cualquier
+funcionalidad ML real (predicción supervisada del mejor agente) iría en un
+módulo aparte llamado, por ejemplo, ``ml_routing_classifier.py``.
 
 Replaces the heuristic skill-keyword + load routing with a data-driven
-scoring model that learns from historical routing outcomes stored in
-the sd_routing_feedback table.
+scoring que aprovecha el histórico almacenado en ``sd_routing_feedback``.
 
 Composite score formula (0-1):
   - Availability     30%  — respects user.status (vacation/leave → 0); load-based
@@ -72,9 +78,14 @@ def _availability_score(db: Session, user: User) -> float:
 # ── Historical speed component ────────────────────────────────────────────────
 
 def _avg_resolution_minutes(
-    db: Session, agent_id: str, ticket_type: str | None, category_id: str | None
+    db: Session, agent_id: str, ticket_type: str | None, category_id: str | None,
+    organization_id: str | None = None,
 ) -> float | None:
     """Return agent's average resolution_minutes for the given bucket.
+
+    Multi-tenant: si ``organization_id`` se provee, restringe el cálculo a
+    feedback de tickets de esa org. Antes leía RoutingFeedback globalmente
+    → un agente de org A se beneficiaba del histórico de org B.
 
     Returns None if fewer than _MIN_SAMPLES feedback rows exist.
     """
@@ -89,6 +100,8 @@ def _avg_resolution_minutes(
         q = q.filter(RoutingFeedback.ticket_type == ticket_type)
     if category_id:
         q = q.filter(RoutingFeedback.category_id == category_id)
+    if organization_id and hasattr(RoutingFeedback, "organization_id"):
+        q = q.filter(RoutingFeedback.organization_id == organization_id)
 
     # Only use if enough samples
     count_q = db.query(sqlfunc.count(RoutingFeedback.id)).filter(
@@ -97,6 +110,8 @@ def _avg_resolution_minutes(
     )
     if ticket_type:
         count_q = count_q.filter(RoutingFeedback.ticket_type == ticket_type)
+    if organization_id and hasattr(RoutingFeedback, "organization_id"):
+        count_q = count_q.filter(RoutingFeedback.organization_id == organization_id)
     count = count_q.scalar() or 0
     if count < _MIN_SAMPLES:
         return None
@@ -106,9 +121,13 @@ def _avg_resolution_minutes(
 
 
 def _global_avg_resolution_minutes(
-    db: Session, ticket_type: str | None, category_id: str | None
+    db: Session, ticket_type: str | None, category_id: str | None,
+    organization_id: str | None = None,
 ) -> float:
-    """Return global average resolution_minutes for the bucket (all agents)."""
+    """Return global average resolution_minutes for the bucket (all agents).
+
+    Multi-tenant: ``organization_id`` restringe el cálculo al tenant.
+    """
     q = db.query(sqlfunc.avg(RoutingFeedback.resolution_minutes)).filter(
         RoutingFeedback.resolution_minutes.isnot(None)
     )
@@ -116,24 +135,27 @@ def _global_avg_resolution_minutes(
         q = q.filter(RoutingFeedback.ticket_type == ticket_type)
     if category_id:
         q = q.filter(RoutingFeedback.category_id == category_id)
+    if organization_id and hasattr(RoutingFeedback, "organization_id"):
+        q = q.filter(RoutingFeedback.organization_id == organization_id)
     avg = q.scalar()
     # Fallback: 480 minutes (8h) if no data
     return float(avg) if avg is not None else 480.0
 
 
 def _speed_score(
-    db: Session, agent_id: str, ticket_type: str | None, category_id: str | None
+    db: Session, agent_id: str, ticket_type: str | None, category_id: str | None,
+    organization_id: str | None = None,
 ) -> float:
     """Return 0-1 speed score. Higher = faster than average.
 
     Uses ratio: global_avg / agent_avg (capped at 1.5 to avoid extreme outliers).
     Returns neutral 0.5 when not enough data.
     """
-    agent_avg = _avg_resolution_minutes(db, agent_id, ticket_type, category_id)
+    agent_avg = _avg_resolution_minutes(db, agent_id, ticket_type, category_id, organization_id=organization_id)
     if agent_avg is None:
         return 0.5  # no history — neutral
 
-    global_avg = _global_avg_resolution_minutes(db, ticket_type, category_id)
+    global_avg = _global_avg_resolution_minutes(db, ticket_type, category_id, organization_id=organization_id)
     if agent_avg <= 0:
         return 1.0
     ratio = global_avg / agent_avg  # > 1 = faster, < 1 = slower
@@ -143,11 +165,13 @@ def _speed_score(
 # ── Historical CSAT component ─────────────────────────────────────────────────
 
 def _csat_score(
-    db: Session, agent_id: str, ticket_type: str | None, category_id: str | None
+    db: Session, agent_id: str, ticket_type: str | None, category_id: str | None,
+    organization_id: str | None = None,
 ) -> float:
     """Return 0-1 CSAT score from feedback table for this agent × bucket.
 
     Returns 0.6 (slightly positive neutral) when insufficient data.
+    Multi-tenant: ``organization_id`` restringe el cálculo al tenant.
     """
     q = db.query(sqlfunc.avg(RoutingFeedback.csat_score)).filter(
         RoutingFeedback.assigned_agent_id == agent_id,
@@ -157,26 +181,29 @@ def _csat_score(
         q = q.filter(RoutingFeedback.ticket_type == ticket_type)
     if category_id:
         q = q.filter(RoutingFeedback.category_id == category_id)
+    if organization_id and hasattr(RoutingFeedback, "organization_id"):
+        q = q.filter(RoutingFeedback.organization_id == organization_id)
 
-    count = (
-        db.query(sqlfunc.count(RoutingFeedback.id))
-        .filter(
-            RoutingFeedback.assigned_agent_id == agent_id,
-            RoutingFeedback.csat_score.isnot(None),
-        )
-        .scalar()
-    ) or 0
+    count_q = db.query(sqlfunc.count(RoutingFeedback.id)).filter(
+        RoutingFeedback.assigned_agent_id == agent_id,
+        RoutingFeedback.csat_score.isnot(None),
+    )
+    if organization_id and hasattr(RoutingFeedback, "organization_id"):
+        count_q = count_q.filter(RoutingFeedback.organization_id == organization_id)
+    count = count_q.scalar() or 0
     if count < _MIN_SAMPLES:
-        # Fallback: average CSAT from tickets table
+        # Fallback: average CSAT from tickets table (also scoped if posible)
         from app.models.service_desk import Ticket as _Ticket  # noqa: PLC0415
-        avg_t = (
+        ticket_q = (
             db.query(sqlfunc.avg(_Ticket.csat_score))
             .filter(
                 _Ticket.assigned_to_user_id == agent_id,
                 _Ticket.csat_score.isnot(None),
             )
-            .scalar()
         )
+        if organization_id and hasattr(_Ticket, "organization_id"):
+            ticket_q = ticket_q.filter(_Ticket.organization_id == organization_id)
+        avg_t = ticket_q.scalar()
         if avg_t is not None:
             return float(avg_t) / 5.0
         return 0.6
@@ -239,9 +266,11 @@ def score_agent_for_ticket_ml(db: Session, user: User, ticket: Ticket) -> dict[s
     except Exception:
         pass
 
+    # Multi-tenant: aislamos el histórico por organization_id del ticket.
+    org_id = getattr(ticket, "organization_id", None)
     avail   = _availability_score(db, user)
-    speed   = _speed_score(db, user.id, ticket_type, category_id)
-    csat    = _csat_score(db, user.id, ticket_type, category_id)
+    speed   = _speed_score(db, user.id, ticket_type, category_id, organization_id=org_id)
+    csat    = _csat_score(db, user.id, ticket_type, category_id, organization_id=org_id)
     skill   = _skill_match(db, user.id, category_id)
 
     composite = (

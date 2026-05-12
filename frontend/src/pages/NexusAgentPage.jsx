@@ -16,17 +16,25 @@ const STATUS_CFG = {
   running: { label: 'Ejecutando', color: 'var(--warning)', bg: 'var(--warning-bg)' },
   pending: { label: 'Pendiente',  color: 'var(--text-2)', bg: 'rgba(120,138,170,0.09)' },
 }
+// Tools alineados con los nombres reales del backend (AGENT_TOOLS en
+// app/services/ai_chat/tool_execution_service.py). Antes los 10 mostrados
+// aquí no coincidían con los 37 reales del backend → user confundido.
 const TOOLS = [
-  { icon: '📁', name: 'list_projects',     desc: 'Listar proyectos activos' },
-  { icon: '✅', name: 'list_tasks',         desc: 'Buscar y filtrar tareas' },
-  { icon: '🎫', name: 'list_tickets',       desc: 'Ver tickets de soporte' },
-  { icon: '👥', name: 'list_users',         desc: 'Ver usuarios y carga' },
-  { icon: '➕', name: 'create_task',         desc: 'Crear nueva tarea' },
-  { icon: '✏️', name: 'update_task',         desc: 'Actualizar tarea' },
-  { icon: '📊', name: 'get_project_stats',  desc: 'Estadísticas de proyecto' },
-  { icon: '📅', name: 'list_imputations',   desc: 'Ver imputaciones de horas' },
-  { icon: '⚠️', name: 'list_alerts',         desc: 'Ver alertas activas' },
-  { icon: '🔮', name: 'run_oracle',          desc: 'Análisis predictivo' },
+  { icon: '📁', name: 'search_projects',         desc: 'Buscar proyectos por filtros' },
+  { icon: '📊', name: 'get_project_status',      desc: 'Estado completo de un proyecto' },
+  { icon: '🎯', name: 'get_dashboard_summary',   desc: 'Resumen ejecutivo del sistema' },
+  { icon: '💰', name: 'get_budget_status',       desc: 'Estado presupuestario' },
+  { icon: '⚠️', name: 'get_project_risks',        desc: 'Riesgos de un proyecto' },
+  { icon: '⏰', name: 'get_overdue_tasks',        desc: 'Tareas vencidas' },
+  { icon: '🎫', name: 'get_open_tickets',        desc: 'Tickets abiertos de soporte' },
+  { icon: '👥', name: 'get_users_list',          desc: 'Listado de usuarios y rol' },
+  { icon: '📅', name: 'get_imputations',         desc: 'Imputaciones de horas' },
+  { icon: '📈', name: 'get_profitability',       desc: 'Rentabilidad por proyecto' },
+  { icon: '➕', name: 'create_task',              desc: 'Crear tarea (acción de escritura)' },
+  { icon: '✏️', name: 'update_task',              desc: 'Actualizar tarea' },
+  { icon: '🚨', name: 'create_risk',             desc: 'Crear riesgo en proyecto' },
+  { icon: '🔁', name: 'reassign_tickets',        desc: 'Reasignar tickets en masa' },
+  { icon: '🔍', name: 'search_all',              desc: 'Búsqueda transversal' },
 ]
 const EXAMPLES = [
   { icon: '📊', text: 'Muéstrame un resumen del estado de todos los proyectos activos' },

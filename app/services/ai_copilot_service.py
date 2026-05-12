@@ -19,11 +19,17 @@ from app.models.task import Task
 logger = logging.getLogger(__name__)
 
 
-def get_ai_gantt_suggestions(project_id: str, db: Session) -> dict:
-
+def get_ai_gantt_suggestions(project_id: str, db: Session, current_user=None) -> dict:
+    # Multi-tenant: solo permitimos sugerencias sobre proyectos visibles para el
+    # caller. Superadmin bypassa el filtro org. Sin esta verificación un user
+    # de org A podría ver tasks/títulos de org B vía suggestions.
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
         raise HTTPException(404, "Project not found")
+    if current_user is not None and not bool(getattr(current_user, "is_superadmin", False)):
+        cu_org = getattr(current_user, "organization_id", None)
+        if cu_org and getattr(proj, "organization_id", None) and proj.organization_id != cu_org:
+            raise HTTPException(404, "Project not found")
 
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     today = date.today()
@@ -36,15 +42,16 @@ def get_ai_gantt_suggestions(project_id: str, db: Session) -> dict:
 
         if t.due_date and t.due_date < today:
             overdue_days = (today - t.due_date).days
+            # Item #66: outputs en español (sistema mayoritariamente ES).
             suggestions.append({
                 "task_id": t.id, "task_title": t.title,
                 "type": "overdue",
                 "severity": "high" if overdue_days > 7 else "medium",
-                "message": f"Task is {overdue_days} day(s) overdue.",
+                "message": f"La tarea lleva {overdue_days} día(s) de retraso.",
                 "suggestions": [
-                    "Reassign to available resource",
-                    "Split into smaller tasks to unblock progress",
-                    "Review scope — consider deferring non-critical items",
+                    "Reasignar a un recurso disponible",
+                    "Dividir en sub-tareas para desbloquear el progreso",
+                    "Revisar alcance — diferir ítems no críticos",
                 ],
             })
         elif (hasattr(t, "start_date") and t.start_date and t.due_date
@@ -57,11 +64,11 @@ def get_ai_gantt_suggestions(project_id: str, db: Session) -> dict:
                     "task_id": t.id, "task_title": t.title,
                     "type": "stalled",
                     "severity": "medium",
-                    "message": f"{int(elapsed_pct*100)}% of duration elapsed but only {progress}% complete.",
+                    "message": f"{int(elapsed_pct*100)}% de la duración consumida pero solo {progress}% completada.",
                     "suggestions": [
-                        "Check for blockers in comments",
-                        "Schedule a quick sync with the assignee",
-                        "Consider parallel execution if dependencies allow",
+                        "Revisar bloqueos en los comentarios",
+                        "Agendar sincronización rápida con el responsable",
+                        "Considerar ejecución paralela si las dependencias lo permiten",
                     ],
                 })
 
@@ -88,12 +95,31 @@ def get_ai_timesheet_anomalies(user_id: str, db: Session) -> dict:
         k = str(e.date)
         daily_hours[k] = daily_hours.get(k, 0) + (e.hours or 0)
 
+    # Item #67: anomalía basada en el patrón del propio usuario, no en un
+    # umbral global rígido. Calculamos media + desviación típica sobre días
+    # con imputación >0 y marcamos los días que se desvían >2σ (regla 95%).
+    # Mantenemos el umbral 12h como límite duro absoluto para casos sin
+    # suficiente histórico (n<7).
+    import statistics as _stats  # noqa: PLC0415
+    positive = [h for h in daily_hours.values() if h > 0]
+    if len(positive) >= 7:
+        mean_h = _stats.mean(positive)
+        stdev_h = _stats.pstdev(positive) or 0.0
+        threshold = max(12.0, mean_h + 2 * stdev_h) if stdev_h > 0 else 12.0
+        baseline_note = f"media {mean_h:.1f}h ± {stdev_h:.1f}h, umbral={threshold:.1f}h"
+    else:
+        threshold = 12.0
+        baseline_note = "umbral fijo 12h (sin histórico suficiente, n<7)"
+
     for day, hours in daily_hours.items():
-        if hours > 12:
+        if hours > threshold:
             anomalies.append({
                 "type": "high_hours", "date": day, "value": hours,
-                "message": f"{hours}h logged on {day} — exceeds 12h threshold",
-                "suggestion": "Verify these hours are correct or split across days if entered in bulk",
+                "message": (
+                    f"{hours}h imputadas el {day} — supera el umbral "
+                    f"({baseline_note})."
+                ),
+                "suggestion": "Verifica que las horas sean correctas o repártelas si se cargaron en bloque.",
             })
 
     if entries:
@@ -103,8 +129,8 @@ def get_ai_timesheet_anomalies(user_id: str, db: Session) -> dict:
             if gap_days > 7:
                 anomalies.append({
                     "type": "gap", "date": str(prev_date), "value": gap_days,
-                    "message": f"{gap_days}-day gap in timesheet entries",
-                    "suggestion": "Missing time entries for the period? Please fill in timesheets.",
+                    "message": f"{gap_days} días sin imputaciones",
+                    "suggestion": "¿Faltan imputaciones del periodo? Completa los partes.",
                 })
             prev_date = e.date
 
@@ -118,8 +144,8 @@ def get_ai_timesheet_anomalies(user_id: str, db: Session) -> dict:
         anomalies.append({
             "type": "closed_project_billing",
             "project_ids": list(closed_ids),
-            "message": "Time entries found on closed/cancelled projects",
-            "suggestion": "Review and reassign to the correct active project",
+            "message": "Imputaciones encontradas en proyectos cerrados/cancelados",
+            "suggestion": "Revisa y reasigna al proyecto activo correcto.",
         })
 
     return {

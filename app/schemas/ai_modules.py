@@ -19,6 +19,10 @@ class ContractAnalyzePayload(BaseModel):
 class VoiceCommandPayload(BaseModel):
     transcript: str
     confidence: Optional[float] = None
+    # Si False (default), el comando se interpreta pero NO se ejecuta —
+    # devuelve `pending_action` para que el cliente muestre confirmación
+    # humana antes de hacer write. Si True, ejecuta directamente.
+    confirm: bool = False
 
 class SmartScheduleRequest(BaseModel):
     project_id: Optional[str] = None

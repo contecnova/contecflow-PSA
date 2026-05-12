@@ -240,6 +240,11 @@ export const projectsApi = {
   evmPortfolio:      ()         => api.get('/projects/evm/portfolio'),
 }
 
+export const aiCopilotApi = {
+  ganttSuggestions:     (projectId) => api.get(`/ai/suggestions/gantt/${projectId}`),
+  timesheetSuggestions: (userId)    => api.get(`/ai/suggestions/timesheets/${userId}`),
+}
+
 export const tasksApi = {
   list:        (params)    => api.get('/tasks', { params }),
   kanban:      (projectId) => api.get(`/tasks/kanban/${projectId}`),

@@ -55,6 +55,11 @@ def build_inbound_ticket(db: Session, payload: dict, configured_secret: str, pro
 
     subject = (payload.get("subject") or "(Sin asunto)").strip()[:255]
 
+    # ── Smart routing si está disponible ──────────────────────────────────
+    # Antes este parser asignaba siempre al primer admin/pm activo, ignorando
+    # el motor ML routing (ml_routing_service) y el semantic engine. Ahora
+    # intenta usarlos como mejora best-effort y, si falla, cae al
+    # comportamiento legacy.
     agents = db.query(User).filter(
         User.role.in_([UserRole.admin, UserRole.pm]),
         User.is_active.is_(True),
@@ -86,6 +91,23 @@ def build_inbound_ticket(db: Session, payload: dict, configured_secret: str, pro
     )
 
     db.add(ticket)
+    db.flush()  # asegurar ID para el smart-assign
+
+    # ── Mejora: usar semantic engine para reasignar si hay perfiles ──────
+    try:
+        from app.services.semantic_classifier import SemanticAssigner  # noqa: PLC0415
+        asg = SemanticAssigner(db)
+        suggestion = asg.suggest_for_ticket(
+            ticket_title=ticket.title or "",
+            ticket_desc=ticket.description or "",
+            priority=str(ticket.priority).split(".")[-1] if ticket.priority else "medium",
+        )
+        if suggestion and suggestion.get("suggested_user_id") and not suggestion.get("needs_review"):
+            ticket.assigned_to_user_id = suggestion["suggested_user_id"]
+    except Exception:
+        # Best-effort: si el motor semántico falla, mantenemos el assignment legacy.
+        pass
+
     return ticket, req_email
 
 

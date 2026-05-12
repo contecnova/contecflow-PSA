@@ -83,10 +83,18 @@ def cache_item_embedding(db: Session, item_id: str, item_type: str,
     db.commit()
 
 
-def auto_generate_profiles(db: Session) -> dict:
-    """Auto-generate semantic profiles for all active users."""
+def auto_generate_profiles(db: Session, *, organization_id=None, is_superadmin: bool = False) -> dict:
+    """Auto-generate semantic profiles for active users.
 
-    users = db.query(User).filter(User.is_active == True).all()
+    Si ``organization_id`` es provisto y el caller no es superadmin, solo
+    procesa users de esa organización. Antes este servicio iteraba
+    User.is_active=True sin filtro → cross-tenant verificado (9 perfiles en
+    2 orgs distintas).
+    """
+    q = db.query(User).filter(User.is_active == True)
+    if organization_id and not is_superadmin:
+        q = q.filter(User.organization_id == organization_id)
+    users = q.all()
     assigner = get_assigner(db)
     created = updated = 0
 
@@ -136,16 +144,30 @@ def save_config(db: Session, cfg) -> None:
     db.refresh(cfg)
 
 
-def enrich_suggestion(db: Session, result: dict) -> dict:
-    """Add user name fields to a suggestion result dict (mutates in place)."""
+def enrich_suggestion(db: Session, result: dict, *, organization_id=None,
+                       is_superadmin: bool = False) -> dict:
+    """Add user name fields to a suggestion result dict (mutates in place).
+
+    Multi-tenant: si ``organization_id`` se provee y el caller no es
+    superadmin, solo expone full_name de users de esa org. Antes este enrich
+    leía cualquier user.id sin filtro → leak menor de full_name cross-tenant.
+    """
+    def _safe_user(uid):
+        if not uid:
+            return None
+        q = db.query(User).filter(User.id == uid)
+        if organization_id and not is_superadmin:
+            q = q.filter(User.organization_id == organization_id)
+        return q.first()
+
     if result.get("suggested_user_id"):
-        u = db.query(User).filter(User.id == result["suggested_user_id"]).first()
+        u = _safe_user(result["suggested_user_id"])
         result["suggested_user_name"] = u.full_name if u else None
     if result.get("top_scores"):
         enriched = {}
         for uid, score in result["top_scores"].items():
-            u = db.query(User).filter(User.id == uid).first()
-            enriched[uid] = {"score": score, "name": u.full_name if u else uid}
+            u = _safe_user(uid)
+            enriched[uid] = {"score": score, "name": u.full_name if u else "(fuera de tu organización)"}
         result["top_candidates"] = enriched
     return result
 
@@ -193,8 +215,29 @@ def list_profiles_with_users(db: Session) -> list:
 
 
 def upsert_profile(db: Session, user_id, profile_text: str,
-                   max_load=None, is_available: bool = True) -> dict:
-    """Create or update a semantic profile and return status dict."""
+                   max_load=None, is_available: bool = True,
+                   *, current_user=None) -> dict:
+    """Create or update a semantic profile and return status dict.
+
+    Authorization: si ``current_user`` se provee, sólo permite que el propio
+    usuario, un admin/HR de su organización o un superadmin modifique el
+    perfil. Antes cualquier user autenticado podía editar el perfil de otro
+    pasando ``user_id`` en el body.
+    """
+    if current_user is not None:
+        is_super = bool(getattr(current_user, "is_superadmin", False))
+        is_self  = str(getattr(current_user, "id", "")) == str(user_id)
+        role     = getattr(current_user, "role", None)
+        role_val = role.value if hasattr(role, "value") else role
+        is_priv  = role_val in ("admin", "hr")
+        if not (is_super or is_self or is_priv):
+            raise PermissionError("No tienes permisos para modificar este perfil")
+        # Validación adicional para admin/hr: solo de su org
+        target = db.query(User).filter(User.id == user_id).first()
+        if (not is_super and is_priv and target
+                and target.organization_id != getattr(current_user, "organization_id", None)):
+            raise PermissionError("Solo puedes modificar perfiles de tu organización")
+
     profile = db.query(SemProfile).filter(SemProfile.user_id == user_id).first()
     if not profile:
         profile = SemProfile(user_id=user_id)

@@ -450,6 +450,19 @@ def mark_read(db: Session, user, conversation_id: str, last_message_id: str) -> 
             organization_id=org, conversation_id=conversation_id,
             user_id=user.id, last_message_id=last_message_id,
         ))
+
+    # Keep notification-based unread counters in sync with read markers.
+    # As soon as a user reads a conversation, unread notifications for that
+    # conversation should disappear immediately.
+    db.query(CollaborationNotification).filter(
+        CollaborationNotification.user_id == user.id,
+        CollaborationNotification.conversation_id == conversation_id,
+        CollaborationNotification.is_read == False,
+    ).update({
+        "is_read": True,
+        "read_at": datetime.now(timezone.utc),
+    }, synchronize_session=False)
+
     db.commit()
     _publish_async(conv_channel(conversation_id), {
         "type": "read.updated", "conversation_id": conversation_id,

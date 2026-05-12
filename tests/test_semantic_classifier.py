@@ -537,7 +537,7 @@ class TestBug6LLMResultCached:
 
         llm_response_json = json.dumps({"user_id": user_id, "reason": "DevOps expert"})
 
-        with patch("app.api.v1.endpoints.ai_providers.call_ai", return_value=llm_response_json):
+        with patch("app.services.ai_provider_service.call_ai", return_value=llm_response_json):
             with patch.object(assigner, "record_feedback") as mock_fb:
                 result = assigner._llm_suggest(text, [profile], item_type)
 
@@ -567,7 +567,7 @@ class TestBug6LLMResultCached:
 
         llm_response_json = json.dumps({"user_id": user_id, "reason": "Auth expert"})
 
-        with patch("app.api.v1.endpoints.ai_providers.call_ai", return_value=llm_response_json):
+        with patch("app.services.ai_provider_service.call_ai", return_value=llm_response_json):
             with patch.object(assigner, "record_feedback", side_effect=Exception("DB write failed")):
                 result = assigner._llm_suggest(text, [profile], item_type)
 
@@ -587,7 +587,7 @@ class TestBug6LLMResultCached:
 
         llm_response_json = json.dumps({"user_id": None, "reason": "No match"})
 
-        with patch("app.api.v1.endpoints.ai_providers.call_ai", return_value=llm_response_json):
+        with patch("app.services.ai_provider_service.call_ai", return_value=llm_response_json):
             with patch.object(assigner, "record_feedback") as mock_fb:
                 assigner._llm_suggest(text, [profile], item_type)
 

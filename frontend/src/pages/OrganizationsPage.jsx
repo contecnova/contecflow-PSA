@@ -31,7 +31,19 @@ export default function OrganizationsPage() {
         setRemovingUserId(null)
         toast.success('Usuario eliminado')
       },
-      onError: e => toast.error(extractErr(e, 'Error al eliminar usuario')),
+      onError: e => {
+        const msg = extractErr(e, 'Error al eliminar usuario')
+        const normalized = String(msg).toLowerCase()
+        if (normalized.includes('ultima organizacion') || normalized.includes('última organización')) {
+          toast.error('No se puede quitar al usuario de su ultima organizacion')
+          return
+        }
+        if (normalized.includes('ultimo usuario') || normalized.includes('último usuario')) {
+          toast.error('No se puede quitar el ultimo usuario de la organizacion')
+          return
+        }
+        toast.error(msg)
+      },
     })
   // Estado para asignar usuario
   const [showAssignUser, setShowAssignUser] = useState(false)
@@ -48,6 +60,7 @@ export default function OrganizationsPage() {
 
   const { data: orgs = [], isLoading } = useQuery({ queryKey:['orgs'], queryFn:() => organizationsApi.list().then(r=>r.data) })
   const { data: detail } = useQuery({ queryKey:['org-detail', selected], queryFn:() => organizationsApi.get(selected).then(r=>r.data), enabled:!!selected })
+  const removingUser = detail?.users?.find(u => u.id === removingUserId) || null
   // Todos los usuarios activos
   const { data: allUsers = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list().then(r=>r.data) })
   // Mutación para asignar usuario
@@ -187,8 +200,8 @@ export default function OrganizationsPage() {
                       {removingUserId && detail && (
                         <Confirm
                           open
-                          title="No puedes quitar el ultimo usuario"
-                          description="Asigna otra persona antes de eliminar el ultimo usuario de la organizacion"
+                          title="Quitar usuario de la organizacion"
+                          description={`Vas a quitar ${removingUser?.full_name || 'este usuario'} de ${detail.name}. El usuario seguira existiendo en el sistema si pertenece a otras organizaciones.`}
                           onCancel={()=>setRemovingUserId(null)}
                           onConfirm={()=>removeUser({ orgId: detail.id, userId: removingUserId })}
                           loading={isRemoving}

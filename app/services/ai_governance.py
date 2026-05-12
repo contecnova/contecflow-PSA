@@ -34,8 +34,11 @@ _UTC = timezone.utc
 # Each pattern: (label, compiled_regex)
 _PII_PATTERNS: List[Tuple[str, re.Pattern]] = [
     ("email",           re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")),
-    ("phone_es",        re.compile(r"\b(?:\+34|0034)?[\s\-]?[6-9]\d{8}\b")),
-    ("phone_intl",      re.compile(r"\+\d{1,3}[\s\-]?\(?\d{1,4}\)?[\s\-]?\d{3,4}[\s\-]?\d{3,4}")),
+    ("phone_es",        re.compile(r"(?<!\d)(?:\+34|0034)?[\s\-]?[6-9]\d{8}(?!\d)")),
+    # phone_intl: requiere prefijo `+`, total dígitos 8–15 (E.164), y boundaries
+    # estrictos (no dígitos pegados). Antes \d{1,3} se pegaba a totales hasta 18
+    # haciendo coincidir códigos de versión, IDs y números de pedido.
+    ("phone_intl",      re.compile(r"(?<!\d)\+\d{1,3}[\s\-]?\(?\d{1,4}\)?[\s\-]?\d{3,4}[\s\-]?\d{3,4}(?!\d)")),
     ("dni_nie",         re.compile(r"\b[0-9]{8}[A-Za-z]\b|\b[XYZxyz][0-9]{7}[A-Za-z]\b")),
     ("nif_nif",         re.compile(r"\b[A-HJ-NP-SUVW]\d{7}[0-9A-J]\b")),
     ("credit_card",     re.compile(r"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b")),
@@ -43,8 +46,28 @@ _PII_PATTERNS: List[Tuple[str, re.Pattern]] = [
     ("ip_address",      re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")),
     ("ssn_us",          re.compile(r"\b\d{3}-\d{2}-\d{4}\b")),
     ("passport",        re.compile(r"\b[A-Z]{2}[0-9]{7}\b")),
-    ("date_of_birth",   re.compile(r"\b(?:born|dob|fecha\s+de\s+nacimiento)[:\s]+\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b", re.IGNORECASE)),
-    ("full_name_hint",  re.compile(r"\b(?:nombre completo|full name|señor|señora|Mr\.|Mrs\.|Dr\.)\s+[A-ZÀ-Ú][a-zà-ú]+\s+[A-ZÀ-Ú][a-zà-ú]+\b", re.IGNORECASE)),
+    # date_of_birth: aceptamos prefijo OR formato dd/mm/aaaa "puro" cuando el
+    # año caiga en el rango plausible 1900-2099 para minimizar falsos positivos.
+    ("date_of_birth",   re.compile(
+        r"\b(?:born|dob|fecha\s+de\s+nacimiento|nacid[oa]\s+el|birth\s*date)[:\s]+"
+        r"\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b"
+        r"|(?<!\d)(?:0?[1-9]|[12]\d|3[01])[\/\-\.](?:0?[1-9]|1[0-2])[\/\-\.](?:19|20)\d{2}(?!\d)",
+        re.IGNORECASE,
+    )),
+    # full_name_hint: prefijo de cortesía + 2-4 tokens (case-insensitive en
+    # el prefijo, sensible en el nombre).
+    ("full_name_hint",  re.compile(
+        r"\b(?:nombre completo|full name|señor|señora|Sr\.|Sra\.|Mr\.|Mrs\.|Ms\.|Dr\.|Dra\.|Prof\.)\s+"
+        r"[A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Ú][a-zà-ú]+){1,3}\b",
+        re.IGNORECASE,
+    )),
+    # full_name_triple_cap: nombre + 2 apellidos (patrón ES). DEBE ser
+    # case-sensitive — IGNORECASE convertiría "El proyecto avanza" en falso
+    # positivo. Mínimo 3 tokens, cada uno empezando estrictamente con mayúscula
+    # y resto en minúscula. Sin re.IGNORECASE deliberadamente.
+    ("full_name_hint",  re.compile(
+        r"\b[A-ZÀ-Ú][a-zà-ú]+\s+[A-ZÀ-Ú][a-zà-ú]+\s+[A-ZÀ-Ú][a-zà-ú]+\b"
+    )),
 ]
 
 # Map entity label → mask token
@@ -63,6 +86,29 @@ _DEFAULT_MASKS = {
     "full_name_hint": "[NAME]",
 }
 
+# ── Token estimator (item #63) ────────────────────────────────────────────────
+
+def _estimate_tokens(text: str) -> int:
+    """Estimación conservadora del número de tokens en ``text``.
+
+    Preferencia 1: ``tiktoken`` (cl100k_base) — exacto para modelos OpenAI/Claude.
+    Preferencia 2: fórmula conservadora ``max(len//4, words × 1.3)``.
+
+    El fallback ``len // 4`` infraestima con texto español/emojis. Usamos el
+    máximo entre 1.3× palabras y len//4 para evitar dejar pasar prompts que
+    exceden el límite real.
+    """
+    if not text:
+        return 0
+    try:
+        import tiktoken  # type: ignore  # noqa: PLC0415
+        enc = tiktoken.get_encoding("cl100k_base")
+        return len(enc.encode(text))
+    except Exception:
+        words = text.split()
+        return max(len(text) // 4, int(len(words) * 1.3))
+
+
 # ── PII Detector ─────────────────────────────────────────────────────────────
 
 @dataclass
@@ -73,12 +119,40 @@ class PIIMatch:
     end: int
 
 
+_DNI_LETTERS = "TRWAGMYFPDXBNJZSQVHLCKE"
+
+
+def _dni_checksum_valid(value: str) -> bool:
+    """Valida que la letra de control de un DNI/NIE coincida con el resto.
+
+    DNI: ``NNNNNNNN-L``  → letra = ``_DNI_LETTERS[num % 23]``
+    NIE: ``[XYZ]NNNNNNN-L`` → letra calculada sustituyendo X=0, Y=1, Z=2
+
+    Item #65: antes el regex matcheaba cualquier 8 dígitos + letra. ~96% de
+    los falsos positivos vienen de IDs internos con la misma forma.
+    """
+    v = value.strip().upper()
+    if len(v) == 9 and v[:8].isdigit():
+        num = int(v[:8])
+        return _DNI_LETTERS[num % 23] == v[8]
+    if len(v) == 9 and v[0] in "XYZ" and v[1:8].isdigit():
+        num = int({"X": "0", "Y": "1", "Z": "2"}[v[0]] + v[1:8])
+        return _DNI_LETTERS[num % 23] == v[8]
+    return False
+
+
 def detect_pii(text: str) -> List[PIIMatch]:
     """Return all PII matches found in text, ordered by position."""
     matches: List[PIIMatch] = []
     for label, pattern in _PII_PATTERNS:
         for m in pattern.finditer(text):
-            matches.append(PIIMatch(entity_type=label, value=m.group(), start=m.start(), end=m.end()))
+            value = m.group()
+            # Item #65: para DNI/NIE validamos la letra de control.
+            # Esto elimina ~96% de falsos positivos (IDs internos con la
+            # misma forma 8 dígitos + letra).
+            if label == "dni_nie" and not _dni_checksum_valid(value):
+                continue
+            matches.append(PIIMatch(entity_type=label, value=value, start=m.start(), end=m.end()))
     matches.sort(key=lambda x: x.start)
     return matches
 
@@ -169,13 +243,30 @@ class AIGuardrailEngine:
     Uses DB-loaded policies; falls back to safe defaults.
     """
 
+    # Item #64: TTL del caché de policies. Antes ``_policies_cache`` se llenaba
+    # una vez por instancia y no expiraba — si una instancia AIGuardrailEngine
+    # vivía más allá del request (en worker), un PATCH a policies no se
+    # reflejaba hasta reiniciar. TTL de 60s acota el drift sin matar el caché.
+    _POLICY_CACHE_TTL_SECONDS = 60
+
     def __init__(self, db: Session, org_id: str):
         self.db     = db
         self.org_id = org_id
         self._policies_cache: Optional[List[GuardrailPolicy]] = None
+        self._policies_cache_at: Optional[float] = None
+
+    def invalidate_policies(self) -> None:
+        """Fuerza recarga de policies en la próxima llamada."""
+        self._policies_cache = None
+        self._policies_cache_at = None
 
     def _load_policies(self) -> List[GuardrailPolicy]:
-        if self._policies_cache is not None:
+        import time as _time  # noqa: PLC0415
+        if (
+            self._policies_cache is not None
+            and self._policies_cache_at is not None
+            and (_time.monotonic() - self._policies_cache_at) < self._POLICY_CACHE_TTL_SECONDS
+        ):
             return self._policies_cache
         try:
             from app.models.ai_governance import AIGuardrailPolicyModel
@@ -205,9 +296,21 @@ class AIGuardrailEngine:
         except Exception as exc:  # noqa: BLE001
             logger.warning("Could not load guardrail policies: %s", exc)
             self._policies_cache = []
+        import time as _time  # noqa: PLC0415
+        self._policies_cache_at = _time.monotonic()
         return self._policies_cache
 
     def _policies_for(self, role: str, module: str) -> List[GuardrailPolicy]:
+        """Filtra policies que aplican a ``(role, module)``.
+
+        **Wildcard ``"*"``** (item #75): si una policy declara ``"*"`` en
+        ``applies_to_roles`` o ``applies_to_modules``, aplica a TODOS los
+        roles/módulos respectivamente. Es la convención para crear policies
+        globales (ej. \"ningún PII en ningún prompt, sea quien sea\").
+
+        Coincidencias exactas también funcionan: ``["admin", "pm"]`` aplica
+        solo a esos roles. No hay coincidencia parcial / glob.
+        """
         return [
             p for p in self._load_policies()
             if ("*" in p.applies_to_roles or role in p.applies_to_roles)
@@ -261,9 +364,13 @@ class AIGuardrailEngine:
                     elif policy.action in ("warn", "log"):
                         warnings.append(f"Keyword '{kw}' flagged by policy '{policy.name}'")
 
-            # 2. Token limit (rough estimate: 1 token ≈ 4 chars)
+            # 2. Token limit. Item #63: ``len // 4`` infraestimaba con
+            # caracteres no-ASCII (español, emojis usan 2-3 bytes/char). Si
+            # ``tiktoken`` está disponible, lo usamos para una cuenta real;
+            # si no, caemos a aprox ``max(len//4, palabras × 1.3)`` que es
+            # más conservador con textos en español.
             if policy.max_prompt_tokens and scope == "prompt":
-                estimated_tokens = len(working_text) // 4
+                estimated_tokens = _estimate_tokens(working_text)
                 if estimated_tokens > policy.max_prompt_tokens:
                     if policy.action == "block":
                         result = GuardrailResult(

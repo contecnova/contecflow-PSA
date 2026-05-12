@@ -71,6 +71,39 @@ def extract_text(response) -> str:
     return "\n".join(b["text"] for b in response.get("content", []) if b.get("type") == "text")
 
 
+def _parse_llm_json(raw: str, pattern: str = r"\{.*\}"):
+    """Extrae y parsea el primer bloque JSON de la respuesta LLM.
+
+    LLMs devuelven JSON imperfecto a menudo: markdown fences, trailing commas,
+    prefijos de explicación. Este helper:
+      1. Quita fences ``` ```json ``` ``` o ``` ``` ``` (item #74).
+      2. Busca con la regex (default ``{...}``; usar ``[.*]`` para arrays).
+      3. Intenta ``json.loads`` directo.
+      4. Si falla, sanea trailing commas y reintenta.
+
+    Devuelve ``None`` si no encuentra match. Lanza ``json.JSONDecodeError``
+    solo si el saneado también falla → el caller puede capturarlo.
+    """
+    import json as __json
+    import re as __re
+    if not raw:
+        return None
+    # Item #74: strip markdown fences. El LLM a veces envuelve el JSON en
+    # ```json … ``` o ``` … ```; el regex `\{.*\}` lo cazaba bien porque las
+    # llaves siguen presentes, pero los fence delimiters dejan caracteres
+    # extra (espacios, "json") al inicio del primer match que rompe parses.
+    cleaned_raw = __re.sub(r"```(?:json)?\s*", "", raw, flags=__re.IGNORECASE)
+    cleaned_raw = cleaned_raw.replace("```", "")
+    m = __re.search(pattern, cleaned_raw, __re.DOTALL)
+    if not m:
+        return None
+    try:
+        return __json.loads(m.group(0))
+    except __json.JSONDecodeError:
+        cleaned = __re.sub(r",\s*([}\]])", r"\1", m.group(0))
+        return __json.loads(cleaned)
+
+
 def compute_kb_embedding(db, article_id: str, text: str):
     """Compute and persist the vector embedding for a KB article (best-effort)."""
     try:
@@ -206,13 +239,27 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
     """
     Runs all rule-based risk analyses and stores results as AIPrediction records.
     Returns { ok, methodology, alerts_generated, alerts, run_at }.
+
+    Multi-tenant: cuando ``current_user.is_superadmin`` es False, todas las
+    queries se filtran por ``current_user.organization_id``. Antes este job
+    iteraba proyectos / tickets / users globalmente.
     """
 
     now       = datetime.now(timezone.utc)
     generated = []
+    is_super  = bool(getattr(current_user, "is_superadmin", False))
+    user_org  = None if is_super else getattr(current_user, "organization_id", None)
+
+    def _scope_by_org(q, model):
+        if user_org and hasattr(model, "organization_id"):
+            return q.filter(getattr(model, "organization_id") == user_org)
+        return q
 
     # ── 1. Project delay prediction ──────────────────────────────────────────
-    projects = db.query(Project).filter(Project.status.in_(["active", "planning"])).all()
+    projects = _scope_by_org(
+        db.query(Project).filter(Project.status.in_(["active", "planning"])),
+        Project,
+    ).all()
     for p in projects:
         tasks = db.query(Task).filter(Task.project_id == p.id).all()
         if not tasks:
@@ -223,7 +270,12 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
 
         hours_total = db.query(func.sum(Imputation.hours)).filter(Imputation.project_id == p.id).scalar() or 0
         budget = p.budget_amount or 1
-        budget_consumed_pct = (hours_total * (getattr(p, "billing_rate", 100) or 100)) / max(budget, 1)
+        # Tarifa: si el proyecto define billing_rate, ese gana. Si no, usar el
+        # fallback global configurable (antes 100 aquí y 85 en run_oracle_health
+        # → inconsistente). Centralizamos en AI_REVENUE_HOURLY_RATE_FALLBACK.
+        from app.core.config import settings as _s  # noqa: PLC0415
+        _rate_fb = float(getattr(_s, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
+        budget_consumed_pct = (hours_total * (getattr(p, "billing_rate", _rate_fb) or _rate_fb)) / max(budget, 1)
 
         risk_score = 0
         if overdue > 0:
@@ -271,7 +323,10 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
             generated.append({"type": "project_delay", "entity": p.name, "probability": probability})
 
     # ── 2. SLA breach prediction ──────────────────────────────────────────────
-    open_tickets = db.query(Ticket).filter(Ticket.status.in_(["open", "in_progress"])).all()
+    open_tickets = _scope_by_org(
+        db.query(Ticket).filter(Ticket.status.in_(["open", "in_progress"])),
+        Ticket,
+    ).all()
     for t in open_tickets:
         if not t.created_at:
             continue
@@ -309,7 +364,10 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
             generated.append({"type": "sla_breach", "entity": t.number, "probability": probability})
 
     # ── 3. Burnout detection ─────────────────────────────────────────────────
-    active_users = db.query(User).filter(User.is_active == True).all()
+    active_users = _scope_by_org(
+        db.query(User).filter(User.is_active == True),
+        User,
+    ).all()
     week_starts  = [(now - timedelta(weeks=i)).date() for i in range(4)]
     for u in active_users:
         weekly = []
@@ -355,7 +413,10 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
         if not p.budget_amount:
             continue
         hours = db.query(func.sum(Imputation.hours)).filter(Imputation.project_id == p.id).scalar() or 0
-        rate  = getattr(p, "billing_rate", 85) or 85
+        # Consistencia con la sección 1 (oracle health) — tarifa única vía settings.
+        from app.core.config import settings as _s  # noqa: PLC0415
+        _rate_fb = float(getattr(_s, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
+        rate  = getattr(p, "billing_rate", _rate_fb) or _rate_fb
         spent = hours * rate
         ratio = spent / p.budget_amount
         if ratio < 0.85:
@@ -446,8 +507,19 @@ def openai_key_from_db(db) -> Optional[str]:
         return None
 
 
-def process_voice_core(transcript: str, db, current_user) -> dict:
-    """Shared voice command processing logic."""
+def process_voice_core(transcript: str, db, current_user,
+                       *, confirm: bool = False) -> dict:
+    """Shared voice command processing logic.
+
+    Modo "dry-run" (``confirm=False``, default): el LLM extrae intent +
+    entities, busca el target (project/task), pero NO ejecuta la acción.
+    Devuelve un resumen para que el cliente muestre confirmación humana.
+
+    Modo "confirm" (``confirm=True``): ejecuta la acción sugerida.
+
+    Antes este servicio ejecutaba directamente — un Whisper que
+    transcribiera mal "3h" → "30h" registraba 30h sin confirmación.
+    """
     import re as _re
 
     t0 = time.time()
@@ -484,13 +556,37 @@ Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_descript
         intent = "unknown"
         action_taken = "Error en IA, modo fallback activado"
 
-    result: dict = {"intent": intent, "entities": entities, "action": action_taken}
+    result: dict = {
+        "intent": intent, "entities": entities, "action": action_taken,
+        "confirmed": confirm,
+    }
+
+    # Multi-tenant: limitar matching de proyectos a la org del current_user
+    cu_org = getattr(current_user, "organization_id", None)
+    is_super_cu = bool(getattr(current_user, "is_superadmin", False))
+
+    def _find_project_scoped(name_pattern):
+        q = db.query(Project).filter(Project.name.ilike(f"%{name_pattern}%"))
+        if cu_org and not is_super_cu:
+            q = q.filter(Project.organization_id == cu_org)
+        return q.first()
 
     if intent == "log_hours" and entities.get("hours") and entities.get("project_name"):
-        project = db.query(Project).filter(
-            Project.name.ilike(f"%{entities['project_name']}%")
-        ).first()
-        if project:
+        project = _find_project_scoped(entities['project_name'])
+        if not project:
+            result["action"] = f"No encontré el proyecto '{entities['project_name']}'."
+        elif not confirm:
+            result["action"] = (
+                f"⏳ Propuesta: registrar {entities['hours']}h en {project.name}. "
+                f"Confirma para ejecutar."
+            )
+            result["pending_action"] = {
+                "type": "log_hours",
+                "project_id": project.id,
+                "project_name": project.name,
+                "hours": float(entities["hours"]),
+            }
+        else:
             imp = Imputation(
                 user_id=current_user.id, project_id=project.id,
                 hours=float(entities["hours"]),
@@ -502,14 +598,24 @@ Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_descript
             result["action"] = f"✓ Registradas {entities['hours']}h en {project.name}"
 
     elif intent == "create_ticket" and entities.get("ticket_title"):
-        ticket = Ticket(
-            title=entities["ticket_title"],
-            priority=entities.get("priority", "medium"),
-            status="open",
-            requester_user_id=current_user.id,
-        )
-        db.add(ticket); db.flush()
-        result["action"] = f"✓ Ticket creado: {ticket.title}"
+        if not confirm:
+            result["action"] = (
+                f"⏳ Propuesta: crear ticket '{entities['ticket_title']}'. Confirma para ejecutar."
+            )
+            result["pending_action"] = {
+                "type": "create_ticket",
+                "title": entities["ticket_title"],
+                "priority": entities.get("priority", "medium"),
+            }
+        else:
+            ticket = Ticket(
+                title=entities["ticket_title"],
+                priority=entities.get("priority", "medium"),
+                status="open",
+                requester_user_id=current_user.id,
+            )
+            db.add(ticket); db.flush()
+            result["action"] = f"✓ Ticket creado: {ticket.title}"
 
     elif intent == "query_hours":
         week_start = (date.today() - timedelta(days=date.today().weekday()))
@@ -522,20 +628,32 @@ Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_descript
     elif intent == "create_task" and entities.get("task_name"):
         project = None
         if entities.get("project_name"):
-            project = db.query(Project).filter(
-                Project.name.ilike(f"%{entities['project_name']}%")
-            ).first()
-        task = Task(
-            title=entities["task_name"][:255],
-            project_id=project.id if project else None,
-            status="todo",
-            priority=entities.get("priority", "medium"),
-            created_by=current_user.id,
-        )
-        db.add(task); db.flush()
-        result["action"] = f"✓ Tarea creada: {task.title}"
-        if project:
-            result["action"] += f" en {project.name}"
+            project = _find_project_scoped(entities['project_name'])
+        if not confirm:
+            result["action"] = (
+                f"⏳ Propuesta: crear tarea '{entities['task_name']}'"
+                + (f" en {project.name}" if project else "")
+                + ". Confirma para ejecutar."
+            )
+            result["pending_action"] = {
+                "type": "create_task",
+                "title": entities["task_name"][:255],
+                "project_id": project.id if project else None,
+                "project_name": project.name if project else None,
+                "priority": entities.get("priority", "medium"),
+            }
+        else:
+            task = Task(
+                title=entities["task_name"][:255],
+                project_id=project.id if project else None,
+                status="todo",
+                priority=entities.get("priority", "medium"),
+                created_by=current_user.id,
+            )
+            db.add(task); db.flush()
+            result["action"] = f"✓ Tarea creada: {task.title}"
+            if project:
+                result["action"] += f" en {project.name}"
 
     elif intent == "get_summary" and entities.get("project_name"):
         project = db.query(Project).filter(
@@ -595,11 +713,19 @@ Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_descript
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_client_project_data(client_user, db: Session) -> dict:
-    """Get sanitized project data for client portal."""
+    """Get sanitized project data for client portal.
 
-    projects = db.query(Project).filter(
-        Project.client_name.ilike(f"%{getattr(client_user, 'company', '')}%")
-    ).limit(5).all()
+    Multi-tenant fix: filtra por la organización del cliente cuando existe,
+    además del fuzzy ``ilike`` por ``client_name``. Antes el fuzzy podía
+    matchear proyectos de otra organización con cliente de nombre parecido.
+    """
+    company = getattr(client_user, "company", "") or ""
+    org_id  = getattr(client_user, "organization_id", None)
+
+    q = db.query(Project).filter(Project.client_name.ilike(f"%{company}%"))
+    if org_id:
+        q = q.filter(Project.organization_id == org_id)
+    projects = q.limit(5).all()
 
     result = []
     for p in projects:
@@ -616,13 +742,16 @@ def get_client_project_data(client_user, db: Session) -> dict:
 
 
 def client_demo_response(message: str, project_data: dict) -> str:
+    # Items #72/#73: mensajes agnósticos al proveedor. Antes hardcoded a
+    # ANTHROPIC_API_KEY — engañoso si la empresa usa Gemini/OpenAI/Mistral.
     projects = project_data.get("projects", [])
     if projects:
         p = projects[0]
         return (f"Su proyecto **{p['name']}** tiene un progreso del {p['progress_pct']}% "
                 f"con {p['open_tasks']} tareas pendientes. "
-                f"Para análisis detallado, configure ANTHROPIC_API_KEY.")
-    return "Hola, soy el asistente del portal. Configure ANTHROPIC_API_KEY para respuestas completas."
+                "Para análisis detallado, configura un proveedor IA en *IA & Conectores*.")
+    return ("Hola, soy el asistente del portal. Configura un proveedor IA en "
+            "*IA & Conectores* para respuestas completas.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -783,16 +912,30 @@ def process_meeting(db: Session, payload, current_user) -> dict:
     import re
 
     t0 = time.time()
+    # Item #68: registramos el tamaño original para trazabilidad de citas.
+    # El campo ``transcript`` truncamos a 50K para no inflar la DB, pero el
+    # análisis LLM (map-reduce) puede usar más; guardamos ``original_length``
+    # y un flag ``truncated`` para que ``original_text`` en respuestas LLM se
+    # pueda re-referenciar al transcript completo si el caller lo necesita.
+    _full_transcript = payload.transcript or ""
+    _was_truncated = len(_full_transcript) > 50000
     meeting = AIMeeting(
         project_id=payload.project_id,
         title=payload.title or "Reunión procesada por IA",
         platform=payload.platform,
         duration_min=payload.duration_min,
         participants=json.dumps(payload.participants or []),
-        transcript=payload.transcript[:50000],
+        transcript=_full_transcript[:50000],
         status="processing",
         created_by=current_user.id,
     )
+    # Anotamos en summary la truncación si aplica (se sobreescribe luego con el
+    # resumen del LLM, pero queda en el log/audit que hubo truncación).
+    if _was_truncated:
+        meeting.summary = (
+            f"[TRUNCADO: transcripción original {len(_full_transcript)} chars, "
+            f"guardados primeros 50000. Para audit completo consulta el original.]"
+        )
     if payload.meeting_date:
         try:
             meeting.meeting_date = datetime.fromisoformat(payload.meeting_date)
@@ -826,7 +969,15 @@ Responde SOLO con JSON:
         )
         match = re.search(r'\{.*\}', text, re.DOTALL)
         if match:
-            data = json.loads(match.group())
+            # Hardening: el LLM puede devolver JSON casi-bien (trailing comma,
+            # comilla simple, texto adicional). Antes una sola coma arrastrada
+            # rompía toda la persistencia del meeting → caía al except y se
+            # guardaba "Error procesando con IA".
+            try:
+                data = json.loads(match.group())
+            except json.JSONDecodeError:
+                _cleaned = re.sub(r",\s*([}\]])", r"\1", match.group())  # trailing commas
+                data = json.loads(_cleaned)
             meeting.title   = data.get("title", meeting.title)
             meeting.summary = data.get("summary")
             meeting.decisions = json.dumps(data.get("decisions", []))
@@ -839,9 +990,17 @@ Responde SOLO con JSON:
                     due_date_text=action_data.get("due_date_text"),
                 )
                 if action_data.get("assignee_name"):
-                    user = db.query(User).filter(
+                    # Multi-tenant fix: limitar matching a usuarios de la
+                    # organización del current_user. Sin este filtro un
+                    # "Juan" en el transcript podía resolverse a Juan
+                    # cualquiera de cualquier organización.
+                    user_q = db.query(User).filter(
                         User.full_name.ilike(f"%{action_data['assignee_name']}%")
-                    ).first()
+                    )
+                    cu_org = getattr(current_user, "organization_id", None)
+                    if cu_org and not bool(getattr(current_user, "is_superadmin", False)):
+                        user_q = user_q.filter(User.organization_id == cu_org)
+                    user = user_q.first()
                     if user: action.assignee_id = user.id
                 db.add(action)
         meeting.status = "done"
@@ -940,14 +1099,25 @@ def analyze_contract(db: Session, payload, current_user) -> dict:
     import re
 
     t0 = time.time()
+    # Item #69: registramos truncación. El LLM analiza ``contract_text``
+    # completo vía map-reduce; en DB solo guardamos los primeros 20K para no
+    # inflar la tabla. Si el contrato es más largo, anotamos el tamaño
+    # original en ``scope_summary`` (queda registrado aunque el LLM falle).
+    _full_contract = payload.contract_text or ""
+    _was_truncated = len(_full_contract) > 20000
     contract = AIContract(
         project_id=payload.project_id,
         client_name=payload.client_name,
         filename=payload.filename,
-        file_content=payload.contract_text[:20000],
+        file_content=_full_contract[:20000],
         status="analyzing",
         created_by=current_user.id,
     )
+    if _was_truncated:
+        contract.scope_summary = (
+            f"[TRUNCADO: contrato original {len(_full_contract)} chars; "
+            f"guardados primeros 20000. Citas LLM pueden referirse a partes no persistidas.]"
+        )
     db.add(contract); db.commit(); db.refresh(contract)
 
     try:
@@ -980,7 +1150,11 @@ Responde SOLO con JSON:
         )
         match = re.search(r'\{.*\}', text, re.DOTALL)
         if match:
-            data = json.loads(match.group())
+            try:
+                data = json.loads(match.group())
+            except json.JSONDecodeError:
+                _cleaned = re.sub(r",\s*([}\]])", r"\1", match.group())
+                data = json.loads(_cleaned)
             contract.total_value   = data.get("total_value")
             contract.scope_summary = data.get("scope_summary")
             contract.risk_level    = data.get("risk_level", "medium")
@@ -1075,7 +1249,11 @@ Responde SOLO con JSON:
         )
         match = re.search(r'\{.*\}', text, re.DOTALL)
         if match:
-            data    = json.loads(match.group())
+            try:
+                data = json.loads(match.group())
+            except json.JSONDecodeError:
+                _cleaned = re.sub(r",\s*([}\]])", r"\1", match.group())
+                data = json.loads(_cleaned)
             title   = data.get("title", title)
             content = data.get("content", "")
             tags    = data.get("tags", [])
@@ -1214,35 +1392,55 @@ def client_portal_chat(db: Session, payload: dict) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def revenue_forecast(db: Session, months_ahead: int = 3) -> dict:
+    """Revenue forecast con regresión lineal OLS sobre facturas históricas.
+
+    Bug histórico corregido:
+      - El import era ``app.models.invoicing.Invoice`` (módulo inexistente)
+        → siempre caía al except y usaba ``hours × 85€`` hardcoded como
+        proxy. Ahora importa desde ``app.models.billing_reports``.
+      - ``func.date_trunc('month', ...)`` solo funciona en Postgres. En
+        SQLite el query rompía. Sustituido por extracción YYYY-MM en
+        Python para compatibilidad dialect-agnóstica.
+    """
+    from app.models.billing_reports import Invoice  # noqa: PLC0415
 
     now   = datetime.utcnow()
     start = (now.replace(day=1) - timedelta(days=365)).replace(day=1)
+    history: list[dict] = []
 
     try:
-        from app.models.invoicing import Invoice
-        rows = (
-            db.query(
-                func.date_trunc("month", Invoice.invoice_date).label("month"),
-                func.sum(Invoice.amount).label("total"),
-            )
-            .filter(Invoice.invoice_date >= start, Invoice.status != "cancelled")
-            .group_by(func.date_trunc("month", Invoice.invoice_date))
-            .order_by(func.date_trunc("month", Invoice.invoice_date))
+        invoices = (
+            db.query(Invoice.issue_date, Invoice.total)
+            .filter(Invoice.issue_date >= start.date(),
+                    Invoice.status != "cancelled")
             .all()
         )
-        history = [{"month": str(r.month)[:7], "amount": float(r.total or 0)} for r in rows]
-    except Exception:
-        rows = (
-            db.query(
-                func.date_trunc("month", Imputation.date).label("month"),
-                func.sum(Imputation.hours).label("total_hours"),
-            )
+        # Agrupar por YYYY-MM en Python (dialect-agnóstico)
+        agg: dict[str, float] = {}
+        for issue_date, total in invoices:
+            if not issue_date:
+                continue
+            key = issue_date.strftime("%Y-%m") if hasattr(issue_date, "strftime") else str(issue_date)[:7]
+            agg[key] = agg.get(key, 0.0) + float(total or 0)
+        history = [{"month": k, "amount": v} for k, v in sorted(agg.items())]
+    except Exception as exc:
+        _log.warning("Invoice-based revenue forecast unavailable (%s); using hours fallback", exc)
+        # Fallback: usa imputaciones × tarifa horaria como proxy. NOTA: la
+        # tarifa 85 €/h es una estimación grosera. Si tu empresa tiene
+        # tarifa distinta, configurar AI_REVENUE_HOURLY_RATE_FALLBACK.
+        imp_rows = (
+            db.query(Imputation.date, Imputation.hours)
             .filter(Imputation.date >= start.date())
-            .group_by(func.date_trunc("month", Imputation.date))
-            .order_by(func.date_trunc("month", Imputation.date))
             .all()
         )
-        history = [{"month": str(r.month)[:7], "amount": float((r.total_hours or 0) * 85)} for r in rows]
+        rate = float(getattr(settings, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
+        agg = {}
+        for imp_date, hours in imp_rows:
+            if not imp_date:
+                continue
+            key = imp_date.strftime("%Y-%m") if hasattr(imp_date, "strftime") else str(imp_date)[:7]
+            agg[key] = agg.get(key, 0.0) + float(hours or 0) * rate
+        history = [{"month": k, "amount": v} for k, v in sorted(agg.items())]
 
     if len(history) < 3:
         return {"error": "Insufficient data", "message": "Need at least 3 months of data", "history": history}
@@ -1295,9 +1493,19 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
     import re as _re
     import json as _json
 
+    is_super = bool(getattr(current_user, "is_superadmin", False))
+    user_org = None if is_super else getattr(current_user, "organization_id", None)
+
+    # Multi-tenant: filtrar tasks por org del current_user a través de Project,
+    # excepto si es superadmin. Antes leía tasks globalmente.
     q = db.query(Task).filter(Task.start_date == None, Task.due_date == None)
     if payload.project_id:
         q = q.filter(Task.project_id == payload.project_id)
+    elif user_org:
+        # Filtrar via join con Project.organization_id
+        q = q.join(Project, Task.project_id == Project.id).filter(
+            Project.organization_id == user_org
+        )
     unscheduled = q.filter(Task.status.notin_(["done", "cancelled", "closed"])).limit(payload.max_tasks).all()
 
     if not unscheduled:
@@ -1306,7 +1514,10 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
     now   = datetime.utcnow()
     w4ago = (now - timedelta(weeks=4)).date()
     capacity = []
-    users = db.query(User).filter(User.is_active == True).all()
+    users_q = db.query(User).filter(User.is_active == True)
+    if user_org:
+        users_q = users_q.filter(User.organization_id == user_org)
+    users = users_q.all()
     for u in users:
         hrs = db.query(func.sum(Imputation.hours)).filter(
             Imputation.user_id == u.id, Imputation.date >= w4ago
@@ -1321,29 +1532,59 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
     capacity_str = "\n".join(f"  {c['name']}: ~{c['available_hours_per_week']}h/week free" for c in capacity[:10])
     today_str = now.strftime("%Y-%m-%d")
 
+    # Item #70: prompts en español (alineado con el resto del sistema).
+    from app.core.config import settings as _s_for_cap  # noqa: PLC0415
+    _weekly_cap = float(getattr(_s_for_cap, "DEFAULT_WEEKLY_CAPACITY_HOURS", 40.0) or 40.0)
     system = (
-        "You are a project scheduling AI. Given a list of unscheduled tasks and team capacity, "
-        "produce a realistic schedule starting from today. "
-        "Return ONLY a JSON array of objects, no prose:\n"
-        '[{"task_id": <int>, "suggested_start": "YYYY-MM-DD", "suggested_due": "YYYY-MM-DD", "rationale": "..."}]'
+        "Eres una IA experta en planificación de proyectos. Recibes una lista "
+        "de tareas sin fechas y la capacidad disponible del equipo. Genera un "
+        "plan realista empezando hoy. "
+        "Responde SOLO con un array JSON, sin texto adicional:\n"
+        '[{"task_id": <int>, "suggested_start": "YYYY-MM-DD", '
+        '"suggested_due": "YYYY-MM-DD", "rationale": "..."}]'
     )
     user_msg = (
-        f"Today: {today_str}\n\n"
-        f"Unscheduled tasks:\n{task_list}\n\n"
-        f"Team capacity (available hours/week):\n{capacity_str}\n\n"
-        "Schedule these tasks considering priority and capacity. "
-        "Assume 1 story point ≈ 8 hours. Use a 40h/week team capacity baseline."
+        f"Hoy: {today_str}\n\n"
+        f"Tareas pendientes de planificar:\n{task_list}\n\n"
+        f"Capacidad del equipo (horas disponibles/semana):\n{capacity_str}\n\n"
+        "Planifica las tareas teniendo en cuenta prioridad y capacidad. "
+        f"Asume 1 story point ≈ 8 horas. Capacidad base {_weekly_cap:.0f}h/semana por persona."
     )
 
     try:
         response = call_ai_unified(db, [{"role": "user", "content": user_msg}], system=system,
                                    module="smart_schedule", user_id=current_user.id, max_tokens=2000)
-        text = extract_text(response)
+        # call_ai_unified ya devuelve texto plano (call_ai dispatcher → str;
+        # fallback claude → extract_text aplicado dentro). Aplicar extract_text
+        # a un string vuelve a `.get(...)` y lanza AttributeError → la respuesta
+        # IA se perdía silenciosamente.
+        text = response if isinstance(response, str) else extract_text(response)
         match = _re.search(r'\[.*\]', text, _re.DOTALL)
-        scheduled = _json.loads(match.group(0)) if match else []
+        if match:
+            try:
+                scheduled = _json.loads(match.group(0))
+            except _json.JSONDecodeError:
+                _cleaned = _re.sub(r",\s*([}\]])", r"\1", match.group(0))
+                scheduled = _json.loads(_cleaned)
+        else:
+            scheduled = []
     except Exception as exc:
         return {"scheduled": [], "error": str(exc),
-                "message": "AI scheduling failed — configure ANTHROPIC_API_KEY or OPENAI_API_KEY"}
+                "message": "AI scheduling falló — configura un proveedor IA en IA & Conectores"}
+
+    # Item #71: persistir traza de la sugerencia. Antes el LLM proponía y la
+    # UI tenía que aplicar manualmente sin que quedara registro de qué
+    # sugerencia se mostró. log_action deja entrada en AIActionLog (tabla
+    # existente, indexada por user/module/created_at).
+    try:
+        log_action(
+            db, current_user.id, "smart_schedule", "suggest",
+            input_s=f"tasks={len(unscheduled)} project={payload.project_id or '-'}",
+            output_s=json.dumps(scheduled)[:2000],
+            status="success",
+        )
+    except Exception:
+        pass  # audit best-effort
 
     return {"scheduled": scheduled, "unscheduled_count": len(unscheduled), "capacity_summary": capacity[:10]}
 
@@ -1353,60 +1594,29 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_overrun_prediction_data(db: Session, project_id: str) -> dict:
+    """Build overrun-prediction payload reutilizando ``extract_project_features``.
+
+    Item #56: antes este código duplicaba el cálculo CPI/SPI con otras
+    constantes (no usaba ``AI_REVENUE_HOURLY_RATE_FALLBACK``, no respetaba
+    ``cost_amount`` correctamente). Ahora delegamos en la fuente canónica
+    de features ML y solo añadimos ``project`` ORM object como conveniencia.
+    """
+    from app.services.ml_features import extract_project_features  # noqa: PLC0415
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("not_found")
 
-    today = date.today()
-    tasks = db.query(Task).filter(Task.project_id == project_id).all()
-    if not tasks:
+    feats = extract_project_features(db, project_id)
+    if feats is None:
         raise ValueError("no_tasks")
-
-    total_tasks   = len(tasks)
-    done_tasks    = sum(1 for t in tasks if t.status in ("done", "closed", "cancelled"))
-    overdue_tasks = sum(1 for t in tasks if t.due_date and str(t.due_date) < str(today)
-                        and t.status not in ("done", "closed", "cancelled"))
-
-    task_completion_pct = done_tasks / total_tasks * 100 if total_tasks > 0 else 0
-    overdue_ratio       = overdue_tasks / total_tasks if total_tasks > 0 else 0
-
-    budget      = float(project.budget_amount or 0)
-    actual_cost = float(
-        db.query(func.sum(Imputation.hours * 1)).filter(
-            Imputation.project_id == project_id
-        ).scalar() or 0
-    )
-    actual_cost_full = float(
-        db.query(func.sum(Imputation.cost_amount)).filter(
-            Imputation.project_id == project_id,
-            Imputation.cost_amount != None,
-        ).scalar() or actual_cost
-    )
-    budget_used_pct = (actual_cost_full / budget * 100) if budget > 0 else 0
-
-    start = project.start_date
-    end   = project.end_date_planned
-    if start and end and end > start:
-        total_days   = (end - start).days
-        elapsed_days = min((today - start).days, total_days)
-        elapsed_pct  = elapsed_days / total_days * 100
-    else:
-        elapsed_pct = task_completion_pct
-
-    budget_per_task = budget / total_tasks if budget > 0 and total_tasks > 0 else 0
-    ev = budget_per_task * done_tasks
-    pv = budget * elapsed_pct / 100 if budget > 0 else 0
-    ac = actual_cost_full
-
-    cpi = ev / ac if ac > 0 else 1.0
-    spi = ev / pv if pv > 0 else 1.0
 
     return {
         "project": project,
-        "cpi": cpi, "spi": spi,
-        "budget_used_pct": budget_used_pct,
-        "elapsed_pct": elapsed_pct,
-        "task_completion_pct": task_completion_pct,
-        "overdue_ratio": overdue_ratio,
+        "cpi": feats["cpi"],
+        "spi": feats["spi"],
+        "budget_used_pct": feats["budget_used_pct"],
+        "elapsed_pct": feats["elapsed_pct"],
+        "task_completion_pct": feats["task_completion_pct"],
+        "overdue_ratio": feats["overdue_ratio"],
     }

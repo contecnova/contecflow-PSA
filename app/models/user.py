@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Float, DateTime, Enum, Text, ForeignKey
+from sqlalchemy import Column, String, Boolean, Float, DateTime, Enum, Text, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -21,6 +21,22 @@ class UserStatus(str, enum.Enum):
     inactive = "inactive"
     vacation = "vacation"
     leave = "leave"
+
+
+class UserOrganizationMembership(Base):
+    __tablename__ = "user_organization_memberships"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "organization_id", name="uq_user_org_membership"),
+    )
+
+    user = relationship("User", foreign_keys=[user_id])
+    organization = relationship("Organization", foreign_keys=[organization_id])
 
 
 class User(Base):
@@ -80,6 +96,18 @@ class User(Base):
 
     # Relationships
     organization = relationship('Organization', back_populates='users', foreign_keys='User.organization_id')
+    organization_memberships = relationship(
+        "UserOrganizationMembership",
+        foreign_keys="UserOrganizationMembership.user_id",
+        cascade="all, delete-orphan",
+    )
+    organizations = relationship(
+        "Organization",
+        secondary="user_organization_memberships",
+        primaryjoin="User.id == UserOrganizationMembership.user_id",
+        secondaryjoin="Organization.id == UserOrganizationMembership.organization_id",
+        viewonly=True,
+    )
     managed_projects = relationship("Project", back_populates="project_manager", foreign_keys="Project.pm_id")
     @property
     def manager_name(self):
@@ -90,6 +118,30 @@ class User(Base):
     task_assignments = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_id")
     imputations = relationship("Imputation", back_populates="user", foreign_keys="Imputation.user_id")
     alerts = relationship("Alert", back_populates="user", foreign_keys="Alert.user_id")
+
+    @property
+    def organization_ids(self):
+        ids = set()
+        if self.organization_id:
+            ids.add(str(self.organization_id))
+        for m in self.organization_memberships or []:
+            if m.organization_id:
+                ids.add(str(m.organization_id))
+        return sorted(ids)
+
+    @property
+    def organizations_summary(self):
+        return [
+            {"id": str(o.id), "name": o.name, "slug": o.slug}
+            for o in (self.organizations or [])
+        ]
+
+    def belongs_to_organization(self, org_id: str) -> bool:
+        if not org_id:
+            return False
+        if str(self.organization_id) == str(org_id):
+            return True
+        return any(str(m.organization_id) == str(org_id) for m in (self.organization_memberships or []))
 
     def __repr__(self):
         return f"<User {self.username} ({self.role})>"

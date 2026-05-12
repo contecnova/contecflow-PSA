@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from app.schemas.semantic_engine import SemConfigPatch
 from app.db.session import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin_or_hr, require_any_manager
 import app.services.semantic_engine_service as _svc
 
 router = APIRouter()
@@ -31,7 +31,7 @@ def get_config(db: Session = Depends(get_db), _=Depends(get_current_user)):
 @router.patch("/config")
 def update_config(data: SemConfigPatch = Body(...),
                   db: Session = Depends(get_db),
-                  _=Depends(get_current_user)):
+                  _=Depends(require_admin_or_hr)):
     cfg = _svc.get_or_create_config(db)
     allowed = {"engine_mode", "threshold_ticket", "threshold_task",
                "threshold_expert_cache", "load_balance_weight",
@@ -65,6 +65,24 @@ def update_config(data: SemConfigPatch = Body(...),
 
 # ── Sugerencia de asignacion ──────────────────────────────────────────────────
 
+def _candidate_users_for_org(db: Session, current_user, explicit_candidates=None) -> list:
+    """Resuelve candidatos por defecto: si no hay lista explícita, devuelve
+    todos los users activos de la organización del current_user. Superadmin
+    sin filtro. Antes este endpoint leía perfiles globalmente sin filtro org,
+    permitiendo sugerir users de otra organización."""
+    if explicit_candidates:
+        return explicit_candidates
+    if bool(getattr(current_user, "is_superadmin", False)):
+        return None  # None == sin restricción, el assigner usa todos
+    org_id = getattr(current_user, "organization_id", None)
+    if not org_id:
+        return None
+    from app.models.user import User
+    return [u.id for u in db.query(User.id).filter(
+        User.is_active == True, User.organization_id == org_id
+    ).all()] or ["__none__"]
+
+
 @router.post("/suggest/ticket")
 def suggest_ticket_assignee(data: dict = Body(...),
                              db: Session = Depends(get_db),
@@ -73,11 +91,15 @@ def suggest_ticket_assignee(data: dict = Body(...),
     desc  = data.get("description", "")
     if not title:
         raise HTTPException(400, "title requerido")
-    candidates = data.get("candidate_user_ids")
+    candidates = _candidate_users_for_org(db, cu, data.get("candidate_user_ids"))
     priority   = data.get("priority", "medium")
     assigner   = _svc.get_assigner(db)
     result     = assigner.suggest_for_ticket(title, desc, candidates, priority=priority)
-    return _svc.enrich_suggestion(db, result)
+    return _svc.enrich_suggestion(
+        db, result,
+        organization_id=getattr(cu, "organization_id", None),
+        is_superadmin=bool(getattr(cu, "is_superadmin", False)),
+    )
 
 
 @router.post("/suggest/task")
@@ -92,10 +114,15 @@ def suggest_task_assignee(data: dict = Body(...),
     candidates = data.get("candidate_user_ids")
     if project_id and not candidates:
         candidates = _svc.get_project_member_ids(db, project_id)
+    candidates = _candidate_users_for_org(db, cu, candidates)
     priority = data.get("priority", "medium")
     assigner = _svc.get_assigner(db)
     result   = assigner.suggest_for_task(title, desc, candidates, priority=priority)
-    return _svc.enrich_suggestion(db, result)
+    return _svc.enrich_suggestion(
+        db, result,
+        organization_id=getattr(cu, "organization_id", None),
+        is_superadmin=bool(getattr(cu, "is_superadmin", False)),
+    )
 
 
 # ── Estimacion de esfuerzo ────────────────────────────────────────────────────
@@ -116,7 +143,11 @@ def estimate_sprint_backlog(data: dict = Body(...),
                             db: Session = Depends(get_db),
                             _=Depends(get_current_user)):
     tasks      = data.get("tasks", [])
-    capacity_h = data.get("team_capacity_hours", 80)
+    # Default: 2 semanas × DEFAULT_WEEKLY_CAPACITY_HOURS. Antes hardcoded a 80,
+    # ignorando la configuración global de capacity (40h/semana × 2 = 80, casual).
+    from app.core.config import settings as _s  # noqa: PLC0415
+    _default_h = float(getattr(_s, "DEFAULT_WEEKLY_CAPACITY_HOURS", 40.0) or 40.0) * 2
+    capacity_h = data.get("team_capacity_hours", _default_h)
     return _svc.estimate_sprint_backlog(tasks, capacity_h, db)
 
 
@@ -141,29 +172,37 @@ def list_profiles(db: Session = Depends(get_db), _=Depends(get_current_user)):
 @router.post("/profiles")
 def create_or_update_profile(data: dict = Body(...),
                               db: Session = Depends(get_db),
-                              _=Depends(get_current_user)):
+                              cu=Depends(get_current_user)):
     user_id      = data.get("user_id")
     profile_text = data.get("profile_text", "")
     if not user_id:
         raise HTTPException(400, "user_id requerido")
-    return _svc.upsert_profile(
-        db,
-        user_id=user_id,
-        profile_text=profile_text,
-        max_load=data.get("max_load"),
-        is_available=data.get("is_available", True),
-    )
+    try:
+        return _svc.upsert_profile(
+            db,
+            user_id=user_id,
+            profile_text=profile_text,
+            max_load=data.get("max_load"),
+            is_available=data.get("is_available", True),
+            current_user=cu,
+        )
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
 
 
 @router.post("/profiles/auto-generate")
 def auto_generate_profiles(db: Session = Depends(get_db),
-                            _=Depends(get_current_user)):
-    return _svc.auto_generate_profiles(db)
+                            cu=Depends(require_admin_or_hr)):
+    return _svc.auto_generate_profiles(
+        db,
+        organization_id=getattr(cu, "organization_id", None),
+        is_superadmin=bool(getattr(cu, "is_superadmin", False)),
+    )
 
 
 @router.post("/profiles/rebuild-embeddings")
 def rebuild_embeddings(db: Session = Depends(get_db),
-                       _=Depends(get_current_user)):
+                       _=Depends(require_admin_or_hr)):
     assigner = _svc.get_assigner(db)
     n = assigner.rebuild_profiles()
     return {"rebuilt": n}

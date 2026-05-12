@@ -21,7 +21,7 @@ import uuid
 from datetime import date, timedelta
 from typing import Optional
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -32,6 +32,8 @@ from app.models.user import User
 from app.models.user import UserStatus
 from app.models.user import UserRole
 from app.models.user import UserPreference
+from app.models.user import UserOrganizationMembership
+from app.models.mfa import Organization
 from app.schemas import UserLoad, UserPublic
 from fastapi import HTTPException
 
@@ -40,15 +42,58 @@ from fastapi import HTTPException
 
 def scope_users_query(q, current_user):
     if current_user.organization_id:
-        q = q.filter(User.organization_id == current_user.organization_id)
+        q = q.outerjoin(
+            UserOrganizationMembership,
+            UserOrganizationMembership.user_id == User.id,
+        ).filter(
+            or_(
+                User.organization_id == current_user.organization_id,
+                UserOrganizationMembership.organization_id == current_user.organization_id,
+            )
+        ).distinct()
     return q
 
 
 def ensure_same_org_user_access(target_user, current_user) -> None:
     if not current_user.organization_id:
         return
-    if target_user.organization_id != current_user.organization_id:
+    if not target_user.belongs_to_organization(current_user.organization_id):
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+
+def _normalize_org_ids(org_ids: Optional[list[str]]) -> list[str]:
+    if not org_ids:
+        return []
+    return sorted({str(v).strip() for v in org_ids if str(v).strip()})
+
+
+def _validate_org_ids(org_ids: list[str], db: Session) -> list[str]:
+    if not org_ids:
+        return []
+    found = {
+        str(o.id)
+        for o in db.query(Organization).filter(Organization.id.in_(org_ids)).all()
+    }
+    missing = [org_id for org_id in org_ids if org_id not in found]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Organizaciones no encontradas: {', '.join(missing)}")
+    return org_ids
+
+
+def _sync_user_memberships(user: User, org_ids: list[str], db: Session) -> None:
+    current = {
+        str(m.organization_id): m
+        for m in (user.organization_memberships or [])
+        if m.organization_id
+    }
+
+    for org_id in org_ids:
+        if org_id not in current:
+            db.add(UserOrganizationMembership(user_id=user.id, organization_id=org_id))
+
+    for org_id, membership in current.items():
+        if org_id not in org_ids:
+            db.delete(membership)
 
 
 # ── Load map ───────────────────────────────────────────────────────────────────
@@ -182,17 +227,35 @@ def create_user_record(payload, current_user, db: Session):
             raise HTTPException(status_code=400, detail=err)
 
     user_data = payload.model_dump(exclude={"password"})
-    if current_user.organization_id:
-        payload_org_id = user_data.get("organization_id")
-        if payload_org_id and payload_org_id != current_user.organization_id:
+    requested_org_id = user_data.get("organization_id")
+    requested_org_ids = _normalize_org_ids(user_data.pop("organization_ids", None))
+
+    if current_user.organization_id and current_user.role != UserRole.admin:
+        if requested_org_id and requested_org_id != current_user.organization_id:
+            raise HTTPException(status_code=403, detail="No puedes crear usuarios en otra organización")
+        if any(org_id != current_user.organization_id for org_id in requested_org_ids):
             raise HTTPException(status_code=403, detail="No puedes crear usuarios en otra organización")
         user_data["organization_id"] = current_user.organization_id
+        requested_org_ids = [str(current_user.organization_id)]
+    else:
+        requested_org_ids = _validate_org_ids(requested_org_ids, db)
+        if requested_org_id:
+            requested_org_id = str(requested_org_id)
+            _validate_org_ids([requested_org_id], db)
+            if requested_org_id not in requested_org_ids:
+                requested_org_ids.append(requested_org_id)
+        if requested_org_ids and not requested_org_id:
+            requested_org_id = requested_org_ids[0]
+        user_data["organization_id"] = requested_org_id
 
     user = User(**user_data)
     if payload.password:
         user.hashed_password = get_password_hash(payload.password)
 
     db.add(user)
+    db.flush()
+    if requested_org_ids:
+        _sync_user_memberships(user, requested_org_ids, db)
     db.commit()
     db.refresh(user)
     return user
@@ -214,9 +277,26 @@ def update_user_record(user_id: str, payload, current_user, db: Session):
         if payload.role is not None or payload.hourly_rate is not None:
             raise HTTPException(status_code=403, detail="Solo admin puede cambiar rol o tarifa")
 
-    _payload_org_id = getattr(payload, "organization_id", None)
-    if current_user.organization_id and _payload_org_id not in (None, current_user.organization_id):
-        raise HTTPException(status_code=403, detail="No puedes mover usuarios a otra organización")
+    payload_org_id = getattr(payload, "organization_id", None)
+    payload_org_ids_raw = getattr(payload, "organization_ids", None)
+    payload_org_ids = _normalize_org_ids(payload_org_ids_raw) if payload_org_ids_raw is not None else None
+
+    if current_user.organization_id and current_user.role != UserRole.admin:
+        if payload_org_id not in (None, current_user.organization_id):
+            raise HTTPException(status_code=403, detail="No puedes mover usuarios a otra organización")
+        if payload_org_ids is not None and any(org_id != current_user.organization_id for org_id in payload_org_ids):
+            raise HTTPException(status_code=403, detail="No puedes mover usuarios a otra organización")
+
+    if (payload_org_id is not None or payload_org_ids is not None) and current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Solo admin puede cambiar organizaciones")
+
+    if payload_org_ids is not None:
+        _validate_org_ids(payload_org_ids, db)
+
+    if payload_org_id is not None:
+        payload_org_id = str(payload_org_id) if payload_org_id else None
+        if payload_org_id:
+            _validate_org_ids([payload_org_id], db)
 
     incoming_email = getattr(payload, "email", None)
     if incoming_email is not None:
@@ -226,9 +306,26 @@ def update_user_record(user_id: str, payload, current_user, db: Session):
             raise HTTPException(status_code=400, detail="Email ya registrado")
 
     for field, value in payload.model_dump(exclude_unset=True).items():
+        if field == "organization_ids":
+            continue
         if field == "email" and isinstance(value, str):
             value = value.strip().lower()
         setattr(user, field, value)
+
+    if payload_org_ids is not None or payload_org_id is not None:
+        target_org_ids = payload_org_ids
+        if target_org_ids is None:
+            target_org_ids = user.organization_ids
+        if payload_org_id and payload_org_id not in target_org_ids:
+            target_org_ids.append(payload_org_id)
+        target_org_ids = _normalize_org_ids(target_org_ids)
+        _sync_user_memberships(user, target_org_ids, db)
+        if payload_org_id is not None:
+            user.organization_id = payload_org_id
+        elif user.organization_id and str(user.organization_id) not in target_org_ids:
+            user.organization_id = target_org_ids[0] if target_org_ids else None
+        elif not user.organization_id and target_org_ids:
+            user.organization_id = target_org_ids[0]
 
     db.commit()
     db.refresh(user)

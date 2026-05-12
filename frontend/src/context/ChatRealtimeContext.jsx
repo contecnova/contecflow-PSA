@@ -20,7 +20,13 @@ import { collabApi } from '../services/collaborationApi'
 import { API_BASE } from '../constants/api'
 import { resolveWsBase } from '../utils/wsUtils'
 
-const ChatRealtimeContext = createContext({ unread: 0, refresh: () => {}, send: () => false })
+const ChatRealtimeContext = createContext({
+  unread: 0,
+  refresh: () => {},
+  send: () => false,
+  consumeUnread: () => {},
+  clearUnread: () => {},
+})
 
 export function useChatRealtime() {
   return useContext(ChatRealtimeContext)
@@ -236,8 +242,18 @@ export default function ChatRealtimeProvider({ children }) {
     catch { return false }
   }, [])
 
+  const consumeUnread = useCallback((count = 1) => {
+    const n = Number(count || 0)
+    if (n <= 0) return
+    setUnread((prev) => Math.max(0, prev - n))
+  }, [])
+
+  const clearUnread = useCallback(() => {
+    setUnread(0)
+  }, [])
+
   return (
-    <ChatRealtimeContext.Provider value={{ unread, refresh, send }}>
+    <ChatRealtimeContext.Provider value={{ unread, refresh, send, consumeUnread, clearUnread }}>
       {children}
     </ChatRealtimeContext.Provider>
   )

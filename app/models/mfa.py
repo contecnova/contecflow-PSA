@@ -53,6 +53,18 @@ class Organization(Base):
 
     users    = relationship("User", back_populates="organization",
                             foreign_keys="User.organization_id")
+    user_memberships = relationship(
+        "UserOrganizationMembership",
+        foreign_keys="UserOrganizationMembership.organization_id",
+        cascade="all, delete-orphan",
+    )
+    member_users = relationship(
+        "User",
+        secondary="user_organization_memberships",
+        primaryjoin="Organization.id == UserOrganizationMembership.organization_id",
+        secondaryjoin="User.id == UserOrganizationMembership.user_id",
+        viewonly=True,
+    )
 
 
 # ── MFA / 2FA ─────────────────────────────────────────────────────────────────

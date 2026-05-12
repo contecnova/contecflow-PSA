@@ -1,4 +1,4 @@
-from app.models.user import User, UserRole, UserStatus  # noqa: F401
+from app.models.user import User, UserRole, UserStatus, UserOrganizationMembership  # noqa: F401
 from app.models.public_forms import PublicForm, PublicFormSubmission  # noqa: F401
 from app.models.oauth_apps import OAuthApp, OAuthToken  # noqa: F401
 from app.models.project import Project, ProjectPhase, ProjectType, ProjectStatus, ProjectRisk  # noqa: F401

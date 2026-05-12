@@ -69,7 +69,7 @@ export default function OraclePage() {
       <PageHeader
         icon={<Brain size={18} />}
         title={t('ai.oracle_title')}
-        subtitle="Detecta riesgos y anomalias en tus proyectos con inteligencia artificial"
+        subtitle="Detecta riesgos y anomalías en tus proyectos con reglas de negocio multi-factor (retraso · SLA · burnout · presupuesto)"
         actions={
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {defaultProvider && (
@@ -92,14 +92,19 @@ export default function OraclePage() {
             <div>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--success)', marginBottom: 4 }}>✅ Análisis completado</div>
               <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                {analysis.predictions_generated} predicciones generadas · {analysis.projects_analyzed || 0} proyectos analizados
+                {/* Backend devuelve {alerts_generated, methodology, run_at} no {predictions_generated, projects_analyzed} */}
+                {analysis.alerts_generated || 0} alertas generadas
+                {analysis.methodology && <span> · Método: <em>{analysis.methodology}</em></span>}
               </div>
             </div>
             <button onClick={() => setAnalysis(null)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-lg-em)" }}>×</button>
           </div>
-          {analysis.summary && (
+          {(analysis.alerts || []).length > 0 && (
             <div style={{ marginTop: 10, fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.6, padding: '10px 12px', background: 'var(--surface-1)', borderRadius: 8 }}>
-              {analysis.summary}
+              {analysis.alerts.slice(0, 5).map((a, i) => (
+                <div key={i}>• {a.type}: {a.entity} ({Math.round((a.probability || 0) * 100)}%)</div>
+              ))}
+              {analysis.alerts.length > 5 && <div style={{ color: 'var(--text-3)' }}>… {analysis.alerts.length - 5} más</div>}
             </div>
           )}
         </div>

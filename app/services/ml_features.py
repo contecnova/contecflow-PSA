@@ -62,15 +62,22 @@ def extract_project_features(db: Session, project_id: str, reference_date: Optio
     overdue_ratio       = overdue_tasks / total_tasks
 
     budget = float(project.budget_amount or 0)
-    actual_cost = float(
-        db.query(func.sum(Imputation.cost_amount))
-        .filter(Imputation.project_id == project_id, Imputation.cost_amount.isnot(None))
-        .scalar()
-        or db.query(func.sum(Imputation.hours))
-        .filter(Imputation.project_id == project_id)
-        .scalar()
-        or 0
-    )
+    # actual_cost en EUROS. Si Imputation.cost_amount está populado (rate
+    # × hours por imputación), lo usamos; si no, calculamos hours × tarifa
+    # media. NUNCA sumamos hours como si fueran euros (bug histórico).
+    cost_sum = db.query(func.sum(Imputation.cost_amount)).filter(
+        Imputation.project_id == project_id,
+        Imputation.cost_amount.isnot(None),
+    ).scalar()
+    if cost_sum is not None and cost_sum > 0:
+        actual_cost = float(cost_sum)
+    else:
+        hours = float(db.query(func.sum(Imputation.hours)).filter(
+            Imputation.project_id == project_id,
+        ).scalar() or 0)
+        from app.core.config import settings as _settings
+        rate = float(getattr(_settings, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
+        actual_cost = hours * rate
 
     budget_used_pct = (actual_cost / budget * 100) if budget > 0 else 0
 

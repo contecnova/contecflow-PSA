@@ -276,7 +276,11 @@ def transcribe_voice_audio(
                 f"{settings.OPENAI_API_URL}/audio/transcriptions",
                 headers={"Authorization": f"Bearer {openai_key}"},
                 files={"file": (audio.filename or "audio.wav", audio_bytes, audio.content_type or "audio/wav")},
-                data={"model": "whisper-1"},
+                # OpenAI STT model: configurable; defecto gpt-4o-mini-transcribe
+                # (sucesor de whisper-1, mejor latencia/calidad). Permitimos
+                # override por settings.OPENAI_STT_MODEL para mantener whisper-1
+                # como fallback en despliegues legacy.
+                data={"model": getattr(settings, "OPENAI_STT_MODEL", None) or "gpt-4o-mini-transcribe"},
             )
         if resp.status_code != 200:
             raise HTTPException(502, f"Whisper API devolvió {resp.status_code}: {resp.text[:200]}")
@@ -291,7 +295,9 @@ def transcribe_voice_audio(
     if not transcript:
         raise HTTPException(422, "Whisper no pudo transcribir el audio (resultado vacío).")
 
-    result = _process_voice_core(transcript, db, current_user)
+    # /voice/transcribe entra siempre en modo dry-run: requiere confirmación
+    # humana después de ver la transcripción.
+    result = _process_voice_core(transcript, db, current_user, confirm=False)
     return {**result, "whisper_transcript": transcript}
 
 
@@ -304,7 +310,10 @@ def process_voice_command(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _process_voice_core(payload.transcript.strip(), db, current_user)
+    return _process_voice_core(
+        payload.transcript.strip(), db, current_user,
+        confirm=bool(payload.confirm),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

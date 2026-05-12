@@ -207,12 +207,18 @@ def _risk_level(cost_prob: float, sched_prob: float) -> str:
     return "low"
 
 
-def predict_project(db: Session, project_id: str, organization_id: str) -> dict:
+def predict_project(db: Session, project_id: str, organization_id: str,
+                    *, is_superadmin: bool = False) -> dict:
     """
     Return overrun prediction for a project.
     Uses trained ML model when available; falls back to heuristic otherwise.
+
+    Multi-tenant: valida que el proyecto pertenezca a ``organization_id`` (a
+    menos que el caller sea superadmin). Sin esta validación un caller con
+    el modelo de su org podía aplicarlo a un proyecto de otra org silently.
     """
     from app.services.ai_modules_service import predict_overrun_ml, get_overrun_prediction_data
+    from app.models.project import Project as _Project
 
     # Extract EVM features
     try:
@@ -221,6 +227,11 @@ def predict_project(db: Session, project_id: str, organization_id: str) -> dict:
         return {"error": "Datos insuficientes para predicción"}
 
     project = data["project"]
+
+    # Ownership check: el proyecto debe pertenecer a la org del caller
+    proj_org = getattr(project, "organization_id", None)
+    if not is_superadmin and organization_id and proj_org and proj_org != organization_id:
+        return {"error": "Proyecto fuera del ámbito de la organización"}
 
     # ── Try ML model ──────────────────────────────────────────────────────────
     used_heuristic = True
@@ -250,11 +261,23 @@ def predict_project(db: Session, project_id: str, organization_id: str) -> dict:
                 total = (heuristic["cost_overrun_prob"] + heuristic["schedule_overrun_prob"]) or 1
                 w_cost  = heuristic["cost_overrun_prob"]  / total if total > 0 else 0.5
                 w_sched = heuristic["schedule_overrun_prob"] / total if total > 0 else 0.5
+                # Item #57: honestidad en la presentación. ``cost_overrun_prob``
+                # y ``schedule_overrun_prob`` NO son probabilidades
+                # independientes — son la única ``ml_overrun_prob`` repartida
+                # según los pesos heurísticos. Exponemos ``prob_decomposition``
+                # para que UI/consumers puedan elegir mostrar el total agregado
+                # o el split, sin engaño.
                 ml_result = {
                     **heuristic,
                     "cost_overrun_prob":     round(overrun_prob * w_cost,  3),
                     "schedule_overrun_prob": round(overrun_prob * w_sched, 3),
                     "ml_overrun_prob": round(overrun_prob, 3),
+                    "prob_decomposition": "ml_overrun_prob_weighted_by_heuristic_signals",
+                    "prob_decomposition_note": (
+                        "cost_overrun_prob + schedule_overrun_prob ≈ ml_overrun_prob "
+                        "(no son medidas independientes; son el split del único "
+                        "score ML según señales heurísticas de coste vs. plazo)."
+                    ),
                     "model_version": ml_record.version,
                     "model_accuracy": ml_record.accuracy,
                 }
@@ -312,21 +335,25 @@ def predict_project(db: Session, project_id: str, organization_id: str) -> dict:
     }
 
 
-def portfolio_risk_summary(db: Session, organization_id: str) -> dict:
+def portfolio_risk_summary(db: Session, organization_id: str,
+                            *, is_superadmin: bool = False) -> dict:
     """
     Compute risk levels for all active projects in the org.
     Returns aggregated counts + list of at-risk projects.
+
+    Superadmin bypass: si ``is_superadmin`` es True, agrega proyectos de
+    todas las organizaciones. Antes el filtro por organization_id colapsaba
+    a 0 proyectos cuando el admin pertenecía a una org distinta a donde
+    estaban los datos (verificado: org "default" vs "Consultora").
     """
     from app.models.project import Project, ProjectStatus
 
-    active_projects = (
-        db.query(Project)
-        .filter(
-            Project.organization_id == organization_id,
-            Project.status.in_([ProjectStatus.active, ProjectStatus.on_hold]),
-        )
-        .all()
+    q = db.query(Project).filter(
+        Project.status.in_([ProjectStatus.active, ProjectStatus.on_hold]),
     )
+    if not is_superadmin and organization_id:
+        q = q.filter(Project.organization_id == organization_id)
+    active_projects = q.all()
 
     counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
     at_risk = []

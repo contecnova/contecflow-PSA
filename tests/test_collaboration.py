@@ -611,6 +611,93 @@ def test_per_conversation_mute_silences_notifications(client, admin_token, pm_to
     assert pm_mentions == 1, "Las menciones deben romper el silencio"
 
 
+def test_conversations_include_unread_count_and_mark_all_read_updates_it(client, admin_token, pm_token, db):
+    from app.models.user import User
+
+    h_admin = _auth_headers(admin_token)
+    h_pm = _auth_headers(pm_token)
+
+    client.get("/api/v1/collaboration/workspace", headers=h_admin)
+    client.get("/api/v1/collaboration/workspace", headers=h_pm)
+
+    # Abrimos un directo admin <-> pm y enviamos un mensaje al PM para generar notificación.
+    pm = db.query(User).filter(User.username == "pm_test").first()
+    assert pm is not None
+    direct = client.post(
+        "/api/v1/collaboration/direct/open",
+        json={"user_id": pm.id},
+        headers=h_admin,
+    )
+    assert direct.status_code == 200
+    conv_id = direct.json()["conversation_id"]
+
+    sent = client.post(
+        "/api/v1/collaboration/messages",
+        json={"conversation_id": conv_id, "body": "mensaje no leido"},
+        headers=h_admin,
+    )
+    assert sent.status_code == 200
+
+    convs_pm = client.get("/api/v1/collaboration/conversations", headers=h_pm)
+    assert convs_pm.status_code == 200
+    row = next(c for c in convs_pm.json() if c["id"] == conv_id)
+    assert row.get("unread_count", 0) >= 1
+
+    mark = client.post("/api/v1/collaboration/notifications/mark-all-read", headers=h_pm)
+    assert mark.status_code == 200
+
+    convs_pm_after = client.get("/api/v1/collaboration/conversations", headers=h_pm)
+    assert convs_pm_after.status_code == 200
+    row_after = next(c for c in convs_pm_after.json() if c["id"] == conv_id)
+    assert row_after.get("unread_count", 0) == 0
+
+
+def test_mark_read_clears_conversation_unread_count_immediately(client, admin_token, pm_token, db):
+    from app.models.user import User
+
+    h_admin = _auth_headers(admin_token)
+    h_pm = _auth_headers(pm_token)
+
+    client.get("/api/v1/collaboration/workspace", headers=h_admin)
+    client.get("/api/v1/collaboration/workspace", headers=h_pm)
+
+    pm = db.query(User).filter(User.username == "pm_test").first()
+    assert pm is not None
+
+    direct = client.post(
+        "/api/v1/collaboration/direct/open",
+        json={"user_id": pm.id},
+        headers=h_admin,
+    )
+    assert direct.status_code == 200
+    conv_id = direct.json()["conversation_id"]
+
+    sent = client.post(
+        "/api/v1/collaboration/messages",
+        json={"conversation_id": conv_id, "body": "mensaje pendiente"},
+        headers=h_admin,
+    )
+    assert sent.status_code == 200
+    mid = sent.json()["id"]
+
+    before = client.get("/api/v1/collaboration/conversations", headers=h_pm)
+    assert before.status_code == 200
+    before_row = next(c for c in before.json() if c["id"] == conv_id)
+    assert before_row.get("unread_count", 0) >= 1
+
+    mark = client.post(
+        f"/api/v1/collaboration/conversations/{conv_id}/read",
+        json={"last_message_id": mid},
+        headers=h_pm,
+    )
+    assert mark.status_code == 200
+
+    after = client.get("/api/v1/collaboration/conversations", headers=h_pm)
+    assert after.status_code == 200
+    after_row = next(c for c in after.json() if c["id"] == conv_id)
+    assert after_row.get("unread_count", 0) == 0
+
+
 def test_group_add_and_remove_members(client, admin_token, pm_token, dev_token, db):
     """Bug fix: se pueden añadir y quitar miembros de un grupo ya creado."""
     from app.models.user import User

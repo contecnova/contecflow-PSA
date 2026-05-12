@@ -68,6 +68,19 @@ class TFIDFEncoder:
     """
     Encoder TF-IDF puro Python como fallback cuando sentence-transformers
     no esta instalado. Menos preciso pero funcional sin GPU/pip extra.
+
+    Diseño:
+      - ``fit_global(texts)``: fija el vocabulario una sola vez con un corpus
+        representativo (perfiles de usuarios + ítems históricos). Tras esto,
+        cada ``encode([texto])`` proyecta sobre ese vocabulario sin re-fit.
+      - ``encode(texts)``: si nunca se hizo fit, hace fit con los textos
+        recibidos (compatibilidad). Después de eso solo proyecta.
+
+    Bug histórico corregido: la versión anterior re-fiteaba el vocabulario en
+    cada llamada single. El vocabulario crecía con cada texto nuevo, así que
+    embeddings calculados en momentos distintos no eran comparables — todos
+    los scores cosine colapsaban a 0 y el motor semántico no diferenciaba
+    candidatos. Ahora el fit es estable.
     """
     def __init__(self):
         self._corpus: list  = []
@@ -79,19 +92,30 @@ class TFIDFEncoder:
         return re.findall(r'\b\w{3,}\b', text.lower())
 
     def _fit(self, texts: list):
-        N = len(texts)
+        N = max(1, len(texts))
         df = defaultdict(int)
         tokenized = [self._tokenize(t) for t in texts]
         all_words = set(w for toks in tokenized for w in toks)
+        # Vocabulario ordenado para ser determinista entre sesiones
         self._vocab = {w: i for i, w in enumerate(sorted(all_words))}
         for toks in tokenized:
             for w in set(toks):
                 df[w] += 1
         self._idf = {w: math.log((N + 1) / (df[w] + 1)) + 1 for w in self._vocab}
         self._fitted = True
+        self._corpus = list(texts)
+
+    def fit_global(self, texts: list) -> None:
+        """Fija el vocabulario con un corpus de referencia. Llamar una sola
+        vez al construir el assigner (con perfiles + items resueltos)."""
+        if not texts:
+            return
+        self._fit(texts)
 
     def _vectorize(self, text: str) -> list:
         toks   = self._tokenize(text)
+        if not toks or not self._vocab:
+            return []
         tf     = defaultdict(int)
         for t in toks: tf[t] += 1
         vec = [0.0] * len(self._vocab)
@@ -102,19 +126,10 @@ class TFIDFEncoder:
         return [x / norm for x in vec]
 
     def encode(self, texts: list, **_) -> list:
-        if len(texts) > 1:
-            # Batch encode: fit on the provided texts and remember them as corpus
-            self._fit(texts)
-            self._corpus = list(texts)
-        elif not self._fitted:
-            # First single-text encode with no prior corpus — fit on it alone
-            self._fit(texts)
-            self._corpus = list(texts)
-        else:
-            # Single text with existing vocabulary: re-fit on corpus + new text
-            # to ensure the new text's tokens are scored correctly
-            combined = self._corpus + texts
-            self._fit(combined)
+        """Encodea respetando el vocabulario global. Si nunca se hizo fit,
+        usa los textos recibidos como corpus inicial (modo bootstrap)."""
+        if not self._fitted:
+            self._fit(list(texts))
         return [self._vectorize(t) for t in texts]
 
 
@@ -208,15 +223,63 @@ class SemanticAssigner(ServiceBase):
         # ServiceBase stores db and current_user; we pass None for current_user
         # by default since this service is called without authentication context.
         super().__init__(db, current_user)
+        # Item #59: si no hay SemConfig en DB, creamos uno y lo persistimos
+        # para que el siguiente arranque NO repita el camino sin defaults
+        # (antes se creaba en memoria y se perdía al final del request).
         self.config = config or db.query(SemConfig).first()
         if not self.config:
             self.config = SemConfig()
+            try:
+                db.add(self.config)
+                db.commit()
+                db.refresh(self.config)
+            except Exception:
+                db.rollback()  # otra request lo creó concurrentemente — re-leer
+                self.config = db.query(SemConfig).first() or SemConfig()
         runtime_backend, runtime_model_name = self._resolve_embeddings_runtime(self.config)
         self.model, self.use_transformer = _get_model(
             runtime_model_name,
             backend_override=runtime_backend,
         )
         self.load_weight = self.config.load_balance_weight or 0.20
+
+        # TF-IDF: fijamos el vocabulario una sola vez con un corpus
+        # representativo (perfiles + cache de items resueltos). Sin esto el
+        # encoder re-fiteaba en cada llamada y los embeddings de perfiles
+        # quedaban en un espacio vectorial distinto al embedding del nuevo
+        # ticket → todos los scores cosine colapsaban a 0.
+        if not self.use_transformer and hasattr(self.model, "fit_global"):
+            self._fit_tfidf_global()
+
+    def _fit_tfidf_global(self) -> None:
+        """Construye el corpus de referencia para TF-IDF a partir de
+        perfiles de usuarios + snippets de items resueltos en la caché."""
+        corpus = []
+        try:
+            profile_texts = [
+                p.profile_text for p in self.db.query(SemProfile)
+                .filter(SemProfile.profile_text.isnot(None)).limit(500).all()
+                if p.profile_text
+            ]
+            corpus.extend(profile_texts)
+        except Exception:
+            pass
+        try:
+            cache_texts = [
+                c.text_snippet for c in self.db.query(SemEmbeddingCache)
+                .filter(SemEmbeddingCache.text_snippet.isnot(None)).limit(500).all()
+                if c.text_snippet
+            ]
+            corpus.extend(cache_texts)
+        except Exception:
+            pass
+        if corpus:
+            try:
+                self.model.fit_global(corpus)
+            except Exception:
+                # Si falla, el encode() hará bootstrap fit con los textos que
+                # reciba — peor calidad pero no rompe el flujo.
+                logger.warning("TF-IDF fit_global failed, falling back to lazy fit")
 
     # ── API publica ──────────────────────────────────────────────────────────
 
@@ -297,8 +360,16 @@ class SemanticAssigner(ServiceBase):
         """
         Reconstruye los embeddings de todos los perfiles de usuario.
         Llamar cuando cambian los skills o historial de un usuario.
+
+        Re-fitea el vocabulario TF-IDF antes de regenerar embeddings para
+        que todos compartan el mismo espacio vectorial.
         """
         profiles = self.db.query(SemProfile).all()
+        # Refit con los profile_texts actualizados
+        if not self.use_transformer and hasattr(self.model, "fit_global"):
+            texts = [p.profile_text for p in profiles if p.profile_text]
+            if texts:
+                self.model.fit_global(texts)
         for p in profiles:
             if p.profile_text:
                 emb = self._encode_single(p.profile_text)
@@ -502,10 +573,17 @@ class SemanticAssigner(ServiceBase):
     def _hybrid_score(self, item_emb: list, profile_emb: list,
                       history_tuples: list) -> float:
         """
-        Score hibrido = 0.40 * sim(perfil) + 0.60 * weighted_mean(historial).
-        Mejora 3: semivida explícita — weight_i = 0.5^(age_days / half_life_days).
-        Al llegar a history_decay_days días, un embedding vale exactamente
-        la mitad que uno reciente.
+        Score híbrido = WEIGHT_PROFILE * sim(perfil) + WEIGHT_HISTORY * weighted_mean(historial).
+
+        **Historial: TODOS los embeddings cacheados, no solo top-N**. (Item #58:
+        un comentario obsoleto decía "top-3 del historial"; la implementación
+        siempre fue weighted mean global con decay exponencial.)
+
+        Decay: ``weight_i = 0.5^(age_days / history_decay_days)`` (Mejora 3 —
+        semivida explícita). Al llegar a ``history_decay_days`` un embedding
+        vale exactamente la mitad que uno reciente.
+
+        Si no hay historial, devuelve solo ``sim(perfil)``.
         """
         score_profile = _cosine(item_emb, profile_emb)
         if not history_tuples:
@@ -606,8 +684,17 @@ class SemanticAssigner(ServiceBase):
                     f"CANDIDATOS:\n{profile_descs}"
                 )
             }]
+            # Pasamos is_superadmin/organization_id si tenemos current_user.
+            # Antes sin estos kwargs, call_ai filtraba mal cuando había
+            # providers scoped por org → fallo silencioso del modo hybrid.
+            cu = getattr(self, "current_user", None)
+            kwargs = {}
+            if cu is not None:
+                kwargs["is_superadmin"] = bool(getattr(cu, "is_superadmin", False))
+                kwargs["organization_id"] = getattr(cu, "organization_id", None)
+                kwargs["user_id"] = getattr(cu, "id", None)
             resp = call_ai(self.db, messages, system=system,
-                           module="semantic_assign", max_tokens=200)
+                           module="semantic_assign", max_tokens=200, **kwargs)
             import re
             m = re.search(r'\{[^}]+\}', resp)
             if m:

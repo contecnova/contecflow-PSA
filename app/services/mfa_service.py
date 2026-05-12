@@ -19,6 +19,7 @@ from sqlalchemy import func
 from app.core.config import settings
 from app.core.encryption import encrypt_value, decrypt_value
 from app.models.user import User
+from app.models.user import UserOrganizationMembership
 from app.models.project import Project
 from app.models.task import Task
 from app.models.service_desk import Ticket
@@ -200,13 +201,17 @@ def serialize_organization(org: Organization, db: Session) -> dict:
         "max_users": org.max_users, "max_projects": org.max_projects,
         "admin_email": org.admin_email,
         "created_at": str(org.created_at)[:10] if org.created_at else None,
-        "user_count": db.query(func.count(User.id)).filter(User.organization_id == org.id).scalar(),
+        "user_count": db.query(func.count(func.distinct(UserOrganizationMembership.user_id))).filter(
+            UserOrganizationMembership.organization_id == org.id
+        ).scalar(),
         "project_count": db.query(func.count(Project.id)).filter(Project.organization_id == org.id).scalar() if hasattr(Project, 'organization_id') else 0,
     }
 
 
 def check_org_user_limit(org: Organization, db: Session) -> None:
-    count = db.query(func.count(User.id)).filter(User.organization_id == org.id).scalar()
+    count = db.query(func.count(func.distinct(UserOrganizationMembership.user_id))).filter(
+        UserOrganizationMembership.organization_id == org.id
+    ).scalar()
     if count >= org.max_users:
         raise ValueError(f"Límite de {org.max_users} usuarios alcanzado para este plan")
 
@@ -852,7 +857,12 @@ def get_organization(org_id: str, db: Session) -> dict:
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise ValueError("not_found")
-    users = db.query(User).filter(User.organization_id == org_id).all()
+    users = db.query(User).join(
+        UserOrganizationMembership,
+        UserOrganizationMembership.user_id == User.id,
+    ).filter(
+        UserOrganizationMembership.organization_id == org_id,
+    ).all()
     return {
         "id": org.id, "name": org.name, "slug": org.slug,
         "plan": org.plan, "is_active": org.is_active,
@@ -909,12 +919,16 @@ def assign_user_to_org(org_id: str, user_id: str, db: Session) -> dict:
         raise ValueError("404:Usuario no encontrado")
     if user.is_active is False:
         raise ValueError("No puedes asignar usuarios inactivos")
-    if user.organization_id and user.organization_id != org_id:
-        raise ValueError("El usuario ya pertenece a otra organización")
-    check_org_user_limit(org, db)
-    if user.organization_id == org_id:
+    membership = db.query(UserOrganizationMembership).filter(
+        UserOrganizationMembership.user_id == user.id,
+        UserOrganizationMembership.organization_id == org_id,
+    ).first()
+    if membership:
         raise ValueError("El usuario ya está asignado a esta organización")
-    user.organization_id = org_id
+    check_org_user_limit(org, db)
+    db.add(UserOrganizationMembership(user_id=user.id, organization_id=org_id))
+    if not user.organization_id:
+        user.organization_id = org_id
     db.commit()
     audit_log(db, user, "ORG_ASSIGN", "organizations", org.id, f"Asignado a organización {org.name}")
     from app.core.events import emit_event, EventType
@@ -927,14 +941,32 @@ def remove_user_from_org(org_id: str, user_id: str, db: Session) -> dict:
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise ValueError("404:Organización no encontrada")
-    user = db.query(User).filter(User.id == user_id, User.organization_id == org_id).first()
+    user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise ValueError("404:Usuario no encontrado en esta organización")
-    user_count = db.query(func.count(User.id)).filter(User.organization_id == org_id).scalar()
+    membership = db.query(UserOrganizationMembership).filter(
+        UserOrganizationMembership.user_id == user.id,
+        UserOrganizationMembership.organization_id == org_id,
+    ).first()
+    if not membership:
+        raise ValueError("404:Usuario no encontrado en esta organización")
+    user_count = db.query(func.count(func.distinct(UserOrganizationMembership.user_id))).filter(
+        UserOrganizationMembership.organization_id == org_id
+    ).scalar()
     if user_count <= 1:
         raise ValueError("No puedes quitar el último usuario de la organización")
+    user_org_count = db.query(func.count(UserOrganizationMembership.id)).filter(
+        UserOrganizationMembership.user_id == user.id
+    ).scalar()
+    if user_org_count <= 1:
+        raise ValueError("No puedes quitar al usuario de su última organización")
     user_name = user.full_name
-    user.organization_id = None
+    db.delete(membership)
+    if str(user.organization_id) == str(org_id):
+        fallback = db.query(UserOrganizationMembership).filter(
+            UserOrganizationMembership.user_id == user.id
+        ).first()
+        user.organization_id = fallback.organization_id if fallback else None
     db.commit()
     audit_log(db, user, "ORG_REMOVE", "organizations", org.id, f"Desvinculado de organización {org.name}")
     from app.core.events import emit_event, EventType

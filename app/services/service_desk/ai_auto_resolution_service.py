@@ -27,14 +27,30 @@ from app.core.config import settings
 _logger = logging.getLogger("ai_auto_resolution")
 
 # ── Auto-resolution confidence thresholds ────────────────────────────────────
+# Item #60: estos valores son **defaults conservadores** y se solapan con la
+# config dinámica (``AUTO_CONFIG_SETTING_KEY``) por organización. Auto a 0.85
+# es deliberadamente alto — confiar al 85% en un LLM para cerrar sin revisión
+# humana ya es una apuesta fuerte. Si una org necesita más prudencia, debe
+# subirlo vía settings (ej. 0.95) en lugar de bajar este default. Bajar más
+# de 0.85 sin telemetría de tasa de reapertura es desaconsejable.
 CONFIDENCE_THRESHOLD_AUTO = 0.85     # Auto-resolve if composite >= 85%
 CONFIDENCE_THRESHOLD_SUGGEST = 0.65  # Show suggestion if composite >= 65%
 
 # ── Feedback loop config ─────────────────────────────────────────────────────
-FEEDBACK_SETTING_KEY = "sd.auto_resolution.feedback_stats"
+FEEDBACK_SETTING_KEY = "sd.auto_resolution.feedback_stats"  # legacy key (org-less)
+FEEDBACK_SETTING_KEY_TEMPLATE = "sd.auto_resolution.feedback_stats::{org}"
 AUTO_CLOSE_HOURS_AFTER_RESOLUTION = 72  # Auto-close resolved tickets after 72h
 VALIDATION_WINDOW_HOURS = 48            # Check for reopens within 48h
 AUTO_CONFIG_SETTING_KEY = "sd.auto_resolution.config"
+
+
+def _feedback_key_for(ticket: "Ticket") -> str:
+    """Construye la clave AppSetting de feedback_stats por organización.
+    Antes era una sola clave global → stats de orgs distintas se mezclaban
+    y el composite_confidence usaba historical rate cross-tenant.
+    """
+    org_id = getattr(ticket, "organization_id", None) or "global"
+    return FEEDBACK_SETTING_KEY_TEMPLATE.format(org=org_id)
 
 DEFAULT_AUTO_RESOLUTION_CONFIG = {
     "threshold_auto": CONFIDENCE_THRESHOLD_AUTO,
@@ -101,11 +117,11 @@ def save_auto_resolution_config(db: Session, payload: dict) -> dict:
     db.flush()
     return updated
 
-def _load_feedback_stats(db: Session) -> dict:
+def _load_feedback_stats(db: Session, key: str = FEEDBACK_SETTING_KEY) -> dict:
     """Load per-category/priority feedback counters from AppSetting."""
     try:
         from app.models.settings import AppSetting  # noqa: PLC0415
-        row = db.query(AppSetting).filter(AppSetting.key == FEEDBACK_SETTING_KEY).first()
+        row = db.query(AppSetting).filter(AppSetting.key == key).first()
         if row and row.value:
             return json.loads(row.value)
     except Exception:
@@ -113,15 +129,15 @@ def _load_feedback_stats(db: Session) -> dict:
     return {}
 
 
-def _save_feedback_stats(db: Session, stats: dict) -> None:
+def _save_feedback_stats(db: Session, stats: dict, key: str = FEEDBACK_SETTING_KEY) -> None:
     """Persist feedback counters to AppSetting."""
     try:
         from app.models.settings import AppSetting  # noqa: PLC0415
-        row = db.query(AppSetting).filter(AppSetting.key == FEEDBACK_SETTING_KEY).first()
+        row = db.query(AppSetting).filter(AppSetting.key == key).first()
         if row:
             row.value = json.dumps(stats)
         else:
-            db.add(AppSetting(key=FEEDBACK_SETTING_KEY, value=json.dumps(stats)))
+            db.add(AppSetting(key=key, value=json.dumps(stats)))
         db.flush()
     except Exception as exc:
         _logger.debug("Could not save feedback stats: %s", exc)
@@ -137,9 +153,10 @@ def _bucket_key(ticket: Ticket) -> str:
 def _get_historical_success_rate(db: Session, ticket: Ticket) -> float:
     """Return historical auto-resolution success rate (0-100) for this ticket's bucket.
 
-    Uses AppSetting feedback stats when available, falls back to 50 (neutral).
+    Stats segmentadas por organización (multi-tenant). Antes era una sola
+    clave AppSetting global → bucket cross-tenant mezclado.
     """
-    stats = _load_feedback_stats(db)
+    stats = _load_feedback_stats(db, _feedback_key_for(ticket))
     key = _bucket_key(ticket)
     bucket = stats.get(key, {})
     total = bucket.get("total", 0)
@@ -191,8 +208,10 @@ def record_resolution_feedback(
     """Record whether an auto-resolution was successful (not reopened) or failed.
 
     Updates the per-bucket counter in AppSetting for future scoring.
+    Stats segmentadas por organización del ticket.
     """
-    stats = _load_feedback_stats(db)
+    fb_key = _feedback_key_for(ticket)
+    stats = _load_feedback_stats(db, fb_key)
     key = _bucket_key(ticket)
     bucket = stats.setdefault(key, {"total": 0, "success": 0, "failed": 0})
     bucket["total"] += 1
@@ -200,7 +219,7 @@ def record_resolution_feedback(
         bucket["success"] += 1
     else:
         bucket["failed"] += 1
-    _save_feedback_stats(db, stats)
+    _save_feedback_stats(db, stats, fb_key)
     _logger.info(
         "Recorded auto-resolution feedback for bucket '%s': success=%s (total=%d, success=%d)",
         key, success, bucket["total"], bucket["success"],
@@ -446,6 +465,10 @@ def analyze_ticket_for_resolution(
             user_id=current_user.id if current_user else None,
             model=None,
             max_tokens=500,
+            # Pasar contexto org evita que el dispatcher no encuentre
+            # provider scoped por organización.
+            is_superadmin=bool(getattr(current_user, "is_superadmin", False)) if current_user else True,
+            organization_id=getattr(current_user, "organization_id", None) if current_user else None,
         )
 
         # ── Step 4: Parse AI response ──────────────────────────────────────
@@ -506,7 +529,19 @@ def analyze_ticket_for_resolution(
 
 def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
     """Search KB using cosine similarity via incident_intelligence_service when available,
-    falling back to keyword scoring for simpler environments."""
+    falling back to keyword scoring for simpler environments.
+
+    Multi-tenant fix: limita los artículos KB a la organización del ticket.
+    Antes este search leía todos los `is_public=True` sin filtrar org,
+    permitiendo que un ticket de la org A usara KB de la org B como source.
+    """
+    ticket_org = getattr(ticket, "organization_id", None)
+
+    def _scope_kb(q):
+        if ticket_org and hasattr(KBArticle, "organization_id"):
+            return q.filter(KBArticle.organization_id == ticket_org)
+        return q
+
     # Try semantic cosine similarity first
     try:
         from app.services.service_desk.incident_intelligence_service import (  # noqa: PLC0415
@@ -515,14 +550,13 @@ def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
         query_text = f"{ticket.title or ''}\n{ticket.description or ''}".strip()
         q_emb = _embed_text(query_text)
 
-        articles = (
+        articles = _scope_kb(
             db.query(KBArticle)
             .filter(
                 KBArticle.status == KBStatus.published,
                 KBArticle.is_public == True,  # noqa: E712
             )
-            .all()
-        )
+        ).all()
         scored = []
         for a in articles:
             text = f"{a.title or ''}\n{a.summary or ''}\n{a.body or ''}".strip()
@@ -541,14 +575,13 @@ def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
     search_terms = (ticket.title or "") + " " + (ticket.description or "")
     search_terms = search_terms[:200].lower()
 
-    articles = (
+    articles = _scope_kb(
         db.query(KBArticle)
         .filter(
             KBArticle.status == KBStatus.published,
             KBArticle.is_public == True,  # noqa: E712
         )
-        .all()
-    )
+    ).all()
 
     # Score each article
     scored = []
@@ -632,37 +665,41 @@ def _apply_auto_resolution(
     )
 
 
-def run_daily_auto_resolution_job(db: Session, *, limit: int | None = None) -> dict:
+def run_daily_auto_resolution_job(db: Session, *, limit: int | None = None,
+                                  organization_id: str | None = None) -> dict:
     """
     Daily job: Auto-analyze open tickets and resolve if confident.
-    
-    Returns stats: {
-        "processed": count,
-        "auto_resolved": count,
-        "suggested": count,
-        "failed": count,
-    }
+
+    Multi-tenant: si ``organization_id`` es provisto, sólo procesa tickets de
+    esa organización. Si es None (uso desde cron global), procesa todos.
+
+    También sustituye la condición ``created_at <= now()`` (siempre true) por
+    ``<= cutoff`` para no procesar tickets recién creados.
+
+    Returns stats: {"processed", "auto_resolved", "suggested", "failed"}.
     """
     stats = {"processed": 0, "auto_resolved": 0, "suggested": 0, "failed": 0}
 
     try:
-        # Get open, non-auto-assigned tickets
         cfg = get_auto_resolution_config(db)
         configured_limit = int(cfg.get("default_job_limit", 100))
         safe_limit = max(1, min(int(limit if limit is not None else configured_limit), 500))
-        open_tickets = (
+        # Solo analiza tickets con al menos 15 min de antigüedad para evitar
+        # interrumpir creación + asignación humana inmediata.
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
+        q = (
             db.query(Ticket)
             .filter(
                 Ticket.status.notin_(
                     [TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled]
                 ),
                 Ticket.auto_resolved == False,
-                Ticket.created_at <= datetime.now(timezone.utc),  # Old enough for analysis
+                Ticket.created_at <= cutoff,
             )
-            .order_by(Ticket.created_at.desc())
-            .limit(safe_limit)
-            .all()
         )
+        if organization_id:
+            q = q.filter(Ticket.organization_id == organization_id)
+        open_tickets = q.order_by(Ticket.created_at.desc()).limit(safe_limit).all()
 
         for ticket in open_tickets:
             try:
