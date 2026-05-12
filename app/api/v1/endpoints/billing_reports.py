@@ -576,7 +576,11 @@ def run_scheduled_report(
     from app.services.scheduled_reports import execute_report_now
     result = execute_report_now(report_id, db)
     if not result["ok"]:
-        raise HTTPException(500, result.get("error", "Error al ejecutar"))
+        err = result.get("error", "Error al ejecutar")
+        # "Informe no encontrado" → 404; cualquier otro fallo de ejecución → 500
+        if "no encontrado" in err.lower() or "not found" in err.lower():
+            raise HTTPException(404, err)
+        raise HTTPException(500, err)
     return result
 
 

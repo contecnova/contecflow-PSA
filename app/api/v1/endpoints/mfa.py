@@ -164,6 +164,25 @@ class OrgCreate(BaseModel):
     primary_color: Optional[str] = None
 
 
+class OrgUpdate(BaseModel):
+    """Tipado explícito de campos editables de una organización.
+
+    El servicio `_svc.update_organization` ya tenía un whitelist de campos —
+    este schema lo hace explícito en el contrato API y previene mass-assignment.
+    """
+    name: Optional[str] = None
+    plan: Optional[str] = None
+    max_users: Optional[int] = None
+    max_projects: Optional[int] = None
+    is_active: Optional[bool] = None
+    admin_email: Optional[str] = None
+    timezone: Optional[str] = None
+    locale: Optional[str] = None
+    primary_color: Optional[str] = None
+    logo_url: Optional[str] = None
+    require_mfa: Optional[bool] = None
+
+
 @router.post("/organizations", summary="Crear nueva organización (tenant)")
 def create_organization(
     payload: OrgCreate,
@@ -191,15 +210,12 @@ def get_organization(
 @router.patch("/organizations/{org_id}", summary="Actualizar organización")
 def update_organization(
     org_id: str,
-    # PATCH parcial: el servicio (`_svc.update_organization`) hace el
-    # whitelist-merge contra el modelo Organization. Mantener dict aquí evita
-    # listar cada campo y rompe menos clientes legacy.
-    payload: dict = Body(...),
+    payload: OrgUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.update_organization(org_id, payload, db)
+        return _svc.update_organization(org_id, payload.model_dump(exclude_unset=True), db)
     except ValueError:
         raise HTTPException(404)
 
@@ -317,6 +333,15 @@ class BudgetCreate(BaseModel):
     monthly_planned: Optional[List[float]] = None
 
 
+class BudgetEntryUpdate(BaseModel):
+    """Campos editables de una entrada mensual de presupuesto."""
+    month: int
+    planned: Optional[float] = None
+    actual: Optional[float] = None
+    committed: Optional[float] = None
+    notes: Optional[str] = None
+
+
 @router.post("/budgets", summary="Crear presupuesto anual")
 def create_budget(
     payload: BudgetCreate,
@@ -329,14 +354,12 @@ def create_budget(
 @router.patch("/budgets/{budget_id}/entry", summary="Actualizar entrada mensual de presupuesto")
 def update_budget_entry(
     budget_id: str,
-    # PATCH parcial: el servicio whitelistea claves (month, planned, actual…)
-    # contra el modelo BudgetEntry. Mantener dict simplifica el contrato.
-    payload: dict = Body(...),
+    payload: BudgetEntryUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.update_budget_entry(budget_id, payload, db)
+        return _svc.update_budget_entry(budget_id, payload.model_dump(exclude_unset=True), db)
     except ValueError as e:
         msg = str(e)
         if msg == "not_found":
@@ -518,7 +541,7 @@ def export_pdf(
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
     except ValueError as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(400, str(e))
 
 
 @router.get("/pdf/jobs", summary="Historial de exportaciones PDF")

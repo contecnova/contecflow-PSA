@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_any_manager
+from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.schemas.alerts import AlertOut
 from app.services.pagination_service import paginate_query
@@ -50,6 +51,7 @@ def mark_read(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    enforce_abac(db, current_user, "alert", alert_id, action="update")
     mark_alert_read(db, alert_id)
     return {"ok": True}
 
@@ -60,5 +62,6 @@ def resolve_alert(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "alert", alert_id, action="update")
     svc_resolve_alert(db, alert_id, current_user.id)
     return {"ok": True}

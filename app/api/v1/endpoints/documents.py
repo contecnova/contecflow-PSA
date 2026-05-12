@@ -210,8 +210,12 @@ def upload_version(
             version_num=len(doc.versions) + 1,
             content_type=file.content_type or "application/octet-stream",
         )
-    except ValueError:
-        raise HTTPException(status_code=500, detail="Error interno en el sistema de almacenamiento. Contacta con soporte si el problema persiste.")
+    except ValueError as exc:
+        # ValueError aquí indica rechazo del backend de almacenamiento por la
+        # entrada (tipo no permitido, key inválido…), por lo que es un error
+        # del cliente, no un fallo del servidor.
+        logger.warning("Storage rejected upload for doc=%s: %s", doc_id, exc)
+        raise HTTPException(status_code=400, detail=f"Archivo rechazado por el sistema de almacenamiento: {exc}")
 
     # Create version record
     try:
@@ -392,7 +396,13 @@ def create_and_upload(
             content_type=file.content_type or "application/octet-stream",
         )
     except Exception as exc:
-        raise HTTPException(500, f"File upload failed: {str(exc)[:200]}")
+        # Fallo upstream del backend de almacenamiento (S3 / FS) — no es un
+        # error de la petición del cliente, sino indisponibilidad del servicio.
+        logger.exception("File upload to storage failed for user=%s file=%s", current_user.id, file.filename)
+        raise HTTPException(
+            status_code=503,
+            detail="El servicio de almacenamiento no está disponible temporalmente. Inténtalo de nuevo en unos minutos.",
+        )
 
     return doc_svc.create_and_upload_document(
         db, current_user, file, content, title, description, category,

@@ -127,6 +127,7 @@ def update_sprint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "sprint", sprint_id, action="update")
     sprint = svc.get_sprint_simple(db, sprint_id, project_id)
     if not sprint: raise HTTPException(404, "Sprint no encontrado")
 
@@ -148,6 +149,7 @@ def start_sprint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "sprint", sprint_id, action="update")
     sprint = svc.get_sprint_with_tasks(db, sprint_id, project_id)
     if not sprint: raise HTTPException(404, "Sprint no encontrado")
 
@@ -174,6 +176,7 @@ def close_sprint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "sprint", sprint_id, action="update")
     return close_sprint_flow(db, project_id, sprint_id)
 
 

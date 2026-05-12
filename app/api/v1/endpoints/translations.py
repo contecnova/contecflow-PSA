@@ -3,10 +3,14 @@ from app.core.deps import get_current_user
 from app.models.user import User
 import json
 import os
+from pathlib import Path
 
 router = APIRouter()
 
-TRANSLATIONS_PATH = os.path.join(os.path.dirname(__file__), '../../../frontend/src/i18n/langs')
+TRANSLATIONS_PATH = Path(__file__).resolve().parent / '../../../frontend/src/i18n/langs'
+TRANSLATIONS_PATH = TRANSLATIONS_PATH.resolve()
+
+SUPPORTED_LANGS = {"es", "en", "fr", "de", "it", "pt", "pl", "zh"}
 
 @router.get("", summary="Traducciones de la UI")
 def get_translations(
@@ -16,8 +20,10 @@ def get_translations(
     """
     Devuelve el diccionario de traducciones de la UI para el idioma solicitado.
     """
-    lang_file = os.path.join(TRANSLATIONS_PATH, f"{lang}.mjs")
-    if not os.path.isfile(lang_file):
+    if lang not in SUPPORTED_LANGS:
+        return {"translations": {}, "error": f"Idioma '{lang}' no soportado"}
+    lang_file = (TRANSLATIONS_PATH / f"{lang}.mjs").resolve()
+    if TRANSLATIONS_PATH not in lang_file.parents or not lang_file.is_file():
         return {"translations": {}, "error": f"Idioma '{lang}' no soportado"}
     # Leer el archivo y extraer el objeto JS
     with open(lang_file, encoding="utf-8") as f:

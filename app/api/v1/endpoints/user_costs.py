@@ -146,6 +146,7 @@ def update_country(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_hr),
 ):
+    enforce_abac(db, current_user, "country_preset", preset_id, action="update")
     row = db.query(CountryEmployerCost).filter(CountryEmployerCost.id == preset_id).first()
     if not row:
         raise HTTPException(404, "Preset not found")
@@ -260,8 +261,9 @@ def update_profile(
     profile_id: str,
     payload: ProfileUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(require_admin_or_hr),
 ):
+    enforce_abac(db, current_user, "user_cost_profile", profile_id, action="update")
     p = svc.update_profile(db, profile_id, **payload.model_dump(exclude_none=True))
     if not p:
         raise HTTPException(404, "Profile not found")

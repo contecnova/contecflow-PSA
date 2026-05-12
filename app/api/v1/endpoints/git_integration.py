@@ -61,7 +61,12 @@ async def github_webhook(
     except Exception:
         raise HTTPException(400, "Invalid JSON payload")
 
-    process_github_webhook(db, x_github_event, payload)
+    try:
+        process_github_webhook(db, x_github_event, payload)
+    except Exception:
+        _logger.exception("GitHub webhook processing failed event=%s", x_github_event)
+        # 500 hace que GitHub reintente automáticamente
+        raise HTTPException(500, "Error procesando webhook GitHub")
     return {"status": "ok"}
 
 
@@ -81,7 +86,11 @@ async def gitlab_webhook(
     except Exception:
         raise HTTPException(400, "Invalid JSON payload")
 
-    process_gitlab_webhook(db, payload.get("object_kind", ""), payload)
+    try:
+        process_gitlab_webhook(db, payload.get("object_kind", ""), payload)
+    except Exception:
+        _logger.exception("GitLab webhook processing failed kind=%s", payload.get("object_kind"))
+        raise HTTPException(500, "Error procesando webhook GitLab")
     return {"status": "ok"}
 
 

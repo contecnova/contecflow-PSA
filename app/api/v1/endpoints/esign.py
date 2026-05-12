@@ -346,32 +346,48 @@ async def docusign_webhook(
     to update envelope status. Signature validation requires Basic Auth or
     HMAC (DocuSign HMAC-SHA256) configured via DocuSign Connect console.
     """
+    import re
     try:
-        import re
         body = await request.body()
         payload_str = body.decode("utf-8", errors="replace")
-
-        m_id = re.search(r'<EnvelopeID[^>]*>([^<]+)<', payload_str)
-        m_st = re.search(r'<Status[^>]*>([^<]+)<', payload_str)
-
-        if m_id and m_st:
-            provider_id = m_id.group(1).strip()
-            raw_status  = m_st.group(1).strip().lower()
-            status_map  = {
-                "sent":      ESignStatus.sent.value,
-                "delivered": ESignStatus.delivered.value,
-                "completed": ESignStatus.completed.value,
-                "declined":  ESignStatus.declined.value,
-                "voided":    ESignStatus.voided.value,
-            }
-            new_status = status_map.get(raw_status)
-            if new_status:
-                env = esign_service.get_envelope_by_provider_id(db, provider_id)
-                if env:
-                    esign_service.update_envelope_from_webhook(db, env, new_status)
-                    _logger.info(f"[eSign] DocuSign webhook: envelope {provider_id} → {new_status}")
     except Exception as e:
-        _logger.warning(f"[eSign] DocuSign webhook parse error: {e}")
+        _logger.warning(f"[eSign] DocuSign webhook body read failed: {e}")
+        raise HTTPException(400, "Cuerpo del webhook ilegible")
+
+    m_id = re.search(r'<EnvelopeID[^>]*>([^<]+)<', payload_str)
+    m_st = re.search(r'<Status[^>]*>([^<]+)<', payload_str)
+
+    if not (m_id and m_st):
+        _logger.warning("[eSign] DocuSign webhook missing EnvelopeID/Status")
+        raise HTTPException(400, "Payload DocuSign sin EnvelopeID/Status")
+
+    provider_id = m_id.group(1).strip()
+    raw_status  = m_st.group(1).strip().lower()
+    status_map  = {
+        "sent":      ESignStatus.sent.value,
+        "delivered": ESignStatus.delivered.value,
+        "completed": ESignStatus.completed.value,
+        "declined":  ESignStatus.declined.value,
+        "voided":    ESignStatus.voided.value,
+    }
+    new_status = status_map.get(raw_status)
+    if not new_status:
+        _logger.info(f"[eSign] DocuSign webhook: estado '{raw_status}' ignorado (no mapeado)")
+        return {"status": "ignored", "reason": "status_not_mapped"}
+
+    try:
+        env = esign_service.get_envelope_by_provider_id(db, provider_id)
+        if not env:
+            _logger.warning(f"[eSign] DocuSign webhook: envelope {provider_id} no encontrado")
+            raise HTTPException(404, f"Envelope {provider_id} no encontrado")
+        esign_service.update_envelope_from_webhook(db, env, new_status)
+        _logger.info(f"[eSign] DocuSign webhook: envelope {provider_id} → {new_status}")
+    except HTTPException:
+        raise
+    except Exception:
+        _logger.exception(f"[eSign] DocuSign webhook processing failed for {provider_id}")
+        # 500 hace que DocuSign reintente — preferible a 200 OK silencioso.
+        raise HTTPException(500, "Error procesando webhook DocuSign")
 
     return {"status": "ok"}
 
@@ -382,26 +398,43 @@ async def adobe_webhook(
     db:      Session = Depends(get_db),
 ):
     try:
-        payload     = await request.json()
-        agreement   = payload.get("agreement", {})
-        provider_id = agreement.get("id")
-        raw_status  = agreement.get("status", "").lower()
-
-        status_map = {
-            "out_for_signature": ESignStatus.sent.value,
-            "signed":            ESignStatus.completed.value,
-            "completed":         ESignStatus.completed.value,
-            "declined":          ESignStatus.declined.value,
-            "cancelled":         ESignStatus.voided.value,
-        }
-        new_status = status_map.get(raw_status)
-        if new_status and provider_id:
-            env = esign_service.get_envelope_by_provider_id(db, provider_id)
-            if env:
-                esign_service.update_envelope_from_webhook(db, env, new_status)
-                _logger.info(f"[eSign] Adobe Sign webhook: agreement {provider_id} → {new_status}")
+        payload = await request.json()
     except Exception as e:
-        _logger.warning(f"[eSign] Adobe webhook parse error: {e}")
+        _logger.warning(f"[eSign] Adobe webhook JSON inválido: {e}")
+        raise HTTPException(400, "JSON inválido")
+
+    agreement   = payload.get("agreement", {}) if isinstance(payload, dict) else {}
+    provider_id = agreement.get("id")
+    raw_status  = (agreement.get("status") or "").lower()
+
+    if not provider_id:
+        _logger.warning("[eSign] Adobe webhook sin agreement.id")
+        raise HTTPException(400, "Payload Adobe sin agreement.id")
+
+    status_map = {
+        "out_for_signature": ESignStatus.sent.value,
+        "signed":            ESignStatus.completed.value,
+        "completed":         ESignStatus.completed.value,
+        "declined":          ESignStatus.declined.value,
+        "cancelled":         ESignStatus.voided.value,
+    }
+    new_status = status_map.get(raw_status)
+    if not new_status:
+        _logger.info(f"[eSign] Adobe webhook: estado '{raw_status}' ignorado (no mapeado)")
+        return {"status": "ignored", "reason": "status_not_mapped"}
+
+    try:
+        env = esign_service.get_envelope_by_provider_id(db, provider_id)
+        if not env:
+            _logger.warning(f"[eSign] Adobe webhook: agreement {provider_id} no encontrado")
+            raise HTTPException(404, f"Agreement {provider_id} no encontrado")
+        esign_service.update_envelope_from_webhook(db, env, new_status)
+        _logger.info(f"[eSign] Adobe Sign webhook: agreement {provider_id} → {new_status}")
+    except HTTPException:
+        raise
+    except Exception:
+        _logger.exception(f"[eSign] Adobe webhook processing failed for {provider_id}")
+        raise HTTPException(500, "Error procesando webhook Adobe")
 
     return {"status": "ok"}
 

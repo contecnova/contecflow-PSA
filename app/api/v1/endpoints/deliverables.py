@@ -78,6 +78,7 @@ def update_deliverable(
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
         raise HTTPException(404, "Entregable no encontrado")
+    enforce_abac(db, current_user, "deliverable", del_id, action="update")
     d = deliverable_service.update_deliverable(db, d, payload.model_dump(exclude_unset=True))
     return _del_out(d)
 
@@ -93,6 +94,7 @@ def deliver(
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
         raise HTTPException(404, "No encontrado")
+    enforce_abac(db, current_user, "deliverable", del_id, action="update")
     d = deliverable_service.mark_delivered(db, d, document_url)
     return _del_out(d)
 
@@ -109,6 +111,7 @@ def accept(
         raise HTTPException(404, "No encontrado")
     if d.status != "delivered":
         raise HTTPException(400, "Solo se pueden aceptar entregables entregados")
+    enforce_abac(db, current_user, "deliverable", del_id, action="update")
     d = deliverable_service.mark_accepted(db, d)
     return _del_out(d)
 
@@ -124,6 +127,7 @@ def reject(
     d = deliverable_service.get_deliverable(db, del_id)
     if not d:
         raise HTTPException(404, "No encontrado")
+    enforce_abac(db, current_user, "deliverable", del_id, action="update")
     d = deliverable_service.mark_rejected(db, d, reason)
     return _del_out(d)
 
