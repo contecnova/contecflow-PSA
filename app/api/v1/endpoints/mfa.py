@@ -24,6 +24,22 @@ from app.schemas.auth_payloads import (
 
 router = APIRouter()
 
+
+def get_bi_token(request: Request) -> Optional[str]:
+    """Extrae el BI Personal Access Token del header Authorization.
+
+    Los endpoints `/bi/data/*` usan un esquema propio (tokens `bi_*`) en lugar
+    del JWT estándar de usuarios. Centralizar aquí el parseo evita repetir la
+    misma lógica en cada handler y facilita testear/instrumentar la entrada.
+    Devuelve `None` si no hay token BI; el servicio decide cómo responder
+    (típicamente 401 vía ValueError).
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if "bi_" not in auth_header:
+        return None
+    # Acepta tanto "Bearer bi_xxx" como "bi_xxx" para compatibilidad legacy.
+    return auth_header.replace("Bearer bi_", "bi_")
+
 # Quitar usuario de organización
 @router.delete("/organizations/{org_id}/remove-user/{user_id}", summary="Quitar usuario de organización")
 def remove_user_from_org(
@@ -595,43 +611,37 @@ def revoke_bi_token(
 
 @router.get("/bi/data/projects", summary="Datos de proyectos para BI")
 def bi_data_projects(
-    request: Request,
+    bi_token: Optional[str] = Depends(get_bi_token),
     db: Session = Depends(get_db),
 ):
-    auth_header = request.headers.get("Authorization", "")
-    raw_token = auth_header.replace("Bearer bi_", "bi_") if "bi_" in auth_header else None
     try:
-        return _svc.bi_data_projects(raw_token, db)
+        return _svc.bi_data_projects(bi_token, db)
     except ValueError:
         raise HTTPException(401, "Token BI inválido o caducado")
 
 
 @router.get("/bi/data/timesheets", summary="Datos de imputaciones para BI")
 def bi_data_timesheets(
-    request: Request,
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(500, ge=1, le=5000),
+    bi_token: Optional[str] = Depends(get_bi_token),
     db: Session = Depends(get_db),
 ):
-    auth_header = request.headers.get("Authorization", "")
-    raw_token = auth_header if "bi_" in auth_header else None
     try:
-        return _svc.bi_data_timesheets(raw_token, date_from, date_to, page, page_size, db)
+        return _svc.bi_data_timesheets(bi_token, date_from, date_to, page, page_size, db)
     except ValueError:
         raise HTTPException(401, "Token BI inválido")
 
 
 @router.get("/bi/data/kpis", summary="KPIs globales para BI")
 def bi_data_kpis(
-    request: Request,
+    bi_token: Optional[str] = Depends(get_bi_token),
     db: Session = Depends(get_db),
 ):
-    auth_header = request.headers.get("Authorization", "")
-    raw_token = auth_header if "bi_" in auth_header else None
     try:
-        return _svc.bi_data_kpis(raw_token, db)
+        return _svc.bi_data_kpis(bi_token, db)
     except ValueError:
         raise HTTPException(401, "Token BI inválido")
 

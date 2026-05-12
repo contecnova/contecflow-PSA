@@ -15,10 +15,14 @@ router = APIRouter()
 
 @router.get("/all/overview", summary="Vista global de entregables")
 def get_all_deliverables(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    deliverables = deliverable_service.list_all_deliverables(db)
+    deliverables = deliverable_service.list_all_deliverables(
+        db, limit=page_size, offset=(page - 1) * page_size
+    )
     result = []
     for d in deliverables:
         row = _del_out(d)

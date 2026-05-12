@@ -12,7 +12,7 @@ from app.api.v1.endpoints import (
     invoices, documents_collab, analytics_extended, portfolio,
     git_integration, esign, report_builder, nps, m365, m365_bi,
     backlog, export_template, cicd, events, documents_edit,
-    gantt_suggestions, template, templates, revenue, predictions,
+    gantt_suggestions, templates, revenue, predictions,
     bi_collaboration, bi_intelligence, bi_platform,
     bi_smart_alerts, bi_bookmarks, bi_report_builder_v2,
     bi_embed, bi_export, bi_data_versioning, bi_governance,
@@ -86,7 +86,6 @@ router.include_router(gantt_suggestions.router, tags=["Gantt Suggestions"])
 router.include_router(baselines_v239.router,    tags=["Gantt Baselines"])
 router.include_router(templates.router,         prefix="/templates",     tags=["Templates Enhanced"])
 router.include_router(approval_builder_v239.router,                      tags=["Approval Workflow Builder"])
-router.include_router(template.router,         tags=["Templates"])
 router.include_router(revenue.router,          prefix="/revenue-recognition", tags=["Revenue Recognition"])
 router.include_router(predictions.router,      prefix="/predictions",         tags=["AI Predictions"])
 router.include_router(bi_forecasting.router,                                tags=["BI Forecasting"])

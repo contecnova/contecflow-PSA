@@ -11,12 +11,14 @@ def _next_code(db: Session) -> str:
     return next_numbered_code(db, "deliverable", prefix="DEL", padding=3)
 
 
-def list_all_deliverables(db: Session) -> list[Deliverable]:
+def list_all_deliverables(db: Session, limit: int = 500, offset: int = 0) -> list[Deliverable]:
     return (
         db.query(Deliverable)
         .options(joinedload(Deliverable.owner), joinedload(Deliverable.project))
         .filter(Deliverable.status.notin_(["accepted"]), Deliverable.is_active == True)
         .order_by(Deliverable.planned_date)
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 

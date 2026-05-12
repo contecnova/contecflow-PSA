@@ -283,6 +283,11 @@ def delete_profile(
 
 
 # ── Bulk summary for dashboards ──────────────────────────────────────────────
+# Hard cap to evitar OOM en organizaciones grandes — el endpoint es para
+# dashboards, no para enumerar todos los usuarios.
+COST_SUMMARY_HARD_CAP = 2000
+
+
 @router.get("/summary", summary="Bulk cost/hour and totals for all users")
 def cost_summary(
     on: Optional[Date] = Query(None),
@@ -290,7 +295,14 @@ def cost_summary(
     current_user: User = Depends(require_admin_or_hr),
 ):
     on = on or Date.today()
-    users = db.query(User).filter(User.status == "active").all()
+    org_id = getattr(current_user, "organization_id", None)
+    q = db.query(User).filter(User.status == "active")
+    if org_id:
+        q = q.filter(User.organization_id == org_id)
+    users = q.limit(COST_SUMMARY_HARD_CAP + 1).all()
+    truncated = len(users) > COST_SUMMARY_HARD_CAP
+    if truncated:
+        users = users[:COST_SUMMARY_HARD_CAP]
     user_ids = [u.id for u in users]
     rates = svc.cost_per_hour_bulk(db, user_ids, on)
     items = []
@@ -316,4 +328,6 @@ def cost_summary(
         "users_with_cost": total_users_with_cost,
         "users_missing_cost": len(users) - total_users_with_cost,
         "avg_cost_per_hour": round(sum_hourly / total_users_with_cost, 2) if total_users_with_cost else 0,
+        "truncated": truncated,
+        "limit": COST_SUMMARY_HARD_CAP,
     }

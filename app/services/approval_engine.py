@@ -698,8 +698,10 @@ def get_pending_for_user(db: Session, current_user: User) -> list:
 
 # ── Workflow CRUD ──────────────────────────────────────────────────────────────
 
-def list_workflows(db: Session, entity_type: Optional[str] = None):
+def list_workflows(db: Session, entity_type: Optional[str] = None, include_inactive: bool = False):
     q = db.query(ApprovalWorkflow)
+    if not include_inactive:
+        q = q.filter(ApprovalWorkflow.is_active == True)
     if entity_type:
         q = q.filter(ApprovalWorkflow.entity_type == entity_type)
     return q.order_by(ApprovalWorkflow.entity_type).all()
@@ -717,8 +719,11 @@ def create_workflow(db: Session, payload_dict: dict):
     return w
 
 
-def get_workflow(db: Session, workflow_id: str):
-    return db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
+def get_workflow(db: Session, workflow_id: str, include_inactive: bool = False):
+    q = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id)
+    if not include_inactive:
+        q = q.filter(ApprovalWorkflow.is_active == True)
+    return q.first()
 
 
 def update_workflow(db: Session, workflow_id: str, payload_dict: dict):
@@ -734,17 +739,24 @@ def update_workflow(db: Session, workflow_id: str, payload_dict: dict):
 
 
 def delete_workflow(db: Session, workflow_id: str) -> bool:
-    w = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
+    """Soft-delete: marca el workflow como inactivo y rompe encadenamientos.
+
+    Soft en lugar de hard porque ApprovalRequest histórico mantiene FK al
+    workflow para auditoría/trazabilidad. Las queries que listan workflows
+    activos ya filtran por `is_active=True`.
+    """
+    w = db.query(ApprovalWorkflow).filter(
+        ApprovalWorkflow.id == workflow_id,
+        ApprovalWorkflow.is_active == True,
+    ).first()
     if not w:
         return False
-    # Null out FK references that lack ondelete=CASCADE before deleting
-    db.query(ApprovalRequest).filter(
-        ApprovalRequest.workflow_id == workflow_id
-    ).update({"workflow_id": None}, synchronize_session=False)
+    # Romper encadenamientos a este workflow para que otros workflows no
+    # apunten a un workflow inactivo.
     db.query(ApprovalWorkflow).filter(
         ApprovalWorkflow.chain_on_approval_workflow_id == workflow_id
     ).update({"chain_on_approval_workflow_id": None}, synchronize_session=False)
-    db.delete(w)
+    w.is_active = False
     db.commit()
     return True
 

@@ -80,7 +80,9 @@ start|"")
   echo -e "  📡  WS:     ${CYAN}ws://localhost:8000/api/v1/ws/notifications${NC}"
   echo ""
   DEMO_PASSWORD=$(grep -E '^DEFAULT_USER_PASSWORD=' .env 2>/dev/null | tail -1 | cut -d'=' -f2-)
-  [ -z "$DEMO_PASSWORD" ] && DEMO_PASSWORD="contecflow2024!"
+  if [ -z "$DEMO_PASSWORD" ]; then
+    DEMO_PASSWORD="<set DEFAULT_USER_PASSWORD in .env>"
+  fi
   echo -e "  ${YELLOW}Credenciales de demo:${NC}"
   echo -e "    admin      /  ${DEMO_PASSWORD}   ${GREEN}(Administrador)${NC}"
   echo -e "    ana.torres /  ${DEMO_PASSWORD}   ${GREEN}(Project Manager)${NC}"

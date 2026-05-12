@@ -455,10 +455,18 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["X-Frame-Options"] = "SAMEORIGIN" if is_doc_file_route else "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     if settings.ENVIRONMENT == "production":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     # Permissions-Policy: el voice modal (Item I25) necesita el micrófono en
     # same-origin para grabar comandos. Cámara y geo siguen denegadas.
     response.headers["Permissions-Policy"] = "camera=(), microphone=(self), geolocation=()"
+    # Cross-Origin isolation hardening (Spectre / side-channel mitigation).
+    # COOP same-origin evita que ventanas abiertas con window.open compartan
+    # browsing context con el origen actual. CORP same-origin restringe los
+    # subresources a same-origin (los docs preview son same-origin igual).
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    # Legacy Flash/PDF cross-domain policy: ningún dominio puede leerlo.
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     if is_docs_route:
         # Swagger/ReDoc HTML uses CDN assets and an inline bootstrap script.
         response.headers["Content-Security-Policy"] = (

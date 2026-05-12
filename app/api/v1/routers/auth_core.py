@@ -8,6 +8,7 @@ from typing import Optional
 from datetime import datetime, timezone
 import logging
 import os
+import secrets
 
 from app.db.session import get_db
 from app.services.audit import audit_log
@@ -102,9 +103,18 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
         and settings.DATABASE_URL.startswith("sqlite")
         and not _prod_like_db
         and bool(getattr(user, "is_superadmin", False))
-        and payload.password == settings.SUPERADMIN_PASSWORD
+        # Comparación timing-safe para no filtrar longitud/prefijo del password
+        # de superadmin vía side-channel cuando el bypass está activo.
+        and secrets.compare_digest(
+            (payload.password or "").encode("utf-8"),
+            (settings.SUPERADMIN_PASSWORD or "").encode("utf-8"),
+        )
     ):
         password_ok = True
+        logger.warning(
+            "Superadmin bypass used for user=%s ip=%s — review ENABLE_SUPERADMIN_BYPASS",
+            user.id, _client_ip(request),
+        )
 
     if not password_ok:
         lock_for = _register_login_failure(bucket)

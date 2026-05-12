@@ -38,13 +38,34 @@ def _require_admin(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+def _resolve_org_id(current_user: User, override: Optional[str], db: Session) -> Optional[str]:
+    """Resolve effective org_id: superadmin can override, others stuck a su propia org.
+
+    - Sin override: usa la org del usuario.
+    - Con override: solo superadmin puede usarlo, y debe corresponder a una
+      organización existente. Cualquier otro caso → 403.
+    """
+    user_org = getattr(current_user, "organization_id", None)
+    if override is None:
+        return user_org
+    is_superadmin = bool(getattr(current_user, "is_superadmin", False))
+    if not is_superadmin and override != user_org:
+        raise HTTPException(status_code=403, detail="cross_org_access_denied")
+    # Validar que la organización existe para evitar enumeración de IDs.
+    from app.models.enterprise import Organization
+    org = db.query(Organization.id).filter(Organization.id == override).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="organization_not_found")
+    return override
+
+
 @router.get(
     "/bi/predictive/observability/status",
     summary="Estado de salud de los modelos predictivos (ITSM + BI)",
     tags=["Predictive Observability"],
 )
 def predictive_observability_status(
-    organization_id: Optional[str] = Query(None, description="Filtrar por organización (admin override)"),
+    organization_id: Optional[str] = Query(None, description="Filtrar por organización (admin override — sólo superadmin)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(_require_admin),
 ):
@@ -54,7 +75,7 @@ def predictive_observability_status(
     - `itsm_meta`: ITSM model retraining state for the org.
     - `bi_meta`: BI model retraining state for the org.
     """
-    org_id: Optional[str] = organization_id or getattr(current_user, "organization_id", None)
+    org_id: Optional[str] = _resolve_org_id(current_user, organization_id, db)
 
     last_eval = _get_json(db, LAST_EVAL_KEY, None, default={})
     itsm_meta = _get_json(db, ITSM_META_KEY, org_id, default={})
@@ -74,13 +95,13 @@ def predictive_observability_status(
     tags=["Predictive Observability"],
 )
 def predictive_observability_health(
-    organization_id: Optional[str] = Query(None),
+    organization_id: Optional[str] = Query(None, description="Override sólo permitido para superadmin"),
     lookback_days: int = Query(30, ge=1, le=180),
     db: Session = Depends(get_db),
     current_user: User = Depends(_require_admin),
 ):
     """Run and return a fresh health evaluation (read-only, no retraining)."""
-    org_id: Optional[str] = organization_id or getattr(current_user, "organization_id", None)
+    org_id: Optional[str] = _resolve_org_id(current_user, organization_id, db)
 
     itsm_eval = evaluate_itsm_model_health(db, organization_id=org_id, lookback_days=lookback_days)
     bi_eval = evaluate_bi_model_health(db, organization_id=org_id)

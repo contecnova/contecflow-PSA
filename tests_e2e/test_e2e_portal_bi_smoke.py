@@ -10,7 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from conftest import BASE_URL
+from conftest import BASE_URL, ADMIN_PASS
 from app.db.session import SessionLocal
 from app.models.user import User, UserRole, UserStatus
 from app.core.security import get_password_hash
@@ -43,6 +43,8 @@ def _create_project(api, token: str, suffix: str) -> str:
 
 
 def _ensure_admin_user() -> None:
+    if not ADMIN_PASS:
+        pytest.skip("ADMIN_PASS env var not configured for E2E smoke")
     db = SessionLocal()
     try:
         admin = db.query(User).filter(or_(User.username == "admin", User.email == "admin@contecflow.com")).first()
@@ -52,7 +54,7 @@ def _ensure_admin_user() -> None:
             admin.is_active = True
             admin.status = UserStatus.active
             admin.role = UserRole.admin
-            admin.hashed_password = get_password_hash("contecflow2024!")
+            admin.hashed_password = get_password_hash(ADMIN_PASS)
         else:
             admin = User(
                 username="admin",
@@ -61,7 +63,7 @@ def _ensure_admin_user() -> None:
                 role=UserRole.admin,
                 status=UserStatus.active,
                 is_active=True,
-                hashed_password=get_password_hash("contecflow2024!"),
+                hashed_password=get_password_hash(ADMIN_PASS),
             )
             db.add(admin)
         db.commit()
@@ -85,7 +87,7 @@ def _login_backoffice(page):
         pytest.skip("Login UI no disponible en entorno E2E actual")
 
     user_input.fill('admin')
-    pass_input.fill('contecflow2024!')
+    pass_input.fill(ADMIN_PASS)
 
     submit_btn = page.locator(
         'button[type="submit"], button:has-text("Iniciar"), button:has-text("Login"), '
@@ -131,7 +133,7 @@ def test_portal_multi_project_selector_smoke(anon_page):
 
     login = api.post(
         f"{BASE_URL}/api/v1/auth/login",
-        data={"username": "admin", "password": "contecflow2024!"},
+        data={"username": "admin", "password": ADMIN_PASS},
     )
     assert login.ok, login.text()
     token = login.json()["access_token"]

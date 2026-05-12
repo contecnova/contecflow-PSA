@@ -339,6 +339,9 @@ class Settings(BaseSettings):
                 "Set a real password in .env or run ./setup.sh before seeding."
             )
         environment = info.data.get("ENVIRONMENT", "development")
+        # En staging/production exigir password fuerte; en test mantener el
+        # default conocido para que las suites no fallen, pero no permitirlo
+        # más allá de development/test.
         if environment in {"staging", "production"} and v == "contecflow2024!":
             raise ValueError(
                 "DEFAULT_USER_PASSWORD must be changed from the default value in "
@@ -354,6 +357,58 @@ class Settings(BaseSettings):
             raise ValueError(f"{info.field_name} must be configured in {environment}")
         if (v or "").strip() and len(v.strip()) < 24:
             raise ValueError(f"{info.field_name} must be at least 24 characters long")
+        return v
+
+    # ── URL/Origin validators (rechazar localhost/wildcard en producción) ────
+    @staticmethod
+    def _looks_like_localhost(url: str) -> bool:
+        u = (url or "").lower()
+        return (
+            "localhost" in u
+            or "127.0.0.1" in u
+            or "0.0.0.0" in u
+            or u.startswith("http://[::1]")
+        )
+
+    @field_validator("ALLOWED_ORIGINS")
+    @classmethod
+    def allowed_origins_must_be_explicit_in_prod(cls, v: List[str], info: ValidationInfo) -> List[str]:
+        environment = info.data.get("ENVIRONMENT", "development")
+        if environment in {"staging", "production"}:
+            if not v:
+                raise ValueError("ALLOWED_ORIGINS must be configured in staging/production")
+            if "*" in v:
+                raise ValueError(
+                    "ALLOWED_ORIGINS cannot contain '*' with allow_credentials=True — "
+                    "list explicit origins instead"
+                )
+            bad = [o for o in v if cls._looks_like_localhost(o)]
+            if bad:
+                raise ValueError(
+                    f"ALLOWED_ORIGINS contains localhost values in {environment}: {bad}. "
+                    "Configure real origins via ALLOWED_ORIGINS env var."
+                )
+        return v
+
+    @field_validator("FRONTEND_URL", "BACKEND_URL", "BASE_URL", "WEBAUTHN_ORIGIN")
+    @classmethod
+    def url_must_not_be_localhost_in_prod(cls, v: str, info: ValidationInfo) -> str:
+        environment = info.data.get("ENVIRONMENT", "development")
+        if environment in {"staging", "production"} and cls._looks_like_localhost(v):
+            raise ValueError(
+                f"{info.field_name} must not point to localhost in {environment} "
+                f"(got {v!r}). Set a real public URL in your .env."
+            )
+        return v
+
+    @field_validator("WEBAUTHN_RP_ID")
+    @classmethod
+    def webauthn_rp_id_must_not_be_localhost_in_prod(cls, v: str, info: ValidationInfo) -> str:
+        environment = info.data.get("ENVIRONMENT", "development")
+        if environment in {"staging", "production"} and v.lower() in {"localhost", "127.0.0.1"}:
+            raise ValueError(
+                f"WEBAUTHN_RP_ID must be a real domain in {environment} (got {v!r})."
+            )
         return v
 
 

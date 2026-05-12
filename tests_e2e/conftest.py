@@ -4,13 +4,13 @@ Fixtures de Playwright E2E para Contecflow PSA.
 Uso:
   pip install playwright pytest-playwright
   playwright install chromium
-  BASE_URL=http://localhost:8000 pytest tests_e2e/ -v
+  BASE_URL=http://localhost:8000 ADMIN_PASS=... pytest tests_e2e/ -v
 
-Variables de entorno:
+Variables de entorno (todas obligatorias para que los E2E corran):
     BASE_URL       URL del frontend (default: http://localhost:3000)
-  ADMIN_USER     Usuario admin (default: admin)
-  ADMIN_PASS     Contraseña admin (default: contecflow2024!)
-  HEADLESS       Modo headless (default: true)
+    ADMIN_USER     Usuario admin (default: admin)
+    ADMIN_PASS     Contraseña admin — sin default, se exige por env var
+    HEADLESS       Modo headless (default: true)
 """
 import os
 import pytest
@@ -18,7 +18,8 @@ from playwright.sync_api import Page, BrowserContext
 
 BASE_URL   = os.getenv("BASE_URL",   "http://localhost:3000")
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
-ADMIN_PASS = os.getenv("ADMIN_PASS", "contecflow2024!")
+# Sin fallback hardcoded — si no se setea, los tests E2E se skipean.
+ADMIN_PASS = os.getenv("ADMIN_PASS") or os.getenv("DEFAULT_USER_PASSWORD")
 
 
 def _try_login(page: Page) -> bool:
@@ -66,6 +67,8 @@ def browser_context_args(browser_context_args):
 @pytest.fixture(scope="session")
 def logged_in_context(browser):
     """Contexto de navegador ya autenticado como admin (reusado en toda la sesión)."""
+    if not ADMIN_PASS:
+        pytest.skip("E2E password not configured — set ADMIN_PASS env var to run E2E suite")
     context = browser.new_context(
         viewport={"width": 1280, "height": 800},
         locale="es-ES",

@@ -118,10 +118,18 @@ def _serialize_config(c: JiraConfig) -> dict:
 
 @router.get("/configs", summary="Listar configuraciones Jira")
 def list_jira_configs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    configs = db.query(JiraConfig).order_by(JiraConfig.created_at.desc()).all()
+    configs = (
+        db.query(JiraConfig)
+        .order_by(JiraConfig.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
     return [_serialize_config(c) for c in configs]
 
 

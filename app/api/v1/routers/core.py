@@ -39,7 +39,11 @@ router.include_router(deliverables.router,    prefix="/deliverables",    tags=["
 router.include_router(advanced_config.router, prefix="/advanced-config", tags=["Configuración Avanzada"])
 router.include_router(analytics.router,       prefix="/analytics",       tags=["Analytics"])
 router.include_router(client_portal.router,   prefix="/portal",          tags=["Portal Cliente"])
-router.include_router(portal_conversations.router, prefix="/portal",      tags=["Portal Conversations"])
+# Conversaciones gobernadas en /portal/conversations para evitar la ambigüedad
+# de compartir el prefix /portal con client_portal. Alias /portal mantenido
+# como compatibility shim hasta que el frontend migre (objetivo: 2026-Q3).
+router.include_router(portal_conversations.router, prefix="/portal/conversations", tags=["Portal Conversations"])
+router.include_router(portal_conversations.router, prefix="/portal",                tags=["Portal Conversations (legacy)"], include_in_schema=False)
 router.include_router(service_desk.router,    prefix="/sd",              tags=["Service Desk"])
 router.include_router(sprints.router,         prefix="/sprints",         tags=["Sprints"])
 router.include_router(expenses.router,        prefix="/expenses",        tags=["Gastos"])
