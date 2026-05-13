@@ -1,4 +1,5 @@
-import { QueryClientProvider } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppLangProvider } from './i18n/AppLangContext'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
@@ -14,7 +15,12 @@ import ChatRealtimeProvider from './context/ChatRealtimeContext'
  * - Auth antes que QueryClient: queries autenticadas leen el token del AuthContext.
  * - QueryClient antes que ChatRealtime: el WebSocket invalida queries al recibir eventos.
  */
-export default function AppProviders({ queryClient, children }) {
+interface AppProvidersProps {
+  queryClient: QueryClient
+  children: ReactNode
+}
+
+export default function AppProviders({ queryClient, children }: AppProvidersProps) {
   return (
     <AppLangProvider>
       <ToastProvider>

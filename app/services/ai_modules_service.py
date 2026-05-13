@@ -51,20 +51,26 @@ def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_t
 
 
 def call_claude(messages, system=None, model=None, tools=None, max_tokens=1000):
-    import urllib.request
-    import json as _json
+    """Llamada síncrona a Anthropic API usando httpx.
+
+    Migrado de urllib.request → httpx (#66): httpx aporta retries
+    configurables, timeouts más granulares (connect/read/write/pool),
+    soporte nativo HTTP/2 y mejor manejo de errores.
+    """
+    import httpx
     body = {"model": model or settings.CONTECFLOW_AI_MODEL, "max_tokens": max_tokens, "messages": messages}
     if system: body["system"] = system
     if tools:  body["tools"] = tools
-    data = _json.dumps(body).encode()
     headers = {
         "Content-Type": "application/json",
         "x-api-key": api_key(),
         "anthropic-version": "2023-06-01",
     }
-    req = urllib.request.Request(settings.ANTHROPIC_API_URL, data=data, headers=headers)
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return _json.loads(resp.read())
+    timeout = getattr(settings, "OUTBOUND_AI_TIMEOUT_SECONDS", 30.0)
+    with httpx.Client(timeout=httpx.Timeout(timeout, connect=10.0)) as client:
+        response = client.post(settings.ANTHROPIC_API_URL, json=body, headers=headers)
+        response.raise_for_status()
+        return response.json()
 
 
 def extract_text(response) -> str:

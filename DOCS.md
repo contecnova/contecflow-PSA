@@ -1,5 +1,128 @@
 # Contecflow PSA - Documentacion Operativa Actual
 
+## Fix Frontend: 404 en /api/v1/templates (2026-05-13)
+
+### Problema
+- En `ProjectsPage`/plantillas aparecía `GET /api/v1/templates 404 (Not Found)` desde el frontend.
+
+### Causa
+- `frontend/src/services/api.js` usaba rutas legacy de `templatesApi` bajo `/templates`.
+- El backend actual expone esas operaciones en `billing_reports` con prefijo `/billing-reports/templates`.
+
+### Solución aplicada
+- `frontend/src/services/api.js`
+  - `templatesApi.list` → `/billing-reports/templates`
+  - `templatesApi.create` → `/billing-reports/templates`
+  - `templatesApi.instantiate` → `/billing-reports/templates/{id}/instantiate`
+
+### Resultado
+- Se elimina el `404` en la carga de plantillas de proyecto al alinear frontend con rutas reales del backend.
+
+<!-- TOC-START -->
+## 📑 Índice
+
+
+### 2026-05
+
+- [Fix Backend: 500 en /sd/assignment/stats (2026-05-13)](#fix-backend-500-en-sdassignmentstats-2026-05-13)
+- [Fix Frontend: Warning de keys duplicadas en Estado del sistema (2026-05-13)](#fix-frontend-warning-de-keys-duplicadas-en-estado-del-sistema-2026-05-13)
+- [UX IA: Admin Chat movido a Configuracion (2026-05-12)](#ux-ia-admin-chat-movido-a-configuracion-2026-05-12)
+- [Fix UI: Scroll en modal de proveedores IA (2026-05-12)](#fix-ui-scroll-en-modal-de-proveedores-ia-2026-05-12)
+- [Correcciones: Errores en Voice/AI & Password Form Validation (2026-05-12)](#correcciones-errores-en-voiceai-password-form-validation-2026-05-12)
+- [Usuarios Multi-Organizacion desde Ficha de Usuario (2026-05-12)](#usuarios-multi-organizacion-desde-ficha-de-usuario-2026-05-12)
+- [Rediseño Chat Global en Topbar (2026-05-12)](#rediseño-chat-global-en-topbar-2026-05-12)
+- [Chat Global - Endgame UX/Backend (2026-05-12)](#chat-global---endgame-uxbackend-2026-05-12)
+- [Service Desk - Diferenciales MVP (2026-05-12)](#service-desk---diferenciales-mvp-2026-05-12)
+- [Security Hardening - Auth + Performance (2026-05-10)](#security-hardening---auth-performance-2026-05-10)
+- [Security Hardening - Inbound Integrations + Password Reset Logs (2026-05-10)](#security-hardening---inbound-integrations-password-reset-logs-2026-05-10)
+- [Security Hardening - Provider Error Sanitization (2026-05-10)](#security-hardening---provider-error-sanitization-2026-05-10)
+- [1. Alcance](#1-alcance)
+- [Frontend Performance Reviews — Fix `Map is not a constructor` (2026-05-10)](#frontend-performance-reviews-fix-map-is-not-a-constructor-2026-05-10)
+- [ABAC - Endurecimiento completo de endpoints DELETE (2026-05-10)](#abac---endurecimiento-completo-de-endpoints-delete-2026-05-10)
+- [Documentos IA — Extraccion y OCR robustos (2026-05-09)](#documentos-ia-extraccion-y-ocr-robustos-2026-05-09)
+- [Enterprise — Endpoints DELETE reforzados (2026-05-09)](#enterprise-endpoints-delete-reforzados-2026-05-09)
+- [CMDB — Endpoints DELETE reforzados (2026-05-09)](#cmdb-endpoints-delete-reforzados-2026-05-09)
+- [ALM — Endpoints DELETE reforzados (2026-05-09)](#alm-endpoints-delete-reforzados-2026-05-09)
+- [EPICS/WIKI — Endpoints DELETE reforzados (2026-05-09)](#epicswiki-endpoints-delete-reforzados-2026-05-09)
+- [CLIENTS — Endpoints DELETE reforzados (2026-05-09)](#clients-endpoints-delete-reforzados-2026-05-09)
+- [CONTRACTS — Endpoint DELETE reforzado (2026-05-09)](#contracts-endpoint-delete-reforzado-2026-05-09)
+- [PIPELINE — Endpoints DELETE reforzados (2026-05-09)](#pipeline-endpoints-delete-reforzados-2026-05-09)
+- [MILESTONES — Endpoint DELETE reforzado (2026-05-09)](#milestones-endpoint-delete-reforzado-2026-05-09)
+- [PROFITABILITY — Milestones DELETE reforzado (2026-05-09)](#profitability-milestones-delete-reforzado-2026-05-09)
+- [PORTFOLIO — Endpoints DELETE reforzados (2026-05-09)](#portfolio-endpoints-delete-reforzados-2026-05-09)
+- [PROJECTS — Endpoints DELETE reforzados (2026-05-09)](#projects-endpoints-delete-reforzados-2026-05-09)
+- [TASKS — Endpoints DELETE reforzados (2026-05-09)](#tasks-endpoints-delete-reforzados-2026-05-09)
+- [SPRINTS — Endpoint DELETE reforzado (2026-05-09)](#sprints-endpoint-delete-reforzado-2026-05-09)
+- [RISKS — Endpoint DELETE reforzado (2026-05-09)](#risks-endpoint-delete-reforzado-2026-05-09)
+- [CHANGES — Endpoint DELETE reforzado (2026-05-09)](#changes-endpoint-delete-reforzado-2026-05-09)
+- [CAPACITY — Endpoint DELETE reforzado (2026-05-09)](#capacity-endpoint-delete-reforzado-2026-05-09)
+- [ABSENCES — Endpoint DELETE reforzado (2026-05-09)](#absences-endpoint-delete-reforzado-2026-05-09)
+- [BPMN PROCESSES — Endpoint DELETE reforzado (2026-05-09)](#bpmn-processes-endpoint-delete-reforzado-2026-05-09)
+- [BOOKINGS — Endpoint DELETE reforzado (2026-05-09)](#bookings-endpoint-delete-reforzado-2026-05-09)
+- [PUBLIC FORMS — Endpoint DELETE reforzado (2026-05-09)](#public-forms-endpoint-delete-reforzado-2026-05-09)
+- [DEVELOPER PORTAL — Endpoint DELETE reforzado (2026-05-09)](#developer-portal-endpoint-delete-reforzado-2026-05-09)
+- [AUTOMATIONS — Endpoint DELETE reforzado (2026-05-09)](#automations-endpoint-delete-reforzado-2026-05-09)
+- [RATE CARDS — Endpoints DELETE reforzados (2026-05-09)](#rate-cards-endpoints-delete-reforzados-2026-05-09)
+- [SKILLS — Endpoints DELETE reforzados (2026-05-09)](#skills-endpoints-delete-reforzados-2026-05-09)
+- [SETTINGS — Endpoints DELETE reforzados (2026-05-09)](#settings-endpoints-delete-reforzados-2026-05-09)
+- [INTEGRATIONS MARKETPLACE — Endpoint DELETE reforzado (2026-05-09)](#integrations-marketplace-endpoint-delete-reforzado-2026-05-09)
+- [OKRS — Endpoint DELETE reforzado (2026-05-09)](#okrs-endpoint-delete-reforzado-2026-05-09)
+- [DELIVERABLES — Endpoint DELETE reforzado (2026-05-09)](#deliverables-endpoint-delete-reforzado-2026-05-09)
+- [TRAINING — Endpoints DELETE reforzados (2026-05-10)](#training-endpoints-delete-reforzados-2026-05-10)
+- [EXPENSES — Endpoint DELETE reforzado (2026-05-10)](#expenses-endpoint-delete-reforzado-2026-05-10)
+- [SERVICE DESK TEMPLATES — Endpoints DELETE reforzados (2026-05-10)](#service-desk-templates-endpoints-delete-reforzados-2026-05-10)
+- [REPORT BUILDER — Endpoint DELETE reforzado (2026-05-10)](#report-builder-endpoint-delete-reforzado-2026-05-10)
+- [USER COSTS — Endpoints DELETE reforzados (2026-05-10)](#user-costs-endpoints-delete-reforzados-2026-05-10)
+- [BILLING REPORTS — Endpoints DELETE reforzados (2026-05-10)](#billing-reports-endpoints-delete-reforzados-2026-05-10)
+- [BI QUERY BUILDER — Endpoint DELETE reforzado (2026-05-10)](#bi-query-builder-endpoint-delete-reforzado-2026-05-10)
+- [BI SMART ALERTS — Endpoints DELETE reforzados (2026-05-10)](#bi-smart-alerts-endpoints-delete-reforzados-2026-05-10)
+- [BI CONDITIONAL DELIVERY — Endpoint DELETE reforzado (2026-05-10)](#bi-conditional-delivery-endpoint-delete-reforzado-2026-05-10)
+- [APPROVALS — Endpoints DELETE reforzados (2026-05-10)](#approvals-endpoints-delete-reforzados-2026-05-10)
+- [RACI — Endpoints DELETE reforzados (2026-05-10)](#raci-endpoints-delete-reforzados-2026-05-10)
+- [BI INTELLIGENCE — Endpoints DELETE reforzados (2026-05-10)](#bi-intelligence-endpoints-delete-reforzados-2026-05-10)
+- [REFACTORING: Soft-Delete Pattern Implementation (2026-05-09)](#refactoring-soft-delete-pattern-implementation-2026-05-09)
+- [0. P1 REFACTORING — Code Quality Initiative (2026-05-08)](#0-p1-refactoring-code-quality-initiative-2026-05-08)
+- [2. Analisis Profundo de Calidad de Codigo (2026-05-08)](#2-analisis-profundo-de-calidad-de-codigo-2026-05-08)
+- [2. Audit de Paginas Frontend (2026-05-08)](#2-audit-de-paginas-frontend-2026-05-08)
+- [2. Que es Contecflow PSA](#2-que-es-contecflow-psa)
+- [3. Arquitectura actual](#3-arquitectura-actual)
+- [4. Estructura del repositorio](#4-estructura-del-repositorio)
+- [5. Requisitos](#5-requisitos)
+- [6. Instalacion](#6-instalacion)
+- [7. Configuracion](#7-configuracion)
+- [8. Arranque local](#8-arranque-local)
+- [9. Base de datos](#9-base-de-datos)
+- [10. Modulos funcionales](#10-modulos-funcionales)
+- [11. Seguridad y compliance](#11-seguridad-y-compliance)
+- [12. Testing](#12-testing)
+- [13. Operacion](#13-operacion)
+- [A.1 RESUMEN EJECUTIVO](#a1-resumen-ejecutivo)
+- [A.2 MAPEO DETALLADO DE ENDPOINTS CRÍTICOS](#a2-mapeo-detallado-de-endpoints-críticos)
+- [A.3 GAPS CRÍTICOS IDENTIFICADOS](#a3-gaps-críticos-identificados)
+- [A.4 RECOMENDACIONES POR SEVERIDAD](#a4-recomendaciones-por-severidad)
+- [A.5 MATRIZ DE RIESGO Y MITIGACIONES](#a5-matriz-de-riesgo-y-mitigaciones)
+- [A.6 CONTROLES EXITOSOS (SIN GAPS)](#a6-controles-exitosos-sin-gaps)
+- [A.7 PLAN DE REMEDIACIÓN RECOMENDADO](#a7-plan-de-remediación-recomendado)
+- [A.8 CONCLUSIÓN](#a8-conclusión)
+- [14. Integraciones](#14-integraciones)
+- [15. Troubleshooting rapido](#15-troubleshooting-rapido)
+- [16. Politica de limpieza del repositorio](#16-politica-de-limpieza-del-repositorio)
+- [17. Mantenimiento de esta documentacion](#17-mantenimiento-de-esta-documentacion)
+- [18. Motor de flujos de aprobacion documental (implementado)](#18-motor-de-flujos-de-aprobacion-documental-implementado)
+- [19. Gobierno de flujos: separacion operacion vs configuracion](#19-gobierno-de-flujos-separacion-operacion-vs-configuracion)
+- [20. Approval Flows (Config) - capacidades enterprise implementadas](#20-approval-flows-config---capacidades-enterprise-implementadas)
+- [Approval Engine v2 Enterprise (migración 060)](#approval-engine-v2-enterprise-migración-060)
+- [Sistema de Asignación — Correcciones (5 problemas auditados)](#sistema-de-asignación-correcciones-5-problemas-auditados)
+- [Auditoría hardcode — Eliminación de valores quemados en el código](#auditoría-hardcode-eliminación-de-valores-quemados-en-el-código)
+- [Settings → E-firma (nueva sección)](#settings-e-firma-nueva-sección)
+- [Exportar a Excel: limpieza global por pantalla](#exportar-a-excel-limpieza-global-por-pantalla)
+- [21. PRD MVP - Chat interno back office (tipo Slack)](#21-prd-mvp---chat-interno-back-office-tipo-slack)
+- [APENDICE: Security Fixes Applied (Audit 2025)](#apendice-security-fixes-applied-audit-2025)
+- [Soft-Delete Uniqueness Constraints Fix (2026-05-09)](#soft-delete-uniqueness-constraints-fix-2026-05-09)
+
+<!-- TOC-END -->
+
+
 ## Fix Backend: 500 en /sd/assignment/stats (2026-05-13)
 
 ### Problema

@@ -311,6 +311,29 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
+from contextlib import contextmanager  # noqa: E402
+
+
+@contextmanager
+def worker_db_session() -> Generator[Session, None, None]:
+    """Context manager para Celery workers / scripts CLI.
+
+    Garantiza el `db.close()` incluso si la task lanza una excepción no
+    capturada (a diferencia de `db = SessionLocal()` + try/finally manual).
+    Resuelve audit #29 ("SessionLocal sin context manager en worker.py").
+
+    Uso::
+
+        with worker_db_session() as db:
+            do_work(db)
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 def is_postgres() -> bool:
     return not _is_sqlite
 

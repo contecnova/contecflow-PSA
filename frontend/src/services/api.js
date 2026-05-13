@@ -1487,9 +1487,9 @@ export const organizationsApi = {
 
 // ── Templates ─────────────────────────────────────────────────────────────────
 export const templatesApi = {
-  list:        () => api.get('/templates'),
-  create:      (data) => api.post('/templates', data),
-  instantiate: (tplId, data) => api.post(`/templates/${tplId}/instantiate`, data),
+  list:        () => api.get('/billing-reports/templates'),
+  create:      (data) => api.post('/billing-reports/templates', data),
+  instantiate: (tplId, data) => api.post(`/billing-reports/templates/${tplId}/instantiate`, data),
 }
 
 // ── Dependencies ──────────────────────────────────────────────────────────────
