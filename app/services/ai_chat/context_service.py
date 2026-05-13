@@ -17,6 +17,9 @@ from app.models.service_desk import Ticket
 from app.models.task import Task
 from app.models.user import User, UserRole
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 def _filter_by_org(query, model, org_id):
     """Apply organization filter only when the model actually has organization_id.

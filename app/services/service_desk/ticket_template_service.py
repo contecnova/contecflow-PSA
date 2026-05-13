@@ -4,6 +4,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import TicketTemplate
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def list_ticket_templates_query(db: Session, ticket_type=None):

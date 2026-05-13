@@ -2,6 +2,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import ServiceCategory, ServiceItem
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def list_catalog_payload(db: Session, public_only: bool = False) -> list[dict]:

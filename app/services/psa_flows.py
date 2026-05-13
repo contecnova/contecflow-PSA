@@ -16,6 +16,9 @@ from app.models.resources import Absence, AbsenceStatus
 from app.models.sprints import Sprint, SprintStatus, SprintTask
 from app.models.user import User, UserRole
 from app.services.notifications import notify_user
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _assert_can_review_imputation(db: Session, imp: Imputation, current_user: User) -> None:

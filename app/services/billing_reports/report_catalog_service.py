@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.models.billing_reports import ReportDefinition
 from app.models.user import User
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 SYSTEM_REPORTS = [

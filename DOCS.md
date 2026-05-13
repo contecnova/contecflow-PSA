@@ -1,5 +1,45 @@
 # Contecflow PSA - Documentacion Operativa Actual
 
+## Fix Backend: 500 en /sd/assignment/stats (2026-05-13)
+
+### Problema
+- El panel de asignacion de incidentes lanzaba `GET /api/v1/sd/assignment/stats` y recibia `500 Internal Server Error`.
+- En frontend se repetia varias veces por los reintentos de React Query.
+
+### Causa
+- El endpoint de estadisticas podia romper por datos legacy no numericos en `weekly_capacity_hours` o por fallos de consulta intermedios (drift/estado de esquema), devolviendo excepcion sin degradacion.
+
+### Solucion aplicada
+- `app/services/service_desk/incident_assignment_service.py`
+  - Nuevo helper `_capacity_to_slots(raw_capacity)` para parseo defensivo de capacidad semanal con fallback seguro.
+  - Hardening de `get_assignment_stats`:
+    - try/except al cargar miembros de grupos de agentes,
+    - try/except al calcular cargas por usuario,
+    - try/except al calcular tickets no asignados,
+    - `db.rollback()` defensivo tras errores de consulta para evitar sesion en estado fallido.
+  - Resultado: si hay datos o consulta anomala, el endpoint responde payload valido degradado en vez de 500.
+
+### Tests
+- `tests/test_incident_assignment_ml.py`
+  - Nuevo test parametrizado `test_capacity_to_slots_is_resilient` para validar casos numericos y entradas invalidas (`None`, string vacio, string no numerico, negativos, etc.).
+
+### Ajuste adicional (2026-05-13)
+- Se añade un guard-rail final en `get_assignment_stats` para evitar `500` ante cualquier excepción inesperada de consultas/modelo y devolver payload degradado (`agent_loads: []`, `total_unassigned: 0`) en lugar de romper el panel.
+- Se confirma que en este servicio ya no hay referencias a `Ticket.organization_id`.
+
+## Fix Frontend: Warning de keys duplicadas en Estado del sistema (2026-05-13)
+
+### Problema
+- React mostraba `Encountered two children with the same key, sd.dynamic_forms.rules` en `SystemStateSection`.
+
+### Causa
+- El listado podía contener varias filas con la misma `key` lógica de setting (por scope global/tenant o duplicados de origen), pero el render usaba `key={s.key}`.
+
+### Solución aplicada
+- `frontend/src/pages/settings-sections/SettingsAdvancedSections.jsx`
+  - Nuevo helper `dedupeSettingsByKey` para colapsar duplicados por clave, priorizando registros scoped a organización y/o más recientes.
+  - Render con key compuesta única por item (`key + scope + índice`) para evitar colisiones incluso si el backend devuelve duplicados.
+
 ## UX IA: Admin Chat movido a Configuracion (2026-05-12)
 
 ### Objetivo

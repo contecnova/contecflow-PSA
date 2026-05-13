@@ -15,6 +15,9 @@ from app.services.sla_service import (
     next_ticket_number as _next_ticket_number,
     norm_enum as _norm_enum,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _semantic_assignee_if_enabled(db: Session, ticket: Ticket, candidate_user_ids: list[str]) -> str | None:

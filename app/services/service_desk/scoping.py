@@ -8,6 +8,9 @@ from app.models.pipeline import Contract
 from app.models.project import Project
 from app.models.service_desk import ConfigurationItem, KBArticle, Problem, SLAPolicy, Ticket
 from app.models.user import User, UserRole
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def resolve_sla_policy_for_ticket(

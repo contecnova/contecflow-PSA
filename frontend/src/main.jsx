@@ -15,10 +15,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
-import { AppLangProvider } from './i18n/AppLangContext'
-import { AuthProvider } from './context/AuthContext'
-import { ToastProvider } from './context/ToastContext'
-import ChatRealtimeProvider from './context/ChatRealtimeContext'
+import AppProviders from './AppProviders'
 import { useAppT } from './hooks/useAppT'
 import { initOfflineSync } from './services/offlineQueue'
 import api from './services/api'
@@ -145,19 +142,11 @@ if (import.meta.env.DEV) {
 // ── Render ────────────────────────────────────────────────────────────────────
 ReactDOM.createRoot(document.getElementById('root')).render(
   <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-    <AppLangProvider>
-      <ToastProvider>
-        <AuthProvider>
-          <QueryClientProvider client={queryClient}>
-            <ChatRealtimeProvider>
-              <RootBoundary>
-                <App />
-              </RootBoundary>
-            </ChatRealtimeProvider>
-          </QueryClientProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </AppLangProvider>
+    <AppProviders queryClient={queryClient}>
+      <RootBoundary>
+        <App />
+      </RootBoundary>
+    </AppProviders>
   </BrowserRouter>
 )
 

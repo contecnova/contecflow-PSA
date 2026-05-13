@@ -2,6 +2,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import Ticket, TicketWatcher
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def list_ticket_watchers(db: Session, ticket_id: str):

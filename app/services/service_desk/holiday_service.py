@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.models.service_desk import SDSLAHoliday
 from app.schemas.service_desk import HolidayIn
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def list_holidays_query(db: Session, year: Optional[int] = None, country: Optional[str] = None):

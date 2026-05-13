@@ -16,6 +16,9 @@ from app.services.sla_service import (
     log_history as _log_history,
     norm_enum as _norm_enum,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_scoped_ticket_or_404(db: Session, current_user: User, ticket_id: str) -> Ticket:

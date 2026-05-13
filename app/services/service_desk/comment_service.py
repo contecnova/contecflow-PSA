@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 from app.models.service_desk import Ticket, TicketComment, TicketStatus
 from app.models.user import User
 from app.services.service_desk.scoping import scope_ticket_query as _scope_ticket_query
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_scoped_ticket_or_404(db: Session, current_user: Optional[User], ticket_id: str) -> Ticket:

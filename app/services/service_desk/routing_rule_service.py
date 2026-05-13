@@ -5,6 +5,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import RoutingRule, Ticket
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _norm_enum(value):

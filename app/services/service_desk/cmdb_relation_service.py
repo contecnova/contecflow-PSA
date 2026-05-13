@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.service_desk import CIRelation, ConfigurationItem
 from app.models.user import User
 from app.services.service_desk.scoping import scope_ci_query as _scope_ci_query
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _get_scoped_ci_or_404(db: Session, current_user: User, ci_id: str, detail: str = "CI no encontrado"):

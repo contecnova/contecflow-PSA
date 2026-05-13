@@ -18,6 +18,9 @@ from app.models.service_desk import (
     TicketUrgency,
 )
 from app.models.user import User, UserRole
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def parse_email_address(raw: Optional[str]) -> Tuple[str, str]:

@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session, joinedload
 from app.services.numbering import next_numbered_code
 
 from app.models.service_desk import MajorIncident, Ticket
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def build_major_incidents_query(db: Session, status: Optional[str]):

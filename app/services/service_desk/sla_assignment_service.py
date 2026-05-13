@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from app.models.clients import Client
 from app.models.pipeline import Contract
 from app.models.service_desk import SLAPolicy
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _ensure_sla_policy_exists_if_provided(db: Session, sla_policy_id: str) -> None:

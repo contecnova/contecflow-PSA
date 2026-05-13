@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import Asset, AssetHistory, AssetStatus, AssetType, ConfigurationItem
 from app.models.user import User
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def next_asset_code(db: Session) -> str:

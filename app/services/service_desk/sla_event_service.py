@@ -4,6 +4,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import SLAEvent, SLAEventType, Ticket
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_ticket_or_404(db: Session, ticket_id: str) -> Ticket:

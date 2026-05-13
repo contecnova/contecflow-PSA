@@ -4,6 +4,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import Ticket, TicketStatus
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def submit_ticket_csat(db: Session, ticket_id: str, score: int, comment: str = None) -> dict:

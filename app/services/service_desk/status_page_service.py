@@ -10,6 +10,9 @@ from app.models.service_desk import (
     StatusPageIncident,
 )
 from app.schemas.service_desk import StatusComponentIn, StatusIncidentIn, StatusIncidentUpdateIn
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def build_public_status_page_payload(db: Session) -> dict:

@@ -5,6 +5,9 @@ from app.models.pipeline import Risk
 from app.services.numbering import next_numbered_code
 from app.services.risk_scoring import risk_score
 from app.services.risk_scoring import risk_level
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_portfolio_risks(db: Session) -> list:

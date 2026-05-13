@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.resources import Deliverable, DeliverableStatus
 from app.services.numbering import next_numbered_code
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _next_code(db: Session) -> str:

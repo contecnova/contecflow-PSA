@@ -4,6 +4,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.services.sla_service import get_client_from_token
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def resolve_portal_client(

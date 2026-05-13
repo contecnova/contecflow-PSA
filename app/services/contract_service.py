@@ -6,6 +6,9 @@ from app.models.clients import ClientContractLink
 from app.models.project import Project
 from app.models.user import User
 from app.services.numbering import next_numbered_code
+import logging
+
+logger = logging.getLogger(__name__)
 
 def query_contracts(
     db: Session,

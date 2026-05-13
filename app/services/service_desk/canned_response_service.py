@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.models.service_desk import CannedResponse
 from app.schemas.service_desk import CannedResponseIn
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def list_canned_responses_query(

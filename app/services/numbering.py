@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.db.session import is_postgres
 from app.models.advanced_config import NumberingSequence
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _current_year() -> int:

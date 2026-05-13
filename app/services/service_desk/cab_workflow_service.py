@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 from app.models.service_desk import ChangeStatus, ITSMChangeRequest
 from app.models.settings import AppSetting
 from app.models.user import User
+import logging
+
+logger = logging.getLogger(__name__)
 
 CAB_KEY_PREFIX = "sd.cab.workflow."
 

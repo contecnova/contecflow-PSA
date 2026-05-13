@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import Ticket, TicketComment, TicketLink, TicketMerge, TicketStatus
 from app.services.sla_service import log_history, next_ticket_number
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_ticket_or_404(db: Session, ticket_id: str, detail: str) -> Ticket:

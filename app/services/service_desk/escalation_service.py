@@ -15,6 +15,9 @@ from app.models.service_desk import (
     TicketStatus,
 )
 from app.schemas.service_desk import EscalationRuleIn
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def list_escalation_rules(db: Session):

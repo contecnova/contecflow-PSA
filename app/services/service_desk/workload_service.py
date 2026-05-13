@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.service_desk import AgentGroup, AgentGroupMember, Ticket, TicketPriority, TicketStatus
 from app.models.user import User
 from app.services.sla_service import log_history
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_group_with_members_or_404(db: Session, group_id: str) -> AgentGroup:

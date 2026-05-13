@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session
 from app.models.billing_reports import Invoice, InvoiceStatus
 from app.models.bookings import ExchangeRate
 from app.models.expenses import Expense
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def list_exchange_rates(

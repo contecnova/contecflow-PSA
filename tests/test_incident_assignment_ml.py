@@ -1,6 +1,24 @@
 """tests/test_incident_assignment_ml.py — Tests for ML-based incident assignment endpoints."""
 import pytest
 from tests.conftest import auth
+from app.services.service_desk.incident_assignment_service import _capacity_to_slots
+
+
+@pytest.mark.parametrize(
+    ("raw_capacity", "expected"),
+    [
+        (40, 10),
+        (36.0, 9),
+        ("32", 8),
+        (None, 10),
+        ("", 10),
+        ("invalid", 10),
+        (0, 10),
+        (-8, 10),
+    ],
+)
+def test_capacity_to_slots_is_resilient(raw_capacity, expected):
+    assert _capacity_to_slots(raw_capacity) == expected
 
 
 def test_recommend_assignment(client, admin_token, db):

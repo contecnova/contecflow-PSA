@@ -11,6 +11,9 @@ from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.user import User, UserStatus
 from app.db.session import is_postgres
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ── User helpers ─────────────────────────────────────────────────────────────

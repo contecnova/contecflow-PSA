@@ -6,6 +6,9 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 _DEFAULT_LAYOUTS = {

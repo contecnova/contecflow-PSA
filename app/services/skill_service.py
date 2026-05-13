@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.resources import Skill, UserSkill, SkillHistory
 from app.models.user import User
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ── Skill catalog ──────────────────────────────────────────────────────────────

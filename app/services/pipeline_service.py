@@ -8,6 +8,9 @@ from app.models.project import Project, ProjectStatus, ProjectType
 from app.models.user import User
 from app.services.numbering import next_numbered_code
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 STAGE_LABELS = {
     "lead": "Lead", "qualification": "Cualificación", "proposal": "Propuesta",

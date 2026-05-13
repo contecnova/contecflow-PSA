@@ -1,4 +1,7 @@
 from datetime import datetime, timezone as tz
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def priority_matrix(urgency: str, impact: str) -> str:

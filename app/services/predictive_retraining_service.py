@@ -11,6 +11,9 @@ from app.models.service_desk import Ticket, TicketStatus
 from app.models.user import User
 from app.services import bi_intelligence_service
 from app.services.service_desk import predictive_analytics_service
+import logging
+
+logger = logging.getLogger(__name__)
 
 ITSM_META_KEY = "predictive.retraining.itsm.meta"
 BI_META_KEY = "predictive.retraining.bi.meta"

@@ -4,6 +4,9 @@ from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 LEGACY_TICKET_STATUS_MAP = {

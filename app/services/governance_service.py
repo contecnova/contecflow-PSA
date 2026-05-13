@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 from app.models.governance import ComplianceEvidence, TenantPolicyPack
 from app.models.ai_chat import AIGovernanceConfig, AIActionLog
 from fastapi import HTTPException
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def list_tenant_policy_packs(db: Session, organization_id: str) -> list[TenantPolicyPack]:

@@ -3,6 +3,9 @@ from datetime import timezone
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import Ticket
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_customer_context_payload(db: Session, requester_id: str) -> dict:

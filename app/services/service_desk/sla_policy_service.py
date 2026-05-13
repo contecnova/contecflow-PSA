@@ -2,6 +2,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import SLAPolicy
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def serialize_sla_policy(policy: SLAPolicy) -> dict:

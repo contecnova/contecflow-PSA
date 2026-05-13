@@ -15,6 +15,7 @@ to rule-based weighted scoring.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -31,6 +32,7 @@ except (ImportError, OSError):
 
 _KEY_ASSIGNMENT_STATS = "sd.ml_assignment.stats"
 _KEY_ASSIGNMENT_MODEL = "sd.ml_assignment.model_meta"
+logger = logging.getLogger(__name__)
 
 
 def _iso_now() -> str:
@@ -52,6 +54,21 @@ def _workload_score(active_tickets: int, capacity: int) -> float:
         return 0.0
     ratio = active_tickets / capacity
     return max(0.0, 1.0 - ratio)
+
+
+def _capacity_to_slots(raw_capacity: Any) -> int:
+    """Convert weekly capacity value into coarse ticket slots.
+
+    Some environments may carry unexpected values (None/empty/non-numeric)
+    from legacy imports; keep endpoint resilient and return a sensible default.
+    """
+    try:
+        hours = float(raw_capacity)
+    except (TypeError, ValueError):
+        hours = 40.0
+    if hours <= 0:
+        hours = 40.0
+    return max(1, int(hours // 4) or 10)
 
 
 def recommend_assignment(
@@ -194,88 +211,122 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
     )
     from app.models.user import User  # noqa: PLC0415
 
-    stats = _get_setting(db, _KEY_ASSIGNMENT_STATS, org_id)
+    try:
+        stats = _get_setting(db, _KEY_ASSIGNMENT_STATS, org_id)
 
-    # Build agent_loads: every user who is a member of any SD agent group
-    # (i.e. an actual SD agent), with their current open-ticket count and
-    # specialisations from the group memberships.
-    members_q = db.query(AgentGroupMember).join(User, AgentGroupMember.user_id == User.id)
-    if org_id:
-        members_q = members_q.filter(User.organization_id == org_id)
-    members = members_q.all()
+        # Build agent_loads: every user who is a member of any SD agent group
+        # (i.e. an actual SD agent), with their current open-ticket count and
+        # specialisations from the group memberships.
+        try:
+            members_q = db.query(AgentGroupMember).join(User, AgentGroupMember.user_id == User.id)
+            if org_id:
+                members_q = members_q.filter(User.organization_id == org_id)
+            members = members_q.all()
+        except Exception as exc:
+            logger.warning("SD assignment stats: failed loading agent members (org=%s): %s", org_id, exc)
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            members = []
 
-    if members:
-        # Open ticket counts per assignee in a single query
-        active_states = [TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled]
-        load_q = (
-            db.query(Ticket.assigned_to_user_id, sqlfunc.count(Ticket.id).label("cnt"))
-            .filter(Ticket.assigned_to_user_id.isnot(None))
-            .filter(Ticket.status.notin_(active_states))
-        )
-        # FIX: Ticket no tiene columna organization_id propia (la org se deriva
-        # vía Project.organization_id o Client.organization_id). Hacemos JOIN
-        # opcional con Project; los tickets sin project son del propio user
-        # asignado, ya filtrado upstream por agent groups de la org.
-        if org_id:
-            from app.models.project import Project as _Project  # noqa: PLC0415
-            from sqlalchemy import or_ as _or  # noqa: PLC0415
-            load_q = load_q.outerjoin(_Project, Ticket.project_id == _Project.id).filter(
-                _or(Ticket.project_id.is_(None), _Project.organization_id == org_id)
+        if members:
+            # Open ticket counts per assignee in a single query
+            active_states = [TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled]
+            load_q = (
+                db.query(Ticket.assigned_to_user_id, sqlfunc.count(Ticket.id).label("cnt"))
+                .filter(Ticket.assigned_to_user_id.isnot(None))
+                .filter(Ticket.status.notin_(active_states))
             )
-        load_q = load_q.group_by(Ticket.assigned_to_user_id)
-        load_by_user: dict[str, int] = {row.assigned_to_user_id: int(row.cnt or 0) for row in load_q.all()}
-
-        # Aggregate by user (a user may appear in several groups)
-        agg: dict[str, dict[str, Any]] = {}
-        for m in members:
-            uid = m.user_id
-            if not m.user:
-                continue
-            if uid not in agg:
-                agg[uid] = {
-                    "user_id": uid,
-                    "agent_id": uid,
-                    "agent_name": m.user.full_name or m.user.email or uid,
-                    "name": m.user.full_name or m.user.email or uid,
-                    "open_tickets": load_by_user.get(uid, 0),
-                    "active_tickets": load_by_user.get(uid, 0),
-                    "capacity": int(getattr(m.user, "weekly_capacity_hours", 40) or 40) // 4 or 10,
-                    "specializations": [],
-                    "is_on_call": False,
-                    "groups": [],
+            # Ticket no tiene columna organization_id propia; scope vía Project.
+            if org_id:
+                from app.models.project import Project as _Project  # noqa: PLC0415
+                from sqlalchemy import or_ as _or  # noqa: PLC0415
+                load_q = load_q.outerjoin(_Project, Ticket.project_id == _Project.id).filter(
+                    _or(Ticket.project_id.is_(None), _Project.organization_id == org_id)
+                )
+            load_q = load_q.group_by(Ticket.assigned_to_user_id)
+            try:
+                load_by_user: dict[str, int] = {
+                    row.assigned_to_user_id: int(row.cnt or 0) for row in load_q.all()
                 }
-            if m.group and m.group.name and m.group.name not in agg[uid]["groups"]:
-                agg[uid]["groups"].append(m.group.name)
-                # Treat group name as a soft specialisation tag
-                agg[uid]["specializations"].append(m.group.name.lower())
+            except Exception as exc:
+                logger.warning("SD assignment stats: failed loading ticket load map (org=%s): %s", org_id, exc)
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                load_by_user = {}
 
-        # Open tickets unassigned (any SD ticket without assignee, in open state)
-        unassigned_q = db.query(sqlfunc.count(Ticket.id)).filter(
-            Ticket.assigned_to_user_id.is_(None),
-            Ticket.status.notin_(active_states),
-        )
-        if org_id:
-            # FIX: Ticket no tiene organization_id propia; scope vía Project.
-            from app.models.project import Project as _Project  # noqa: PLC0415
-            from sqlalchemy import or_ as _or  # noqa: PLC0415
-            unassigned_q = unassigned_q.outerjoin(
-                _Project, Ticket.project_id == _Project.id
-            ).filter(
-                _or(Ticket.project_id.is_(None), _Project.organization_id == org_id)
+            # Aggregate by user (a user may appear in several groups)
+            agg: dict[str, dict[str, Any]] = {}
+            for m in members:
+                uid = m.user_id
+                if not m.user:
+                    continue
+                if uid not in agg:
+                    agg[uid] = {
+                        "user_id": uid,
+                        "agent_id": uid,
+                        "agent_name": m.user.full_name or m.user.email or uid,
+                        "name": m.user.full_name or m.user.email or uid,
+                        "open_tickets": load_by_user.get(uid, 0),
+                        "active_tickets": load_by_user.get(uid, 0),
+                        "capacity": _capacity_to_slots(getattr(m.user, "weekly_capacity_hours", 40)),
+                        "specializations": [],
+                        "is_on_call": False,
+                        "groups": [],
+                    }
+                if m.group and m.group.name and m.group.name not in agg[uid]["groups"]:
+                    agg[uid]["groups"].append(m.group.name)
+                    # Treat group name as a soft specialisation tag
+                    agg[uid]["specializations"].append(m.group.name.lower())
+
+            # Open tickets unassigned (any SD ticket without assignee, in open state)
+            unassigned_q = db.query(sqlfunc.count(Ticket.id)).filter(
+                Ticket.assigned_to_user_id.is_(None),
+                Ticket.status.notin_(active_states),
             )
-        total_unassigned = int(unassigned_q.scalar() or 0)
+            if org_id:
+                from app.models.project import Project as _Project  # noqa: PLC0415
+                from sqlalchemy import or_ as _or  # noqa: PLC0415
+                unassigned_q = unassigned_q.outerjoin(
+                    _Project, Ticket.project_id == _Project.id
+                ).filter(
+                    _or(Ticket.project_id.is_(None), _Project.organization_id == org_id)
+                )
+            try:
+                total_unassigned = int(unassigned_q.scalar() or 0)
+            except Exception as exc:
+                logger.warning("SD assignment stats: failed loading unassigned count (org=%s): %s", org_id, exc)
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                total_unassigned = 0
 
-        agent_loads = sorted(agg.values(), key=lambda a: a["open_tickets"], reverse=True)
-    else:
-        agent_loads = []
-        total_unassigned = 0
+            agent_loads = sorted(agg.values(), key=lambda a: a["open_tickets"], reverse=True)
+        else:
+            agent_loads = []
+            total_unassigned = 0
 
-    return {
-        **stats,
-        "agent_loads": agent_loads,
-        "total_unassigned": total_unassigned,
-        "lgbm_available": _LGBM_AVAILABLE,
-    }
+        return {
+            **stats,
+            "agent_loads": agent_loads,
+            "total_unassigned": total_unassigned,
+            "lgbm_available": _LGBM_AVAILABLE,
+        }
+    except Exception as exc:
+        logger.exception("SD assignment stats: unexpected error (org=%s): %s", org_id, exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return {
+            "agent_loads": [],
+            "total_unassigned": 0,
+            "lgbm_available": _LGBM_AVAILABLE,
+        }
 
 
 def _get_setting(db: Session, key: str, org_id: Optional[str]) -> dict:

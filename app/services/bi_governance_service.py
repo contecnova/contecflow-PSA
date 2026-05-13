@@ -9,6 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
 from app.models.user import User
+import logging
+
+logger = logging.getLogger(__name__)
 
 FIELD_SENSITIVITY_KEY = "bi.governance.field_sensitivity"
 LINEAGE_KEY = "bi.governance.data_lineage"

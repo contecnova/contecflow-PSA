@@ -3,6 +3,9 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.resources import UserSkill
 from app.models.user import User
 from app.models.pipeline import Opportunity
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def run_skills_report(db: Session, filters: dict, org_id=None) -> dict:

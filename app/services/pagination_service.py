@@ -2,6 +2,9 @@ import math
 from typing import Any, Optional, Tuple
 
 from fastapi import Response
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def paginate_query(query: Any, page: int, page_size: int, response: Optional[Response] = None) -> Tuple[list, int, int]:

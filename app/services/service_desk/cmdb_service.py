@@ -10,6 +10,9 @@ from app.schemas.service_desk import CIIn
 from app.services.service_desk.cmdb_relation_service import get_ci_impact_payload
 from app.services.service_desk.scoping import scope_ci_query as _scope_ci_query
 from app.services.sla_service import next_ci_number as _next_ci_number
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def list_cmdb_items(

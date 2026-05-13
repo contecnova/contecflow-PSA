@@ -11,6 +11,9 @@ from app.models.user import User
 from app.services.pagination_service import paginate_query
 from app.services.service_desk.scoping import scope_kb_query
 from app.services.sla_service import next_kb_number as _next_kb_number
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def list_kb_articles_scoped(

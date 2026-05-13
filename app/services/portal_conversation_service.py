@@ -30,6 +30,9 @@ from app.models.project import Project
 from app.models.service_desk import AgentGroup, AgentGroupMember, KBArticle, KBStatus
 from app.models.user import User
 from app.services.notifications import notify_user
+import logging
+
+logger = logging.getLogger(__name__)
 
 SENSITIVE_EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)
 SENSITIVE_TOKEN_RE = re.compile(r"\b[A-Z0-9]{16,}\b", re.IGNORECASE)

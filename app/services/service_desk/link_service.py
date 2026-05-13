@@ -3,6 +3,9 @@ from sqlalchemy import or_, and_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import Ticket, TicketLink
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_ticket_links_for_ticket(db: Session, ticket_id: str):

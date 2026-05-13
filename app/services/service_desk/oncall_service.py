@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import OnCallEntry, OnCallSchedule
 from app.schemas.service_desk import OnCallEntryIn, OnCallScheduleIn
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def list_oncall_schedules_query(db: Session, group_id: Optional[str] = None):

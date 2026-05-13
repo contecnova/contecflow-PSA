@@ -654,6 +654,33 @@ const groupForKey = (key) => {
   return 'Otros'
 }
 
+const dedupeSettingsByKey = (rows) => {
+  const byKey = new Map()
+  for (const row of rows || []) {
+    const key = String(row?.key || '')
+    if (!key) continue
+    const current = byKey.get(key)
+    if (!current) {
+      byKey.set(key, row)
+      continue
+    }
+
+    const currentOrg = current.organization_id ?? current.organizationId ?? null
+    const nextOrg = row.organization_id ?? row.organizationId ?? null
+    if (!currentOrg && nextOrg) {
+      byKey.set(key, row)
+      continue
+    }
+
+    const currentUpdated = String(current.updated_at || '')
+    const nextUpdated = String(row.updated_at || '')
+    if (nextUpdated > currentUpdated) {
+      byKey.set(key, row)
+    }
+  }
+  return Array.from(byKey.values())
+}
+
 function tryFormatValue(raw) {
   if (raw == null || raw === '') return null
   if (typeof raw === 'object') {
@@ -731,7 +758,7 @@ export function SystemStateSection() {
     queryFn: () => settingsApi.general().then(r => r.data),
   })
 
-  const internal = (settings || []).filter(s => isInternalKey(s.key))
+  const internal = dedupeSettingsByKey((settings || []).filter(s => isInternalKey(s.key)))
   // Agrupar por grupo lógico
   const grouped = {}
   for (const s of internal) {
@@ -790,7 +817,10 @@ export function SystemStateSection() {
                   }}>{items.length}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 10 }}>
-                  {items.map(s => <SystemSettingItem key={s.key} setting={s} />)}
+                  {items.map((s, idx) => {
+                    const orgScope = s.organization_id ?? s.organizationId ?? 'global'
+                    return <SystemSettingItem key={`${s.key}::${orgScope}::${idx}`} setting={s} />
+                  })}
                 </div>
               </div>
             )

@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 from app.models.service_desk import Announcement
 from app.schemas.service_desk import AnnouncementIn
 from app.services.pagination_service import paginate_query
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def list_active_announcements(

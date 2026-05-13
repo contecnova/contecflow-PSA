@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.models.billing_reports import ImportJob, WorkflowExecution
 from app.services.pagination_service import paginate_query
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_import_jobs(db: Session, page: int, page_size: int, response: Response = None) -> list[dict]:

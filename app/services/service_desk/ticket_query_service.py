@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.service_desk import Ticket
 from app.models.user import User, UserRole
 from app.services.service_desk.status_compat import normalize_ticket_status
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def build_ticket_list_query(
