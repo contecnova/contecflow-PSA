@@ -453,7 +453,7 @@ export const epicsApi = {
   roadmapByProject:(projectId) => api.get('/epics/roadmap', { params: { project_id: projectId } }),
   cfd:             (params)    => api.get('/epics/cfd', { params }),
   cfdSnapshot:     (projectId) => api.post('/epics/cfd/snapshot', null, { params: { project_id: projectId } }),
-  nqlSearch:       (data)      => api.post('/projects/epics/nql/search', data),
+  nqlSearch:       (data)      => api.post('/epics/nql/search', data),
 }
 
 // ── Contracts ─────────────────────────────────────────────────────────────────

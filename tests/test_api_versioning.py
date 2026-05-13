@@ -30,28 +30,26 @@ def test_api_v1_is_marked_deprecated(client, admin_token, db):
     assert res.headers.get("deprecation") == "true"
 
 
-# ── Legacy aliases — rutas /projects/* que deben existir ─────────────────────
-# Estas rutas son aliases de compatibilidad hacia atrás. Un 404 aquí indicaría
-# que el alias ha sido eliminado prematuramente. Un 401/403/422 es aceptable.
+# ── Legacy aliases /projects/* — ELIMINADOS en 2026-05-13 (audit #107) ───────
+# Los aliases mount-with-prefix `/projects/tasks/*`, `/projects/sprints/*`,
+# `/projects/epics/*`, `/projects/issue-types/*` se retiraron del router top-level.
+# (`/projects/milestones` NO está en esta lista porque tiene un endpoint canónico
+# distinto en projects/__init__.py — listado cross-proyecto de milestones.)
 
-_LEGACY_GET_ROUTES = [
+_REMOVED_LEGACY_ROUTES = [
     "/api/v1/projects/tasks",
-    "/api/v1/projects/milestones",
     "/api/v1/projects/sprints",
     "/api/v1/projects/epics",
     "/api/v1/projects/issue-types",
 ]
 
 
-@pytest.mark.parametrize("route", _LEGACY_GET_ROUTES)
-def test_legacy_alias_route_is_not_404(client, admin_token, db, route):
+@pytest.mark.parametrize("route", _REMOVED_LEGACY_ROUTES)
+def test_legacy_alias_route_is_removed(client, admin_token, db, route):
+    """Los aliases /projects/* deben devolver 404 — se retiraron en 2026-05-13."""
     res = client.get(route, headers=auth(admin_token))
-    assert res.status_code != 404, (
-        f"Alias legacy {route} devuelve 404 — ruta eliminada prematuramente. "
-        "Ver DOCS.md sección 'Aliases legacy (deprecados)'."
-    )
-    assert res.status_code != 405, (
-        f"Alias legacy {route} devuelve 405 — método no permitido inesperado."
+    assert res.status_code == 404, (
+        f"Alias legacy {route} aún existe ({res.status_code}) — debe haberse retirado."
     )
 
 

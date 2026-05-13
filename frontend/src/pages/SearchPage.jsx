@@ -152,7 +152,7 @@ function NQLMode() {
   const toast = useToast()
 
   const { mutate: runSearch, isPending } = useMutation({
-    mutationFn: d => api.post('/projects/epics/nql/search', d).then(r => r.data),
+    mutationFn: d => api.post('/epics/nql/search', d).then(r => r.data),
     onSuccess: data => setResults(data),
     onError: e => toast.error(extractErr(e, 'Error en la búsqueda NQL')),
   })
