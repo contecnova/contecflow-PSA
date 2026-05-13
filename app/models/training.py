@@ -19,6 +19,7 @@ class Course(Base):
     """Curso o formación del catálogo."""
     __tablename__ = "training_courses"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     title       = Column(String(300), nullable=False)
     description = Column(Text, nullable=True)
     provider    = Column(String(200), nullable=True)
@@ -36,6 +37,7 @@ class CourseEnrollment(Base):
     """Inscripción de un usuario a un curso."""
     __tablename__ = "training_enrollments"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     course_id   = Column(String(36), ForeignKey("training_courses.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
@@ -54,6 +56,7 @@ class Certification(Base):
     """Certificación obtenida por un usuario."""
     __tablename__ = "user_certifications"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     name        = Column(String(300), nullable=False)

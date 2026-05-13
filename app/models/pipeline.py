@@ -13,6 +13,7 @@ class PipelineStageConfig(Base):
     __tablename__ = "pipeline_stage_configs"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     stage_key     = Column(String(50), nullable=False, index=True)  # slug-like key
     label         = Column(String(100), nullable=False)
     description   = Column(Text, nullable=True)
@@ -41,6 +42,7 @@ class Opportunity(Base):
     __tablename__ = "opportunities"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code = Column(String(20), unique=True, nullable=False)  # OPP-001
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -98,6 +100,7 @@ class OpportunityActivity(Base):
     __tablename__ = "opportunity_activities"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     opportunity_id = Column(String(36), ForeignKey("opportunities.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
     type = Column(String(30), default="note")  # note | call | meeting | email | stage_change
@@ -128,6 +131,7 @@ class Contract(Base):
     __tablename__ = "contracts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code = Column(String(30), unique=True, nullable=False)  # CTR-001
     name = Column(String(255), nullable=False)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -171,6 +175,7 @@ class WorkOrder(Base):
     __tablename__ = "work_orders"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code = Column(String(30), unique=True, nullable=False)  # WO-001
     contract_id = Column(String(36), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
@@ -220,6 +225,7 @@ class Risk(Base):
     __tablename__ = "risks"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code = Column(String(20), nullable=False)  # RSK-001 (per project)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 

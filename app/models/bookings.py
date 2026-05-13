@@ -35,6 +35,7 @@ class TaskDependency(Base):
     __tablename__ = "task_dependencies"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     predecessor_id  = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     successor_id    = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     dependency_type = Column(Enum(DependencyType), default=DependencyType.finish_to_start, nullable=False)
@@ -60,6 +61,7 @@ class ResourceBooking(Base):
     __tablename__ = "resource_bookings"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     task_id     = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True)
@@ -89,6 +91,7 @@ class ExchangeRate(Base):
     __tablename__ = "exchange_rates"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     from_currency = Column(String(3), nullable=False, index=True)
     to_currency   = Column(String(3), nullable=False, index=True)
     rate          = Column(Float, nullable=False)        # 1 from_currency = rate to_currency
@@ -104,6 +107,7 @@ class SLASchedule(Base):
     __tablename__ = "sla_schedules"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)    # "9-17 Mon-Fri", "24/7"
     timezone    = Column(String(50), default=settings.DEFAULT_TIMEZONE)
     is_default  = Column(Boolean, default=False)
@@ -123,6 +127,7 @@ class SLAHoliday(Base):
     __tablename__ = "sla_holidays"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     schedule_id = Column(String(36), ForeignKey("sla_schedules.id", ondelete="CASCADE"), nullable=False, index=True)
     date        = Column(Date, nullable=False)
     name        = Column(String(100), nullable=True)
@@ -138,6 +143,7 @@ class ApiKey(Base):
     __tablename__ = "api_keys"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)    # "Slack integration", "BI dashboard"
     key_hash    = Column(String(255), nullable=False, unique=True)  # bcrypt hash of the key
     key_prefix  = Column(String(8), nullable=False)      # First 8 chars shown in UI: "nxpm_abc"
@@ -174,6 +180,7 @@ class RecurringInvoice(Base):
     __tablename__ = "recurring_invoices"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)    # "Retainer mensual Acme"
     project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
     contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True)
@@ -216,6 +223,7 @@ class WorkflowQueueItem(Base):
     __tablename__ = "workflow_queue"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     workflow_id  = Column(String(36), ForeignKey("automation_workflows.id", ondelete="CASCADE"), nullable=False, index=True)
     execution_id = Column(String(36), nullable=True)    # Links to WorkflowExecution
     step_index   = Column(Integer, default=0)
@@ -240,6 +248,7 @@ class OAuthState(Base):
     __tablename__ = "oauth_states"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     state      = Column(String(255), nullable=False, unique=True, index=True)
     sso_config_id = Column(String(36), ForeignKey("sso_configs.id", ondelete="CASCADE"), nullable=False)
     redirect_to = Column(String(500), default="/dashboard")

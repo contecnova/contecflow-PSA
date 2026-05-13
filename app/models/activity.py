@@ -56,6 +56,7 @@ class ProjectHealthSnapshot(Base):
     __tablename__ = "project_health_snapshots"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id       = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     score            = Column(Float, nullable=False)          # 0-100 composite
     schedule_score   = Column(Float, nullable=True)           # % tasks on time
@@ -86,6 +87,7 @@ class RecurringTask(Base):
     __tablename__ = "recurring_tasks"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id       = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     title            = Column(String(500), nullable=False)
     description      = Column(Text, nullable=True)
@@ -121,6 +123,7 @@ class ResourceDemandForecast(Base):
     __tablename__ = "resource_demand_forecasts"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     opportunity_id   = Column(String(36), ForeignKey("opportunities.id", ondelete="CASCADE"), nullable=False, index=True)
     role_or_skill    = Column(String(100), nullable=False)      # e.g. "Backend Developer", "DevOps"
     hours_required   = Column(Float, nullable=False)
@@ -144,6 +147,7 @@ class VendorScore(Base):
     __tablename__ = "vendor_scores"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     vendor_id        = Column(String(36), ForeignKey("alm_vendors.id", ondelete="CASCADE"), nullable=False, index=True)
     period           = Column(String(20), nullable=False)       # e.g. "Q1-2026", "2026"
     evaluator_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

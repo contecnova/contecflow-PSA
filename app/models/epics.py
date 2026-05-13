@@ -18,6 +18,7 @@ from app.db.base import Base
 class WikiSpace(Base):
     __tablename__ = "wiki_spaces"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     name        = Column(String(200), nullable=False)
     slug        = Column(String(100), nullable=False, unique=True, index=True)
@@ -32,6 +33,7 @@ class WikiSpace(Base):
 class WikiPage(Base):
     __tablename__ = "wiki_pages"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     space_id     = Column(String(36), ForeignKey("wiki_spaces.id", ondelete="CASCADE"), nullable=False, index=True)
     parent_id    = Column(String(36), ForeignKey("wiki_pages.id",  ondelete="SET NULL"),  nullable=True,  index=True)
     title        = Column(String(500), nullable=False)
@@ -55,6 +57,7 @@ class WikiPage(Base):
 class WikiVersion(Base):
     __tablename__ = "wiki_versions"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     page_id      = Column(String(36), ForeignKey("wiki_pages.id", ondelete="CASCADE"), nullable=False, index=True)
     version_num  = Column(Integer, nullable=False, default=1)
     title        = Column(String(500), nullable=False)
@@ -69,6 +72,7 @@ class WikiVersion(Base):
 class WikiTemplate(Base):
     __tablename__ = "wiki_templates"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(200), nullable=False)
     description = Column(String(500), nullable=True)
     icon        = Column(String(10),  nullable=True)
@@ -81,6 +85,7 @@ class WikiTemplate(Base):
 class WikiComment(Base):
     __tablename__ = "wiki_comments"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     page_id     = Column(String(36), ForeignKey("wiki_pages.id", ondelete="CASCADE"), nullable=False, index=True)
     parent_id   = Column(String(36), ForeignKey("wiki_comments.id", ondelete="CASCADE"), nullable=True)
     content     = Column(Text, nullable=False)
@@ -96,6 +101,7 @@ class WikiComment(Base):
 class Epic(Base):
     __tablename__ = "epics"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     title       = Column(String(500), nullable=False)
     is_active   = Column(Boolean, default=True)
@@ -117,6 +123,7 @@ class Epic(Base):
 class EpicTask(Base):
     __tablename__ = "epic_tasks"
     id       = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     epic_id  = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False, index=True)
     task_id  = Column(String(36), ForeignKey("tasks.id",     ondelete="CASCADE"), nullable=False, index=True)
     is_active = Column(Boolean, default=True)
@@ -126,6 +133,7 @@ class EpicTask(Base):
 class EpicDependency(Base):
     __tablename__ = "epic_dependencies"
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     epic_id       = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False, index=True)
     depends_on_id = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False)
     is_active     = Column(Boolean, default=True)
@@ -138,6 +146,7 @@ class EpicDependency(Base):
 class SavedFilter(Base):
     __tablename__ = "saved_filters"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(200), nullable=False)
     entity_type = Column(String(30), nullable=False, index=True)  # task, ticket, project, epic
     nql_query   = Column(Text, nullable=False)
@@ -152,6 +161,7 @@ class SavedFilter(Base):
 class TaskStateSnapshot(Base):
     __tablename__ = "task_state_snapshots"
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     sprint_id  = Column(String(36), ForeignKey("sprints.id",  ondelete="CASCADE"), nullable=True,  index=True)
     snap_date  = Column(String(10), nullable=False, index=True)   # YYYY-MM-DD
@@ -165,6 +175,7 @@ class TaskStateSnapshot(Base):
 class Mention(Base):
     __tablename__ = "mentions"
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     mentioned_user = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     mentioned_by   = Column(String(36), ForeignKey("users.id"), nullable=True)
     entity_type    = Column(String(30), nullable=False)   # task, ticket, wiki_page, comment
@@ -177,6 +188,7 @@ class Mention(Base):
 class ThreadedComment(Base):
     __tablename__ = "threaded_comments"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     entity_type = Column(String(30), nullable=False, index=True)  # task, ticket
     entity_id   = Column(String(36), nullable=False, index=True)
     parent_id   = Column(String(36), ForeignKey("threaded_comments.id", ondelete="CASCADE"), nullable=True)

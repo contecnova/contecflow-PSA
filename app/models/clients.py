@@ -35,6 +35,7 @@ class Client(Base):
     __tablename__ = "clients"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False, index=True)
     short_name  = Column(String(50),  nullable=True)   # Alias / nombre corto
     tax_id      = Column(String(50),  nullable=True)   # CIF / NIF / VAT
@@ -97,6 +98,7 @@ class ClientContact(Base):
     __tablename__ = "client_contacts"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     client_id  = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
 
     full_name  = Column(String(255), nullable=False)
@@ -127,6 +129,7 @@ class ClientPortalConfig(Base):
     __tablename__ = "client_portal_configs"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     client_id  = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, unique=True)
 
     # Accesos habilitados (JSON list de ClientServiceAccess)
@@ -164,6 +167,7 @@ class ClientLicenseLink(Base):
     __tablename__ = "client_license_links"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     client_id  = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     license_id = Column(String(36), ForeignKey("alm_licenses.id", ondelete="CASCADE"), nullable=False, index=True)
     is_active  = Column(Boolean, default=True)
@@ -178,6 +182,7 @@ class ClientContractLink(Base):
     __tablename__ = "client_contract_links"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     client_id   = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     contract_id = Column(String(36), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False, index=True)
     is_active   = Column(Boolean, default=True)

@@ -32,6 +32,7 @@ class GitPullRequest(Base):
     __tablename__ = "git_pull_requests"
 
     id             = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     task_id        = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
     project_id     = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     provider       = Column(SAEnum(GitProvider), default=GitProvider.github)
@@ -56,6 +57,7 @@ class GitDeployment(Base):
     __tablename__ = "git_deployments"
 
     id             = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     task_id        = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
     project_id     = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     pr_id          = Column(Integer, ForeignKey("git_pull_requests.id", ondelete="SET NULL"), nullable=True)

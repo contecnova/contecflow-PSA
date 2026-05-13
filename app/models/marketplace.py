@@ -19,6 +19,7 @@ class GanttBaseline(Base):
     __tablename__ = "gantt_baselines"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     name         = Column(String(100), nullable=False)           # "Kick-off Baseline", "End Sprint 3"
@@ -45,6 +46,7 @@ class WhatIfTask(Base):
     __tablename__ = "whatif_tasks"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     scenario_id = Column(String(36), ForeignKey("scenario_models.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     task_id     = Column(String(36), ForeignKey("tasks.id"), nullable=True)   # NULL = new hypothetical task
@@ -69,6 +71,7 @@ class IntegrationConnector(Base):
     __tablename__ = "integration_connectors"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(100), unique=True, nullable=False)   # "Salesforce CRM"
     slug        = Column(String(50),  unique=True, nullable=False)   # "salesforce"
     category    = Column(String(50),  nullable=False)                # crm|erp|hris|devops|comms
@@ -121,6 +124,7 @@ class TemplateDocument(Base):
     __tablename__ = "template_documents"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     name        = Column(String(255), nullable=False)
@@ -137,6 +141,7 @@ class TemplateRole(Base):
     __tablename__ = "template_roles"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     role_name   = Column(String(100), nullable=False)               # "Senior Developer", "BA"

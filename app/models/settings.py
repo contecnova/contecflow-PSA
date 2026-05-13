@@ -35,6 +35,7 @@ class AppSetting(Base):
 class CustomProjectType(Base):
     __tablename__ = "custom_project_types"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     value = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     color = Column(String(20), default="#7a8aaa")
@@ -46,6 +47,7 @@ class CustomProjectType(Base):
 class CustomProjectStatus(Base):
     __tablename__ = "custom_project_statuses"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     value = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     color = Column(String(20), default="#7a8aaa")
@@ -58,6 +60,7 @@ class CustomProjectStatus(Base):
 class CustomTaskStatus(Base):
     __tablename__ = "custom_task_statuses"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     value = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     color = Column(String(20), default="#7a8aaa")
@@ -70,6 +73,7 @@ class CustomTaskStatus(Base):
 class Department(Base):
     __tablename__ = "departments"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
     manager_id = Column(String(36), ForeignKey("users.id"), nullable=True)
@@ -80,6 +84,7 @@ class Department(Base):
 class Holiday(Base):
     __tablename__ = "holidays"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name = Column(String(100), nullable=False)
     date = Column(Date, nullable=False)
     type = Column(String(20), default="public")

@@ -23,6 +23,7 @@ from app.core.config import settings
 class WikiTag(Base):
     __tablename__ = "wiki_tags"
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     space_id   = Column(String(36), ForeignKey("wiki_spaces.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     name       = Column(String(80),  nullable=False)
@@ -37,6 +38,7 @@ class WikiTag(Base):
 class WikiPageTag(Base):
     __tablename__ = "wiki_page_tags"
     id      = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     page_id = Column(String(36), ForeignKey("wiki_pages.id", ondelete="CASCADE"),
                      nullable=False, index=True)
     tag_id  = Column(String(36), ForeignKey("wiki_tags.id",  ondelete="CASCADE"),
@@ -50,6 +52,7 @@ class TicketInternalComment(Base):
     """Comentario interno solo visible para agentes (no para el cliente)."""
     __tablename__ = "ticket_internal_comments"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     ticket_id   = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     content     = Column(Text, nullable=False)
@@ -65,6 +68,7 @@ class TicketInternalComment(Base):
 class CMDBCategory(Base):
     __tablename__ = "cmdb_categories"
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name       = Column(String(100), nullable=False)
     icon       = Column(String(10),  nullable=True)
     color      = Column(String(20),  default="#7a8aaa")
@@ -76,6 +80,7 @@ class CMDBItem(Base):
     """Elemento del inventario de activos IT."""
     __tablename__ = "cmdb_items"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     category_id  = Column(String(36), ForeignKey("cmdb_categories.id",
                             ondelete="SET NULL"), nullable=True, index=True)
     name         = Column(String(200), nullable=False)
@@ -112,6 +117,7 @@ class CMDBRelation(Base):
     """Relación entre elementos CMDB (depende de, hospedado en, conectado a…)."""
     __tablename__ = "cmdb_relations"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     from_item_id = Column(String(36), ForeignKey("cmdb_items.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     to_item_id   = Column(String(36), ForeignKey("cmdb_items.id", ondelete="CASCADE"),
@@ -131,6 +137,7 @@ class AgentMetricSnapshot(Base):
     """Snapshot diario de métricas por agente de soporte."""
     __tablename__ = "agent_metric_snapshots"
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     agent_id         = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
                                nullable=False, index=True)
     snap_date        = Column(String(10),  nullable=False, index=True)   # YYYY-MM-DD
@@ -149,6 +156,7 @@ class WikiExportJob(Base):
     """Trabajo de exportación de página wiki a PDF."""
     __tablename__ = "wiki_export_jobs"
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     page_id    = Column(String(36), ForeignKey("wiki_pages.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     status     = Column(String(20), default="pending")   # pending, done, error
@@ -163,6 +171,7 @@ class KanbanConfig(Base):
     """Configuración del tablero Kanban por proyecto."""
     __tablename__ = "kanban_configs"
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id      = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"),
                               nullable=False, unique=True, index=True)
     swimlane_by     = Column(String(30), default="none")   # none, assignee, epic, issue_type, priority
@@ -178,6 +187,7 @@ class KanbanColumn(Base):
     """Columna Kanban con límite WIP."""
     __tablename__ = "kanban_columns"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     config_id   = Column(String(36), ForeignKey("kanban_configs.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     status      = Column(String(50),  nullable=False)    # valor de estado del workflow
@@ -195,6 +205,7 @@ class SprintPlan(Base):
     """Plan de sprint generado por IA."""
     __tablename__ = "sprint_plans"
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id     = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"),
                              nullable=False, index=True)
     sprint_id      = Column(String(36), ForeignKey("sprints.id", ondelete="CASCADE"),
@@ -215,6 +226,7 @@ class SprintPlanTask(Base):
     """Tarea incluida en un plan de sprint."""
     __tablename__ = "sprint_plan_tasks"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     plan_id     = Column(String(36), ForeignKey("sprint_plans.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     task_id     = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"),
@@ -230,6 +242,7 @@ class SLACalendar(Base):
     """Calendario de servicio para cálculo de SLA."""
     __tablename__ = "sla_calendars"
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name          = Column(String(100), nullable=False)
     timezone      = Column(String(50),  default=settings.DEFAULT_TIMEZONE)
     work_start    = Column(String(5),   default="09:00")   # HH:MM
@@ -245,6 +258,7 @@ class V21SLAHoliday(Base):
     """Día festivo en un calendario SLA."""
     __tablename__ = "sla_calendar_holidays"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     calendar_id = Column(String(36), ForeignKey("sla_calendars.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     holiday_date= Column(String(10), nullable=False)   # YYYY-MM-DD
@@ -256,6 +270,7 @@ class CMDBChangelog(Base):
     """Historial de cambios de un activo CMDB."""
     __tablename__ = "cmdb_changelog"
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     item_id    = Column(String(36), ForeignKey("cmdb_items.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     user_id    = Column(String(36), ForeignKey("users.id"), nullable=True)
@@ -301,6 +316,7 @@ class CMDBDiscoveryJob(Base):
     __tablename__ = "cmdb_discovery_jobs"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     provider_id = Column(String(36), ForeignKey("cmdb_discovery_providers.id",
                          ondelete="CASCADE"), nullable=False, index=True)
     status      = Column(String(20), default="running")  # running | ok | error | partial
@@ -326,6 +342,7 @@ class CMDBAgentRegistration(Base):
     __tablename__ = "cmdb_agent_registrations"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name          = Column(String(255), nullable=False)        # friendly name, e.g. "web01.corp.local"
     description   = Column(Text,        nullable=True)
     token_hash    = Column(String(64),  nullable=False, unique=True, index=True)  # SHA-256 hex

@@ -106,6 +106,7 @@ class ALMCostCenter(Base):
     __tablename__ = "alm_cost_centers"
 
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code           = Column(String(20), nullable=False, unique=True)  # CC-001
     name           = Column(String(200), nullable=False)
     description    = Column(Text, nullable=True)
@@ -126,6 +127,7 @@ class ALMVendor(Base):
     __tablename__ = "alm_vendors"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name             = Column(String(200), nullable=False)
     category         = Column(Enum(VendorCategory), default=VendorCategory.software)
     website          = Column(String(500), nullable=True)
@@ -152,6 +154,7 @@ class ALMContract(Base):
     __tablename__ = "alm_contracts"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     vendor_id        = Column(String(36), ForeignKey("alm_vendors.id", ondelete="SET NULL"), nullable=True)
     title            = Column(String(300), nullable=False)
     reference        = Column(String(100), nullable=True)   # Nº contrato interno
@@ -201,6 +204,7 @@ class ALMLicense(Base):
     __tablename__ = "alm_licenses"
 
     id                   = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     contract_id          = Column(String(36), ForeignKey("alm_contracts.id", ondelete="SET NULL"), nullable=True)
     vendor_id            = Column(String(36), ForeignKey("alm_vendors.id",   ondelete="SET NULL"), nullable=True)
 
@@ -246,6 +250,7 @@ class ALMLicenseAssignment(Base):
     __tablename__ = "alm_license_assignments"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     license_id   = Column(String(36), ForeignKey("alm_licenses.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id      = Column(String(36), ForeignKey("users.id",        ondelete="SET NULL"), nullable=True, index=True)
     asset_id     = Column(String(36), ForeignKey("alm_assets.id",   ondelete="SET NULL"), nullable=True, index=True)
@@ -267,6 +272,7 @@ class ALMAsset(Base):
     __tablename__ = "alm_assets"
 
     id                  = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name                = Column(String(200), nullable=False)
     type                = Column(Enum(AssetType), nullable=False)
     brand               = Column(String(100), nullable=True)
@@ -316,6 +322,7 @@ class ALMSoftwareInstall(Base):
     __tablename__ = "alm_software_installs"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     license_id   = Column(String(36), ForeignKey("alm_licenses.id", ondelete="CASCADE"), nullable=False, index=True)
     asset_id     = Column(String(36), ForeignKey("alm_assets.id",   ondelete="CASCADE"), nullable=False, index=True)
     installed_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -333,6 +340,7 @@ class ALMRenewalAlert(Base):
     __tablename__ = "alm_renewal_alerts"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     entity_type  = Column(String(20), nullable=False)   # contract | license | asset_warranty
     entity_id    = Column(String(36), nullable=False)
     alert_date   = Column(Date, nullable=False)          # cuándo debe dispararse

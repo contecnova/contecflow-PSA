@@ -18,6 +18,7 @@ class PublicForm(Base):
     __tablename__ = "public_forms"
 
     id             = Column(String(36), primary_key=True, default=_uuid)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name           = Column(String(255), nullable=False)
     description    = Column(Text, nullable=True)
     form_type      = Column(String(20), nullable=False)          # ticket | task
@@ -42,6 +43,7 @@ class PublicFormSubmission(Base):
     __tablename__ = "public_form_submissions"
 
     id                  = Column(String(36), primary_key=True, default=_uuid)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     form_id             = Column(String(36), ForeignKey("public_forms.id", ondelete="CASCADE"), nullable=False, index=True)
     submitter_name      = Column(String(255), nullable=True)
     submitter_email     = Column(String(255), nullable=True)

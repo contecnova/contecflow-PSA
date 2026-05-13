@@ -57,6 +57,7 @@ class AutomationRule(Base):
     __tablename__ = "automation_rules"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     description = Column(String(500), nullable=True)
 
@@ -93,6 +94,7 @@ class AutomationExecution(Base):
     __tablename__ = "automation_executions"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     rule_id     = Column(String(36), ForeignKey("automation_rules.id", ondelete="CASCADE"), nullable=False, index=True)
     trigger_context = Column(Text, nullable=True)   # JSON: what triggered it
     actions_taken   = Column(Text, nullable=True)   # JSON: what was done

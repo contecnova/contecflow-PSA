@@ -35,6 +35,7 @@ class SemProfile(Base):
     __tablename__ = "sem_profiles"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
     # Texto libre que describe las capacidades: job_title + skills + departamento + historial
     profile_text= Column(Text, nullable=False, default="")
@@ -55,6 +56,7 @@ class SemEmbeddingCache(Base):
     __tablename__ = "sem_embedding_cache"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     item_type       = Column(String(20), nullable=False)   # ticket | task
     item_id         = Column(String(36), nullable=False, index=True)
     text_hash       = Column(String(64), nullable=False, unique=True, index=True)  # SHA-256
@@ -70,6 +72,7 @@ class SemAssignment(Base):
     __tablename__ = "sem_assignments"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     item_type       = Column(Enum(SemAssignmentType), nullable=False)
     item_id         = Column(String(36), nullable=False, index=True)
     item_title      = Column(String(500), nullable=True)
@@ -96,6 +99,7 @@ class SemFeedback(Base):
     __tablename__ = "sem_feedback"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     text_hash       = Column(String(64), nullable=False, index=True)
     text_snippet    = Column(String(500), nullable=True)
     embedding       = Column(Text, nullable=True)
@@ -111,6 +115,7 @@ class SemConfig(Base):
     __tablename__ = "sem_config"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     engine_mode     = Column(Enum(SemEngineMode), default=SemEngineMode.hybrid)
     # Umbrales (equivalente a thresholds.json de Ficosa)
     threshold_ticket = Column(Float, default=0.55)   # score mínimo para auto-asignar ticket

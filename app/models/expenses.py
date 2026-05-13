@@ -33,6 +33,7 @@ class Expense(Base):
     __tablename__ = "expenses"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code        = Column(String(20), nullable=False)       # EXP-0001
 
     # Who / What

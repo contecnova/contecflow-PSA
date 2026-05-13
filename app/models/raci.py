@@ -33,6 +33,7 @@ class RACIEntry(Base):
     __tablename__ = "raci_entries"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     item_type   = Column(String(32),  nullable=False)          # deliverable / milestone / phase / custom
     item_label  = Column(String(200), nullable=False)          # Display label for the row
@@ -59,6 +60,7 @@ class SprintRetroNote(Base):
     __tablename__ = "sprint_retro_notes"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     sprint_id  = Column(String(36), ForeignKey("sprints.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
@@ -106,6 +108,7 @@ class BurnoutRiskSnapshot(Base):
     __tablename__ = "burnout_risk_snapshots"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     week_start  = Column(Date, nullable=False)
 
@@ -141,6 +144,7 @@ class ProjectChangelogEntry(Base):
     __tablename__ = "project_changelog_entries"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     version_tag = Column(String(50),  nullable=True)      # e.g. "v2.3.0", "Sprint 14"
     entry_date  = Column(Date, nullable=False)
@@ -178,6 +182,7 @@ class UATCase(Base):
     __tablename__ = "uat_cases"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     task_id     = Column(String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
 

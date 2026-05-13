@@ -32,6 +32,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     # Who
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     user_name   = Column(String(255), nullable=True)   # snapshot to survive user deletion
@@ -73,6 +74,7 @@ class ProjectPermission(Base):
     __tablename__ = "project_permissions"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id      = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     level        = Column(Enum(ProjectPermissionLevel), nullable=False, default=ProjectPermissionLevel.member)
@@ -115,6 +117,7 @@ class Webhook(Base):
     __tablename__ = "webhooks"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     url         = Column(String(1000), nullable=False)
     secret      = Column(String(255), nullable=True)   # HMAC signing secret
@@ -147,6 +150,7 @@ class WebhookDelivery(Base):
     __tablename__ = "webhook_deliveries"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     webhook_id  = Column(String(36), ForeignKey("webhooks.id", ondelete="CASCADE"), nullable=False, index=True)
     event       = Column(String(100), nullable=False)
     payload     = Column(Text, nullable=True)           # JSON sent
@@ -240,6 +244,7 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id       = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     type          = Column(Enum(NotificationType), nullable=False, index=True)
     title         = Column(String(255), nullable=False)
@@ -267,6 +272,7 @@ class Subcontractor(Base):
     __tablename__ = "subcontractors"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code        = Column(String(20), nullable=False)      # SUB-001
     name        = Column(String(255), nullable=False)
     company     = Column(String(255), nullable=True)
@@ -292,6 +298,7 @@ class SubcontractorRate(Base):
     __tablename__ = "subcontractor_rates"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False)
     description      = Column(String(255), nullable=False)   # "Senior Dev", "DevOps", etc
     cost_rate        = Column(Float, nullable=False)          # What we pay them €/h
@@ -309,6 +316,7 @@ class SubcontractorWorker(Base):
     __tablename__ = "subcontractor_workers"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False, index=True)
     # Linked User record (resource) created automatically on worker creation
     user_id          = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -339,6 +347,7 @@ class SubcontractorWorkerSkill(Base):
     __tablename__ = "subcontractor_worker_skills"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     worker_id        = Column(String(36), ForeignKey("subcontractor_workers.id", ondelete="CASCADE"), nullable=False, index=True)
     skill_id         = Column(String(36), ForeignKey("skills.id", ondelete="CASCADE"), nullable=False)
     level            = Column(String(20), nullable=False, default="intermediate")  # basic/intermediate/advanced/expert
@@ -358,6 +367,7 @@ class SubcontractorAssignment(Base):
     __tablename__ = "subcontractor_assignments"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id"), nullable=False, index=True)
     worker_id        = Column(String(36), ForeignKey("subcontractor_workers.id"), nullable=True, index=True)
     project_id       = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
@@ -382,6 +392,7 @@ class SubcontractorInvoice(Base):
     __tablename__ = "subcontractor_invoices"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False, index=True)
     assignment_id    = Column(String(36), ForeignKey("subcontractor_assignments.id"), nullable=True)
     invoice_number   = Column(String(100), nullable=False)
@@ -406,6 +417,7 @@ class SubcontractorTimeLog(Base):
     __tablename__ = "subcontractor_timelogs"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     assignment_id    = Column(String(36), ForeignKey("subcontractor_assignments.id", ondelete="CASCADE"), nullable=False, index=True)
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id"), nullable=False, index=True)
     project_id       = Column(String(36), ForeignKey("projects.id"), nullable=True)
@@ -434,6 +446,7 @@ class RevenueForecast(Base):
     __tablename__ = "revenue_forecasts"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     year         = Column(Integer, nullable=False, index=True)
     month        = Column(Integer, nullable=False)        # 1-12

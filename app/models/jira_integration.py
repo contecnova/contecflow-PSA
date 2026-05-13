@@ -49,6 +49,7 @@ class JiraConfig(Base):
     __tablename__ = "sd_jira_configs"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name = Column(String(100), nullable=False)
 
     # Connection
@@ -94,6 +95,7 @@ class JiraSyncMap(Base):
     __tablename__ = "sd_jira_sync_map"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     config_id = Column(String(36), ForeignKey("sd_jira_configs.id", ondelete="CASCADE"),
                        nullable=False, index=True)
     ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"),
@@ -118,6 +120,7 @@ class JiraSyncLog(Base):
     __tablename__ = "sd_jira_sync_log"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     config_id = Column(String(36), ForeignKey("sd_jira_configs.id", ondelete="CASCADE"),
                        nullable=False, index=True)
     ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"),
@@ -142,6 +145,7 @@ class JiraFieldMap(Base):
     __tablename__ = "sd_jira_field_map"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     config_id = Column(String(36), ForeignKey("sd_jira_configs.id", ondelete="CASCADE"),
                        nullable=False, index=True)
     contecflow_field = Column(String(100), nullable=False)   # e.g. "priority", "tags"

@@ -18,6 +18,7 @@ class Timesheet(Base):
     __tablename__ = "timesheets"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     week_start = Column(Date, nullable=False, index=True)  # Monday of the week
     week_end = Column(Date, nullable=False)
@@ -47,6 +48,7 @@ class CapacityPlan(Base):
     __tablename__ = "capacity_plans"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
 
@@ -70,6 +72,7 @@ class ProjectMilestone(Base):
     __tablename__ = "project_milestones"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
     name        = Column(String(255), nullable=False)

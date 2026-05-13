@@ -13,6 +13,7 @@ class CustomRole(Base):
     __tablename__ = "custom_roles"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name = Column(String(100), unique=True, nullable=False)
     description = Column(String(255), nullable=True)
     color = Column(String(20), default="#7a8aaa")
@@ -36,6 +37,7 @@ class ProjectTemplate(Base):
     __tablename__ = "project_templates"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     project_type = Column(String(50), nullable=True)
@@ -56,6 +58,7 @@ class TemplatePhase(Base):
     __tablename__ = "template_phases"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -71,6 +74,7 @@ class TemplateTask(Base):
     __tablename__ = "template_tasks"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     phase_id = Column(String(36), ForeignKey("template_phases.id", ondelete="CASCADE"), nullable=False)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -85,6 +89,7 @@ class TemplateRisk(Base):
     __tablename__ = "template_risks"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"), nullable=False)
     title = Column(String(255), nullable=False)
     category = Column(String(50), nullable=True)
@@ -99,6 +104,7 @@ class TemplateDeliverable(Base):
     __tablename__ = "template_deliverables"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     format = Column(String(100), nullable=True)
@@ -115,6 +121,7 @@ class TaskType(Base):
     __tablename__ = "task_types"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name = Column(String(100), unique=True, nullable=False)
     value = Column(String(50), unique=True, nullable=False)
     icon = Column(String(10), default="📋")
@@ -132,6 +139,7 @@ class AlertConfig(Base):
     __tablename__ = "alert_configs"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     alert_type = Column(String(50), unique=True, nullable=False)
     label = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
@@ -176,6 +184,7 @@ class RateEntry(Base):
     __tablename__ = "rate_entries"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     table_id     = Column(String(36), ForeignKey("rate_tables.id", ondelete="CASCADE"), nullable=False)
     label        = Column(String(100), nullable=False)   # nombre del rol/perfil
     cost_rate    = Column(Float, nullable=True)          # coste interno €/h
@@ -195,6 +204,7 @@ class RateOverride(Base):
     __tablename__ = "rate_overrides"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     table_id     = Column(String(36), ForeignKey("rate_tables.id", ondelete="CASCADE"), nullable=False)
     client_id    = Column(String(36), ForeignKey("clients.id",  ondelete="CASCADE"), nullable=True)
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
@@ -214,6 +224,7 @@ class VacationPolicy(Base):
     __tablename__ = "vacation_policies"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
     days_per_year = Column(Float, default=settings.DEFAULT_VACATION_DAYS_PER_YEAR)
@@ -231,6 +242,7 @@ class UserVacationBalance(Base):
     __tablename__ = "user_vacation_balances"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     year = Column(Integer, nullable=False)
     policy_id = Column(String(36), ForeignKey("vacation_policies.id"), nullable=True)
@@ -250,6 +262,7 @@ class Office(Base):
     __tablename__ = "offices"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name = Column(String(100), nullable=False)
     country = Column(String(50), nullable=True)
     city = Column(String(100), nullable=True)
@@ -264,6 +277,7 @@ class NumberingSequence(Base):
     __tablename__ = "numbering_sequences"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     entity = Column(String(50), unique=True, nullable=False)  # project, task, contract, etc.
     prefix = Column(String(20), default="")
     suffix = Column(String(20), default="")
@@ -283,6 +297,7 @@ class CustomField(Base):
     __tablename__ = "custom_fields"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     entity = Column(String(50), nullable=False, index=True)  # project, task, user
     name = Column(String(100), nullable=False)
     field_key = Column(String(50), nullable=False)  # snake_case key
@@ -301,6 +316,7 @@ class CustomFieldValue(Base):
     __tablename__ = "custom_field_values"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     field_id = Column(String(36), ForeignKey("custom_fields.id", ondelete="CASCADE"), nullable=False)
     entity_id = Column(String(36), nullable=False, index=True)  # ID of the project/task/user
     value = Column(Text, nullable=True)

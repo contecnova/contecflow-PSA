@@ -29,6 +29,7 @@ class Skill(Base):
     __tablename__ = "skills"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name = Column(String(100), unique=True, nullable=False)
     category = Column(Enum(SkillCategory), nullable=False)
     description = Column(String(255), nullable=True)
@@ -43,6 +44,7 @@ class UserSkill(Base):
     __tablename__ = "user_skills"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     skill_id = Column(String(36), ForeignKey("skills.id", ondelete="CASCADE"), nullable=False)
     level = Column(Enum(SkillLevel), nullable=False)
@@ -61,6 +63,7 @@ class SkillHistory(Base):
     """Historial de cambios de nivel por skill de un usuario."""
     __tablename__ = "skill_history"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     skill_id    = Column(String(36), ForeignKey("skills.id", ondelete="CASCADE"), nullable=False)
     old_level   = Column(Enum(SkillLevel), nullable=True)
@@ -96,6 +99,7 @@ class Absence(Base):
     __tablename__ = "absences"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     type = Column(Enum(AbsenceType), nullable=False)
     status = Column(Enum(AbsenceStatus), default=AbsenceStatus.pending, nullable=False, index=True)
@@ -142,6 +146,7 @@ class ChangeRequest(Base):
     __tablename__ = "change_requests"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code = Column(String(20), nullable=False)  # CR-001
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
@@ -197,6 +202,7 @@ class Deliverable(Base):
     __tablename__ = "deliverables"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code = Column(String(20), nullable=False)  # DEL-001
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     phase_id = Column(String(36), ForeignKey("project_phases.id"), nullable=True)
@@ -248,6 +254,7 @@ class ResourceAlert(Base):
     __tablename__ = "resource_alerts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     alert_type = Column(Enum(ResourceAlertType), nullable=False, index=True)
 
@@ -270,6 +277,7 @@ class ResourceUtilizationSnapshot(Base):
     __tablename__ = "resource_utilization_snapshots"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Week identifier (ISO week number, e.g., "2024-W15")

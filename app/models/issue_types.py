@@ -23,6 +23,7 @@ class IssueType(Base):
     __tablename__ = "issue_types"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name         = Column(String(100), nullable=False)      # "Historia de usuario"
     value        = Column(String(50),  nullable=False)      # "story"
@@ -42,6 +43,7 @@ class IssueTypeField(Base):
     __tablename__ = "issue_type_fields"
 
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     issue_type_id  = Column(String(36), ForeignKey("issue_types.id", ondelete="CASCADE"), nullable=False, index=True)
     field_key      = Column(String(50), nullable=False)   # referencia a project_custom_fields
     is_required    = Column(Boolean, default=False)
@@ -67,6 +69,7 @@ class TaskDependencyMeta(Base):
     __tablename__ = "task_dependency_meta"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     # Referencia a la dependencia existente en v13
     from_task_id  = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     to_task_id    = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -93,6 +96,7 @@ class EpicDependencyMeta(Base):
     __tablename__ = "epic_dependency_meta"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     epic_id       = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False, index=True)
     depends_on_id = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False)
     dep_type      = Column(Enum(EpicDepType), default=EpicDepType.finish_to_start)
@@ -110,6 +114,7 @@ class FTSEntry(Base):
     __tablename__ = "fts_index"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     entity_type = Column(String(30), nullable=False, index=True)  # task, ticket, wiki_page, epic, project, comment
     entity_id   = Column(String(36), nullable=False, index=True)
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)

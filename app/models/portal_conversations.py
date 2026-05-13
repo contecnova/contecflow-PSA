@@ -137,6 +137,7 @@ class PortalConversationParticipant(Base):
     __tablename__ = "portal_conversation_participants"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     conversation_id = Column(String(36), ForeignKey("portal_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
     participant_type = Column(Enum(PortalConversationParticipantType), nullable=False, index=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)

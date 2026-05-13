@@ -74,6 +74,7 @@ class MFAConfig(Base):
     __tablename__ = "mfa_configs"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id      = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
                           nullable=False, unique=True, index=True)
     totp_secret  = Column(String(512), nullable=False)  # Fernet-encrypted base32 secret (v2:<salt>.<token>)
@@ -92,6 +93,7 @@ class MFABackupCode(Base):
     __tablename__ = "mfa_backup_codes"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     mfa_id     = Column(String(36), ForeignKey("mfa_configs.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     code_hash  = Column(String(128), nullable=False)    # bcrypt hash of 8-char code
@@ -106,6 +108,7 @@ class WebAuthnCredential(Base):
     __tablename__ = "webauthn_credentials"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     credential_id = Column(String(255), nullable=False, unique=True, index=True)
     public_key = Column(Text, nullable=False)  # base64url encoded COSE public key bytes
@@ -124,6 +127,7 @@ class MFAChallenge(Base):
     __tablename__ = "mfa_challenges"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     token_jti = Column(String(36), nullable=False, unique=True, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
@@ -140,6 +144,7 @@ class SlackConfig(Base):
     __tablename__ = "slack_configs"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     platform      = Column(String(10), default="slack")  # slack | teams
     workspace_name = Column(String(255), nullable=True)
     bot_token     = Column(Text, nullable=True)          # xoxb-... (stored encrypted)
@@ -162,6 +167,7 @@ class SlackNotificationLog(Base):
     __tablename__ = "slack_notification_logs"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     config_id  = Column(String(36), ForeignKey("slack_configs.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     channel    = Column(String(100), nullable=True)
@@ -182,6 +188,7 @@ class Budget(Base):
     __tablename__ = "budgets"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     year        = Column(Integer, nullable=False, index=True)
     department  = Column(String(100), nullable=True)
@@ -208,6 +215,7 @@ class BudgetEntry(Base):
     __tablename__ = "budget_entries"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     budget_id   = Column(String(36), ForeignKey("budgets.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     month       = Column(Integer, nullable=False)   # 1-12
@@ -228,6 +236,7 @@ class AITaskEstimate(Base):
     __tablename__ = "ai_task_estimates"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     task_id         = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"),
                              nullable=False, index=True)
     estimated_hours = Column(Float, nullable=False)
@@ -249,6 +258,7 @@ class AITicketTriage(Base):
     __tablename__ = "ai_ticket_triages"
 
     id                   = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     ticket_id            = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"),
                                   nullable=False, index=True)
     suggested_category   = Column(String(100), nullable=True)
@@ -273,6 +283,7 @@ class ScenarioModel(Base):
     __tablename__ = "scenario_models"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     base_date   = Column(Date, nullable=True)
@@ -294,6 +305,7 @@ class ScenarioProject(Base):
     __tablename__ = "scenario_projects"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     scenario_id   = Column(String(36), ForeignKey("scenario_models.id", ondelete="CASCADE"),
                            nullable=False, index=True)
     # Either link to existing project OR define a hypothetical one
@@ -317,6 +329,7 @@ class PDFExportJob(Base):
     __tablename__ = "pdf_export_jobs"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     export_type = Column(String(50), nullable=False)  # report | invoice | project_summary
     source_id   = Column(String(36), nullable=True)   # report_id / invoice_id / project_id
     status      = Column(String(20), default="queued")  # queued | generating | ready | failed
@@ -338,6 +351,7 @@ class BIToken(Base):
     __tablename__ = "bi_tokens"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     tool        = Column(String(30), default="powerbi")  # powerbi | tableau | metabase | generic
     token_hash  = Column(String(128), nullable=False)    # bcrypt

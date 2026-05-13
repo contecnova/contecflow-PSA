@@ -25,6 +25,7 @@ class Objective(Base):
     """Objetivo de alto nivel."""
     __tablename__ = "okr_objectives"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     title       = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
     owner_id    = Column(String(36), ForeignKey("users.id"), nullable=True)
@@ -53,6 +54,7 @@ class KeyResult(Base):
     """Resultado clave medible asociado a un Objective."""
     __tablename__ = "okr_key_results"
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     objective_id  = Column(String(36), ForeignKey("okr_objectives.id", ondelete="CASCADE"),
                            nullable=False, index=True)
     title         = Column(String(500), nullable=False)
@@ -78,6 +80,7 @@ class KRCheckin(Base):
     """Actualización de progreso de un Key Result."""
     __tablename__ = "okr_checkins"
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     kr_id      = Column(String(36), ForeignKey("okr_key_results.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     value      = Column(Float, nullable=False)

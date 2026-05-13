@@ -30,6 +30,7 @@ class ReviewCycle(Base):
     """Ciclo de evaluación (trimestral, anual…)."""
     __tablename__ = "review_cycles"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     start_date  = Column(Date, nullable=True)
@@ -65,6 +66,7 @@ class ReviewQuestion(Base):
     """
     __tablename__ = "review_questions"
     id        = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     cycle_id  = Column(String(36), ForeignKey("review_cycles.id", ondelete="CASCADE"),
                        nullable=False, index=True)
     # `key` es el identificador estable (snake_case) usado en answers_json
@@ -89,6 +91,7 @@ class Review360Campaign(Base):
     """
     __tablename__ = "review_360_campaigns"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     cycle_id     = Column(String(36), ForeignKey("review_cycles.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     subject_id   = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
@@ -111,6 +114,7 @@ class PerformanceReview(Base):
     """Evaluación individual dentro de un ciclo."""
     __tablename__ = "performance_reviews"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     cycle_id     = Column(String(36), ForeignKey("review_cycles.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     # Si la review pertenece a una campaña 360°, este FK la enlaza para
@@ -173,6 +177,7 @@ class DevelopmentPlan(Base):
     """
     __tablename__ = "development_plans"
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     subject_id    = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     # Origen opcional: campaña 360° de la que se derivó (puede ser libre).
     campaign_id   = Column(String(36),
@@ -202,6 +207,7 @@ class DevGoal(Base):
     """Objetivo concreto dentro de un plan de desarrollo."""
     __tablename__ = "dev_goals"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     plan_id      = Column(String(36),
                           ForeignKey("development_plans.id", ondelete="CASCADE"),
                           nullable=False, index=True)

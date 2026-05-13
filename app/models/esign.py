@@ -34,6 +34,7 @@ class ESignEnvelope(Base):
     __tablename__ = "esign_envelopes"
 
     id              = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     document_id     = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True)
     created_by_id   = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     provider        = Column(SAEnum(ESignProvider), default=ESignProvider.docusign)
@@ -60,6 +61,7 @@ class ESignSigner(Base):
     __tablename__ = "esign_signers"
 
     id              = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     envelope_id     = Column(Integer, ForeignKey("esign_envelopes.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id         = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     name            = Column(String(256), nullable=False)

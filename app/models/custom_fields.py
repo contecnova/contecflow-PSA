@@ -20,6 +20,7 @@ class WorkflowState(Base):
     __tablename__ = "workflow_states"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name        = Column(String(100), nullable=False)       # "En revisión QA"
     value       = Column(String(50), nullable=False)        # "qa_review"
@@ -40,6 +41,7 @@ class WorkflowTransition(Base):
     __tablename__ = "workflow_transitions"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id      = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     from_state_id   = Column(String(36), ForeignKey("workflow_states.id", ondelete="CASCADE"), nullable=False)
     to_state_id     = Column(String(36), ForeignKey("workflow_states.id", ondelete="CASCADE"), nullable=False)
@@ -62,6 +64,7 @@ class ProjectCustomField(Base):
     __tablename__ = "project_custom_fields"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id    = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name          = Column(String(100), nullable=False)
     field_key     = Column(String(50), nullable=False)
@@ -78,6 +81,7 @@ class ProjectCustomFieldValue(Base):
     __tablename__ = "project_custom_field_values"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     field_id   = Column(String(36), ForeignKey("project_custom_fields.id", ondelete="CASCADE"), nullable=False)
     task_id    = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     value      = Column(Text, nullable=True)

@@ -18,6 +18,7 @@ class OAuthApp(Base):
     __tablename__ = "oauth_apps"
 
     id                  = Column(String(36), primary_key=True, default=_uuid)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name                = Column(String(255), nullable=False)
     description         = Column(Text, nullable=True)
     homepage_url        = Column(String(500), nullable=True)
@@ -38,6 +39,7 @@ class OAuthToken(Base):
     __tablename__ = "oauth_tokens"
 
     id                  = Column(String(36), primary_key=True, default=_uuid)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     app_id              = Column(String(36), ForeignKey("oauth_apps.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id             = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     access_token_hash   = Column(String(255), nullable=False)

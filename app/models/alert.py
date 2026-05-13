@@ -27,6 +27,7 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     alert_type = Column(Enum(AlertType), nullable=False, index=True)
     severity = Column(Enum(AlertSeverity), nullable=False)
 
