@@ -242,61 +242,84 @@ def default_widget_layout(role: str) -> list:
 
 # ─── Project risk scoring ─────────────────────────────────────────────────────
 
-def compute_risk_score(db: Session, project: Project) -> dict:
-    """
-    Rule-based risk scoring. Returns score components and overall risk level.
-    """
-    today = date.today()
-    score = {}
+def _risk_schedule(db: Session, project: Project, today: date) -> float:
+    """Compute schedule risk component (0-100)."""
+    if not (project.start_date and project.end_date_planned):
+        return 0.0
+    total_days = (project.end_date_planned - project.start_date).days
+    elapsed_days = (today - project.start_date).days
+    if total_days <= 0:
+        return 0.0
+    time_pct = elapsed_days / total_days * 100
+    total_tasks = db.query(func.count(Task.id)).filter(Task.project_id == project.id).scalar() or 1
+    done_tasks = db.query(func.count(Task.id)).filter(
+        Task.project_id == project.id, Task.status == "done"
+    ).scalar() or 0
+    completion_pct = done_tasks / total_tasks * 100
+    behind_pct = max(time_pct - completion_pct, 0)
+    return min(behind_pct * 1.5, 100)
 
-    # ── Schedule risk ─────────────────────────────────────────────
-    schedule_risk = 0
-    if project.start_date and project.end_date_planned:
-        total_days = (project.end_date_planned - project.start_date).days
-        elapsed_days = (today - project.start_date).days
-        if total_days > 0:
-            time_pct = elapsed_days / total_days * 100
-            total_tasks = db.query(func.count(Task.id)).filter(Task.project_id == project.id).scalar() or 1
-            done_tasks = db.query(func.count(Task.id)).filter(
-                Task.project_id == project.id, Task.status == "done"
-            ).scalar() or 0
-            completion_pct = done_tasks / total_tasks * 100
-            behind_pct = max(time_pct - completion_pct, 0)
-            schedule_risk = min(behind_pct * 1.5, 100)
-    score["schedule_risk"] = round(schedule_risk, 1)
 
-    # ── Budget risk ───────────────────────────────────────────────
-    budget_risk = 0
-    if project.budget_amount and project.budget_amount > 0:
-        spent = db.query(func.sum(Imputation.hours)).filter(
-            Imputation.project_id == project.id
-        ).scalar() or 0
-        avg_rate = 80
-        cost_estimate = spent * avg_rate
-        budget_pct = cost_estimate / project.budget_amount * 100
-        if budget_pct > 100: budget_risk = min((budget_pct - 100) * 2, 100)
-        elif budget_pct > 85: budget_risk = (budget_pct - 85) * 3
-    score["budget_risk"] = round(budget_risk, 1)
+def _risk_budget(db: Session, project: Project) -> float:
+    """Compute budget risk component (0-100)."""
+    if not (project.budget_amount and project.budget_amount > 0):
+        return 0.0
+    spent = db.query(func.sum(Imputation.hours)).filter(
+        Imputation.project_id == project.id
+    ).scalar() or 0
+    avg_rate = 80
+    cost_estimate = spent * avg_rate
+    budget_pct = cost_estimate / project.budget_amount * 100
+    if budget_pct > 100:
+        return min((budget_pct - 100) * 2, 100)
+    if budget_pct > 85:
+        return (budget_pct - 85) * 3
+    return 0.0
 
-    # ── Scope risk (open CRs) ────────────────────────────────────
+
+def _risk_scope(db: Session, project: Project) -> float:
+    """Compute scope risk (open CRs)."""
     open_crs = db.query(func.count(ChangeRequest.id)).filter(
         ChangeRequest.project_id == project.id,
         ChangeRequest.status.in_(["submitted", "under_review"]),
     ).scalar() or 0
-    score["scope_risk"] = min(open_crs * 20, 100)
+    return min(open_crs * 20, 100)
 
-    # ── Resource risk (open high-priority risks) ─────────────────
+
+def _risk_resource(db: Session, project: Project) -> float:
+    """Compute resource risk (open high-priority risks)."""
     high_risks = db.query(func.count(Risk.id)).filter(
         Risk.project_id == project.id,
         Risk.status == "open",
         Risk.probability.in_(["high", "very_high"]),
     ).scalar() if hasattr(Risk, 'project_id') else 0
-    score["resource_risk"] = min((high_risks or 0) * 25, 100)
+    return min((high_risks or 0) * 25, 100)
 
-    # ── Overloaded members ────────────────────────────────────────
-    score["overloaded_members"] = 0
 
-    # ── Overall weighted score ────────────────────────────────────
+def _risk_recommendation(level: str) -> str:
+    """Return human-readable recommendation for a risk level."""
+    if level == "critical":
+        return "Escalar inmediatamente a dirección. Revisar alcance y recursos."
+    if level == "high":
+        return "Revisar con el PM en la próxima reunión. Considerar ajuste de fechas."
+    if level == "medium":
+        return "Monitorizar semanalmente. Resolver CRs pendientes."
+    return "Proyecto en buen estado. Mantener ritmo actual."
+
+
+def compute_risk_score(db: Session, project: Project) -> dict:
+    """
+    Rule-based risk scoring. Returns score components and overall risk level.
+    """
+    today = date.today()
+    score = {
+        "schedule_risk": round(_risk_schedule(db, project, today), 1),
+        "budget_risk": round(_risk_budget(db, project), 1),
+        "scope_risk": _risk_scope(db, project),
+        "resource_risk": _risk_resource(db, project),
+        "overloaded_members": 0,
+    }
+
     overall = (
         score["schedule_risk"] * 0.40 +
         score["budget_risk"] * 0.30 +
@@ -311,15 +334,7 @@ def compute_risk_score(db: Session, project: Project) -> dict:
     delay_prob = min(overall * 0.8, 95)
     score["delay_probability_pct"] = round(delay_prob, 1)
     score["predicted_delay_weeks"] = round(delay_prob / 20, 1) if delay_prob > 20 else None
-
-    if level == "critical":
-        score["recommendation"] = "Escalar inmediatamente a dirección. Revisar alcance y recursos."
-    elif level == "high":
-        score["recommendation"] = "Revisar con el PM en la próxima reunión. Considerar ajuste de fechas."
-    elif level == "medium":
-        score["recommendation"] = "Monitorizar semanalmente. Resolver CRs pendientes."
-    else:
-        score["recommendation"] = "Proyecto en buen estado. Mantener ritmo actual."
+    score["recommendation"] = _risk_recommendation(level)
 
     return score
 
@@ -687,23 +702,32 @@ def create_email_template(payload, current_user_id: str, db: Session) -> dict:
     return {"ok": True, "id": t.id}
 
 
-def send_email_action(payload, db: Session) -> dict:
-    subject = payload.subject or "Notificación Contecflow"
-    body_html = payload.body_html or "<p>Notificación de Contecflow</p>"
-    template_id_ref = payload.template_id
+def _resolve_email_template(db: Session, template_id: Optional[str], variables: dict,
+                             default_subject: str, default_body: str) -> tuple:
+    """Resolve template_id to (subject, body_html) using custom DB tpl or system tpl."""
+    subject = default_subject
+    body_html = default_body
+    if not template_id:
+        return subject, body_html
+    custom_tpl = db.query(EmailTemplate).filter(EmailTemplate.id == template_id).first()
+    if custom_tpl:
+        subject = render_template(custom_tpl.subject, variables or {})
+        body_html = render_template(custom_tpl.body_html, variables or {})
+        return subject, body_html
+    sys_tpl = next((t for t in SYSTEM_EMAIL_TEMPLATES if t["id"] == template_id), None)
+    if sys_tpl:
+        subject = render_template(sys_tpl["subject"], variables or {})
+        body_html = f"<p>{subject}</p>"
+    return subject, body_html
 
-    if payload.template_id:
-        custom_tpl = db.query(EmailTemplate).filter(
-            EmailTemplate.id == payload.template_id
-        ).first()
-        if custom_tpl:
-            subject = render_template(custom_tpl.subject, payload.variables or {})
-            body_html = render_template(custom_tpl.body_html, payload.variables or {})
-        else:
-            sys_tpl = next((t for t in SYSTEM_EMAIL_TEMPLATES if t["id"] == payload.template_id), None)
-            if sys_tpl:
-                subject = render_template(sys_tpl["subject"], payload.variables or {})
-                body_html = f"<p>{subject}</p>"
+
+def send_email_action(payload, db: Session) -> dict:
+    subject, body_html = _resolve_email_template(
+        db, payload.template_id, payload.variables or {},
+        payload.subject or "Notificación Contecflow",
+        payload.body_html or "<p>Notificación de Contecflow</p>",
+    )
+    template_id_ref = payload.template_id
 
     sent = send_email_smtp(payload.to, subject, body_html, payload.cc)
 
@@ -779,8 +803,48 @@ def create_gdpr_request(payload, current_user, db: Session) -> dict:
     return {"ok": True, "id": req.id, "deadline": str(deadline)}
 
 
-def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
+def _gdpr_erase_user(user) -> dict:
+    """Anonymise a user record in-place and return export metadata."""
     import secrets as _secrets
+    original_email = user.email
+    anon_id = _secrets.token_hex(8)
+    anonymised = {
+        "username": f"deleted_{anon_id}",
+        "email": f"deleted_{anon_id}@anonymised.contecflow",
+        "full_name": f"Usuario Eliminado ({anon_id[:6]})",
+        "first_name": None, "last_name": None,
+        "phone": None, "job_title": None,
+    }
+    for field, value in anonymised.items():
+        if hasattr(user, field):
+            setattr(user, field, value)
+    user.is_active = False
+    user.hashed_password = None
+    return {
+        "anonymised": anonymised,
+        "original_email": original_email,
+        "records_kept": ["imputations", "timesheets", "expenses"],
+    }
+
+
+def _gdpr_portability_export(db: Session, user) -> dict:
+    """Build a portability export payload for a user."""
+    imputations = db.query(Imp).filter(Imp.user_id == user.id).count()
+    return {
+        "user": {
+            "email": user.email, "full_name": user.full_name,
+            "username": user.username, "role": user.role,
+            "department": user.department,
+            "created_at": str(user.created_at)[:10] if user.created_at else None,
+        },
+        "data_summary": {"imputations": imputations},
+        "export_date": str(date.today()),
+        "format": "JSON",
+        "note": "Solicite el fichero completo al administrador del sistema.",
+    }
+
+
+def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
     req = db.query(GDPRRequest).filter(GDPRRequest.id == request_id).first()
     if not req:
         raise ValueError("Solicitud no encontrada")
@@ -792,39 +856,12 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
     db.commit()
 
     user = db.query(UserModel).filter(UserModel.id == req.subject_user_id).first() if req.subject_user_id else None
-    export_data = {}
+    export_data: dict = {}
 
     if req.request_type == GDPRRequestType.erasure and user:
-        original_email = user.email
-        anon_id = _secrets.token_hex(8)
-        export_data["anonymised"] = {
-            "username": f"deleted_{anon_id}",
-            "email": f"deleted_{anon_id}@anonymised.contecflow",
-            "full_name": f"Usuario Eliminado ({anon_id[:6]})",
-            "first_name": None, "last_name": None,
-            "phone": None, "job_title": None,
-        }
-        for field, value in export_data["anonymised"].items():
-            if hasattr(user, field):
-                setattr(user, field, value)
-        user.is_active = False
-        user.hashed_password = None
-        export_data["original_email"] = original_email
-        export_data["records_kept"] = ["imputations", "timesheets", "expenses"]
-
+        export_data = _gdpr_erase_user(user)
     elif req.request_type == GDPRRequestType.portability and user:
-        imputations = db.query(Imp).filter(Imp.user_id == user.id).count()
-        export_data = {
-            "user": {
-                "email": user.email, "full_name": user.full_name,
-                "username": user.username, "role": user.role,
-                "department": user.department, "created_at": str(user.created_at)[:10] if user.created_at else None,
-            },
-            "data_summary": {"imputations": imputations},
-            "export_date": str(date.today()),
-            "format": "JSON",
-            "note": "Solicite el fichero completo al administrador del sistema.",
-        }
+        export_data = _gdpr_portability_export(db, user)
 
     req.status = GDPRRequestStatus.completed
     req.completed_at = datetime.now(timezone.utc)
@@ -838,6 +875,106 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
 
 # ─── Global Search ────────────────────────────────────────────────────────────
 
+def _search_projects(db: Session, q_lower: str, limit: int) -> list:
+    projects = db.query(Project).filter(
+        _or(
+            func.lower(Project.name).like(q_lower),
+            func.lower(Project.code).like(q_lower),
+            func.lower(Project.client_name).like(q_lower),
+        )
+    ).limit(limit).all()
+    return [{
+        "id": p.id, "type": "project",
+        "title": p.name, "subtitle": f"{p.code} · {p.client_name or '—'}",
+        "status": p.status, "url": "/projects",
+        "icon": "⬡",
+    } for p in projects]
+
+
+def _search_tasks(db: Session, q_lower: str, limit: int) -> list:
+    tasks = db.query(Task).options(joinedload(Task.project)).filter(
+        _or(
+            func.lower(Task.title).like(q_lower),
+            func.lower(Task.code).like(q_lower),
+            func.lower(Task.description).like(q_lower),
+        )
+    ).limit(limit).all()
+    return [{
+        "id": t.id, "type": "task",
+        "title": t.title,
+        "subtitle": f"{t.project.code if t.project else '—'} · {t.status}",
+        "status": t.status, "url": "/tasks",
+        "icon": "▦",
+    } for t in tasks]
+
+
+def _search_tickets(db: Session, q_lower: str, limit: int) -> list:
+    tickets = db.query(Ticket).filter(
+        _or(
+            func.lower(Ticket.title).like(q_lower),
+            func.lower(Ticket.number).like(q_lower),
+            func.lower(Ticket.requester_name).like(q_lower),
+        )
+    ).limit(limit).all()
+    return [{
+        "id": t.id, "type": "ticket",
+        "title": t.title,
+        "subtitle": f"#{t.number} · {t.status} · {t.priority}",
+        "status": t.status, "url": "/service-desk",
+        "icon": "🎫",
+    } for t in tickets]
+
+
+def _search_users(db: Session, q_lower: str, limit: int) -> list:
+    users = db.query(UserModel).filter(
+        UserModel.is_active == True,
+        _or(
+            func.lower(UserModel.full_name).like(q_lower),
+            func.lower(UserModel.email).like(q_lower),
+            func.lower(UserModel.username).like(q_lower),
+        )
+    ).limit(limit).all()
+    return [{
+        "id": u.id, "type": "user",
+        "title": u.full_name,
+        "subtitle": f"{u.role} · {u.email}",
+        "url": "/resources",
+        "icon": "👤",
+    } for u in users]
+
+
+def _search_invoices(db: Session, q_lower: str, limit: int) -> list:
+    invoices = db.query(Inv).filter(
+        _or(
+            func.lower(Inv.number).like(q_lower),
+            func.lower(Inv.client_name).like(q_lower),
+        )
+    ).limit(limit).all()
+    return [{
+        "id": i.id, "type": "invoice",
+        "title": i.number,
+        "subtitle": f"{i.client_name or '—'} · {i.total}€ · {i.status}",
+        "status": i.status, "url": "/invoices",
+        "icon": "🧾",
+    } for i in invoices]
+
+
+def _search_opportunities(db: Session, q_lower: str, limit: int) -> list:
+    opps = db.query(Opp).filter(
+        _or(
+            func.lower(Opp.name).like(q_lower),
+            func.lower(Opp.client_name).like(q_lower),
+        )
+    ).limit(limit).all()
+    return [{
+        "id": o.id, "type": "opportunity",
+        "title": o.name,
+        "subtitle": f"{o.client_name or '—'} · {o.stage}",
+        "url": "/pipeline",
+        "icon": "🎪",
+    } for o in opps]
+
+
 def global_search(q: str, types: Optional[str], limit: int, db: Session) -> dict:
 
     search_types = types.split(",") if types else ["projects", "tasks", "tickets", "users", "invoices", "opportunities"]
@@ -845,98 +982,17 @@ def global_search(q: str, types: Optional[str], limit: int, db: Session) -> dict
     results = {}
 
     if "projects" in search_types:
-        projects = db.query(Project).filter(
-            _or(
-                func.lower(Project.name).like(q_lower),
-                func.lower(Project.code).like(q_lower),
-                func.lower(Project.client_name).like(q_lower),
-            )
-        ).limit(limit // 3).all()
-        results["projects"] = [{
-            "id": p.id, "type": "project",
-            "title": p.name, "subtitle": f"{p.code} · {p.client_name or '—'}",
-            "status": p.status, "url": "/projects",
-            "icon": "⬡",
-        } for p in projects]
-
+        results["projects"] = _search_projects(db, q_lower, limit // 3)
     if "tasks" in search_types:
-        tasks = db.query(Task).options(joinedload(Task.project)).filter(
-            _or(
-                func.lower(Task.title).like(q_lower),
-                func.lower(Task.code).like(q_lower),
-                func.lower(Task.description).like(q_lower),
-            )
-        ).limit(limit // 3).all()
-        results["tasks"] = [{
-            "id": t.id, "type": "task",
-            "title": t.title,
-            "subtitle": f"{t.project.code if t.project else '—'} · {t.status}",
-            "status": t.status, "url": "/tasks",
-            "icon": "▦",
-        } for t in tasks]
-
+        results["tasks"] = _search_tasks(db, q_lower, limit // 3)
     if "tickets" in search_types:
-        tickets = db.query(Ticket).filter(
-            _or(
-                func.lower(Ticket.title).like(q_lower),
-                func.lower(Ticket.number).like(q_lower),
-                func.lower(Ticket.requester_name).like(q_lower),
-            )
-        ).limit(limit // 4).all()
-        results["tickets"] = [{
-            "id": t.id, "type": "ticket",
-            "title": t.title,
-            "subtitle": f"#{t.number} · {t.status} · {t.priority}",
-            "status": t.status, "url": "/service-desk",
-            "icon": "🎫",
-        } for t in tickets]
-
+        results["tickets"] = _search_tickets(db, q_lower, limit // 4)
     if "users" in search_types:
-        users = db.query(UserModel).filter(
-            UserModel.is_active == True,
-            _or(
-                func.lower(UserModel.full_name).like(q_lower),
-                func.lower(UserModel.email).like(q_lower),
-                func.lower(UserModel.username).like(q_lower),
-            )
-        ).limit(limit // 4).all()
-        results["users"] = [{
-            "id": u.id, "type": "user",
-            "title": u.full_name,
-            "subtitle": f"{u.role} · {u.email}",
-            "url": "/resources",
-            "icon": "👤",
-        } for u in users]
-
+        results["users"] = _search_users(db, q_lower, limit // 4)
     if "invoices" in search_types:
-        invoices = db.query(Inv).filter(
-            _or(
-                func.lower(Inv.number).like(q_lower),
-                func.lower(Inv.client_name).like(q_lower),
-            )
-        ).limit(10).all()
-        results["invoices"] = [{
-            "id": i.id, "type": "invoice",
-            "title": i.number,
-            "subtitle": f"{i.client_name or '—'} · {i.total}€ · {i.status}",
-            "status": i.status, "url": "/invoices",
-            "icon": "🧾",
-        } for i in invoices]
-
+        results["invoices"] = _search_invoices(db, q_lower, 10)
     if "opportunities" in search_types:
-        opps = db.query(Opp).filter(
-            _or(
-                func.lower(Opp.name).like(q_lower),
-                func.lower(Opp.client_name).like(q_lower),
-            )
-        ).limit(10).all()
-        results["opportunities"] = [{
-            "id": o.id, "type": "opportunity",
-            "title": o.name,
-            "subtitle": f"{o.client_name or '—'} · {o.stage}",
-            "url": "/pipeline",
-            "icon": "🎪",
-        } for o in opps]
+        results["opportunities"] = _search_opportunities(db, q_lower, 10)
 
     all_results = []
     for items in results.values():
@@ -1202,6 +1258,53 @@ def create_revenue_rule(payload, current_user_id: str, db: Session) -> dict:
     return {"ok": True, "id": rule.id}
 
 
+def _revenue_pct_complete(db: Session, rule, project, period: date, contract_val: float) -> tuple:
+    """Percentage-of-completion calculation; returns (pct_complete, amount_planned)."""
+    total_tasks = db.query(func.count(Task.id)).filter(Task.project_id == project.id).scalar() or 1
+    done_tasks = db.query(func.count(Task.id)).filter(
+        Task.project_id == project.id, Task.status == "done"
+    ).scalar() or 0
+    pct_complete = round(done_tasks / total_tasks * 100, 1)
+    amount_to_date = round(contract_val * pct_complete / 100, 2)
+    prev_recognized = sum(e.amount_actual for e in rule.entries if e.period_date < period)
+    amount_planned = round(max(amount_to_date - prev_recognized, 0), 2)
+    return pct_complete, amount_planned
+
+
+def _revenue_time_and_material(db: Session, project, period: date, contract_val: float) -> tuple:
+    """Time-and-material calculation; returns (pct_complete, amount_planned)."""
+    month_start = period
+    month_end = period.replace(day=28) + timedelta(days=4)
+    month_end = month_end - timedelta(days=month_end.day)
+    hours = db.query(func.sum(Imputation.hours)).filter(
+        Imputation.project_id == project.id,
+        Imputation.is_billable == True,
+        Imputation.date >= month_start,
+        Imputation.date <= month_end,
+    ).scalar() or 0
+    rate = project.billing_rate or 100
+    amount_planned = round(hours * rate, 2)
+    pct_complete = round(amount_planned / max(contract_val, 1) * 100, 1)
+    return pct_complete, amount_planned
+
+
+def _revenue_straight_line(rule, period: date, contract_val: float) -> tuple:
+    """Straight-line calculation; returns (pct_complete, amount_planned)."""
+    if not (rule.start_date and rule.end_date and rule.end_date >= rule.start_date):
+        return 0.0, 0.0
+    business_days = 0
+    current = rule.start_date
+    while current <= rule.end_date:
+        if current.weekday() < 5:
+            business_days += 1
+        current += timedelta(days=1)
+    total_months = max(round(business_days / 22, 1), 1)
+    amount_planned = round(contract_val / total_months, 2)
+    prev_total = sum(e.amount_actual for e in rule.entries if e.period_date < period)
+    pct_complete = round((prev_total + amount_planned) / max(contract_val, 1) * 100, 1)
+    return pct_complete, amount_planned
+
+
 def compute_revenue_period(rule_id: str, period_str: str, db: Session) -> dict:
     rule = db.query(RevenueRecognitionRule).options(
         joinedload(RevenueRecognitionRule.project),
@@ -1225,41 +1328,11 @@ def compute_revenue_period(rule_id: str, period_str: str, db: Session) -> dict:
     amount_planned = 0.0
 
     if rule.method == RecognitionMethod.percentage_complete:
-        total_tasks = db.query(func.count(Task.id)).filter(Task.project_id == project.id).scalar() or 1
-        done_tasks = db.query(func.count(Task.id)).filter(
-            Task.project_id == project.id, Task.status == "done"
-        ).scalar() or 0
-        pct_complete = round(done_tasks / total_tasks * 100, 1)
-        amount_to_date = round(contract_val * pct_complete / 100, 2)
-        prev_recognized = sum(e.amount_actual for e in rule.entries if e.period_date < period)
-        amount_planned = round(max(amount_to_date - prev_recognized, 0), 2)
-
+        pct_complete, amount_planned = _revenue_pct_complete(db, rule, project, period, contract_val)
     elif rule.method == RecognitionMethod.time_and_material:
-        month_start = period
-        month_end = period.replace(day=28) + timedelta(days=4)
-        month_end = month_end - timedelta(days=month_end.day)
-        hours = db.query(func.sum(Imputation.hours)).filter(
-            Imputation.project_id == project.id,
-            Imputation.is_billable == True,
-            Imputation.date >= month_start,
-            Imputation.date <= month_end,
-        ).scalar() or 0
-        rate = project.billing_rate or 100
-        amount_planned = round(hours * rate, 2)
-        pct_complete = round(amount_planned / max(contract_val, 1) * 100, 1)
-
+        pct_complete, amount_planned = _revenue_time_and_material(db, project, period, contract_val)
     elif rule.method == RecognitionMethod.straight_line:
-        if rule.start_date and rule.end_date and rule.end_date >= rule.start_date:
-            business_days = 0
-            current = rule.start_date
-            while current <= rule.end_date:
-                if current.weekday() < 5:
-                    business_days += 1
-                current += timedelta(days=1)
-            total_months = max(round(business_days / 22, 1), 1)
-            amount_planned = round(contract_val / total_months, 2)
-            prev_total = sum(e.amount_actual for e in rule.entries if e.period_date < period)
-            pct_complete = round((prev_total + amount_planned) / max(contract_val, 1) * 100, 1)
+        pct_complete, amount_planned = _revenue_straight_line(rule, period, contract_val)
 
     prev_cumulative = sum(e.amount_actual for e in rule.entries if e.period_date < period)
     cumulative = round(prev_cumulative + amount_planned, 2)
@@ -1296,6 +1369,41 @@ def compute_revenue_period(rule_id: str, period_str: str, db: Session) -> dict:
     }
 
 
+def _milestone_billing_amount(db: Session, project, contract_val: float) -> tuple:
+    """Return (amount_planned, pct_complete) for milestone_billing method."""
+    from app.models.financial import ProjectMilestone
+    approved_ms = db.query(ProjectMilestone).filter(
+        ProjectMilestone.project_id == project.id,
+        ProjectMilestone.billing_status.in_(["approved", "invoiced"]),
+    ).all()
+    amount_planned = sum(m.billing_amount or 0 for m in approved_ms)
+    pct_complete = round(amount_planned / max(contract_val, 1) * 100, 1)
+    return amount_planned, pct_complete
+
+
+def _upsert_revenue_entry(db: Session, rule, project, period_date: date,
+                           amount_delta: float, cumulative: float, deferred: float,
+                           pct_complete: float, contract_val: float) -> None:
+    """Insert or update a RevenueRecognitionEntry for the given period (no commit)."""
+    existing = db.query(RevenueRecognitionEntry).filter(
+        RevenueRecognitionEntry.rule_id == rule.id,
+        RevenueRecognitionEntry.period_date == period_date,
+    ).first()
+    if existing and not existing.is_locked:
+        existing.amount_actual = amount_delta
+        existing.cumulative_amount = cumulative
+    elif not existing and amount_delta > 0:
+        db.add(RevenueRecognitionEntry(
+            rule_id=rule.id, project_id=project.id,
+            period_date=period_date,
+            pct_complete=pct_complete,
+            amount_planned=amount_delta, amount_actual=amount_delta,
+            amount_deferred=deferred,
+            cumulative_amount=cumulative,
+            cumulative_pct=round((cumulative / max(contract_val, 1)) * 100, 1),
+        ))
+
+
 def auto_compute_revenue(period_str: str, db: Session) -> dict:
     rules = db.query(RevenueRecognitionRule).filter(
         RevenueRecognitionRule.is_active == True
@@ -1312,13 +1420,7 @@ def auto_compute_revenue(period_str: str, db: Session) -> dict:
             pct_complete = 0
 
             if rule.method.value == "milestone_billing":
-                from app.models.financial import ProjectMilestone
-                approved_ms = db.query(ProjectMilestone).filter(
-                    ProjectMilestone.project_id == project.id,
-                    ProjectMilestone.billing_status.in_(["approved", "invoiced"]),
-                ).all()
-                amount_planned = sum(m.billing_amount or 0 for m in approved_ms)
-                pct_complete = round(amount_planned / max(contract_val, 1) * 100, 1)
+                amount_planned, pct_complete = _milestone_billing_amount(db, project, contract_val)
 
             prev_cumulative = db.query(func.sum(RevenueRecognitionEntry.amount_actual)).filter(
                 RevenueRecognitionEntry.rule_id == rule.id,
@@ -1329,23 +1431,10 @@ def auto_compute_revenue(period_str: str, db: Session) -> dict:
             deferred = round(max(contract_val - cumulative, 0), 2)
 
             if amount_planned > 0:
-                existing = db.query(RevenueRecognitionEntry).filter(
-                    RevenueRecognitionEntry.rule_id == rule.id,
-                    RevenueRecognitionEntry.period_date == period_date,
-                ).first()
-                if existing and not existing.is_locked:
-                    existing.amount_actual = amount_delta
-                    existing.cumulative_amount = cumulative
-                elif not existing and amount_delta > 0:
-                    db.add(RevenueRecognitionEntry(
-                        rule_id=rule.id, project_id=project.id,
-                        period_date=period_date,
-                        pct_complete=pct_complete,
-                        amount_planned=amount_delta, amount_actual=amount_delta,
-                        amount_deferred=deferred,
-                        cumulative_amount=cumulative,
-                        cumulative_pct=round((cumulative / max(contract_val, 1)) * 100, 1),
-                    ))
+                _upsert_revenue_entry(
+                    db, rule, project, period_date,
+                    amount_delta, cumulative, deferred, pct_complete, contract_val,
+                )
             results.append({"rule_id": rule.id, "project": project.name, "amount": amount_delta, "status": "ok"})
         except Exception as e:
             results.append({"rule_id": rule.id, "status": "error", "error": str(e)})
@@ -1381,6 +1470,53 @@ def get_revenue_summary(db: Session) -> dict:
 
 # ─── Risk scores ──────────────────────────────────────────────────────────────
 
+_RISK_SCORE_FIELDS = [
+    "schedule_risk", "budget_risk", "scope_risk", "resource_risk",
+    "overall_score", "level", "delay_probability_pct",
+    "predicted_delay_weeks", "recommendation",
+]
+
+
+def _is_risk_cache_fresh(cached, ttl_minutes: int = 60) -> bool:
+    """Return True if the cached risk score is younger than ttl_minutes."""
+    if not (cached and cached.computed_at):
+        return False
+    computed_at = cached.computed_at
+    if computed_at.tzinfo is None:
+        computed_at = computed_at.replace(tzinfo=timezone.utc)
+    age_minutes = (datetime.now(timezone.utc) - computed_at).total_seconds() / 60
+    return age_minutes < ttl_minutes
+
+
+def _serialize_cached_risk(project, cached) -> dict:
+    """Serialize a ProjectRiskScore row plus the project label fields."""
+    return {
+        "project_id": project.id,
+        "project_name": project.name,
+        "project_code": project.code,
+        "overall_score": cached.overall_score,
+        "level": cached.level,
+        "schedule_risk": cached.schedule_risk,
+        "budget_risk": cached.budget_risk,
+        "scope_risk": cached.scope_risk,
+        "resource_risk": cached.resource_risk,
+        "delay_probability_pct": cached.delay_probability_pct,
+        "predicted_delay_weeks": cached.predicted_delay_weeks,
+        "recommendation": cached.recommendation,
+        "computed_at": str(cached.computed_at)[:16],
+        "cached": True,
+    }
+
+
+def _persist_risk_score(db: Session, project_id: str, score_data: dict) -> None:
+    """Persist a ProjectRiskScore row from a score dict (no commit)."""
+    score_obj = ProjectRiskScore(
+        project_id=project_id,
+        **{k: v for k, v in score_data.items() if k in _RISK_SCORE_FIELDS}
+    )
+    db.add(score_obj)
+
+
 def get_risk_scores(refresh: bool, db: Session) -> dict:
     projects = db.query(Project).filter(
         Project.status.in_(["active", "planning"])
@@ -1390,39 +1526,11 @@ def get_risk_scores(refresh: bool, db: Session) -> dict:
         cached = db.query(ProjectRiskScore).filter(
             ProjectRiskScore.project_id == project.id
         ).order_by(ProjectRiskScore.computed_at.desc()).first()
-        if cached and not refresh and cached.computed_at:
-            computed_at = cached.computed_at
-            if computed_at.tzinfo is None:
-                computed_at = computed_at.replace(tzinfo=timezone.utc)
-            age_minutes = (datetime.now(timezone.utc) - computed_at).total_seconds() / 60
-            if age_minutes < 60:
-                results.append({
-                    "project_id": project.id,
-                    "project_name": project.name,
-                    "project_code": project.code,
-                    "overall_score": cached.overall_score,
-                    "level": cached.level,
-                    "schedule_risk": cached.schedule_risk,
-                    "budget_risk": cached.budget_risk,
-                    "scope_risk": cached.scope_risk,
-                    "resource_risk": cached.resource_risk,
-                    "delay_probability_pct": cached.delay_probability_pct,
-                    "predicted_delay_weeks": cached.predicted_delay_weeks,
-                    "recommendation": cached.recommendation,
-                    "computed_at": str(cached.computed_at)[:16],
-                    "cached": True,
-                })
-                continue
+        if not refresh and _is_risk_cache_fresh(cached):
+            results.append(_serialize_cached_risk(project, cached))
+            continue
         score_data = compute_risk_score(db, project)
-        score_obj = ProjectRiskScore(
-            project_id=project.id,
-            **{k: v for k, v in score_data.items() if k in [
-                "schedule_risk", "budget_risk", "scope_risk", "resource_risk",
-                "overall_score", "level", "delay_probability_pct",
-                "predicted_delay_weeks", "recommendation",
-            ]}
-        )
-        db.add(score_obj)
+        _persist_risk_score(db, project.id, score_data)
         results.append({
             "project_id": project.id,
             "project_name": project.name,
@@ -1449,15 +1557,8 @@ def get_project_risk_score(project_id: str, db: Session) -> dict:
     if not project:
         raise ValueError("Proyecto no encontrado")
     score_data = compute_risk_score(db, project)
-    score_obj = ProjectRiskScore(
-        project_id=project_id,
-        **{k: v for k, v in score_data.items() if k in [
-            "schedule_risk", "budget_risk", "scope_risk", "resource_risk",
-            "overall_score", "level", "delay_probability_pct",
-            "predicted_delay_weeks", "recommendation",
-        ]}
-    )
-    db.add(score_obj); db.commit()
+    _persist_risk_score(db, project_id, score_data)
+    db.commit()
     return {
         "project_id": project_id,
         "project_name": project.name,
@@ -1466,6 +1567,67 @@ def get_project_risk_score(project_id: str, db: Session) -> dict:
         **score_data,
         "history": [],
     }
+
+
+def _journal_line(*, period: str, journal_ref: str, line: str, account_code: str,
+                  account_name: str, description: str, debit: float, credit: float,
+                  project, rule, entry) -> dict:
+    """Build a single double-entry journal line dict."""
+    return {
+        "date":         period,
+        "period":       period[:7],
+        "journal_ref":  journal_ref,
+        "line":         line,
+        "account_code": account_code,
+        "account_name": account_name,
+        "description":  description,
+        "debit":        debit,
+        "credit":       credit,
+        "currency":     getattr(project, "currency", settings.DEFAULT_CURRENCY),
+        "method":       rule.method.value if rule.method else "N/A",
+        "pct_complete": round(float(entry.pct_complete or 0), 2),
+        "is_locked":    entry.is_locked,
+    }
+
+
+def _build_recognised_pair(entry, project, project_id: str, rule, period: str, amount: float) -> list:
+    """Return DR/CR journal pair for recognised revenue."""
+    journal_ref = f"REV-{project.code or project_id[:8].upper()}-{period[:7].replace('-', '')}"
+    description = f"Reconocimiento ingresos — {project.name} ({period[:7]})"
+    return [
+        _journal_line(
+            period=period, journal_ref=journal_ref, line="DR",
+            account_code="1100", account_name="Cuentas por cobrar / Accounts Receivable",
+            description=description, debit=round(amount, 2), credit=0.0,
+            project=project, rule=rule, entry=entry,
+        ),
+        _journal_line(
+            period=period, journal_ref=journal_ref, line="CR",
+            account_code="4000", account_name="Ingresos reconocidos / Revenue",
+            description=description, debit=0.0, credit=round(amount, 2),
+            project=project, rule=rule, entry=entry,
+        ),
+    ]
+
+
+def _build_deferred_pair(entry, project, project_id: str, rule, period: str, amount: float) -> list:
+    """Return DR/CR journal pair for deferred revenue."""
+    journal_ref = f"DEF-{project.code or project_id[:8].upper()}-{period[:7].replace('-', '')}"
+    description = f"Cobro diferido — {project.name} ({period[:7]})"
+    return [
+        _journal_line(
+            period=period, journal_ref=journal_ref, line="DR",
+            account_code="1000", account_name="Tesorería / Cash",
+            description=description, debit=round(amount, 2), credit=0.0,
+            project=project, rule=rule, entry=entry,
+        ),
+        _journal_line(
+            period=period, journal_ref=journal_ref, line="CR",
+            account_code="2400", account_name="Ingresos diferidos / Deferred Revenue",
+            description=description, debit=0.0, credit=round(amount, 2),
+            project=project, rule=rule, entry=entry,
+        ),
+    ]
 
 
 def get_revenue_journal(project_id: str, db: Session) -> dict:
@@ -1506,69 +1668,11 @@ def get_revenue_journal(project_id: str, db: Session) -> dict:
         deferred   = float(entry.amount_deferred or 0)
 
         if recognised > 0:
-            journal_lines.append({
-                "date":           period,
-                "period":         period[:7],
-                "journal_ref":    f"REV-{project.code or project_id[:8].upper()}-{period[:7].replace('-','')}",
-                "line":           "DR",
-                "account_code":   "1100",
-                "account_name":   "Cuentas por cobrar / Accounts Receivable",
-                "description":    f"Reconocimiento ingresos — {project.name} ({period[:7]})",
-                "debit":          round(recognised, 2),
-                "credit":         0.0,
-                "currency":       getattr(project, "currency", settings.DEFAULT_CURRENCY),
-                "method":         rule.method.value if rule.method else "N/A",
-                "pct_complete":   round(float(entry.pct_complete or 0), 2),
-                "is_locked":      entry.is_locked,
-            })
-            journal_lines.append({
-                "date":           period,
-                "period":         period[:7],
-                "journal_ref":    f"REV-{project.code or project_id[:8].upper()}-{period[:7].replace('-','')}",
-                "line":           "CR",
-                "account_code":   "4000",
-                "account_name":   "Ingresos reconocidos / Revenue",
-                "description":    f"Reconocimiento ingresos — {project.name} ({period[:7]})",
-                "debit":          0.0,
-                "credit":         round(recognised, 2),
-                "currency":       getattr(project, "currency", settings.DEFAULT_CURRENCY),
-                "method":         rule.method.value if rule.method else "N/A",
-                "pct_complete":   round(float(entry.pct_complete or 0), 2),
-                "is_locked":      entry.is_locked,
-            })
+            journal_lines.extend(_build_recognised_pair(entry, project, project_id, rule, period, recognised))
             total_recognised += recognised
 
         if deferred > 0:
-            journal_lines.append({
-                "date":           period,
-                "period":         period[:7],
-                "journal_ref":    f"DEF-{project.code or project_id[:8].upper()}-{period[:7].replace('-','')}",
-                "line":           "DR",
-                "account_code":   "1000",
-                "account_name":   "Tesorería / Cash",
-                "description":    f"Cobro diferido — {project.name} ({period[:7]})",
-                "debit":          round(deferred, 2),
-                "credit":         0.0,
-                "currency":       getattr(project, "currency", settings.DEFAULT_CURRENCY),
-                "method":         rule.method.value if rule.method else "N/A",
-                "pct_complete":   round(float(entry.pct_complete or 0), 2),
-                "is_locked":      entry.is_locked,
-            })
-            journal_lines.append({
-                "date":           period,
-                "period":         period[:7],
-                "journal_ref":    f"DEF-{project.code or project_id[:8].upper()}-{period[:7].replace('-','')}",
-                "line":           "CR",
-                "account_code":   "2400",
-                "account_name":   "Ingresos diferidos / Deferred Revenue",
-                "description":    f"Cobro diferido — {project.name} ({period[:7]})",
-                "debit":          0.0,
-                "credit":         round(deferred, 2),
-                "currency":       getattr(project, "currency", settings.DEFAULT_CURRENCY),
-                "method":         rule.method.value if rule.method else "N/A",
-                "pct_complete":   round(float(entry.pct_complete or 0), 2),
-                "is_locked":      entry.is_locked,
-            })
+            journal_lines.extend(_build_deferred_pair(entry, project, project_id, rule, period, deferred))
             total_deferred += deferred
 
     return {

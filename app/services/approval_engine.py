@@ -500,21 +500,10 @@ def create_approval_request(payload, db: Session, current_user: User) -> dict:
 
 # ── Decide ─────────────────────────────────────────────────────────────────────
 
-def decide_approval_request(
-    request_id: str,
-    decision: str,
-    note: Optional[str],
-    delegate_to: Optional[str],
-    db: Session,
-    current_user: User,
-    attachment_url: Optional[str] = None,
+def _load_request_and_workflow_for_decision(
+    request_id: str, db: Session, current_user: User
 ):
-    """
-    Apply an approval decision (approved | rejected | delegated).
-    Returns the updated ApprovalRequest ORM object.
-    Raises HTTPException on validation failures.
-    """
-
+    """Load request, workflow and current step for a decision, raising HTTPException on errors."""
     req = db.query(ApprovalRequest).options(
         joinedload(ApprovalRequest.decisions)
     )
@@ -536,13 +525,16 @@ def decide_approval_request(
     step = next((s for s in steps if s.step_order == req.current_step), None)
     if not step:
         raise HTTPException(400, "No se encontró el paso actual del flujo de aprobación")
+    return req, wf, steps, step
 
-    # Authorisation check
-    authorized = _is_authorized(step, current_user, req.requested_by, db)
-    if not authorized:
+
+def _validate_decision_authorization(
+    req, step, decision: str, attachment_url: Optional[str], current_user: User, db: Session
+) -> None:
+    """Apply authorization / SoD / attachment / double-vote validations."""
+    if not _is_authorized(step, current_user, req.requested_by, db):
         raise HTTPException(403, "No tienes permiso para aprobar este paso")
 
-    # SoD: requester cannot self-approve
     if req.requested_by == current_user.id:
         _record_sod_violation(req, current_user, db)
         raise HTTPException(
@@ -551,11 +543,9 @@ def decide_approval_request(
             "(Segregación de Funciones — crear ≠ aprobar)",
         )
 
-    # Attachment required check
     if step.requires_attachment and decision in ("approved", "rejected") and not attachment_url:
         raise HTTPException(400, "Este paso requiere adjuntar un documento para emitir la decisión")
 
-    # Prevent double-voting in quorum step
     existing_vote = next(
         (d for d in (req.decisions or [])
          if d.step_order == req.current_step and d.approver_id == current_user.id),
@@ -564,9 +554,15 @@ def decide_approval_request(
     if existing_vote:
         raise HTTPException(400, "Ya has emitido tu voto en este paso")
 
+
+def _record_decision_row(
+    req, decision: str, note: Optional[str], delegate_to: Optional[str],
+    attachment_url: Optional[str], current_user: User, db: Session
+) -> None:
+    """Persist the ApprovalDecision row and the audit log entry."""
     db.add(ApprovalDecision(
         id=str(uuid.uuid4()),
-        request_id=request_id,
+        request_id=req.id,
         step_order=req.current_step,
         approver_id=current_user.id,
         decision=decision,
@@ -586,67 +582,78 @@ def decide_approval_request(
         note=note,
         metadata_=f"delegate_to={delegate_to}" if decision == "delegated" else None,
     )
-    # Reload decisions after flush
     db.refresh(req)
 
-    if decision == "rejected":
-        req.status = "rejected"
-        req.final_decision = "rejected"
-        req.final_note = note
-        req.completed_at = datetime.now(timezone.utc)
-        _apply_entity_final_decision(req, "rejected", current_user, db)
 
-    elif decision == "delegated":
-        if not delegate_to:
-            raise HTTPException(400, "Debes indicar delegate_to para delegar la aprobación")
-        req.final_note = f"Delegado a {delegate_to} ({note or 'sin nota'})"
-        db.commit()
-        notify_approver(
-            req,
-            next((s for s in steps if s.step_order == req.current_step), None),
-            db,
-            explicit_user_id=delegate_to,
-        )
+def _apply_rejected_decision(req, note: Optional[str], current_user: User, db: Session) -> None:
+    req.status = "rejected"
+    req.final_decision = "rejected"
+    req.final_note = note
+    req.completed_at = datetime.now(timezone.utc)
+    _apply_entity_final_decision(req, "rejected", current_user, db)
 
-    elif decision == "approved":
-        # Quorum check for parallel steps
-        if step.parallel_quorum:
-            step_approvals = [
-                d for d in (req.decisions or [])
-                if d.step_order == req.current_step and d.decision == "approved"
-            ]
-            required = step.required_approvals or 1
-            if len(step_approvals) < required:
-                # Not enough votes yet, stay on current step
-                db.commit()
-                db.refresh(req)
-                return req
 
-        # Advance to next non-optional step that passes condition check
-        next_steps = [
-            s for s in steps
-            if s.step_order > req.current_step
-            and not s.is_optional
-            and _step_condition_met(s, req)
-        ]
-        if next_steps:
-            req.current_step = next_steps[0].step_order
-            req.step_started_at = datetime.now(timezone.utc)
-            db.commit()
-            notify_approver(req, next_steps[0], db)
-        else:
-            req.status = "approved"
-            req.final_decision = "approved"
-            req.completed_at = datetime.now(timezone.utc)
-            db.commit()
-            _notify_requester_approved(req, db)
-            _apply_entity_final_decision(req, "approved", current_user, db)
-            # Approval chaining: trigger linked workflow
-            if wf.chain_on_approval_workflow_id:
-                _trigger_chained_workflow(req, wf.chain_on_approval_workflow_id, current_user, db)
-
+def _apply_delegated_decision(
+    req, steps, note: Optional[str], delegate_to: Optional[str], db: Session
+) -> None:
+    if not delegate_to:
+        raise HTTPException(400, "Debes indicar delegate_to para delegar la aprobación")
+    req.final_note = f"Delegado a {delegate_to} ({note or 'sin nota'})"
     db.commit()
-    db.refresh(req)
+    notify_approver(
+        req,
+        next((s for s in steps if s.step_order == req.current_step), None),
+        db,
+        explicit_user_id=delegate_to,
+    )
+
+
+def _quorum_satisfied(req, step) -> bool:
+    """Return True if the parallel-quorum requirement of `step` is met by current votes."""
+    if not step.parallel_quorum:
+        return True
+    step_approvals = [
+        d for d in (req.decisions or [])
+        if d.step_order == req.current_step and d.decision == "approved"
+    ]
+    required = step.required_approvals or 1
+    return len(step_approvals) >= required
+
+
+def _apply_approved_decision(
+    req, wf, steps, step, current_user: User, db: Session
+) -> bool:
+    """Apply an approved decision. Returns True if the workflow stayed on the current
+    step (waiting for more quorum votes) and the caller should return early."""
+    if not _quorum_satisfied(req, step):
+        db.commit()
+        db.refresh(req)
+        return True
+
+    next_steps = [
+        s for s in steps
+        if s.step_order > req.current_step
+        and not s.is_optional
+        and _step_condition_met(s, req)
+    ]
+    if next_steps:
+        req.current_step = next_steps[0].step_order
+        req.step_started_at = datetime.now(timezone.utc)
+        db.commit()
+        notify_approver(req, next_steps[0], db)
+    else:
+        req.status = "approved"
+        req.final_decision = "approved"
+        req.completed_at = datetime.now(timezone.utc)
+        db.commit()
+        _notify_requester_approved(req, db)
+        _apply_entity_final_decision(req, "approved", current_user, db)
+        if wf.chain_on_approval_workflow_id:
+            _trigger_chained_workflow(req, wf.chain_on_approval_workflow_id, current_user, db)
+    return False
+
+
+def _emit_decision_event(req, decision: str, note: Optional[str], current_user: User, db: Session) -> None:
     from app.core.events import emit, EventType
     event_type = (
         EventType.APPROVAL_APPROVED if req.final_decision == "approved"
@@ -658,6 +665,38 @@ def decide_approval_request(
           "summary": req.entity_summary, "decision": decision, "note": note},
          resource_type="approval_request", resource_id=req.id,
          actor=current_user)
+
+
+def decide_approval_request(
+    request_id: str,
+    decision: str,
+    note: Optional[str],
+    delegate_to: Optional[str],
+    db: Session,
+    current_user: User,
+    attachment_url: Optional[str] = None,
+):
+    """
+    Apply an approval decision (approved | rejected | delegated).
+    Returns the updated ApprovalRequest ORM object.
+    Raises HTTPException on validation failures.
+    """
+    req, wf, steps, step = _load_request_and_workflow_for_decision(request_id, db, current_user)
+    _validate_decision_authorization(req, step, decision, attachment_url, current_user, db)
+    _record_decision_row(req, decision, note, delegate_to, attachment_url, current_user, db)
+
+    if decision == "rejected":
+        _apply_rejected_decision(req, note, current_user, db)
+    elif decision == "delegated":
+        _apply_delegated_decision(req, steps, note, delegate_to, db)
+    elif decision == "approved":
+        early_return = _apply_approved_decision(req, wf, steps, step, current_user, db)
+        if early_return:
+            return req
+
+    db.commit()
+    db.refresh(req)
+    _emit_decision_event(req, decision, note, current_user, db)
     return req
 
 
@@ -891,41 +930,8 @@ def get_approval_stats(db: Session, current_user: User) -> dict:
     }
 
 
-def get_workflow_bottlenecks(
-    db: Session,
-    current_user: User,
-    workflow_id: Optional[str] = None,
-    days: int = 90,
-) -> dict:
-    """Compute bottleneck metrics per workflow step based on historical decisions.
-
-    Metrics per step:
-      - decisions_total
-      - rejection_rate_pct
-      - avg_decision_time_hours
-      - pending_count
-      - avg_pending_age_hours
-    """
-    now = datetime.now(timezone.utc)
-    since = now - timedelta(days=max(1, min(days, 365)))
-
-    rq = db.query(ApprovalRequest).options(joinedload(ApprovalRequest.decisions)).filter(
-        ApprovalRequest.created_at >= since
-    )
-    if workflow_id:
-        rq = rq.filter(ApprovalRequest.workflow_id == workflow_id)
-    rq = scope_request_query(rq, db, current_user)
-    requests = rq.all()
-
-    workflow_ids = sorted({r.workflow_id for r in requests if r.workflow_id})
-    workflows = {
-        w.id: w
-        for w in db.query(ApprovalWorkflow).options(joinedload(ApprovalWorkflow.steps)).filter(
-            ApprovalWorkflow.id.in_(workflow_ids)
-        ).all()
-    } if workflow_ids else {}
-
-    stats = defaultdict(lambda: {
+def _empty_bottleneck_row() -> dict:
+    return {
         "workflow_id": None,
         "workflow_name": None,
         "step_order": None,
@@ -939,87 +945,88 @@ def get_workflow_bottlenecks(
         "decision_time_count": 0,
         "pending_count": 0,
         "pending_age_sum_hours": 0.0,
-    })
+    }
 
-    for req in requests:
-        wf = workflows.get(req.workflow_id)
-        if not wf:
-            continue
-        step_map = {s.step_order: s for s in (wf.steps or [])}
 
-        ordered_decisions = sorted(req.decisions or [], key=lambda d: (d.step_order, d.decided_at or now))
-        prev_ts = req.created_at
-        for d in ordered_decisions:
-            step = step_map.get(d.step_order)
-            key = (req.workflow_id, d.step_order)
-            row = stats[key]
-            row["workflow_id"] = req.workflow_id
-            row["workflow_name"] = wf.name
-            row["step_order"] = d.step_order
-            row["step_name"] = step.name if step else f"Step {d.step_order}"
-            row["step_timeout_hours"] = step.timeout_hours if step else None
+def _stamp_bottleneck_row(row: dict, wf, step, step_order: int) -> None:
+    row["workflow_id"] = wf.id
+    row["workflow_name"] = wf.name
+    row["step_order"] = step_order
+    row["step_name"] = step.name if step else f"Step {step_order}"
+    row["step_timeout_hours"] = step.timeout_hours if step else None
 
-            row["decisions_total"] += 1
-            if d.decision == "approved":
-                row["approved_count"] += 1
-            elif d.decision == "rejected":
-                row["rejected_count"] += 1
-            elif d.decision == "delegated":
-                row["delegated_count"] += 1
 
-            if d.decided_at and prev_ts:
-                delta_h = max(0.0, (d.decided_at - prev_ts).total_seconds() / 3600.0)
-                row["decision_time_sum_hours"] += delta_h
-                row["decision_time_count"] += 1
-            if d.decided_at:
-                prev_ts = d.decided_at
+def _aggregate_bottleneck_decisions(stats: dict, req, wf, step_map: dict, now: datetime) -> None:
+    ordered_decisions = sorted(req.decisions or [], key=lambda d: (d.step_order, d.decided_at or now))
+    prev_ts = req.created_at
+    for d in ordered_decisions:
+        step = step_map.get(d.step_order)
+        key = (req.workflow_id, d.step_order)
+        row = stats[key]
+        _stamp_bottleneck_row(row, wf, step, d.step_order)
 
-        if req.status == "pending" and req.current_step:
-            step = step_map.get(req.current_step)
-            key = (req.workflow_id, req.current_step)
-            row = stats[key]
-            row["workflow_id"] = req.workflow_id
-            row["workflow_name"] = wf.name
-            row["step_order"] = req.current_step
-            row["step_name"] = step.name if step else f"Step {req.current_step}"
-            row["step_timeout_hours"] = step.timeout_hours if step else None
-            row["pending_count"] += 1
-            if req.step_started_at:
-                age_h = max(0.0, (now - req.step_started_at).total_seconds() / 3600.0)
-                row["pending_age_sum_hours"] += age_h
+        row["decisions_total"] += 1
+        if d.decision == "approved":
+            row["approved_count"] += 1
+        elif d.decision == "rejected":
+            row["rejected_count"] += 1
+        elif d.decision == "delegated":
+            row["delegated_count"] += 1
 
-    items = []
+        if d.decided_at and prev_ts:
+            delta_h = max(0.0, (d.decided_at - prev_ts).total_seconds() / 3600.0)
+            row["decision_time_sum_hours"] += delta_h
+            row["decision_time_count"] += 1
+        if d.decided_at:
+            prev_ts = d.decided_at
+
+
+def _aggregate_bottleneck_pending(stats: dict, req, wf, step_map: dict, now: datetime) -> None:
+    if not (req.status == "pending" and req.current_step):
+        return
+    step = step_map.get(req.current_step)
+    key = (req.workflow_id, req.current_step)
+    row = stats[key]
+    _stamp_bottleneck_row(row, wf, step, req.current_step)
+    row["pending_count"] += 1
+    if req.step_started_at:
+        age_h = max(0.0, (now - req.step_started_at).total_seconds() / 3600.0)
+        row["pending_age_sum_hours"] += age_h
+
+
+def _compute_bottleneck_item(row: dict) -> dict:
+    decisions_total = row["decisions_total"]
+    decision_time_count = row["decision_time_count"]
+    pending_count = row["pending_count"]
+    reject_rate = (row["rejected_count"] / decisions_total * 100.0) if decisions_total else 0.0
+    avg_decision_h = (row["decision_time_sum_hours"] / decision_time_count) if decision_time_count else 0.0
+    avg_pending_h = (row["pending_age_sum_hours"] / pending_count) if pending_count else 0.0
+
+    timeout_h = row["step_timeout_hours"] or 0
+    sla_risk_pct = (avg_pending_h / timeout_h * 100.0) if timeout_h > 0 else 0.0
+    bottleneck_score = avg_decision_h * (1.0 + pending_count * 0.35) * (1.0 + reject_rate / 100.0)
+
+    return {
+        "workflow_id": row["workflow_id"],
+        "workflow_name": row["workflow_name"],
+        "step_order": row["step_order"],
+        "step_name": row["step_name"],
+        "step_timeout_hours": row["step_timeout_hours"],
+        "decisions_total": decisions_total,
+        "approved_count": row["approved_count"],
+        "rejected_count": row["rejected_count"],
+        "delegated_count": row["delegated_count"],
+        "rejection_rate_pct": round(reject_rate, 2),
+        "avg_decision_time_hours": round(avg_decision_h, 2),
+        "pending_count": pending_count,
+        "avg_pending_age_hours": round(avg_pending_h, 2),
+        "sla_risk_pct": round(sla_risk_pct, 2),
+        "bottleneck_score": round(bottleneck_score, 3),
+    }
+
+
+def _compute_weekly_trend(requests) -> list:
     weekly = defaultdict(lambda: {"decisions": 0, "rejected": 0})
-    for row in stats.values():
-        decisions_total = row["decisions_total"]
-        decision_time_count = row["decision_time_count"]
-        pending_count = row["pending_count"]
-        reject_rate = (row["rejected_count"] / decisions_total * 100.0) if decisions_total else 0.0
-        avg_decision_h = (row["decision_time_sum_hours"] / decision_time_count) if decision_time_count else 0.0
-        avg_pending_h = (row["pending_age_sum_hours"] / pending_count) if pending_count else 0.0
-
-        timeout_h = row["step_timeout_hours"] or 0
-        sla_risk_pct = (avg_pending_h / timeout_h * 100.0) if timeout_h > 0 else 0.0
-        bottleneck_score = avg_decision_h * (1.0 + pending_count * 0.35) * (1.0 + reject_rate / 100.0)
-
-        items.append({
-            "workflow_id": row["workflow_id"],
-            "workflow_name": row["workflow_name"],
-            "step_order": row["step_order"],
-            "step_name": row["step_name"],
-            "step_timeout_hours": row["step_timeout_hours"],
-            "decisions_total": decisions_total,
-            "approved_count": row["approved_count"],
-            "rejected_count": row["rejected_count"],
-            "delegated_count": row["delegated_count"],
-            "rejection_rate_pct": round(reject_rate, 2),
-            "avg_decision_time_hours": round(avg_decision_h, 2),
-            "pending_count": pending_count,
-            "avg_pending_age_hours": round(avg_pending_h, 2),
-            "sla_risk_pct": round(sla_risk_pct, 2),
-            "bottleneck_score": round(bottleneck_score, 3),
-        })
-
     for req in requests:
         for d in (req.decisions or []):
             if not d.decided_at:
@@ -1029,8 +1036,21 @@ def get_workflow_bottlenecks(
             if d.decision == "rejected":
                 weekly[week_key]["rejected"] += 1
 
-    items.sort(key=lambda x: x["bottleneck_score"], reverse=True)
+    weekly_trend = []
+    for week_key in sorted(weekly.keys()):
+        row = weekly[week_key]
+        decisions = row["decisions"]
+        reject_rate = (row["rejected"] / decisions * 100.0) if decisions else 0.0
+        weekly_trend.append({
+            "week": week_key,
+            "decisions": decisions,
+            "rejected": row["rejected"],
+            "rejection_rate_pct": round(reject_rate, 2),
+        })
+    return weekly_trend
 
+
+def _compute_top_workflows(items: list) -> list:
     top_workflow_map = defaultdict(lambda: {
         "workflow_id": None,
         "workflow_name": None,
@@ -1059,18 +1079,11 @@ def get_workflow_bottlenecks(
         key=lambda x: (x["avg_bottleneck_score"], x["max_sla_risk_pct"], x["pending_total"]),
         reverse=True,
     )
+    return top_workflows
 
-    critical_steps = [
-        it for it in items
-        if it["sla_risk_pct"] >= 80 or it["pending_count"] >= 3 or it["rejection_rate_pct"] >= 25
-    ]
-    pending_total = sum(it["pending_count"] for it in items)
-    avg_decision_time = round(
-        (sum(it["avg_decision_time_hours"] for it in items) / len(items)) if items else 0.0,
-        2,
-    )
 
-    recommendations = []
+def _compute_bottleneck_recommendations(items: list) -> list:
+    recommendations: list = []
     worst = items[0] if items else None
     if worst and worst["sla_risk_pct"] >= 80:
         recommendations.append({
@@ -1097,18 +1110,77 @@ def get_workflow_bottlenecks(
             "action": "Usar aprobador de respaldo o regla any_in_department para evitar bloqueo por ausencia.",
             "why": f"Tiempo medio de decision {slow['avg_decision_time_hours']}h.",
         })
+    return recommendations
 
-    weekly_trend = []
-    for week_key in sorted(weekly.keys()):
-        row = weekly[week_key]
-        decisions = row["decisions"]
-        reject_rate = (row["rejected"] / decisions * 100.0) if decisions else 0.0
-        weekly_trend.append({
-            "week": week_key,
-            "decisions": decisions,
-            "rejected": row["rejected"],
-            "rejection_rate_pct": round(reject_rate, 2),
-        })
+
+def _load_bottleneck_requests(db: Session, current_user: User, workflow_id: Optional[str], since: datetime) -> list:
+    rq = db.query(ApprovalRequest).options(joinedload(ApprovalRequest.decisions)).filter(
+        ApprovalRequest.created_at >= since
+    )
+    if workflow_id:
+        rq = rq.filter(ApprovalRequest.workflow_id == workflow_id)
+    rq = scope_request_query(rq, db, current_user)
+    return rq.all()
+
+
+def _load_workflows_by_ids(db: Session, workflow_ids: list) -> dict:
+    if not workflow_ids:
+        return {}
+    return {
+        w.id: w
+        for w in db.query(ApprovalWorkflow).options(joinedload(ApprovalWorkflow.steps)).filter(
+            ApprovalWorkflow.id.in_(workflow_ids)
+        ).all()
+    }
+
+
+def get_workflow_bottlenecks(
+    db: Session,
+    current_user: User,
+    workflow_id: Optional[str] = None,
+    days: int = 90,
+) -> dict:
+    """Compute bottleneck metrics per workflow step based on historical decisions.
+
+    Metrics per step:
+      - decisions_total
+      - rejection_rate_pct
+      - avg_decision_time_hours
+      - pending_count
+      - avg_pending_age_hours
+    """
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(days=max(1, min(days, 365)))
+
+    requests = _load_bottleneck_requests(db, current_user, workflow_id, since)
+    workflow_ids = sorted({r.workflow_id for r in requests if r.workflow_id})
+    workflows = _load_workflows_by_ids(db, workflow_ids)
+
+    stats = defaultdict(_empty_bottleneck_row)
+    for req in requests:
+        wf = workflows.get(req.workflow_id)
+        if not wf:
+            continue
+        step_map = {s.step_order: s for s in (wf.steps or [])}
+        _aggregate_bottleneck_decisions(stats, req, wf, step_map, now)
+        _aggregate_bottleneck_pending(stats, req, wf, step_map, now)
+
+    items = [_compute_bottleneck_item(row) for row in stats.values()]
+    items.sort(key=lambda x: x["bottleneck_score"], reverse=True)
+
+    weekly_trend = _compute_weekly_trend(requests)
+    top_workflows = _compute_top_workflows(items)
+    recommendations = _compute_bottleneck_recommendations(items)
+
+    critical_steps = [
+        it for it in items
+        if it["sla_risk_pct"] >= 80 or it["pending_count"] >= 3 or it["rejection_rate_pct"] >= 25
+    ]
+    pending_total = sum(it["pending_count"] for it in items)
+    avg_decision_time = round(
+        (sum(it["avg_decision_time_hours"] for it in items) / len(items)) if items else 0.0,
+        2,
+    )
 
     return {
         "since": since.isoformat(),
@@ -1299,6 +1371,76 @@ def serialize_approval_request(r) -> dict:
 # TIMEOUT PROCESSING
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _handle_timeout_escalate(req, step, now: datetime, info: dict, db: Session) -> str:
+    """Apply 'escalate' timeout action. Returns counter bucket name."""
+    if step.escalate_to_user_id:
+        db.add(ApprovalDecision(
+            request_id=req.id,
+            step_order=step.step_order,
+            approver_id=step.escalate_to_user_id,
+            decision="delegated",
+            note="Escalado automáticamente por timeout",
+            decided_at=now,
+        ))
+        req.current_step += 1
+        req.step_started_at = now
+        info["escalated_to"] = step.escalate_to_user_id
+        return "escalated"
+    req.status = "rejected"
+    req.final_decision = "rejected"
+    req.final_note = "Rechazado automáticamente por timeout (sin escalado)"
+    req.completed_at = now
+    info["rejected"] = True
+    return "rejected"
+
+
+def _handle_timeout_auto_approve(req, step, now: datetime, info: dict, db: Session) -> str:
+    db.add(ApprovalDecision(
+        request_id=req.id,
+        step_order=step.step_order,
+        approver_id=step.approver_user_id,
+        decision="approved",
+        note="Aprobado automáticamente por timeout",
+        decided_at=now,
+    ))
+    req.current_step += 1
+    req.step_started_at = now
+    info["auto_approved"] = True
+    return "auto_approved"
+
+
+def _handle_timeout_reject(req, step, now: datetime, info: dict, db: Session) -> str:
+    req.status = "rejected"
+    req.final_decision = "rejected"
+    req.final_note = "Rechazado automáticamente por timeout"
+    req.completed_at = now
+    info["rejected"] = True
+    return "rejected"
+
+
+def _log_timeout_audit_event(req, step, action: str, now: datetime, db: Session) -> None:
+    if req.entity_type not in _FINANCIAL_ENTITY_TYPES:
+        return
+    db.add(FinancialApprovalAuditLog(
+        request_id=req.id,
+        entity_type=req.entity_type,
+        entity_id=req.entity_id,
+        action="timeout",
+        decision=action,
+        actor_user_id=None,
+        step_order=step.step_order,
+        note=f"Acción automática por timeout: {action}",
+        created_at=now,
+    ))
+
+
+def _step_is_expired(step, req, now: datetime) -> bool:
+    if not step or not step.timeout_hours or not req.step_started_at:
+        return False
+    timeout_at = req.step_started_at + timedelta(hours=step.timeout_hours)
+    return now >= timeout_at
+
+
 def process_approval_timeouts(db: Session) -> dict:
     """
     Procesa todas las solicitudes de aprobación pendientes y aplica la acción configurada
@@ -1306,16 +1448,12 @@ def process_approval_timeouts(db: Session) -> dict:
     Devuelve un resumen de las acciones realizadas.
     """
     now = datetime.now(timezone.utc)
+    counters = {"escalated": 0, "auto_approved": 0, "rejected": 0}
     updated = 0
-    escalated = 0
-    auto_approved = 0
-    rejected = 0
-    details = []
+    details: list = []
 
-    # Buscar todas las solicitudes pendientes
     requests = db.query(ApprovalRequest).filter(ApprovalRequest.status == "pending").all()
     for req in requests:
-        # Obtener el paso actual
         step = (
             db.query(ApprovalStep)
             .filter(
@@ -1324,94 +1462,32 @@ def process_approval_timeouts(db: Session) -> dict:
             )
             .first()
         )
-        if not step or not step.timeout_hours or not req.step_started_at:
-            continue  # No timeout definido o no hay fecha de inicio
-
-        timeout_at = req.step_started_at + timedelta(hours=step.timeout_hours)
-        if now < timeout_at:
-            continue  # Aún no ha vencido el timeout
+        if not _step_is_expired(step, req, now):
+            continue
 
         action = (step.on_timeout or "escalate").lower()
         info = {"request_id": req.id, "step": step.step_order, "action": action}
 
         if action == "escalate":
-            # Escalar: asignar a otro usuario si está definido
-            if step.escalate_to_user_id:
-                # Crear una nueva decisión de tipo "delegated" y avanzar el paso
-                dec = ApprovalDecision(
-                    request_id=req.id,
-                    step_order=step.step_order,
-                    approver_id=step.escalate_to_user_id,
-                    decision="delegated",
-                    note="Escalado automáticamente por timeout",
-                    decided_at=now,
-                )
-                db.add(dec)
-                req.current_step += 1
-                req.step_started_at = now
-                escalated += 1
-                info["escalated_to"] = step.escalate_to_user_id
-            else:
-                # Si no hay a quién escalar, marcar como rechazado
-                req.status = "rejected"
-                req.final_decision = "rejected"
-                req.final_note = "Rechazado automáticamente por timeout (sin escalado)"
-                req.completed_at = now
-                rejected += 1
-                info["rejected"] = True
-
+            bucket = _handle_timeout_escalate(req, step, now, info, db)
         elif action == "auto_approve":
-            # Aprobar automáticamente
-            dec = ApprovalDecision(
-                request_id=req.id,
-                step_order=step.step_order,
-                approver_id=step.approver_user_id,
-                decision="approved",
-                note="Aprobado automáticamente por timeout",
-                decided_at=now,
-            )
-            db.add(dec)
-            req.current_step += 1
-            req.step_started_at = now
-            auto_approved += 1
-            info["auto_approved"] = True
-
+            bucket = _handle_timeout_auto_approve(req, step, now, info, db)
         elif action == "reject":
-            # Rechazar automáticamente
-            req.status = "rejected"
-            req.final_decision = "rejected"
-            req.final_note = "Rechazado automáticamente por timeout"
-            req.completed_at = now
-            rejected += 1
-            info["rejected"] = True
-
+            bucket = _handle_timeout_reject(req, step, now, info, db)
         else:
-            # Acción desconocida, omitir
             continue
 
-        # Registrar en el log de auditoría si corresponde
-        if req.entity_type in _FINANCIAL_ENTITY_TYPES:
-            db.add(FinancialApprovalAuditLog(
-                request_id=req.id,
-                entity_type=req.entity_type,
-                entity_id=req.entity_id,
-                action="timeout",
-                decision=action,
-                actor_user_id=None,
-                step_order=step.step_order,
-                note=f"Acción automática por timeout: {action}",
-                created_at=now,
-            ))
-
+        counters[bucket] = counters.get(bucket, 0) + 1
+        _log_timeout_audit_event(req, step, action, now, db)
         updated += 1
         details.append(info)
 
     db.commit()
     return {
         "updated": updated,
-        "escalated": escalated,
-        "auto_approved": auto_approved,
-        "rejected": rejected,
+        "escalated": counters["escalated"],
+        "auto_approved": counters["auto_approved"],
+        "rejected": counters["rejected"],
         "details": details,
     }
 
@@ -1589,26 +1665,8 @@ def serialize_approval_group(g) -> dict:
 
 # ── Enterprise v2: Approver Load Analytics ────────────────────────────────────
 
-def get_approver_load(db: Session, current_user, days: int = 90) -> dict:
-    """Compute per-user approval load: pending, decided, avg response time, rejection rate."""
-    now = datetime.now(timezone.utc)
-    since = now - timedelta(days=max(1, min(days, 365)))
-
-    # All decisions in window
-    decisions = (
-        db.query(ApprovalDecision)
-        .filter(ApprovalDecision.decided_at >= since)
-        .all()
-    )
-
-    # All pending requests
-    pending_requests = (
-        db.query(ApprovalRequest)
-        .filter(ApprovalRequest.status == "pending")
-        .all()
-    )
-
-    user_stats = defaultdict(lambda: {
+def _empty_approver_load_row() -> dict:
+    return {
         "user_id": None,
         "decisions_total": 0,
         "approved_count": 0,
@@ -1617,8 +1675,10 @@ def get_approver_load(db: Session, current_user, days: int = 90) -> dict:
         "decision_time_count": 0,
         "pending_count": 0,
         "avg_pending_age_hours": 0.0,
-    })
+    }
 
+
+def _aggregate_decisions_per_user(decisions, user_stats: dict) -> None:
     for d in decisions:
         row = user_stats[d.approver_id]
         row["user_id"] = d.approver_id
@@ -1628,14 +1688,24 @@ def get_approver_load(db: Session, current_user, days: int = 90) -> dict:
         elif d.decision == "rejected":
             row["rejected_count"] += 1
 
-    # Pending: find who should decide each pending request
-    wf_ids = list({r.workflow_id for r in pending_requests if r.workflow_id})
-    workflows = {
-        w.id: w
-        for w in db.query(ApprovalWorkflow).options(joinedload(ApprovalWorkflow.steps))
-        .filter(ApprovalWorkflow.id.in_(wf_ids)).all()
-    } if wf_ids else {}
 
+def _resolve_pending_responsible_user(step, db: Session) -> Optional[str]:
+    uid = step.approver_user_id
+    if uid:
+        return uid
+    if step.approver_group_id:
+        try:
+            g = db.query(ApprovalGroup).filter(ApprovalGroup.id == step.approver_group_id).first()
+            members = json.loads(g.member_ids or "[]") if g else []
+            return members[0] if members else None
+        except Exception:
+            return None
+    return None
+
+
+def _aggregate_pending_per_user(
+    pending_requests, workflows: dict, user_stats: dict, now: datetime, db: Session
+) -> None:
     for req in pending_requests:
         wf = workflows.get(req.workflow_id)
         if not wf:
@@ -1644,15 +1714,7 @@ def get_approver_load(db: Session, current_user, days: int = 90) -> dict:
         if not step:
             continue
         age_h = max(0.0, (now - req.step_started_at).total_seconds() / 3600.0) if req.step_started_at else 0.0
-        # Identify responsible user
-        uid = step.approver_user_id
-        if not uid and step.approver_group_id:
-            try:
-                g = db.query(ApprovalGroup).filter(ApprovalGroup.id == step.approver_group_id).first()
-                members = json.loads(g.member_ids or "[]") if g else []
-                uid = members[0] if members else None
-            except Exception:
-                uid = None
+        uid = _resolve_pending_responsible_user(step, db)
         if uid:
             user_stats[uid]["user_id"] = uid
             user_stats[uid]["pending_count"] += 1
@@ -1660,31 +1722,59 @@ def get_approver_load(db: Session, current_user, days: int = 90) -> dict:
                 user_stats[uid]["avg_pending_age_hours"] + age_h
             )
 
-    items = []
-    for uid, row in user_stats.items():
-        if not uid:
-            continue
-        total = row["decisions_total"]
-        reject_rate = round(row["rejected_count"] / total * 100, 2) if total else 0.0
-        avg_response = round(row["decision_time_sum_hours"] / row["decision_time_count"], 2) if row["decision_time_count"] else 0.0
-        pending = row["pending_count"]
-        avg_age = round(row["avg_pending_age_hours"] / pending, 2) if pending else 0.0
-        # Load score: pending + slowness factor
-        load_score = round(pending * 1.5 + avg_response * 0.1, 2)
-        user_obj = db.query(User).filter(User.id == uid).first()
-        items.append({
-            "user_id": uid,
-            "user_name": user_obj.full_name if user_obj else uid,
-            "user_email": user_obj.email if user_obj else None,
-            "decisions_total": total,
-            "approved_count": row["approved_count"],
-            "rejected_count": row["rejected_count"],
-            "rejection_rate_pct": reject_rate,
-            "avg_response_hours": avg_response,
-            "pending_count": pending,
-            "avg_pending_age_hours": avg_age,
-            "load_score": load_score,
-        })
+
+def _build_approver_load_item(uid: str, row: dict, db: Session) -> dict:
+    total = row["decisions_total"]
+    reject_rate = round(row["rejected_count"] / total * 100, 2) if total else 0.0
+    avg_response = round(row["decision_time_sum_hours"] / row["decision_time_count"], 2) if row["decision_time_count"] else 0.0
+    pending = row["pending_count"]
+    avg_age = round(row["avg_pending_age_hours"] / pending, 2) if pending else 0.0
+    load_score = round(pending * 1.5 + avg_response * 0.1, 2)
+    user_obj = db.query(User).filter(User.id == uid).first()
+    return {
+        "user_id": uid,
+        "user_name": user_obj.full_name if user_obj else uid,
+        "user_email": user_obj.email if user_obj else None,
+        "decisions_total": total,
+        "approved_count": row["approved_count"],
+        "rejected_count": row["rejected_count"],
+        "rejection_rate_pct": reject_rate,
+        "avg_response_hours": avg_response,
+        "pending_count": pending,
+        "avg_pending_age_hours": avg_age,
+        "load_score": load_score,
+    }
+
+
+def get_approver_load(db: Session, current_user, days: int = 90) -> dict:
+    """Compute per-user approval load: pending, decided, avg response time, rejection rate."""
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(days=max(1, min(days, 365)))
+
+    decisions = (
+        db.query(ApprovalDecision)
+        .filter(ApprovalDecision.decided_at >= since)
+        .all()
+    )
+
+    pending_requests = (
+        db.query(ApprovalRequest)
+        .filter(ApprovalRequest.status == "pending")
+        .all()
+    )
+
+    user_stats = defaultdict(_empty_approver_load_row)
+    _aggregate_decisions_per_user(decisions, user_stats)
+
+    wf_ids = list({r.workflow_id for r in pending_requests if r.workflow_id})
+    workflows = _load_workflows_by_ids(db, wf_ids)
+    _aggregate_pending_per_user(pending_requests, workflows, user_stats, now, db)
+
+    items = [
+        _build_approver_load_item(uid, row, db)
+        for uid, row in user_stats.items()
+        if uid
+    ]
 
     items.sort(key=lambda x: x["load_score"], reverse=True)
     overloaded = [it for it in items if it["pending_count"] >= 5 or it["avg_pending_age_hours"] >= 48]

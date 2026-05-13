@@ -331,31 +331,36 @@ def _project_internal_cost(db: Session, project_id: str) -> dict:
     return {"cost_eur": round(total_cost, 2), "method": method, "coverage_pct": round(coverage, 1)}
 
 
-def run_oracle_analysis(db: Session, current_user) -> dict:
+def _scope_query_by_org(q, model, user_org):
+    """Apply organization_id filter to a query if user is not superadmin.
+
+    Centraliza el patrón ``if user_org and hasattr(model, ...): q.filter(...)``
+    para reusarlo en helpers Oracle. Devuelve la query (mutable) ya filtrada.
     """
-    Runs all rule-based risk analyses and stores results as AIPrediction records.
-    Returns { ok, methodology, alerts_generated, alerts, run_at }.
+    if user_org and hasattr(model, "organization_id"):
+        return q.filter(getattr(model, "organization_id") == user_org)
+    return q
 
-    Multi-tenant: cuando ``current_user.is_superadmin`` es False, todas las
-    queries se filtran por ``current_user.organization_id``. Antes este job
-    iteraba proyectos / tickets / users globalmente.
+
+def _severity_from_probability(probability: float) -> str:
+    """Map probability to severity bucket: critical (>0.75), high (>0.5), else medium."""
+    if probability > 0.75:
+        return "critical"
+    if probability > 0.5:
+        return "high"
+    return "medium"
+
+
+def _oracle_project_delay(db: Session, projects: list, now: datetime) -> list:
+    """Sección 1 de Oracle: detección de riesgo de retraso por proyecto.
+
+    Devuelve la lista de alertas generadas (dicts) y muta la DB añadiendo /
+    actualizando ``AIPrediction(prediction_type='project_delay')``. No commit.
     """
+    from app.core.config import settings as _s  # noqa: PLC0415
+    _rate_fb = float(getattr(_s, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
 
-    now       = datetime.now(timezone.utc)
-    generated = []
-    is_super  = bool(getattr(current_user, "is_superadmin", False))
-    user_org  = None if is_super else getattr(current_user, "organization_id", None)
-
-    def _scope_by_org(q, model):
-        if user_org and hasattr(model, "organization_id"):
-            return q.filter(getattr(model, "organization_id") == user_org)
-        return q
-
-    # ── 1. Project delay prediction ──────────────────────────────────────────
-    projects = _scope_by_org(
-        db.query(Project).filter(Project.status.in_(["active", "planning"])),
-        Project,
-    ).all()
+    generated: list = []
     for p in projects:
         tasks = db.query(Task).filter(Task.project_id == p.id).all()
         if not tasks:
@@ -369,8 +374,6 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
         # Tarifa: si el proyecto define billing_rate, ese gana. Si no, usar el
         # fallback global configurable (antes 100 aquí y 85 en run_oracle_health
         # → inconsistente). Centralizamos en AI_REVENUE_HOURLY_RATE_FALLBACK.
-        from app.core.config import settings as _s  # noqa: PLC0415
-        _rate_fb = float(getattr(_s, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
         revenue_consumed_pct = (hours_total * (getattr(p, "billing_rate", _rate_fb) or _rate_fb)) / max(budget, 1)
         # Item #83: añadimos coste interno como segunda métrica. El riesgo se
         # dispara con el PEOR de los dos — un proyecto que quema horas más
@@ -391,7 +394,7 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
         if probability < 0.25:
             continue
 
-        severity = "critical" if probability > 0.75 else "high" if probability > 0.5 else "medium"
+        severity = _severity_from_probability(probability)
         title = f"Riesgo de retraso — {p.name}"
         explanation = (
             f"El proyecto tiene {overdue} tareas vencidas de {len(tasks)} totales "
@@ -430,24 +433,25 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
             )
             db.add(pred)
             generated.append({"type": "project_delay", "entity": p.name, "probability": probability})
+    return generated
 
-    # ── 2. SLA breach prediction ──────────────────────────────────────────────
-    open_tickets = _scope_by_org(
-        db.query(Ticket).filter(Ticket.status.in_(["open", "in_progress"])),
-        Ticket,
-    ).all()
+
+def _oracle_sla_breach(db: Session, open_tickets: list, now: datetime) -> list:
+    """Sección 2 de Oracle: detección de riesgo de incumplimiento SLA por ticket."""
+    from app.core.config import settings as _s  # noqa: PLC0415
+    _sla_hours = {
+        "critical": _s.SLA_PREDICTION_HOURS_CRITICAL,
+        "high":     _s.SLA_PREDICTION_HOURS_HIGH,
+        "medium":   _s.SLA_PREDICTION_HOURS_MEDIUM,
+        "low":      _s.SLA_PREDICTION_HOURS_LOW,
+    }
+
+    generated: list = []
     for t in open_tickets:
         if not t.created_at:
             continue
         created_aware = t.created_at.replace(tzinfo=timezone.utc) if t.created_at.tzinfo is None else t.created_at
         age_hours = (now - created_aware).total_seconds() / 3600
-        from app.core.config import settings as _s
-        _sla_hours = {
-            "critical": _s.SLA_PREDICTION_HOURS_CRITICAL,
-            "high":     _s.SLA_PREDICTION_HOURS_HIGH,
-            "medium":   _s.SLA_PREDICTION_HOURS_MEDIUM,
-            "low":      _s.SLA_PREDICTION_HOURS_LOW,
-        }
         sla_limit = _sla_hours.get(t.priority or "medium", _s.SLA_PREDICTION_HOURS_MEDIUM)
         if age_hours < sla_limit * _s.SLA_PREDICTION_WARNING_PCT:
             continue
@@ -471,13 +475,14 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
                 recommended_action="Asignar o escalar el ticket inmediatamente.",
             ))
             generated.append({"type": "sla_breach", "entity": t.number, "probability": probability})
+    return generated
 
-    # ── 3. Burnout detection ─────────────────────────────────────────────────
-    active_users = _scope_by_org(
-        db.query(User).filter(User.is_active == True),
-        User,
-    ).all()
-    week_starts  = [(now - timedelta(weeks=i)).date() for i in range(4)]
+
+def _oracle_burnout(db: Session, active_users: list, now: datetime) -> list:
+    """Sección 3 de Oracle: detección de burnout por usuario activo."""
+    week_starts = [(now - timedelta(weeks=i)).date() for i in range(4)]
+
+    generated: list = []
     for u in active_users:
         weekly = []
         for ws in week_starts:
@@ -494,6 +499,7 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
         max_w = max(weekly)
         trend = weekly[0] - weekly[-1] if len(weekly) > 1 else 0
         trend_txt = f" Tendencia: {'↑ creciente' if trend > 3 else '→ estable'}." if len(weekly) > 1 else ""
+        severity = _severity_from_probability(probability)
         existing = db.query(AIPrediction).filter(
             AIPrediction.entity_id == u.id,
             AIPrediction.prediction_type == "burnout",
@@ -501,12 +507,12 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
         ).first()
         if existing:
             existing.probability = probability
-            existing.severity    = "critical" if probability > 0.75 else "high" if probability > 0.5 else "medium"
+            existing.severity    = severity
         else:
             db.add(AIPrediction(
                 prediction_type="burnout", entity_type="user", entity_id=u.id,
                 probability=probability,
-                severity="critical" if probability > 0.75 else "high" if probability > 0.5 else "medium",
+                severity=severity,
                 title=f"Riesgo de burnout — {u.full_name}",
                 explanation=(
                     f"Media ponderada (semanas recientes 2×): {round(avg,1)}h/sem. "
@@ -516,16 +522,22 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
                 recommended_action="Revisar asignaciones. Redistribuir carga de trabajo.",
             ))
             generated.append({"type": "burnout", "entity": u.full_name, "probability": probability})
+    return generated
 
-    # ── 4. Budget overrun anomaly detection ──────────────────────────────────
-    # Item #83: ahora exponemos DOS métricas:
-    #   - revenue_ratio = hours × billing_rate / budget  (lo facturable al cliente)
-    #   - cost_ratio    = internal_cost      / budget    (lo que NOS cuesta, vía UserCostProfile)
-    # La alerta dispara cuando CUALQUIERA supera 85% (más conservador).
-    # La severidad usa el peor ratio. La probabilidad también.
-    # Si cost_ratio > revenue_ratio + 0.10, marcamos margen erosionado.
+
+def _oracle_budget_overrun(db: Session, projects: list) -> list:
+    """Sección 4 de Oracle: detección de desviación presupuestaria.
+
+    Item #83: dos métricas:
+      - revenue_ratio = hours × billing_rate / budget (lo facturable al cliente)
+      - cost_ratio    = internal_cost / budget       (lo que NOS cuesta, vía UserCostProfile)
+    Alerta dispara cuando CUALQUIERA supera 85%. Severidad usa el peor ratio.
+    Si cost_ratio > revenue_ratio + 0.10, marcamos margen erosionado.
+    """
     from app.core.config import settings as _s_oracle  # noqa: PLC0415
     _rate_fb_oracle = float(getattr(_s_oracle, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
+
+    generated: list = []
     for p in projects:
         if not p.budget_amount:
             continue
@@ -591,6 +603,44 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
                 "cost_ratio": round(cost_ratio, 2),
                 "margin_eroded": margin_eroded,
             })
+    return generated
+
+
+def run_oracle_analysis(db: Session, current_user) -> dict:
+    """
+    Runs all rule-based risk analyses and stores results as AIPrediction records.
+    Returns { ok, methodology, alerts_generated, alerts, run_at }.
+
+    Multi-tenant: cuando ``current_user.is_superadmin`` es False, todas las
+    queries se filtran por ``current_user.organization_id``. Antes este job
+    iteraba proyectos / tickets / users globalmente.
+
+    Refactor #25: delega cada sección a un helper privado
+    (``_oracle_project_delay``, ``_oracle_sla_breach``, ``_oracle_burnout``,
+    ``_oracle_budget_overrun``) para reducir complejidad ciclomática.
+    """
+    now      = datetime.now(timezone.utc)
+    is_super = bool(getattr(current_user, "is_superadmin", False))
+    user_org = None if is_super else getattr(current_user, "organization_id", None)
+
+    projects = _scope_query_by_org(
+        db.query(Project).filter(Project.status.in_(["active", "planning"])),
+        Project, user_org,
+    ).all()
+    open_tickets = _scope_query_by_org(
+        db.query(Ticket).filter(Ticket.status.in_(["open", "in_progress"])),
+        Ticket, user_org,
+    ).all()
+    active_users = _scope_query_by_org(
+        db.query(User).filter(User.is_active == True),
+        User, user_org,
+    ).all()
+
+    generated: list = []
+    generated.extend(_oracle_project_delay(db, projects, now))
+    generated.extend(_oracle_sla_breach(db, open_tickets, now))
+    generated.extend(_oracle_burnout(db, active_users, now))
+    generated.extend(_oracle_budget_overrun(db, projects))
 
     log_action(db, current_user.id, "contecfloworacle", "run",
                "oracle_full_analysis", f"Generated {len(generated)} predictions")
@@ -662,27 +712,16 @@ def openai_key_from_db(db) -> Optional[str]:
         return None
 
 
-def process_voice_core(transcript: str, db, current_user,
-                       *, confirm: bool = False) -> dict:
-    """Shared voice command processing logic.
+def _voice_parse_intent(db, transcript: str, current_user) -> tuple:
+    """Llama al LLM con el transcript y extrae (intent, entities, action_description).
 
-    Modo "dry-run" (``confirm=False``, default): el LLM extrae intent +
-    entities, busca el target (project/task), pero NO ejecuta la acción.
-    Devuelve un resumen para que el cliente muestre confirmación humana.
-
-    Modo "confirm" (``confirm=True``): ejecuta la acción sugerida.
-
-    Antes este servicio ejecutaba directamente — un Whisper que
-    transcribiera mal "3h" → "30h" registraba 30h sin confirmación.
+    Devuelve siempre una tupla 3 — fallback a ("unknown", {}, "...") si el LLM
+    falla o el JSON no parsea.
     """
     import re as _re
-
-    t0 = time.time()
     intent = "unknown"
     entities: dict = {}
     action_taken = ""
-    status = "done"
-
     try:
         prompt = f"""Analiza este comando de voz de un usuario de Contecflow y extrae:
 - intent: log_hours | create_ticket | query_hours | create_task | get_summary | other
@@ -710,6 +749,162 @@ Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_descript
         _log.warning(f"Voice command parsing failed: {e}")
         intent = "unknown"
         action_taken = "Error en IA, modo fallback activado"
+    return intent, entities, action_taken
+
+
+def _voice_find_project_scoped(db, name_pattern: str, cu_org, is_super_cu: bool):
+    """Busca un Project por ``name ilike %pattern%`` filtrado por organization."""
+    q = db.query(Project).filter(Project.name.ilike(f"%{name_pattern}%"))
+    if cu_org and not is_super_cu:
+        q = q.filter(Project.organization_id == cu_org)
+    return q.first()
+
+
+def _voice_handle_log_hours(db, current_user, transcript: str, entities: dict,
+                            project, confirm: bool, result: dict) -> None:
+    """Handler para intent ``log_hours``. Muta ``result`` in place."""
+    if not project:
+        result["action"] = f"No encontré el proyecto '{entities['project_name']}'."
+        return
+    if not confirm:
+        result["action"] = (
+            f"⏳ Propuesta: registrar {entities['hours']}h en {project.name}. "
+            f"Confirma para ejecutar."
+        )
+        result["pending_action"] = {
+            "type": "log_hours",
+            "project_id": project.id,
+            "project_name": project.name,
+            "hours": float(entities["hours"]),
+        }
+        return
+    imp = Imputation(
+        user_id=current_user.id, project_id=project.id,
+        hours=float(entities["hours"]),
+        date=date.today(),
+        description=f"Imputado por voz: {transcript[:100]}",
+        is_billable=True,
+    )
+    db.add(imp)
+    result["action"] = f"✓ Registradas {entities['hours']}h en {project.name}"
+
+
+def _voice_handle_create_ticket(db, current_user, entities: dict,
+                                confirm: bool, result: dict) -> None:
+    """Handler para intent ``create_ticket``. Muta ``result`` in place."""
+    if not confirm:
+        result["action"] = (
+            f"⏳ Propuesta: crear ticket '{entities['ticket_title']}'. Confirma para ejecutar."
+        )
+        result["pending_action"] = {
+            "type": "create_ticket",
+            "title": entities["ticket_title"],
+            "priority": entities.get("priority", "medium"),
+        }
+        return
+    ticket = Ticket(
+        title=entities["ticket_title"],
+        priority=entities.get("priority", "medium"),
+        status="open",
+        requester_user_id=current_user.id,
+    )
+    db.add(ticket); db.flush()
+    result["action"] = f"✓ Ticket creado: {ticket.title}"
+
+
+def _voice_handle_query_hours(db, current_user, result: dict) -> None:
+    """Handler para intent ``query_hours`` (sólo lectura, no requiere confirm)."""
+    week_start = (date.today() - timedelta(days=date.today().weekday()))
+    hours = db.query(func.sum(Imputation.hours)).filter(
+        Imputation.user_id == current_user.id,
+        Imputation.date >= week_start,
+    ).scalar() or 0
+    result["action"] = f"Esta semana llevas {round(hours, 1)} horas imputadas."
+
+
+def _voice_handle_create_task(db, current_user, entities: dict, project,
+                              confirm: bool, result: dict) -> None:
+    """Handler para intent ``create_task``. Muta ``result`` in place."""
+    if not confirm:
+        result["action"] = (
+            f"⏳ Propuesta: crear tarea '{entities['task_name']}'"
+            + (f" en {project.name}" if project else "")
+            + ". Confirma para ejecutar."
+        )
+        result["pending_action"] = {
+            "type": "create_task",
+            "title": entities["task_name"][:255],
+            "project_id": project.id if project else None,
+            "project_name": project.name if project else None,
+            "priority": entities.get("priority", "medium"),
+        }
+        return
+    task = Task(
+        title=entities["task_name"][:255],
+        project_id=project.id if project else None,
+        status="todo",
+        priority=entities.get("priority", "medium"),
+        created_by=current_user.id,
+    )
+    db.add(task); db.flush()
+    result["action"] = f"✓ Tarea creada: {task.title}"
+    if project:
+        result["action"] += f" en {project.name}"
+
+
+def _voice_handle_get_summary(db, entities: dict, result: dict) -> None:
+    """Handler para intent ``get_summary`` (sólo lectura)."""
+    project = db.query(Project).filter(
+        Project.name.ilike(f"%{entities['project_name']}%")
+    ).first()
+    if project:
+        tasks = db.query(Task).filter(Task.project_id == project.id).all()
+        done = sum(1 for t in tasks if t.status == "done")
+        open_tasks = sum(1 for t in tasks if t.status != "done")
+        result["action"] = (
+            f"Proyecto '{project.name}': {round(done / max(len(tasks), 1) * 100)}% completado, "
+            f"{open_tasks} tareas pendientes, estado: {project.status}."
+        )
+    else:
+        result["action"] = f"No encontré el proyecto '{entities['project_name']}'."
+
+
+def _voice_handle_other(db, current_user, transcript: str, result: dict) -> None:
+    """Handler para intent ``other`` (>20 chars): dispara agente async."""
+    exec_record = _ExecRecord(
+        user_id=current_user.id,
+        instruction=transcript,
+        status="queued",
+    )
+    db.add(exec_record); db.flush()
+    run_agent_task.delay(str(exec_record.id), transcript, str(current_user.id))
+    result["action"] = (
+        f"Comando enviado al agente (ID: {str(exec_record.id)[:8]}). "
+        "Revisa el historial de ContecflowAgent para el resultado."
+    )
+    result["execution_id"] = str(exec_record.id)
+
+
+def process_voice_core(transcript: str, db, current_user,
+                       *, confirm: bool = False) -> dict:
+    """Shared voice command processing logic.
+
+    Modo "dry-run" (``confirm=False``, default): el LLM extrae intent +
+    entities, busca el target (project/task), pero NO ejecuta la acción.
+    Devuelve un resumen para que el cliente muestre confirmación humana.
+
+    Modo "confirm" (``confirm=True``): ejecuta la acción sugerida.
+
+    Antes este servicio ejecutaba directamente — un Whisper que
+    transcribiera mal "3h" → "30h" registraba 30h sin confirmación.
+
+    Refactor #25: extracción a helpers ``_voice_*`` por intent para reducir
+    complejidad ciclomática (de >15 a ~6).
+    """
+    t0 = time.time()
+    status = "done"
+
+    intent, entities, action_taken = _voice_parse_intent(db, transcript, current_user)
 
     result: dict = {
         "intent": intent, "entities": entities, "action": action_taken,
@@ -720,124 +915,22 @@ Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_descript
     cu_org = getattr(current_user, "organization_id", None)
     is_super_cu = bool(getattr(current_user, "is_superadmin", False))
 
-    def _find_project_scoped(name_pattern):
-        q = db.query(Project).filter(Project.name.ilike(f"%{name_pattern}%"))
-        if cu_org and not is_super_cu:
-            q = q.filter(Project.organization_id == cu_org)
-        return q.first()
-
     if intent == "log_hours" and entities.get("hours") and entities.get("project_name"):
-        project = _find_project_scoped(entities['project_name'])
-        if not project:
-            result["action"] = f"No encontré el proyecto '{entities['project_name']}'."
-        elif not confirm:
-            result["action"] = (
-                f"⏳ Propuesta: registrar {entities['hours']}h en {project.name}. "
-                f"Confirma para ejecutar."
-            )
-            result["pending_action"] = {
-                "type": "log_hours",
-                "project_id": project.id,
-                "project_name": project.name,
-                "hours": float(entities["hours"]),
-            }
-        else:
-            imp = Imputation(
-                user_id=current_user.id, project_id=project.id,
-                hours=float(entities["hours"]),
-                date=date.today(),
-                description=f"Imputado por voz: {transcript[:100]}",
-                is_billable=True,
-            )
-            db.add(imp)
-            result["action"] = f"✓ Registradas {entities['hours']}h en {project.name}"
-
+        project = _voice_find_project_scoped(db, entities['project_name'], cu_org, is_super_cu)
+        _voice_handle_log_hours(db, current_user, transcript, entities, project, confirm, result)
     elif intent == "create_ticket" and entities.get("ticket_title"):
-        if not confirm:
-            result["action"] = (
-                f"⏳ Propuesta: crear ticket '{entities['ticket_title']}'. Confirma para ejecutar."
-            )
-            result["pending_action"] = {
-                "type": "create_ticket",
-                "title": entities["ticket_title"],
-                "priority": entities.get("priority", "medium"),
-            }
-        else:
-            ticket = Ticket(
-                title=entities["ticket_title"],
-                priority=entities.get("priority", "medium"),
-                status="open",
-                requester_user_id=current_user.id,
-            )
-            db.add(ticket); db.flush()
-            result["action"] = f"✓ Ticket creado: {ticket.title}"
-
+        _voice_handle_create_ticket(db, current_user, entities, confirm, result)
     elif intent == "query_hours":
-        week_start = (date.today() - timedelta(days=date.today().weekday()))
-        hours = db.query(func.sum(Imputation.hours)).filter(
-            Imputation.user_id == current_user.id,
-            Imputation.date >= week_start,
-        ).scalar() or 0
-        result["action"] = f"Esta semana llevas {round(hours, 1)} horas imputadas."
-
+        _voice_handle_query_hours(db, current_user, result)
     elif intent == "create_task" and entities.get("task_name"):
         project = None
         if entities.get("project_name"):
-            project = _find_project_scoped(entities['project_name'])
-        if not confirm:
-            result["action"] = (
-                f"⏳ Propuesta: crear tarea '{entities['task_name']}'"
-                + (f" en {project.name}" if project else "")
-                + ". Confirma para ejecutar."
-            )
-            result["pending_action"] = {
-                "type": "create_task",
-                "title": entities["task_name"][:255],
-                "project_id": project.id if project else None,
-                "project_name": project.name if project else None,
-                "priority": entities.get("priority", "medium"),
-            }
-        else:
-            task = Task(
-                title=entities["task_name"][:255],
-                project_id=project.id if project else None,
-                status="todo",
-                priority=entities.get("priority", "medium"),
-                created_by=current_user.id,
-            )
-            db.add(task); db.flush()
-            result["action"] = f"✓ Tarea creada: {task.title}"
-            if project:
-                result["action"] += f" en {project.name}"
-
+            project = _voice_find_project_scoped(db, entities['project_name'], cu_org, is_super_cu)
+        _voice_handle_create_task(db, current_user, entities, project, confirm, result)
     elif intent == "get_summary" and entities.get("project_name"):
-        project = db.query(Project).filter(
-            Project.name.ilike(f"%{entities['project_name']}%")
-        ).first()
-        if project:
-            tasks = db.query(Task).filter(Task.project_id == project.id).all()
-            done = sum(1 for t in tasks if t.status == "done")
-            open_tasks = sum(1 for t in tasks if t.status != "done")
-            result["action"] = (
-                f"Proyecto '{project.name}': {round(done / max(len(tasks), 1) * 100)}% completado, "
-                f"{open_tasks} tareas pendientes, estado: {project.status}."
-            )
-        else:
-            result["action"] = f"No encontré el proyecto '{entities['project_name']}'."
-
+        _voice_handle_get_summary(db, entities, result)
     elif intent == "other" and len(transcript.strip()) > 20:
-        exec_record = _ExecRecord(
-            user_id=current_user.id,
-            instruction=transcript,
-            status="queued",
-        )
-        db.add(exec_record); db.flush()
-        run_agent_task.delay(str(exec_record.id), transcript, str(current_user.id))
-        result["action"] = (
-            f"Comando enviado al agente (ID: {str(exec_record.id)[:8]}). "
-            "Revisa el historial de ContecflowAgent para el resultado."
-        )
-        result["execution_id"] = str(exec_record.id)
+        _voice_handle_other(db, current_user, transcript, result)
 
     latency = int((time.time() - t0) * 1000)
     vc = AIVoiceCommand(
