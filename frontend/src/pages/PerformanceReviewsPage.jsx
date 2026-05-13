@@ -33,6 +33,50 @@ import { useAuth } from '../context/AuthContext'
 
 const NO_PERMISSION_TIP = 'Solo admin / RR.HH.'
 
+// ── Estilos compartidos ────────────────────────────────────────────────────
+// Se extraen aquí los patrones inline más repetidos para reducir ruido en JSX
+// y unificar el look. NO cambian el comportamiento visible.
+const styles = {
+  flexEndRow:        { display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' },
+  flexBetweenRow:    { display: 'flex', justifyContent: 'space-between', gap: 'var(--space-2)' },
+  inlineIcon:        { display: 'inline-flex', alignItems: 'center', gap: 8 },
+  inlineIconSm:      { display: 'inline-flex', alignItems: 'center', gap: 6 },
+  warningInlineXs:   { display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--warning)', fontSize: 'var(--text-xs)' },
+  mutedTextXs:       { fontSize: 'var(--text-xs)', color: 'var(--text-3)' },
+  titleSmBold:       { fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' },
+  titleSmBolder:     { fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' },
+  titleMdBold:       { fontSize: 'var(--text-md-em)', fontWeight: 700, color: 'var(--text-1)' },
+  hintXs:            { fontSize: 'var(--text-xs)' },
+  flex1MinW0:        { minWidth: 0, flex: 1 },
+  redAsterisk:       { color: 'var(--danger)' },
+  twoColGrid:        { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' },
+  rowItemTile:       {
+    gap: 'var(--space-2)', padding: '8px 10px',
+    background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--surface-4)',
+  },
+  rowItemTilePadded: {
+    gap: 'var(--space-2)', padding: '10px 12px',
+    background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--surface-4)',
+  },
+}
+
+// Genera estilo de chip toggle activo/inactivo (botones de selección de tipo,
+// pares, upward, plantilla, etc.). El tamaño se pasa explícitamente para no
+// alterar la apariencia.
+const chipStyle = ({ active, disabled = false, padding = '8px 12px', fontSize = 'var(--text-sm)' }) => ({
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+  padding, borderRadius: 'var(--radius-md)',
+  background: active ? 'var(--accent-muted)' : 'var(--surface-3)',
+  border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`,
+  color: disabled ? 'var(--text-4)' : (active ? 'var(--accent)' : 'var(--text-2)'),
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  opacity: disabled ? 0.55 : 1,
+  fontFamily: 'inherit',
+  fontSize, fontWeight: 600,
+})
+
 // ── Catálogos ──────────────────────────────────────────────────────────────
 const STATUS_CFG = {
   draft:  { kind: 'neutral', label: 'Borrador' },
@@ -137,7 +181,7 @@ function ReviewForm({ review, onClose }) {
 
   return (
     <Modal open onClose={onClose}
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      title={<span style={styles.inlineIcon}>
         <TypeIcon size={16} /> Evaluar a {review.reviewee_name}
       </span>}
       subtitle={`${typeCfg.label} · ${filledRatings} de ${ratingQs.length || '—'} puntuaciones rellenas`}
@@ -155,9 +199,9 @@ function ReviewForm({ review, onClose }) {
                 for (let n = min; n <= max; n++) buttons.push(n)
                 return (
                   <div key={q.id} className="ds-row-between" style={{ gap: 'var(--space-3)' }}>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
-                        {q.label}{q.required && <span style={{ color: 'var(--danger)' }}> *</span>}
+                    <div style={styles.flex1MinW0}>
+                      <div style={styles.titleSmBold}>
+                        {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
                       </div>
                       {q.hint && <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>{q.hint}</div>}
                     </div>
@@ -195,7 +239,7 @@ function ReviewForm({ review, onClose }) {
               return (
                 <div key={q.id} className="ds-field">
                   <label className="ds-field__label">
-                    {q.label}{q.required && <span style={{ color: 'var(--danger)' }}> *</span>}
+                    {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
                   </label>
                   {q.hint && <div className="ds-field__hint">{q.hint}</div>}
                   <div className="ds-row-wrap" style={{ marginTop: 4 }}>
@@ -221,7 +265,7 @@ function ReviewForm({ review, onClose }) {
             return (
               <div key={q.id} className="ds-field">
                 <label className="ds-field__label">
-                  {q.label}{q.required && <span style={{ color: 'var(--danger)' }}> *</span>}
+                  {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
                 </label>
                 {q.hint && <div className="ds-field__hint">{q.hint}</div>}
                 {isLong ? (
@@ -244,12 +288,12 @@ function ReviewForm({ review, onClose }) {
           )}
 
           {missingRequired.length > 0 && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--warning)', fontSize: 'var(--text-xs)' }}>
+            <div style={styles.warningInlineXs}>
               <AlertCircle size={12} /> Faltan {missingRequired.length} respuesta(s) obligatoria(s)
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+          <div style={styles.flexEndRow}>
             <Button variant="secondary" onClick={() => save()} disabled={saving || submitting} loading={saving}>
               <Save size={13} /> Guardar borrador
             </Button>
@@ -350,17 +394,7 @@ function AssignReviewModal({ cycle, onClose }) {
                       reviewer_id: id === 'self' ? f.reviewee_id : '',
                     }))}
                     disabled={disabled}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '8px 12px', borderRadius: 'var(--radius-md)',
-                      background: active ? 'var(--accent-muted)' : 'var(--surface-3)',
-                      border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`,
-                      color: disabled ? 'var(--text-4)' : (active ? 'var(--accent)' : 'var(--text-2)'),
-                      cursor: disabled ? 'not-allowed' : 'pointer',
-                      opacity: disabled ? 0.55 : 1,
-                      fontFamily: 'inherit',
-                      fontSize: 'var(--text-sm)', fontWeight: 600,
-                    }}>
+                    style={chipStyle({ active, disabled })}>
                     <Icon size={13} /> {label}
                   </button>
                 </span>
@@ -369,8 +403,7 @@ function AssignReviewModal({ cycle, onClose }) {
           </div>
           <div className="ds-field__hint">{TYPE_BY_ID[form.review_type]?.help}</div>
           {blockedReason && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
-              color: 'var(--warning)', fontSize: 'var(--text-xs)', marginTop: 4 }}>
+            <div style={{ ...styles.warningInlineXs, marginTop: 4 }}>
               <AlertCircle size={12} /> {blockedReason}
             </div>
           )}
@@ -399,7 +432,7 @@ function AssignReviewModal({ cycle, onClose }) {
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+        <div style={styles.flexEndRow}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => assign()} disabled={!canSubmit || isPending} loading={isPending}>
             <UserPlus size={13} /> Asignar
@@ -447,7 +480,7 @@ function QuestionsEditor({ cycleId, cycleStatus }) {
   return (
     <div className="ds-card--inset" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
       <div className="ds-row-between">
-        <div className="ds-eyebrow" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <div className="ds-eyebrow" style={styles.inlineIconSm}>
           <ListChecks size={12} /> Plantilla de preguntas ({questions.length})
         </div>
         {editable && (
@@ -463,14 +496,10 @@ function QuestionsEditor({ cycleId, cycleStatus }) {
       ) : (
         <div className="ds-stack-sm">
           {questions.map(q => (
-            <div key={q.id} className="ds-row-between" style={{
-              gap: 'var(--space-2)',
-              padding: '8px 10px', background: 'var(--surface-3)',
-              borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
-            }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
-                  {q.label}{q.required && <span style={{ color: 'var(--danger)' }}> *</span>}
+            <div key={q.id} className="ds-row-between" style={styles.rowItemTile}>
+              <div style={styles.flex1MinW0}>
+                <div style={styles.titleSmBold}>
+                  {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
                 </div>
                 <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
                   {KIND_LABEL[q.kind] || q.kind} · key={q.key}
@@ -561,7 +590,7 @@ function QuestionEditModal({ question, onClose, onSave }) {
           <input value={form.hint} onChange={e => setForm(f => ({ ...f, hint: e.target.value }))}
             className="ds-input" placeholder="Texto pequeño de apoyo bajo la pregunta" />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+        <div style={styles.twoColGrid}>
           <div className="ds-field">
             <label className="ds-field__label">Tipo</label>
             <select value={form.kind} onChange={e => setForm(f => ({ ...f, kind: e.target.value }))}
@@ -578,7 +607,7 @@ function QuestionEditModal({ question, onClose, onSave }) {
           </div>
         </div>
         {isRatingKind(form.kind) && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+          <div style={styles.twoColGrid}>
             <div className="ds-field">
               <label className="ds-field__label">Escala mín</label>
               <input type="number" value={form.scale_min}
@@ -593,7 +622,7 @@ function QuestionEditModal({ question, onClose, onSave }) {
             </div>
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+        <div style={styles.flexEndRow}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={submit} disabled={!form.label.trim()}>
             <Save size={13} /> Guardar
@@ -609,12 +638,27 @@ function New360CampaignModal({ cycle, onClose }) {
   const toast = useToast()
   const qc = useQueryClient()
 
-  const [subjectId, setSubjectId] = useState('')
-  const [selfReview, setSelfReview] = useState(true)
-  const [managerId, setManagerId]   = useState('')
-  const [peerIds, setPeerIds]       = useState([])
-  const [upwardIds, setUpwardIds]   = useState([])
-  const [threshold, setThreshold]   = useState(3)
+  // Estado de la campaña agrupado en un único objeto. Se exponen setters
+  // específicos para preservar la legibilidad de los handlers existentes.
+  const [campaign, setCampaign] = useState({
+    subjectId: '',
+    selfReview: true,
+    managerId: '',
+    peerIds: [],
+    upwardIds: [],
+    threshold: 3,
+  })
+  const { subjectId, selfReview, managerId, peerIds, upwardIds, threshold } = campaign
+  const setSubjectId  = v => setCampaign(s => ({ ...s, subjectId: v }))
+  const setSelfReview = v => setCampaign(s => ({ ...s, selfReview: v }))
+  const setManagerId  = v => setCampaign(s => ({ ...s, managerId: v }))
+  const setPeerIds    = updater => setCampaign(s => ({
+    ...s, peerIds: typeof updater === 'function' ? updater(s.peerIds) : updater,
+  }))
+  const setUpwardIds  = updater => setCampaign(s => ({
+    ...s, upwardIds: typeof updater === 'function' ? updater(s.upwardIds) : updater,
+  }))
+  const setThreshold  = v => setCampaign(s => ({ ...s, threshold: v }))
 
   const { data: users = [] } = useQuery({
     queryKey: ['users-for-360-campaign'],
@@ -674,7 +718,7 @@ function New360CampaignModal({ cycle, onClose }) {
 
   return (
     <Modal open onClose={onClose}
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      title={<span style={styles.inlineIcon}>
         <Target size={16} /> Nueva campaña 360°
       </span>}
       subtitle={`Ciclo: ${cycle.name}`}
@@ -717,8 +761,7 @@ function New360CampaignModal({ cycle, onClose }) {
                 <Crown size={11} style={{ verticalAlign: 'middle' }} /> Manager
               </label>
               {managerData?.reason_blocked ? (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
-                  color: 'var(--warning)', fontSize: 'var(--text-xs)' }}>
+                <div style={styles.warningInlineXs}>
                   <AlertCircle size={12} /> {managerData.reason_blocked}
                 </div>
               ) : (
@@ -741,8 +784,7 @@ function New360CampaignModal({ cycle, onClose }) {
                 </span>
               </label>
               {peerData?.reason_blocked ? (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
-                  color: 'var(--warning)', fontSize: 'var(--text-xs)' }}>
+                <div style={styles.warningInlineXs}>
                   <AlertCircle size={12} /> {peerData.reason_blocked}
                 </div>
               ) : peerOptions.length === 0 ? (
@@ -891,7 +933,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }) {
 
   return (
     <Modal open onClose={onClose}
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      title={<span style={styles.inlineIcon}>
         <BarChart3 size={16} /> Dashboard 360° — {c.subject_name}
       </span>}
       subtitle={`${data.total_submitted}/${data.total_assigned} respuestas · umbral anonimización: ${data.anonymity_threshold}`}
@@ -947,7 +989,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }) {
               return (
                 <div key={q.id}>
                   <div className="ds-row-between" style={{ marginBottom: 4 }}>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
+                    <div style={styles.titleSmBold}>
                       {q.label}
                     </div>
                     {gapBadge && (
@@ -1069,7 +1111,7 @@ function History360Modal({ subjectId, subjectName, onClose }) {
 
   return (
     <Modal open onClose={onClose}
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      title={<span style={styles.inlineIcon}>
         <TrendingUp size={16} /> Evolución 360° — {subjectName || data?.subject_name}
       </span>}
       subtitle={`${series.length} campañas con respuestas`}
@@ -1109,7 +1151,7 @@ function History360Modal({ subjectId, subjectName, onClose }) {
               gap: 6, alignItems: 'center',
               padding: '8px 0', borderTop: '1px solid var(--surface-4)',
             }}>
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
+              <div style={styles.titleSmBold}>
                 {q.label}
               </div>
               {series.map(s => {
@@ -1164,7 +1206,7 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }) {
   return (
     <div className="ds-card--inset" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
       <div className="ds-row-between">
-        <div className="ds-eyebrow" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <div className="ds-eyebrow" style={styles.inlineIconSm}>
           <Target size={12} /> Campañas 360° ({campaigns.length})
         </div>
         {cycle.status !== 'closed' && (
@@ -1187,13 +1229,11 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }) {
             const submitted = camp.submitted || 0
             const pct = total ? Math.round((submitted / total) * 100) : 0
             return (
-              <div key={camp.id} className="ds-row-between" style={{
-                gap: 'var(--space-2)', padding: '10px 12px',
-                background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--surface-4)', cursor: 'pointer',
-              }} onClick={() => onOpenDashboard(camp.id)}>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>
+              <div key={camp.id} className="ds-row-between"
+                style={{ ...styles.rowItemTilePadded, cursor: 'pointer' }}
+                onClick={() => onOpenDashboard(camp.id)}>
+                <div style={styles.flex1MinW0}>
+                  <div style={styles.titleSmBolder}>
                     {camp.subject_name}
                   </div>
                   <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
@@ -1246,7 +1286,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
           <ChevronIcon size={16} />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, color: 'var(--text-1)' }}>{cycle.name}</div>
+          <div style={styles.titleMdBold}>{cycle.name}</div>
           <div className="ds-row-wrap" style={{ marginTop: 4 }}>
             <span className={`ds-pill ds-pill--${statusCfg.kind === 'neutral' ? '' : statusCfg.kind}`}>
               {statusCfg.label}
@@ -1321,8 +1361,8 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
                   return (
                     <div key={r.id} className="ds-card--inset" style={{ display: 'block' }}>
                       <div className="ds-row-between" style={{ marginBottom: 6 }}>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>
+                        <div style={styles.flex1MinW0}>
+                          <div style={styles.titleSmBolder}>
                             {r.reviewee_name}
                           </div>
                           <div className="ds-muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)' }}>
@@ -1400,7 +1440,7 @@ function NewCycleModal({ existingCycles, onClose }) {
           <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
             className="ds-input" placeholder="Ej: Evaluación Q1 2026" autoFocus />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+        <div style={styles.twoColGrid}>
           <div className="ds-field">
             <label className="ds-field__label">Inicio</label>
             <input type="date" value={form.start_date}
@@ -1453,7 +1493,7 @@ function NewCycleModal({ existingCycles, onClose }) {
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+        <div style={styles.flexEndRow}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => mutate()} disabled={isPending || !canCreate} loading={isPending}>
             <Plus size={13} /> Crear ciclo
@@ -1502,7 +1542,7 @@ function KPIDashboardTab({ cycles }) {
   return (
     <div className="ds-stack" style={{ gap: 'var(--space-4)' }}>
       <div className="ds-row-between">
-        <div className="ds-eyebrow" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <div className="ds-eyebrow" style={styles.inlineIconSm}>
           <Activity size={12} /> Panel operativo
         </div>
         <Button size="sm" variant="secondary" onClick={() => runReminders()}
@@ -1539,13 +1579,9 @@ function KPIDashboardTab({ cycles }) {
           </div>
           <div className="ds-stack-sm">
             {kpis.stalled_cycles.map(s => (
-              <div key={s.cycle_id} className="ds-row-between" style={{
-                gap: 'var(--space-2)', padding: '8px 10px',
-                background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--surface-4)',
-              }}>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>
+              <div key={s.cycle_id} className="ds-row-between" style={styles.rowItemTile}>
+                <div style={styles.flex1MinW0}>
+                  <div style={styles.titleSmBolder}>
                     {s.cycle_name}
                   </div>
                   <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
@@ -1586,13 +1622,9 @@ function CycleKpiRow({ cycle }) {
   const color = rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--accent)' : 'var(--warning)'
 
   return (
-    <div className="ds-row-between" style={{
-      gap: 'var(--space-2)', padding: '8px 10px',
-      background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)',
-      border: '1px solid var(--surface-4)',
-    }}>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>
+    <div className="ds-row-between" style={styles.rowItemTile}>
+      <div style={styles.flex1MinW0}>
+        <div style={styles.titleSmBolder}>
           {k.cycle_name}
         </div>
         <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
@@ -1652,7 +1684,7 @@ function DevPlansTab({ subjectId, subjectName }) {
   return (
     <div className="ds-stack" style={{ gap: 'var(--space-3)' }}>
       <div className="ds-row-between">
-        <div className="ds-eyebrow" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <div className="ds-eyebrow" style={styles.inlineIconSm}>
           <MapIcon size={12} /> Planes de desarrollo de {subjectName}
         </div>
         <Button size="sm" onClick={() => setCreating(true)}>
@@ -1672,8 +1704,8 @@ function DevPlansTab({ subjectId, subjectName }) {
               <div key={p.id} className="ds-card" onClick={() => setOpenPlanId(p.id)}
                 style={{ cursor: 'pointer' }}>
                 <div className="ds-row-between">
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, color: 'var(--text-1)' }}>
+                  <div style={styles.flex1MinW0}>
+                    <div style={styles.titleMdBold}>
                       {p.title}
                     </div>
                     <div className="ds-row-wrap" style={{ marginTop: 4 }}>
@@ -1754,7 +1786,7 @@ function NewDevPlanModal({ subjectId, onClose }) {
 
   return (
     <Modal open onClose={onClose}
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      title={<span style={styles.inlineIcon}>
         <MapIcon size={16} /> Nuevo plan de desarrollo
       </span>}
       width={560}>
@@ -1772,7 +1804,7 @@ function NewDevPlanModal({ subjectId, onClose }) {
             rows={3} className="ds-input" style={{ resize: 'vertical' }}
             placeholder="Resumen del 360° y áreas de mejora identificadas" />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+        <div style={styles.twoColGrid}>
           <div className="ds-field">
             <label className="ds-field__label">Fecha objetivo</label>
             <input type="date" value={form.target_date}
@@ -1811,7 +1843,7 @@ function NewDevPlanModal({ subjectId, onClose }) {
             <Plus size={11} /> Añadir objetivo
           </Button>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+        <div style={styles.flexEndRow}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => mutate()} disabled={!form.title.trim() || isPending}
             loading={isPending}>
@@ -1867,7 +1899,7 @@ function DevPlanModal({ planId, onClose }) {
 
   return (
     <Modal open onClose={onClose}
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      title={<span style={styles.inlineIcon}>
         <MapIcon size={16} /> {plan.title}
       </span>}
       subtitle={`${plan.subject_name} · ${plan.progress_pct}% completado`}
@@ -1912,8 +1944,8 @@ function DevPlanModal({ planId, onClose }) {
                     background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)',
                     border: '1px solid var(--surface-4)',
                   }}>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
+                    <div style={styles.flex1MinW0}>
+                      <div style={styles.titleSmBold}>
                         {g.title}
                       </div>
                       <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
@@ -1970,12 +2002,28 @@ export default function PerformanceReviewsPage() {
   const isManager = ['admin', 'hr'].includes(user?.role)
 
   const [tab, setTab] = useState('cycles')
-  const [showNewCycle, setShowNewCycle] = useState(false)
-  const [editingReview, setEditingReview] = useState(null)
-  const [assigningCycle, setAssigningCycle] = useState(null)
-  const [campaigningCycle, setCampaigningCycle] = useState(null)
-  const [openDashboardId, setOpenDashboardId] = useState(null)
-  const [historySubject, setHistorySubject] = useState(null)  // {id, name}
+
+  // Estado de modales agrupado. Cada propiedad es independiente y se asigna
+  // mediante helpers locales para mantener una API similar a setState.
+  const [modals, setModals] = useState({
+    showNewCycle:     false,
+    editingReview:    null,
+    assigningCycle:   null,
+    campaigningCycle: null,
+    openDashboardId:  null,
+    historySubject:   null,  // {id, name}
+  })
+  const setModal = (key, value) => setModals(m => ({ ...m, [key]: value }))
+  const setShowNewCycle     = v => setModal('showNewCycle', v)
+  const setEditingReview    = v => setModal('editingReview', v)
+  const setAssigningCycle   = v => setModal('assigningCycle', v)
+  const setCampaigningCycle = v => setModal('campaigningCycle', v)
+  const setOpenDashboardId  = v => setModal('openDashboardId', v)
+  const setHistorySubject   = v => setModal('historySubject', v)
+  const {
+    showNewCycle, editingReview, assigningCycle,
+    campaigningCycle, openDashboardId, historySubject,
+  } = modals
 
   const { data: cycles = [], isLoading: loadingCycles } = useQuery({
     queryKey: ['perf-cycles'],
@@ -2071,7 +2119,7 @@ export default function PerformanceReviewsPage() {
             gap: 'var(--space-3)',
           }}>
             <div>
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>
+              <div style={styles.titleSmBolder}>
                 Mi evolución 360°
               </div>
               <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
