@@ -4,8 +4,17 @@ import { Network, Plus, X, ChevronLeft, Edit3, Download, Search } from 'lucide-r
 import { bpmnProcessesApi, apiErrorMsg } from '../services/api'
 import { useToast } from '../context/ToastContext'
 
-import 'bpmn-js/dist/assets/diagram-js.css'
-import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css'
+// NOTE: bpmn-js (JS + CSS) is loaded dynamically inside useBpmnViewer so it
+// stays out of the initial bundle (~400 KB JS + assets). See audit #43, #81.
+let _bpmnCssLoaded = false
+async function loadBpmnCssOnce() {
+  if (_bpmnCssLoaded) return
+  _bpmnCssLoaded = true
+  await Promise.all([
+    import('bpmn-js/dist/assets/diagram-js.css'),
+    import('bpmn-js/dist/assets/bpmn-font/css/bpmn.css'),
+  ])
+}
 
 // ─── BPMN XML GENERATOR ───────────────────────────────────────────────────────
 const DIMS = {
@@ -1272,6 +1281,11 @@ function useBpmnViewer(containerRef, xml, editMode) {
         instanceRef.current = null
       }
 
+      // Dynamic import: keeps bpmn-js (~400 KB) and its CSS out of the
+      // initial bundle. CSS is loaded once, lazily, in parallel with the
+      // JS module.
+      await loadBpmnCssOnce()
+
       let BpmnClass
       if (editMode) {
         const mod = await import('bpmn-js/lib/Modeler')
@@ -1397,6 +1411,62 @@ const lbl = {
   display: 'block',
   marginBottom: 4,
 }
+// Shared ghost button (transparent bg, 1px surface border, muted text).
+const ghostBtn = {
+  borderRadius: 8,
+  border: '1px solid var(--surface-4)',
+  background: 'none',
+  color: 'var(--text-2)',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 4,
+}
+// Outlined accent button used for the "Editar" CTA.
+const outlineAccentBtn = {
+  padding: '6px 14px',
+  borderRadius: 8,
+  border: '1px solid var(--accent)',
+  background: 'none',
+  color: 'var(--accent)',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  fontWeight: 600,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 4,
+  fontSize: 'var(--text-base)',
+}
+// Container that hosts the bpmn-js canvas. White background is required:
+// the diagram is rendered with dark strokes/labels.
+const diagramContainer = {
+  width: '100%',
+  height: '100%',
+  border: '1px solid var(--surface-4)',
+  borderRadius: 10,
+  background: '#ffffff',
+  overflow: 'hidden',
+}
+// Pill used for the "Modo edición" indicator overlaid on the diagram.
+const editModeBadge = {
+  position: 'absolute',
+  top: 8,
+  left: 8,
+  zIndex: 10,
+  background: 'var(--surface-2)',
+  border: '1px solid var(--accent)',
+  borderRadius: 8,
+  padding: '4px 12px',
+  fontSize: 'var(--text-xs)',
+  color: 'var(--accent)',
+  fontWeight: 600,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 4,
+}
+// Meta-info row (Responsable / SLA / Description) below the detail header.
+const metaText = { fontSize: 'var(--text-xs)', color: 'var(--text-2)' }
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function BPMPage() {
@@ -1404,8 +1474,11 @@ export default function BPMPage() {
   const [selectedProcess, setSelectedProcess] = useState(null)
   const [editMode, setEditMode]               = useState(false)
   const [showAddForm, setShowAddForm]         = useState(false)
-  const [backendProcesses, setBackendProcesses] = useState([])  // backend records (custom + overrides)
-  const [versionXmlByKey, setVersionXmlByKey] = useState({})    // key -> latest XML from backend
+  // Grouped backend data: list of records (custom + catalogue overrides) and
+  // a key->latestXML map. They're updated together after reloadBackend(); the
+  // XML map is also patched in-place when a process is saved or created.
+  const [backend, setBackend]                 = useState({ processes: [], xmlByKey: {} })
+  const { processes: backendProcesses, xmlByKey: versionXmlByKey } = backend
   const [newProcess, setNewProcess]           = useState({ name: '', category: 'proyectos', description: '', owner: '', sla: '' })
   const [search, setSearch]                   = useState('')
   const [saving, setSaving]                   = useState(false)
@@ -1417,7 +1490,6 @@ export default function BPMPage() {
     try {
       const r = await bpmnProcessesApi.list({ include_inactive: false })
       const list = r.data || []
-      setBackendProcesses(list)
       // Lazily fetch latest XML per process key (only ones we don't have yet)
       const updates = {}
       await Promise.all(list.map(async (p) => {
@@ -1427,7 +1499,10 @@ export default function BPMPage() {
           if (xml) updates[p.key] = xml
         } catch { /* skip */ }
       }))
-      setVersionXmlByKey(prev => ({ ...prev, ...updates }))
+      setBackend(prev => ({
+        processes: list,
+        xmlByKey: { ...prev.xmlByKey, ...updates },
+      }))
     } catch (e) {
       // Non-fatal: page still works with PROCESS_CATALOG only
       console.warn('[BPM] backend load failed:', e)
@@ -1498,7 +1573,7 @@ export default function BPMPage() {
       } else {
         await bpmnProcessesApi.saveVersion(backendId, xml, null)
       }
-      setVersionXmlByKey(prev => ({ ...prev, [selectedProcess.id]: xml }))
+      setBackend(prev => ({ ...prev, xmlByKey: { ...prev.xmlByKey, [selectedProcess.id]: xml } }))
       await reloadBackend()
       setEditMode(false)
       push({ type: 'success', message: 'Diseño guardado' })
@@ -1538,7 +1613,7 @@ export default function BPMPage() {
         bpmn_xml: xml,
       })
       const created = r.data
-      setVersionXmlByKey(prev => ({ ...prev, [key]: xml }))
+      setBackend(prev => ({ ...prev, xmlByKey: { ...prev.xmlByKey, [key]: xml } }))
       await reloadBackend()
       const proc = {
         id: key,
@@ -1666,7 +1741,7 @@ export default function BPMPage() {
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button disabled={!newProcess.name.trim()} onClick={handleAddProcess}>Crear y diseñar</Button>
-                <button onClick={() => setShowAddForm(false)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'none', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-base)' }}>Cancelar</button>
+                <button onClick={() => setShowAddForm(false)} style={{ ...ghostBtn, padding: '8px 14px', fontSize: 'var(--text-base)' }}>Cancelar</button>
               </div>
             </div>
           )}
@@ -1678,7 +1753,7 @@ export default function BPMPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
                 <button
                   onClick={() => { setSelectedProcess(null); setEditMode(false) }}
-                  style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'none', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+                  style={{ ...ghostBtn, padding: '5px 10px' }}
                 >
                   <ChevronLeft size={14} /> Volver
                 </button>
@@ -1688,7 +1763,7 @@ export default function BPMPage() {
                 <div style={{ flex: 1 }} />
                 <button
                   onClick={handleExport}
-                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'none', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-sm)' }}
+                  style={{ ...ghostBtn, padding: '6px 12px', fontSize: 'var(--text-sm)' }}
                 >
                   <Download size={13} /> Exportar BPMN
                 </button>
@@ -1699,7 +1774,7 @@ export default function BPMPage() {
                 ) : (
                   <button
                     onClick={() => setEditMode(true)}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-base)' }}
+                    style={outlineAccentBtn}
                   >
                     <Edit3 size={13} /> Editar
                   </button>
@@ -1709,17 +1784,17 @@ export default function BPMPage() {
               {/* Meta info */}
               <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
                 {selectedProcess.owner && (
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+                  <div style={metaText}>
                     👤 <strong>Responsable:</strong> {selectedProcess.owner}
                   </div>
                 )}
                 {selectedProcess.sla && (
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+                  <div style={metaText}>
                     ⏱ <strong>SLA:</strong> {selectedProcess.sla}
                   </div>
                 )}
                 {selectedProcess.description && (
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+                  <div style={metaText}>
                     {selectedProcess.description}
                   </div>
                 )}
@@ -1750,27 +1825,11 @@ export default function BPMPage() {
               {/* BPMN Diagram */}
               <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
                 {editMode && (
-                  <div style={{
-                    position: 'absolute', top: 8, left: 8, zIndex: 10,
-                    background: 'var(--surface-2)', border: '1px solid var(--accent)',
-                    borderRadius: 8, padding: '4px 12px',
-                    fontSize: 'var(--text-xs)', color: 'var(--accent)', fontWeight: 600,
-                    display: 'flex', alignItems: 'center', gap: 4,
-                  }}>
+                  <div style={editModeBadge}>
                     <Edit3 size={11} /> Modo edición — arrastra nodos, añade elementos desde la paleta
                   </div>
                 )}
-                <div
-                  ref={containerRef}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    border: '1px solid var(--surface-4)',
-                    borderRadius: 10,
-                    background: '#ffffff',
-                    overflow: 'hidden',
-                  }}
-                />
+                <div ref={containerRef} style={diagramContainer} />
               </div>
             </div>
           ) : (
