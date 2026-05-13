@@ -458,7 +458,9 @@ def docusign_oauth_authorize(
         raise HTTPException(400, "DocuSign integration_key no configurado. Guárdalo en /esign/config primero.")
 
     is_demo = (_get_esign_setting(db, "esign.docusign_is_demo") or "true").lower() == "true"
-    redirect_uri = f"{_s.FRONTEND_URL or 'http://localhost:8000'}/api/v1/esign/auth/docusign/callback"
+    if not _s.FRONTEND_URL:
+        raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
+    redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/docusign/callback"
 
     url = docusign_auth_url(integration_key, redirect_uri, is_demo=is_demo)
     return {"authorization_url": url, "redirect_uri": redirect_uri}
@@ -477,7 +479,9 @@ def docusign_oauth_callback(
     integration_key = _get_esign_setting(db, "esign.docusign_integration_key") or _s.DOCUSIGN_INTEGRATION_KEY
     secret_key = _get_esign_setting(db, "esign.docusign_secret_key") or _s.DOCUSIGN_SECRET_KEY
     is_demo = (_get_esign_setting(db, "esign.docusign_is_demo") or "true").lower() == "true"
-    redirect_uri = f"{_s.FRONTEND_URL or 'http://localhost:8000'}/api/v1/esign/auth/docusign/callback"
+    if not _s.FRONTEND_URL:
+        raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
+    redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/docusign/callback"
 
     if not integration_key or not secret_key:
         raise HTTPException(400, "DocuSign integration_key o secret_key no configurados.")
@@ -508,7 +512,9 @@ def adobe_oauth_authorize(
         raise HTTPException(400, "Adobe Sign client_id no configurado. Guárdalo en /esign/config primero.")
 
     base_url = _get_esign_setting(db, "esign.adobe_sign_base_url") or _s.ADOBE_SIGN_BASE_URL
-    redirect_uri = f"{_s.FRONTEND_URL or 'http://localhost:8000'}/api/v1/esign/auth/adobe/callback"
+    if not _s.FRONTEND_URL:
+        raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
+    redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/adobe/callback"
 
     url = adobe_sign_auth_url(client_id, redirect_uri, base_url=base_url)
     return {"authorization_url": url, "redirect_uri": redirect_uri}
@@ -527,7 +533,9 @@ def adobe_oauth_callback(
     client_id = _get_esign_setting(db, "esign.adobe_sign_client_id") or _s.ADOBE_SIGN_CLIENT_ID
     client_secret = _get_esign_setting(db, "esign.adobe_sign_client_secret") or _s.ADOBE_SIGN_CLIENT_SECRET
     base_url = _get_esign_setting(db, "esign.adobe_sign_base_url") or _s.ADOBE_SIGN_BASE_URL
-    redirect_uri = f"{_s.FRONTEND_URL or 'http://localhost:8000'}/api/v1/esign/auth/adobe/callback"
+    if not _s.FRONTEND_URL:
+        raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
+    redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/adobe/callback"
 
     if not client_id or not client_secret:
         raise HTTPException(400, "Adobe Sign client_id o client_secret no configurados.")

@@ -30,7 +30,7 @@ class Timesheet(Base):
 
     # Approval
     submitted_at = Column(DateTime(timezone=True), nullable=True)
-    reviewed_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    reviewed_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     review_notes = Column(Text, nullable=True)
 
@@ -55,7 +55,7 @@ class CapacityPlan(Base):
     is_active = Column(Boolean, default=True)
     notes = Column(String(255), nullable=True)
 
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -83,21 +83,21 @@ class ProjectMilestone(Base):
     billing_status  = Column(String(30), default="pending")
     is_completed    = Column(Boolean, default=False)
     completed_date  = Column(Date, nullable=True)
-    completed_by    = Column(String(36), ForeignKey("users.id"), nullable=True)
+    completed_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     # ── Aprobación ──────────────────────────────────────────────────────────────
     approval_requested_at  = Column(DateTime(timezone=True), nullable=True)
-    approval_requested_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    approval_requested_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     approved_at            = Column(DateTime(timezone=True), nullable=True)
-    approved_by            = Column(String(36), ForeignKey("users.id"), nullable=True)
+    approved_by            = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     rejected_at            = Column(DateTime(timezone=True), nullable=True)
-    rejected_by            = Column(String(36), ForeignKey("users.id"), nullable=True)
+    rejected_by            = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     rejection_reason       = Column(Text, nullable=True)
 
     # ── Facturación ─────────────────────────────────────────────────────────────
     billing_amount  = Column(Float, nullable=True)    # € a facturar
     billing_pct     = Column(Float, nullable=True)    # % del contrato total
-    invoice_id      = Column(String(36), ForeignKey("invoices.id"), nullable=True)
+    invoice_id      = Column(String(36), ForeignKey("invoices.id"), nullable=True, index=True)
     is_billed       = Column(Boolean, default=False)
     billed_at       = Column(Date, nullable=True)
 

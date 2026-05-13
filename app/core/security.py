@@ -18,7 +18,9 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def get_password_hash(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    # BCRYPT_ROUNDS configurable; default 12. Subir a 14+ en producción.
+    rounds = getattr(settings, "BCRYPT_ROUNDS", 12)
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=rounds)).decode()
 
 
 def validate_password_policy(password: str) -> tuple[bool, Optional[str]]:

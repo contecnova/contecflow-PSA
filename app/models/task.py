@@ -43,7 +43,7 @@ class Task(Base):
 
     # Assignment
     assignee_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    reporter_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reporter_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Status and priority
     status = Column(Enum(TaskStatus), default=TaskStatus.todo, nullable=False, index=True)
@@ -71,7 +71,7 @@ class Task(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     # Optimistic locking (P1-5)
     version = Column(Integer, default=1, nullable=False)
 
@@ -104,7 +104,7 @@ class TaskComment(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     task_id = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
-    author_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    author_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

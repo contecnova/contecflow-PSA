@@ -2,10 +2,11 @@
 from datetime import datetime, timedelta
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin
+from app.core.ratelimit import limiter
 from app.db.session import get_db
 from app.models.user import User
 from app.models.collaboration import (
@@ -232,7 +233,8 @@ def list_decisions(limit: int = 100, current_user: User = Depends(get_current_us
 
 @router.get("/audit", response_model=List[AuditEventOut], summary="Eventos de auditoría",
             dependencies=[Depends(require_admin)])
-def list_audit(limit: int = 200, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def list_audit(request: Request, limit: int = 200, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = db.query(CollaborationAuditEvent).filter(
         CollaborationAuditEvent.organization_id == _org(current_user),
     ).order_by(CollaborationAuditEvent.created_at.desc()).limit(min(limit, 1000)).all()

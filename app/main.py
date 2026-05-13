@@ -437,6 +437,8 @@ async def security_headers_middleware(request: Request, call_next):
     )
 
     # --- API version header logic ---
+    # En producción solo se expone el número major (v1/v2) sin patch — no se
+    # revela el SemVer exacto para no facilitar el fingerprinting de versiones.
     if path.startswith(settings.API_V2_STR):
         response.headers["x-api-version"] = "2"
     elif path.startswith(settings.API_V1_STR):

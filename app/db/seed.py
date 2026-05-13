@@ -101,7 +101,7 @@ def seed():
             is_active=True,
             max_users=200,
             max_projects=500,
-            admin_email="admin@company.com",
+            admin_email="admin@example.com",
             timezone=settings.DEFAULT_TIMEZONE,
             locale=settings.DEFAULT_LANGUAGE,
         )
@@ -119,14 +119,14 @@ def seed():
     else:
         users_data = [
             dict(username="admin",    email=settings.SUPERADMIN_EMAIL,    full_name="Admin Sistema",  role=UserRole.admin,    department="Direccion",      job_title="CTO",               hourly_rate=None,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS, is_superadmin=True),
-            dict(username="ana.torres",email="ana.torres@company.com",full_name="Ana Torres",   role=UserRole.pm,       department="Backend",        job_title="Tech Lead PM",      hourly_rate=85.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-            dict(username="luis.vega", email="luis.vega@company.com", full_name="Luis Vega",    role=UserRole.employee, department="Backend",        job_title="Senior Developer",  hourly_rate=70.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-            dict(username="marta.gil", email="marta.gil@company.com", full_name="Marta Gil",    role=UserRole.employee, department="IA / Data",      job_title="Data Scientist",    hourly_rate=80.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-            dict(username="carlos.ruiz",email="carlos.ruiz@company.com",full_name="Carlos Ruiz",role=UserRole.pm,      department="Gestion",        job_title="Project Manager",   hourly_rate=75.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-            dict(username="sara.lope", email="sara.lope@company.com", full_name="Sara Lopez",   role=UserRole.employee, department="Infraestructura",job_title="DevOps Engineer",   hourly_rate=72.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-            dict(username="diego.mora",email="diego.mora@company.com",full_name="Diego Mora",   role=UserRole.employee, department="Frontend",       job_title="Frontend Developer",hourly_rate=55.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-            dict(username="elena.pardo",email="elena.pardo@company.com",full_name="Elena Pardo",role=UserRole.employee,department="Diseno UX",      job_title="UX Designer",       hourly_rate=65.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-            dict(username="rrhh",      email="rrhh@company.com",      full_name="RRHH Manager", role=UserRole.hr,       department="RRHH",           job_title="HR Manager",        hourly_rate=None,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="ana.torres",email="ana.torres@example.com",full_name="Ana Torres",   role=UserRole.pm,       department="Backend",        job_title="Tech Lead PM",      hourly_rate=85.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="luis.vega", email="luis.vega@example.com", full_name="Luis Vega",    role=UserRole.employee, department="Backend",        job_title="Senior Developer",  hourly_rate=70.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="marta.gil", email="marta.gil@example.com", full_name="Marta Gil",    role=UserRole.employee, department="IA / Data",      job_title="Data Scientist",    hourly_rate=80.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="carlos.ruiz",email="carlos.ruiz@example.com",full_name="Carlos Ruiz",role=UserRole.pm,      department="Gestion",        job_title="Project Manager",   hourly_rate=75.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="sara.lope", email="sara.lope@example.com", full_name="Sara Lopez",   role=UserRole.employee, department="Infraestructura",job_title="DevOps Engineer",   hourly_rate=72.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="diego.mora",email="diego.mora@example.com",full_name="Diego Mora",   role=UserRole.employee, department="Frontend",       job_title="Frontend Developer",hourly_rate=55.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="elena.pardo",email="elena.pardo@example.com",full_name="Elena Pardo",role=UserRole.employee,department="Diseno UX",      job_title="UX Designer",       hourly_rate=65.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="rrhh",      email="rrhh@example.com",      full_name="RRHH Manager", role=UserRole.hr,       department="RRHH",           job_title="HR Manager",        hourly_rate=None,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
         ]
     users = {}
     seed_pwd = settings.DEFAULT_USER_PASSWORD

@@ -60,7 +60,7 @@ class Document(Base):
     # Approval workflow (optional per document)
     requires_approval = Column(Boolean, default=False)
     approval_status = Column(Enum(ApprovalStatus), default=ApprovalStatus.pending)
-    approved_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    approved_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     # Link to the active ApprovalRequest in the multi-level approval engine
     approval_request_id = Column(String(36), ForeignKey("approval_requests.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -69,7 +69,7 @@ class Document(Base):
     is_archived = Column(Boolean, default=False, index=True)
     ai_summary = Column(Text, nullable=True)
     created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True)
-    updated_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
@@ -121,7 +121,7 @@ class DocumentVersion(Base):
 
     # Change tracking
     change_note = Column(String(500), nullable=True)  # Why this version was uploaded
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # Relationships
@@ -153,7 +153,7 @@ class DocumentPermission(Base):
     access_level = Column(Enum(DocumentAccessLevel), nullable=False)
 
     # Audit
-    granted_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    granted_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     granted_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=True)  # Temporary access
 

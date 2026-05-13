@@ -156,6 +156,9 @@ class Settings(BaseSettings):
     # ── Business rules ────────────────────────────────────────────────────────
     DEFAULT_TAX_RATE: float = Field(default=21.0, env="DEFAULT_TAX_RATE")
     MIN_PASSWORD_LENGTH: int = Field(default=8, env="MIN_PASSWORD_LENGTH")
+    # bcrypt cost factor: 12 = default razonable en dev; 14+ recomendado en prod.
+    # Cada incremento duplica el coste de hashing.
+    BCRYPT_ROUNDS: int = Field(default=12, env="BCRYPT_ROUNDS")
     PASSWORD_REQUIRE_UPPERCASE: bool = Field(default=True, env="PASSWORD_REQUIRE_UPPERCASE")
     PASSWORD_REQUIRE_LOWERCASE: bool = Field(default=True, env="PASSWORD_REQUIRE_LOWERCASE")
     PASSWORD_REQUIRE_DIGIT: bool = Field(default=True, env="PASSWORD_REQUIRE_DIGIT")
@@ -260,6 +263,14 @@ class Settings(BaseSettings):
     # ── Celery task timeouts ──────────────────────────────────────────────────
     CELERY_AGENT_TASK_TIME_LIMIT: int = Field(default=300, env="CELERY_AGENT_TASK_TIME_LIMIT")
     CELERY_AGENT_TASK_SOFT_TIME_LIMIT: int = Field(default=280, env="CELERY_AGENT_TASK_SOFT_TIME_LIMIT")
+
+    # ── Outbound HTTP timeouts ───────────────────────────────────────────────
+    # Default timeout (seg) para llamadas HTTP a APIs externas (Slack, Jira,
+    # webhooks, eSign, etc.). Antes hardcoded a 10.0 en >15 archivos.
+    OUTBOUND_HTTP_TIMEOUT_SECONDS: float = Field(default=10.0, env="OUTBOUND_HTTP_TIMEOUT_SECONDS")
+    # Timeout más largo para llamadas a proveedores de IA (modelos LLM,
+    # transcripción) donde la latencia es naturalmente mayor.
+    OUTBOUND_AI_TIMEOUT_SECONDS: float = Field(default=30.0, env="OUTBOUND_AI_TIMEOUT_SECONDS")
 
     # ── Customer health score ─────────────────────────────────────────────────
     HEALTH_NPS_LOOKBACK_DAYS: int = Field(default=90, env="HEALTH_NPS_LOOKBACK_DAYS")

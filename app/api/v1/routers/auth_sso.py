@@ -37,6 +37,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _safe_url(url: str) -> str:
+    """Devuelve la URL sin querystring para que no se filtren a logs
+    tokens/codes que algunos IdPs incluyen accidentalmente como query params.
+    """
+    try:
+        p = urllib.parse.urlsplit(url)
+        return urllib.parse.urlunsplit((p.scheme, p.netloc, p.path, "", ""))
+    except Exception:
+        return "<unparseable-url>"
+
+
 def _normalized_origin(uri: str) -> tuple[str, str, int] | None:
     """Return normalized (scheme, host, port) for origin-style comparisons."""
     try:
@@ -112,10 +123,10 @@ def sso_authorize(
             except HTTPException:
                 raise
             except _json.JSONDecodeError as exc:
-                logger.warning("SSO authorize: discovery document JSON inválido url=%r: %s", config.oidc_discovery_url, exc)
+                logger.warning("SSO authorize: discovery document JSON inválido url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
                 raise HTTPException(502, "El discovery document del proveedor no es JSON válido")
             except OSError as exc:
-                logger.warning("SSO authorize: error de red al obtener discovery url=%r: %s", config.oidc_discovery_url, exc)
+                logger.warning("SSO authorize: error de red al obtener discovery url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
                 raise HTTPException(502, "No se pudo obtener el discovery document")
         else:
             raise HTTPException(400, "Falta oidc_discovery_url para proveedor OIDC genérico")
@@ -196,10 +207,10 @@ def sso_callback(
                 except HTTPException:
                     raise
                 except _json.JSONDecodeError as exc:
-                    logger.warning("SSO callback: discovery JSON inválido url=%r: %s", config.oidc_discovery_url, exc)
+                    logger.warning("SSO callback: discovery JSON inválido url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
                     raise HTTPException(502, "El discovery document del proveedor no es JSON válido")
                 except OSError as exc:
-                    logger.warning("SSO callback: error de red al obtener discovery url=%r: %s", config.oidc_discovery_url, exc)
+                    logger.warning("SSO callback: error de red al obtener discovery url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
                     raise HTTPException(502, "No se pudo obtener el token_endpoint")
             else:
                 raise HTTPException(400, "Falta oidc_discovery_url")
@@ -219,10 +230,10 @@ def sso_callback(
             with urllib.request.urlopen(req, timeout=10) as resp:
                 tokens = _json.loads(resp.read())
         except _json.JSONDecodeError as exc:
-            logger.warning("SSO callback: token response JSON inválido url=%r: %s", token_url, exc)
+            logger.warning("SSO callback: token response JSON inválido url=%r: %s", _safe_url(token_url), exc)
             raise HTTPException(502, "El proveedor devolvió una respuesta de token no válida")
         except OSError as exc:
-            logger.warning("SSO callback: error de red al obtener tokens url=%r: %s", token_url, exc)
+            logger.warning("SSO callback: error de red al obtener tokens url=%r: %s", _safe_url(token_url), exc)
             raise HTTPException(502, f"Error de red al obtener tokens del proveedor SSO: {exc}")
 
         id_token = tokens.get("id_token", "")

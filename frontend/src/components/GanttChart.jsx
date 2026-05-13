@@ -146,16 +146,6 @@ export default function GanttChart({
 
   const allItems = mode === 'portfolio' ? projects : tasks
 
-  // Debug: Log what we're receiving
-  if (mode === 'portfolio' && projects.length > 0) {
-    if (import.meta.env.DEV) console.log('🔍 GanttChart DEBUG - Projects received:', projects.slice(0, 2).map(p => ({
-      name: p.name,
-      start_date: p.start_date,
-      end_date_planned: p.end_date_planned,
-      type: typeof p.start_date,
-    })))
-  }
-
   const { minDate, maxDate } = useMemo(() => {
     const dates = []
     for (const item of allItems) {

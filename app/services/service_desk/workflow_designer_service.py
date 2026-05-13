@@ -404,7 +404,7 @@ def builtin_templates() -> list[dict]:
                 "nodes": [
                     {"id": "n1", "type": "start", "position": {"x": 60, "y": 200}, "data": {"label": "Solicitud"}},
                     {"id": "n2", "type": "approval", "position": {"x": 280, "y": 200}, "data": {"label": "Aprueba responsable", "config": {"approver_role": "manager", "deadline_hours": 72}}},
-                    {"id": "n3", "type": "notify", "position": {"x": 520, "y": 100}, "data": {"label": "Aviso a RRHH", "config": {"channel": "email", "recipients": "hr@company.com"}}},
+                    {"id": "n3", "type": "notify", "position": {"x": 520, "y": 100}, "data": {"label": "Aviso a RRHH", "config": {"channel": "email", "recipients": "hr@example.com"}}},
                     {"id": "n4", "type": "notify", "position": {"x": 520, "y": 300}, "data": {"label": "Aviso al solicitante (no)", "config": {"channel": "in_app"}}},
                     {"id": "n5", "type": "end", "position": {"x": 760, "y": 100}, "data": {"label": "Aprobado"}},
                     {"id": "n6", "type": "end", "position": {"x": 760, "y": 300}, "data": {"label": "Rechazado"}},

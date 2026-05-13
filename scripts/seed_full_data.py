@@ -155,21 +155,21 @@ def enum_or_default(enum_cls, value, default_value):
 
 NEW_USERS = [
     # username, email, full_name, role, department, job_title, hourly_rate, weekly_h
-    ("jorge.sanz",    "jorge.sanz@company.com",    "Jorge Sanz",        "employee", "Backend",        "Senior Developer",         72.0, 40),
-    ("patricia.vidal","patricia.vidal@company.com","Patricia Vidal",    "employee", "QA",             "QA Engineer",              60.0, 40),
-    ("roberto.leal",  "roberto.leal@company.com",  "Roberto Leal",      "employee", "Frontend",       "Frontend Developer",       58.0, 40),
-    ("nuria.campo",   "nuria.campo@company.com",   "Nuria Campo",       "pm",       "Gestion",        "Senior PM",                80.0, 40),
-    ("ivan.mora",     "ivan.mora@company.com",     "Iván Mora",         "employee", "IA / Data",      "ML Engineer",              85.0, 40),
-    ("silvia.rios",   "silvia.rios@company.com",   "Silvia Ríos",       "employee", "Infraestructura","Cloud Engineer",           78.0, 40),
-    ("tomas.ferrer",  "tomas.ferrer@company.com",  "Tomás Ferrer",      "employee", "Backend",        "Mid Developer",            55.0, 40),
-    ("laura.mendez",  "laura.mendez@company.com",  "Laura Méndez",      "employee", "Diseno UX",      "Product Designer",         67.0, 40),
-    ("miguel.puig",   "miguel.puig@company.com",   "Miguel Puig",       "employee", "QA",             "QA Automation Engineer",   62.0, 40),
-    ("beatriz.sole",  "beatriz.sole@company.com",  "Beatriz Solé",      "employee", "Backend",        "Junior Developer",         45.0, 40),
-    ("andres.gil",    "andres.gil@company.com",    "Andrés Gil",        "pm",       "Gestion",        "Project Manager",          75.0, 40),
-    ("carmen.valls",  "carmen.valls@company.com",  "Carmen Valls",      "employee", "Frontend",       "React Developer",          60.0, 40),
-    ("pau.costa",     "pau.costa@company.com",     "Pau Costa",         "employee", "Infraestructura","SRE / DevOps",             80.0, 40),
-    ("andrea.font",   "andrea.font@company.com",   "Andrea Font",       "employee", "IA / Data",      "Data Analyst",             70.0, 40),
-    ("raul.domingo",  "raul.domingo@company.com",  "Raúl Domingo",      "employee", "Backend",        "Tech Lead",                88.0, 40),
+    ("jorge.sanz",    "jorge.sanz@example.com",    "Jorge Sanz",        "employee", "Backend",        "Senior Developer",         72.0, 40),
+    ("patricia.vidal","patricia.vidal@example.com","Patricia Vidal",    "employee", "QA",             "QA Engineer",              60.0, 40),
+    ("roberto.leal",  "roberto.leal@example.com",  "Roberto Leal",      "employee", "Frontend",       "Frontend Developer",       58.0, 40),
+    ("nuria.campo",   "nuria.campo@example.com",   "Nuria Campo",       "pm",       "Gestion",        "Senior PM",                80.0, 40),
+    ("ivan.mora",     "ivan.mora@example.com",     "Iván Mora",         "employee", "IA / Data",      "ML Engineer",              85.0, 40),
+    ("silvia.rios",   "silvia.rios@example.com",   "Silvia Ríos",       "employee", "Infraestructura","Cloud Engineer",           78.0, 40),
+    ("tomas.ferrer",  "tomas.ferrer@example.com",  "Tomás Ferrer",      "employee", "Backend",        "Mid Developer",            55.0, 40),
+    ("laura.mendez",  "laura.mendez@example.com",  "Laura Méndez",      "employee", "Diseno UX",      "Product Designer",         67.0, 40),
+    ("miguel.puig",   "miguel.puig@example.com",   "Miguel Puig",       "employee", "QA",             "QA Automation Engineer",   62.0, 40),
+    ("beatriz.sole",  "beatriz.sole@example.com",  "Beatriz Solé",      "employee", "Backend",        "Junior Developer",         45.0, 40),
+    ("andres.gil",    "andres.gil@example.com",    "Andrés Gil",        "pm",       "Gestion",        "Project Manager",          75.0, 40),
+    ("carmen.valls",  "carmen.valls@example.com",  "Carmen Valls",      "employee", "Frontend",       "React Developer",          60.0, 40),
+    ("pau.costa",     "pau.costa@example.com",     "Pau Costa",         "employee", "Infraestructura","SRE / DevOps",             80.0, 40),
+    ("andrea.font",   "andrea.font@example.com",   "Andrea Font",       "employee", "IA / Data",      "Data Analyst",             70.0, 40),
+    ("raul.domingo",  "raul.domingo@example.com",  "Raúl Domingo",      "employee", "Backend",        "Tech Lead",                88.0, 40),
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────

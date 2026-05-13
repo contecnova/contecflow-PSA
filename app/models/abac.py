@@ -22,8 +22,8 @@ class AttributeDefinition(Base):
     possible_values = Column(JSON, nullable=True)  # For enum type: ["internal", "confidential", "public"]
     operators = Column(JSON, nullable=False)  # ["equals", "in", "contains", "gte", "lte", "regex"]
     is_active = Column(Boolean, default=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
 
     __table_args__ = (
@@ -44,10 +44,10 @@ class UserAttribute(Base):
     org_id = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
     attribute_key = Column(String(128), nullable=False)  # e.g., "project_ids", "region"
     attribute_value = Column(JSON, nullable=False)  # Can be string, list, or structured data
-    expires_at = Column(DateTime, nullable=True)  # Temporal attribute restrictions
+    expires_at = Column(DateTime(timezone=True), nullable=True)  # Temporal attribute restrictions
     reason = Column(Text, nullable=True)  # Audit trail
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     assigned_by = Column(String(36), ForeignKey("users.id"), nullable=True)
 
     __table_args__ = (
@@ -97,16 +97,16 @@ class ABACPolicy(Base):
     priority = Column(Integer, default=50)
 
     # Temporal restrictions
-    starts_at = Column(DateTime, nullable=True)
-    expires_at = Column(DateTime, nullable=True)
+    starts_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
 
     is_active = Column(Boolean, default=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
 
     # Audit trail
-    last_evaluated_at = Column(DateTime, nullable=True)
+    last_evaluated_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("idx_policy_org_active", "org_id", "is_active"),
@@ -137,7 +137,7 @@ class PolicyAudit(Base):
     evaluation_context = Column(JSON, nullable=True)  # User attributes and request context
 
     detail = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, index=True)
 
     __table_args__ = (
         Index("idx_audit_org_user", "org_id", "user_id"),
