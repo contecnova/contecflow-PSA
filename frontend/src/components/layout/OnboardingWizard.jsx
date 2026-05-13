@@ -71,7 +71,8 @@ const STEP_META = {
       try {
         const r = await sprintsApi.list(undefined, { page_size: 1 })
         const data = r.data
-        return Array.isArray(data) ? data.length > 0 : (data?.total || 0) > 0
+        const items = data?.items ?? (Array.isArray(data) ? data : [])
+        return Array.isArray(items) ? items.length > 0 : (data?.meta?.total || data?.total || 0) > 0
       } catch { return false }
     },
   },

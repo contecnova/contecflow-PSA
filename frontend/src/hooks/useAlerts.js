@@ -4,7 +4,7 @@ import { alertsApi } from '../services/api'
 export function useAlerts(params = {}) {
   return useQuery({
     queryKey: ['alerts', params],
-    queryFn: () => alertsApi.list(params).then(r => r.data),
+    queryFn: () => alertsApi.list(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
   })

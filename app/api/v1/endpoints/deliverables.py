@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User, UserRole
 from app.services import deliverable_service
 from app.services.deliverable_service import serialize_deliverable as _del_out
@@ -13,7 +14,7 @@ from app.schemas.deliverables import DeliverableIn, DeliverableUpdate
 router = APIRouter()
 
 
-@router.get("/all/overview", summary="Vista global de entregables")
+@router.get("/all/overview", response_model=APIListResponse[Dict[str, Any]], summary="Vista global de entregables")
 def get_all_deliverables(
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=500),
@@ -29,7 +30,7 @@ def get_all_deliverables(
         row["project_name"] = d.project.name if d.project else "—"
         row["project_code"] = d.project.code if d.project else "—"
         result.append(row)
-    return result
+    return APIListResponse.ok(items=result, page=page, page_size=page_size)
 
 
 @router.get("/{project_id}", summary="Entregables de un proyecto")

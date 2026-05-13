@@ -24,7 +24,7 @@ export default function AlertsDrawer({ onClose }) {
 
   const { data: alerts = [], isLoading } = useQuery({
     queryKey: ['alerts-drawer'],
-    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data),
+    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []),
     refetchInterval: 30_000,
   })
 

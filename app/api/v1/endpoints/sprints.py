@@ -10,10 +10,13 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.models.sprints import Sprint, SprintStatus
 from app.services.psa_flows import close_sprint_flow
 import app.services.sprint_service as svc
+
+from typing import Any, Dict
 
 router = APIRouter()
 
@@ -52,7 +55,7 @@ _compute_burndown = svc.compute_sprint_burndown
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.get("", summary="Listar sprints de todos los proyectos (global)")
+@router.get("", response_model=APIListResponse[Dict[str, Any]], summary="Listar sprints de todos los proyectos (global)")
 def list_all_sprints(
     status:   Optional[str] = None,
     limit:    int = Query(20, ge=1, le=100),
@@ -69,7 +72,7 @@ def list_all_sprints(
         status=status,
         limit=limit,
     )
-    return [
+    items = [
         {
             "id":           s.id,
             "name":         s.name,
@@ -83,6 +86,7 @@ def list_all_sprints(
         }
         for s in sprints
     ]
+    return APIListResponse.ok(items=items, page=1, page_size=limit)
 
 
 @router.get("/{project_id}/sprints", summary="Listar sprints de un proyecto")

@@ -76,7 +76,7 @@ export default function NotificationCenter({ collapsed }) {
 
   const { data: httpAlerts = [] } = useQuery({
     queryKey: ['notif-alerts'],
-    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data || []).catch(() => []),
+    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
     refetchInterval: wsRef.current ? 120000 : 30000,  // sondeo más lento si hay WS
   })
 

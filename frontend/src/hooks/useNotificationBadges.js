@@ -13,7 +13,7 @@ export default function useNotificationBadges() {
 
   const { data: alerts } = useQuery({
     queryKey: ['alerts-count'],
-    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data),
+    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []),
     refetchInterval: 60_000,
     staleTime: 30 * 1000,
     enabled: hasRole('admin', 'pm', 'hr'),

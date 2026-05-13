@@ -76,6 +76,10 @@ def test_velocity_history_empty(client, pm_token, db):
 def test_global_sprints_list(client, admin_token, db):
     res = client.get("/api/v1/sprints", headers=auth(admin_token))
     assert res.status_code == 200
+    payload = res.json()
+    assert isinstance(payload, dict)
+    assert isinstance(payload.get("items"), list)
+    assert "meta" in payload
 
 
 def test_sprint_task_remove_is_soft_and_reactivable(client, pm_token, db):

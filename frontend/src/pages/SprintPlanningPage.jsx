@@ -52,7 +52,12 @@ function GenerateModal({ projectId, onClose }) {
 
   const { data: sprints = [] } = useQuery({
     queryKey: ['sprints', projectId],
-    queryFn: () => sprintsApi.list(projectId).then(r => Array.isArray(r.data)?r.data:[]).catch(()=>[]),
+    queryFn: () => sprintsApi.list(projectId).then(r => {
+      const d = r.data
+      if (Array.isArray(d?.items)) return d.items
+      if (Array.isArray(d)) return d
+      return []
+    }).catch(()=>[]),
     enabled: !!projectId,
   })
 

@@ -6,7 +6,7 @@ const STALE = 2 * 60 * 1000
 export function useSprints(projectId, params = {}) {
   return useQuery({
     queryKey: ['sprints', projectId, params],
-    queryFn: () => sprintsApi.list(projectId, params).then(r => r.data),
+    queryFn: () => sprintsApi.list(projectId, params).then(r => r.data?.items ?? r.data ?? []),
     enabled: !!projectId,
     staleTime: STALE,
   })
@@ -15,7 +15,7 @@ export function useSprints(projectId, params = {}) {
 export function useAllSprints(params = {}) {
   return useQuery({
     queryKey: ['sprints', params],
-    queryFn: () => sprintsApi.list(undefined, params).then(r => r.data),
+    queryFn: () => sprintsApi.list(undefined, params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }

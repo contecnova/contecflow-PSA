@@ -160,7 +160,7 @@ export function ProjectSelect({ value = '', onChange, placeholder = 'Seleccionar
 export function SprintSelect({ value = '', onChange, projectId, placeholder = 'Seleccionar sprint…', required = false, style }) {
   const { data: sprints = [], isLoading } = useQuery({
     queryKey: ['sprints', projectId],
-    queryFn: () => sprintsApi.list(projectId).then(r => r.data),
+    queryFn: () => sprintsApi.list(projectId).then(r => r.data?.items ?? r.data ?? []),
     enabled: !!projectId,
     staleTime: 2 * 60 * 1000,
   })

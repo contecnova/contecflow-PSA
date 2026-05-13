@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, BackgroundTasks, Query, Response
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.schemas.alerts import AlertOut
 from app.services.pagination_service import paginate_query
@@ -20,7 +21,7 @@ router = APIRouter()
 
 # ── API Endpoints ─────────────────────────────────────────────────────────────
 
-@router.get("", response_model=List[AlertOut], summary="Listar alertas activas")
+@router.get("", response_model=APIListResponse[AlertOut], summary="Listar alertas activas")
 def list_alerts(
     resolved: bool = False,
     severity: Optional[str] = None,
@@ -31,8 +32,8 @@ def list_alerts(
     current_user: User = Depends(get_current_user),
 ):
     q = get_alerts_query(db, resolved, severity, current_user)
-    items, _, _ = paginate_query(q, page, page_size, response)
-    return items
+    items, total, _ = paginate_query(q, page, page_size, response)
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post("/run", summary="Ejecutar motor de alertas manualmente")

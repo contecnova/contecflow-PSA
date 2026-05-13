@@ -9,26 +9,32 @@ from app.models.alert import Alert, AlertType, AlertSeverity
 def test_list_alerts_empty(client, admin_token, db):
     res = client.get("/api/v1/alerts", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    assert isinstance(payload, dict)
+    assert isinstance(payload.get("items"), list)
+    assert "meta" in payload
 
 
 def test_list_alerts_resolved(client, admin_token, db):
     res = client.get("/api/v1/alerts?resolved=true", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    assert isinstance(payload.get("items"), list)
 
 
 def test_list_alerts_by_severity(client, admin_token, db):
     res = client.get("/api/v1/alerts?severity=warning", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    assert isinstance(payload.get("items"), list)
 
 
 def test_employee_sees_only_own_alerts(client, dev_token, db):
     """Employees can only see their own alerts."""
     res = client.get("/api/v1/alerts", headers=auth(dev_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    assert isinstance(payload.get("items"), list)
 
 
 # ── Run Alert Engine ───────────────────────────────────────────────────────

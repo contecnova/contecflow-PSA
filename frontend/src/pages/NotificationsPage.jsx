@@ -193,7 +193,7 @@ export default function NotificationsPage() {
 
   const { data: alertsRaw = [], isLoading: alertsLoading } = useQuery({
     queryKey: ['alerts-count'],
-    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data || []).catch(() => []),
+    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
     refetchInterval: 60000,
     enabled: hasRole('admin', 'pm', 'hr'),
   })

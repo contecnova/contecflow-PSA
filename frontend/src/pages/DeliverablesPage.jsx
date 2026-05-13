@@ -142,7 +142,7 @@ export default function DeliverablesPage() {
 
   const { data: overview = [] } = useQuery({
     queryKey: ['deliverables-overview'],
-    queryFn: () => deliverablesApi.overviewAll().then(r => r.data),
+    queryFn: () => deliverablesApi.overviewAll().then(r => r.data?.items ?? r.data ?? []),
     enabled: tab === 'overview',
   })
 
