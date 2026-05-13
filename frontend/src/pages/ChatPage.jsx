@@ -5,7 +5,7 @@
  *
  * Wired to /api/v1/collaboration endpoints + WebSocket realtime.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -21,6 +21,60 @@ import { useAuth } from '../context/AuthContext'
 import { useChatRealtime } from '../context/ChatRealtimeContext'
 import { collabApi } from '../services/collaborationApi'
 import { registerCollabPush } from '../utils/collabPush'
+
+// ── Shared style constants (extracted from repeated inline styles) ──────────
+// Keep these read-only objects: never mutate, never assign per-render. They
+// reduce duplication without changing visuals.
+const styles = {
+  modalOverlay: {
+    position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+  },
+  modalDialog: {
+    background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+    borderRadius: 14, width: 540, maxWidth: '94%', overflow: 'hidden',
+  },
+  iconCloseBtn: {
+    background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)',
+  },
+  formLabel: {
+    fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)',
+    textTransform: 'uppercase', letterSpacing: '0.07em',
+  },
+  popoverMenu: {
+    position: 'absolute', bottom: '100%', left: 18, right: 18,
+    marginBottom: 6, padding: 6,
+    background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
+    borderRadius: 10, boxShadow: '0 -4px 18px rgba(0,0,0,0.3)',
+    maxHeight: 280, overflowY: 'auto',
+  },
+  popoverItem: {
+    display: 'flex', alignItems: 'center', gap: 10,
+    width: '100%', padding: '8px 10px', borderRadius: 6,
+    background: 'transparent', border: 'none', cursor: 'pointer',
+    fontFamily: 'inherit', textAlign: 'left',
+  },
+  avatar22: {
+    width: 22, height: 22, borderRadius: '50%',
+    background: 'linear-gradient(135deg, var(--accent), var(--purple))',
+    color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 10, fontWeight: 800,
+  },
+  presenceDot: {
+    position: 'absolute', bottom: 0, right: -2, width: 8, height: 8, borderRadius: '50%',
+    border: '1.5px solid var(--surface-1)',
+  },
+  sectionEmptyText: {
+    fontSize: 'var(--text-xs)', color: 'var(--text-3)',
+  },
+  contextRowMutedText: {
+    padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)',
+  },
+  composerHintBar: {
+    display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', marginBottom: 6,
+    background: 'var(--accent-muted)', borderRadius: 6, fontSize: 'var(--text-xs)',
+  },
+}
 
 // ── Page entry ───────────────────────────────────────────────────────────────
 export default function ChatPage() {
@@ -452,13 +506,23 @@ function NewConversationButton({ onCreated }) {
 function NewConversationModal({ onClose, onCreated }) {
   const qc = useQueryClient()
   const toast = useToast()
+  // Estado del formulario agrupado: todos los campos cambian juntos al
+  // navegar entre pestañas (direct | group | channel) y se resetean a la
+  // vez al cerrar. Un único objeto reduce el ruido de useStates sin
+  // alterar la lógica.
   const [tab, setTab] = useState('direct')  // direct | group | channel
-  const [search, setSearch] = useState('')
-  const [selectedUsers, setSelectedUsers] = useState([])
-  const [groupTitle, setGroupTitle] = useState('')
-  const [channelName, setChannelName] = useState('')
-  const [channelType, setChannelType] = useState('public')
-  const [selectedTeamId, setSelectedTeamId] = useState('')
+  const [form, updateForm] = useReducer(
+    (s, patch) => ({ ...s, ...patch }),
+    {
+      search: '',
+      selectedUsers: [],
+      groupTitle: '',
+      channelName: '',
+      channelType: 'public',
+      selectedTeamId: '',
+    },
+  )
+  const { search, selectedUsers, groupTitle, channelName, channelType, selectedTeamId } = form
 
   const { data: suggestions = { users: [], groups: [] } } = useQuery({
     queryKey: ['mention-suggestions-modal', search],
@@ -470,11 +534,15 @@ function NewConversationModal({ onClose, onCreated }) {
   })
 
   useEffect(() => {
-    if (!selectedTeamId && teams.length > 0) setSelectedTeamId(teams[0].id)
+    if (!selectedTeamId && teams.length > 0) updateForm({ selectedTeamId: teams[0].id })
   }, [teams, selectedTeamId])
 
   const toggleUser = (u) => {
-    setSelectedUsers(prev => prev.find(x => x.id === u.id) ? prev.filter(x => x.id !== u.id) : [...prev, u])
+    updateForm({
+      selectedUsers: selectedUsers.find(x => x.id === u.id)
+        ? selectedUsers.filter(x => x.id !== u.id)
+        : [...selectedUsers, u],
+    })
   }
 
   const submit = useMutation({
@@ -512,20 +580,14 @@ function NewConversationModal({ onClose, onCreated }) {
   })
 
   return (
-    <div role="presentation" onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-    }}>
+    <div role="presentation" onClick={onClose} style={styles.modalOverlay}>
       <div role="dialog" aria-modal="true" tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
-        style={{
-          background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 14, width: 540, maxWidth: '94%', overflow: 'hidden',
-        }}>
+        style={styles.modalDialog}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>Nueva conversación</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}><X size={14} /></button>
+          <button onClick={onClose} style={styles.iconCloseBtn}><X size={14} /></button>
         </div>
         <div style={{ display: 'flex', borderBottom: '1px solid var(--surface-4)' }}>
           {[{ id: 'direct', label: 'Chat directo', icon: MessageSquare },
@@ -548,27 +610,27 @@ function NewConversationModal({ onClose, onCreated }) {
         <div style={{ padding: 18, maxHeight: '60vh', overflowY: 'auto' }}>
           {tab === 'group' && (
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Título (opcional)</label>
-              <input value={groupTitle} onChange={(e) => setGroupTitle(e.target.value)} placeholder="Ej. Refactor backend"
+              <label style={styles.formLabel}>Título (opcional)</label>
+              <input value={form.groupTitle} onChange={(e) => updateForm({ groupTitle: e.target.value })} placeholder="Ej. Refactor backend"
                 style={inputStyle} />
             </div>
           )}
           {tab === 'channel' && (
             <>
               <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Nombre</label>
-                <input value={channelName} onChange={(e) => setChannelName(e.target.value)} placeholder="ej. ventas-q4" style={inputStyle} />
+                <label style={styles.formLabel}>Nombre</label>
+                <input value={form.channelName} onChange={(e) => updateForm({ channelName: e.target.value })} placeholder="ej. ventas-q4" style={inputStyle} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                 <div>
-                  <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Equipo</label>
-                  <select value={selectedTeamId} onChange={(e) => setSelectedTeamId(e.target.value)} style={inputStyle}>
+                  <label style={styles.formLabel}>Equipo</label>
+                  <select value={form.selectedTeamId} onChange={(e) => updateForm({ selectedTeamId: e.target.value })} style={inputStyle}>
                     {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Tipo</label>
-                  <select value={channelType} onChange={(e) => setChannelType(e.target.value)} style={inputStyle}>
+                  <label style={styles.formLabel}>Tipo</label>
+                  <select value={form.channelType} onChange={(e) => updateForm({ channelType: e.target.value })} style={inputStyle}>
                     <option value="public">Público</option>
                     <option value="private">Privado</option>
                     <option value="announcement">Anuncios</option>
@@ -584,7 +646,7 @@ function NewConversationModal({ onClose, onCreated }) {
               Añade miembros {tab === 'group' ? '(mínimo 1)' : '(opcional)'}
             </div>
           )}
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar usuarios…"
+          <input value={search} onChange={(e) => updateForm({ search: e.target.value })} placeholder="Buscar usuarios…"
             style={inputStyle} autoFocus />
           {selectedUsers.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
@@ -606,7 +668,7 @@ function NewConversationModal({ onClose, onCreated }) {
               return (
                 <button key={u.id} onClick={() => {
                   if (tab === 'direct') {
-                    setSelectedUsers([u])
+                    updateForm({ selectedUsers: [u] })
                   } else {
                     toggleUser(u)
                   }
@@ -692,10 +754,7 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }) {
   }
 
   return (
-    <div role="presentation" onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-    }}>
+    <div role="presentation" onClick={onClose} style={styles.modalOverlay}>
       <div role="dialog" aria-modal="true" tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
@@ -707,7 +766,7 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }) {
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>Añadir miembros a {conv.title || 'grupo'}</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}>
+          <button onClick={onClose} style={styles.iconCloseBtn}>
             <X size={16} />
           </button>
         </div>
@@ -883,12 +942,17 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
   const [editing, setEditing] = useState(null) // { id, body }
   const [mentionState, setMentionState] = useState(null) // { query, anchor, items }
   const [activeThreadRoot, setActiveThreadRoot] = useState(null)
-  const [linkPicker, setLinkPicker] = useState(null) // { kind: 'task'|'ticket', items }
   const [typingUsers, setTypingUsers] = useState({})  // { user_id: ts }
   const [isDragging, setIsDragging] = useState(false)
   const dragCounterRef = useRef(0)
-  const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
-  const [showAddMembers, setShowAddMembers] = useState(false)
+  // panelUi agrupa flags de UI puramente locales del pane (popovers/modales
+  // disparados desde el header o desde una acción de mensaje). No interactúan
+  // con el WebSocket; agruparlos reduce ruido sin tocar la lógica realtime.
+  const [panelUi, setPanelUi] = useReducer(
+    (s, patch) => ({ ...s, ...patch }),
+    { headerMenuOpen: false, showAddMembers: false, linkPicker: null },
+  )
+  const { headerMenuOpen, showAddMembers, linkPicker } = panelUi
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['collab-messages', conv?.id],
@@ -1197,13 +1261,13 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
         <div style={{ display: 'flex', gap: 8, position: 'relative' }}>
           <IconBtn onClick={() => onCallStart('audio')} title="Llamada de voz"><Phone size={15} /></IconBtn>
           <IconBtn onClick={() => onCallStart('video')} title="Videollamada"><Video size={15} /></IconBtn>
-          <IconBtn onClick={() => setHeaderMenuOpen(o => !o)} title="Más acciones"><MoreVertical size={15} /></IconBtn>
+          <IconBtn onClick={() => setPanelUi({ headerMenuOpen: !headerMenuOpen })} title="Más acciones"><MoreVertical size={15} /></IconBtn>
           {headerMenuOpen && (
             <ConvHeaderMenu
               conv={conv}
               currentUser={currentUser}
-              onClose={() => setHeaderMenuOpen(false)}
-              onAddMembers={() => { setHeaderMenuOpen(false); setShowAddMembers(true) }}
+              onClose={() => setPanelUi({ headerMenuOpen: false })}
+              onAddMembers={() => setPanelUi({ headerMenuOpen: false, showAddMembers: true })}
             />
           )}
         </div>
@@ -1211,12 +1275,12 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
       {showAddMembers && conv.kind === 'group' && (
         <AddGroupMembersModal
           conv={conv}
-          onClose={() => setShowAddMembers(false)}
+          onClose={() => setPanelUi({ showAddMembers: false })}
           onAdded={() => {
             qc.invalidateQueries(['collab-members', conv.id])
             qc.invalidateQueries(['collab-members-for-add', conv.id])
             qc.invalidateQueries(['collab-conversations'])
-            setShowAddMembers(false)
+            setPanelUi({ showAddMembers: false })
             toast.success('Miembros añadidos')
           }}
         />
@@ -1237,7 +1301,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
               onPin={() => collabApi.pinMessage(conv.id, m.id).then(() => qc.invalidateQueries(['collab-messages', conv.id]))}
               onSave={() => collabApi.saveMessage(m.id).then(() => toast.success('Guardado'))}
               onReplyThread={() => setActiveThreadRoot(m.id)}
-              onLink={(kind) => setLinkPicker({ messageId: m.id, kind })}
+              onLink={(kind) => setPanelUi({ linkPicker: { messageId: m.id, kind } })}
             />
           )
         })}
@@ -1264,17 +1328,17 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
           <MentionMenu items={mentionState.items} onPick={insertMention} />
         )}
         {activeThreadRoot && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', marginBottom: 6, background: 'var(--accent-muted)', borderRadius: 6, fontSize: 'var(--text-xs)' }}>
+          <div style={styles.composerHintBar}>
             <MessageSquare size={12} /> Respondiendo en hilo
-            <button onClick={() => setActiveThreadRoot(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}>
+            <button onClick={() => setActiveThreadRoot(null)} style={{ ...styles.iconCloseBtn, marginLeft: 'auto' }}>
               <X size={12} />
             </button>
           </div>
         )}
         {editing && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', marginBottom: 6, background: 'var(--accent-muted)', borderRadius: 6, fontSize: 'var(--text-xs)' }}>
+          <div style={styles.composerHintBar}>
             <Pencil size={12} /> Editando mensaje
-            <button onClick={() => { setEditing(null); setDraft('') }} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}>
+            <button onClick={() => { setEditing(null); setDraft('') }} style={{ ...styles.iconCloseBtn, marginLeft: 'auto' }}>
               <X size={12} />
             </button>
           </div>
@@ -1347,9 +1411,9 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
         <LinkPickerModal
           messageId={linkPicker.messageId}
           kind={linkPicker.kind}
-          onClose={() => setLinkPicker(null)}
+          onClose={() => setPanelUi({ linkPicker: null })}
           onPicked={() => {
-            setLinkPicker(null)
+            setPanelUi({ linkPicker: null })
             qc.invalidateQueries(['collab-messages', conv.id])
             toast.success('Anclado')
           }}
@@ -1607,8 +1671,8 @@ function SearchModal({ onClose, onJump }) {
   const hits = result?.hits || []
   return (
     <div role="presentation" onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '8vh 16px', zIndex: 1000,
+      ...styles.modalOverlay,
+      alignItems: 'flex-start', padding: '8vh 16px',
     }}>
       <div role="dialog" aria-modal="true" tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
@@ -1699,10 +1763,7 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }) {
     onSuccess: onPicked,
   })
   return (
-    <div role="presentation" onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-    }}>
+    <div role="presentation" onClick={onClose} style={styles.modalOverlay}>
       <div role="dialog" aria-modal="true" tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
@@ -1714,7 +1775,7 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }) {
           <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>
             Anclar a {kind === 'task' ? 'tarea' : kind === 'ticket' ? 'ticket' : kind}
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}>
+          <button onClick={onClose} style={styles.iconCloseBtn}>
             <X size={14} />
           </button>
         </div>
@@ -1748,20 +1809,9 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }) {
 // ── Mention menu ────────────────────────────────────────────────────────────
 function MentionMenu({ items, onPick }) {
   return (
-    <div style={{
-      position: 'absolute', bottom: '100%', left: 18, right: 18,
-      marginBottom: 6, padding: 6,
-      background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-      borderRadius: 10, boxShadow: '0 -4px 18px rgba(0,0,0,0.3)',
-      maxHeight: 280, overflowY: 'auto',
-    }}>
+    <div style={styles.popoverMenu}>
       {items.map((it, i) => (
-        <button key={i} onClick={() => onPick(it)} style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          width: '100%', padding: '8px 10px', borderRadius: 6,
-          background: 'transparent', border: 'none', cursor: 'pointer',
-          fontFamily: 'inherit', textAlign: 'left',
-        }}
+        <button key={i} onClick={() => onPick(it)} style={styles.popoverItem}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
           <span style={{
@@ -1807,7 +1857,7 @@ function ThreadPanel({ conv, rootId, onClose }) {
     }}>
       <div style={{ height: 48, padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--surface-4)' }}>
         <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }}>Hilo · {thread.length} respuesta{thread.length === 1 ? '' : 's'}</div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}><X size={14} /></button>
+        <button onClick={onClose} style={styles.iconCloseBtn}><X size={14} /></button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
         {thread.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Sin respuestas todavía.</div>}
@@ -1844,20 +1894,9 @@ function SlashMenu({ draft, onPick }) {
   const cmds = help.commands.filter(c => c.name.replace('/', '').toLowerCase().startsWith(term))
   if (!cmds.length) return null
   return (
-    <div style={{
-      position: 'absolute', bottom: '100%', left: 18, right: 18,
-      marginBottom: 6, padding: 6,
-      background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-      borderRadius: 10, boxShadow: '0 -4px 18px rgba(0,0,0,0.3)',
-      maxHeight: 280, overflowY: 'auto',
-    }}>
+    <div style={styles.popoverMenu}>
       {cmds.map((c, i) => (
-        <button key={i} onClick={() => onPick(c.name.replace('/', ''))} style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          width: '100%', padding: '8px 10px', borderRadius: 6,
-          background: 'transparent', border: 'none', cursor: 'pointer',
-          fontFamily: 'inherit', textAlign: 'left',
-        }}
+        <button key={i} onClick={() => onPick(c.name.replace('/', ''))} style={styles.popoverItem}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
@@ -1942,16 +1981,10 @@ function ContextPanel({ conv }) {
           return (
             <div key={p.user_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
               <span style={{ position: 'relative', display: 'inline-flex' }}>
+                <span style={styles.avatar22}>{name.charAt(0).toUpperCase()}</span>
                 <span style={{
-                  width: 22, height: 22, borderRadius: '50%',
-                  background: 'linear-gradient(135deg, var(--accent), var(--purple))',
-                  color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 800,
-                }}>{name.charAt(0).toUpperCase()}</span>
-                <span style={{
-                  position: 'absolute', bottom: 0, right: -2, width: 8, height: 8, borderRadius: '50%',
+                  ...styles.presenceDot,
                   background: p.status === 'online' ? 'var(--success)' : p.status === 'busy' ? 'var(--danger)' : 'var(--warning)',
-                  border: '1.5px solid var(--surface-1)',
                 }} />
               </span>
               <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
@@ -2015,14 +2048,14 @@ function ContextPanel({ conv }) {
       )}
       <Section title={`Anclados (${pins.length})`}>
         {pins.length === 0 ? <Empty>Ningún mensaje anclado</Empty> : pins.map(p => (
-          <div key={p.id} style={{ padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+          <div key={p.id} style={styles.contextRowMutedText}>
             <Pin size={10} /> {p.preview}
           </div>
         ))}
       </Section>
       <Section title={`Llamadas (${calls.length})`}>
         {calls.length === 0 ? <Empty>Sin llamadas</Empty> : calls.slice(0, 5).map(c => (
-          <div key={c.id} style={{ padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+          <div key={c.id} style={styles.contextRowMutedText}>
             {c.kind === 'video' ? <Video size={11} /> : <Phone size={11} />} {c.duration_seconds}s — {c.status}
             {c.has_summary && <Sparkles size={10} style={{ marginLeft: 4, color: 'var(--warning)' }} />}
           </div>
@@ -2043,7 +2076,7 @@ function ContextPanel({ conv }) {
       </Section>
       <Section title={`Decisiones (${decisions.length})`}>
         {decisions.length === 0 ? <Empty>Sin decisiones registradas</Empty> : decisions.slice(0, 5).map(d => (
-          <div key={d.id} style={{ padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+          <div key={d.id} style={styles.contextRowMutedText}>
             <FileSignature size={10} style={{ marginRight: 4 }} /> {(d.text || '').slice(0, 100)}
           </div>
         ))}
@@ -2090,14 +2123,14 @@ function ActivityList() {
       </Section>
       <Section title={`Menciones (${mentions.length})`}>
         {mentions.length === 0 ? <Empty>Sin menciones</Empty> : mentions.slice(0, 20).map(m => (
-          <div key={m.id} style={{ padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+          <div key={m.id} style={styles.contextRowMutedText}>
             <AtSign size={10} /> {m.preview}
           </div>
         ))}
       </Section>
       <Section title={`Guardados (${saved.length})`}>
         {saved.length === 0 ? <Empty>Sin guardados</Empty> : saved.slice(0, 20).map(s => (
-          <div key={s.id} style={{ padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+          <div key={s.id} style={styles.contextRowMutedText}>
             <Bookmark size={10} /> {s.preview}
           </div>
         ))}
