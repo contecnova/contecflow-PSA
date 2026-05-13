@@ -83,8 +83,17 @@ class Task(Base):
     reporter = relationship("User", foreign_keys=[reporter_id])
     creator = relationship("User", foreign_keys=[created_by])
     subtasks = relationship("Task", backref="parent", remote_side=[id])
-    imputations = relationship("Imputation", back_populates="task")
-    comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan", order_by="TaskComment.created_at")
+    # audit #56-57: selectin eager-loading evita N+1 cuando TaskOut serializa real_hours
+    # (que itera self.imputations) en list_tasks. Un único IN-load reemplaza N queries.
+    imputations = relationship("Imputation", back_populates="task", lazy="selectin")
+    # audit #56-57: comments también se serializa en TaskOut → mismo patrón N+1 en listados.
+    comments = relationship(
+        "TaskComment",
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskComment.created_at",
+        lazy="selectin",
+    )
 
     @property
     def real_hours(self):
