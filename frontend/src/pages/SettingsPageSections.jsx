@@ -16,6 +16,26 @@ import { useOrgSettings } from '../hooks/useOrgSettings'
 const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
+// Shared, repeated inline-style fragments. Use spreads to add per-instance tweaks.
+const styles = {
+  colGap8: { display: 'flex', flexDirection: 'column', gap: 8 },
+  colGap10: { display: 'flex', flexDirection: 'column', gap: 10 },
+  colGap14: { display: 'flex', flexDirection: 'column', gap: 14 },
+  colGap16: { display: 'flex', flexDirection: 'column', gap: 16 },
+  rowEndsCenter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  rowFlexEnd: { display: 'flex', justifyContent: 'flex-end', gap: 10 },
+  btnDelete: { background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" },
+  btnEdit: { background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" },
+  addPanel10: { display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' },
+  addPanelBasic: { padding: '14px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 },
+  saveBtn: { background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' },
+  cancelBtnSm: { background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" },
+  cardListItem: { display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 },
+  mutedCenter: { fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center' },
+  pill: { fontSize: "var(--text-2xs)", background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 20, padding: '1px 8px', marginLeft: 8 },
+  sectionTitleUpper: { fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em' },
+}
+
 function Section({ icon, title, description, children }) {
   return (
     <div className="ds-card" style={{ marginBottom: 'var(--space-6)' }}>
@@ -86,8 +106,10 @@ function GeneralSection() {
 }
 
 function SettingField({ setting, label, onSave }) {
-  const [editing, setEditing] = useState(false)
-  const [val, setVal] = useState(setting.value || '')
+  const [state, setState] = useState({ editing: false, val: setting.value || '' })
+  const { editing, val } = state
+  const setEditing = (v) => setState(s => ({ ...s, editing: typeof v === 'function' ? v(s.editing) : v }))
+  const setVal = (v) => setState(s => ({ ...s, val: typeof v === 'function' ? v(s.val) : v }))
   return (
     <div style={{
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
@@ -120,10 +142,18 @@ function SettingField({ setting, label, onSave }) {
 function UsersSection() {
   const toast = useToast()
   const qc = useQueryClient()
-  const [showCreate, setShowCreate] = useState(false)
-  const [editUser, setEditUser] = useState(null)
-  const [search, setSearch] = useState('')
-  const [orgFilter, setOrgFilter] = useState('')
+  const [ui, setUi] = React.useReducer(
+    (s, p) => {
+      const next = typeof p === 'function' ? p(s) : p
+      return { ...s, ...next }
+    },
+    { showCreate: false, editUser: null, search: '', orgFilter: '' },
+  )
+  const { showCreate, editUser, search, orgFilter } = ui
+  const setShowCreate = (v) => setUi(typeof v === 'function' ? (s) => ({ showCreate: v(s.showCreate) }) : { showCreate: v })
+  const setEditUser = (v) => setUi(typeof v === 'function' ? (s) => ({ editUser: v(s.editUser) }) : { editUser: v })
+  const setSearch = (v) => setUi(typeof v === 'function' ? (s) => ({ search: v(s.search) }) : { search: v })
+  const setOrgFilter = (v) => setUi(typeof v === 'function' ? (s) => ({ orgFilter: v(s.orgFilter) }) : { orgFilter: v })
   const { data: users = [], isLoading } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
   const { data: roles = [] } = useQuery({ queryKey: ['custom-roles'], queryFn: () => advancedConfigApi.getRoles().then(r => r.data) })
   const { data: departments = [] } = useQuery({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
@@ -186,7 +216,7 @@ function UsersSection() {
         <Button onClick={() => setShowCreate(true)}>+ Nuevo usuario</Button>
       </div>
       {isLoading ? <Spinner /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={styles.colGap8}>
           {filtered.map(u => {
             const roleColor = roleMap[u.role]?.color || ROLE_COLORS[u.role] || 'var(--text-2)'
             const roleLabel = roleMap[u.role]?.description || ROLE_LABELS[u.role] || u.role
@@ -232,10 +262,10 @@ function UsersSection() {
               )}
               {u.department && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{u.department}</span>}
               {!u.is_active && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>Inactivo</span>}
-              <button onClick={() => setEditUser(u)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️ Editar</button>
+              <button onClick={() => setEditUser(u)} style={styles.btnEdit}>✏️ Editar</button>
               {u.is_active ? <button onClick={() => openConfirmGlobal({ message: `¿Desactivar a "${u.full_name}"?`, onConfirm: () => deactivate(u.id) })} style={{ background: 'none', border: '1px solid var(--warning-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>⏸ Desactivar</button>
                 : <button onClick={() => deactivate(u.id)} style={{ background: 'none', border: '1px solid var(--success-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>▶ Activar</button>}
-              <button onClick={() => openConfirmGlobal({ title: '⚠️ Eliminar permanentemente', message: `¿Eliminar permanentemente a "${u.full_name}"? Esta acción no se puede deshacer.`, onConfirm: () => deletePermanent(u.id), danger: true })} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑 Eliminar</button>
+              <button onClick={() => openConfirmGlobal({ title: '⚠️ Eliminar permanentemente', message: `¿Eliminar permanentemente a "${u.full_name}"? Esta acción no se puede deshacer.`, onConfirm: () => deletePermanent(u.id), danger: true })} style={styles.btnDelete}>🗑 Eliminar</button>
             </div>
           )})}
         </div>
@@ -349,15 +379,17 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
 function RolesSection() {
   const toast = useToast()
   const qc = useQueryClient()
-  const [showCreate, setShowCreate] = useState(false)
-  const [editRole, setEditRole] = useState(null)
+  const [ui, setUi] = useState({ showCreate: false, editRole: null })
+  const { showCreate, editRole } = ui
+  const setShowCreate = (v) => setUi(s => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
+  const setEditRole = (v) => setUi(s => ({ ...s, editRole: typeof v === 'function' ? v(s.editRole) : v }))
   const { data: roles = [], isLoading } = useQuery({ queryKey: ['custom-roles'], queryFn: () => advancedConfigApi.getRoles().then(r => r.data) })
   const { data: modules = [] } = useQuery({ queryKey: ['modules-list'], queryFn: () => advancedConfigApi.getModules().then(r => r.data) })
   const { mutate: deleteRole } = useMutation({ mutationFn: advancedConfigApi.deleteRole, onSuccess: () => qc.invalidateQueries(['custom-roles']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
   return (
     <Section icon="🔐" title="Roles y permisos" description="Define accesos avanzados por modulo">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={styles.colGap8}>
         {isLoading ? <Spinner /> : roles.map(r => (
           <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'var(--surface-2)', border: `1px solid ${r.color}30`, borderRadius: 10 }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
@@ -372,8 +404,8 @@ function RolesSection() {
               </div>
             </div>
             {r.is_system && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 20, padding: '2px 8px' }}>Sistema</span>}
-            <button onClick={() => setEditRole(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️ Editar</button>
-            {!r.is_system && <button onClick={() => deleteRole(r.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>}
+            <button onClick={() => setEditRole(r)} style={styles.btnEdit}>✏️ Editar</button>
+            {!r.is_system && <button onClick={() => deleteRole(r.id)} style={styles.btnDelete}>🗑</button>}
           </div>
         ))}
         <button onClick={() => setShowCreate(true)} style={{ padding: '10px', border: '1px dashed var(--surface-4)', borderRadius: 10, background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>＋ Crear rol personalizado</button>
@@ -392,7 +424,7 @@ function RoleFormModal({ role, modules, onClose, onSave }) {
   const allOn = modules.every(m => form.module_access[m.id])
   return (
     <Modal open title={role ? `Editar rol — ${role.name}` : 'Nuevo rol'} onClose={onClose} width={560}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={styles.colGap14}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
           <div><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} disabled={role?.is_system} /></div>
           <div><label style={ls}>Color</label><div style={{ display: 'flex', gap: 8 }}><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7a8aaa'} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 40, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, flex: 1 }} /></div></div>
@@ -414,7 +446,7 @@ function RoleFormModal({ role, modules, onClose, onSave }) {
             ))}
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div style={styles.rowFlexEnd}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => onSave(form)} disabled={!form.name}>Guardar</Button>
         </div>
@@ -465,8 +497,10 @@ function AlertConfigSection() {
   })
 
   const EMPTY_RULE = { name: '', metric_key: '', condition: 'threshold_above', threshold: '', severity: 'warning', cooldown_minutes: 60 }
-  const [showCreate, setShowCreate] = useState(false)
-  const [ruleForm, setRuleForm] = useState(EMPTY_RULE)
+  const [ui, setUi] = useState({ showCreate: false, ruleForm: EMPTY_RULE })
+  const { showCreate, ruleForm } = ui
+  const setShowCreate = (v) => setUi(s => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
+  const setRuleForm = (v) => setUi(s => ({ ...s, ruleForm: typeof v === 'function' ? v(s.ruleForm) : v }))
   const setR = k => e => setRuleForm(f => ({ ...f, [k]: e.target.value }))
 
   const submitRule = () => {
@@ -480,7 +514,7 @@ function AlertConfigSection() {
   return (
     <Section icon="🔔" title="Alertas" description="Configura notificaciones, umbrales y reglas personalizadas">
       {isLoading ? <Spinner /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={styles.colGap10}>
           {configs.map(cfg => (
             <div key={cfg.alert_type} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${cfg.is_enabled ? SEV_CFG[cfg.severity] + '30' : 'var(--surface-4)'}`, borderRadius: 10, opacity: cfg.is_enabled ? 1 : 0.6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -533,7 +567,7 @@ function AlertConfigSection() {
         {rules.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>No hay reglas personalizadas. Crea la primera.</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={styles.colGap8}>
             {rules.map(rule => (
               <div key={rule.id} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: `1px solid ${rule.enabled ? SEV_CFG[rule.severity] + '30' : 'var(--surface-4)'}`, borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, opacity: rule.enabled ? 1 : 0.6 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -560,7 +594,7 @@ function AlertConfigSection() {
 
       {showCreate && (
         <Modal open title="Nueva regla de alerta" onClose={() => { setShowCreate(false); setRuleForm(EMPTY_RULE) }} width={480}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={styles.colGap14}>
             <div>
               <label style={ls}>Nombre</label>
               <input value={ruleForm.name} onChange={setR('name')} style={fs} placeholder="Ej: Ingresos por debajo del objetivo" />
@@ -621,22 +655,36 @@ function RateTablesSection() {
   const { mutate: addEntry } = useMutation({ mutationFn: ({ tableId, data }) => advancedConfigApi.addRateEntry(tableId, data), onSuccess: () => qc.invalidateQueries(['rate-tables']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const { mutate: deleteEntry } = useMutation({ mutationFn: ({ tableId, entryId }) => advancedConfigApi.deleteRateEntry(tableId, entryId), onSuccess: () => qc.invalidateQueries(['rate-tables']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const { mutate: updateEntry } = useMutation({ mutationFn: ({ tableId, entryId, data }) => advancedConfigApi.updateRateEntry(tableId, entryId, data), onSuccess: () => { qc.invalidateQueries(['rate-tables']); setEditingEntryId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const [editingEntryId, setEditingEntryId] = useState(null)
-  const [editEntryForm, setEditEntryForm] = useState({ label: '', cost_rate: '', billing_rate: '' })
-  const [newTable, setNewTable] = useState({ name: '', applies_to: 'role', is_default: false })
-  const [addingEntry, setAddingEntry] = useState(null)
-  const [entryForm, setEntryForm] = useState({ label: '', cost_rate: '', billing_rate: '' })
+  const [ui, setUi] = React.useReducer(
+    (s, p) => {
+      const next = typeof p === 'function' ? p(s) : p
+      return { ...s, ...next }
+    },
+    {
+      editingEntryId: null,
+      editEntryForm: { label: '', cost_rate: '', billing_rate: '' },
+      newTable: { name: '', applies_to: 'role', is_default: false },
+      addingEntry: null,
+      entryForm: { label: '', cost_rate: '', billing_rate: '' },
+    },
+  )
+  const { editingEntryId, editEntryForm, newTable, addingEntry, entryForm } = ui
+  const setEditingEntryId = (v) => setUi(typeof v === 'function' ? (s) => ({ editingEntryId: v(s.editingEntryId) }) : { editingEntryId: v })
+  const setEditEntryForm = (v) => setUi(typeof v === 'function' ? (s) => ({ editEntryForm: v(s.editEntryForm) }) : { editEntryForm: v })
+  const setNewTable = (v) => setUi(typeof v === 'function' ? (s) => ({ newTable: v(s.newTable) }) : { newTable: v })
+  const setAddingEntry = (v) => setUi(typeof v === 'function' ? (s) => ({ addingEntry: v(s.addingEntry) }) : { addingEntry: v })
+  const setEntryForm = (v) => setUi(typeof v === 'function' ? (s) => ({ entryForm: v(s.entryForm) }) : { entryForm: v })
 
   return (
     <Section icon="💶" title="Tarifas internas" description="Mantiene tablas de coste y facturacion">
       {isLoading ? <Spinner /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={styles.colGap16}>
           {tables.map(t => (
             <div key={t.id} style={{ background: 'var(--surface-2)', border: `1px solid ${t.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 12, padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div>
                   <span style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{t.name}</span>
-                  {t.is_default && <span style={{ fontSize: "var(--text-2xs)", background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 20, padding: '1px 8px', marginLeft: 8 }}>Por defecto</span>}
+                  {t.is_default && <span style={styles.pill}>Por defecto</span>}
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8 }}>{t.applies_to === 'role' ? 'Por rol' : t.applies_to === 'department' ? 'Por departamento' : 'Por cliente'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -702,29 +750,34 @@ function VacationSection() {
   const toast = useToast()
   const qc = useQueryClient()
   const currentYear = new Date().getFullYear()
-  const [year, setYear] = useState(currentYear)
+  const [ui, setUi] = useState({
+    year: currentYear,
+    newPolicy: { name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false },
+  })
+  const { year, newPolicy } = ui
+  const setYear = (v) => setUi(s => ({ ...s, year: typeof v === 'function' ? v(s.year) : v }))
+  const setNewPolicy = (v) => setUi(s => ({ ...s, newPolicy: typeof v === 'function' ? v(s.newPolicy) : v }))
   const { data: policies = [] } = useQuery({ queryKey: ['vacation-policies'], queryFn: () => advancedConfigApi.getVacationPolicies().then(r => r.data) })
   const { data: balances = [] } = useQuery({ queryKey: ['vacation-balances', year], queryFn: () => advancedConfigApi.getVacationBalances(year).then(r => r.data) })
   const { mutate: createPolicy } = useMutation({ mutationFn: advancedConfigApi.createVacationPolicy, onSuccess: () => qc.invalidateQueries(['vacation-policies']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const { mutate: deletePolicy } = useMutation({ mutationFn: advancedConfigApi.deleteVacationPolicy, onSuccess: () => qc.invalidateQueries(['vacation-policies']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const { mutate: updateBalance } = useMutation({ mutationFn: ({ userId, days }) => advancedConfigApi.updateVacationBalance(userId, year, days), onSuccess: () => { qc.invalidateQueries(['vacation-balances', year]); qc.invalidateQueries(['vacation-balance-my']); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const [newPolicy, setNewPolicy] = useState({ name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false })
 
   return (
     <Section icon="🏖️" title="Vacaciones y permisos" description="Configura politicas y saldos del equipo">
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12 }}>Políticas configuradas</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={styles.colGap8}>
           {policies.map(p => (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${p.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
               <div style={{ flex: 1 }}>
                 <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{p.name}</span>
-                {p.is_default && <span style={{ fontSize: "var(--text-2xs)", background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 20, padding: '1px 8px', marginLeft: 8 }}>Por defecto</span>}
+                {p.is_default && <span style={styles.pill}>Por defecto</span>}
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
                   {p.days_per_year} días/año {p.carries_over ? `· Acumula hasta ${p.max_carryover_days || '∞'} días` : '· No acumula'}
                 </div>
               </div>
-              <button onClick={() => deletePolicy(p.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+              <button onClick={() => deletePolicy(p.id)} style={styles.btnDelete}>🗑</button>
             </div>
           ))}
         </div>
@@ -781,7 +834,7 @@ function NumberingSection() {
   return (
     <Section icon="🔢" title="Numeracion" description="Prefijos y contadores automaticos">
       {isLoading ? <Spinner /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={styles.colGap10}>
           {seqs.map(s => (
             <div key={s.entity} style={{ display: 'flex', gap: 14, alignItems: 'flex-end', padding: '12px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
               <div style={{ width: 120, flexShrink: 0 }}>
@@ -818,9 +871,15 @@ function CustomFieldsSection() {
   const { mutate: createField } = useMutation({ mutationFn: advancedConfigApi.createCustomField, onSuccess: () => qc.invalidateQueries(['custom-fields']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const { mutate: updateField } = useMutation({ mutationFn: ({ id, data }) => advancedConfigApi.updateCustomField(id, data), onSuccess: () => { qc.invalidateQueries(['custom-fields']); setEditingFieldId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const { mutate: deleteField } = useMutation({ mutationFn: advancedConfigApi.deleteCustomField, onSuccess: () => qc.invalidateQueries(['custom-fields']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const [editingFieldId, setEditingFieldId] = useState(null)
-  const [editFieldForm, setEditFieldForm] = useState({ name: '', is_required: false, placeholder: '' })
-  const [form, setForm] = useState({ entity: 'project', name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' })
+  const [ui, setUi] = useState({
+    editingFieldId: null,
+    editFieldForm: { name: '', is_required: false, placeholder: '' },
+    form: { entity: 'project', name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' },
+  })
+  const { editingFieldId, editFieldForm, form } = ui
+  const setEditingFieldId = (v) => setUi(s => ({ ...s, editingFieldId: typeof v === 'function' ? v(s.editingFieldId) : v }))
+  const setEditFieldForm = (v) => setUi(s => ({ ...s, editFieldForm: typeof v === 'function' ? v(s.editFieldForm) : v }))
+  const setForm = (v) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
   const ENTITIES = [
     { value: 'project',     label: 'Proyecto' },
     { value: 'task',        label: 'Tarea' },
@@ -862,8 +921,8 @@ function CustomFieldsSection() {
                       </div>
                       <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{TYPES.find(t => t.value === f.field_type)?.label}</span>
                       <button onClick={() => { setEditingFieldId(f.id); setEditFieldForm({ name: f.name, is_required: f.is_required, placeholder: f.placeholder||'' }) }}
-                        style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
-                      <button onClick={() => deleteField(f.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                        style={styles.btnEdit}>✏</button>
+                      <button onClick={() => deleteField(f.id)} style={styles.btnDelete}>🗑</button>
                     </div>
                     {editingFieldId === f.id && (
                       <div style={{ display:'flex', gap:8, padding:'10px', background:'var(--accent-muted)',
@@ -920,8 +979,10 @@ function TemplatesSection() {
     },
     onError: e => toast.error(extractErr(e, 'No se pudo crear la plantilla')),
   })
-  const [showCreate, setShowCreate] = useState(false)
-  const [selected, setSelected] = useState(null)
+  const [ui, setUi] = useState({ showCreate: false, selected: null })
+  const { showCreate, selected } = ui
+  const setShowCreate = (v) => setUi(s => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
+  const setSelected = (v) => setUi(s => ({ ...s, selected: typeof v === 'function' ? v(s.selected) : v }))
 
   return (
     <Section icon="📐" title="Plantillas" description="Define plantillas de proyecto y fases">
@@ -959,11 +1020,25 @@ function TemplatesSection() {
 }
 
 function CreateTemplateModal({ onClose, onSave, isSaving = false }) {
-  const [form, setForm] = useState({ name: '', description: '', project_type: 'consulting', estimated_weeks: '', estimated_hours: '', phases: [], risks: [], deliverables: [] })
-  const [phase, setPhase] = useState({ name: '', description: '', estimated_weeks: '', estimated_hours: '', tasks: [] })
-  const [task, setTask] = useState({ title: '', estimated_hours: '', skill_required: '' })
-  const [risk, setRisk] = useState({ title: '', category: '', probability: 'medium', impact: 'moderate', mitigation_plan: '' })
-  const [deliverable, setDeliverable] = useState({ name: '', format: '', week_offset: '', billing_pct: '', acceptance_criteria: '' })
+  const [ui, setUi] = React.useReducer(
+    (s, p) => {
+      const next = typeof p === 'function' ? p(s) : p
+      return { ...s, ...next }
+    },
+    {
+      form: { name: '', description: '', project_type: 'consulting', estimated_weeks: '', estimated_hours: '', phases: [], risks: [], deliverables: [] },
+      phase: { name: '', description: '', estimated_weeks: '', estimated_hours: '', tasks: [] },
+      task: { title: '', estimated_hours: '', skill_required: '' },
+      risk: { title: '', category: '', probability: 'medium', impact: 'moderate', mitigation_plan: '' },
+      deliverable: { name: '', format: '', week_offset: '', billing_pct: '', acceptance_criteria: '' },
+    },
+  )
+  const { form, phase, task, risk, deliverable } = ui
+  const setForm = (v) => setUi(typeof v === 'function' ? (s) => ({ form: v(s.form) }) : { form: v })
+  const setPhase = (v) => setUi(typeof v === 'function' ? (s) => ({ phase: v(s.phase) }) : { phase: v })
+  const setTask = (v) => setUi(typeof v === 'function' ? (s) => ({ task: v(s.task) }) : { task: v })
+  const setRisk = (v) => setUi(typeof v === 'function' ? (s) => ({ risk: v(s.risk) }) : { risk: v })
+  const setDeliverable = (v) => setUi(typeof v === 'function' ? (s) => ({ deliverable: v(s.deliverable) }) : { deliverable: v })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const addTaskToPhase = () => {
@@ -1047,7 +1122,7 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }) {
 
   return (
     <Modal open title="Nueva plantilla" onClose={onClose} width={760}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={styles.colGap16}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 12 }}>
           <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder="Nombre de la plantilla" aria-label="Nombre de la plantilla" /></div>
           <div><label style={ls}>Tipo proyecto</label><select value={form.project_type} onChange={set('project_type')} style={fs}><option value="consulting">consulting</option><option value="development">development</option><option value="maintenance">maintenance</option><option value="internal">internal</option><option value="rd">rd</option></select></div>
@@ -1120,7 +1195,7 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }) {
           <textarea value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder="Criterio de aceptación (opcional)" />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div style={styles.rowFlexEnd}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={submit} disabled={!form.name || isSaving}>{isSaving ? 'Creando...' : 'Crear plantilla'}</Button>
         </div>
@@ -1161,9 +1236,15 @@ function OfficesSection() {
   const { mutate: create } = useMutation({ mutationFn: advancedConfigApi.createOffice, onSuccess: () => qc.invalidateQueries(['offices']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const { mutate: update } = useMutation({ mutationFn: ({ id, data }) => advancedConfigApi.updateOffice(id, data), onSuccess: () => { qc.invalidateQueries(['offices']); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const { mutate: del } = useMutation({ mutationFn: advancedConfigApi.deleteOffice, onSuccess: () => qc.invalidateQueries(['offices']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const [form, setForm] = useState({ name: '', country: '', city: '', timezone: defaultTimezone })
-  const [editingId, setEditingId] = useState(null)
-  const [editForm, setEditForm] = useState({ name: '', country: '', city: '', timezone: defaultTimezone })
+  const [ui, setUi] = useState({
+    form: { name: '', country: '', city: '', timezone: defaultTimezone },
+    editingId: null,
+    editForm: { name: '', country: '', city: '', timezone: defaultTimezone },
+  })
+  const { form, editingId, editForm } = ui
+  const setForm = (v) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
+  const setEditingId = (v) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
+  const setEditForm = (v) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
   const TIMEZONES = ['Europe/Madrid', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo', 'Asia/Shanghai']
 
   return (
@@ -1186,11 +1267,9 @@ function OfficesSection() {
                   </select></div>
                 <div style={{ display: 'flex', gap: 6, paddingBottom: 1 }}>
                   <button onClick={() => update({ id: o.id, data: editForm })} disabled={!editForm.name}
-                    style={{ background:'var(--accent)',border:'none',borderRadius:6,padding:'6px 14px',
-                      color:'#fff',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit' }}>✓ Guardar</button>
+                    style={styles.saveBtn}>✓ Guardar</button>
                   <button onClick={() => setEditingId(null)}
-                    style={{ background:'none',border:'1px solid var(--surface-4)',borderRadius:6,
-                      padding:'6px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)" }}>Cancelar</button>
+                    style={styles.cancelBtnSm}>Cancelar</button>
                 </div>
               </div>
             ) : (
@@ -1202,14 +1281,14 @@ function OfficesSection() {
                 </div>
                 <button onClick={() => { setEditingId(o.id); setEditForm({ name:o.name, country:o.country||'', city:o.city||'', timezone:o.timezone||defaultTimezone }) }}
                   style={{ background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'3px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)" }}>✏</button>
-                <button onClick={() => del(o.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                <button onClick={() => del(o.id)} style={styles.btnDelete}>🗑</button>
               </div>
             )}
           </div>
         ))}
         {offices.length === 0 && <EmptyState svgIcon={<Building2 size={36} />} title="Sin sedes registradas" description="Añade la primera sede para tu organización" />}
       </div>
-      <div style={{ display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div style={styles.addPanel10}>
         <div style={{ flex: 2 }}><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre de la sede" aria-label="Nombre de la sede" /></div>
         <div style={{ flex: 1 }}><label style={ls}>País</label><input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} style={fs} placeholder="Pais" aria-label="Pais" /></div>
         <div style={{ flex: 1 }}><label style={ls}>Ciudad</label><input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} style={fs} /></div>
@@ -1228,9 +1307,15 @@ function TaskTypesSection() {
   const { mutate: create } = useMutation({ mutationFn: advancedConfigApi.createTaskType, onSuccess: () => qc.invalidateQueries(['task-types-config']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const { mutate: update } = useMutation({ mutationFn: ({ id, data }) => advancedConfigApi.updateTaskType(id, data), onSuccess: () => { qc.invalidateQueries(['task-types-config']); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const { mutate: del } = useMutation({ mutationFn: advancedConfigApi.deleteTaskType, onSuccess: () => qc.invalidateQueries(['task-types-config']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const [form, setForm] = useState({ name: '', value: '', icon: '📋', color: '#7a8aaa', is_billable_default: true })
-  const [editingId, setEditingId] = useState(null)
-  const [editForm, setEditForm] = useState({ name: '', icon: '📋', color: '#7a8aaa', is_billable_default: true })
+  const [ui, setUi] = useState({
+    form: { name: '', value: '', icon: '📋', color: '#7a8aaa', is_billable_default: true },
+    editingId: null,
+    editForm: { name: '', icon: '📋', color: '#7a8aaa', is_billable_default: true },
+  })
+  const { form, editingId, editForm } = ui
+  const setForm = (v) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
+  const setEditingId = (v) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
+  const setEditForm = (v) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
 
   return (
     <Section icon="🏷️" title="Tipos de tarea" description="Gestiona etiquetas y tipos facturables">
@@ -1257,11 +1342,11 @@ function TaskTypesSection() {
           <div><label style={ls}>Icono</label><input value={editForm.icon} onChange={e => setEditForm(f=>({...f,icon:e.target.value}))} style={{...fs,width:55}} /></div>
           <div><label style={ls}>Color</label><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(editForm.color)?editForm.color:'#7a8aaa'} onChange={e=>setEditForm(f=>({...f,color:e.target.value}))} style={{width:38,height:35,border:'none',background:'transparent',cursor:'pointer'}} /></div>
           <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize: "var(--text-sm)",paddingBottom:4}}><input type="checkbox" checked={editForm.is_billable_default} onChange={e=>setEditForm(f=>({...f,is_billable_default:e.target.checked}))} />Facturable</label>
-          <button onClick={() => update({ id: editingId, data: editForm })} disabled={!editForm.name} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'6px 14px',color:'#fff',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>✓ Guardar</button>
-          <button onClick={() => setEditingId(null)} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'6px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>Cancelar</button>
+          <button onClick={() => update({ id: editingId, data: editForm })} disabled={!editForm.name} style={styles.saveBtn}>✓ Guardar</button>
+          <button onClick={() => setEditingId(null)} style={styles.cancelBtnSm}>Cancelar</button>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div style={styles.addPanel10}>
         <div><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') }))} style={{ ...fs, width: 140 }} placeholder="Nombre" aria-label="Nombre" /></div>
         <div><label style={ls}>Clave</label><input value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} style={{ ...fs, width: 110 }} placeholder="Clave" aria-label="Clave" /></div>
         <div><label style={ls}>Icono</label><input value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} style={{ ...fs, width: 60 }} placeholder="Icono" aria-label="Icono" /></div>
@@ -1281,9 +1366,15 @@ function DepartmentsSection() {
   const { mutate: create } = useMutation({ mutationFn: settingsApi.createDepartment, onSuccess: () => qc.invalidateQueries(['departments']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const { mutate: update } = useMutation({ mutationFn: ({ id, data }) => settingsApi.updateDepartment(id, data), onSuccess: () => { qc.invalidateQueries(['departments']); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const { mutate: del } = useMutation({ mutationFn: settingsApi.deleteDepartment, onSuccess: () => qc.invalidateQueries(['departments']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const [form, setForm] = useState({ name: '', description: '' })
-  const [editingId, setEditingId] = useState(null)
-  const [editForm, setEditForm] = useState({ name: '', description: '' })
+  const [ui, setUi] = useState({
+    form: { name: '', description: '' },
+    editingId: null,
+    editForm: { name: '', description: '' },
+  })
+  const { form, editingId, editForm } = ui
+  const setForm = (v) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
+  const setEditingId = (v) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
+  const setEditForm = (v) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
   return (
     <Section icon="🏢" title="Departamentos" description="Estructura interna de la organizacion">
       {isLoading ? <Spinner /> : (
@@ -1357,8 +1448,10 @@ function MetricsSection() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState(EMPTY_METRIC)
+  const [ui, setUi] = useState({ showCreate: false, form: EMPTY_METRIC })
+  const { showCreate, form } = ui
+  const setShowCreate = (v) => setUi(s => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
+  const setForm = (v) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
   const setF = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const preview = (() => {
@@ -1401,7 +1494,7 @@ function MetricsSection() {
         {customMetrics.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>No hay métricas personalizadas. Crea la primera combinando métricas existentes.</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={styles.colGap8}>
             {customMetrics.map(cm => {
               const f = cm.formula ?? {}
               const la = builtinMetrics.find(m => m.key === f.operand_a)?.label ?? f.operand_a
@@ -1429,7 +1522,7 @@ function MetricsSection() {
 
       {showCreate && (
         <Modal open title="Nueva métrica personalizada" onClose={() => { setShowCreate(false); setForm(EMPTY_METRIC) }} width={500}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={styles.colGap14}>
             <div>
               <label style={ls}>Nombre</label>
               <input value={form.label} onChange={setF('label')} style={fs} placeholder="Ej: Ratio coste-ingreso" />
@@ -1485,7 +1578,7 @@ function MetricsSection() {
                 </div>
               )}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <div style={styles.rowFlexEnd}>
               <Button variant="secondary" onClick={() => { setShowCreate(false); setForm(EMPTY_METRIC) }}>Cancelar</Button>
               <Button onClick={submit} disabled={isCreating}>{isCreating ? 'Creando…' : 'Crear métrica'}</Button>
             </div>
