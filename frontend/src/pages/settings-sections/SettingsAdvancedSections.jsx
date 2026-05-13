@@ -5,6 +5,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { APP_LANGUAGES, loadLanguage, getAllKeys, es } from '../../i18n/appTranslations.mjs'
 import { PORTAL_TRANSLATIONS, PORTAL_LANGUAGES, getPortalKeys } from '../../i18n/portalTranslations'
 import { extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Card } from '../../components/ui'
 import { portalClientsApi, settingsApi } from '../../services/api'
 
@@ -32,7 +33,7 @@ export function IdiomasSection() {
   const { mutate: savePortalTrans, isPending: savingPortal } = useMutation({
     mutationFn: d => portalClientsApi.saveTranslations(d),
     onSuccess: () => { qc.invalidateQueries(['portal-translations']); toast.success(t('i18n.saved_ok')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const [activeTab, setActiveTab] = useState('operator')

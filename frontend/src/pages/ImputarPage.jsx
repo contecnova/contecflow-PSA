@@ -10,6 +10,7 @@ import PageShell from '../components/layout/PageShell'
 import { Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtDate, fmtNumber, extractErr} from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 
 const HOUR_OPTIONS = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8]
@@ -258,7 +259,7 @@ export default function ImputarPage() {
       if (e?.response?.status === 409) {
         setDuplicateError(e?.response?.data?.detail || 'Ya existe una imputación para esta tarea en esa fecha.')
       } else {
-        toast.error(extractErr(e, t('common.error') || 'Error'))
+        toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK))
       }
     },
   })
@@ -296,7 +297,7 @@ export default function ImputarPage() {
       qc.invalidateQueries(['timesheets-team'])
       toast.success(t('imputa_page.updated_ok'))
     },
-    onError: e => toast.error(extractErr(e, t('common.error') || 'Error')),  
+    onError: e => toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK)),  
   })
 
   const { mutate: deleteImp } = useMutation({
@@ -310,7 +311,7 @@ export default function ImputarPage() {
       qc.invalidateQueries(['timesheets-team'])
       toast.success(t('imputa_page.deleted_ok'))
     },
-    onError: e => toast.error(extractErr(e, t('common.error') || 'Error')),  
+    onError: e => toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK)),  
   })
 
   const set = (k) => (v) => {

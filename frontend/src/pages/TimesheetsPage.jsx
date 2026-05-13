@@ -10,6 +10,7 @@ import PageShell from '../components/layout/PageShell'
 import { Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtHours, fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 
 const STATUS_CFG = {
@@ -169,7 +170,7 @@ function ReviewModal({ timesheet, onClose }) {
   const { mutate: review, isPending } = useMutation({
     mutationFn: ({ approved }) => timesheetsApi.review(timesheet.id, { approved, notes }),
     onSuccess: () => { qc.invalidateQueries(['timesheets-pending']); qc.invalidateQueries(['timesheets-team']); qc.invalidateQueries(['timesheets-mine']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (
     <Modal open title={`Revisar: ${timesheet.user_name} · semana ${timesheet.week_start}`} onClose={onClose} width={480}>
@@ -246,7 +247,7 @@ export default function TimesheetsPage() {
   const { mutate: submit, isPending: submitting } = useMutation({
     mutationFn: (weekStart) => timesheetsApi.submit(weekStart),
     onSuccess: () => { qc.invalidateQueries(['timesheets-mine']); qc.invalidateQueries(['timesheets-pending']); qc.invalidateQueries(['dash-hours-week']); },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const dateInRange = (value, from, to) => {

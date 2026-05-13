@@ -8,6 +8,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ScrollText } from 'lucide-react'
 import { fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 
@@ -121,7 +122,7 @@ function ContractFormModal({ contract, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => isEdit ? contractsApi.update(contract.id, data) : contractsApi.create(data),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['contracts']); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['clients']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const submit = () => {
@@ -249,12 +250,12 @@ function ContractDetail({ contract, onClose, onEdit }) {
   const { mutate: createWO } = useMutation({
     mutationFn: (data) => contractsApi.createWorkOrder(contract.id, data),
     onSuccess: () => { woValidation.setErrors({}); qc.invalidateQueries(['contracts']); setShowWO(false); setWoForm({ name: '', amount: '', hours: '', start_date: '', end_date: '' }) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: updateWOStatus } = useMutation({
     mutationFn: ({ woId, status }) => contractsApi.updateWorkOrderStatus(contract.id, woId, status),
     onSuccess: () => qc.invalidateQueries(['contracts']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const cfg = STATUS_CFG[contract.status] || STATUS_CFG.draft

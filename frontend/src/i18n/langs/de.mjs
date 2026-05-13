@@ -1412,5 +1412,8 @@ git_integration: {
     truncated: '(abgeschnitten)',
     results: 'Ergebnisse',
   },
+  errors: {
+    generic: 'Unerwarteter Fehler',
+  },
 };
 export default de;

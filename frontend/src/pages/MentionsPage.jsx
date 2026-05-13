@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mentionsApi } from '../services/api'
@@ -76,13 +77,13 @@ function ThreadedCommentSection({ entityType, entityId, title }) {
   const { mutate:addComment, isPending:adding } = useMutation({
     mutationFn: d=>mentionsApi.createComment(entityType, entityId, d).then(r=>r.data),
     onSuccess: ()=>{ qc.invalidateQueries(['comments',entityType,entityId]); setNewContent(''); setReplyTo(null); setReplyContent('') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate:resolveComment } = useMutation({
     mutationFn: id=>mentionsApi.resolveComment(id),
     onSuccess: ()=>qc.invalidateQueries(['comments',entityType,entityId]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate:deleteComment } = useMutation({
@@ -163,13 +164,13 @@ export default function MentionsPage() {
   const { mutate:markRead } = useMutation({
     mutationFn: id=>mentionsApi.markMentionRead(id),
     onSuccess: ()=>qc.invalidateQueries(['mentions']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate:markAll } = useMutation({
     mutationFn: ()=>mentionsApi.markAllMentionsRead(),
     onSuccess: ()=>qc.invalidateQueries(['mentions']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const normalizedEntityId = demoEntity.trim()

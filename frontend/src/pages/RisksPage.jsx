@@ -9,6 +9,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle } from 'lucide-react'
 import { fmtCurrency, extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
@@ -162,7 +163,7 @@ function RiskFormModal({ risk, projectId, onClose }) {
       ? risksApi.update(projectId, risk.id, data)
       : risksApi.create(projectId, data),
     onSuccess: () => { qc.invalidateQueries(['risks', projectId]); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -272,7 +273,7 @@ export default function RisksPage() {
   const { mutate: deleteRisk } = useMutation({
     mutationFn: ({ projectId, riskId }) => risksApi.delete(projectId, riskId),
     onSuccess: () => qc.invalidateQueries(['risks', selectedProject]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const risks = risksData?.risks || []

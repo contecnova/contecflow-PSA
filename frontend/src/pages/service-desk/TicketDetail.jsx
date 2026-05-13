@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, Spinner, Modal } from '../../components/ui'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import DocumentsPanel from '../../components/DocumentsPanel'
@@ -285,7 +286,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
   const { mutate: addComment, isPending: commenting } = useMutation({
     mutationFn: () => ticketsApi.comment(ticketId, { body: commentText, is_internal: false }),
     onSuccess: () => { invalidate(); setCommentText(''); toast.success(t('service_desk.comment_added')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: suggestReply, isPending: suggestingReply } = useMutation({
     mutationFn: () => ticketsApi.aiSuggest(ticketId, { content: commentText }),
@@ -300,7 +301,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
   const { mutate: logTime, isPending: loggingTime } = useMutation({
     mutationFn: () => ticketsApi.timelog(ticketId, { minutes: Number(timeMin), unit: timeUnit }),
     onSuccess: () => { invalidate(); setTimeMin(''); toast.success(`${timeMin} min`) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: restorePending, isPending: restoringPending } = useMutation({
     mutationFn: () => ticketsApi.restorePending(ticketId),
@@ -310,22 +311,22 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
   const { mutate: updateTicket } = useMutation({
     mutationFn: data => ticketsApi.update(ticketId, data),
     onSuccess: () => { invalidate(); toast.success(t('service_desk.ticket_updated')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: escalate } = useMutation({
     mutationFn: () => ticketsApi.escalate(ticketId),
     onSuccess: () => { invalidate(); toast.success(t('service_desk.ticket_escalated')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: pauseSLA } = useMutation({
     mutationFn: () => ticketsApi.slaPause(ticketId, { note: 'Esperando respuesta del cliente' }),
     onSuccess: () => { invalidate(); qc.invalidateQueries({ queryKey: ['sd-sla-events'] }); toast.success(t('service_desk.sla_paused')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: resumeSLA } = useMutation({
     mutationFn: () => ticketsApi.slaResume(ticketId),
     onSuccess: () => { invalidate(); qc.invalidateQueries({ queryKey: ['sd-sla-events'] }); toast.success(t('service_desk.sla_resumed')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   if (!ticketId) return null

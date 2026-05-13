@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { cmdbApi } from '../services/api'
@@ -154,13 +155,13 @@ function RelationsModal({ item, allItems, onClose }) {
   const { mutate: createRel, isPending } = useMutation({
     mutationFn: () => cmdbApi.createRelation({from_item_id: fromId, to_item_id: toId, rel_type: relType}).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['item-rels', item.id]); setToId('') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: deleteRel } = useMutation({
     mutationFn: id => cmdbApi.deleteRelation(id),
     onSuccess: () => qc.invalidateQueries(['item-rels', item.id]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (

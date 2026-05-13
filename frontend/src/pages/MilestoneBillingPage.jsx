@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { milestonesApi, projectsApi, unwrapList } from '../services/api'
@@ -199,7 +200,7 @@ function NewMilestoneModal({ projectId, onClose, onSave }) {
       billing_pct:    form.billing_pct    ? +form.billing_pct    : null,
     }),
     onSuccess: () => { toast.success('Milestone creado'); onSave() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (

@@ -1417,5 +1417,8 @@ sprint_planning: {
     truncated: '(truncado)',
     results: 'resultados',
   },
+  errors: {
+    generic: 'Erro inesperado',
+  },
 };
 export default pt;

@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { scenariosApi } from '../services/api'
@@ -33,17 +34,17 @@ export default function ScenariosPage() {
   const { mutate: create, isPending:creating } = useMutation({
     mutationFn: d => scenariosApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['scenarios']); setShowCreate(false) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: compute, isPending:computing } = useMutation({
     mutationFn: id => scenariosApi.compute(id).then(r=>r.data),
     onSuccess: () => qc.invalidateQueries(['scenario-detail', selected]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: id => scenariosApi.delete(id),
     onSuccess: () => { setSelected(null); qc.invalidateQueries(['scenarios']) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const _RISK_CFG = { low:{ c:'var(--success)', b:'var(--success-bg)', l:'Viable' }, medium:{ c:'var(--warning)', b:'var(--warning-bg)', l:'Riesgo medio' }, high:{ c:'var(--danger)', b:'var(--danger-bg)', l:'Inviable' } }

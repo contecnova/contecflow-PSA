@@ -4,6 +4,7 @@
  */
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { predictionsApi } from '../services/api'
@@ -221,7 +222,7 @@ export default function RiskScoresPage() {
   const { mutate: refresh, isPending:refreshing } = useMutation({
     mutationFn: () => api.get('/risk-scores?refresh=true').then(r=>r.data),
     onSuccess: () => qc.invalidateQueries(['risk-scores']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const projects = response?.projects || []

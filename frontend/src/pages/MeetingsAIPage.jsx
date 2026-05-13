@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { meetingsAIApi } from '../services/api'
@@ -137,7 +138,7 @@ export default function MeetingsAIPage() {
   const { mutate: createTasks, isPending: creating } = useMutation({
     mutationFn: id => meetingsAIApi.createTasks(id).then(r => r.data),
     onSuccess: data => { qc.invalidateQueries(['ai-meeting', selected]); toast.success(`✅ ${data.tasks_created} tareas creadas en Contecflow`) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const platCfg = p => PLATFORMS.find(x => x.id === p) || PLATFORMS[PLATFORMS.length - 1]

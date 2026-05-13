@@ -3,6 +3,7 @@
  */
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mfaApi } from '../services/api'
@@ -34,7 +35,7 @@ export default function MFAPage() {
   const { mutate: setup, isPending: setting } = useMutation({
     mutationFn: () => mfaApi.setup().then(r => r.data),
     onSuccess: data => { setSetupData(data); setStep('setup') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: verify, isPending: verifying, isError: verifyError } = useMutation({
     mutationFn: code => mfaApi.verify(code),
@@ -43,12 +44,12 @@ export default function MFAPage() {
       setStep('done')
       qc.invalidateQueries(['mfa-status'])
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: disable, isPending: disabling } = useMutation({
     mutationFn: code => mfaApi.disable(code),
     onSuccess: () => { setShowDisable(false); setDisableCode(''); qc.invalidateQueries(['mfa-status']) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   if (isLoading) return <PageShell><Spinner /></PageShell>

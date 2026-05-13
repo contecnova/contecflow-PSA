@@ -1,6 +1,7 @@
 import { CHART } from '../constants/theme'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useEffect, useRef, useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useDocCollab } from '../hooks/useDocCollab'
@@ -363,12 +364,12 @@ function WikiTagsInline() {
       setShowForm(false); setEditing(null); setForm({ name: '', color: 'var(--accent)' })
       toast.success(editing ? 'Etiqueta actualizada' : 'Etiqueta creada')
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: id => wikiApi.deleteTag(id),
     onSuccess: () => { qc.invalidateQueries(['wiki-tags-inline', space]); toast.success('Etiqueta eliminada') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const COLORS = ['var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--purple)','var(--warning)','var(--accent)',CHART.pink]
@@ -475,7 +476,7 @@ export default function WikiPage() {
   const { mutate:createSpace,isPending:cSpace } = useMutation({
     mutationFn: d=>wikiApi.createSpace(d).then(r=>r.data),
     onSuccess: ()=>{qc.invalidateQueries(['wiki-spaces']);setSpaceModal(false);setSpaceForm({name:'',slug:'',description:'',project_id:'',is_public:false})},
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate:restoreVersion, isPending:restoring } = useMutation({
     mutationFn: (vn)=>wikiApi.restorePage(page.id, vn).then(r=>r.data),

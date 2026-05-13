@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { cmdbApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
@@ -107,7 +108,7 @@ export default function CMDBTab() {
   const { mutate: update } = useMutation({
     mutationFn: ({ id, ...d }) => cmdbApi.sdUpdate(id, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-cmdb'] }); toast.success('CI actualizado') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const CI_TYPES = ['application', 'server', 'database', 'network', 'service', 'module', 'integration', 'other']

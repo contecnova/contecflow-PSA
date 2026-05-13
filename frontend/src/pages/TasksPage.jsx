@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { fmtDate, STATUS_LABELS, PRIORITY_LABELS, extractErr} from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import DocumentsPanel from '../components/DocumentsPanel'
 import AIInlineEditor from '../components/AIInlineEditor'
@@ -229,7 +230,7 @@ function TaskDetailModal({ task, open, onClose }) {
   const { mutate: addComment, isPending: commenting } = useMutation({
     mutationFn: ({ id, content }) => tasksApi.comment(id, { content }),
     onSuccess: () => { qc.invalidateQueries(['tasks']); setComment('') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const analyzeWithAI = async () => {
@@ -1252,7 +1253,7 @@ function CreateTaskModal({ open, onClose, projects }) {
       setCustomValues({})
       setSemSuggestion(null); setSemEffort(null); setPendingSuggestion(null)
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }

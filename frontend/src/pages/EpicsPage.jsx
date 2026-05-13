@@ -1,5 +1,6 @@
 import { CHART_COLORS_EXTENDED, COLOR } from '../constants/theme'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -204,7 +205,7 @@ export default function EpicsPage() {
   const { mutate:deleteEpic } = useMutation({
     mutationFn: id=>epicsApi.delete(id),
     onSuccess:()=>qc.invalidateQueries(['epics',project]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const roadmapEpics = roadmap?.epics || epics

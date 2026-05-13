@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { CHART } from '../../constants/theme'
 import { CLIENT_API, useLang } from './portalClientContext'
 import {
@@ -97,17 +98,17 @@ export function PortalSupportDesk() {
       setDynamicValues({})
       toast.success('Ticket abierto')
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: addComment } = useMutation({
     mutationFn: d => CLIENT_API.post(`/sd/tickets/${selectedId}/comments/client`, d),
     onSuccess: () => qc.invalidateQueries(['portal-sd-ticket', selectedId]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: submitCSAT } = useMutation({
     mutationFn: d => CLIENT_API.post(`/sd/tickets/${selectedId}/csat`, d),
     onSuccess: () => { qc.invalidateQueries(['portal-sd-ticket', selectedId]); toast.success('Gracias por tu valoración') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const pendingClient = tickets.filter(t => t.status === 'pending_client').length

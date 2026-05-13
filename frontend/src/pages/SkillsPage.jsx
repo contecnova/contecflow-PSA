@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { skillsApi } from '../services/api'
@@ -123,12 +124,12 @@ function UserSkillModal({ user, onClose }) {
   const { mutate: addSkill } = useMutation({
     mutationFn: (data) => skillsApi.addUserSkill(user.id, data),
     onSuccess: () => { qc.invalidateQueries(['user-skills', user.id]); qc.invalidateQueries(['skills-matrix']); setForm({ skill_id: '', level: 'basic', years_experience: '', certified: false, cert_name: '', notes: '' }) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: removeSkill } = useMutation({
     mutationFn: (skillId) => skillsApi.removeUserSkill(user.id, skillId),
     onSuccess: () => { qc.invalidateQueries(['user-skills', user.id]); qc.invalidateQueries(['skills-matrix']) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const byCategory = userSkills.reduce((a, s) => { const c = s.category; if (!a[c]) a[c] = []; a[c].push(s); return a }, {})
@@ -388,12 +389,12 @@ export default function SkillsPage() {
   const { mutate: createSkill } = useMutation({
     mutationFn: (data) => skillsApi.createCatalog(data),
     onSuccess: () => qc.invalidateQueries(['skills-catalog']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteSkill } = useMutation({
     mutationFn: (id) => skillsApi.deleteCatalog(id),
     onSuccess: () => qc.invalidateQueries(['skills-catalog']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const [newSkill, setNewSkill] = useState({ name: '', category: 'technical', description: '' })

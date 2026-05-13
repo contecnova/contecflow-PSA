@@ -9,6 +9,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeftRight } from 'lucide-react'
 import { fmtCurrency, extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
@@ -95,7 +96,7 @@ function CRFormModal({ cr, projectId, onClose }) {
       ? projectChangesApi.update(projectId, cr.id, data)
       : projectChangesApi.create(projectId, data),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['changes', projectId]); qc.invalidateQueries(['all-pending-crs']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const submit = () => {
@@ -164,7 +165,7 @@ function ReviewCRModal({ cr, projectId, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: ({ approved, resolution_notes }) => projectChangesApi.review(projectId, cr.id, { approved, resolution_notes }),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['changes', projectId]); qc.invalidateQueries(['all-pending-crs']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const impact = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
 
@@ -223,12 +224,12 @@ function CABBoard() {
   const { mutate: vote, isPending: _saving } = useMutation({
     mutationFn: ({ id, vote, comment }) => cabApi.vote(id, { vote, comment }),
     onSuccess: () => { qc.invalidateQueries(['cab-pending']); qc.invalidateQueries(['changes']); qc.invalidateQueries(['all-pending-crs']); },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: close } = useMutation({
     mutationFn: ({ id, decision }) => cabApi.close(id, { decision }),
     onSuccess: () => { qc.invalidateQueries(['cab-pending']); qc.invalidateQueries(['changes']); qc.invalidateQueries(['all-pending-crs']); },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const IMPACT_CFG = {
@@ -335,17 +336,17 @@ export default function ChangesPage() {
   const { mutate: submit, isPending: saving } = useMutation({
     mutationFn: (cr) => projectChangesApi.submit(cr.project_id, cr.id),
     onSuccess: () => qc.invalidateQueries(['changes', selectedProject]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: implement } = useMutation({
     mutationFn: (cr) => projectChangesApi.implement(cr.project_id, cr.id),
     onSuccess: () => qc.invalidateQueries(['changes', selectedProject]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: (cr) => projectChangesApi.delete(cr.project_id, cr.id),
     onSuccess: () => qc.invalidateQueries(['changes', selectedProject]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const crs = changesData?.change_requests || []

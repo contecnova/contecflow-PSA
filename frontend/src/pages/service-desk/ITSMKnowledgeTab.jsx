@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import RcaWizardModal from '../../components/servicedesk/RcaWizardModal'
 
 import { extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { sdKbApi, problemsApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
@@ -76,7 +77,7 @@ function KnownErrors() {
   const { mutate: updateProblem } = useMutation({
     mutationFn: ({ id, ...data }) => problemsApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-kedb'] }); setEditing(null); toast.success('Error conocido actualizado') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -212,17 +213,17 @@ function Problems() {
   const { mutate: createProblem, isPending: creating } = useMutation({
     mutationFn: data => problemsApi.create(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-problems'] }); setShowModal(false); toast.success('Problema creado') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: updateProblem, isPending: updating } = useMutation({
     mutationFn: ({ id, ...data }) => problemsApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-problems'] }); setEditing(null); toast.success('Problema actualizado') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteProblem } = useMutation({
     mutationFn: id => problemsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-problems'] }); toast.success('Problema eliminado') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: promoteToKE, variables: promotingId } = useMutation({
     mutationFn: id => problemsApi.promoteKnownError(id),
@@ -389,7 +390,7 @@ function KB() {
   const { mutate: toggleStatus } = useMutation({
     mutationFn: ({ id, status }) => sdKbApi.update(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sd-kb'] }),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const IS = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
@@ -448,7 +449,7 @@ function KBArticleModal({ article, onClose, onSaved }) {
   const { mutate, isPending } = useMutation({
     mutationFn: data => isEdit ? sdKbApi.update(article.id, data) : sdKbApi.create(data),
     onSuccess: () => { toast.success(isEdit ? 'Articulo actualizado' : 'Articulo creado'); onSaved() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
   const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalClientsApi, clientsApi } from '../../services/api'
 import { Button, EmptyState, Modal } from '../../components/ui'
 import { extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
 const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
@@ -50,13 +51,13 @@ export function PortalUsersTab({ cid, clientName }) {
   const { mutate: toggle } = useMutation({
     mutationFn: ({ id, active }) => portalClientsApi.update(id, { is_active: active }),
     onSuccess: () => qc.invalidateQueries(['portal-clients-org', cid]),
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const { mutate: resetPwd, isPending: resetting } = useMutation({
     mutationFn: ({ id, password }) => portalClientsApi.update(id, { password }),
     onSuccess: () => { qc.invalidateQueries(['portal-clients-org', cid]); setShowReset(null); setNewPassword('') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: updateUser, isPending: updating } = useMutation({

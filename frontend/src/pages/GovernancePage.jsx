@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { governanceApi, aiProvidersApi } from '../services/api'
@@ -50,7 +51,7 @@ export default function GovernancePage() {
   const { mutate: toggle } = useMutation({
     mutationFn: ({ module, is_enabled }) => governanceApi.update(module, { is_enabled }),
     onSuccess: () => qc.invalidateQueries(['gov-config']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const chartData = stats?.by_module

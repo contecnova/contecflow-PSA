@@ -10,6 +10,7 @@ import PageShell from '../components/layout/PageShell'
 import { Users } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { ROLE_LABELS, extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 
 const ROLES = Object.entries(ROLE_LABELS).map(([v, l]) => ({ value: v, label: l }))
@@ -234,7 +235,7 @@ function EditUserModal({ user, open, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => usersApi.update(userId, data),
     onSuccess: () => { qc.invalidateQueries(['resources']); qc.invalidateQueries(['users']); qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
   const handleSave = () => {
@@ -279,7 +280,7 @@ function SmartMatchTab() {
   const { mutate: search, isPending } = useMutation({
     mutationFn: d => billingSmartMatchApi.match(d).then(r => r.data),
     onSuccess: data => setResults(data),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const addSkill = (skill) => {

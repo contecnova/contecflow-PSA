@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import BiAdvancedViz from '../components/bi/BiAdvancedViz'
 import { fmtCurrency, extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { CHART_COLORS_EXTENDED } from '../constants/theme'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -821,7 +822,7 @@ function ScheduledReportsTab() {
     mutationFn: id => scheduledReportsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries(['scheduled-reps']); toast.success('Informe eliminado') },
 
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const { mutate: runNow, isPending: running } = useMutation({
@@ -837,7 +838,7 @@ function ScheduledReportsTab() {
   const { mutate: toggle } = useMutation({
     mutationFn: ({ id, val }) => scheduledReportsApi.toggle(id, { is_active: val }),
     onSuccess: () => qc.invalidateQueries(['scheduled-reps']),
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const FREQ_LABELS = { daily: 'Diario', weekly: 'Semanal', monthly: 'Mensual' }

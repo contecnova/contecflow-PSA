@@ -10,6 +10,7 @@ import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
 import { Trophy, Plus } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 
 const PERIOD_OPTS = ['Q1','Q2','Q3','Q4','H1','H2','annual']
@@ -63,7 +64,7 @@ function KRRow({ kr, _onCheckin, onDelete }) {
       setShowCheckin(false)
       toast.success('Progreso actualizado')
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const pct = kr.progress ?? 0
@@ -229,7 +230,7 @@ function ObjModal({ obj, onClose }) {
       return isEdit ? okrsApi.update(obj.id, payload) : okrsApi.create(payload)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['okrs'] }); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -336,7 +337,7 @@ function KRModal({ objective, onClose }) {
       return okrsApi.createKR(payload)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['okrs'] }); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -420,13 +421,13 @@ export default function OKRsPage() {
   const { mutate: deleteObj } = useMutation({
     mutationFn: id => okrsApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['okrs'] }),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: deleteKR } = useMutation({
     mutationFn: id => okrsApi.deleteKR(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['okrs'] }),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const totalObjs = objectives.length

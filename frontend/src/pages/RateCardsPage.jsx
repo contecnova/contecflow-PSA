@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { rateCardsApi } from '../services/api'
@@ -38,7 +39,7 @@ function EntryForm({ tableId, entry, onClose }) {
       toast.success(isEdit ? 'Entrada actualizada' : 'Entrada añadida')
       onClose()
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const save = () => {
@@ -119,13 +120,13 @@ function RateTableDetail({ tableId, onBack }) {
     mutationFn: eid => rateCardsApi.deleteEntry(tableId, eid),
     onSuccess: () => { qc.invalidateQueries(['rate-card', tableId]); toast.success('Entrada eliminada') },
 
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const { mutate: duplicate, isPending: duping } = useMutation({
     mutationFn: () => rateCardsApi.duplicate(tableId, { escalation_pct: dupeEsc }),
     onSuccess: () => { qc.invalidateQueries(['rate-cards']); toast.success('Tabla duplicada con escalado'); setShowDupe(false); onBack() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Cargando...</div>
@@ -257,14 +258,14 @@ export default function RateCardsPage() {
       setSelected(res.data.id)
       toast.success('Tabla de tarifas creada')
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: del } = useMutation({
     mutationFn: rateCardsApi.delete,
     onSuccess: () => { qc.invalidateQueries(['rate-cards']); toast.success('Tabla eliminada') },
 
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   if (selected) return <RateTableDetail tableId={selected} onBack={() => setSelected(null)} />

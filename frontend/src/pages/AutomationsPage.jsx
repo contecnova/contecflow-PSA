@@ -5,6 +5,7 @@
 import { useId, useMemo, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, automationsApi, autoWorkflowsApi, workflowsLegacyApi } from '../services/api'
@@ -611,12 +612,12 @@ function WorkflowsTab() {
   const { mutate: update } = useMutation({
     mutationFn: ({ id, data }) => autoWorkflowsApi.update(id, data),
     onSuccess: () => qc.invalidateQueries(['workflows']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: id => autoWorkflowsApi.delete(id),
     onSuccess: () => qc.invalidateQueries(['workflows']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const searchedWorkflows = useMemo(() => {
@@ -750,17 +751,17 @@ export default function AutomationsPage() {
   const { mutate: del } = useMutation({
     mutationFn: id => automationsApi.delete(id),
     onSuccess: () => qc.invalidateQueries(['automations']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: toggle } = useMutation({
     mutationFn: ({ id, active }) => automationsApi.update(id, { is_active: active }),
     onSuccess: () => qc.invalidateQueries(['automations']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: test } = useMutation({
     mutationFn: id => automationsApi.test(id).then(r => r.data),
     onSuccess: (data) => setTestResult(data),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: createFromTemplate } = useMutation({
     mutationFn: tpl => automationsApi.create({
@@ -771,7 +772,7 @@ export default function AutomationsPage() {
       is_global: true,
     }),
     onSuccess: () => { qc.invalidateQueries(['automations']); setShowTemplates(false) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const filtered = filterActive === null ? rules : rules.filter(r => r.is_active === filterActive)

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -75,19 +76,19 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
         toast.success(isEdit ? 'Trabajador actualizado' : 'Trabajador añadido')
       }
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: addSkill, isPending: addingSkill } = useMutation({
     mutationFn: d => enterpriseSubsApi.addWorkerSkill(worker?.id, d),
     onSuccess: () => { qc.invalidateQueries(['sub-workers', subId]); setShowSkillForm(false); setSkillForm({ skill_id: '', level: 'intermediate', years_experience: '', certified: false, cert_name: '' }); toast.success('Skill añadida') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: removeSkill } = useMutation({
     mutationFn: skill_id => enterpriseSubsApi.removeWorkerSkill(worker?.id, skill_id),
     onSuccess: () => { qc.invalidateQueries(['sub-workers', subId]); toast.success('Skill eliminada') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   // group skill catalog by category
@@ -258,7 +259,7 @@ function WorkersPanel({ subId }) {
       qc.invalidateQueries({ queryKey: ['users'] })
       toast.success('Trabajador desactivado')
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   if (isLoading) return <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-2)' }}>Cargando...</div>
@@ -377,25 +378,25 @@ function SubDetail({ sub, onBack }) {
   const { mutate: logHours, isPending: logging } = useMutation({
     mutationFn: d => enterpriseSubsApi.createTimelog(sub.id, d),
     onSuccess: () => { qc.invalidateQueries(['sub-timelogs', sub.id]); setShowTimelog(false); toast.success('Horas registradas') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: createInv, isPending: invoicing } = useMutation({
     mutationFn: d => enterpriseSubsApi.createInvoice(sub.id, d),
     onSuccess: () => { qc.invalidateQueries(['sub-invoices', sub.id]); setShowInvoice(false); toast.success('Factura registrada') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: createAssign, isPending: assigning } = useMutation({
     mutationFn: d => enterpriseSubsApi.createAssignment(sub.id, d),
     onSuccess: () => { qc.invalidateQueries(['sub-assignments', sub.id]); setShowAssign(false); toast.success('Asignación creada') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: updateInvStatus } = useMutation({
     mutationFn: ({ id, status }) => enterpriseSubsApi.updateInvoice(sub.id, id, { status }),
     onSuccess: () => qc.invalidateQueries(['sub-invoices', sub.id]),
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const totalHours    = timelogs.reduce((s, l) => s + l.hours, 0)
@@ -708,7 +709,7 @@ export default function SubcontractorsPage() {
       setSelected(res.data)
       toast.success('Subcontratista creado')
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: update, isPending: updating } = useMutation({
     mutationFn: ({id, ...d}) => enterpriseSubsApi.update(id, d),

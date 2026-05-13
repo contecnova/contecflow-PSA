@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { changesApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../components/ui'
@@ -160,7 +161,7 @@ function NewChangeModal({ onClose, onSaved }) {
   const { mutate, isPending } = useMutation({
     mutationFn: data => changesApi.create(data),
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
   const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -222,7 +223,7 @@ export default function ChangeManagementTab() {
     if (action.action === 'reject') { approve({ id: c.id, approved: false }); return }
     changesApi.update(c.id, { status: action.next })
       .then(() => { qc.invalidateQueries({ queryKey: ['sd-changes'] }); toast.success('Estado actualizado') })
-      .catch(e => toast.error(extractErr(e, 'Error')))
+      .catch(e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)))
   }
 
   return (

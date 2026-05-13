@@ -3084,6 +3084,9 @@ const es = {
     truncated: '(truncado)',
     results: 'resultados',
   },
+  errors: {
+    generic: 'Error inesperado',
+  },
 
 };
 export default es;

@@ -8,6 +8,7 @@ import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
 import { fmtCurrency, extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { resolveWsBase } from '../../utils/wsUtils'
 import { PortalUsersTab } from './PortalUsersTab'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../../components/portal/GovernedConversations'
@@ -65,7 +66,7 @@ export function ProjectsTab({ cid }) {
   const { mutate: unlink } = useMutation({
     mutationFn: pid => clientExtApi.unlinkProject(cid, pid).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['client-projects-linked', cid]); qc.invalidateQueries(['client-projects-available', cid]); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['clients']) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const statusColor = { active: 'var(--success)', planning: 'var(--accent)', on_hold: 'var(--warning)', completed: 'var(--text-2)', cancelled: 'var(--danger)' }
@@ -152,12 +153,12 @@ export function ContactsTab({ cid }) {
   const { mutate: add } = useMutation({
     mutationFn: d => clientExtApi.createContact(cid, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['client-contacts', cid]); setShowAdd(false); setForm({ full_name: '', email: '', phone: '', job_title: '', role: 'other', is_primary: false }) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: remove } = useMutation({
     mutationFn: id => clientExtApi.deleteContact(cid, id),
     onSuccess: () => qc.invalidateQueries(['client-contacts', cid]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const roles = [
@@ -240,12 +241,12 @@ export function LicensesTab({ cid }) {
   const { mutate: link } = useMutation({
     mutationFn: d => clientExtApi.linkLicense(cid, d),
     onSuccess: () => { qc.invalidateQueries(['client-licenses', cid]); qc.invalidateQueries(['alm-licenses']); setShowLink(false); setSelectedLic(''); setLicNote('') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: unlink } = useMutation({
     mutationFn: id => clientExtApi.unlinkLicense(cid, id),
     onSuccess: () => { qc.invalidateQueries(['client-licenses', cid]); qc.invalidateQueries(['alm-licenses']) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const linkedIds = linked.map(l => l.license_id)
@@ -312,12 +313,12 @@ export function ContractsTab({ cid }) {
   const { mutate: link } = useMutation({
     mutationFn: d => clientExtApi.linkContract(cid, d),
     onSuccess: () => { qc.invalidateQueries(['client-contracts', cid]); qc.invalidateQueries(['contracts']); qc.invalidateQueries(['alm-contracts']); setShowLink(false); setSelectedCon('') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: unlink } = useMutation({
     mutationFn: id => clientExtApi.unlinkContract(cid, id),
     onSuccess: () => { qc.invalidateQueries(['client-contracts', cid]); qc.invalidateQueries(['contracts']); qc.invalidateQueries(['alm-contracts']) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const linkedIds = linked.map(l => l.contract_id)
@@ -774,7 +775,7 @@ export function PortalSettingsTab({ cid }) {
   const { mutate: save, isPending: saving } = useMutation({
     mutationFn: d => clientExtApi.updatePortalConfig(cid, d),
     onSuccess: () => { qc.invalidateQueries(['client-portal-cfg', cid]); toast.success('✅ Configuración guardada') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const toggleModule = (mod) => setModules(m => m.includes(mod) ? m.filter(x => x !== mod) : [...m, mod])

@@ -8,6 +8,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Package } from 'lucide-react'
 import { fmtDate, extractErr} from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -73,7 +74,7 @@ function DeliverableFormModal({ del, projectId, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => isEdit ? deliverablesApi.updateInProject(projectId, del.id, data) : deliverablesApi.createForProject(projectId, data),
     onSuccess: () => { qc.invalidateQueries(['deliverables', projectId]); qc.invalidateQueries(['deliverables-overview']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -148,22 +149,22 @@ export default function DeliverablesPage() {
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => deliverablesApi.updateStatus(selectedProject, id, status),
     onSuccess: () => { qc.invalidateQueries(['deliverables', selectedProject]); qc.invalidateQueries(['deliverables-overview']); qc.invalidateQueries(['deliverables-uat']); },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: accept } = useMutation({
     mutationFn: (id) => deliverablesApi.accept(selectedProject, id),
     onSuccess: () => { qc.invalidateQueries(['deliverables', selectedProject]); qc.invalidateQueries(['deliverables-overview']); qc.invalidateQueries(['deliverables-uat']); },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: reject } = useMutation({
     mutationFn: ({ id, reason }) => deliverablesApi.reject(selectedProject, id, reason),
     onSuccess: () => { qc.invalidateQueries(['deliverables', selectedProject]); qc.invalidateQueries(['deliverables-overview']); qc.invalidateQueries(['deliverables-uat']); },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: (id) => deliverablesApi.deleteFromProject(selectedProject, id),
     onSuccess: () => { qc.invalidateQueries(['deliverables', selectedProject]); qc.invalidateQueries(['deliverables-overview']); qc.invalidateQueries(['deliverables-uat']); },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const deliverables = delivData?.deliverables || []

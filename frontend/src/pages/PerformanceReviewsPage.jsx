@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDate } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 
@@ -1385,7 +1386,7 @@ function NewCycleModal({ existingCycles, onClose }) {
       toast.success('Ciclo creado')
       onClose()
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const canCreate = !!form.name.trim() &&
@@ -1840,22 +1841,22 @@ function DevPlanModal({ planId, onClose }) {
   const { mutate: setStatus } = useMutation({
     mutationFn: status => performanceApi.updatePlan(planId, { status }),
     onSuccess: () => { invalidate(); toast.success('Estado actualizado') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: setGoalStatus } = useMutation({
     mutationFn: ({ id, status }) => performanceApi.updateGoal(id, { status }),
     onSuccess: invalidate,
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: addG } = useMutation({
     mutationFn: title => performanceApi.addGoal(planId, { title }),
     onSuccess: () => { invalidate(); setNewGoal('') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: removeG } = useMutation({
     mutationFn: id => performanceApi.deleteGoal(id),
     onSuccess: invalidate,
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   if (isLoading || !plan) return (
@@ -1988,12 +1989,12 @@ export default function PerformanceReviewsPage() {
   const { mutate: activate } = useMutation({
     mutationFn: id => performanceApi.activateCycle(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['perf-cycles'] }),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: closeCycle } = useMutation({
     mutationFn: id => performanceApi.closeCycle(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['perf-cycles'] }),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (

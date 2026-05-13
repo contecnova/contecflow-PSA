@@ -3,6 +3,7 @@
  */
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { organizationsApi, usersApi } from '../services/api'
@@ -78,12 +79,12 @@ export default function OrganizationsPage() {
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => organizationsApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['orgs']); setShowCreate(false) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: toggle } = useMutation({
     mutationFn: ({ id, is_active }) => organizationsApi.update(id, { is_active }),
     onSuccess: () => qc.invalidateQueries(['orgs']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: update, isPending: isUpdating } = useMutation({
     mutationFn: ({ id, data }) => organizationsApi.update(id, data),

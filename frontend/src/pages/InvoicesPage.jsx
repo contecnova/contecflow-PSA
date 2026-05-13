@@ -3,6 +3,7 @@
  */
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -55,12 +56,12 @@ function InvoicesTab() {
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => invoicesApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['invoices']); qc.invalidateQueries(['invoice-summary']); qc.invalidateQueries(['clients']); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['client-invoices']); setShowCreate(false) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => invoicesApi.updateStatus(id, status),
     onSuccess: () => { qc.invalidateQueries(['invoices']); qc.invalidateQueries(['invoice-summary']) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const downloadPdf = async (inv) => {
@@ -87,7 +88,7 @@ function InvoicesTab() {
       setPreviewData(data)
       setForm(f => ({ ...f, client_name: data.client_name || f.client_name, lines: data.lines }))
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const STATUS_CFG = {

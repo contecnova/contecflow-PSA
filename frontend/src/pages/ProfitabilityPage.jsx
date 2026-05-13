@@ -8,6 +8,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TrendingUp } from 'lucide-react'
 import { fmtCurrency, fmtHours, fmtDate, extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
@@ -39,12 +40,12 @@ function MilestoneRow({ m, projectId, onUpdate }) {
   const { mutate: update } = useMutation({
     mutationFn: (data) => profitabilityApi.updateMilestone(projectId, m.id, data),
     onSuccess: () => { qc.invalidateQueries(['profitability-detail', projectId]); if (onUpdate) onUpdate() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: () => profitabilityApi.deleteMilestone(projectId, m.id),
     onSuccess: () => qc.invalidateQueries(['profitability-detail', projectId]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -87,7 +88,7 @@ function ProjectDetail({ projectId, onClose }) {
   const { mutate: addMilestone } = useMutation({
     mutationFn: (d) => profitabilityApi.createMilestone(projectId, d),
     onSuccess: () => { qc.invalidateQueries(['profitability-detail', projectId]); setShowAddMilestone(false); setMsForm({ name: '', due_date: '', billing_amount: '', billing_pct: '', sort_order: 0 }) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   if (isLoading) return <Modal open title="Cargando rentabilidad" onClose={onClose}><Spinner /></Modal>

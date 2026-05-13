@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
@@ -29,32 +30,32 @@ function CatalogConfig() {
   const { mutate: createCat, isPending: creatingCat } = useMutation({
     mutationFn: d => sdCatalogApi.createCategory(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewCat(false); toast.success(t('service_desk.cat_new_title')) },
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: updateCat } = useMutation({
     mutationFn: ({id, ...d}) => sdCatalogApi.updateCategory(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingCat(null); toast.success(t('service_desk.cat_edit_title')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteCat } = useMutation({
     mutationFn: id => sdCatalogApi.deleteCategory(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success(t('common.delete')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: createSvc, isPending: creatingSvc } = useMutation({
     mutationFn: d => sdCatalogApi.createService(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewSvc(false); toast.success(t('service_desk.svc_new_title')) },
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: updateSvc } = useMutation({
     mutationFn: ({id, ...d}) => sdCatalogApi.updateService(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingSvc(null); toast.success(t('service_desk.svc_edit_title')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteSvc } = useMutation({
     mutationFn: id => sdCatalogApi.deleteService(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success(t('common.delete')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
@@ -235,17 +236,17 @@ function SLAConfig() {
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => sdSlaPoliciesApi.create(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setShowNew(false); toast.success(t('service_desk.sla_created')) },
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: update } = useMutation({
     mutationFn: ({id, ...d}) => sdSlaPoliciesApi.update(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setEditing(null); toast.success(t('service_desk.sla_updated')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: remove } = useMutation({
     mutationFn: id => sdSlaPoliciesApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); toast.success(t('service_desk.sla_deleted')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
@@ -367,27 +368,27 @@ function GroupsConfig() {
   const { mutate: createGroup, isPending } = useMutation({
     mutationFn: d => sdGroupsApi.create(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); setShowNew(false); toast.success(t('service_desk.groups_created')) },
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: updateGroup } = useMutation({
     mutationFn: ({id, ...d}) => sdGroupsApi.update(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); setEditing(null); toast.success(t('service_desk.groups_updated')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteGroup } = useMutation({
     mutationFn: id => sdGroupsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); toast.success(t('service_desk.groups_deleted')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: addMember } = useMutation({
     mutationFn: ({gid, uid}) => sdGroupsApi.addMember(gid, uid),
     onSuccess: () => qc.invalidateQueries({queryKey:['sd-groups']}),
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: removeMember } = useMutation({
     mutationFn: ({gid, uid}) => sdGroupsApi.removeMember(gid, uid),
     onSuccess: () => qc.invalidateQueries({queryKey:['sd-groups']}),
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
@@ -509,22 +510,22 @@ function TemplatesConfig() {
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => sdTemplatesApi.create(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); setShowNew(false); toast.success(t('service_desk.templates_created')) },
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: update } = useMutation({
     mutationFn: ({id, ...d}) => sdTemplatesApi.update(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); setEditing(null); toast.success(t('service_desk.templates_updated')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: toggle } = useMutation({
     mutationFn: ({id, is_active}) => sdTemplatesApi.update(id, {is_active}),
     onSuccess: () => qc.invalidateQueries({queryKey:['sd-templates']}),
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: remove } = useMutation({
     mutationFn: id => sdTemplatesApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); toast.success(t('service_desk.templates_deleted')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
@@ -765,12 +766,12 @@ export function AnnouncementsConfig() {
   const { mutate: create, isPending: creating } = useMutation({
     mutationFn: d => sdAnnouncementsApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['sd-announcements']); setShowCreate(false); setForm({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' }); toast.success(t('service_desk.ann_published')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: id => sdAnnouncementsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries(['sd-announcements']); toast.success(t('service_desk.ann_deactivated')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (

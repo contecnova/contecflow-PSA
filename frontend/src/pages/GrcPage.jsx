@@ -19,6 +19,7 @@ import PageShell from '../components/layout/PageShell'
 import { ShieldCheck } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 
 // ── Catálogo de módulos, acciones y roles ────────────────────────────────────
@@ -212,7 +213,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? grcApi.updateSodRule(rule.id, d) : grcApi.createSodRule(d),
     onSuccess: () => { qc.invalidateQueries(['grc-sod-rules']); qc.invalidateQueries(['grc-sod-check']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const toggleRole = r => setForm(f => ({
@@ -325,12 +326,12 @@ function SodTab({ roles }) {
   const { mutate: del } = useMutation({
     mutationFn: id => grcApi.deleteSodRule(id),
     onSuccess: () => { qc.invalidateQueries(['grc-sod-rules']); qc.invalidateQueries(['grc-sod-check']) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: toggle } = useMutation({
     mutationFn: ({ id, active }) => grcApi.updateSodRule(id, { is_active: active }),
     onSuccess: () => qc.invalidateQueries(['grc-sod-rules']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const violations = checkData?.violations || []
@@ -441,7 +442,7 @@ function ViolationsTab() {
   const { mutate: resolve } = useMutation({
     mutationFn: ({ id, note }) => grcApi.resolveViolation(id, { resolution_note: note }),
     onSuccess: () => { qc.invalidateQueries(['grc-violations']); toast.success('Violación marcada como resuelta') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (

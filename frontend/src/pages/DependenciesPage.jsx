@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, tasksApi, taskDependenciesApi } from '../services/api'
@@ -237,7 +238,7 @@ export default function DependenciesPage() {
   const { mutate: deleteEdge } = useMutation({
     mutationFn: id => taskDependenciesApi.delete(id),
     onSuccess: () => qc.invalidateQueries(['task-deps', project]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const taskMap = useMemo(() => Object.fromEntries(tasks.map(t => [t.id, t])), [tasks])

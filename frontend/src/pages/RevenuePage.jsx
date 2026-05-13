@@ -4,6 +4,7 @@
  */
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, revenueRecognitionApi, revenueApi } from '../services/api'
@@ -64,7 +65,7 @@ function ObligationsPanel({ contractId, onClose, currency }) {
   const { mutate: del } = useMutation({
     mutationFn: id => revenueRecognitionApi.deleteObligation(id),
     onSuccess: () => qc.invalidateQueries(['asc606-obligations', contractId]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -203,7 +204,7 @@ export default function RevenuePage() {
   const { mutate: createRule, isPending:creating } = useMutation({
     mutationFn: d => revenueApi.createRule(d),
     onSuccess: () => { qc.invalidateQueries(['rev-rules']); setShowCreate(false) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: _autoCompute, isPending: _autoComputing } = useMutation({
     mutationFn: () => revenueApi.autoCompute(computePeriod),
@@ -211,12 +212,12 @@ export default function RevenuePage() {
       qc.invalidateQueries(['revenue-rules'])
       toast.success(`Auto-compute: ${res.data.total_recognised?.toLocaleString('es-ES', {style:'currency',currency})} reconocidos`)
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: compute, isPending:computing } = useMutation({
     mutationFn: ({ id, period }) => revenueApi.compute(id, period),
     onSuccess: () => { qc.invalidateQueries(['rev-rules']); qc.invalidateQueries(['rev-summary']); setShowCompute(null) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   // ── New ASC 606 mutations ──────────────────────────────────────────────────
@@ -242,7 +243,7 @@ export default function RevenuePage() {
   const { mutate: reopenPeriodMut } = useMutation({
     mutationFn: ({ year, month }) => revenueRecognitionApi.reopenPeriod(year, month),
     onSuccess: () => { qc.invalidateQueries(['asc606-period-closes']); toast.success('Período reabierto') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: runMonthly, isPending: runningMonthly } = useMutation({
     mutationFn: d => revenueRecognitionApi.runMonthly(d),
@@ -251,7 +252,7 @@ export default function RevenuePage() {
       const r = res.data.recognized
       toast.success(`Reconocimiento completado: T&M ${fmt(r?.over_time)}, Línea recta ${fmt(r?.straight_line)}`)
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   // ── Chart data ─────────────────────────────────────────────────────────────

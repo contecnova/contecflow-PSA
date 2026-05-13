@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, Modal } from '../../components/ui'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import { useFormValidation } from '../../hooks/useFormValidation'
@@ -155,7 +156,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
       onCreated?.(res.data)
       onClose()
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const previewImport = useMutation({

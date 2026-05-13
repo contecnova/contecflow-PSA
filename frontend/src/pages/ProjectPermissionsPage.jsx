@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, permissionsApi } from '../services/api'
@@ -141,7 +142,7 @@ export default function ProjectPermissionsPage() {
   const { mutate: revoke } = useMutation({
     mutationFn: pid => permissionsApi.delete(selectedProject, pid),
     onSuccess: () => qc.invalidateQueries(['permissions', selectedProject]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const selectedProj = projects.find(p => p.id === selectedProject)

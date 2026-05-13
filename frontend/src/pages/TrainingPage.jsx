@@ -12,6 +12,7 @@ import PageShell from '../components/layout/PageShell'
 import { BookOpen } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { sanitizeUrl } from '../utils/security'
@@ -40,7 +41,7 @@ function CourseModal({ course, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? trainingApi.updateCourse(course.id, d) : trainingApi.createCourse(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['training-courses'] }); onClose() },
-    onError: e => toast.error(extractErr(e,'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar curso' : 'Nuevo curso'} width={520}>
@@ -85,7 +86,7 @@ function CertModal({ cert, userId, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? trainingApi.updateCert(cert.id, d) : trainingApi.createCert(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['training-certs'] }); onClose() },
-    onError: e => toast.error(extractErr(e,'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar certificación' : 'Nueva certificación'} width={500}>

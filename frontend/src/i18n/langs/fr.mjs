@@ -1413,5 +1413,8 @@ sprint_planning: {
     truncated: '(tronqu\u00e9)',
     results: 'r\u00e9sultats',
   },
+  errors: {
+    generic: 'Erreur inattendue',
+  },
 };
 export default fr;

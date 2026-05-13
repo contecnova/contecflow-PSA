@@ -8,6 +8,7 @@ import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import { Search, Layers, Sparkles, Building2 } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSection } from './settings-sections/SettingsAdvancedSections'
 
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
@@ -66,7 +67,7 @@ function GeneralSection() {
   const qc = useQueryClient()
   const toast = useToast()
   const { data: settings = [] } = useQuery({ queryKey: ['settings-general'], queryFn: () => settingsApi.getGeneral().then(r => r.data) })
-  const { mutate: update } = useMutation({ mutationFn: ({ key, value }) => settingsApi.updateSetting(key, value), onSuccess: () => qc.invalidateQueries(['settings-general']) , onError: e => toast.error(extractErr(e, 'Error'))})
+  const { mutate: update } = useMutation({ mutationFn: ({ key, value }) => settingsApi.updateSetting(key, value), onSuccess: () => qc.invalidateQueries(['settings-general']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
   const visible = (settings || []).filter(s => isUserFacingSetting(s.key))
 
@@ -128,10 +129,10 @@ function UsersSection() {
   const { data: departments = [] } = useQuery({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
   const { data: organizations = [] } = useQuery({ queryKey: ['orgs-for-users'], queryFn: () => organizationsApi.list().then(r => r.data) })
   const roleMap = Object.fromEntries(roles.map(r => [r.name, r]))
-  const { mutate: createUser, isPending: creating } = useMutation({ mutationFn: usersApi.create, onSuccess: () => { qc.invalidateQueries(['users']); setShowCreate(false) } , onError: e => toast.error(extractErr(e, 'Error'))})
-  const { mutate: updateUser, isPending: updating } = useMutation({ mutationFn: ({ id, data }) => usersApi.update(id, data), onSuccess: () => { qc.invalidateQueries(['users']); setEditUser(null) } , onError: e => toast.error(extractErr(e, 'Error'))})
-  const { mutate: deactivate } = useMutation({ mutationFn: usersApi.deactivate, onSuccess: () => qc.invalidateQueries(['users']) , onError: e => toast.error(extractErr(e, 'Error'))})
-  const { mutate: deletePermanent } = useMutation({ mutationFn: usersApi.deletePermanent, onSuccess: () => { qc.invalidateQueries(['users']); qc.invalidateQueries(['users-settings']); qc.invalidateQueries(['resources']); } , onError: e => toast.error(extractErr(e, 'Error'))})
+  const { mutate: createUser, isPending: creating } = useMutation({ mutationFn: usersApi.create, onSuccess: () => { qc.invalidateQueries(['users']); setShowCreate(false) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: updateUser, isPending: updating } = useMutation({ mutationFn: ({ id, data }) => usersApi.update(id, data), onSuccess: () => { qc.invalidateQueries(['users']); setEditUser(null) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: deactivate } = useMutation({ mutationFn: usersApi.deactivate, onSuccess: () => qc.invalidateQueries(['users']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: deletePermanent } = useMutation({ mutationFn: usersApi.deletePermanent, onSuccess: () => { qc.invalidateQueries(['users']); qc.invalidateQueries(['users-settings']); qc.invalidateQueries(['resources']); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const filtered = users.filter((u) => {
     const bySearch = !search
       || u.full_name?.toLowerCase().includes(search.toLowerCase())
@@ -352,7 +353,7 @@ function RolesSection() {
   const [editRole, setEditRole] = useState(null)
   const { data: roles = [], isLoading } = useQuery({ queryKey: ['custom-roles'], queryFn: () => advancedConfigApi.getRoles().then(r => r.data) })
   const { data: modules = [] } = useQuery({ queryKey: ['modules-list'], queryFn: () => advancedConfigApi.getModules().then(r => r.data) })
-  const { mutate: deleteRole } = useMutation({ mutationFn: advancedConfigApi.deleteRole, onSuccess: () => qc.invalidateQueries(['custom-roles']) , onError: e => toast.error(extractErr(e, 'Error'))})
+  const { mutate: deleteRole } = useMutation({ mutationFn: advancedConfigApi.deleteRole, onSuccess: () => qc.invalidateQueries(['custom-roles']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
   return (
     <Section icon="🔐" title="Roles y permisos" description="Define accesos avanzados por modulo">
@@ -439,7 +440,7 @@ function AlertConfigSection() {
 
   // — system alert configs (fixed 8 types) —
   const { data: configs = [], isLoading } = useQuery({ queryKey: ['alert-configs'], queryFn: () => advancedConfigApi.getAlertConfigs().then(r => r.data) })
-  const { mutate: update } = useMutation({ mutationFn: ({ type, data }) => advancedConfigApi.updateAlertConfig(type, data), onSuccess: () => qc.invalidateQueries(['alert-configs']), onError: e => toast.error(extractErr(e, 'Error')) })
+  const { mutate: update } = useMutation({ mutationFn: ({ type, data }) => advancedConfigApi.updateAlertConfig(type, data), onSuccess: () => qc.invalidateQueries(['alert-configs']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
 
   // — BI custom alert rules —
   const { data: rulesData = { items: [] } } = useQuery({ queryKey: ['bi-alert-rules'], queryFn: () => biSmartAlertsApi.listRules().then(r => r.data) })
@@ -450,17 +451,17 @@ function AlertConfigSection() {
   const { mutate: createRule, isPending: isCreating } = useMutation({
     mutationFn: biSmartAlertsApi.createRule,
     onSuccess: () => { qc.invalidateQueries(['bi-alert-rules']); setShowCreate(false); setRuleForm(EMPTY_RULE) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: toggleRule } = useMutation({
     mutationFn: ({ id, enabled }) => biSmartAlertsApi.updateRule(id, { enabled }),
     onSuccess: () => qc.invalidateQueries(['bi-alert-rules']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteRule } = useMutation({
     mutationFn: biSmartAlertsApi.deleteRule,
     onSuccess: () => qc.invalidateQueries(['bi-alert-rules']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const EMPTY_RULE = { name: '', metric_key: '', condition: 'threshold_above', threshold: '', severity: 'warning', cooldown_minutes: 60 }
@@ -615,11 +616,11 @@ function RateTablesSection() {
   const toast = useToast()
   const qc = useQueryClient()
   const { data: tables = [], isLoading } = useQuery({ queryKey: ['rate-tables'], queryFn: () => advancedConfigApi.getRateTables().then(r => r.data) })
-  const { mutate: createTable } = useMutation({ mutationFn: advancedConfigApi.createRateTable, onSuccess: () => qc.invalidateQueries(['rate-tables']) , onError: e => toast.error(extractErr(e, 'Error'))})
-  const { mutate: deleteTable } = useMutation({ mutationFn: advancedConfigApi.deleteRateTable, onSuccess: () => qc.invalidateQueries(['rate-tables']) , onError: e => toast.error(extractErr(e, 'Error'))})
-  const { mutate: addEntry } = useMutation({ mutationFn: ({ tableId, data }) => advancedConfigApi.addRateEntry(tableId, data), onSuccess: () => qc.invalidateQueries(['rate-tables']) , onError: e => toast.error(extractErr(e, 'Error'))})
-  const { mutate: deleteEntry } = useMutation({ mutationFn: ({ tableId, entryId }) => advancedConfigApi.deleteRateEntry(tableId, entryId), onSuccess: () => qc.invalidateQueries(['rate-tables']), onError: e => toast.error(extractErr(e, 'Error')) })
-  const { mutate: updateEntry } = useMutation({ mutationFn: ({ tableId, entryId, data }) => advancedConfigApi.updateRateEntry(tableId, entryId, data), onSuccess: () => { qc.invalidateQueries(['rate-tables']); setEditingEntryId(null) }, onError: e => toast.error(extractErr(e, 'Error')) })
+  const { mutate: createTable } = useMutation({ mutationFn: advancedConfigApi.createRateTable, onSuccess: () => qc.invalidateQueries(['rate-tables']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: deleteTable } = useMutation({ mutationFn: advancedConfigApi.deleteRateTable, onSuccess: () => qc.invalidateQueries(['rate-tables']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: addEntry } = useMutation({ mutationFn: ({ tableId, data }) => advancedConfigApi.addRateEntry(tableId, data), onSuccess: () => qc.invalidateQueries(['rate-tables']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: deleteEntry } = useMutation({ mutationFn: ({ tableId, entryId }) => advancedConfigApi.deleteRateEntry(tableId, entryId), onSuccess: () => qc.invalidateQueries(['rate-tables']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: updateEntry } = useMutation({ mutationFn: ({ tableId, entryId, data }) => advancedConfigApi.updateRateEntry(tableId, entryId, data), onSuccess: () => { qc.invalidateQueries(['rate-tables']); setEditingEntryId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const [editingEntryId, setEditingEntryId] = useState(null)
   const [editEntryForm, setEditEntryForm] = useState({ label: '', cost_rate: '', billing_rate: '' })
   const [newTable, setNewTable] = useState({ name: '', applies_to: 'role', is_default: false })
@@ -704,9 +705,9 @@ function VacationSection() {
   const [year, setYear] = useState(currentYear)
   const { data: policies = [] } = useQuery({ queryKey: ['vacation-policies'], queryFn: () => advancedConfigApi.getVacationPolicies().then(r => r.data) })
   const { data: balances = [] } = useQuery({ queryKey: ['vacation-balances', year], queryFn: () => advancedConfigApi.getVacationBalances(year).then(r => r.data) })
-  const { mutate: createPolicy } = useMutation({ mutationFn: advancedConfigApi.createVacationPolicy, onSuccess: () => qc.invalidateQueries(['vacation-policies']) , onError: e => toast.error(extractErr(e, 'Error'))})
-  const { mutate: deletePolicy } = useMutation({ mutationFn: advancedConfigApi.deleteVacationPolicy, onSuccess: () => qc.invalidateQueries(['vacation-policies']) , onError: e => toast.error(extractErr(e, 'Error'))})
-  const { mutate: updateBalance } = useMutation({ mutationFn: ({ userId, days }) => advancedConfigApi.updateVacationBalance(userId, year, days), onSuccess: () => { qc.invalidateQueries(['vacation-balances', year]); qc.invalidateQueries(['vacation-balance-my']); } , onError: e => toast.error(extractErr(e, 'Error'))})
+  const { mutate: createPolicy } = useMutation({ mutationFn: advancedConfigApi.createVacationPolicy, onSuccess: () => qc.invalidateQueries(['vacation-policies']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: deletePolicy } = useMutation({ mutationFn: advancedConfigApi.deleteVacationPolicy, onSuccess: () => qc.invalidateQueries(['vacation-policies']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: updateBalance } = useMutation({ mutationFn: ({ userId, days }) => advancedConfigApi.updateVacationBalance(userId, year, days), onSuccess: () => { qc.invalidateQueries(['vacation-balances', year]); qc.invalidateQueries(['vacation-balance-my']); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const [newPolicy, setNewPolicy] = useState({ name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false })
 
   return (
@@ -773,8 +774,8 @@ function NumberingSection() {
   const toast = useToast()
   const qc = useQueryClient()
   const { data: seqs = [], isLoading } = useQuery({ queryKey: ['numbering-seqs'], queryFn: () => advancedConfigApi.getNumbering().then(r => r.data) })
-  const { mutate: update } = useMutation({ mutationFn: ({ entity, data }) => advancedConfigApi.updateNumbering(entity, data), onSuccess: () => qc.invalidateQueries(['numbering-seqs']) , onError: e => toast.error(extractErr(e, 'Error'))})
-  const { mutate: reset } = useMutation({ mutationFn: advancedConfigApi.resetNumbering, onSuccess: () => qc.invalidateQueries(['numbering-seqs']) , onError: e => toast.error(extractErr(e, 'Error'))})
+  const { mutate: update } = useMutation({ mutationFn: ({ entity, data }) => advancedConfigApi.updateNumbering(entity, data), onSuccess: () => qc.invalidateQueries(['numbering-seqs']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: reset } = useMutation({ mutationFn: advancedConfigApi.resetNumbering, onSuccess: () => qc.invalidateQueries(['numbering-seqs']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const ENTITY_LABELS = { project: 'Proyecto', task: 'Tarea', contract: 'Contrato', opportunity: 'Oportunidad', change_request: 'Control de cambios', deliverable: 'Entregable', risk: 'Riesgo' }
 
   return (
@@ -814,9 +815,9 @@ function CustomFieldsSection() {
   const toast = useToast()
   const qc = useQueryClient()
   const { data: fields = [], isLoading } = useQuery({ queryKey: ['custom-fields'], queryFn: () => advancedConfigApi.getCustomFields().then(r => r.data) })
-  const { mutate: createField } = useMutation({ mutationFn: advancedConfigApi.createCustomField, onSuccess: () => qc.invalidateQueries(['custom-fields']), onError: e => toast.error(extractErr(e, 'Error')) })
-  const { mutate: updateField } = useMutation({ mutationFn: ({ id, data }) => advancedConfigApi.updateCustomField(id, data), onSuccess: () => { qc.invalidateQueries(['custom-fields']); setEditingFieldId(null) }, onError: e => toast.error(extractErr(e, 'Error')) })
-  const { mutate: deleteField } = useMutation({ mutationFn: advancedConfigApi.deleteCustomField, onSuccess: () => qc.invalidateQueries(['custom-fields']), onError: e => toast.error(extractErr(e, 'Error')) })
+  const { mutate: createField } = useMutation({ mutationFn: advancedConfigApi.createCustomField, onSuccess: () => qc.invalidateQueries(['custom-fields']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: updateField } = useMutation({ mutationFn: ({ id, data }) => advancedConfigApi.updateCustomField(id, data), onSuccess: () => { qc.invalidateQueries(['custom-fields']); setEditingFieldId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: deleteField } = useMutation({ mutationFn: advancedConfigApi.deleteCustomField, onSuccess: () => qc.invalidateQueries(['custom-fields']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const [editingFieldId, setEditingFieldId] = useState(null)
   const [editFieldForm, setEditFieldForm] = useState({ name: '', is_required: false, placeholder: '' })
   const [form, setForm] = useState({ entity: 'project', name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' })
@@ -909,7 +910,7 @@ function TemplatesSection() {
   const toast = useToast()
   const qc = useQueryClient()
   const { data: templates = [], isLoading } = useQuery({ queryKey: ['project-templates'], queryFn: () => advancedConfigApi.getTemplates().then(r => r.data) })
-  const { mutate: deleteTemplate } = useMutation({ mutationFn: advancedConfigApi.deleteTemplate, onSuccess: () => qc.invalidateQueries(['project-templates']) , onError: e => toast.error(extractErr(e, 'Error'))})
+  const { mutate: deleteTemplate } = useMutation({ mutationFn: advancedConfigApi.deleteTemplate, onSuccess: () => qc.invalidateQueries(['project-templates']) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const { mutate: createTemplate, isPending: creatingTemplate } = useMutation({
     mutationFn: advancedConfigApi.createTemplate,
     onSuccess: () => {
@@ -1157,9 +1158,9 @@ function OfficesSection() {
   const qc = useQueryClient()
   const { timezone: defaultTimezone } = useOrgSettings()
   const { data: offices = [] } = useQuery({ queryKey: ['offices'], queryFn: () => advancedConfigApi.getOffices().then(r => r.data) })
-  const { mutate: create } = useMutation({ mutationFn: advancedConfigApi.createOffice, onSuccess: () => qc.invalidateQueries(['offices']), onError: e => toast.error(extractErr(e, 'Error')) })
-  const { mutate: update } = useMutation({ mutationFn: ({ id, data }) => advancedConfigApi.updateOffice(id, data), onSuccess: () => { qc.invalidateQueries(['offices']); setEditingId(null) }, onError: e => toast.error(extractErr(e, 'Error')) })
-  const { mutate: del } = useMutation({ mutationFn: advancedConfigApi.deleteOffice, onSuccess: () => qc.invalidateQueries(['offices']), onError: e => toast.error(extractErr(e, 'Error')) })
+  const { mutate: create } = useMutation({ mutationFn: advancedConfigApi.createOffice, onSuccess: () => qc.invalidateQueries(['offices']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: update } = useMutation({ mutationFn: ({ id, data }) => advancedConfigApi.updateOffice(id, data), onSuccess: () => { qc.invalidateQueries(['offices']); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: del } = useMutation({ mutationFn: advancedConfigApi.deleteOffice, onSuccess: () => qc.invalidateQueries(['offices']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const [form, setForm] = useState({ name: '', country: '', city: '', timezone: defaultTimezone })
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({ name: '', country: '', city: '', timezone: defaultTimezone })
@@ -1224,9 +1225,9 @@ function TaskTypesSection() {
   const toast = useToast()
   const qc = useQueryClient()
   const { data: types = [], isLoading } = useQuery({ queryKey: ['task-types-config'], queryFn: () => advancedConfigApi.getTaskTypes().then(r => r.data) })
-  const { mutate: create } = useMutation({ mutationFn: advancedConfigApi.createTaskType, onSuccess: () => qc.invalidateQueries(['task-types-config']), onError: e => toast.error(extractErr(e, 'Error')) })
-  const { mutate: update } = useMutation({ mutationFn: ({ id, data }) => advancedConfigApi.updateTaskType(id, data), onSuccess: () => { qc.invalidateQueries(['task-types-config']); setEditingId(null) }, onError: e => toast.error(extractErr(e, 'Error')) })
-  const { mutate: del } = useMutation({ mutationFn: advancedConfigApi.deleteTaskType, onSuccess: () => qc.invalidateQueries(['task-types-config']), onError: e => toast.error(extractErr(e, 'Error')) })
+  const { mutate: create } = useMutation({ mutationFn: advancedConfigApi.createTaskType, onSuccess: () => qc.invalidateQueries(['task-types-config']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: update } = useMutation({ mutationFn: ({ id, data }) => advancedConfigApi.updateTaskType(id, data), onSuccess: () => { qc.invalidateQueries(['task-types-config']); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: del } = useMutation({ mutationFn: advancedConfigApi.deleteTaskType, onSuccess: () => qc.invalidateQueries(['task-types-config']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const [form, setForm] = useState({ name: '', value: '', icon: '📋', color: '#7a8aaa', is_billable_default: true })
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({ name: '', icon: '📋', color: '#7a8aaa', is_billable_default: true })
@@ -1277,9 +1278,9 @@ function DepartmentsSection() {
   const toast = useToast()
   const qc = useQueryClient()
   const { data = [], isLoading } = useQuery({ queryKey: ['departments'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
-  const { mutate: create } = useMutation({ mutationFn: settingsApi.createDepartment, onSuccess: () => qc.invalidateQueries(['departments']), onError: e => toast.error(extractErr(e, 'Error')) })
-  const { mutate: update } = useMutation({ mutationFn: ({ id, data }) => settingsApi.updateDepartment(id, data), onSuccess: () => { qc.invalidateQueries(['departments']); setEditingId(null) }, onError: e => toast.error(extractErr(e, 'Error')) })
-  const { mutate: del } = useMutation({ mutationFn: settingsApi.deleteDepartment, onSuccess: () => qc.invalidateQueries(['departments']), onError: e => toast.error(extractErr(e, 'Error')) })
+  const { mutate: create } = useMutation({ mutationFn: settingsApi.createDepartment, onSuccess: () => qc.invalidateQueries(['departments']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: update } = useMutation({ mutationFn: ({ id, data }) => settingsApi.updateDepartment(id, data), onSuccess: () => { qc.invalidateQueries(['departments']); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: del } = useMutation({ mutationFn: settingsApi.deleteDepartment, onSuccess: () => qc.invalidateQueries(['departments']), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const [form, setForm] = useState({ name: '', description: '' })
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({ name: '', description: '' })
@@ -1348,12 +1349,12 @@ function MetricsSection() {
   const { mutate: createMetric, isPending: isCreating } = useMutation({
     mutationFn: biSmartAlertsApi.createCustomMetric,
     onSuccess: () => { qc.invalidateQueries(['bi-custom-metrics']); qc.invalidateQueries(['bi-alert-metrics']); setShowCreate(false); setForm(EMPTY_METRIC) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteMetric } = useMutation({
     mutationFn: biSmartAlertsApi.deleteCustomMetric,
     onSuccess: () => { qc.invalidateQueries(['bi-custom-metrics']); qc.invalidateQueries(['bi-alert-metrics']) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const [showCreate, setShowCreate] = useState(false)

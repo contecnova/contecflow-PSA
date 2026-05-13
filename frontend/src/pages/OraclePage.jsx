@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { oracleApi, aiProvidersApi } from '../services/api'
@@ -51,12 +52,12 @@ export default function OraclePage() {
       qc.invalidateQueries(['oracle-preds'])
       setAnalysis(data)
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: ack } = useMutation({
     mutationFn: id => oracleApi.acknowledge(id),
     onSuccess: () => qc.invalidateQueries(['oracle-preds']),
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const filtered = filter === 'all' ? preds : preds.filter(p => p.severity === filter)

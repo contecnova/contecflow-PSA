@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, Spinner, Modal, useSort, SortableTH } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
 import { majorIncidentsApi } from '../../services/api'
@@ -16,7 +17,7 @@ function DeclareMIModal({ onClose, onSaved }) {
   const { mutate, isPending } = useMutation({
     mutationFn: data => majorIncidentsApi.create(data),
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
   const IS = {

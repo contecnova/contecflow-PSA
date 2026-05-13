@@ -3,6 +3,7 @@
  */
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { budgetsApi } from '../services/api'
@@ -57,17 +58,17 @@ export default function BudgetsPage() {
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => budgetsApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['budgets']); setShowCreate(false); createValidation.setErrors({}) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: updateEntry } = useMutation({
     mutationFn: ({ id, month, data }) => budgetsApi.updateEntry(id, month, data),
     onSuccess: () => { qc.invalidateQueries(['budgets']); setEditEntry(null); entryValidation.setErrors({}) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: approve } = useMutation({
     mutationFn: id => budgetsApi.approve(id),
     onSuccess: () => qc.invalidateQueries(['budgets']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const _sel = selected ? budgets.find(b => b.id === selected) : null

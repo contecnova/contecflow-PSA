@@ -6,6 +6,7 @@
  */
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -162,7 +163,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
   const { mutate: deletePlan } = useMutation({
     mutationFn: id => capacityApi.deletePlan(id),
     onSuccess: () => { qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); toast.success('Asignación eliminada') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (

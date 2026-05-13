@@ -384,5 +384,8 @@ const pl = {
     truncated: '(skr\u00f3cono)',
     results: 'wyniki',
   },
+  errors: {
+    generic: 'Nieoczekiwany błąd',
+  },
 };
 export default pl;

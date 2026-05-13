@@ -1413,5 +1413,8 @@ git_integration: {
     truncated: '(troncato)',
     results: 'risultati',
   },
+  errors: {
+    generic: 'Errore imprevisto',
+  },
 };
 export default it;

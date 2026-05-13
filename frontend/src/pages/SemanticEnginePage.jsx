@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { semanticApi, usersApi } from '../services/api'
@@ -46,7 +47,7 @@ function ProfileModal({ user, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => semanticApi.createProfile(d),
     onSuccess: () => { qc.invalidateQueries(['sem-profiles']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -244,7 +245,7 @@ export default function SemanticEnginePage() {
       setOpStatus({ type: 'done', startedAt: null })
     },
     onError: e => {
-      toast.error(extractErr(e, 'Error'))
+      toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
       setOpStatus({ type: 'failed', startedAt: null })
     },
   })
@@ -256,7 +257,7 @@ export default function SemanticEnginePage() {
       setOpStatus({ type: 'done', startedAt: null })
     },
     onError: e => {
-      toast.error(extractErr(e, 'Error'))
+      toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
       setOpStatus({ type: 'failed', startedAt: null })
     },
   })

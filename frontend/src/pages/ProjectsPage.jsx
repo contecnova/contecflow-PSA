@@ -18,6 +18,7 @@ import {
 import GanttChart from '../components/GanttChart'
 import DocumentsPanel from '../components/DocumentsPanel'
 import { fmtDate, fmtCurrency, TYPE_LABELS, extractErr} from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { BILLING_TYPES } from '../constants/api'
 import { useAuth } from '../context/AuthContext'
 import { useColVisibility } from '../components/ui/ColVisibility'
@@ -473,7 +474,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
   const { mutate: removeMember } = useMutation({
     mutationFn: memberId => projectsApi.removeMember(project.id, memberId),
     onSuccess: () => { qc.invalidateQueries(['project-members', project.id]); qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   if (!project || !detail) return null
@@ -792,7 +793,7 @@ function TemplatesTab() {
       toast.success(`✓ Proyecto creado: ${data.project_code} — ${data.project_name}\\n${data.phases_created} fases · ${data.tasks_created} tareas`)
       setInstantiating(null)
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const [newTpl, setNewTpl] = useState({ name:'', description:'', project_type:'consulting', estimated_weeks:12, phases:[{name:'Fase 1',duration_weeks:4,tasks:[{title:'Tarea inicial',estimated_hours:8,priority:'medium'}]}] })
@@ -800,7 +801,7 @@ function TemplatesTab() {
   const { mutate: createTpl, isPending: creatingTpl } = useMutation({
     mutationFn: d => templatesApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['project-templates']); setShowCreate(false) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const TPL_ICONS = { consulting:'🏢', development:'💻', maintenance:'🔧', rd:'🔬', internal:'🏠' }
@@ -948,7 +949,7 @@ export default function ProjectsPage() {
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => projectsApi.update(id, { status }),
     onSuccess: () => qc.invalidateQueries(['projects']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const filtered = projects.filter(p => !typeFilter || p.project_type === typeFilter)

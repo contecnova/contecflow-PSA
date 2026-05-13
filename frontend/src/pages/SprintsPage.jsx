@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -318,37 +319,37 @@ export default function SprintsPage() {
   const { mutate: createSprint, isPending: creatingS } = useMutation({
     mutationFn: d => projectSprintsApi.create(selectedProject, d),
     onSuccess: () => { inv(['sprints']); setShowCreateSprint(false); setSprintForm({ name: '', goal: '', start_date: '', end_date: '' }) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: startSprint } = useMutation({
     mutationFn: id => projectSprintsApi.start(selectedProject, id),
     onSuccess: () => inv(['sprints']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: closeSprint } = useMutation({
     mutationFn: id => projectSprintsApi.close(selectedProject, id),
     onSuccess: () => inv(['sprints', 'backlog']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: _updateSprint } = useMutation({
     mutationFn: ({ id, data }) => projectSprintsApi.update(selectedProject, id, data),
     onSuccess: () => inv(['sprints']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: addTasksToSprint } = useMutation({
     mutationFn: ({ sprintId, taskIds }) => projectSprintsApi.addTasks(selectedProject, sprintId, taskIds),
     onSuccess: () => { inv(['sprints', 'backlog']); setShowAddTasks(false) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: removeTask } = useMutation({
     mutationFn: ({ sprintId, taskId }) => projectSprintsApi.removeTask(selectedProject, sprintId, taskId),
     onSuccess: () => inv(['sprints', 'backlog']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: updateTaskStatus } = useMutation({
     mutationFn: ({ taskId, status }) => tasksApi.update(taskId, { status }),
     onSuccess: () => inv(['sprints']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const [selectedBacklogTasks, setSelectedBacklogTasks] = useState([])

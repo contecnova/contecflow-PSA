@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, projectWorkflowsApi } from '../services/api'
@@ -38,7 +39,7 @@ function StateForm({ projectId, state, onClose }) {
       ? projectWorkflowsApi.updateState(projectId, state.id, d).then(r => r.data)
       : projectWorkflowsApi.createState(projectId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['workflow', projectId]); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -111,7 +112,7 @@ function TransitionForm({ projectId, states, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => projectWorkflowsApi.createTransition(projectId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['workflow', projectId]); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -186,7 +187,7 @@ export default function WorkflowsPage() {
   const { mutate: initWorkflow, isPending: isIniting } = useMutation({
     mutationFn: () => projectWorkflowsApi.init(selectedProject).then(r => r.data),
     onSuccess: () => qc.invalidateQueries(['workflow', selectedProject]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: deleteState } = useMutation({
@@ -198,7 +199,7 @@ export default function WorkflowsPage() {
   const { mutate: deleteTransition } = useMutation({
     mutationFn: tid => projectWorkflowsApi.deleteTransition(selectedProject, tid),
     onSuccess: () => qc.invalidateQueries(['workflow', selectedProject]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: resetWorkflow, isPending: isResetting } = useMutation({

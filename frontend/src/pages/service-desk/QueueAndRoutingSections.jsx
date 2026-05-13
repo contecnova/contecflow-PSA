@@ -6,6 +6,7 @@ import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../c
 import { COLOR } from '../../constants/theme'
 import { useAppT } from '../../i18n/AppLangContext'
 import { extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
 const PRIORITY_COLOR = {
   p1_critical: COLOR.danger,
@@ -282,7 +283,7 @@ function DeclareMIModal({ onClose, onSaved }) {
   const { mutate, isPending } = useMutation({
     mutationFn: data => sdRoutingApi.createMajorIncident(data),
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
   const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -337,12 +338,12 @@ export function RoutingRules() {
   const { mutate: toggleRule } = useMutation({
     mutationFn: ({ id, is_active }) => sdRoutingApi.update(id, { is_active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sd-routing-rules'] }),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteRule } = useMutation({
     mutationFn: id => sdRoutingApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-routing-rules'] }); toast.success(t('service_desk.routing_rule_deleted')) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -462,7 +463,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
       ? sdRoutingApi.update(rule.id, data)
       : sdRoutingApi.create(data),
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const IS = {

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, epicsApi, epicDependenciesApi } from '../services/api'
@@ -232,7 +233,7 @@ export default function EpicGanttPage() {
   const { mutate: deleteDep } = useMutation({
     mutationFn: id => epicDependenciesApi.delete(id),
     onSuccess: () => { qc.invalidateQueries(['epic-deps', project]); qc.invalidateQueries(['epic-gantt', project]) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const epics = roadmap?.epics || []

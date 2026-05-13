@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { slaCalendarsApi } from '../services/api'
@@ -133,7 +134,7 @@ function HolidaysModal({ cal, onClose }) {
   const { mutate: delH } = useMutation({
     mutationFn: id => slaCalendarsApi.deleteHoliday(cal.id, id),
     onSuccess: () => qc.invalidateQueries(['holidays', cal.id]),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const checkBusinessDay = async () => {

@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -133,7 +134,7 @@ function ExpenseModal({ expense, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? expensesApi.updateMy(expense.id, d) : expensesApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['expenses-my']); qc.invalidateQueries(['expenses-pending']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -252,7 +253,7 @@ function ReviewModal({ expense, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => expensesApi.review(expense.id, d),
     onSuccess: () => { qc.invalidateQueries(['expenses-pending']); qc.invalidateQueries(['expenses-team']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (
     <Modal open title={`Revisar gasto — ${expense.code}`} onClose={onClose} width={480}>
@@ -325,17 +326,17 @@ function MyExpenses() {
   const { mutate: submit, isPending: saving } = useMutation({
     mutationFn: id => expensesApi.submitMy(id),
     onSuccess: () => { qc.invalidateQueries(['expenses-my']); qc.invalidateQueries(['expenses-pending']); },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: recall } = useMutation({
     mutationFn: id => expensesApi.recall(id),
     onSuccess: () => { qc.invalidateQueries(['expenses-my']); qc.invalidateQueries(['expenses-pending']); },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: id => expensesApi.deleteMy(id),
     onSuccess: () => qc.invalidateQueries(['expenses-my']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const total = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
@@ -450,7 +451,7 @@ function PendingApproval() {
   const { mutate: _reimburse } = useMutation({
     mutationFn: id => expensesApi.reimburse(id),
     onSuccess: () => qc.invalidateQueries(['expenses-pending']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -533,7 +534,7 @@ function TeamExpenses() {
   const { mutate: reimburse } = useMutation({
     mutationFn: id => expensesApi.reimburse(id),
     onSuccess: () => qcTeam.invalidateQueries(['expenses-team']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (

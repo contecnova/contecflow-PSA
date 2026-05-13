@@ -361,6 +361,9 @@ const zh = {
     truncated: '(已截断)',
     results: '结果',
   },
+  errors: {
+    generic: '意外错误',
+  },
 
 };
 export default zh;

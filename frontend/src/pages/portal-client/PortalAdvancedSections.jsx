@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconCR } from '../../components/ui/FRCRIcons'
 import { ClientGovernedConversationInbox } from '../../components/portal/GovernedConversations'
@@ -337,12 +338,12 @@ export function PortalFeatureRequests() {
   const { mutate: withdrawFR, isPending: withdrawingFr } = useMutation({
     mutationFn: ({ id }) => CLIENT_API.post(`/portal/feature-requests/${id}/withdraw`, {}),
     onSuccess: () => { qc.invalidateQueries(['portal-frs-client']); toast.success('Solicitud retirada') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: decide } = useMutation({
     mutationFn: ({ id, approved, reason }) => CLIENT_API.post(`/portal/feature-requests/${id}/decide`, { approved, reason }),
     onSuccess: () => { qc.invalidateQueries(['portal-frs-client']); toast.success('Decisión registrada') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const openEdit = (fr) => {

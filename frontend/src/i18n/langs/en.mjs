@@ -2503,6 +2503,9 @@ const en = {
     truncated: '(truncated)',
     results: 'results',
   },
+  errors: {
+    generic: 'Unexpected error',
+  },
 
 };
 export default en;
