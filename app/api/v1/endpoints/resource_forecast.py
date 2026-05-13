@@ -74,12 +74,6 @@ def forecast_heatmap(
     # Usuarios activos
     users = get_forecast_active_users(db, department=department)
 
-    # Proyectos pipeline (won/negotiation) para incluir carga futura estimada
-    try:
-        from app.models.pipeline import Opportunity  # noqa: F401 — import kept for future use
-    except Exception:
-        pass
-
     result_users = []
     for u in users:
         capacity = u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS

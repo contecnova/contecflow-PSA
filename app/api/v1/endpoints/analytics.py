@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
-from app.api.v1.endpoints.analytics_legacy_metrics import LEGACY_METRIC_IDS, run_legacy_metric
+# Legacy metrics fully migrated to MODULAR_METRICS_REGISTRY — see #109/#104.
 # New modular metrics system
 from app.services.metrics import METRICS_REGISTRY as MODULAR_METRICS_REGISTRY
 from app.services import analytics_service as _svc
@@ -863,19 +863,7 @@ def _filtered_project_ids(db, current_user, *, project_id, project_type, client_
                                           project_id=project_id, project_type=project_type, client_id=client_id)
 
 
-# Build METRIC_REGISTRY: combine modular metrics + legacy metrics (for transition period)
 METRIC_REGISTRY = dict(MODULAR_METRICS_REGISTRY)
-
-# Add legacy metrics that haven't been migrated yet
-def _build_legacy_metric_handler(metric_id: str):
-    def _handler(**kwargs):
-        rows, meta_patch = run_legacy_metric(metric_id, **kwargs)
-        return rows, meta_patch
-    return _handler
-
-for _legacy_metric_id in LEGACY_METRIC_IDS:
-    if _legacy_metric_id not in METRIC_REGISTRY:
-        METRIC_REGISTRY[_legacy_metric_id] = _build_legacy_metric_handler(_legacy_metric_id)
 
 
 @router.get("/query/{metric_id}", summary="Ejecutar consulta analítica")

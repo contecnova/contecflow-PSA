@@ -57,21 +57,6 @@ def remove_user_from_org(
             raise HTTPException(404, msg[4:])
         raise HTTPException(400, msg)
 
-# Local aliases kept for backward compatibility with any tests that patch these names
-def _get_totp_lib():
-    return _svc.get_totp_lib()
-
-def _send_slack_message(config, text, channel=None):
-    return _svc.send_slack_message(config, text, channel)
-
-def _budget_by_dept(budgets):
-    return _svc.budget_by_dept(budgets)
-
-def _generate_pdf(export_type, source_id, params, db):
-    return _svc.generate_pdf(export_type, source_id, params, db)
-
-def _verify_bi_token(token, db):
-    return _svc.verify_bi_token(token, db)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

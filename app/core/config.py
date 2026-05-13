@@ -331,6 +331,19 @@ class Settings(BaseSettings):
         insecure = {"contecflow-secret-key-change-in-production-min32chars!!", "REPLACE_ME", "change-me"}
         if v in insecure or v.startswith("REPLACE_ME") or v.upper().startswith("CHANGE_ME"):
             raise ValueError("SECRET_KEY must be changed from the default value before running")
+        # Heurística simple de entropía: rechazar valores con baja variedad
+        # de caracteres (típico de secrets generados a mano como "aaaa...").
+        # Un secret hex/base64 generado con `secrets.token_hex` debería tener
+        # al menos 10 caracteres únicos en sus primeros 32 bytes.
+        unique_chars = len(set(v[:64]))
+        if unique_chars < 10:
+            raise ValueError(
+                f"SECRET_KEY entropy is too low (only {unique_chars} unique chars). "
+                "Generate with: python -c 'import secrets; print(secrets.token_hex(32))'"
+            )
+        # Rechazar patrones obvios: secuencias repetidas o todos iguales.
+        if len(set(v)) == 1:
+            raise ValueError("SECRET_KEY cannot be a single repeated character")
         return v
 
     @field_validator("ENVIRONMENT")
