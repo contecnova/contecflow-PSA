@@ -34,6 +34,9 @@ class ProjectRisk(str, enum.Enum):
 
 
 class Project(Base):
+    """Proyecto: entidad principal de planificación. Agrupa fases,
+    tareas, miembros, imputaciones y presupuesto. Soporta multi-tenancy
+    por organización y diferentes modos de facturación."""
     __tablename__ = "projects"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -115,6 +118,8 @@ class Project(Base):
 
 
 class ProjectPhase(Base):
+    """Fase dentro de un proyecto. Permite dividir el trabajo en bloques
+    cronológicos con su propio presupuesto de horas y rango de fechas."""
     __tablename__ = "project_phases"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

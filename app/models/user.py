@@ -24,6 +24,7 @@ class UserStatus(str, enum.Enum):
 
 
 class UserOrganizationMembership(Base):
+    """Relación N:N entre usuarios y organizaciones (multi-tenancy)."""
     __tablename__ = "user_organization_memberships"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -40,6 +41,9 @@ class UserOrganizationMembership(Base):
 
 
 class User(Base):
+    """Usuario del sistema. Incluye perfil, rol, capacidad semanal,
+    coste interno, configuración SSO/MFA y pertenencia a una o varias
+    organizaciones."""
     __tablename__ = "users"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
