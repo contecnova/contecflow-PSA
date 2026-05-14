@@ -6,7 +6,7 @@ from datetime import date, timedelta, datetime, timezone, time
 import logging
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, and_
 
 from app.core.config import settings
 from app.models.alert import Alert, AlertType, AlertSeverity
@@ -277,25 +277,35 @@ def get_alerts_query(db: Session, resolved: bool, severity, current_user: User):
 def _scope_alert_to_org(db: Session, q, current_user):
     """Audit #62 — restrict an Alert query to the current user's organization.
 
-    Alerts have no direct organization_id; we scope via Alert.user_id /
-    Alert.project_id against the orgs's users/projects.
+    Alert.organization_id (añadido en migración 076) es la fuente primaria
+    de tenant. Como fallback (alertas legacy creadas antes de la migración),
+    también aceptamos alertas asociadas a usuarios/proyectos de la org.
     """
     if current_user is None:
         return q
     if getattr(current_user, "is_superadmin", False):
         return q
-    if not getattr(current_user, "organization_id", None):
+    org_id = getattr(current_user, "organization_id", None)
+    if not org_id:
         return q
     org_user_ids = db.query(User.id).filter(
-        User.organization_id == current_user.organization_id
+        User.organization_id == org_id
     ).scalar_subquery()
     org_project_ids = db.query(Project.id).filter(
-        Project.organization_id == current_user.organization_id
+        Project.organization_id == org_id
     ).scalar_subquery()
     return q.filter(
         or_(
+            Alert.organization_id == org_id,
             Alert.user_id.in_(org_user_ids),
             Alert.project_id.in_(org_project_ids),
+            # Fallback para alertas legacy sin ningún campo de scope
+            # (sucede solo con datos pre-migración 076).
+            and_(
+                Alert.organization_id.is_(None),
+                Alert.user_id.is_(None),
+                Alert.project_id.is_(None),
+            ),
         )
     )
 
