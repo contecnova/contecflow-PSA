@@ -939,7 +939,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                     );
                     const type = detectFileType(activeVer.file_mime_type, activeVer.file_name);
                     if (type === 'pdf') return <iframe src={activeVer.download_url} style={{ width: '100%', height: 480, border: 'none' }} title="Vista previa del PDF" onError={() => setPreviewError(true)} />;
-                    if (type === 'image') return <img src={activeVer.download_url} alt={activeVer.file_name} style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', display: 'block', margin: '0 auto', padding: 16 }} onError={() => setPreviewError(true)} />;
+                    if (type === 'image') return <img src={activeVer.download_url} alt={activeVer.file_name} loading="lazy" decoding="async" style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', display: 'block', margin: '0 auto', padding: 16 }} onError={() => setPreviewError(true)} />;
                     return (
                       <div style={{ padding: 40, textAlign: 'center' }}>
                         <FileIcon mime={activeVer.file_mime_type} name={activeVer.file_name} size={56} />

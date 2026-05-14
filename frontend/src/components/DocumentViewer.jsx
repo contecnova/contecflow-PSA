@@ -219,7 +219,7 @@ const DocumentViewer = ({ documentId }) => {
           {(() => {
             const type = detectType(activeVer.file_mime_type, activeVer.file_name);
             if (type === 'pdf') return <iframe src={activeVer.download_url} style={{ width: '100%', height: 480, border: 'none', display: 'block' }} title="Vista previa" />;
-            if (type === 'image') return <img src={activeVer.download_url} alt={activeVer.file_name} style={{ maxWidth: '100%', maxHeight: 400, objectFit: 'contain', display: 'block', margin: '0 auto', padding: 16 }} />;
+            if (type === 'image') return <img src={activeVer.download_url} alt={activeVer.file_name} loading="lazy" decoding="async" style={{ maxWidth: '100%', maxHeight: 400, objectFit: 'contain', display: 'block', margin: '0 auto', padding: 16 }} />;
             return (
               <div style={{ padding: 36, textAlign: 'center' }}>
                 <FileIcon mime={activeVer.file_mime_type} name={activeVer.file_name} size={52} />

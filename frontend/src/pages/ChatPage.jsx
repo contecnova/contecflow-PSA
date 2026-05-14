@@ -1632,7 +1632,7 @@ function AttachmentChip({ att }) {
     return (
       <a href={downloadUrl} target="_blank" rel="noopener noreferrer"
         style={{ display: 'block', maxWidth: 320, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--surface-4)' }}>
-        <img src={previewUrl} alt={att.name} style={{ display: 'block', width: '100%', maxHeight: 240, objectFit: 'cover' }} />
+        <img src={previewUrl} alt={att.name} loading="lazy" decoding="async" style={{ display: 'block', width: '100%', maxHeight: 240, objectFit: 'cover' }} />
       </a>
     )
   }

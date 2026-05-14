@@ -154,7 +154,7 @@ export function Avatar({ name = '', size = 34, url }) {
   ]
   const [from, to] = palettes[name.charCodeAt(0) % palettes.length]
   return url ? (
-    <img src={url} alt={name} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover' }} />
+    <img src={url} alt={name} loading="lazy" decoding="async" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover' }} />
   ) : (
     <div
       role="img"

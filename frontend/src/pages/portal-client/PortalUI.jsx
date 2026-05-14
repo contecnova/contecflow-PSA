@@ -132,7 +132,7 @@ export function PortalShell({ section, onSection, branding, badges, children }) 
         {/* Brand */}
         <div style={{ padding: collapsed ? '16px 12px' : '16px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', gap: 10 }}>
           {branding?.logo_url ? (
-            <img src={branding.logo_url} alt={branding.brand_name || 'Portal'} style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--surface-4)', flexShrink: 0 }} />
+            <img src={branding.logo_url} alt={branding.brand_name || 'Portal'} loading="lazy" decoding="async" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--surface-4)', flexShrink: 0 }} />
           ) : (
             <div style={{
               width: 32, height: 32, borderRadius: 8, flexShrink: 0,

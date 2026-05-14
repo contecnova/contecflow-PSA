@@ -255,6 +255,7 @@ export default function UserProfilePanel({ onClose }) {
                   style={IS} placeholder="https://..." />
                 {profileForm.avatar_url && (
                   <img src={profileForm.avatar_url} alt="preview"
+                    loading="lazy" decoding="async"
                     style={{ width: 40, height: 40, borderRadius: '50%',
                       marginTop: 6, objectFit: 'cover',
                       border: '2px solid var(--surface-4)' }}
