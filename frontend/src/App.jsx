@@ -2,6 +2,7 @@ import { ToastProvider } from './context/ToastContext'
 import { ConfirmProvider } from './context/ConfirmContext'
 import { Component, Suspense, lazy } from 'react'
 import ErrorBoundary from './components/ErrorBoundary'
+import { withRouteBoundary } from './components/RouteBoundary'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Layout from './components/layout/Layout'
@@ -138,6 +139,35 @@ const UserCostsPage          = lazy(() => import('./pages/UserCostsPage'))
 const ChatPage               = lazy(() => import('./pages/ChatPage'))
 const CallPage               = lazy(() => import('./pages/CallPage'))
 const ChatAdminPage          = lazy(() => import('./pages/ChatAdminPage'))
+
+// ── Per-section Error Boundaries (audit #84) ─────────────────────────────────
+// Pages especially prone to render-time failures (heavy dashboards, AI views,
+// complex data viz, service desk) are wrapped in their own RouteBoundary so
+// a crash in one section never derails the rest of the app.
+const SafeBIPage              = withRouteBoundary(BIPage, 'BI')
+const SafeBIProjectDetail     = withRouteBoundary(BIProjectDetailPage, 'BI')
+const SafeDataExplorer        = withRouteBoundary(DataExplorerPage, 'BI')
+const SafePredictions         = withRouteBoundary(PredictionsPage, 'BI')
+const SafeDataPlatform        = withRouteBoundary(DataPlatformPage, 'BI')
+const SafeDataGovernance      = withRouteBoundary(DataGovernancePage, 'BI')
+const SafeAIHub               = withRouteBoundary(AIHubPage, 'AI')
+const SafeContecflowAgent     = withRouteBoundary(ContecflowAgentPage, 'AI')
+const SafeOracle              = withRouteBoundary(OraclePage, 'AI')
+const SafeMeetingsAI          = withRouteBoundary(MeetingsAIPage, 'AI')
+const SafeContractsAI         = withRouteBoundary(ContractsAIPage, 'AI')
+const SafeSemanticEngine      = withRouteBoundary(SemanticEnginePage, 'AI')
+const SafeServiceDesk         = withRouteBoundary(ServiceDeskPage, 'ServiceDesk')
+const SafeWorkflowDesigner    = withRouteBoundary(WorkflowDesignerPage, 'ServiceDesk')
+const SafeAgentDashboard      = withRouteBoundary(AgentDashboardPage, 'ServiceDesk')
+const SafeSupportDashboard    = withRouteBoundary(SupportDashboardPage, 'Dashboards')
+const SafeProjectsDashboard   = withRouteBoundary(ProjectsDashboardPage, 'Dashboards')
+const SafeFinanceDashboard    = withRouteBoundary(FinanceDashboardPage, 'Dashboards')
+const SafeTeamDashboard       = withRouteBoundary(TeamDashboardPage, 'Dashboards')
+const SafeWorkDashboard       = withRouteBoundary(WorkDashboardPage, 'Dashboards')
+const SafeReports             = withRouteBoundary(ReportsPage, 'Reports')
+const SafeReportBuilder       = withRouteBoundary(ReportBuilderPage, 'Reports')
+const SafeGantt               = withRouteBoundary(GanttPage, 'Gantt')
+const SafeEpicGantt           = withRouteBoundary(EpicGanttPage, 'Gantt')
 
 // ── Fallback de carga para lazy pages — skeleton por tipo de módulo ───────────
 const TABLE_ROUTES = new Set([
@@ -320,7 +350,7 @@ function AppRoutes() {
 
       <Route path="/work-dashboard" element={
         <ProtectedRoute>
-          <Layout><WorkDashboardPage /></Layout>
+          <Layout><SafeWorkDashboard /></Layout>
         </ProtectedRoute>
       } />
 
@@ -338,7 +368,7 @@ function AppRoutes() {
 
       <Route path="/projects-dashboard" element={
         <ProtectedRoute roles={['admin','pm','team_lead']}>
-          <Layout><ProjectsDashboardPage /></Layout>
+          <Layout><SafeProjectsDashboard /></Layout>
         </ProtectedRoute>
       } />
 
@@ -380,7 +410,7 @@ function AppRoutes() {
 
       <Route path="/reports" element={
         <ProtectedRoute>
-          <Layout><ReportsPage /></Layout>
+          <Layout><SafeReports /></Layout>
         </ProtectedRoute>
       } />
 
@@ -458,19 +488,19 @@ function AppRoutes() {
 
       <Route path="/support-dashboard" element={
         <ProtectedRoute roles={['admin','pm','employee','hr','team_lead']}>
-          <Layout><SupportDashboardPage /></Layout>
+          <Layout><SafeSupportDashboard /></Layout>
         </ProtectedRoute>
       } />
 
       <Route path="/service-desk" element={
         <ProtectedRoute roles={['admin', 'pm', 'employee', 'hr']}>
-          <Layout><ServiceDeskPage /></Layout>
+          <Layout><SafeServiceDesk /></Layout>
         </ProtectedRoute>
       } />
 
       <Route path="/sd/workflow-designer" element={
         <ProtectedRoute roles={['admin', 'pm']}>
-          <Layout><WorkflowDesignerPage /></Layout>
+          <Layout><SafeWorkflowDesigner /></Layout>
         </ProtectedRoute>
       } />
 
@@ -490,7 +520,7 @@ function AppRoutes() {
       <Route path="/git" element={<ProtectedRoute roles={['admin','pm']}><Layout><GitPage /></Layout></ProtectedRoute>} />
       <Route path="/sprint-charts" element={<ProtectedRoute roles={['admin','pm']}><Layout><SprintChartsPage /></Layout></ProtectedRoute>} />
       <Route path="/esign" element={<ProtectedRoute roles={['admin','pm']}><Layout><ESignPage /></Layout></ProtectedRoute>} />
-      <Route path="/report-builder" element={<ProtectedRoute roles={['admin','pm']}><Layout><ReportBuilderPage /></Layout></ProtectedRoute>} />
+      <Route path="/report-builder" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeReportBuilder /></Layout></ProtectedRoute>} />
       <Route path="/nps" element={<ProtectedRoute roles={['admin','pm']}><Layout><NPSPage /></Layout></ProtectedRoute>} />
       <Route path="/m365" element={<ProtectedRoute roles={['admin']}><Layout><M365Page /></Layout></ProtectedRoute>} />
       <Route path="/automations" element={<ProtectedRoute roles={['admin','pm']}><Layout><AutomationsPage /></Layout></ProtectedRoute>} />
@@ -499,11 +529,11 @@ function AppRoutes() {
       <Route path="/organizations" element={<ProtectedRoute roles={['admin']}><Layout><OrganizationsPage /></Layout></ProtectedRoute>} />
       <Route path="/scenarios" element={<ProtectedRoute roles={['admin','pm']}><Layout><ScenariosPage /></Layout></ProtectedRoute>} />
       <Route path="/budgets" element={<ProtectedRoute roles={['admin','pm']}><Layout><BudgetsPage /></Layout></ProtectedRoute>} />
-      <Route path="/ai-hub" element={<ProtectedRoute roles={['admin','pm']}><Layout><AIHubPage /></Layout></ProtectedRoute>} />
-      <Route path="/nexus-agent" element={<ProtectedRoute roles={['admin','pm']}><Layout><ContecflowAgentPage /></Layout></ProtectedRoute>} />
-      <Route path="/oracle" element={<ProtectedRoute roles={['admin','pm']}><Layout><OraclePage /></Layout></ProtectedRoute>} />
-      <Route path="/meetings-ai" element={<ProtectedRoute><Layout><MeetingsAIPage /></Layout></ProtectedRoute>} />
-      <Route path="/contracts-ai" element={<ProtectedRoute roles={['admin','pm']}><Layout><ContractsAIPage /></Layout></ProtectedRoute>} />
+      <Route path="/ai-hub" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeAIHub /></Layout></ProtectedRoute>} />
+      <Route path="/nexus-agent" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeContecflowAgent /></Layout></ProtectedRoute>} />
+      <Route path="/oracle" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeOracle /></Layout></ProtectedRoute>} />
+      <Route path="/meetings-ai" element={<ProtectedRoute><Layout><SafeMeetingsAI /></Layout></ProtectedRoute>} />
+      <Route path="/contracts-ai" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeContractsAI /></Layout></ProtectedRoute>} />
       <Route path="/custom-fields" element={
         <ProtectedRoute roles={['admin','pm']}>
           <Layout><CustomFieldsPage /></Layout>
@@ -527,18 +557,18 @@ function AppRoutes() {
       <Route path="/wiki-tags"          element={<ProtectedRoute><Layout><WikiTagsPage/></Layout></ProtectedRoute>}/>
       <Route path="/internal-comments" element={<ProtectedRoute><Layout><InternalCommentsPage/></Layout></ProtectedRoute>}/>
       <Route path="/cmdb"              element={<ProtectedRoute roles={['admin','pm']}><Layout><CMDBPage/></Layout></ProtectedRoute>}/>
-      <Route path="/agent-dashboard"   element={<ProtectedRoute roles={['admin','pm']}><Layout><AgentDashboardPage/></Layout></ProtectedRoute>}/>
+      <Route path="/agent-dashboard"   element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeAgentDashboard/></Layout></ProtectedRoute>}/>
       <Route path="/kanban-advanced"   element={<ProtectedRoute><Layout><KanbanAdvancedPage/></Layout></ProtectedRoute>}/>
       <Route path="/sprint-planning"   element={<ProtectedRoute><Layout><SprintPlanningPage/></Layout></ProtectedRoute>}/>
       <Route path="/sla-calendars"     element={<ProtectedRoute roles={['admin','pm']}><Layout><SLACalendarsPage/></Layout></ProtectedRoute>}/>
-      <Route path="/epic-gantt"     element={<ProtectedRoute><Layout><EpicGanttPage/></Layout></ProtectedRoute>}/>
+      <Route path="/epic-gantt"     element={<ProtectedRoute><Layout><SafeEpicGantt/></Layout></ProtectedRoute>}/>
       <Route path="/mentions" element={<ProtectedRoute><Layout><MentionsPage/></Layout></ProtectedRoute>}/>
       <Route path="/project-permissions" element={
         <ProtectedRoute roles={['admin','pm']}>
           <Layout><ProjectPermissionsPage /></Layout>
         </ProtectedRoute>
       } />
-      <Route path="/semantic-engine"  element={<ProtectedRoute roles={['admin','pm']}><Layout><SemanticEnginePage /></Layout></ProtectedRoute>} />
+      <Route path="/semantic-engine"  element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeSemanticEngine /></Layout></ProtectedRoute>} />
       <Route path="/resource-forecast" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ResourceForecastPage /></Layout></ProtectedRoute>} />
       <Route path="/resource-scheduler" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ResourceSchedulerPage /></Layout></ProtectedRoute>} />
       <Route path="/rate-cards"        element={<ProtectedRoute roles={['admin','pm']}><Layout><RateCardsPage /></Layout></ProtectedRoute>} />
@@ -547,21 +577,21 @@ function AppRoutes() {
       <Route path="/settings/approval-workflows" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ApprovalsPage mode="config" /></Layout></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute><Layout><DocumentsPage /></Layout></ProtectedRoute>} />
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
-      <Route path="/gantt" element={<ProtectedRoute roles={['admin','pm','team_lead','employee']}><Layout><GanttPage /></Layout></ProtectedRoute>} />
+      <Route path="/gantt" element={<ProtectedRoute roles={['admin','pm','team_lead','employee']}><Layout><SafeGantt /></Layout></ProtectedRoute>} />
       {/* Nuevas rutas top-level (sustituyen al antiguo /bi) */}
-      <Route path="/data-explorer"   element={<ProtectedRoute roles={['admin','pm']}><Layout><DataExplorerPage   /></Layout></ProtectedRoute>} />
-      <Route path="/predictions"     element={<ProtectedRoute roles={['admin','pm']}><Layout><PredictionsPage    /></Layout></ProtectedRoute>} />
-      <Route path="/data-platform"   element={<ProtectedRoute roles={['admin']}>     <Layout><DataPlatformPage   /></Layout></ProtectedRoute>} />
-      <Route path="/data-governance" element={<ProtectedRoute roles={['admin']}>     <Layout><DataGovernancePage /></Layout></ProtectedRoute>} />
-      <Route path="/projects/:id/analytics" element={<ProtectedRoute roles={['admin','pm']}><Layout><BIProjectDetailPage /></Layout></ProtectedRoute>} />
+      <Route path="/data-explorer"   element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeDataExplorer   /></Layout></ProtectedRoute>} />
+      <Route path="/predictions"     element={<ProtectedRoute roles={['admin','pm']}><Layout><SafePredictions    /></Layout></ProtectedRoute>} />
+      <Route path="/data-platform"   element={<ProtectedRoute roles={['admin']}>     <Layout><SafeDataPlatform   /></Layout></ProtectedRoute>} />
+      <Route path="/data-governance" element={<ProtectedRoute roles={['admin']}>     <Layout><SafeDataGovernance /></Layout></ProtectedRoute>} />
+      <Route path="/projects/:id/analytics" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeBIProjectDetail /></Layout></ProtectedRoute>} />
       {/* Redirects legacy */}
       <Route path="/bi" element={<Navigate to="/executive" replace />} />
       <Route path="/bi/:section" element={<BiLegacyRedirect />} />
       <Route path="/bi/project/:projectId" element={<BiProjectLegacyRedirect />} />
       <Route path="/subcontractors" element={<ProtectedRoute roles={['admin','pm']}><Layout><SubcontractorsPage /></Layout></ProtectedRoute>} />
       <Route path="/governance" element={<ProtectedRoute roles={['admin']}><Layout><GovernancePage /></Layout></ProtectedRoute>} />
-      <Route path="/finance-dashboard"   element={<ProtectedRoute roles={['admin','pm']}><Layout><FinanceDashboardPage /></Layout></ProtectedRoute>} />
-      <Route path="/team-dashboard"     element={<ProtectedRoute roles={['admin','pm','hr','team_lead']}><Layout><TeamDashboardPage /></Layout></ProtectedRoute>} />
+      <Route path="/finance-dashboard"   element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeFinanceDashboard /></Layout></ProtectedRoute>} />
+      <Route path="/team-dashboard"     element={<ProtectedRoute roles={['admin','pm','hr','team_lead']}><Layout><SafeTeamDashboard /></Layout></ProtectedRoute>} />
       <Route path="/clients"             element={<ProtectedRoute roles={['admin','pm']}><Layout><ClientsPage /></Layout></ProtectedRoute>} />
       <Route path="/alm"        element={<ProtectedRoute roles={['admin','pm']}><Layout><ALMPage /></Layout></ProtectedRoute>} />
       <Route path="/org-chart" element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><OrgChartPage /></Layout></ProtectedRoute>} />
@@ -569,7 +599,7 @@ function AppRoutes() {
       <Route path="/okrs"                element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><OKRsPage /></Layout></ProtectedRoute>} />
       <Route path="/performance-reviews" element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><PerformanceReviewsPage /></Layout></ProtectedRoute>} />
       <Route path="/training"            element={<ProtectedRoute><Layout><TrainingPage /></Layout></ProtectedRoute>} />
-      <Route path="/executive"           element={<ProtectedRoute roles={['admin','pm']}><Layout><BIPage /></Layout></ProtectedRoute>} />
+      <Route path="/executive"           element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeBIPage /></Layout></ProtectedRoute>} />
       <Route path="/webhook-log"         element={<ProtectedRoute roles={['admin']}><Layout><WebhookLogPage /></Layout></ProtectedRoute>} />
       <Route path="/inbox"               element={<ProtectedRoute><Layout><InboxPage /></Layout></ProtectedRoute>} />
       <Route path="/notifications"       element={<ProtectedRoute><Layout><NotificationsPage /></Layout></ProtectedRoute>} />
