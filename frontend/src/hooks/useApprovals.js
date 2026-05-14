@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { approvalsApi } from '../services/api'
+import { queryKeys } from '../constants/queryKeys'
 
 const STALE = 2 * 60 * 1000
 
@@ -7,6 +8,7 @@ const STALE = 2 * 60 * 1000
 
 export function useApprovalWorkflows(params = {}) {
   return useQuery({
+    // TODO #82: migrate to queryKeys — workflows.list(filters) not yet defined in factory
     queryKey: ['approval-workflows', params],
     queryFn: () => approvalsApi.listWorkflows(params).then(r => r.data),
     staleTime: STALE,
@@ -15,6 +17,7 @@ export function useApprovalWorkflows(params = {}) {
 
 export function useApprovalWorkflow(id) {
   return useQuery({
+    // TODO #82: migrate to queryKeys — workflow detail not yet defined in factory
     queryKey: ['approval-workflow', id],
     queryFn: () => approvalsApi.getWorkflow(id).then(r => r.data),
     enabled: !!id,
@@ -24,6 +27,7 @@ export function useApprovalWorkflow(id) {
 
 export function useApprovalTemplates() {
   return useQuery({
+    // TODO #82: migrate to queryKeys — approval templates not yet defined in factory
     queryKey: ['approval-templates'],
     queryFn: () => approvalsApi.listTemplates().then(r => r.data),
     staleTime: 5 * 60 * 1000,
@@ -34,7 +38,7 @@ export function useCreateApprovalWorkflow() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => approvalsApi.createWorkflow(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['approval-workflows'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.approvals.workflows() }),
   })
 }
 
@@ -43,7 +47,7 @@ export function useUpdateApprovalWorkflow() {
   return useMutation({
     mutationFn: ({ id, data }) => approvalsApi.updateWorkflow(id, data),
     onSuccess: (_, { id }) => {
-      qc.invalidateQueries({ queryKey: ['approval-workflows'] })
+      qc.invalidateQueries({ queryKey: queryKeys.approvals.workflows() })
       qc.invalidateQueries({ queryKey: ['approval-workflow', id] })
     },
   })
@@ -53,7 +57,7 @@ export function useDeleteApprovalWorkflow() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id) => approvalsApi.deleteWorkflow(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['approval-workflows'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.approvals.workflows() }),
   })
 }
 
@@ -69,6 +73,7 @@ export function usePublishApprovalWorkflow() {
 
 export function useApprovalRequests(params = {}) {
   return useQuery({
+    // TODO #82: migrate to queryKeys — approval requests list not yet defined in factory
     queryKey: ['approval-requests', params],
     queryFn: () => approvalsApi.listRequests(params).then(r => r.data),
     staleTime: STALE,
@@ -77,7 +82,7 @@ export function useApprovalRequests(params = {}) {
 
 export function usePendingApprovalRequests() {
   return useQuery({
-    queryKey: ['approval-requests-pending'],
+    queryKey: queryKeys.approvals.pending(),
     queryFn: () => approvalsApi.pendingMyAction().then(r => r.data),
     staleTime: 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
@@ -86,6 +91,7 @@ export function usePendingApprovalRequests() {
 
 export function useApprovalStats() {
   return useQuery({
+    // TODO #82: migrate to queryKeys — approval stats not yet defined in factory
     queryKey: ['approval-stats'],
     queryFn: () => approvalsApi.stats().then(r => r.data),
     staleTime: STALE,
@@ -106,7 +112,7 @@ export function useApproveRequest() {
     mutationFn: ({ id, data }) => approvalsApi.decide(id, { ...data, decision: 'approve' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['approval-requests'] })
-      qc.invalidateQueries({ queryKey: ['approval-requests-pending'] })
+      qc.invalidateQueries({ queryKey: queryKeys.approvals.pending() })
     },
   })
 }
@@ -117,7 +123,7 @@ export function useRejectRequest() {
     mutationFn: ({ id, data }) => approvalsApi.decide(id, { ...data, decision: 'reject' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['approval-requests'] })
-      qc.invalidateQueries({ queryKey: ['approval-requests-pending'] })
+      qc.invalidateQueries({ queryKey: queryKeys.approvals.pending() })
     },
   })
 }
@@ -134,6 +140,7 @@ export function useCancelApprovalRequest() {
 
 export function useApprovalGroups() {
   return useQuery({
+    // TODO #82: migrate to queryKeys — approval groups not yet defined in factory
     queryKey: ['approval-groups'],
     queryFn: () => approvalsApi.listGroups().then(r => r.data),
     staleTime: 5 * 60 * 1000,

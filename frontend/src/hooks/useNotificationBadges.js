@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import api, { alertsApi, mentionsApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { queryKeys } from '../constants/queryKeys'
 
 /**
  * Centralises badge queries (alerts + approvals + mentions) y
@@ -12,6 +13,7 @@ export default function useNotificationBadges() {
   const canQueryProtected = !loading && !!user
 
   const { data: alerts } = useQuery({
+    // TODO #82: migrate to queryKeys — alerts count badge has a dedicated key not in factory
     queryKey: ['alerts-count'],
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []),
     refetchInterval: 60_000,
@@ -20,7 +22,7 @@ export default function useNotificationBadges() {
   })
 
   const { data: notificationsData } = useQuery({
-    queryKey: ['notifications-unread-badge'],
+    queryKey: queryKeys.notifications.badges(),
     queryFn: () =>
       api.get('/enterprise/notifications', { params: { page_size: 1 } })
         .then(r => r.data || { unread_count: 0 })
@@ -31,7 +33,7 @@ export default function useNotificationBadges() {
   })
 
   const { data: pendingApprovals = [] } = useQuery({
-    queryKey: ['approvals-pending-badge'],
+    queryKey: queryKeys.approvals.pending(),
     queryFn: () =>
       api.get('/approvals/requests/pending-my-action').then(r => r.data || []).catch(() => []),
     refetchInterval: 60_000,
@@ -40,6 +42,7 @@ export default function useNotificationBadges() {
   })
 
   const { data: mentions = [] } = useQuery({
+    // TODO #82: migrate to queryKeys — mentions not yet defined in factory
     queryKey: ['mentions-unread'],
     queryFn: () =>
       mentionsApi.mentions(true).then(r => r.data || []).catch(() => []),
