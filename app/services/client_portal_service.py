@@ -140,42 +140,52 @@ def get_recent_activity(project_id: str, db: Session) -> list:
     return activity[:5]
 
 
+_FR_STATUS_LABELS = {
+    "new": "Nueva", "reviewing": "En revisión", "estimated": "Presupuestada",
+    "approved": "Aprobada", "rejected": "Rechazada",
+    "in_development": "En desarrollo", "done": "Completada",
+}
+_FR_PRIORITY_LABELS = {"low": "Baja", "medium": "Media", "high": "Alta", "critical": "Crítica"}
+_FR_PRIORITY_COLORS = {"low": "#00e5a0", "medium": "#00d4ff", "high": "#ffb800", "critical": "#ff4757"}
+_FR_STATUS_COLORS = {
+    "new": "#7a8aaa", "reviewing": "#00d4ff", "estimated": "#ffb800",
+    "approved": "#00e5a0", "rejected": "#ff4757",
+    "in_development": "#7c3aed", "done": "#00e5a0",
+}
+_CR_STATUS_LABELS = {
+    "draft": "Borrador", "submitted": "Enviado",
+    "under_review": "En revisión", "approved": "Aprobado",
+    "rejected": "Rechazado", "implemented": "Implementado",
+}
+_CR_STATUS_COLORS = {
+    "draft": "#7a8aaa", "submitted": "#00d4ff",
+    "under_review": "#ffb800", "approved": "#00e5a0",
+    "rejected": "#ff4757", "implemented": "#7c3aed",
+}
+
+
+def _resolve_fr_cr_status(fr):
+    """Return (cr_status, cr_status_label, cr_status_color) for a FeatureRequest's linked CR."""
+    if not getattr(fr, "change_request_id", None):
+        return None, None, None
+    cr = (
+        fr.change_request_id
+        and fr.__dict__.get("_sa_instance_state")
+        and fr._sa_instance_state.session.query(ChangeRequest).filter(
+            ChangeRequest.id == fr.change_request_id
+        ).first()
+    )
+    if not cr:
+        return None, None, None
+    return (
+        cr.status,
+        _CR_STATUS_LABELS.get(cr.status, cr.status),
+        _CR_STATUS_COLORS.get(cr.status, "#7a8aaa"),
+    )
+
+
 def fr_out(fr) -> dict:
-    STATUS_LABELS = {
-        "new": "Nueva", "reviewing": "En revisión", "estimated": "Presupuestada",
-        "approved": "Aprobada", "rejected": "Rechazada",
-        "in_development": "En desarrollo", "done": "Completada",
-    }
-    PRIORITY_LABELS = {"low": "Baja", "medium": "Media", "high": "Alta", "critical": "Crítica"}
-    PRIORITY_COLORS = {"low": "#00e5a0", "medium": "#00d4ff", "high": "#ffb800", "critical": "#ff4757"}
-    STATUS_COLORS = {
-        "new": "#7a8aaa", "reviewing": "#00d4ff", "estimated": "#ffb800",
-        "approved": "#00e5a0", "rejected": "#ff4757",
-        "in_development": "#7c3aed", "done": "#00e5a0",
-    }
-    cr_status = cr_status_label = cr_status_color = None
-    if getattr(fr, "change_request_id", None):
-        cr = (
-            fr.change_request_id
-            and fr.__dict__.get("_sa_instance_state")
-            and fr._sa_instance_state.session.query(ChangeRequest).filter(
-                ChangeRequest.id == fr.change_request_id
-            ).first()
-        )
-        if cr:
-            CR_STATUS_LABELS = {
-                "draft": "Borrador", "submitted": "Enviado",
-                "under_review": "En revisión", "approved": "Aprobado",
-                "rejected": "Rechazado", "implemented": "Implementado",
-            }
-            CR_STATUS_COLORS = {
-                "draft": "#7a8aaa", "submitted": "#00d4ff",
-                "under_review": "#ffb800", "approved": "#00e5a0",
-                "rejected": "#ff4757", "implemented": "#7c3aed",
-            }
-            cr_status = cr.status
-            cr_status_label = CR_STATUS_LABELS.get(cr.status, cr.status)
-            cr_status_color = CR_STATUS_COLORS.get(cr.status, "#7a8aaa")
+    cr_status, cr_status_label, cr_status_color = _resolve_fr_cr_status(fr)
     return {
         "id": fr.id, "code": fr.code, "project_id": fr.project_id,
         "project_name": fr.project.name if fr.project else "—",
@@ -184,11 +194,11 @@ def fr_out(fr) -> dict:
         "business_justification": fr.business_justification,
         "affected_area": fr.affected_area,
         "priority": fr.priority,
-        "priority_label": PRIORITY_LABELS.get(fr.priority, fr.priority),
-        "priority_color": PRIORITY_COLORS.get(fr.priority, "#7a8aaa"),
+        "priority_label": _FR_PRIORITY_LABELS.get(fr.priority, fr.priority),
+        "priority_color": _FR_PRIORITY_COLORS.get(fr.priority, "#7a8aaa"),
         "status": fr.status,
-        "status_label": STATUS_LABELS.get(fr.status, fr.status),
-        "status_color": STATUS_COLORS.get(fr.status, "#7a8aaa"),
+        "status_label": _FR_STATUS_LABELS.get(fr.status, fr.status),
+        "status_color": _FR_STATUS_COLORS.get(fr.status, "#7a8aaa"),
         "pm_response": fr.pm_response,
         "estimated_hours": fr.estimated_hours,
         "estimated_cost": fr.estimated_cost,
@@ -204,19 +214,48 @@ def fr_out(fr) -> dict:
     }
 
 
+_UAT_STATUS_LABELS = {
+    "pending": "Pendiente", "in_progress": "En progreso",
+    "passed": "Aprobado", "failed": "Rechazado",
+    "conditional": "Aprobado con reservas",
+}
+_UAT_STATUS_COLORS = {
+    "pending": "#7a8aaa", "in_progress": "#00d4ff",
+    "passed": "#00e5a0", "failed": "#ff4757", "conditional": "#ffb800",
+}
+
+
+def _uat_stats(test_cases) -> dict:
+    """Compute pass/fail/pending counters for a UATSession's test cases."""
+    passed = sum(1 for tc in test_cases if tc.status == "passed")
+    failed = sum(1 for tc in test_cases if tc.status == "failed")
+    total = len(test_cases)
+    return {"total": total, "passed": passed, "failed": failed, "pending": total - passed - failed}
+
+
+def _uat_test_cases_out(test_cases) -> list:
+    return [
+        {
+            "id": tc.id, "title": tc.title, "steps": tc.steps,
+            "expected_result": tc.expected_result, "actual_result": tc.actual_result,
+            "status": tc.status, "notes": tc.notes, "order": tc.order,
+        }
+        for tc in sorted(test_cases, key=lambda x: x.order)
+    ]
+
+
+def _uat_issues_out(issues) -> list:
+    return [
+        {
+            "id": i.id, "title": i.title, "description": i.description,
+            "severity": i.severity, "status": i.status,
+            "steps_to_reproduce": i.steps_to_reproduce,
+        }
+        for i in issues
+    ]
+
+
 def uat_out(s) -> dict:
-    STATUS_LABELS = {
-        "pending": "Pendiente", "in_progress": "En progreso",
-        "passed": "Aprobado", "failed": "Rechazado",
-        "conditional": "Aprobado con reservas",
-    }
-    STATUS_COLORS = {
-        "pending": "#7a8aaa", "in_progress": "#00d4ff",
-        "passed": "#00e5a0", "failed": "#ff4757", "conditional": "#ffb800",
-    }
-    passed = sum(1 for tc in s.test_cases if tc.status == "passed")
-    failed = sum(1 for tc in s.test_cases if tc.status == "failed")
-    total = len(s.test_cases)
     return {
         "id": s.id, "code": s.code, "project_id": s.project_id,
         "deliverable_id": s.deliverable_id,
@@ -225,30 +264,16 @@ def uat_out(s) -> dict:
         "test_credentials": s.test_credentials,
         "test_guide_url": s.test_guide_url,
         "status": s.status,
-        "status_label": STATUS_LABELS.get(s.status, s.status),
-        "status_color": STATUS_COLORS.get(s.status, "#7a8aaa"),
+        "status_label": _UAT_STATUS_LABELS.get(s.status, s.status),
+        "status_color": _UAT_STATUS_COLORS.get(s.status, "#7a8aaa"),
         "available_from": str(s.available_from) if s.available_from else None,
         "deadline": str(s.deadline) if s.deadline else None,
         "completed_at": str(s.completed_at)[:10] if s.completed_at else None,
         "client_result": s.client_result,
         "client_notes": s.client_notes,
-        "test_cases": [
-            {
-                "id": tc.id, "title": tc.title, "steps": tc.steps,
-                "expected_result": tc.expected_result, "actual_result": tc.actual_result,
-                "status": tc.status, "notes": tc.notes, "order": tc.order,
-            }
-            for tc in sorted(s.test_cases, key=lambda x: x.order)
-        ],
-        "issues": [
-            {
-                "id": i.id, "title": i.title, "description": i.description,
-                "severity": i.severity, "status": i.status,
-                "steps_to_reproduce": i.steps_to_reproduce,
-            }
-            for i in s.issues
-        ],
-        "stats": {"total": total, "passed": passed, "failed": failed, "pending": total - passed - failed},
+        "test_cases": _uat_test_cases_out(s.test_cases),
+        "issues": _uat_issues_out(s.issues),
+        "stats": _uat_stats(s.test_cases),
         "overdue": s.deadline and date.today() > s.deadline and s.status in ["pending", "in_progress"],
     }
 
@@ -659,26 +684,42 @@ def view_public_project_status(token: str, db: Session) -> dict:
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
-def get_client_dashboard(project_id: Optional[str], current_client, db: Session) -> dict:
+_OPEN_TICKET_STATUSES = [
+    TicketStatus.new,
+    TicketStatus.assigned,
+    TicketStatus.in_progress,
+    TicketStatus.pending_client,
+    TicketStatus.pending_third,
+]
 
+
+def _resolve_dashboard_project(project_id: Optional[str], current_client, db: Session):
+    """Resolve which project the dashboard should target.
+
+    Returns a tuple (early_response, project). When early_response is not None,
+    the dashboard endpoint must short-circuit and return it directly.
+    """
     accessible_ids = current_client.get_project_ids()
     if len(accessible_ids) > 1 and not project_id:
         projs = db.query(ProjectModel).filter(ProjectModel.id.in_(accessible_ids)).all()
         return {
             "needs_project_selection": True,
             "projects": [{"id": p.id, "name": p.name, "code": p.code, "status": p.status} for p in projs],
-        }
+        }, None
     effective_id = project_id or (accessible_ids[0] if accessible_ids else None)
     if effective_id and accessible_ids and effective_id not in accessible_ids:
         raise ValueError("No tienes acceso a este proyecto")
     if not effective_id:
         return {"project": None, "no_project": True,
-                "message": "Este usuario del portal no tiene ningún proyecto asignado."}
+                "message": "Este usuario del portal no tiene ningún proyecto asignado."}, None
     project = db.query(ProjectModel).filter(ProjectModel.id == effective_id).first()
     if not project:
         return {"project": None, "no_project": True,
-                "message": "El proyecto asignado no existe."}
+                "message": "El proyecto asignado no existe."}, None
+    return None, project
 
+
+def _dashboard_budget_and_milestones(project, db: Session):
     total_hours = db.query(func.sum(Imputation.hours)).filter(
         Imputation.project_id == project.id
     ).scalar() or 0
@@ -686,14 +727,23 @@ def get_client_dashboard(project_id: Optional[str], current_client, db: Session)
     milestones = db.query(ProjectMilestone).filter(
         ProjectMilestone.project_id == project.id
     ).order_by(ProjectMilestone.sort_order).all()
-    milestones_done = sum(1 for m in milestones if m.is_completed)
+    return total_hours, budget_pct, milestones
+
+
+def _dashboard_deliverables_and_uat(project, db: Session) -> dict:
     deliverables = db.query(Deliverable).filter(Deliverable.project_id == project.id).all()
     uat_sessions = db.query(UATSession).filter(UATSession.project_id == project.id).all()
-    del_accepted = sum(1 for d in deliverables if d.status == DeliverableStatus.accepted)
-    del_pending_uat = sum(1 for d in deliverables if d.status == DeliverableStatus.delivered)
-    uat_total = len(uat_sessions)
-    uat_passed = sum(1 for session in uat_sessions if session.status in [UATStatus.passed, UATStatus.conditional])
-    uat_pending = sum(1 for session in uat_sessions if session.status in [UATStatus.pending, UATStatus.in_progress])
+    return {
+        "deliverables_total": len(deliverables),
+        "del_accepted": sum(1 for d in deliverables if d.status == DeliverableStatus.accepted),
+        "del_pending_uat": sum(1 for d in deliverables if d.status == DeliverableStatus.delivered),
+        "uat_total": len(uat_sessions),
+        "uat_passed": sum(1 for s in uat_sessions if s.status in [UATStatus.passed, UATStatus.conditional]),
+        "uat_pending": sum(1 for s in uat_sessions if s.status in [UATStatus.pending, UATStatus.in_progress]),
+    }
+
+
+def _dashboard_fr_and_unread(project, db: Session):
     fr_open = db.query(FeatureRequest).filter(
         FeatureRequest.project_id == project.id,
         FeatureRequest.status.in_([
@@ -708,20 +758,20 @@ def get_client_dashboard(project_id: Optional[str], current_client, db: Session)
         ClientMessage.sender_client_id == None,
         ClientMessage.is_internal == False,
     ).count()
-    open_ticket_statuses = [
-        TicketStatus.new,
-        TicketStatus.assigned,
-        TicketStatus.in_progress,
-        TicketStatus.pending_client,
-        TicketStatus.pending_third,
-    ]
-    ticket_query = db.query(Ticket).filter(
-        Ticket.requester_client_id == current_client.id,
-        Ticket.project_id == project.id,
-    )
-    tickets_open = ticket_query.filter(Ticket.status.in_(open_ticket_statuses)).count()
-    tickets_pending_client = ticket_query.filter(Ticket.status == TicketStatus.pending_client).count()
-    tickets_resolved = ticket_query.filter(Ticket.status.in_([TicketStatus.resolved, TicketStatus.closed])).count()
+    return fr_open, unread
+
+
+def _dashboard_ticket_counts(ticket_query) -> dict:
+    return {
+        "tickets_open": ticket_query.filter(Ticket.status.in_(_OPEN_TICKET_STATUSES)).count(),
+        "tickets_pending_client": ticket_query.filter(Ticket.status == TicketStatus.pending_client).count(),
+        "tickets_resolved": ticket_query.filter(
+            Ticket.status.in_([TicketStatus.resolved, TicketStatus.closed])
+        ).count(),
+    }
+
+
+def _dashboard_sla_stats(project, current_client, ticket_query, db: Session) -> dict:
     avg_first_response_minutes = db.query(func.avg(Ticket.first_response_minutes)).filter(
         Ticket.requester_client_id == current_client.id,
         Ticket.project_id == project.id,
@@ -743,11 +793,11 @@ def get_client_dashboard(project_id: Optional[str], current_client, db: Session)
         Ticket.sla_resolution_breached == True,
     ).count()
     response_breached_open = ticket_query.filter(
-        Ticket.status.in_(open_ticket_statuses),
+        Ticket.status.in_(_OPEN_TICKET_STATUSES),
         Ticket.sla_response_breached == True,
     ).count()
     resolution_breached_open = ticket_query.filter(
-        Ticket.status.in_(open_ticket_statuses),
+        Ticket.status.in_(_OPEN_TICKET_STATUSES),
         Ticket.sla_resolution_breached == True,
     ).count()
     csat_avg = db.query(func.avg(Ticket.csat_score)).filter(
@@ -755,21 +805,66 @@ def get_client_dashboard(project_id: Optional[str], current_client, db: Session)
         Ticket.project_id == project.id,
         Ticket.csat_score.isnot(None),
     ).scalar()
-    sla_compliance_pct = round(((resolved_ticket_count - breached_ticket_count) / resolved_ticket_count) * 100, 1) if resolved_ticket_count else None
-    next_milestone = next((m for m in milestones if not m.is_completed and m.due_date), None)
+    sla_compliance_pct = (
+        round(((resolved_ticket_count - breached_ticket_count) / resolved_ticket_count) * 100, 1)
+        if resolved_ticket_count else None
+    )
+    return {
+        "avg_first_response_minutes": round(float(avg_first_response_minutes), 1) if avg_first_response_minutes is not None else None,
+        "avg_resolution_minutes": round(float(avg_resolution_minutes), 1) if avg_resolution_minutes is not None else None,
+        "sla_compliance_pct": sla_compliance_pct,
+        "response_breached_open": response_breached_open,
+        "resolution_breached_open": resolution_breached_open,
+        "csat_avg": round(float(csat_avg), 1) if csat_avg is not None else None,
+    }
+
+
+def _dashboard_progress_pct(project) -> float:
     days_elapsed = (date.today() - project.start_date).days if project.start_date else 0
     days_total = (
         (project.end_date_planned - project.start_date).days
         if project.end_date_planned and project.start_date else None
     )
     progress_pct = round(days_elapsed / days_total * 100, 1) if days_total and days_total > 0 else 0
+    return min(progress_pct, 100)
+
+
+def _dashboard_next_milestone(milestones) -> Optional[dict]:
+    nm = next((m for m in milestones if not m.is_completed and m.due_date), None)
+    if not nm:
+        return None
+    return {
+        "name": nm.name,
+        "title": nm.name,
+        "due_date": str(nm.due_date),
+        "days_remaining": (nm.due_date - date.today()).days,
+    }
+
+
+def get_client_dashboard(project_id: Optional[str], current_client, db: Session) -> dict:
+    early, project = _resolve_dashboard_project(project_id, current_client, db)
+    if early is not None:
+        return early
+
+    total_hours, budget_pct, milestones = _dashboard_budget_and_milestones(project, db)
+    milestones_done = sum(1 for m in milestones if m.is_completed)
+    del_uat = _dashboard_deliverables_and_uat(project, db)
+    fr_open, unread = _dashboard_fr_and_unread(project, db)
+
+    ticket_query = db.query(Ticket).filter(
+        Ticket.requester_client_id == current_client.id,
+        Ticket.project_id == project.id,
+    )
+    ticket_counts = _dashboard_ticket_counts(ticket_query)
+    sla = _dashboard_sla_stats(project, current_client, ticket_query, db)
+
     return {
         "project": {
             "id": project.id, "code": project.code, "name": project.name,
             "status": project.status,
             "start_date": str(project.start_date) if project.start_date else None,
             "end_date_planned": str(project.end_date_planned) if project.end_date_planned else None,
-            "progress_pct": min(progress_pct, 100),
+            "progress_pct": _dashboard_progress_pct(project),
         },
         "kpis": {
             "budget_hours": project.budget_hours,
@@ -779,36 +874,26 @@ def get_client_dashboard(project_id: Optional[str], current_client, db: Session)
             "budget_spent": round(total_hours, 1),
             "milestones_total": len(milestones),
             "milestones_done": milestones_done,
-            "deliverables_accepted": del_accepted,
-            "deliverables_approved": del_accepted,
-            "deliverables_total": len(deliverables),
-            "deliverables_pending_uat": del_pending_uat,
-            "uat_total": uat_total,
-            "uat_passed": uat_passed,
-            "uat_pending": uat_pending,
+            "deliverables_accepted": del_uat["del_accepted"],
+            "deliverables_approved": del_uat["del_accepted"],
+            "deliverables_total": del_uat["deliverables_total"],
+            "deliverables_pending_uat": del_uat["del_pending_uat"],
+            "uat_total": del_uat["uat_total"],
+            "uat_passed": del_uat["uat_passed"],
+            "uat_pending": del_uat["uat_pending"],
             "feature_requests_open": fr_open,
-            "tickets_open": tickets_open,
-            "tickets_pending_client": tickets_pending_client,
-            "tickets_resolved": tickets_resolved,
+            "tickets_open": ticket_counts["tickets_open"],
+            "tickets_pending_client": ticket_counts["tickets_pending_client"],
+            "tickets_resolved": ticket_counts["tickets_resolved"],
             "unread_messages": unread,
         },
         "service_desk": {
-            "tickets_open": tickets_open,
-            "tickets_pending_client": tickets_pending_client,
-            "tickets_resolved": tickets_resolved,
-            "avg_first_response_minutes": round(float(avg_first_response_minutes), 1) if avg_first_response_minutes is not None else None,
-            "avg_resolution_minutes": round(float(avg_resolution_minutes), 1) if avg_resolution_minutes is not None else None,
-            "sla_compliance_pct": sla_compliance_pct,
-            "response_breached_open": response_breached_open,
-            "resolution_breached_open": resolution_breached_open,
-            "csat_avg": round(float(csat_avg), 1) if csat_avg is not None else None,
+            "tickets_open": ticket_counts["tickets_open"],
+            "tickets_pending_client": ticket_counts["tickets_pending_client"],
+            "tickets_resolved": ticket_counts["tickets_resolved"],
+            **sla,
         },
-        "next_milestone": {
-            "name": next_milestone.name,
-            "title": next_milestone.name,
-            "due_date": str(next_milestone.due_date),
-            "days_remaining": (next_milestone.due_date - date.today()).days,
-        } if next_milestone else None,
+        "next_milestone": _dashboard_next_milestone(milestones),
         "recent_activity": get_recent_activity(project.id, db),
     }
 
@@ -991,9 +1076,78 @@ def respond_to_fr(fr_id: str, payload, current_user, db: Session) -> dict:
     return fr_out(fr)
 
 
-def client_decide_fr(fr_id: str, payload, current_client, db: Session) -> dict:
-    import uuid, re as _re
+def _next_cr_code(project_id: str, db: Session) -> str:
+    import re as _re
+    max_cr = db.query(func.max(ChangeRequest.code)).filter(
+        ChangeRequest.project_id == project_id
+    ).scalar()
+    if max_cr:
+        _m = _re.search(r"(\d+)$", max_cr)
+        next_num = (int(_m.group(1)) + 1) if _m else 1
+    else:
+        next_num = 1
+    return f"CR-{next_num:03d}"
 
+
+def _create_cr_from_fr(fr, db: Session):
+    """Create a ChangeRequest mirroring a FeatureRequest and the matching approval request."""
+    import uuid
+
+    cr = ChangeRequest(
+        id=str(uuid.uuid4()),
+        code=_next_cr_code(fr.project_id, db),
+        project_id=fr.project_id,
+        title=fr.title,
+        description=fr.description,
+        justification=fr.business_justification,
+        impact=ChangeRequestImpact[fr.priority] if fr.priority else ChangeRequestImpact.medium,
+        cost_impact=fr.estimated_cost,
+        schedule_impact_days=fr.estimated_delivery_weeks * 7 if fr.estimated_delivery_weeks else None,
+        scope_impact=fr.affected_area,
+        status=ChangeRequestStatus.submitted,
+        submitted_at=datetime.now(timezone.utc),
+    )
+    db.add(cr)
+    db.flush()
+    fr.change_request_id = cr.id
+    wf = find_default_workflow("change_request", db)
+    if wf:
+        db.add(ApprovalRequest(
+            id=str(uuid.uuid4()),
+            workflow_id=wf.id,
+            entity_type="change_request",
+            entity_id=cr.id,
+            entity_summary=cr.title,
+            requested_by=None,
+            current_step=1,
+            status="pending",
+        ))
+    return cr
+
+
+def _apply_client_fr_approval(fr, db: Session) -> None:
+    """Handle FR approval path: ensure CR exists and mark it approved."""
+    fr.status = FeatureRequestStatus.approved
+    if not fr.change_request_id:
+        cr = _create_cr_from_fr(fr, db)
+    else:
+        cr = db.query(ChangeRequest).filter(ChangeRequest.id == fr.change_request_id).first()
+    if cr:
+        cr.status = ChangeRequestStatus.approved
+        db.commit()
+
+
+def _apply_client_fr_rejection(fr, db: Session) -> None:
+    """Handle FR rejection path: mark FR rejected and linked CR if any."""
+    fr.status = FeatureRequestStatus.rejected
+    if fr.change_request_id:
+        cr = db.query(ChangeRequest).filter(ChangeRequest.id == fr.change_request_id).first()
+        if cr:
+            cr.status = ChangeRequestStatus.rejected
+            db.commit()
+
+
+def client_decide_fr(fr_id: str, payload, current_client, db: Session) -> dict:
     accessible = current_client.get_project_ids()
     fr = db.query(FeatureRequest).filter(
         FeatureRequest.id == fr_id,
@@ -1007,59 +1161,9 @@ def client_decide_fr(fr_id: str, payload, current_client, db: Session) -> dict:
     fr.client_approved_at = datetime.now(timezone.utc)
     fr.client_rejection_reason = payload.reason
     if payload.approved:
-        fr.status = FeatureRequestStatus.approved
-        cr = None
-        if not fr.change_request_id:
-            max_cr = db.query(func.max(ChangeRequest.code)).filter(
-                ChangeRequest.project_id == fr.project_id
-            ).scalar()
-            if max_cr:
-                _m = _re.search(r"(\d+)$", max_cr)
-                next_cr_num = (int(_m.group(1)) + 1) if _m else 1
-            else:
-                next_cr_num = 1
-            cr = ChangeRequest(
-                id=str(uuid.uuid4()),
-                code=f"CR-{next_cr_num:03d}",
-                project_id=fr.project_id,
-                title=fr.title,
-                description=fr.description,
-                justification=fr.business_justification,
-                impact=ChangeRequestImpact[fr.priority] if fr.priority else ChangeRequestImpact.medium,
-                cost_impact=fr.estimated_cost,
-                schedule_impact_days=fr.estimated_delivery_weeks * 7 if fr.estimated_delivery_weeks else None,
-                scope_impact=fr.affected_area,
-                status=ChangeRequestStatus.submitted,
-                submitted_at=datetime.now(timezone.utc),
-            )
-            db.add(cr)
-            db.flush()
-            fr.change_request_id = cr.id
-            wf = find_default_workflow("change_request", db)
-            if wf:
-                req = ApprovalRequest(
-                    id=str(uuid.uuid4()),
-                    workflow_id=wf.id,
-                    entity_type="change_request",
-                    entity_id=cr.id,
-                    entity_summary=cr.title,
-                    requested_by=None,
-                    current_step=1,
-                    status="pending",
-                )
-                db.add(req)
-        else:
-            cr = db.query(ChangeRequest).filter(ChangeRequest.id == fr.change_request_id).first()
-        if cr:
-            cr.status = ChangeRequestStatus.approved
-            db.commit()
+        _apply_client_fr_approval(fr, db)
     else:
-        fr.status = FeatureRequestStatus.rejected
-        if fr.change_request_id:
-            cr = db.query(ChangeRequest).filter(ChangeRequest.id == fr.change_request_id).first()
-            if cr:
-                cr.status = ChangeRequestStatus.rejected
-                db.commit()
+        _apply_client_fr_rejection(fr, db)
     db.commit()
     return fr_out(fr)
 
@@ -1373,9 +1477,7 @@ def upload_document(payload, project_id: str, current_user, db: Session) -> dict
     return doc_out(doc)
 
 
-def sign_document(doc_id: str, signer_name: str, signer_email: str, signer_job_title: Optional[str],
-                  ip: str, signature_pdf_path_root: str, current_client, db: Session) -> dict:
-
+def _load_signable_document(doc_id: str, current_client, db: Session):
     _acc = current_client.get_project_ids()
     if not _acc:
         raise ValueError("No hay proyectos asignados a este cliente")
@@ -1387,23 +1489,34 @@ def sign_document(doc_id: str, signer_name: str, signer_email: str, signer_job_t
         raise ValueError("Documento no encontrado")
     if doc.signed_by_client:
         raise ValueError("El documento ya fue firmado")
+    return doc
 
-    now = datetime.now(timezone.utc)
+
+def _apply_signature_metadata(doc, signer_name: str, signer_job_title: Optional[str], ip: str, now: datetime) -> None:
     doc.signed_by_client    = True
     doc.signed_at           = now
     doc.signed_by_name      = signer_name
     doc.signed_by_job_title = signer_job_title
     doc.signature_ip        = ip
 
-    project_name = "—"
+
+def _resolve_doc_project_name(doc, db: Session) -> str:
     try:
         proj = db.query(ProjectModel).filter(ProjectModel.id == doc.project_id).first()
         if proj:
-            project_name = proj.name
+            return proj.name
     except Exception:
         pass
+    return "—"
 
-    pdf_b64 = None
+
+def _generate_and_store_signature_pdf(
+    doc, doc_id: str, signer_name: str, signer_email: str, signer_job_title: Optional[str],
+    ip: str, signature_pdf_path_root: str, project_name: str, now: datetime,
+) -> Optional[str]:
+    """Generate the signature PDF, persist it on disk, set doc.signed_pdf_path,
+    and return the base64-encoded PDF bytes. Logs (and swallows) generation
+    errors but propagates ValueError for explicit invalid-path conditions."""
     try:
         from app.services.signature_pdf import generate_signed_pdf
         from pathlib import Path
@@ -1428,12 +1541,24 @@ def sign_document(doc_id: str, signer_name: str, signer_email: str, signer_job_t
         with open(str(pdf_path), "wb") as f:
             f.write(pdf_bytes)
         doc.signed_pdf_path = str(pdf_path)
-        pdf_b64 = base64.b64encode(pdf_bytes).decode()
+        return base64.b64encode(pdf_bytes).decode()
     except ValueError:
         raise
     except Exception as e:
         logger.error(f"Error generating PDF signature: {e}", exc_info=True)
+        return None
 
+
+def sign_document(doc_id: str, signer_name: str, signer_email: str, signer_job_title: Optional[str],
+                  ip: str, signature_pdf_path_root: str, current_client, db: Session) -> dict:
+    doc = _load_signable_document(doc_id, current_client, db)
+    now = datetime.now(timezone.utc)
+    _apply_signature_metadata(doc, signer_name, signer_job_title, ip, now)
+    project_name = _resolve_doc_project_name(doc, db)
+    pdf_b64 = _generate_and_store_signature_pdf(
+        doc, doc_id, signer_name, signer_email, signer_job_title,
+        ip, signature_pdf_path_root, project_name, now,
+    )
     db.commit()
     return {"ok": True, "signed_at": str(now)[:16], "signer_name": doc.signed_by_name, "pdf_b64": pdf_b64}
 
@@ -1520,9 +1645,8 @@ def respond_survey(survey_id: str, payload, current_client, db: Session) -> dict
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
 
-def get_portal_stats(project_id: str, db: Session) -> dict:
+def _portal_stats_client_count(project_id: str, db: Session) -> int:
     import sqlalchemy as sa
-
     legacy_ids = {r[0] for r in db.execute(
         sa.select(ClientUser.id).where(ClientUser.project_id == project_id)
     ).fetchall()}
@@ -1531,7 +1655,24 @@ def get_portal_stats(project_id: str, db: Session) -> dict:
             client_user_projects.c.project_id == project_id
         )
     ).fetchall()}
-    clients = len(legacy_ids | m2m_ids)
+    return len(legacy_ids | m2m_ids)
+
+
+def _portal_stats_survey_aggregates(surveys) -> dict:
+    if not surveys:
+        return {"survey_count": 0, "avg_nps": None, "avg_satisfaction": None}
+    n = max(len(surveys), 1)
+    return {
+        "survey_count": len(surveys),
+        "avg_nps": round(sum(s.nps_score for s in surveys if s.nps_score) / n, 1),
+        "avg_satisfaction": round(
+            sum(s.overall_satisfaction for s in surveys if s.overall_satisfaction) / n, 1
+        ),
+    }
+
+
+def get_portal_stats(project_id: str, db: Session) -> dict:
+    clients = _portal_stats_client_count(project_id, db)
     unread_from_client = db.query(ClientMessage).filter(
         ClientMessage.project_id == project_id,
         ClientMessage.sender_client_id != None,
@@ -1549,16 +1690,11 @@ def get_portal_stats(project_id: str, db: Session) -> dict:
         ClientSurvey.project_id == project_id,
         ClientSurvey.status == "completed",
     ).all()
-    avg_nps = round(sum(s.nps_score for s in surveys if s.nps_score) / max(len(surveys), 1), 1) if surveys else None
-    avg_satisfaction = round(
-        sum(s.overall_satisfaction for s in surveys if s.overall_satisfaction) / max(len(surveys), 1), 1
-    ) if surveys else None
+    survey_stats = _portal_stats_survey_aggregates(surveys)
     return {
         "client_count": clients,
         "unread_messages": unread_from_client,
         "fr_pending_review": fr_pending,
         "uat_pending": uat_pending,
-        "survey_count": len(surveys),
-        "avg_nps": avg_nps,
-        "avg_satisfaction": avg_satisfaction,
+        **survey_stats,
     }
