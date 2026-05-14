@@ -193,7 +193,7 @@ export default function ImputarPage() {
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks-my', form.project_id],
-    queryFn: () => tasksApi.list({ project_id: form.project_id, assignee_id: user?.id }).then(r => r.data),
+    queryFn: () => tasksApi.list({ project_id: form.project_id, assignee_id: user?.id }).then(r => r.data?.items ?? r.data ?? []),
     enabled: !!form.project_id,
   })
 
@@ -210,7 +210,7 @@ export default function ImputarPage() {
 
   const { data: todayImputations = [] } = useQuery({
     queryKey: ['imputations-today'],
-    queryFn: () => imputationsApi.list({ date_from: today, date_to: today, user_id: user?.id }).then(r => r.data),
+    queryFn: () => imputationsApi.list({ date_from: today, date_to: today, user_id: user?.id }).then(r => r.data?.items ?? r.data ?? []),
   })
 
   // Item #48: anomalías de imputación del propio user (últimos 30 días).

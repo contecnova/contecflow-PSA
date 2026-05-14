@@ -88,7 +88,9 @@ def test_delete_expense(client, admin_token, db):
 
     mine = client.get("/api/v1/expenses/my", headers=auth(admin_token))
     assert mine.status_code == 200
-    assert all(e["id"] != exp_id for e in mine.json())
+    _mine_body = mine.json()
+    _mine_items = _mine_body if isinstance(_mine_body, list) else _mine_body.get("items", [])
+    assert all(e["id"] != exp_id for e in _mine_items)
 
     row = db.query(Expense).filter(Expense.id == exp_id).first()
     assert row is None

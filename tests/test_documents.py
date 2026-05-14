@@ -49,8 +49,9 @@ def test_list_documents(db: Session, doc_client):
     # List documents
     response = client.get("/api/v1/documents", headers=headers)
     assert response.status_code == 200
-    data = response.json()
-    assert len(data) >= 1
+    body = response.json()
+    items = body if isinstance(body, list) else body.get("items", [])
+    assert len(items) >= 1
 
 
 def test_get_document(db: Session, doc_client):
@@ -359,14 +360,16 @@ def test_archived_documents_filtered_by_default(db: Session, doc_client):
     # List active documents (default)
     response = client.get("/api/v1/documents?is_archived=false", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body if isinstance(body, list) else body.get("items", [])
     archived_docs = [d for d in data if d["id"] == doc_id]
     assert len(archived_docs) == 0  # Should not be in active list
 
     # List archived documents
     response = client.get("/api/v1/documents?is_archived=true", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body if isinstance(body, list) else body.get("items", [])
     archived_docs = [d for d in data if d["id"] == doc_id]
     assert len(archived_docs) == 1  # Should be in archived list
 

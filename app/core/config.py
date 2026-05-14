@@ -2,8 +2,31 @@ from pydantic_settings import BaseSettings
 from pydantic import Field, ValidationInfo, field_validator
 from typing import List, Optional
 
+from app.core.config_groups import (
+    AISettingsMixin,
+    SLASettingsMixin,
+    HealthSettingsMixin,
+    SemanticSettingsMixin,
+)
 
-class Settings(BaseSettings):
+
+class Settings(
+    AISettingsMixin,
+    SLASettingsMixin,
+    HealthSettingsMixin,
+    SemanticSettingsMixin,
+    BaseSettings,
+):
+    """
+    Application settings.
+
+    Domain-specific knobs (AI providers, SLA hours, health weights, semantic
+    thresholds) live in mixin classes under `app.core.config_groups`. Everything
+    that needs validators or is genuinely cross-cutting (security, secrets,
+    URLs, infra) stays here.
+    """
+
+    # ── Project / API / Environment ──────────────────────────────────────────
     PROJECT_NAME: str = Field(default="Contecflow", env="PROJECT_NAME")
     VERSION: str = Field(default="23.9.3", env="VERSION")
     API_V1_STR: str = Field(default="/api/v1", env="API_V1_STR")
@@ -11,6 +34,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = Field(default="development", env="ENVIRONMENT")
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")  # DEBUG|INFO|WARNING|ERROR|CRITICAL
 
+    # ── Auth / Tokens ────────────────────────────────────────────────────────
     SECRET_KEY: str = Field(..., env="SECRET_KEY")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15, env="ACCESS_TOKEN_EXPIRE_MINUTES")
     ACCESS_TOKEN_MAX_MINUTES: int = Field(default=30, env="ACCESS_TOKEN_MAX_MINUTES")
@@ -28,13 +52,14 @@ class Settings(BaseSettings):
     AWS_KMS_KEY_ID: str = Field(default="", env="AWS_KMS_KEY_ID")
     AWS_KMS_REGION: str = Field(default="", env="AWS_KMS_REGION")
 
+    # ── Database ─────────────────────────────────────────────────────────────
     DATABASE_URL: str = Field(..., env="DATABASE_URL")
 
-    # Defaults for project pipeline etc.
+    # ── Project pipeline defaults ────────────────────────────────────────────
     DEFAULT_PROJECT_TYPE: str = Field(default="consulting", env="DEFAULT_PROJECT_TYPE")
     DEFAULT_BILLING_TYPE: str = Field(default="time_material", env="DEFAULT_BILLING_TYPE")
 
-    # Orígenes permitidos (ALLOWED_ORIGINS, no CORS_ORIGINS)
+    # ── CORS / Allowed origins (ALLOWED_ORIGINS, no CORS_ORIGINS) ───────────
     ALLOWED_ORIGINS: List[str] = Field(default_factory=lambda: [
         "http://localhost:3000",
         "http://localhost:5173",
@@ -42,6 +67,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:8000",
     ], env="ALLOWED_ORIGINS")
 
+    # ── Bootstrap credentials & operational secrets ──────────────────────────
     SUPERADMIN_EMAIL: str = Field(..., env="SUPERADMIN_EMAIL")
     SUPERADMIN_PASSWORD: str = Field(..., env="SUPERADMIN_PASSWORD")
 
@@ -87,33 +113,8 @@ class Settings(BaseSettings):
     WEBAUTHN_RP_NAME: str = Field(default="Contecflow PSA", env="WEBAUTHN_RP_NAME")
     WEBAUTHN_ORIGIN: str = Field(default="http://localhost:5173", env="WEBAUTHN_ORIGIN")
 
-    # ── AI providers (opcionales) ─────────────────────────────────────────────
-    # Fallback API keys — used only when no provider is configured in the database.
-    # Prefer configuring providers via the AI Providers admin panel in the UI.
-    ANTHROPIC_API_KEY: str = Field(default="", env="ANTHROPIC_API_KEY")
-    ANTHROPIC_API_URL: str = Field(default="https://api.anthropic.com/v1", env="ANTHROPIC_API_URL")
-    ANTHROPIC_DOCS_URL: str = Field(default="https://www.anthropic.com/docs", env="ANTHROPIC_DOCS_URL")
-    OPENAI_API_URL: str = Field(default="https://api.openai.com/v1", env="OPENAI_API_URL")
-    OPENAI_DOCS_URL: str = Field(default="https://platform.openai.com/docs", env="OPENAI_DOCS_URL")
-    GEMINI_API_URL: str = Field(default="https://generativelanguage.googleapis.com/v1beta", env="GEMINI_API_URL")  # v1beta soporta todos los modelos Gemini 2.x
-    GEMINI_DOCS_URL: str = Field(default="https://developers.google.com/ai", env="GEMINI_DOCS_URL")
-    DEEPSEEK_API_URL: str = Field(default="https://api.deepseek.com/v1", env="DEEPSEEK_API_URL")
-    DEEPSEEK_DOCS_URL: str = Field(default="https://docs.deepseek.ai", env="DEEPSEEK_DOCS_URL")
-    GROQ_API_URL: str = Field(default="https://api.groq.com/openai/v1", env="GROQ_API_URL")
-    GROQ_DOCS_URL: str = Field(default="https://docs.groq.com", env="GROQ_DOCS_URL")
-    MISTRAL_API_URL: str = Field(default="https://api.mistral.ai/v1", env="MISTRAL_API_URL")
-    MISTRAL_DOCS_URL: str = Field(default="https://docs.mistral.ai", env="MISTRAL_DOCS_URL")
-    OLLAMA_BASE_URL: str = Field(default="http://localhost:11434", env="OLLAMA_BASE_URL")
-    OLLAMA_DOCS_URL: str = Field(default="https://ollama.com/docs", env="OLLAMA_DOCS_URL")
-    # AZURE_OPENAI_API_URL must be set to your resource endpoint (e.g. https://<resource>.openai.azure.com/openai)
-    AZURE_OPENAI_API_URL: str = Field(default="", env="AZURE_OPENAI_API_URL")
-    AZURE_OPENAI_DOCS_URL: str = Field(default="https://oai.azure.com", env="AZURE_OPENAI_DOCS_URL")
-
-    # Modelo IA de fallback (usado cuando no hay proveedor configurado en BD)
-    CONTECFLOW_AI_MODEL: str = Field(default="claude-haiku-4-5", env="CONTECFLOW_AI_MODEL")
-    # Semantic classifier backend: keep HTTP API lean by default.
-    # "tfidf" avoids loading heavy torch/transformers dependencies in API pods.
-    SEMANTIC_EMBEDDINGS_BACKEND: str = Field(default="tfidf", env="SEMANTIC_EMBEDDINGS_BACKEND")
+    # NOTE: AI providers, models and cost alerts live in AISettingsMixin
+    # (app/core/config_groups/ai_config.py).
 
     # ── Contabilidad (opcionales) ─────────────────────────────────────────────
     XERO_API_BASE: str = Field(default="https://api.xero.com/api.xro/2.0", env="XERO_API_BASE")
@@ -171,15 +172,8 @@ class Settings(BaseSettings):
     DEFAULT_WEEKLY_CAPACITY_HOURS: float = Field(default=40.0, env="DEFAULT_WEEKLY_CAPACITY_HOURS")
     DEFAULT_VACATION_DAYS_PER_YEAR: int = Field(default=23, env="DEFAULT_VACATION_DAYS_PER_YEAR")
 
-    # ── SLA defaults (hours) ──────────────────────────────────────────────────
-    SLA_P1_RESPONSE_HOURS: float = Field(default=1.0, env="SLA_P1_RESPONSE_HOURS")
-    SLA_P1_RESOLUTION_HOURS: float = Field(default=4.0, env="SLA_P1_RESOLUTION_HOURS")
-    SLA_P2_RESPONSE_HOURS: float = Field(default=4.0, env="SLA_P2_RESPONSE_HOURS")
-    SLA_P2_RESOLUTION_HOURS: float = Field(default=8.0, env="SLA_P2_RESOLUTION_HOURS")
-    SLA_P3_RESPONSE_HOURS: float = Field(default=8.0, env="SLA_P3_RESPONSE_HOURS")
-    SLA_P3_RESOLUTION_HOURS: float = Field(default=24.0, env="SLA_P3_RESOLUTION_HOURS")
-    SLA_P4_RESPONSE_HOURS: float = Field(default=24.0, env="SLA_P4_RESPONSE_HOURS")
-    SLA_P4_RESOLUTION_HOURS: float = Field(default=72.0, env="SLA_P4_RESOLUTION_HOURS")
+    # NOTE: SLA defaults & breach prediction live in SLASettingsMixin
+    # (app/core/config_groups/sla_config.py).
 
     # ── Redis (Celery broker + KPI cache) ────────────────────────────────────
     REDIS_URL: Optional[str] = Field(default=None, env="REDIS_URL")
@@ -215,10 +209,7 @@ class Settings(BaseSettings):
     SMTP_PASS: str = Field(default="", env="SMTP_PASS")
     SMTP_FROM: str = Field(default="", env="SMTP_FROM")
 
-    # ── OpenAI (fallback key — prefer DB-configured provider) ────────────────
-    OPENAI_API_KEY: str = Field(default="", env="OPENAI_API_KEY")
-    # OpenAI Speech-to-Text model (gpt-4o-mini-transcribe es el sucesor de whisper-1)
-    OPENAI_STT_MODEL: str = Field(default="gpt-4o-mini-transcribe", env="OPENAI_STT_MODEL")
+    # NOTE: OpenAI fallback key & STT models live in AISettingsMixin.
 
     # ── STT (Speech-to-Text) provider — Item #51 ─────────────────────────────
     # Provider primario: openai | azure | google | whisper_local
@@ -245,8 +236,7 @@ class Settings(BaseSettings):
         default="https://chart.googleapis.com/chart", env="GOOGLE_CHART_URL"
     )
 
-    # ── AI cost alerting ──────────────────────────────────────────────────────
-    AI_COST_ALERT_USD_PER_DAY: float = Field(default=10.0, env="AI_COST_ALERT_USD_PER_DAY")
+    # NOTE: AI cost alerting lives in AISettingsMixin.
 
     # ── Stripe payment gateway (v23.8) ────────────────────────────────────────
     STRIPE_SECRET_KEY:        Optional[str] = Field(default=None, env="STRIPE_SECRET_KEY")
@@ -272,52 +262,10 @@ class Settings(BaseSettings):
     # transcripción) donde la latencia es naturalmente mayor.
     OUTBOUND_AI_TIMEOUT_SECONDS: float = Field(default=30.0, env="OUTBOUND_AI_TIMEOUT_SECONDS")
 
-    # ── Customer health score ─────────────────────────────────────────────────
-    HEALTH_NPS_LOOKBACK_DAYS: int = Field(default=90, env="HEALTH_NPS_LOOKBACK_DAYS")
-    HEALTH_TICKET_LOOKBACK_DAYS: int = Field(default=30, env="HEALTH_TICKET_LOOKBACK_DAYS")
-    HEALTH_DEFAULT_NO_DATA: float = Field(default=70.0, env="HEALTH_DEFAULT_NO_DATA")
-    HEALTH_PORTAL_BASE_SCORE: float = Field(default=30.0, env="HEALTH_PORTAL_BASE_SCORE")
-    HEALTH_PORTAL_SCORE_PER_SESSION: float = Field(default=7.0, env="HEALTH_PORTAL_SCORE_PER_SESSION")
-    HEALTH_WEIGHT_NPS: float = Field(default=0.40, env="HEALTH_WEIGHT_NPS")
-    HEALTH_WEIGHT_DELIVERY: float = Field(default=0.20, env="HEALTH_WEIGHT_DELIVERY")
-    HEALTH_WEIGHT_BUDGET: float = Field(default=0.15, env="HEALTH_WEIGHT_BUDGET")
-    HEALTH_WEIGHT_TICKETS: float = Field(default=0.15, env="HEALTH_WEIGHT_TICKETS")
-    HEALTH_WEIGHT_PORTAL: float = Field(default=0.10, env="HEALTH_WEIGHT_PORTAL")
-    HEALTH_THRESHOLD_EXCELLENT: float = Field(default=80.0, env="HEALTH_THRESHOLD_EXCELLENT")
-    HEALTH_THRESHOLD_GOOD: float = Field(default=60.0, env="HEALTH_THRESHOLD_GOOD")
-    HEALTH_THRESHOLD_AT_RISK: float = Field(default=40.0, env="HEALTH_THRESHOLD_AT_RISK")
-
-    # ── Project health score ──────────────────────────────────────────────────
-    PROJECT_HEALTH_WEIGHT_SCHEDULE: float = Field(default=0.30, env="PROJECT_HEALTH_WEIGHT_SCHEDULE")
-    PROJECT_HEALTH_WEIGHT_BUDGET: float = Field(default=0.25, env="PROJECT_HEALTH_WEIGHT_BUDGET")
-    PROJECT_HEALTH_WEIGHT_QUALITY: float = Field(default=0.20, env="PROJECT_HEALTH_WEIGHT_QUALITY")
-    PROJECT_HEALTH_WEIGHT_VELOCITY: float = Field(default=0.15, env="PROJECT_HEALTH_WEIGHT_VELOCITY")
-    PROJECT_HEALTH_WEIGHT_CLIENT: float = Field(default=0.10, env="PROJECT_HEALTH_WEIGHT_CLIENT")
-    PROJECT_HEALTH_TRAFFIC_GREEN: float = Field(default=70.0, env="PROJECT_HEALTH_TRAFFIC_GREEN")
-    PROJECT_HEALTH_TRAFFIC_YELLOW: float = Field(default=45.0, env="PROJECT_HEALTH_TRAFFIC_YELLOW")
-    PROJECT_HEALTH_BUDGET_RATIO_GOOD: float = Field(default=0.80, env="PROJECT_HEALTH_BUDGET_RATIO_GOOD")
-    PROJECT_HEALTH_BUDGET_RATIO_OK: float = Field(default=1.00, env="PROJECT_HEALTH_BUDGET_RATIO_OK")
-    PROJECT_HEALTH_BUDGET_RATIO_WARN: float = Field(default=1.20, env="PROJECT_HEALTH_BUDGET_RATIO_WARN")
-
-    # ── SLA breach prediction thresholds ─────────────────────────────────────
-    SLA_PREDICTION_HOURS_CRITICAL: int = Field(default=4, env="SLA_PREDICTION_HOURS_CRITICAL")
-    SLA_PREDICTION_HOURS_HIGH: int = Field(default=8, env="SLA_PREDICTION_HOURS_HIGH")
-    SLA_PREDICTION_HOURS_MEDIUM: int = Field(default=24, env="SLA_PREDICTION_HOURS_MEDIUM")
-    SLA_PREDICTION_HOURS_LOW: int = Field(default=72, env="SLA_PREDICTION_HOURS_LOW")
-    SLA_PREDICTION_WARNING_PCT: float = Field(default=0.70, env="SLA_PREDICTION_WARNING_PCT")
-    SLA_PREDICTION_SEVERITY_CRITICAL_H: float = Field(default=1.0, env="SLA_PREDICTION_SEVERITY_CRITICAL_H")
-    SLA_PREDICTION_SEVERITY_HIGH_H: float = Field(default=4.0, env="SLA_PREDICTION_SEVERITY_HIGH_H")
-
-    # ── Semantic classifier fallback defaults (override via SemConfig in DB) ──
-    SEM_THRESHOLD_EXPERT_CACHE: float = Field(default=0.92, env="SEM_THRESHOLD_EXPERT_CACHE")
-    SEM_THRESHOLD_CRITICAL: float = Field(default=0.90, env="SEM_THRESHOLD_CRITICAL")
-    SEM_THRESHOLD_HIGH: float = Field(default=0.72, env="SEM_THRESHOLD_HIGH")
-    SEM_THRESHOLD_MEDIUM: float = Field(default=0.58, env="SEM_THRESHOLD_MEDIUM")
-    SEM_THRESHOLD_LOW: float = Field(default=0.45, env="SEM_THRESHOLD_LOW")
-    SEM_WEIGHT_PROFILE: float = Field(default=0.40, env="SEM_WEIGHT_PROFILE")
-    SEM_WEIGHT_HISTORY: float = Field(default=0.60, env="SEM_WEIGHT_HISTORY")
-    SEM_TOP_K_HISTORY: int = Field(default=3, env="SEM_TOP_K_HISTORY")
-    SEM_MULTI_ROLE_FACTOR: float = Field(default=0.70, env="SEM_MULTI_ROLE_FACTOR")
+    # NOTE: customer & project health weights/thresholds live in HealthSettingsMixin
+    # (app/core/config_groups/health_config.py).
+    # NOTE: semantic classifier thresholds live in SemanticSettingsMixin
+    # (app/core/config_groups/semantic_config.py).
 
     class Config:
         env_file = ".env"

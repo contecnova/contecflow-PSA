@@ -77,7 +77,7 @@ function BookingModal({ onClose, prefill }) {
   })
   const validation = useFormValidation(bookingSchema)
 
-  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
+  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []) })
   const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
   const projects = Array.isArray(projRaw) ? projRaw : []
   const users = Array.isArray(usersRaw) ? usersRaw : []

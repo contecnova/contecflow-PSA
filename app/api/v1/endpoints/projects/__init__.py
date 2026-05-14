@@ -5,6 +5,7 @@ from typing import Optional, List
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_admin_or_pm
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User, UserRole
 from app.models.project import Project, ProjectStatus, ProjectType
 from app.schemas import (
@@ -37,7 +38,7 @@ from app.services.project_service import (
 router = APIRouter()
 
 
-@router.get("", response_model=List[ProjectSummary], summary="Listar proyectos")
+@router.get("", response_model=APIListResponse[ProjectSummary], summary="Listar proyectos")
 def list_projects(
     status: Optional[ProjectStatus] = None,
     project_type: Optional[ProjectType] = None,
@@ -95,7 +96,7 @@ def list_projects(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
-    return result
+    return APIListResponse.ok(items=result, total=total, page=page, page_size=page_size)
 
 
 @router.get("/milestones", summary="Milestones cross-proyecto con filtro de fecha")

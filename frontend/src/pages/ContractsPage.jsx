@@ -92,7 +92,7 @@ function ContractFormModal({ contract, onClose }) {
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!contract?.id
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []) })
   const [form, setForm] = useState({
     name: contract?.name || '',
     project_id: contract?.project_id || '',
@@ -368,7 +368,7 @@ export default function ContractsPage() {
 
   const { data: contracts = [], isLoading } = useQuery({
     queryKey: ['contracts', statusFilter],
-    queryFn: () => contractsApi.list(statusFilter ? { status: statusFilter } : {}).then(r => r.data),
+    queryFn: () => contractsApi.list(statusFilter ? { status: statusFilter } : {}).then(r => r.data?.items ?? r.data ?? []),
   })
 
   // Contratos que vencen en los próximos 90 días

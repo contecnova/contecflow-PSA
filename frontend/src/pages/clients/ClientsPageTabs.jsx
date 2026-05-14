@@ -308,7 +308,7 @@ export function ContractsTab({ cid }) {
   const [selectedCon, setSelectedCon] = useState('')
 
   const { data: linked = [] } = useQuery({ queryKey: ['client-contracts', cid], queryFn: () => clientExtApi.contracts(cid).then(r => r.data) })
-  const { data: allCons = [] } = useQuery({ queryKey: ['contracts'], queryFn: () => contractsApi.list().then(r => r.data) })
+  const { data: allCons = [] } = useQuery({ queryKey: ['contracts'], queryFn: () => contractsApi.list().then(r => r.data?.items ?? r.data ?? []) })
 
   const { mutate: link } = useMutation({
     mutationFn: d => clientExtApi.linkContract(cid, d),

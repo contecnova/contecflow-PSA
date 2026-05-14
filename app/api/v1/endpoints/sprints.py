@@ -96,7 +96,7 @@ def list_sprints(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    sprints = svc.list_sprints_for_project(db, project_id, status)
+    sprints = svc.list_sprints_for_project(db, project_id, status, current_user)
     return [_sprint_out(s, include_tasks=True) for s in sprints]
 
 
@@ -132,7 +132,7 @@ def update_sprint(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "sprint", sprint_id, action="update")
-    sprint = svc.get_sprint_simple(db, sprint_id, project_id)
+    sprint = svc.get_sprint_simple(db, sprint_id, project_id, current_user)
     if not sprint: raise HTTPException(404, "Sprint no encontrado")
 
     for k, v in payload.model_dump(exclude_unset=True).items():
@@ -142,7 +142,7 @@ def update_sprint(
     db.refresh(sprint)
 
     # Reload with tasks
-    sprint = svc.get_sprint_with_tasks_by_id(db, sprint_id)
+    sprint = svc.get_sprint_with_tasks_by_id(db, sprint_id, current_user)
     return _sprint_out(sprint, include_tasks=True)
 
 
@@ -154,11 +154,11 @@ def start_sprint(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "sprint", sprint_id, action="update")
-    sprint = svc.get_sprint_with_tasks(db, sprint_id, project_id)
+    sprint = svc.get_sprint_with_tasks(db, sprint_id, project_id, current_user)
     if not sprint: raise HTTPException(404, "Sprint no encontrado")
 
     # Only one active sprint per project
-    active = svc.get_active_sprint_for_project(db, project_id)
+    active = svc.get_active_sprint_for_project(db, project_id, current_user)
     if active and active.id != sprint_id:
         raise HTTPException(400, f"Ya hay un sprint activo: {active.name}")
 
@@ -192,7 +192,7 @@ def add_tasks_to_sprint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    sprint = svc.get_sprint_simple(db, sprint_id, project_id)
+    sprint = svc.get_sprint_simple(db, sprint_id, project_id, current_user)
     if not sprint: raise HTTPException(404, "Sprint no encontrado")
 
     added = svc.add_tasks_to_sprint(db, sprint_id, project_id, payload.task_ids)
@@ -233,7 +233,7 @@ def get_burndown(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    sprint = svc.get_sprint_for_charts(db, sprint_id, project_id)
+    sprint = svc.get_sprint_for_charts(db, sprint_id, project_id, current_user)
     if not sprint: raise HTTPException(404)
     return {"burndown": _compute_burndown(sprint, db)}
 
@@ -250,7 +250,7 @@ def get_burnup(
       - scope: total story points in the sprint by that date (shows scope creep)
       - completed: cumulative story points marked done by that date
     """
-    sprint = svc.get_sprint_for_charts(db, sprint_id, project_id)
+    sprint = svc.get_sprint_for_charts(db, sprint_id, project_id, current_user)
     if not sprint:
         raise HTTPException(404)
 

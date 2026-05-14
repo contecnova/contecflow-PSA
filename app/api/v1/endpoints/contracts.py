@@ -6,6 +6,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import require_admin, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.services import contract_service
 from app.services.contract_service import serialize_contract as _contract_out
@@ -15,7 +16,7 @@ router = APIRouter()
 
 
 
-@router.get("", summary="Listar contratos")
+@router.get("", response_model=APIListResponse[dict], summary="Listar contratos")
 def list_contracts(
     project_id: Optional[str] = None,
     client_id: Optional[str] = None,
@@ -33,7 +34,8 @@ def list_contracts(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
-    return [_contract_out(c) for c in contracts]
+    items = [_contract_out(c) for c in contracts]
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post("", summary="Crear contrato")

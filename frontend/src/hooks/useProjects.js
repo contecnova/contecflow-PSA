@@ -4,7 +4,7 @@ import { projectsApi } from '../services/api'
 export function useProjects(params = {}) {
   return useQuery({
     queryKey: ['projects', params],
-    queryFn: () => projectsApi.list(params).then(r => r.data),
+    queryFn: () => projectsApi.list(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: 2 * 60 * 1000,
   })
 }
@@ -13,7 +13,7 @@ export function useProjects(params = {}) {
 export function useAllProjects() {
   return useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data),
+    queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []),
     staleTime: 2 * 60 * 1000,
   })
 }

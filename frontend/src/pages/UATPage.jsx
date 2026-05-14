@@ -171,14 +171,14 @@ export default function UATPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data),
+    queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []),
   })
 
   const { data: tasksData = [] } = useQuery({
     queryKey: ['tasks', selectedProject],
     queryFn: () => tasksApi.list({ project_id: selectedProject }).then(r => r.data),
     enabled: !!selectedProject,
-    select: d => (Array.isArray(d) ? d : d?.tasks || []),
+    select: d => (Array.isArray(d) ? d : d?.items || d?.tasks || []),
   })
 
   const { data: uatData, isLoading } = useQuery({

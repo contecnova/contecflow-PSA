@@ -126,7 +126,7 @@ export function UserSelect({ value = '', onChange, placeholder = 'Seleccionar us
 export function ProjectSelect({ value = '', onChange, placeholder = 'Seleccionar proyecto…', filterStatus, required = false, style }) {
   const { data: rawProjects = [], isLoading } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data),
+    queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []),
     staleTime: 2 * 60 * 1000,
   })
 
@@ -200,7 +200,7 @@ export function EpicSelect({ value = '', onChange, projectId, placeholder = 'Sel
 export function ContractSelect({ value = '', onChange, placeholder = 'Seleccionar contrato…', required = false, style }) {
   const { data: contracts = [], isLoading } = useQuery({
     queryKey: ['contracts'],
-    queryFn: () => contractsApi.list().then(r => r.data),
+    queryFn: () => contractsApi.list().then(r => r.data?.items ?? r.data ?? []),
     staleTime: 2 * 60 * 1000,
   })
   const handleChange = (e) => {
@@ -240,7 +240,7 @@ export function TaskSelect({ value = '', onChange, projectId, placeholder = 'Sel
   const params = projectId ? { project_id: projectId } : {}
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks', params],
-    queryFn: () => tasksApi.list(params).then(r => r.data),
+    queryFn: () => tasksApi.list(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: 2 * 60 * 1000,
   })
   const handleChange = (e) => {

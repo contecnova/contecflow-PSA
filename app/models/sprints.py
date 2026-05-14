@@ -45,11 +45,14 @@ class Sprint(Base):
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
     closed_at   = Column(DateTime(timezone=True), nullable=True)
 
-    project      = relationship("Project")
-    creator      = relationship("User", foreign_keys=[created_by])
+    project      = relationship("Project")  # TODO #56: inverse en Project (project.py)
+    creator      = relationship("User", foreign_keys=[created_by])  # TODO #56: inverse en User
+    # audit #56-57: sprint_tasks iterado SIEMPRE en sprint endpoint (sum points, list tasks)
+    # → selectin evita N+1 al listar sprints o calcular velocity.
     sprint_tasks = relationship("SprintTask", back_populates="sprint",
                                 cascade="all, delete-orphan",
-                                order_by="SprintTask.backlog_order")
+                                order_by="SprintTask.backlog_order",
+                                lazy="selectin")
 
 
 class SprintTask(Base):
@@ -65,4 +68,4 @@ class SprintTask(Base):
     added_at     = Column(DateTime(timezone=True), server_default=func.now())
 
     sprint = relationship("Sprint", back_populates="sprint_tasks")
-    task   = relationship("Task")
+    task   = relationship("Task")  # TODO #56: inverse en Task (task.py)

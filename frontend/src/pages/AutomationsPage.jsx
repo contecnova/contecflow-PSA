@@ -283,7 +283,7 @@ function RuleModal({ rule, onClose }) {
   const [hasCondition, setHasCondition] = useState(!!rule?.trigger_conditions)
   const [condition, setCondition] = useState(rule?.trigger_conditions || { field: '', operator: 'equals', value: '' })
 
-  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
+  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []) })
   const projects = Array.isArray(projRaw) ? projRaw : []
 
   const { mutate, isPending } = useMutation({

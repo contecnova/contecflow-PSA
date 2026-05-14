@@ -13,6 +13,7 @@ import mimetypes
 from app.core.deps import get_db, get_current_user
 from app.core.config import settings
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.models.documents import (
     DocumentCategory, DocumentAccessLevel
@@ -109,7 +110,7 @@ def create_document(
 
 
 
-@router.get("", response_model=List[DocumentListOut], summary="List documents with filters")
+@router.get("", response_model=APIListResponse[DocumentListOut], summary="List documents with filters")
 def list_documents(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
@@ -129,7 +130,8 @@ def list_documents(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
-    return [doc_svc.serialize_doc_list_item(doc) for doc in docs]
+    items = [doc_svc.serialize_doc_list_item(doc) for doc in docs]
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.get("/{doc_id}", response_model=DocumentOut, summary="Get document detail")
@@ -141,7 +143,7 @@ def get_document(
 ):
     """Get document with full details and version history."""
     enforce_abac(db, current_user, "document", doc_id, action="read")
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user)
     doc_svc.log_document_view(db, doc.id, current_user.id, request.client.host if request.client else None)
     return serialize_document(db, doc, current_user)
@@ -155,7 +157,7 @@ def update_document(
     current_user: User = Depends(get_current_user),
 ):
     """Update document metadata (title, category, etc)."""
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
     return doc_svc.update_document(db, doc, payload, current_user)
 
@@ -168,7 +170,7 @@ def delete_document(
 ):
     """Soft delete document (mark as archived)."""
     enforce_abac(db, current_user, "document", doc_id, action="delete")
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
     doc_svc.archive_document(db, doc)
     return {"status": "archived"}
@@ -185,7 +187,7 @@ def upload_version(
     current_user: User = Depends(get_current_user),
 ):
     """Upload new version of document."""
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
 
     # Check file size (convert MB to bytes)
@@ -250,7 +252,7 @@ def get_versions(
     current_user: User = Depends(get_current_user),
 ):
     """Get all versions of a document."""
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user)
 
     return [DocumentVersionOut(
@@ -278,7 +280,7 @@ def add_permission(
     current_user: User = Depends(get_current_user),
 ):
     """Grant access to document — by user, role or department (exactly one)."""
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
     perm, user = doc_svc.add_document_permission(db, doc_id, payload, current_user)
@@ -302,7 +304,7 @@ def list_permissions(
     current_user: User = Depends(get_current_user),
 ):
     """List explicit grants on this document."""
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.viewer)
     return doc_svc.list_document_permissions(db, doc_id)
 
@@ -316,7 +318,7 @@ def remove_permission(
 ):
     """Revoke user access to document."""
     enforce_abac(db, current_user, "document_permission", perm_id, action="delete")
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
     doc_svc.remove_document_permission(db, doc_id, perm_id)
@@ -333,7 +335,7 @@ def approve_document(
     current_user: User = Depends(get_current_user),
 ):
     """Approve or reject document — routes through multi-level workflow engine when a workflow is linked."""
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
     return doc_svc.approve_document(db, doc, payload, current_user)
@@ -346,7 +348,7 @@ def submit_for_approval(
     current_user: User = Depends(get_current_user),
 ):
     """Explicitly open an approval request for a document that requires_approval=True but has no active workflow yet."""
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
 
     return doc_svc.submit_for_approval(db, doc, current_user)
@@ -445,7 +447,7 @@ def serve_local_file(
     if not version:
         raise HTTPException(404, "File not found")
     if current_user is not None:
-        doc = get_document_or_404(db, version.document_id)
+        doc = get_document_or_404(db, version.document_id, current_user)
         check_document_access(doc, current_user)  # raises 403 if no access
 
     try:
@@ -490,7 +492,7 @@ def head_local_file(
     if not version:
         raise HTTPException(404, "File not found")
     if current_user is not None:
-        doc = get_document_or_404(db, version.document_id)
+        doc = get_document_or_404(db, version.document_id, current_user)
         check_document_access(doc, current_user)
 
     file_size = file_storage.get_file_size(file_key)
@@ -515,7 +517,7 @@ def head_local_file(
 # ── Documents filtered by entity ──────────────────────────────────────────
 
 
-@router.get("/by-project/{project_id}", summary="List documents linked to a project")
+@router.get("/by-project/{project_id}", response_model=APIListResponse[DocumentListOut], summary="List documents linked to a project")
 def docs_by_project(
     project_id: str,
     archived: bool = False,
@@ -531,11 +533,12 @@ def docs_by_project(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
-    return [doc_svc.serialize_doc_list_item(doc) for doc in docs]
+    items = [doc_svc.serialize_doc_list_item(doc) for doc in docs]
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 
-@router.get("/by-task/{task_id}", summary="List documents linked to a task")
+@router.get("/by-task/{task_id}", response_model=APIListResponse[DocumentListOut], summary="List documents linked to a task")
 def docs_by_task(
     task_id: str,
     page: int = Query(1, ge=1),
@@ -550,7 +553,8 @@ def docs_by_task(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
-    return [doc_svc.serialize_doc_list_item(doc) for doc in docs]
+    items = [doc_svc.serialize_doc_list_item(doc) for doc in docs]
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 
@@ -593,7 +597,7 @@ def add_tag(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
     tag_name = (payload.get("tag") or "").strip().lower()
     if not tag_name:
@@ -612,7 +616,7 @@ def remove_tag(
     current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "document_tag", f"{doc_id}:{tag_name}", action="delete")
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
     doc_svc.remove_tag(db, doc_id, tag_name)
     return {"ok": True}
@@ -631,7 +635,7 @@ def ai_summary(
     Only works for text-extractable files (PDF text layer, .txt, .md).
     The latest version is used.
     """
-    doc = get_document_or_404(db, doc_id)
+    doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user)
 
     if not doc.versions:

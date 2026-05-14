@@ -813,7 +813,12 @@ export default function TasksPage() {
         assignee_id: assigneeFilter || undefined,
         overdue_only: overdueOnly || undefined,
         assigned_to_me: mineOnly || undefined,
-      }).then(r => r.data)
+      }).then(r => {
+        const d = r.data
+        // Tolerate canonical wrapper {items, meta} during transition
+        if (d && !Array.isArray(d) && Array.isArray(d.items)) return d.items
+        return d
+      })
     },
     keepPreviousData: true,
   })

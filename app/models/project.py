@@ -93,12 +93,15 @@ class Project(Base):
     version = Column(Integer, default=1, nullable=False)
 
     # Relationships
-    organization    = relationship("Organization", foreign_keys=[organization_id])
+    organization    = relationship("Organization", foreign_keys=[organization_id])  # TODO #56: inverse en Organization (mfa.py)
     project_manager = relationship("User", back_populates="managed_projects", foreign_keys=[pm_id])
     client          = relationship("Client", back_populates="projects", foreign_keys=[client_id])
-    phases = relationship("ProjectPhase", back_populates="project", cascade="all, delete-orphan", order_by="ProjectPhase.order")
+    # audit #56-57: phases iterado SIEMPRE en serializers (advanced_config_service, billing_reports_service)
+    # → selectin evita N+1 al listar templates/proyectos con sus fases.
+    phases = relationship("ProjectPhase", back_populates="project", cascade="all, delete-orphan", order_by="ProjectPhase.order", lazy="selectin")
     tasks   = relationship("Task",          back_populates="project")
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+    # NOTE: imputations se accede vía SQL aggregation (ver total_hours_spent doc); NO selectin (puede ser miles de filas).
     imputations = relationship("Imputation", back_populates="project")
 
     @property
@@ -140,7 +143,9 @@ class ProjectPhase(Base):
 
     # Relationships
     project = relationship("Project", back_populates="phases")
-    tasks = relationship("Task", back_populates="phase")
+    # audit #56-57: phase.tasks iterado en serializers (`sum(len(p.tasks) for p in t.phases)`)
+    # → selectin evita N+1 al cargar phases de un template.
+    tasks = relationship("Task", back_populates="phase", lazy="selectin")
 
     def __repr__(self):
         return f"<Phase {self.name} (project={self.project_id})>"
@@ -175,5 +180,5 @@ class ProjectMember(Base):
 
     # Relationships
     project = relationship("Project", back_populates="members")
-    user    = relationship("User")
+    user    = relationship("User")  # TODO #56: inverse en User (user.py)
 

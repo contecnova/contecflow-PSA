@@ -726,7 +726,7 @@ function StatusBadge({ status }) {
 function TaskMovementLogDrawer({ task, onClose }) {
   const { data: log = [], isLoading } = useQuery({
     queryKey: ['task-movement-log', task.id],
-    queryFn: () => tasksApi.movementLog(task.id).then(r => r.data),
+    queryFn: () => tasksApi.movementLog(task.id).then(r => r.data?.items ?? r.data ?? []),
     staleTime: 0,
     retry: false,
   })

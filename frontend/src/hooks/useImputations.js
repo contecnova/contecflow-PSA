@@ -14,7 +14,7 @@ export function useMyWeek(weekStart) {
 export function useImputations(params = {}) {
   return useQuery({
     queryKey: ['imputations', params],
-    queryFn: () => imputationsApi.list(params).then(r => r.data),
+    queryFn: () => imputationsApi.list(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }

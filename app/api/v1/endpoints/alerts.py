@@ -53,7 +53,7 @@ def mark_read(
     current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "alert", alert_id, action="update")
-    mark_alert_read(db, alert_id)
+    mark_alert_read(db, alert_id, current_user)
     return {"ok": True}
 
 
@@ -64,5 +64,5 @@ def resolve_alert(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "alert", alert_id, action="update")
-    svc_resolve_alert(db, alert_id, current_user.id)
+    svc_resolve_alert(db, alert_id, current_user.id, current_user)
     return {"ok": True}

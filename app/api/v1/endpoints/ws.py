@@ -597,7 +597,7 @@ async def ws_doc_collab(
 
             # Obtener usuario y documento
             user = _ws_svc.get_active_user_by_id(db, user_id)
-            doc = get_document_or_404(db, doc_id)
+            doc = get_document_or_404(db, doc_id, user)
             try:
                 check_document_access(doc, user, required_level=None)  # viewer mínimo
             except Exception:

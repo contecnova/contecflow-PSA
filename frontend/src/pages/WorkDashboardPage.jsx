@@ -138,8 +138,8 @@ export default function WorkDashboardPage() {
         tasksApi.list({ assigned_to_me: true, overdue_only: true, page_size: 500 }),
         tasksApi.list({ assigned_to_me: true, status: 'done', page_size: 1 }),
       ])
-      const openItems = Array.isArray(openRes?.data) ? openRes.data : []
-      const overdueItems = Array.isArray(overdueRes?.data) ? overdueRes.data : []
+      const openItems = Array.isArray(openRes?.data) ? openRes.data : (openRes?.data?.items ?? [])
+      const overdueItems = Array.isArray(overdueRes?.data) ? overdueRes.data : (overdueRes?.data?.items ?? [])
       const openTaskIds = new Set(openItems.map(t => t.id).filter(Boolean))
       overdueItems.forEach(t => { if (t?.id) openTaskIds.add(t.id) })
       return {

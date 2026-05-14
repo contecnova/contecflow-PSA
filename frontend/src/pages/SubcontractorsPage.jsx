@@ -372,7 +372,7 @@ function SubDetail({ sub, onBack }) {
   })
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data.filter(p => p.status === 'active')),
+    queryFn: () => projectsApi.list().then(r => (r.data?.items ?? r.data ?? []).filter(p => p.status === 'active')),
   })
 
   const { mutate: logHours, isPending: logging } = useMutation({

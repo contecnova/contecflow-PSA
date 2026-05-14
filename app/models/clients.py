@@ -70,7 +70,7 @@ class Client(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
 
-    account_manager = relationship("User", foreign_keys=[account_manager_id])
+    account_manager = relationship("User", foreign_keys=[account_manager_id])  # TODO #56: inverse en User (user.py)
     projects        = relationship("Project", back_populates="client",
                                    foreign_keys="Project.client_id")
     contacts        = relationship("ClientContact", back_populates="client",
@@ -81,7 +81,7 @@ class Client(Base):
                                    cascade="all, delete-orphan")
     contract_links  = relationship("ClientContractLink", back_populates="client",
                                    cascade="all, delete-orphan")
-    sla_policy      = relationship("SLAPolicy", foreign_keys=[sla_policy_id])
+    sla_policy      = relationship("SLAPolicy", foreign_keys=[sla_policy_id])  # TODO #56: inverse en SLAPolicy (service_desk/*)
 
 
 class ClientContactRole(str, enum.Enum):

@@ -32,7 +32,9 @@ def test_user_load_map_is_scoped_to_current_tenant(client, admin_token, db, seed
 def test_tasks_endpoint_is_scoped_to_current_tenant(client, pm_token, db, seed_multitenant):
     res = client.get("/api/v1/tasks", headers=auth(pm_token))
     assert res.status_code == 200
-    task_ids = {task["id"] for task in res.json()}
+    body = res.json()
+    items = body if isinstance(body, list) else body.get("items", [])
+    task_ids = {task["id"] for task in items}
     assert "task-a-test" in task_ids
     assert "task-b-test" not in task_ids
 

@@ -9,6 +9,7 @@ from datetime import date
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin_or_pm
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.services.expense_service import (
     review_expense as svc_review_expense,
@@ -33,7 +34,7 @@ from app.schemas.expenses import ExpenseIn, ExpenseCreate, ExpenseUpdate, Expens
 router = APIRouter()
 
 
-@router.get("/my", summary="Mis gastos")
+@router.get("/my", response_model=APIListResponse[dict], summary="Mis gastos")
 def my_expenses(
     status: Optional[str] = None,
     project_id: Optional[str] = None,
@@ -42,9 +43,10 @@ def my_expenses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return [_expense_out(e) for e in svc_list_my_expenses(
+    items = [_expense_out(e) for e in svc_list_my_expenses(
         db, current_user.id, status, project_id, date_from, date_to
     )]
+    return APIListResponse.ok(items=items)
 
 
 @router.get("/pending", summary="Gastos pendientes de aprobación (PM/admin)")

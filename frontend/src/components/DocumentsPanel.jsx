@@ -88,7 +88,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
 
   const { data: docs = [], isLoading } = useQuery({
     queryKey: qKey,
-    queryFn: () => apiFn().then(r => r.data),
+    queryFn: () => apiFn().then(r => r.data?.items ?? r.data ?? []),
     enabled: !!(projectId || taskId || ticketId),
   });
 

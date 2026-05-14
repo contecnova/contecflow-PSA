@@ -30,7 +30,7 @@ export default function GanttPage() {
   // ── data ────────────────────────────────────────────────────────────────────
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn:  () => projectsApi.list().then(r => r.data),
+    queryFn:  () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []),
   })
 
   const { data: rawTasks = [], isLoading } = useQuery({

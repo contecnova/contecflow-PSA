@@ -6,7 +6,7 @@ const STALE = 2 * 60 * 1000
 export function useContracts(params = {}) {
   return useQuery({
     queryKey: ['contracts', params],
-    queryFn: () => contractsApi.list(params).then(r => r.data),
+    queryFn: () => contractsApi.list(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }
@@ -14,7 +14,7 @@ export function useContracts(params = {}) {
 export function useAllContracts() {
   return useQuery({
     queryKey: ['contracts'],
-    queryFn: () => contractsApi.list().then(r => r.data),
+    queryFn: () => contractsApi.list().then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }

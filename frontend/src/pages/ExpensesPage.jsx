@@ -305,7 +305,7 @@ function MyExpenses() {
 
   const { data: raw = [], isLoading } = useQuery({
     queryKey: ['expenses-my', statusFilter],
-    queryFn: () => expensesApi.my({ status: statusFilter || undefined }).then(r => r.data),
+    queryFn: () => expensesApi.my({ status: statusFilter || undefined }).then(r => r.data?.items ?? r.data ?? []),
   })
   const expenses = Array.isArray(raw) ? raw : []
   const filteredExpenses = expenses.filter(e => {

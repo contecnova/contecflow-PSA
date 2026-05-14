@@ -212,7 +212,7 @@ export default function ContractsAIPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn:  () => projectsApi.list().then(r => r.data),
+    queryFn:  () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []),
   })
 
   const { data: contracts = [], isLoading } = useQuery({

@@ -77,17 +77,19 @@ class Document(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    project = relationship("Project", foreign_keys=[project_id])
-    client = relationship("Client", foreign_keys=[client_id])
-    milestone = relationship("ProjectMilestone", foreign_keys=[milestone_id])
-    task = relationship("Task", foreign_keys=[task_id])
-    ticket = relationship("Ticket", foreign_keys=[ticket_id])
-    creator = relationship("User", foreign_keys=[created_by], primaryjoin="Document.created_by == User.id")
-    updater = relationship("User", foreign_keys=[updated_by], primaryjoin="Document.updated_by == User.id")
-    approver = relationship("User", foreign_keys=[approved_by], primaryjoin="Document.approved_by == User.id")
-    versions = relationship("DocumentVersion", back_populates="document", cascade="all, delete-orphan", order_by="DocumentVersion.version_num.desc()")
-    permissions = relationship("DocumentPermission", back_populates="document", cascade="all, delete-orphan")
-    tags = relationship("DocumentTag", back_populates="document", cascade="all, delete-orphan")
+    project = relationship("Project", foreign_keys=[project_id])  # TODO #56: inverse en Project (project.py)
+    client = relationship("Client", foreign_keys=[client_id])  # TODO #56: inverse en Client (clients.py)
+    milestone = relationship("ProjectMilestone", foreign_keys=[milestone_id])  # TODO #56: inverse en ProjectMilestone (otro agente)
+    task = relationship("Task", foreign_keys=[task_id])  # TODO #56: inverse en Task (task.py)
+    ticket = relationship("Ticket", foreign_keys=[ticket_id])  # TODO #56: inverse en Ticket (service_desk)
+    creator = relationship("User", foreign_keys=[created_by], primaryjoin="Document.created_by == User.id")  # TODO #56
+    updater = relationship("User", foreign_keys=[updated_by], primaryjoin="Document.updated_by == User.id")  # TODO #56
+    approver = relationship("User", foreign_keys=[approved_by], primaryjoin="Document.approved_by == User.id")  # TODO #56
+    # audit #56-57: versions/permissions/tags iterados SIEMPRE en _serialize_doc (documents_service.py)
+    # → selectin colapsa N×3 queries en 3 IN-loads al listar documentos.
+    versions = relationship("DocumentVersion", back_populates="document", cascade="all, delete-orphan", order_by="DocumentVersion.version_num.desc()", lazy="selectin")
+    permissions = relationship("DocumentPermission", back_populates="document", cascade="all, delete-orphan", lazy="selectin")
+    tags = relationship("DocumentTag", back_populates="document", cascade="all, delete-orphan", lazy="selectin")
 
     __table_args__ = (
         Index('ix_documents_project_created', 'project_id', 'created_at'),
@@ -128,7 +130,7 @@ class DocumentVersion(Base):
 
     # Relationships
     document = relationship("Document", back_populates="versions")
-    uploader = relationship("User", foreign_keys=[created_by])
+    uploader = relationship("User", foreign_keys=[created_by])  # TODO #56: inverse en User
 
 
 # ── Document Permission ────────────────────────────────────────────────────
@@ -162,8 +164,8 @@ class DocumentPermission(Base):
 
     # Relationships
     document = relationship("Document", back_populates="permissions", foreign_keys=[document_id])
-    user = relationship("User", foreign_keys=[user_id])
-    grantor = relationship("User", foreign_keys=[granted_by])
+    user = relationship("User", foreign_keys=[user_id])  # TODO #56: inverse en User
+    grantor = relationship("User", foreign_keys=[granted_by])  # TODO #56: inverse en User
 
     __table_args__ = (
         Index('ix_doc_perm_document_user', 'document_id', 'user_id'),
@@ -205,5 +207,5 @@ class DocumentAccessLog(Base):
     accessed_at = Column(DateTime(timezone=True), server_default=func.now())
     ip_address = Column(String(64), nullable=True)
 
-    document = relationship("Document")
-    user = relationship("User")
+    document = relationship("Document")  # TODO #56: inverse opcional (audit log)
+    user = relationship("User")  # TODO #56: inverse en User

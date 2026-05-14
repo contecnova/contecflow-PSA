@@ -274,17 +274,47 @@ def get_alerts_query(db: Session, resolved: bool, severity, current_user: User):
     return q.order_by(Alert.created_at.desc())
 
 
-def mark_alert_read(db: Session, alert_id: str) -> None:
-    """Mark an alert as read."""
-    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+def _scope_alert_to_org(db: Session, q, current_user):
+    """Audit #62 — restrict an Alert query to the current user's organization.
+
+    Alerts have no direct organization_id; we scope via Alert.user_id /
+    Alert.project_id against the orgs's users/projects.
+    """
+    if current_user is None:
+        return q
+    if getattr(current_user, "is_superadmin", False):
+        return q
+    if not getattr(current_user, "organization_id", None):
+        return q
+    org_user_ids = db.query(User.id).filter(
+        User.organization_id == current_user.organization_id
+    ).scalar_subquery()
+    org_project_ids = db.query(Project.id).filter(
+        Project.organization_id == current_user.organization_id
+    ).scalar_subquery()
+    return q.filter(
+        or_(
+            Alert.user_id.in_(org_user_ids),
+            Alert.project_id.in_(org_project_ids),
+        )
+    )
+
+
+def mark_alert_read(db: Session, alert_id: str, current_user: User = None) -> None:
+    """Mark an alert as read. Scoped to the caller's organization (audit #62)."""
+    q = db.query(Alert).filter(Alert.id == alert_id)
+    q = _scope_alert_to_org(db, q, current_user)
+    alert = q.first()
     if alert:
         alert.is_read = True
         db.commit()
 
 
-def resolve_alert(db: Session, alert_id: str, resolved_by_id) -> None:
-    """Mark an alert as resolved."""
-    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+def resolve_alert(db: Session, alert_id: str, resolved_by_id, current_user: User = None) -> None:
+    """Mark an alert as resolved. Scoped to the caller's organization (audit #62)."""
+    q = db.query(Alert).filter(Alert.id == alert_id)
+    q = _scope_alert_to_org(db, q, current_user)
+    alert = q.first()
     if alert:
         alert.is_resolved = True
         alert.resolved_at = datetime.now(timezone.utc)

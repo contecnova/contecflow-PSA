@@ -25,7 +25,9 @@ const STEP_META = {
     verify: async () => {
       const r = await projectsApi.list({ page_size: 1 })
       const data = r.data
-      return Array.isArray(data) ? data.length > 0 : (data?.total || 0) > 0
+      if (Array.isArray(data)) return data.length > 0
+      const total = data?.meta?.total ?? data?.total ?? (Array.isArray(data?.items) ? data.items.length : 0)
+      return (total || 0) > 0
     },
   },
   invite_team: {
@@ -88,7 +90,9 @@ const STEP_META = {
       try {
         const r = await imputationsApi.list({ page_size: 1 })
         const data = r.data
-        return Array.isArray(data) ? data.length > 0 : (data?.total || 0) > 0
+        if (Array.isArray(data)) return data.length > 0
+        const total = data?.meta?.total ?? data?.total ?? (Array.isArray(data?.items) ? data.items.length : 0)
+        return (total || 0) > 0
       } catch { return false }
     },
   },

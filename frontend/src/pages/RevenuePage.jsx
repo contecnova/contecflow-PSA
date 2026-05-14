@@ -165,7 +165,7 @@ export default function RevenuePage() {
   // ── Existing queries ───────────────────────────────────────────────────────
   const { data: rules = [], isLoading } = useQuery({ queryKey:['rev-rules'], queryFn:() => revenueApi.rules().then(r=>r.data) })
   const { data: summary } = useQuery({ queryKey:['rev-summary'], queryFn:() => revenueApi.summary().then(r=>r.data) })
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data || []) })
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []) })
 
   // ── New ASC 606 queries ────────────────────────────────────────────────────
   const { data: asc606Dashboard } = useQuery({

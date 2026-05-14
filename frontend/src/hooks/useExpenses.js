@@ -6,7 +6,7 @@ const STALE = 2 * 60 * 1000
 export function useMyExpenses(params = {}) {
   return useQuery({
     queryKey: ['expenses-my', params],
-    queryFn: () => expensesApi.my(params).then(r => r.data),
+    queryFn: () => expensesApi.my(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }

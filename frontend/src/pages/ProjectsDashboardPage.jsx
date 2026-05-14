@@ -62,7 +62,7 @@ export default function ProjectsDashboardPage() {
   const { data: risks = [] } = useQuery({
     queryKey: ['proj-dash-risks'],
     queryFn: () => risksApi.portfolioAll().then(r => {
-      const d = r.data; return Array.isArray(d) ? d : []
+      const d = r.data; return Array.isArray(d) ? d : (d?.items ?? [])
     }).catch(() => []),
     staleTime: 60_000,
   })

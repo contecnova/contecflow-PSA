@@ -158,8 +158,21 @@ def validate_upload(file_name: str, content_type: str, content: bytes) -> None:
 
 # ── Document access helpers ───────────────────────────────────────────────────
 
-def get_document_or_404(db, doc_id: str):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
+def get_document_or_404(db, doc_id: str, current_user=None):
+    """Fetch a document by id.
+
+    Audit #62: when current_user is supplied and is NOT a superadmin, the
+    query is scoped to the user's organization (via Document.created_by ->
+    User.organization_id). Returns 404 (not 403) for cross-tenant access
+    attempts to avoid leaking existence.
+    """
+    q = db.query(Document).filter(Document.id == doc_id)
+    if current_user is not None and not getattr(current_user, "is_superadmin", False) and getattr(current_user, "organization_id", None):
+        org_user_ids = db.query(User.id).filter(
+            User.organization_id == current_user.organization_id
+        ).scalar_subquery()
+        q = q.filter(Document.created_by.in_(org_user_ids))
+    doc = q.first()
     if not doc:
         raise HTTPException(404, "Document not found")
     return doc

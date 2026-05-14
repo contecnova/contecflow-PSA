@@ -87,7 +87,9 @@ def test_expense_full_lifecycle(client, admin_token, pm_token, dev_token, db):
     # Verificar que el estado cambió a 'submitted' vía listado
     my_expenses = client.get("/api/v1/expenses/my", headers=auth(dev_token))
     assert my_expenses.status_code == 200
-    exp_data = next(e for e in my_expenses.json() if e["id"] == exp_id)
+    _my_body = my_expenses.json()
+    _my_items = _my_body if isinstance(_my_body, list) else _my_body.get("items", [])
+    exp_data = next(e for e in _my_items if e["id"] == exp_id)
     assert exp_data["status"] == "submitted"
 
     # El PM ve el gasto en la cola de pendientes
@@ -110,7 +112,9 @@ def test_expense_full_lifecycle(client, admin_token, pm_token, dev_token, db):
     assert reimburse.status_code == 200, reimburse.text
     # Verify final status via list
     my_expenses_after = client.get("/api/v1/expenses/my", headers=auth(dev_token))
-    exp_final = next(e for e in my_expenses_after.json() if e["id"] == exp_id)
+    _after_body = my_expenses_after.json()
+    _after_items = _after_body if isinstance(_after_body, list) else _after_body.get("items", [])
+    exp_final = next(e for e in _after_items if e["id"] == exp_id)
     assert exp_final["status"] == "reimbursed"
 
     # El resumen del proyecto refleja el gasto
@@ -413,7 +417,9 @@ def test_project_full_crud_lifecycle(client, pm_token, admin_token, db):
     # Listar proyectos — debe aparecer
     lst = client.get("/api/v1/projects", headers=auth(pm_token))
     assert lst.status_code == 200
-    ids = [p["id"] for p in lst.json()]
+    _lst_body = lst.json()
+    _lst_items = _lst_body if isinstance(_lst_body, list) else _lst_body.get("items", [])
+    ids = [p["id"] for p in _lst_items]
     assert pid in ids
 
     # Añadir miembro

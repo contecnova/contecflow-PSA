@@ -185,7 +185,9 @@ def test_project_list_scoped_to_org(client, db):
 
     list_b = client.get("/api/v1/projects", headers=auth(token_b))
     assert list_b.status_code == 200
-    ids_seen_by_b = [p["id"] for p in list_b.json()]
+    body_b = list_b.json()
+    items_b = body_b if isinstance(body_b, list) else body_b.get("items", [])
+    ids_seen_by_b = [p["id"] for p in items_b]
     assert proj_a_id not in ids_seen_by_b, "Org B user must not see Org A's project"
 
 

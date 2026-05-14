@@ -34,10 +34,16 @@ def list_sprints_for_project(
     db: Session,
     project_id: str,
     status: Optional[str],
+    current_user=None,
 ) -> List[Sprint]:
+    """List sprints for a project. Audit #62: org-scoped via Project when current_user is provided."""
     q = db.query(Sprint).options(
         joinedload(Sprint.sprint_tasks).joinedload(SprintTask.task).joinedload(Task.assignee)
     ).filter(Sprint.project_id == project_id)
+    if current_user is not None and not getattr(current_user, "is_superadmin", False) and getattr(current_user, "organization_id", None):
+        q = q.join(Project, Sprint.project_id == Project.id).filter(
+            Project.organization_id == current_user.organization_id
+        )
     if status:
         q = q.filter(Sprint.status == status)
     return q.order_by(Sprint.number.desc()).all()
@@ -59,18 +65,33 @@ def create_sprint(db: Session, sprint: Sprint) -> None:
          resource_type="sprint", resource_id=sprint.id, project_id=sprint.project_id)
 
 
+def _apply_org_scope(q, current_user):
+    """Audit #62: scope a Sprint query by Project.organization_id."""
+    if current_user is None:
+        return q
+    if getattr(current_user, "is_superadmin", False):
+        return q
+    if not getattr(current_user, "organization_id", None):
+        return q
+    return q.join(Project, Sprint.project_id == Project.id).filter(
+        Project.organization_id == current_user.organization_id
+    )
+
+
 def get_sprint_simple(
-    db: Session, sprint_id: str, project_id: str
+    db: Session, sprint_id: str, project_id: str, current_user=None
 ) -> Optional[Sprint]:
-    return db.query(Sprint).filter(
+    q = db.query(Sprint).filter(
         Sprint.id == sprint_id, Sprint.project_id == project_id
-    ).first()
+    )
+    q = _apply_org_scope(q, current_user)
+    return q.first()
 
 
 def get_sprint_with_tasks(
-    db: Session, sprint_id: str, project_id: str
+    db: Session, sprint_id: str, project_id: str, current_user=None
 ) -> Optional[Sprint]:
-    return (
+    q = (
         db.query(Sprint)
         .options(
             joinedload(Sprint.sprint_tasks)
@@ -78,12 +99,13 @@ def get_sprint_with_tasks(
             .joinedload(Task.assignee)
         )
         .filter(Sprint.id == sprint_id, Sprint.project_id == project_id)
-        .first()
     )
+    q = _apply_org_scope(q, current_user)
+    return q.first()
 
 
-def get_sprint_with_tasks_by_id(db: Session, sprint_id: str) -> Optional[Sprint]:
-    return (
+def get_sprint_with_tasks_by_id(db: Session, sprint_id: str, current_user=None) -> Optional[Sprint]:
+    q = (
         db.query(Sprint)
         .options(
             joinedload(Sprint.sprint_tasks)
@@ -91,25 +113,29 @@ def get_sprint_with_tasks_by_id(db: Session, sprint_id: str) -> Optional[Sprint]
             .joinedload(Task.assignee)
         )
         .filter(Sprint.id == sprint_id)
-        .first()
     )
+    q = _apply_org_scope(q, current_user)
+    return q.first()
 
 
 def get_sprint_for_charts(
-    db: Session, sprint_id: str, project_id: str
+    db: Session, sprint_id: str, project_id: str, current_user=None
 ) -> Optional[Sprint]:
-    return (
+    q = (
         db.query(Sprint)
         .options(joinedload(Sprint.sprint_tasks).joinedload(SprintTask.task))
         .filter(Sprint.id == sprint_id, Sprint.project_id == project_id)
-        .first()
     )
+    q = _apply_org_scope(q, current_user)
+    return q.first()
 
 
-def get_active_sprint_for_project(db: Session, project_id: str) -> Optional[Sprint]:
-    return db.query(Sprint).filter(
+def get_active_sprint_for_project(db: Session, project_id: str, current_user=None) -> Optional[Sprint]:
+    q = db.query(Sprint).filter(
         Sprint.project_id == project_id, Sprint.status == SprintStatus.active
-    ).first()
+    )
+    q = _apply_org_scope(q, current_user)
+    return q.first()
 
 
 def commit_db(db: Session) -> None:

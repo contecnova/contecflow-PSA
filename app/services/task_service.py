@@ -502,12 +502,23 @@ def update_task_record(db: Session, task_id: str, payload, current_user):
 
 # ── Cancel ─────────────────────────────────────────────────────────────────────
 
-def cancel_task_record(db: Session, task_id: str) -> dict:
+def cancel_task_record(db: Session, task_id: str, current_user=None) -> dict:
+    """Soft-cancel a task by id.
+
+    Audit #62: when current_user is supplied and is not a superadmin, the
+    Task lookup is org-scoped via Project.organization_id to prevent
+    cross-tenant cancellation by guessing the id.
+    """
     import logging
 
     logger = logging.getLogger(__name__)
 
-    task = db.query(Task).filter(Task.id == task_id).first()
+    q = db.query(Task).filter(Task.id == task_id)
+    if current_user is not None and not getattr(current_user, "is_superadmin", False) and getattr(current_user, "organization_id", None):
+        q = q.join(Project, Task.project_id == Project.id).filter(
+            Project.organization_id == current_user.organization_id
+        )
+    task = q.first()
     if not task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
     if task.status == TaskStatus.cancelled:
@@ -537,7 +548,14 @@ def add_comment_record(db: Session, task_id: str, payload, current_user):
 
     logger = logging.getLogger(__name__)
 
-    task = db.query(Task).filter(Task.id == task_id).first()
+    # Audit #62: scope Task lookup by org via Project to prevent cross-tenant
+    # comments on tasks whose id is guessed.
+    q = db.query(Task).filter(Task.id == task_id)
+    if not getattr(current_user, "is_superadmin", False) and getattr(current_user, "organization_id", None):
+        q = q.join(Project, Task.project_id == Project.id).filter(
+            Project.organization_id == current_user.organization_id
+        )
+    task = q.first()
     if not task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
 

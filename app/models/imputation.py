@@ -64,7 +64,7 @@ class Imputation(Base):
     user = relationship("User", back_populates="imputations", foreign_keys=[user_id])
     task = relationship("Task", back_populates="imputations")
     project = relationship("Project", back_populates="imputations")
-    approver = relationship("User", foreign_keys=[approved_by])
+    approver = relationship("User", foreign_keys=[approved_by])  # TODO #56: inverse en User
 
     def __repr__(self):
         return f"<Imputation user={self.user_id} task={self.task_id} date={self.date} hours={self.hours}>"
@@ -94,10 +94,10 @@ class TimerSession(Base):
     imputation_id = Column(String(36), ForeignKey("imputations.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
-    user = relationship("User", foreign_keys=[user_id])
-    task = relationship("Task", foreign_keys=[task_id])
-    project = relationship("Project", foreign_keys=[project_id])
-    imputation = relationship("Imputation", foreign_keys=[imputation_id])
+    user = relationship("User", foreign_keys=[user_id])  # TODO #56: inverse en User
+    task = relationship("Task", foreign_keys=[task_id])  # TODO #56: inverse en Task (task.py)
+    project = relationship("Project", foreign_keys=[project_id])  # TODO #56: inverse en Project (project.py)
+    imputation = relationship("Imputation", foreign_keys=[imputation_id])  # TODO #56: opcional 1:1 inverse
 
     __table_args__ = (
         # Index for efficient lookup of active timer (where ended_at IS NULL)
@@ -124,7 +124,7 @@ class ImputationAlert(Base):
     dismissed_at = Column(DateTime(timezone=True), nullable=True)  # When user dismisses/snoozes
 
     # Relationships
-    user = relationship("User", foreign_keys=[user_id])
+    user = relationship("User", foreign_keys=[user_id])  # TODO #56: inverse en User
 
 
 # ── Imputation Snapshots ───────────────────────────────────────────────────
@@ -152,7 +152,7 @@ class ImputationSnapshot(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
-    user = relationship("User", foreign_keys=[user_id])
+    user = relationship("User", foreign_keys=[user_id])  # TODO #56: inverse en User
 
     __table_args__ = (
         Index('ix_imputation_snapshot_user_date', 'user_id', 'snapshot_date'),

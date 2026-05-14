@@ -37,7 +37,7 @@ function GenerateModal({ projectId, onClose }) {
     try {
       // Obtener TODAS las tareas del backlog (con y sin story_points)
       const tasksRes = await tasksApi.list({ project_id: projectId, status: 'todo', page_size: 200 })
-      const tasks = Array.isArray(tasksRes.data) ? tasksRes.data : []
+      const tasks = Array.isArray(tasksRes.data) ? tasksRes.data : (tasksRes.data?.items ?? [])
       if (!tasks.length) { toast.info(t('sprint_planning.no_todo_tasks')); return }
       const res = await semanticApi.estimateSprint({
         tasks: tasks.map(t => ({ id: t.id, title: t.title, description: t.description || '', story_points: t.story_points })),

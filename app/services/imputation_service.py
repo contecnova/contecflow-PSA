@@ -201,7 +201,12 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
         if payload.date > today_utc:
             raise HTTPException(status_code=400, detail="No puedes imputar en fechas futuras.")
 
-    project = db.query(Project).filter(Project.id == payload.project_id).first()
+    # Audit #62 — scope Project lookup to the user's organization to prevent
+    # cross-tenant leak via guessable IDs.
+    project_q = db.query(Project).filter(Project.id == payload.project_id)
+    if not getattr(current_user, "is_superadmin", False) and current_user.organization_id:
+        project_q = project_q.filter(Project.organization_id == current_user.organization_id)
+    project = project_q.first()
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
@@ -396,7 +401,11 @@ def start_timer_session(payload, current_user: User, db: Session):
             detail="No puedes iniciar el cronómetro sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.",
         )
 
-    project = db.query(Project).filter(Project.id == payload.project_id).first()
+    # Audit #62 — org-scoped project lookup
+    project_q = db.query(Project).filter(Project.id == payload.project_id)
+    if not getattr(current_user, "is_superadmin", False) and current_user.organization_id:
+        project_q = project_q.filter(Project.organization_id == current_user.organization_id)
+    project = project_q.first()
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
@@ -867,12 +876,25 @@ def list_imputations_query(
     return total, items
 
 
-def get_imputation_by_id(db: Session, imputation_id: str):
-    return db.query(Imputation).options(
+def get_imputation_by_id(db: Session, imputation_id: str, current_user: Optional[User] = None):
+    """Fetch an imputation by id, optionally scoped to the current user's org.
+
+    Audit #62: When current_user is supplied and is NOT a superadmin, the
+    query is restricted to imputations whose author belongs to the same
+    organization. Without this filter, an attacker could read imputations
+    of another tenant by guessing the id.
+    """
+    q = db.query(Imputation).options(
         joinedload(Imputation.user),
         joinedload(Imputation.task),
         joinedload(Imputation.project),
-    ).filter(Imputation.id == imputation_id, Imputation.is_active == True).first()
+    ).filter(Imputation.id == imputation_id, Imputation.is_active == True)
+    if current_user is not None and not getattr(current_user, "is_superadmin", False) and current_user.organization_id:
+        org_user_ids = db.query(UserModel.id).filter(
+            UserModel.organization_id == current_user.organization_id
+        ).scalar_subquery()
+        q = q.filter(Imputation.user_id.in_(org_user_ids))
+    return q.first()
 
 
 def delete_imputation_record(db: Session, imp) -> None:

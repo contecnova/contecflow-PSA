@@ -256,7 +256,9 @@ class TestContracts:
         self._create_contract(client, admin_token, "CNT-FC03")
         r = client.get("/api/v1/contracts", headers=auth(admin_token))
         assert r.status_code == 200
-        assert len(r.json()) >= 1
+        body = r.json()
+        items = body if isinstance(body, list) else body.get("items", [])
+        assert len(items) >= 1
 
     def test_contract_update_amount(self, client, admin_token, db):
         cid = self._create_contract(client, admin_token, "CNT-FC04").json()["id"]

@@ -5,6 +5,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User, UserRole
 from app.services import risk_service
 from app.services.risk_scoring import risk_level, risk_score
@@ -16,7 +17,7 @@ from app.schemas.risks import RiskIn, RiskUpdate
 router = APIRouter()
 
 
-@router.get("/all/portfolio", summary="Riesgos de toda la cartera")
+@router.get("/all/portfolio", response_model=APIListResponse[dict], summary="Riesgos de toda la cartera")
 def get_portfolio_risks(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
@@ -28,7 +29,7 @@ def get_portfolio_risks(
         d["project_name"] = r.project.name if r.project else "—"
         d["project_code"] = r.project.code if r.project else "—"
         result.append(d)
-    return result
+    return APIListResponse.ok(items=result)
 
 
 

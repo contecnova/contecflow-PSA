@@ -319,7 +319,7 @@ export default function ChangesPage() {
   const [reviewing, setReviewing] = useState(null)
   const [tab, setTab] = useState('project')
 
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []) })
 
   const { data: changesData, isLoading } = useQuery({
     queryKey: ['changes', selectedProject],

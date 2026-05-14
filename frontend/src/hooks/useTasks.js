@@ -6,7 +6,7 @@ const STALE = 60 * 1000 // 1 min — operational data
 export function useTasks(params = {}) {
   return useQuery({
     queryKey: ['tasks', params],
-    queryFn: () => tasksApi.list(params).then(r => r.data),
+    queryFn: () => tasksApi.list(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }
@@ -91,7 +91,7 @@ export function useAddTaskComment() {
 export function useTaskMovementLog(taskId) {
   return useQuery({
     queryKey: ['task-movement-log', taskId],
-    queryFn: () => tasksApi.movementLog(taskId).then(r => r.data),
+    queryFn: () => tasksApi.movementLog(taskId).then(r => r.data?.items ?? r.data ?? []),
     enabled: !!taskId,
     staleTime: 0,
   })

@@ -261,13 +261,16 @@ export default function RisksPage() {
   const [view, setView] = useState('list')
   const qc = useQueryClient()
 
-  const { data: projects = [] } = useQuery({ queryKey: ['projects', { status: 'active' }], queryFn: () => projectsApi.list({ status: 'active' }).then(r => r.data) })
+  const { data: projects = [] } = useQuery({ queryKey: ['projects', { status: 'active' }], queryFn: () => projectsApi.list({ status: 'active' }).then(r => r.data?.items ?? r.data ?? []) })
 
   const { data: risksData, isLoading } = useQuery({
     queryKey: ['risks', selectedProject],
     queryFn: () => selectedProject
       ? risksApi.list(selectedProject).then(r => r.data)
-      : risksApi.portfolioAll().then(r => ({ risks: r.data, summary: { total: r.data.length } })),
+      : risksApi.portfolioAll().then(r => {
+          const items = r.data?.items ?? r.data ?? []
+          return { risks: items, summary: { total: items.length } }
+        }),
   })
 
   const { mutate: deleteRisk } = useMutation({

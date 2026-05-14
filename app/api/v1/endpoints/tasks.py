@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 from app.db.session import get_db
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.responses import APIListResponse
 from app.models.user import User, UserRole
 from app.models.task import Task, TaskStatus, TaskPriority
 from app.schemas import (
@@ -87,7 +88,7 @@ def suggest_task_assignee(
     }
 
 
-@router.get("", response_model=List[TaskOut], summary="Listar tareas con filtros")
+@router.get("", response_model=APIListResponse[TaskOut], summary="Listar tareas con filtros")
 def list_tasks(
     project_id: Optional[str] = None,
     phase_id: Optional[str] = None,
@@ -127,7 +128,7 @@ def list_tasks(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(effective_page_size)
-    return tasks
+    return APIListResponse.ok(items=tasks, total=total, page=page, page_size=effective_page_size)
 
 
 @router.get("/kanban/{project_id}", summary="Vista kanban de tareas por estado")
@@ -205,7 +206,7 @@ def update_task(
     return task
 
 
-@router.get("/{task_id}/movement-log", response_model=List[TaskMovementLogOut], summary="Historial de movimientos de tarea")
+@router.get("/{task_id}/movement-log", response_model=APIListResponse[TaskMovementLogOut], summary="Historial de movimientos de tarea")
 def get_movement_log(
     task_id: str,
     limit: int = Query(50, le=200),
@@ -213,7 +214,8 @@ def get_movement_log(
     current_user: User = Depends(get_current_user),
 ):
     """Devuelve el historial de movimientos (cambios de estado) de una tarea, ordenado del más reciente al más antiguo."""
-    return get_task_movement_log(task_id, db, limit=limit)
+    items = get_task_movement_log(task_id, db, limit=limit)
+    return APIListResponse.ok(items=items, page_size=limit)
 
 
 @router.delete("/{task_id}", summary="Eliminar tarea")
@@ -223,7 +225,7 @@ def delete_task(
     current_user: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, current_user, "task", task_id, action="delete")
-    return cancel_task_record(db, task_id)
+    return cancel_task_record(db, task_id, current_user)
 
 
 @router.post("/{task_id}/comments", response_model=TaskCommentOut, summary="Añadir comentario")

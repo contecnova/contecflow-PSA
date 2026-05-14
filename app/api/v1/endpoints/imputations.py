@@ -6,6 +6,7 @@ from datetime import date
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.schemas import ImputationCreate, ImputationUpdate, ImputationOut, WeekSummary
 from app.schemas.time_tracking import TimerSessionOut, TimerStartPayload, TimerStopPayload, ImputationAlertOut, LockoutStatusOut
@@ -33,7 +34,7 @@ from app.services.imputation_service import (
 router = APIRouter()
 
 
-@router.get("", response_model=List[ImputationOut], summary="Listar imputaciones con filtros")
+@router.get("", response_model=APIListResponse[ImputationOut], summary="Listar imputaciones con filtros")
 def list_imputations(
     user_id: Optional[str] = None,
     project_id: Optional[str] = None,
@@ -51,7 +52,7 @@ def list_imputations(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
-    return items
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.get("/my/week", response_model=WeekSummary, summary="Resumen semanal del usuario actual")
@@ -79,7 +80,7 @@ def update_imputation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    imp = get_imputation_by_id(db, imputation_id)
+    imp = get_imputation_by_id(db, imputation_id, current_user)
     if not imp:
         raise HTTPException(status_code=404, detail="Imputación no encontrada")
 
@@ -93,7 +94,7 @@ def delete_imputation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    imp = get_imputation_by_id(db, imputation_id)
+    imp = get_imputation_by_id(db, imputation_id, current_user)
     if not imp:
         raise HTTPException(status_code=404, detail="Imputación no encontrada")
 

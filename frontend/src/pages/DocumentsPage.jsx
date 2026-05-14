@@ -1227,7 +1227,7 @@ export default function DocumentsPage() {
       const p = { limit: 200 };
       if (filterCat) p.category = filterCat;
       if (search) p.search = search;
-      return documentsApi.list(p).then(r => Array.isArray(r.data) ? r.data : []);
+      return documentsApi.list(p).then(r => Array.isArray(r.data) ? r.data : (r.data?.items ?? []));
     },
   });
 
