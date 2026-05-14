@@ -171,7 +171,8 @@ class ConfigurationItem(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    code = Column(String(30), unique=True, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
+    code = Column(String(30), nullable=False)  # unique per-tenant (ver __table_args__)
     name = Column(String(255), nullable=False)
     ci_type = Column(Enum(CIType), nullable=False)
     status = Column(Enum(CIStatus), default=CIStatus.operational)
@@ -192,6 +193,11 @@ class ConfigurationItem(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # audit #38: unique per-tenant
+    __table_args__ = (
+        UniqueConstraint("organization_id", "code", name="uq_sd_ci_code_per_org"),
+    )
 
     project = relationship("Project", foreign_keys=[project_id])
     owner = relationship("User", foreign_keys=[owner_user_id])
@@ -1052,7 +1058,7 @@ class Asset(Base):
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    code        = Column(String(30), unique=True, nullable=False)   # ASSET-0001
+    code        = Column(String(30), nullable=False)   # ASSET-0001 (unique per-tenant — ver __table_args__)
     name        = Column(String(255), nullable=False)
     asset_type  = Column(Enum(AssetType), nullable=False)
     status      = Column(Enum(AssetStatus), default=AssetStatus.in_stock, index=True)
@@ -1103,6 +1109,11 @@ class Asset(Base):
 
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # audit #38: unique per-tenant
+    __table_args__ = (
+        UniqueConstraint("organization_id", "code", name="uq_sd_asset_code_per_org"),
+    )
 
     assigned_user = relationship("User", foreign_keys=[assigned_user_id])
     managed_by    = relationship("User", foreign_keys=[managed_by_user_id])

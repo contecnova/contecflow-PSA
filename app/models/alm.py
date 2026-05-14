@@ -5,7 +5,7 @@ Gestión de proveedores, contratos, licencias, activos y suscripciones.
 import uuid
 import enum
 from sqlalchemy import (Column, String, Float, Integer, Boolean, Date,
-                        DateTime, Text, ForeignKey, Enum)
+                        DateTime, Text, ForeignKey, Enum, UniqueConstraint)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -107,7 +107,7 @@ class ALMCostCenter(Base):
 
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    code           = Column(String(20), nullable=False, unique=True)  # CC-001
+    code           = Column(String(20), nullable=False)  # CC-001 (unique per-tenant — ver __table_args__)
     name           = Column(String(200), nullable=False)
     description    = Column(Text, nullable=True)
     department_id  = Column(String(36), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
@@ -116,6 +116,11 @@ class ALMCostCenter(Base):
     currency       = Column(String(3), default=settings.DEFAULT_CURRENCY)
     is_active      = Column(Boolean, default=True)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
+
+    # audit #38: unique per-tenant
+    __table_args__ = (
+        UniqueConstraint("organization_id", "code", name="uq_alm_cost_center_code_per_org"),
+    )
 
     manager   = relationship("User",       foreign_keys=[manager_id])
     contracts = relationship("ALMContract", back_populates="cost_center")

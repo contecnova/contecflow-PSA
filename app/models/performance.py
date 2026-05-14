@@ -31,6 +31,7 @@ class ReviewCycle(Base):
     __tablename__ = "review_cycles"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    is_active   = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
     name        = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     start_date  = Column(Date, nullable=True)
@@ -92,6 +93,7 @@ class Review360Campaign(Base):
     __tablename__ = "review_360_campaigns"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    is_active    = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
     cycle_id     = Column(String(36), ForeignKey("review_cycles.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     subject_id   = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
@@ -178,6 +180,7 @@ class DevelopmentPlan(Base):
     __tablename__ = "development_plans"
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    is_active     = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
     subject_id    = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     # Origen opcional: campaña 360° de la que se derivó (puede ser libre).
     campaign_id   = Column(String(36),

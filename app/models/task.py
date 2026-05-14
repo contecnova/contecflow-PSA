@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, Integer, DateTime, Enum, Text, ForeignKey, Date
+from sqlalchemy import Column, String, Float, Integer, DateTime, Enum, Text, ForeignKey, Date, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -29,7 +29,8 @@ class Task(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    code = Column(String(30), unique=True, nullable=False, index=True)  # e.g. TSK-001
+    is_active = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
+    code = Column(String(30), nullable=False, index=True)  # e.g. TSK-001 (unique per-tenant — ver __table_args__)
 
     # Hierarchy
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -76,6 +77,11 @@ class Task(Base):
     # Optimistic locking (P1-5)
     version = Column(Integer, default=1, nullable=False)
 
+    # audit #38: unique per-tenant (no global) — preserva semántica multi-tenant.
+    __table_args__ = (
+        UniqueConstraint("organization_id", "code", name="uq_task_code_per_org"),
+    )
+
     # Relationships
     project = relationship("Project", back_populates="tasks")
     phase = relationship("ProjectPhase", back_populates="tasks")
@@ -114,6 +120,7 @@ class TaskComment(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    is_active = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
     task_id = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     author_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     content = Column(Text, nullable=False)

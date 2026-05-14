@@ -84,8 +84,9 @@ class User(Base):
     # Timezone per-user (overrides org default)
     timezone = Column(String(50), nullable=True)  # e.g. 'Europe/Madrid', 'America/New_York'
 
-    # Multi-tenancy (v15)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Multi-tenancy (v15) — audit #37: organization_id NOT NULL
+    # ondelete cambia a RESTRICT porque NULL ya no es permitido.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True)
     manager_id      = Column(String(36), ForeignKey("users.id",         ondelete="SET NULL"), nullable=True, index=True)
 
     # Timestamps
