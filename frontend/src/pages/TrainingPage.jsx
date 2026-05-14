@@ -134,16 +134,16 @@ export default function TrainingPage() {
 
   const { data: courses = [], isLoading: loadC } = useQuery({
     queryKey:['training-courses'],
-    queryFn:()=>trainingApi.courses().then(r=>r.data).catch(()=>[]),
+    queryFn:()=>trainingApi.courses().then(r=>r.data?.items ?? r.data ?? []).catch(()=>[]),
   })
   const { data: certs = [], isLoading: loadCert } = useQuery({
     queryKey:['training-certs'],
-    queryFn:()=>trainingApi.certs().then(r=>r.data).catch(()=>[]),
+    queryFn:()=>trainingApi.certs().then(r=>r.data?.items ?? r.data ?? []).catch(()=>[]),
     enabled: tab === 'certs',
   })
   const { data: enrollments = [] } = useQuery({
     queryKey:['training-enrollments'],
-    queryFn:()=>trainingApi.enrollments().then(r=>r.data).catch(()=>[]),
+    queryFn:()=>trainingApi.enrollments().then(r=>r.data?.items ?? r.data ?? []).catch(()=>[]),
     enabled: tab === 'enrollments',
   })
 

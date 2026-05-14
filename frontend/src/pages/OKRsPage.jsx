@@ -415,7 +415,7 @@ export default function OKRsPage() {
 
   const { data: objectives = [], isLoading } = useQuery({
     queryKey: ['okrs', year, period],
-    queryFn: () => okrsApi.list({ year, ...(period && { period }) }).then(r => r.data),
+    queryFn: () => okrsApi.list({ year, ...(period && { period }) }).then(r => r.data?.items ?? r.data ?? []),
   })
 
   const { mutate: deleteObj } = useMutation({

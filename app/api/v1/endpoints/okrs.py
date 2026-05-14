@@ -6,6 +6,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.services import okr_service
 from app.services.okr_service import (
@@ -20,12 +21,14 @@ router = APIRouter(tags=["OKRs"])
 
 
 # ── Objectives CRUD ───────────────────────────────────────────────────────────
-@router.get("", summary="Listar objetivos")
+@router.get("", response_model=APIListResponse[dict], summary="Listar objetivos")
 def list_objectives(
     year: int = Query(default=None),
     period: Optional[str] = None,
     status: Optional[str] = None,
     owner_id: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):
@@ -38,7 +41,8 @@ def list_objectives(
         is_superadmin=cu.is_superadmin,
         organization_id=cu.organization_id,
     )
-    return [_ser_objective(o) for o in objectives]
+    items = [_ser_objective(o) for o in objectives]
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("", summary="Crear objetivo", status_code=201)

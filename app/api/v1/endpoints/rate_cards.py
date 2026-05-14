@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 import app.services.rate_card_service as _svc
 
@@ -63,13 +64,16 @@ _table_out = _svc.serialize_rate_table
 
 
 # ── CRUD Tablas ────────────────────────────────────────────────────────────────
-@router.get("", summary="Listar tablas de tarifas")
+@router.get("", response_model=APIListResponse[dict], summary="Listar tablas de tarifas")
 def list_rate_tables(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     tables = _svc.list_rate_tables(db, current_user.organization_id, current_user.is_superadmin)
-    return [_table_out(t) for t in tables]
+    items = [_table_out(t) for t in tables]
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("", summary="Crear tabla de tarifas")

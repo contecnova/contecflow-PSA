@@ -6,7 +6,7 @@ const STALE = 2 * 60 * 1000
 export function useMilestones(projectId) {
   return useQuery({
     queryKey: ['milestones', projectId],
-    queryFn: () => milestonesApi.list(projectId).then(r => r.data),
+    queryFn: () => milestonesApi.list(projectId).then(r => r.data?.items ?? r.data ?? []),
     enabled: !!projectId,
     staleTime: STALE,
   })
@@ -15,7 +15,7 @@ export function useMilestones(projectId) {
 export function useMilestoneDashboard() {
   return useQuery({
     queryKey: ['milestones-dashboard'],
-    queryFn: () => milestonesApi.dashboard().then(r => r.data),
+    queryFn: () => milestonesApi.dashboard().then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }

@@ -329,7 +329,7 @@ export default function ChangesPage() {
 
   const { data: allPending = [] } = useQuery({
     queryKey: ['all-pending-crs'],
-    queryFn: () => projectChangesApi.allPending().then(r => r.data),
+    queryFn: () => projectChangesApi.allPending().then(r => r.data?.items ?? r.data ?? []),
     enabled: hasRole('admin', 'pm') && tab === 'pending',
   })
 

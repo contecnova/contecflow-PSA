@@ -1,11 +1,12 @@
 """Training & Certificaciones."""
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_hr, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User, UserRole
 from app.services import training_service
 from app.services.training_service import (
@@ -18,14 +19,18 @@ from app.schemas.training import CourseIn, EnrollmentIn, CertificationIn
 router = APIRouter(tags=["Training"])
 
 
-@router.get("/courses", summary="Listar cursos")
-def list_courses(category: Optional[str] = None, db: Session = Depends(get_db),
+@router.get("/courses", response_model=APIListResponse[dict], summary="Listar cursos")
+def list_courses(category: Optional[str] = None,
+                 page: int = Query(1, ge=1),
+                 page_size: int = Query(50, ge=1, le=200),
+                 db: Session = Depends(get_db),
                  cu: User = Depends(get_current_user), response: Response = None):
     if response is not None:
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
-    return [_ser_course(c) for c in training_service.list_courses(db, category=category)]
+    items = [_ser_course(c) for c in training_service.list_courses(db, category=category)]
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/courses", summary="Crear curso", status_code=201)
@@ -68,16 +73,20 @@ def delete_course(course_id: str, db: Session = Depends(get_db),
     return {"ok": True, "message": "Curso eliminado correctamente"}
 
 
-@router.get("/enrollments", summary="Listar inscripciones")
+@router.get("/enrollments", response_model=APIListResponse[dict], summary="Listar inscripciones")
 def list_enrollments(user_id: Optional[str] = None, course_id: Optional[str] = None,
-                     status: Optional[str] = None, db: Session = Depends(get_db),
+                     status: Optional[str] = None,
+                     page: int = Query(1, ge=1),
+                     page_size: int = Query(50, ge=1, le=200),
+                     db: Session = Depends(get_db),
                      cu: User = Depends(get_current_user), response: Response = None):
     if response is not None:
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
-    return [_ser_enrollment(e) for e in training_service.list_enrollments(
+    items = [_ser_enrollment(e) for e in training_service.list_enrollments(
         db, user_id=user_id, course_id=course_id, status=status)]
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/enrollments", summary="Crear inscripción", status_code=201)
@@ -120,14 +129,16 @@ def delete_enrollment(enroll_id: str, db: Session = Depends(get_db),
     return {"ok": True, "message": "Inscripción eliminada correctamente"}
 
 
-@router.get("/certifications", summary="Certificaciones de usuarios")
+@router.get("/certifications", response_model=APIListResponse[dict], summary="Certificaciones de usuarios")
 def list_certifications(user_id: Optional[str] = None, expiring_days: Optional[int] = None,
+                        page: int = Query(1, ge=1),
+                        page_size: int = Query(50, ge=1, le=200),
                         db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     certs = [_ser_cert(c) for c in training_service.list_certifications(db, user_id=user_id)]
     if expiring_days is not None:
         certs = [c for c in certs if c["days_until_expiry"] is not None
                  and 0 <= c["days_until_expiry"] <= expiring_days]
-    return certs
+    return APIListResponse.ok(items=certs, page=page, page_size=page_size)
 
 
 @router.post("/certifications", summary="Crear certificación", status_code=201)

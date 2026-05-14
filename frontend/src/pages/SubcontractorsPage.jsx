@@ -55,7 +55,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
   const t = useAppT()
   const { data: skillCatalog = [] } = useQuery({
     queryKey: ['skills-catalog'],
-    queryFn: () => skillsApi.catalog().then(r => r.data),
+    queryFn: () => skillsApi.catalog().then(r => r.data?.items ?? r.data ?? []),
     staleTime: 300000,
   })
 

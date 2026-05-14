@@ -219,7 +219,7 @@ export function ContractSelect({ value = '', onChange, placeholder = 'Selecciona
 export function MilestoneSelect({ value = '', onChange, projectId, placeholder = 'Seleccionar hito…', required = false, style }) {
   const { data: milestones = [], isLoading } = useQuery({
     queryKey: ['milestones', projectId],
-    queryFn: () => milestonesApi.list(projectId).then(r => r.data),
+    queryFn: () => milestonesApi.list(projectId).then(r => r.data?.items ?? r.data ?? []),
     enabled: !!projectId,
     staleTime: 2 * 60 * 1000,
   })

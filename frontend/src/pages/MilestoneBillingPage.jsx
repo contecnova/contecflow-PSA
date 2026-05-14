@@ -253,13 +253,13 @@ export default function MilestoneBillingPage() {
 
   const { data: milestones = [], refetch } = useQuery({
     queryKey: ['milestones', selectedProject],
-    queryFn: () => milestonesApi.list(selectedProject).then(r => r.data),
+    queryFn: () => milestonesApi.list(selectedProject).then(r => r.data?.items ?? r.data ?? []),
     enabled: !!selectedProject,
   })
 
   const { data: dashboard = [], refetch: refetchDash } = useQuery({
     queryKey: ['milestones-dashboard'],
-    queryFn: () => milestonesApi.dashboard().then(r => r.data),
+    queryFn: () => milestonesApi.dashboard().then(r => r.data?.items ?? r.data ?? []),
     enabled: tab === 'dashboard',
   })
 

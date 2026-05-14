@@ -6,7 +6,7 @@ Contecflow v20 — thin router delegating to app.services.issue_type_service
   fts/search                — Búsqueda full-text unificada
   fts/index                 — Indexar/actualizar entrada FTS
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
@@ -15,6 +15,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 import app.services.issue_type_service as _svc
 
 router = APIRouter()
@@ -67,13 +68,16 @@ class FTSIndexIn(BaseModel):
 # 1. TIPOS DE ISSUE
 # ════════════════════════════════════════════════════════════════
 
-@router.get("/issue-types/{project_id}", summary="Tipos de issue del proyecto")
+@router.get("/issue-types/{project_id}", response_model=APIListResponse[dict], summary="Tipos de issue del proyecto")
 def list_issue_types(
     project_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):
-    return _svc.list_issue_types(project_id, db)
+    items = _svc.list_issue_types(project_id, db)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/issue-types/{project_id}/init", summary="Inicializar tipos de issue estándar")

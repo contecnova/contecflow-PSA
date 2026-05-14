@@ -373,13 +373,13 @@ export default function AbsencesPage() {
 
   const { data: myAbsences = [], isLoading: loadingMine } = useQuery({
     queryKey: ['absences-my'],
-    queryFn: () => absencesApi.my().then(r => r.data),
+    queryFn: () => absencesApi.my().then(r => r.data?.items ?? r.data ?? []),
     enabled: tab === 'mine',
   })
 
   const { data: pending = [] } = useQuery({
     queryKey: ['absences-pending'],
-    queryFn: () => absencesApi.pending().then(r => r.data),
+    queryFn: () => absencesApi.pending().then(r => r.data?.items ?? r.data ?? []),
     enabled: hasRole('admin', 'hr', 'pm'),
   })
 

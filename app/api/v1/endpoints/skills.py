@@ -5,6 +5,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_hr
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User, UserRole
 from app.services import skill_service
 from app.schemas.skills import SkillIn, UserSkillIn
@@ -17,19 +18,22 @@ CAT_LABELS = {"technical": "Técnico", "language": "Idioma", "methodology": "Met
 
 # ── Skill catalog ─────────────────────────────────────────────────────────────
 
-@router.get("/catalog", summary="Catálogo de skills")
+@router.get("/catalog", response_model=APIListResponse[dict], summary="Catálogo de skills")
 def get_catalog(
     category: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     skills = skill_service.get_catalog(db, category)
-    return [{
+    items = [{
         "id": s.id, "name": s.name, "category": s.category,
         "category_label": CAT_LABELS.get(s.category, s.category),
         "description": s.description,
         "user_count": len(s.user_skills),
     } for s in skills]
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/catalog", summary="Crear skill")
@@ -74,14 +78,16 @@ def delete_skill(
 
 # ── User skills ───────────────────────────────────────────────────────────────
 
-@router.get("/users/{user_id}", summary="Skills de un usuario")
+@router.get("/users/{user_id}", response_model=APIListResponse[dict], summary="Skills de un usuario")
 def get_user_skills(
     user_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     skills = skill_service.get_user_skills(db, user_id)
-    return [{
+    items = [{
         "id": us.id,
         "skill_id": us.skill_id,
         "skill_name": us.skill.name if us.skill else "—",
@@ -95,6 +101,7 @@ def get_user_skills(
         "cert_expiry": str(us.cert_expiry) if us.cert_expiry else None,
         "notes": us.notes,
     } for us in skills]
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/users/{user_id}", summary="Añadir skill a usuario")
@@ -179,15 +186,17 @@ def get_skills_matrix(
 
 # ── Historial de niveles por usuario/skill ────────────────────────────────────
 
-@router.get("/users/{user_id}/history", summary="Historial de cambios de nivel")
+@router.get("/users/{user_id}/history", response_model=APIListResponse[dict], summary="Historial de cambios de nivel")
 def get_skill_history(
     user_id: str,
     skill_id: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):
     entries = skill_service.get_skill_history(db, user_id, skill_id)
-    return [
+    items = [
         {
             "id":          e.id,
             "skill_id":    e.skill_id,
@@ -200,6 +209,7 @@ def get_skill_history(
         }
         for e in entries
     ]
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/users/{user_id}/history", summary="Registrar evaluación manual de skill",

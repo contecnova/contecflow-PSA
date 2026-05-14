@@ -9,12 +9,13 @@ Estados del flujo:
   rejected         → rechazado, vuelve a pending con motivo
   invoiced         → factura generada automáticamente
 """
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.services.milestone_service import (
     complete_milestone as svc_complete_milestone,
@@ -45,14 +46,17 @@ _ms_out = serialize_milestone
 
 
 # ── CRUD básico ────────────────────────────────────────────────────────────────
-@router.get("/project/{project_id}", summary="Listar milestones de un proyecto")
+@router.get("/project/{project_id}", response_model=APIListResponse[dict], summary="Listar milestones de un proyecto")
 def list_milestones(
     project_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     ms = svc_list_milestones_by_project(db, project_id)
-    return [_ms_out(m, db) for m in ms]
+    items = [_ms_out(m, db) for m in ms]
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/project/{project_id}", summary="Crear milestone")
@@ -166,8 +170,10 @@ def generate_invoice(
 
 
 # ── Dashboard de milestones pendientes ────────────────────────────────────────
-@router.get("/dashboard/pending", summary="Milestones pendientes de acción en todos los proyectos")
+@router.get("/dashboard/pending", response_model=APIListResponse[dict], summary="Milestones pendientes de acción en todos los proyectos")
 def pending_milestones_dashboard(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -186,4 +192,4 @@ def pending_milestones_dashboard(
                 "approved":          "generate-invoice",
             }.get(m.billing_status, "—"),
         })
-    return result
+    return APIListResponse.ok(items=result, page=page, page_size=page_size)

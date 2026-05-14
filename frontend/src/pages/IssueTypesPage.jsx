@@ -142,7 +142,7 @@ export default function IssueTypesPage() {
   })
   const { data: types = [], isLoading } = useQuery({
     queryKey: ['issue-types', project],
-    queryFn: () => issueTypesApi.list(project).then(r => r.data).catch(() => []),
+    queryFn: () => issueTypesApi.list(project).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
     enabled: !!project,
   })
   const { data: customFields = [] } = useQuery({

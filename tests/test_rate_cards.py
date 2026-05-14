@@ -17,7 +17,10 @@ def test_list_rate_cards(client, admin_token, db):
     client.post("/api/v1/rate-cards", json={"name":"RC1","applies_to":"role","is_default":False}, headers=auth(admin_token))
     res = client.get("/api/v1/rate-cards", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    assert isinstance(payload, dict)
+    assert isinstance(payload["items"], list)
+    assert "meta" in payload
 
 def test_add_entry_to_rate_card(client, admin_token, db):
     rc = client.post("/api/v1/rate-cards", json={"name":"RC","applies_to":"role","is_default":True}, headers=auth(admin_token)).json()
@@ -47,7 +50,9 @@ def test_delete_rate_card(client, admin_token, db):
 
     listed = client.get("/api/v1/rate-cards", headers=auth(admin_token))
     assert listed.status_code == 200
-    assert all(t["id"] != rc["id"] for t in listed.json())
+    # #67: APIListResponse wrapper — items en payload["items"]
+    listed_items = listed.json().get("items") if isinstance(listed.json(), dict) else listed.json()
+    assert all(t["id"] != rc["id"] for t in listed_items)
 
     row = db.query(RateTable).filter(RateTable.id == rc["id"]).first()
     assert row is not None

@@ -292,7 +292,7 @@ export default function PortfolioPage() {
 
   const { data: portfolios = [], isLoading } = useQuery({
     queryKey: ['portfolios'],
-    queryFn: () => portfolioApi.list().then(r => r.data),
+    queryFn: () => portfolioApi.list().then(r => r.data?.items ?? r.data ?? []),
   });
 
   const { mutate: createPortfolio } = useMutation({

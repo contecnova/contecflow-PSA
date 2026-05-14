@@ -6,7 +6,7 @@ const STALE = 2 * 60 * 1000
 export function useOKRs(params = {}) {
   return useQuery({
     queryKey: ['okrs', params],
-    queryFn: () => okrsApi.list(params).then(r => r.data),
+    queryFn: () => okrsApi.list(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }

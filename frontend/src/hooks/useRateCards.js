@@ -6,7 +6,7 @@ const STALE = 2 * 60 * 1000
 export function useRateCards() {
   return useQuery({
     queryKey: ['rate-cards'],
-    queryFn: () => rateCardsApi.list().then(r => r.data),
+    queryFn: () => rateCardsApi.list().then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }

@@ -66,4 +66,7 @@ def test_milestone_reject(client, pm_token, db):
 def test_pending_dashboard(client, pm_token, db):
     res = client.get("/api/v1/milestones/dashboard/pending", headers=auth(pm_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    assert isinstance(payload, dict)
+    assert isinstance(payload["items"], list)
+    assert "meta" in payload

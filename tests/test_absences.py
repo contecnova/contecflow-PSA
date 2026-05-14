@@ -53,7 +53,9 @@ def test_delete_absence(client, dev_token, db):
 
     my_abs = client.get("/api/v1/absences/my", headers=auth(dev_token))
     assert my_abs.status_code == 200
-    ids = [a["id"] for a in my_abs.json()]
+    my_abs_payload = my_abs.json()
+    my_abs_items = my_abs_payload.get("items", my_abs_payload) if isinstance(my_abs_payload, dict) else my_abs_payload
+    ids = [a["id"] for a in my_abs_items]
     assert abs_id not in ids
 
     row = db.query(Absence).filter(Absence.id == abs_id).first()

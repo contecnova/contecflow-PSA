@@ -6,7 +6,7 @@ const STALE = 2 * 60 * 1000
 export function useTrainingCourses(params = {}) {
   return useQuery({
     queryKey: ['training-courses', params],
-    queryFn: () => trainingApi.courses(params).then(r => r.data),
+    queryFn: () => trainingApi.courses(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }
@@ -14,7 +14,7 @@ export function useTrainingCourses(params = {}) {
 export function useTrainingCerts(params = {}) {
   return useQuery({
     queryKey: ['training-certs', params],
-    queryFn: () => trainingApi.certs(params).then(r => r.data),
+    queryFn: () => trainingApi.certs(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }
@@ -22,7 +22,7 @@ export function useTrainingCerts(params = {}) {
 export function useTrainingEnrollments(params = {}) {
   return useQuery({
     queryKey: ['training-enrollments', params],
-    queryFn: () => trainingApi.enrollments(params).then(r => r.data),
+    queryFn: () => trainingApi.enrollments(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }

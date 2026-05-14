@@ -48,9 +48,11 @@ class TestPortfolioCRUD:
         _create_portfolio(client, admin_token, "Portfolio B")
         res = client.get("/api/v1/portfolios", headers=auth(admin_token))
         assert res.status_code == 200
-        data = res.json()
-        assert isinstance(data, list)
-        names = [p.get("name") for p in data]
+        payload = res.json()
+        assert isinstance(payload, dict)
+        assert isinstance(payload["items"], list)
+        assert "meta" in payload
+        names = [p.get("name") for p in payload["items"]]
         assert "Portfolio A" in names
         assert "Portfolio B" in names
 

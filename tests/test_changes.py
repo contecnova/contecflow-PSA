@@ -84,7 +84,10 @@ def test_delete_change_request(client, pm_token, db):
 def test_all_pending_changes(client, admin_token, db):
     res = client.get("/api/v1/changes/all/pending", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    assert isinstance(payload, dict)
+    assert isinstance(payload["items"], list)
+    assert "meta" in payload
 
 
 def test_changes_require_auth(client, db):

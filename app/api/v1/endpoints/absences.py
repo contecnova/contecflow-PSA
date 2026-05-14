@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User, UserRole
 from app.models.resources import AbsenceStatus
 from app.services import absence_service
@@ -46,13 +47,16 @@ def list_absences(
     return [_absence_out(a) for a in absences]
 
 
-@router.get("/my", summary="Mis ausencias")
+@router.get("/my", response_model=APIListResponse[dict], summary="Mis ausencias")
 def get_my_absences(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     absences = absence_service.get_my_absences(db, current_user.id)
-    return [_absence_out(a) for a in absences]
+    items = [_absence_out(a) for a in absences]
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 @router.get("/my/vacation-balance", summary="Mi balance de vacaciones del año actual")
 def get_my_vacation_balance(
@@ -159,13 +163,16 @@ def get_team_absences(
     return [_absence_out(a) for a in absences]
 
 
-@router.get("/pending", summary="Ausencias pendientes de aprobación")
+@router.get("/pending", response_model=APIListResponse[dict], summary="Ausencias pendientes de aprobación")
 def get_pending_absences(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     absences = absence_service.get_pending_absences(db)
-    return [_absence_out(a) for a in absences]
+    items = [_absence_out(a) for a in absences]
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/{absence_id}/review", summary="Aprobar o rechazar ausencia")

@@ -246,7 +246,7 @@ export default function RateCardsPage() {
 
   const { data: tables = [], isLoading } = useQuery({
     queryKey: ['rate-cards'],
-    queryFn: () => rateCardsApi.list().then(r => r.data),
+    queryFn: () => rateCardsApi.list().then(r => r.data?.items ?? r.data ?? []),
   })
 
   const { mutate: create, isPending } = useMutation({

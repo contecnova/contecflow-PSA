@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional, Any
 from pydantic import BaseModel
@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.models.resources import ChangeRequest
 from app.services import change_service
@@ -93,8 +94,10 @@ class ChangeRequestOut(BaseModel):
         )
 
 
-@router.get("/all/pending", summary="Todas las CRs pendientes")
+@router.get("/all/pending", response_model=APIListResponse[ChangeRequestOut], summary="Todas las CRs pendientes")
 def get_all_pending(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -107,7 +110,7 @@ def get_all_pending(
         ).model_dump()
         for cr in crs
     ]
-    return result
+    return APIListResponse.ok(items=result, page=page, page_size=page_size)
 
 
 

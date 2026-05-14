@@ -6,7 +6,7 @@ const STALE = 2 * 60 * 1000
 export function useMyAbsences(params = {}) {
   return useQuery({
     queryKey: ['absences-my', params],
-    queryFn: () => absencesApi.my(params).then(r => r.data),
+    queryFn: () => absencesApi.my(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }
@@ -14,7 +14,7 @@ export function useMyAbsences(params = {}) {
 export function usePendingAbsences() {
   return useQuery({
     queryKey: ['absences-pending'],
-    queryFn: () => absencesApi.pending().then(r => r.data),
+    queryFn: () => absencesApi.pending().then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE,
   })
 }

@@ -113,11 +113,11 @@ function UserSkillModal({ user, onClose }) {
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-  const { data: catalog = [] } = useQuery({ queryKey: ['skills-catalog'], queryFn: () => skillsApi.catalog().then(r => r.data) })
-  const { data: userSkills = [] } = useQuery({ queryKey: ['user-skills', user.id], queryFn: () => skillsApi.userSkills(user.id).then(r => r.data) })
+  const { data: catalog = [] } = useQuery({ queryKey: ['skills-catalog'], queryFn: () => skillsApi.catalog().then(r => r.data?.items ?? r.data ?? []) })
+  const { data: userSkills = [] } = useQuery({ queryKey: ['user-skills', user.id], queryFn: () => skillsApi.userSkills(user.id).then(r => r.data?.items ?? r.data ?? []) })
   const { data: skillHistory = [] } = useQuery({
     queryKey: ['skill-history', user.id],
-    queryFn: () => skillsApi.userHistory(user.id).then(r => r.data).catch(() => []),
+    queryFn: () => skillsApi.userHistory(user.id).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
     enabled: modalTab === 'history',
   })
 
@@ -342,7 +342,7 @@ function StaffingSearch() {
 function UserSkillPreview({ userId }) {
   const { data: skills = [] } = useQuery({
     queryKey: ['user-skills-preview', userId],
-    queryFn: () => skillsApi.userSkills(userId).then(r => r.data),
+    queryFn: () => skillsApi.userSkills(userId).then(r => r.data?.items ?? r.data ?? []),
   })
   if (skills.length === 0) return <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Sin skills registrados · haz clic para añadir</div>
   return (
@@ -376,7 +376,7 @@ export default function SkillsPage() {
 
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery({
     queryKey: ['skills-catalog'],
-    queryFn: () => skillsApi.catalog().then(r => r.data),
+    queryFn: () => skillsApi.catalog().then(r => r.data?.items ?? r.data ?? []),
     enabled: tab === 'catalog',
   })
 

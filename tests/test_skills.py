@@ -7,7 +7,10 @@ from tests.conftest import auth
 def test_list_skill_catalog(client, admin_token, db):
     res = client.get("/api/v1/skills/catalog", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    assert isinstance(payload, dict)
+    assert isinstance(payload["items"], list)
+    assert "meta" in payload
 
 
 def test_create_skill(client, admin_token, db):
@@ -44,7 +47,9 @@ def test_delete_skill(client, admin_token, db):
 
     listed = client.get("/api/v1/skills/catalog", headers=auth(admin_token))
     assert listed.status_code == 200
-    assert all(s["id"] != skill["id"] for s in listed.json())
+    listed_payload = listed.json()
+    listed_items = listed_payload.get("items", listed_payload) if isinstance(listed_payload, dict) else listed_payload
+    assert all(s["id"] != skill["id"] for s in listed_items)
 
     row = db.query(Skill).filter(Skill.id == skill["id"]).first()
     assert row is not None
@@ -66,7 +71,10 @@ def test_assign_skill_to_user(client, admin_token, db):
 def test_list_user_skills(client, admin_token, db):
     res = client.get("/api/v1/skills/users/dev-test-id", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    assert isinstance(payload, dict)
+    assert isinstance(payload["items"], list)
+    assert "meta" in payload
 
 
 def test_skills_matrix(client, admin_token, db):
@@ -105,7 +113,9 @@ def test_remove_user_skill(client, admin_token, db):
 
     listed = client.get("/api/v1/skills/users/dev-test-id", headers=auth(admin_token))
     assert listed.status_code == 200
-    assert all(us["id"] != us_id for us in listed.json())
+    # #67: APIListResponse wrapper — items en payload["items"]
+    listed_items = listed.json().get("items") if isinstance(listed.json(), dict) else listed.json()
+    assert all(us["id"] != us_id for us in listed_items)
 
     row = db.query(UserSkill).filter(UserSkill.id == us_id).first()
     assert row is None

@@ -7,7 +7,10 @@ from tests.conftest import auth
 def test_list_objectives_empty(client, admin_token, db):
     res = client.get("/api/v1/okrs", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    assert isinstance(payload, dict)
+    assert isinstance(payload["items"], list)
+    assert "meta" in payload
 
 
 def test_create_objective(client, admin_token, db):
@@ -89,7 +92,8 @@ def test_delete_objective_cascades_krs(client, admin_token, db):
     assert data["ok"] is True
     assert data["kr_count"] == 1  # 1 KR cascaded to soft-delete
     # Verificar que no aparece en la lista (is_active filtering)
-    objs = client.get("/api/v1/okrs?year=2026", headers=auth(admin_token)).json()
+    objs_payload = client.get("/api/v1/okrs?year=2026", headers=auth(admin_token)).json()
+    objs = objs_payload.get("items", objs_payload) if isinstance(objs_payload, dict) else objs_payload
     assert not any(o["id"] == obj_id for o in objs)
 
     obj_row = db.query(Objective).filter(Objective.id == obj_id).first()
@@ -150,7 +154,8 @@ def test_objective_persists_owner_project_team(client, admin_token, db):
     obj_id = res.json()["id"]
 
     # Re-leerlo y comprobar que viene serializado con todas las asignaciones
-    listed = client.get("/api/v1/okrs?year=2025", headers=auth(admin_token)).json()
+    listed_payload = client.get("/api/v1/okrs?year=2025", headers=auth(admin_token)).json()
+    listed = listed_payload.get("items", listed_payload) if isinstance(listed_payload, dict) else listed_payload
     obj = next(o for o in listed if o["id"] == obj_id)
     assert obj["owner_id"] == pm.id
     assert obj["project_id"] == p.id
