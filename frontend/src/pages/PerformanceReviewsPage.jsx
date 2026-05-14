@@ -135,10 +135,14 @@ function ReviewForm({ review, onClose }) {
   })
 
   const [answers, setAnswers] = useState({})
-  // Hidratamos respuestas con lo que venga del review (answers + legacy)
+  // Hidratamos respuestas con lo que venga del review (answers + legacy).
+  // Solo re-hidratamos cuando cambia la review seleccionada (review.id):
+  // depender de review.answers haría que cualquier re-render del padre con
+  // una nueva referencia del objeto pisara las ediciones locales del usuario.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional: solo on review.id change
   useEffect(() => {
     setAnswers(review.answers || {})
-  }, [review.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [review.id])
 
   const cleanAnswers = () => {
     const out = {}
@@ -678,10 +682,15 @@ function New360CampaignModal({ cycle, onClose }) {
   const peerOptions    = peerData?.users    || []
   const upwardOptions  = upwardData?.users  || []
 
-  // Si hay un único manager elegible, lo preseleccionamos
+  // Si hay un único manager elegible, lo preseleccionamos.
+  // Omitimos managerId y setManagerId a propósito: managerId solo se usa para
+  // evitar pisar una selección manual (la guard `!managerId` ya lo cubre);
+  // incluirlo dispararía el efecto cuando el usuario eligiese, y setManagerId
+  // es una función creada en cada render que provocaría re-ejecuciones inútiles.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional: solo on managerOptions change
   useEffect(() => {
     if (managerOptions.length === 1 && !managerId) setManagerId(managerOptions[0].id)
-  }, [managerOptions]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [managerOptions])
 
   // Cuando cambia el subject reseteamos selecciones derivadas
   useEffect(() => {

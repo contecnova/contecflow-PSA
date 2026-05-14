@@ -508,8 +508,8 @@ export function WidgetPanel({ wid, layout, onSizeChange, onToggle, onMoveUp, onM
                 {s}
               </button>
             ))}
-            <button onClick={() => onMoveUp(wid)} disabled={isFirst} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 4, padding: '2px 6px', color: isFirst ? 'var(--text-4)' : 'var(--text-2)', cursor: isFirst ? 'default' : 'pointer', fontSize: "var(--text-sm)" }}>↑</button>
-            <button onClick={() => onMoveDown(wid)} disabled={isLast} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 4, padding: '2px 6px', color: isLast ? 'var(--text-4)' : 'var(--text-2)', cursor: isLast ? 'default' : 'pointer', fontSize: "var(--text-sm)" }}>↓</button>
+            <button onClick={() => onMoveUp(wid)} disabled={isFirst} aria-label="Mover widget hacia arriba" style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 4, padding: '2px 6px', color: isFirst ? 'var(--text-4)' : 'var(--text-2)', cursor: isFirst ? 'default' : 'pointer', fontSize: "var(--text-sm)" }}>↑</button>
+            <button onClick={() => onMoveDown(wid)} disabled={isLast} aria-label="Mover widget hacia abajo" style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 4, padding: '2px 6px', color: isLast ? 'var(--text-4)' : 'var(--text-2)', cursor: isLast ? 'default' : 'pointer', fontSize: "var(--text-sm)" }}>↓</button>
             <button onClick={() => onToggle(wid)} style={{ background: cfg.visible ? 'var(--success)' : 'var(--surface-4)', border: 'none', borderRadius: 4, padding: '2px 8px', color: cfg.visible ? '#fff' : 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-2xs)", fontFamily: 'inherit' }}>
               {cfg.visible ? `✓ ${t('bi.visible')}` : `○ ${t('bi.hidden')}`}
             </button>
@@ -572,14 +572,14 @@ export function ConfigPanel({ prefs, onSave, onClose }) {
     }}>
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>⚙ {t('bi.customize_dashboard')}</div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xl)", padding: '0 4px' }}>✕</button>
+        <button onClick={onClose} aria-label="Cerrar panel de configuracion" style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xl)", padding: '0 4px' }}>✕</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>{t('bi.accent_color')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 12 }}>
             {ACCENT_PRESETS.map(p => (
-              <button key={p.color} onClick={() => applyAccent(p.color)} title={p.labelKey ? t(p.labelKey) : p.label} style={{ width: '100%', aspectRatio: '1', borderRadius: 8, background: p.color, border: `2px solid ${localAccent === p.color ? '#fff' : 'transparent'}`, cursor: 'pointer' }} />
+              <button key={p.color} onClick={() => applyAccent(p.color)} title={p.labelKey ? t(p.labelKey) : p.label} aria-label={p.labelKey ? t(p.labelKey) : p.label} style={{ width: '100%', aspectRatio: '1', borderRadius: 8, background: p.color, border: `2px solid ${localAccent === p.color ? '#fff' : 'transparent'}`, cursor: 'pointer' }} />
             ))}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

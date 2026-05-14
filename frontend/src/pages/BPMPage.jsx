@@ -1534,12 +1534,17 @@ export default function BPMPage() {
     return [...overriddenCatalog, ...customs]
   }, [backendProcesses, versionXmlByKey])
 
-  // Keep selectedProcess fresh when data reloads
+  // Keep selectedProcess fresh when data reloads.
+  // Solo queremos reaccionar cuando se recarga la lista del backend
+  // (allProcesses cambia de referencia). Añadir selectedProcess a las deps
+  // crearía un bucle: el efecto llama a setSelectedProcess, lo que volvería
+  // a disparar el efecto inmediatamente.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional: solo on allProcesses change para evitar bucle
   useEffect(() => {
     if (!selectedProcess) return
     const fresh = allProcesses.find(p => p.id === selectedProcess.id)
     if (fresh && fresh !== selectedProcess) setSelectedProcess(fresh)
-  }, [allProcesses])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [allProcesses])
 
   const filtered = allProcesses.filter(p => {
     const catOk = selectedCat === 'all' || p.category === selectedCat

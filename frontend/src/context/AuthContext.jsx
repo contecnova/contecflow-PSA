@@ -15,6 +15,29 @@ export const AuthContext = createContext(null)
 // /auth/me call when the user is definitely not logged in.
 const SESSION_HINT_KEY = 'cf_authed'
 
+// Storage keys that are tied to the current user's session and must be
+// cleared on logout. UI-only preferences (theme, language, pinned routes,
+// column visibility, dashboard layouts, etc.) are intentionally NOT listed
+// here so they survive between sessions on the same device.
+const SESSION_STORAGE_KEYS = [
+  SESSION_HINT_KEY,
+  'nexusassist_last_conversation_id', // points to a per-user AI conversation
+]
+const SESSION_SESSIONSTORAGE_KEYS = [
+  'collab-notif-asked', // "have we asked this user for OS notif permission yet?"
+]
+
+function clearSessionStorage() {
+  try {
+    SESSION_STORAGE_KEYS.forEach(k => {
+      try { localStorage.removeItem(k) } catch { /* noop */ }
+    })
+    SESSION_SESSIONSTORAGE_KEYS.forEach(k => {
+      try { sessionStorage.removeItem(k) } catch { /* noop */ }
+    })
+  } catch { /* noop */ }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -66,7 +89,7 @@ export function AuthProvider({ children }) {
   // a token refresh fails. Show a brief message before clearing the session.
   useEffect(() => {
     const handler = () => {
-      localStorage.removeItem(SESSION_HINT_KEY)
+      clearSessionStorage()
       setUser(null)
       setSessionExpired(true)
       // Auto-clear the banner after 4 seconds so the login page is clean
@@ -106,7 +129,9 @@ export function AuthProvider({ children }) {
     try {
       await api.post('/auth/logout')
     } catch { /* noop */ }
-    localStorage.removeItem(SESSION_HINT_KEY)
+    // Clear all session-scoped storage (cookie hint, per-user AI conv id,
+    // notification-permission flag, etc.). UI prefs are kept on purpose.
+    clearSessionStorage()
     setUser(null)
   }, [])
 

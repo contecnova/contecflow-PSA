@@ -393,12 +393,15 @@ function SodTab({ roles }) {
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => toggle({ id: rule.id, active: !rule.is_active })}
+                      aria-label={rule.is_active ? 'Desactivar regla SoD' : 'Activar regla SoD'}
                       style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                       {rule.is_active ? '⏸' : '▶'}
                     </button>
                     <button onClick={() => setEditingRule(rule)}
+                      aria-label="Editar regla SoD"
                       style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
                     <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta regla SoD?', onConfirm: () => del(rule.id), danger: true }) }}
+                      aria-label="Eliminar regla SoD"
                       style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 9px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                   </div>
                 </div>
@@ -458,7 +461,7 @@ function ViolationsTab() {
             {label}
           </button>
         ))}
-        <button onClick={() => refetch()} style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>↻</button>
+        <button onClick={() => refetch()} aria-label="Refrescar violaciones SoD" style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>↻</button>
       </div>
 
       {isLoading ? <Spinner /> : violations.length === 0 ? (
@@ -528,7 +531,7 @@ function AuditLogTab() {
             {label}
           </button>
         ))}
-        <button onClick={() => refetch()} style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>↻</button>
+        <button onClick={() => refetch()} aria-label="Refrescar audit log" style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>↻</button>
       </div>
 
       {isLoading ? <Spinner /> : log.length === 0 ? (

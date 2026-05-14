@@ -357,6 +357,7 @@ export default function GanttChart({
                     <>
                       <button
                         onClick={() => setCollapsed(s => { const n = new Set(s); n.has(item.id) ? n.delete(item.id) : n.add(item.id); return n })}
+                        aria-label={collapsed.has(item.id) ? 'Expandir grupo' : 'Contraer grupo'}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-3)', fontSize: "var(--text-3xs)" }}>
                         {collapsed.has(item.id) ? '▶' : '▼'}
                       </button>
