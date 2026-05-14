@@ -747,6 +747,15 @@ def list_workflows(db: Session, entity_type: Optional[str] = None, include_inact
 
 
 def create_workflow(db: Session, payload_dict: dict):
+    # Audit #61: validate auto_approval_rules JSON-as-Text on write.
+    if payload_dict.get("auto_approval_rules"):
+        from app.schemas.approvals import validate_auto_approval_rules
+        try:
+            payload_dict["auto_approval_rules"] = validate_auto_approval_rules(
+                payload_dict["auto_approval_rules"]
+            )
+        except ValueError as exc:
+            raise HTTPException(422, f"auto_approval_rules inválido: {exc}") from exc
     if payload_dict.get("is_default"):
         db.query(ApprovalWorkflow).filter(
             ApprovalWorkflow.entity_type == payload_dict["entity_type"]
@@ -769,7 +778,20 @@ def update_workflow(db: Session, workflow_id: str, payload_dict: dict):
     w = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
     if not w:
         return None
-    allowed = ["name", "description", "is_active", "is_default", "trigger_conditions"]
+    # Audit #61: validate auto_approval_rules JSON-as-Text on update too.
+    if "auto_approval_rules" in payload_dict and payload_dict["auto_approval_rules"]:
+        from app.schemas.approvals import validate_auto_approval_rules
+        try:
+            payload_dict["auto_approval_rules"] = validate_auto_approval_rules(
+                payload_dict["auto_approval_rules"]
+            )
+        except ValueError as exc:
+            raise HTTPException(422, f"auto_approval_rules inválido: {exc}") from exc
+    allowed = [
+        "name", "description", "is_active", "is_default", "trigger_conditions",
+        # audit #61: expose auto_approval_rules on update so it can be edited.
+        "auto_approval_rules", "chain_on_approval_workflow_id", "sla_block_on_breach",
+    ]
     for k, v in payload_dict.items():
         if k in allowed:
             setattr(w, k, v)
@@ -1498,9 +1520,12 @@ def _check_auto_approval(wf, payload) -> Optional[str]:
     """Return rule label if auto-approval applies, else None."""
     if not wf.auto_approval_rules:
         return None
-    try:
-        rules = json.loads(wf.auto_approval_rules)
-    except Exception:
+    # Audit #61: validate via Pydantic with BC fallback. Historic rows that
+    # don't match the schema are returned as raw dicts so the engine keeps
+    # working while the data is migrated.
+    from app.schemas.approvals import parse_auto_approval_rules
+    rules = parse_auto_approval_rules(wf.auto_approval_rules)
+    if not rules:
         return None
     ctx = {}
     if hasattr(payload, 'context') and payload.context:

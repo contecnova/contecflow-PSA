@@ -80,7 +80,7 @@ export interface Project {
 
 // ── Task domain ────────────────────────────────────────────────────────
 
-export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'blocked' | 'in_review' | 'review' | 'done' | 'cancelled'
+export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'blocked' | 'in_review' | 'done' | 'cancelled'
 export type TaskPriority = 'critical' | 'high' | 'medium' | 'low'
 
 export interface Task {

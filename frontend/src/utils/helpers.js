@@ -84,7 +84,7 @@ export const STATUS_LABELS = {
   planning: 'Planificación', active: 'Activo', paused: 'Pausado',
   closed: 'Cerrado', cancelled: 'Cancelado',
   todo: 'Pendiente', in_progress: 'En curso', done: 'Completada',
-  blocked: 'Bloqueada', review: 'En revisión', backlog: 'Backlog',
+  blocked: 'Bloqueada', in_review: 'En revisión', backlog: 'Backlog',
 }
 
 export const TYPE_LABELS = {

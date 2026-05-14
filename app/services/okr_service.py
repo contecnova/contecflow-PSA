@@ -63,14 +63,14 @@ def serialize_objective(obj: Objective) -> dict:
 def task_progress_for_project(db: Session, project_id: str) -> float:
     """Compute 0–100 progress for *project_id* based on weighted task completion.
 
-    Weights: done=1.0 | review=0.8 | in_progress=0.5 | others=0.0
+    Weights: done=1.0 | in_review=0.8 | in_progress=0.5 | others=0.0
     """
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     if not tasks:
         return 0.0
     weighted = sum(
         1.0 if t.status == TaskStatus.done else
-        0.8 if t.status == TaskStatus.review else
+        0.8 if t.status == TaskStatus.in_review else
         0.5 if t.status == TaskStatus.in_progress else
         0.0
         for t in tasks

@@ -134,7 +134,7 @@ export default function WorkDashboardPage() {
     queryKey: ['work-dash-task-stats', userId],
     queryFn: async () => {
       const [openRes, overdueRes, doneRes] = await Promise.all([
-        tasksApi.list({ assigned_to_me: true, status: 'backlog,todo,in_progress,blocked,in_review,review', page_size: 500 }),
+        tasksApi.list({ assigned_to_me: true, status: 'backlog,todo,in_progress,blocked,in_review', page_size: 500 }),
         tasksApi.list({ assigned_to_me: true, overdue_only: true, page_size: 500 }),
         tasksApi.list({ assigned_to_me: true, status: 'done', page_size: 1 }),
       ])

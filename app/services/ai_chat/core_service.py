@@ -4,9 +4,16 @@ ai_core_service — Core AI chat functions: action logging, demo responses, chat
 import json
 import logging
 from datetime import datetime, timezone
+from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.ai_chat import AIActionLog, AIMessage, AIConversation
+from app.schemas.ai_chat import (
+    serialize_tool_calls,
+    serialize_tool_results,
+    deserialize_tool_calls,
+    deserialize_tool_results,
+)
 from app.services.ai_chat.rag_service import kb_rag_context
 from app.services.ai_chat.prompt_service import get_prompt
 from app.services.ai_chat.context_service import build_tenant_context
@@ -103,14 +110,40 @@ def prepare_chat(db: Session, conversation_id, user_id: str, context_type=None, 
     return conv, messages, system
 
 
-def persist_chat_response(db: Session, conv_id: str, user_id: str, original_message: str,
-                           assistant_text: str, latency: int):
-    """Persist assistant message and action log after chat call."""
+def persist_chat_response(
+    db: Session,
+    conv_id: str,
+    user_id: str,
+    original_message: str,
+    assistant_text: str,
+    latency: int,
+    tool_calls: Optional[list] = None,
+    tool_results: Optional[list] = None,
+):
+    """Persist assistant message and action log after chat call.
+
+    ``tool_calls`` and ``tool_results`` are validated via Pydantic schemas
+    (audit #61) before being serialized to the JSON-as-Text columns. Pass raw
+    dicts shaped as ``{"name": ..., "arguments": {...}}`` /
+    ``{"tool_use_id": ..., "content": ..., "is_error": False}``.
+    """
     ai_msg = AIMessage(
         conversation_id=conv_id, role="assistant",
         content=assistant_text, tokens_used=0, latency_ms=latency,
+        tool_calls=serialize_tool_calls(tool_calls),
+        tool_results=serialize_tool_results(tool_results),
     )
     db.add(ai_msg)
     log_action(db, user_id, "contecflowassist", "chat",
                original_message[:200], assistant_text[:200], latency=latency)
     db.commit()
+
+
+def load_message_tool_calls(msg: AIMessage) -> list:
+    """Read ``AIMessage.tool_calls`` as validated dicts (audit #61)."""
+    return deserialize_tool_calls(msg.tool_calls)
+
+
+def load_message_tool_results(msg: AIMessage) -> list:
+    """Read ``AIMessage.tool_results`` as validated dicts (audit #61)."""
+    return deserialize_tool_results(msg.tool_results)

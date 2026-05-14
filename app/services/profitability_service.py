@@ -136,7 +136,7 @@ def calc_project_profitability(
                 weighted_done += 1.0
             elif t.status == TaskStatus.in_progress:
                 weighted_done += 0.5
-            elif t.status == TaskStatus.review:
+            elif t.status == TaskStatus.in_review:
                 weighted_done += 0.8
             elif t.status in [TaskStatus.todo, TaskStatus.backlog, TaskStatus.blocked, TaskStatus.cancelled]:
                 weighted_done += 0.0

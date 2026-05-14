@@ -419,7 +419,7 @@ def sync_jira(db: Session, config, payload: dict):
     errors = []
     STATUS_MAP = {
         "done": "Done", "in_progress": "In Progress",
-        "todo": "To Do", "review": "In Review",
+        "todo": "To Do", "in_review": "In Review",
     }
     for task in tasks_with_jira:
         result = get_jira_issue(cfg_dict, task.jira_issue_key)

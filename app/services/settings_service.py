@@ -50,7 +50,7 @@ DEFAULT_TASK_STATUSES = [
     ("todo", "Pendiente", "#7a8aaa", True),
     ("in_progress", "En progreso", "#00d4ff", False),
     ("blocked", "Bloqueada", "#ff4757", False),
-    ("review", "En revisión", "#ffb800", False),
+    ("in_review", "En revisión", "#ffb800", False),
     ("done", "Completada", "#00e5a0", False),
 ]
 

@@ -33,8 +33,8 @@ function onKeyboardActivate(event, action) {
 }
 
 
-const STATUSES = ['todo', 'in_progress', 'blocked', 'review', 'done']
-const _STATUS_ICONS = { todo: '○', in_progress: '◑', blocked: '✕', review: '◐', done: '●' }
+const STATUSES = ['todo', 'in_progress', 'blocked', 'in_review', 'done']
+const _STATUS_ICONS = { todo: '○', in_progress: '◑', blocked: '✕', in_review: '◐', done: '●' }
 
 const PRIORITIES = Object.entries(PRIORITY_LABELS).map(([v, l]) => ({ value: v, label: l }))
 const TASK_STATUSES = [
@@ -91,7 +91,7 @@ function TaskKanbanCard({ task, onTaskClick, onTaskDragStart }) {
 }
 
 function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnter, onColumnLeave, dragOver }) {
-  const colors = { todo: 'var(--text-2)', in_progress: 'var(--accent)', blocked: 'var(--danger)', review: 'var(--warning)', done: 'var(--success)' }
+  const colors = { todo: 'var(--text-2)', in_progress: 'var(--accent)', blocked: 'var(--danger)', in_review: 'var(--warning)', done: 'var(--success)' }
   const color = colors[status]
   return (
     <div
@@ -144,7 +144,7 @@ function useWorkflowStatusOptions(projectId, t) {
     { value: 'backlog',     icon: '○', label: t('tasks.status_backlog')     },
     { value: 'todo',        icon: '○', label: t('tasks.status_todo')        },
     { value: 'in_progress', icon: '◑', label: t('tasks.status_in_progress') },
-    { value: 'review',      icon: '◐', label: t('tasks.status_review')      },
+    { value: 'in_review',   icon: '◐', label: t('tasks.status_review')      },
     { value: 'blocked',     icon: '✕', label: t('tasks.status_blocked')     },
     { value: 'done',        icon: '●', label: t('tasks.status_done')        },
     { value: 'cancelled',   icon: '✕', label: t('tasks.status_cancelled')   },
@@ -289,9 +289,9 @@ function TaskDetailModal({ task, open, onClose }) {
   const fs  = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls  = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
   const COMPLEXITY_COLORS = { simple: 'var(--success)', medium: 'var(--warning)', complex: 'var(--danger)' }
-  const STATUS_LABEL_MAP = { backlog: t('tasks.status_backlog'), todo: t('tasks.status_todo'), in_progress: t('tasks.status_in_progress'), review: t('tasks.status_review'), blocked: t('tasks.status_blocked'), done: t('tasks.status_done'), cancelled: t('tasks.status_cancelled') }
+  const STATUS_LABEL_MAP = { backlog: t('tasks.status_backlog'), todo: t('tasks.status_todo'), in_progress: t('tasks.status_in_progress'), in_review: t('tasks.status_review'), blocked: t('tasks.status_blocked'), done: t('tasks.status_done'), cancelled: t('tasks.status_cancelled') }
   const PRIORITY_COLOR   = { critical: 'var(--danger)', high: 'var(--warning)', medium: 'var(--accent)', low: 'var(--text-2)' }
-  const STATUS_COLOR     = { done: 'var(--success)', blocked: 'var(--danger)', in_progress: 'var(--accent)', review: 'var(--warning)', todo: 'var(--text-2)', backlog: 'var(--text-3)', cancelled: 'var(--text-3)' }
+  const STATUS_COLOR     = { done: 'var(--success)', blocked: 'var(--danger)', in_progress: 'var(--accent)', in_review: 'var(--warning)', todo: 'var(--text-2)', backlog: 'var(--text-3)', cancelled: 'var(--text-3)' }
   const bodyPad = '20px 20px 24px'
   const tabPanelStyle = { paddingTop: 8 }
 
@@ -800,7 +800,7 @@ export default function TasksPage() {
     queryKey: ['tasks', projectFilter, statusFilter, view, search, priorityFilter, assigneeFilter, overdueOnly, mineOnly],
     queryFn: () => {
       const effectiveStatus = statusFilter === 'open'
-        ? 'backlog,todo,in_progress,blocked,in_review,review'
+        ? 'backlog,todo,in_progress,blocked,in_review'
         : (statusFilter || undefined)
       if (view === 'kanban' && projectFilter) {
         return tasksApi.kanban(projectFilter).then(r => r.data)
@@ -994,7 +994,7 @@ export default function TasksPage() {
             <option value="">{t('tasks.bulk_status_ph')}</option>
             <option value="todo">{t('tasks.status_todo')}</option>
             <option value="in_progress">{t('tasks.status_in_progress')}</option>
-            <option value="review">{t('tasks.status_review')}</option>
+            <option value="in_review">{t('tasks.status_review')}</option>
             <option value="blocked">{t('tasks.status_blocked')}</option>
             <option value="done">{t('tasks.status_done')}</option>
           </select>

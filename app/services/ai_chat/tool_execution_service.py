@@ -208,7 +208,7 @@ AGENT_TOOLS = [
             "type": "object",
             "properties": {
                 "project_id": {"type": "string", "description": "Project ID or name. Leave empty for all."},
-                "status": {"type": "string", "enum": ["pending","in_progress","review","done","rejected","all"]},
+                "status": {"type": "string", "enum": ["pending","in_progress","in_review","done","rejected","all"]},
             }
         }
     },
@@ -283,7 +283,7 @@ AGENT_TOOLS = [
             "type": "object",
             "properties": {
                 "task_id": {"type": "string"},
-                "status": {"type": "string", "enum": ["todo","in_progress","review","done","blocked"]},
+                "status": {"type": "string", "enum": ["todo","in_progress","in_review","done","blocked"]},
                 "priority": {"type": "string", "enum": ["low","medium","high","critical"]},
                 "assignee_name": {"type": "string"},
                 "due_date": {"type": "string", "description": "YYYY-MM-DD"},

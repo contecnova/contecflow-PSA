@@ -12,7 +12,6 @@ class TaskStatus(str, enum.Enum):
     in_progress = "in_progress"
     blocked = "blocked"
     in_review = "in_review"
-    review = "review"          # legacy alias kept for backward compat
     done = "done"
     cancelled = "cancelled"
 

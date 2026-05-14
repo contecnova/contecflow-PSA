@@ -34,7 +34,7 @@
     {"value": "backlog", "label": "Backlog"},
     {"value": "todo", "label": "Por hacer"},
     {"value": "in_progress", "label": "En progreso"},
-    {"value": "review", "label": "En revisión"},
+    {"value": "in_review", "label": "En revisión"},
     {"value": "done", "label": "Hecho"},
     {"value": "blocked", "label": "Bloqueado"},
     {"value": "cancelled", "label": "Cancelado"}
