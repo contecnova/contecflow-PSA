@@ -15,10 +15,13 @@ storage + crea el CollaborationAttachment + lanza AV/DLP/thumbnail.
 from __future__ import annotations
 
 import base64
+import logging
 import os
 import re
 from datetime import datetime
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from sqlalchemy.orm import Session
@@ -61,6 +64,7 @@ def _read_meta(uid: str) -> Optional[dict]:
         with open(p) as f:
             return json.load(f)
     except Exception:
+        logger.exception("Error leyendo metadata TUS para upload %s", uid)
         return None
 
 
@@ -242,7 +246,7 @@ async def tus_patch(
             os.remove(_data_path(uid))
             os.remove(_meta_path(uid))
         except Exception:
-            pass
+            logger.exception("Error limpiando archivos temporales TUS para upload %s", uid)
 
     return Response(
         status_code=204,
@@ -259,6 +263,8 @@ def tus_delete(uid: str, db: Session = Depends(get_db), current_user: User = Dep
     meta = _read_meta(uid)
     if meta and meta.get("user_id") == current_user.id:
         for p in (_data_path(uid), _meta_path(uid)):
-            try: os.remove(p)
-            except Exception: pass
+            try:
+                os.remove(p)
+            except Exception:
+                logger.exception("Error eliminando archivo TUS %s", p)
     return Response(status_code=204, headers={"Tus-Resumable": TUS_VERSION})

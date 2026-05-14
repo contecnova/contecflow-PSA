@@ -179,6 +179,7 @@ class S3Service:
             response = self.client.head_object(Bucket=self.bucket, Key=s3_key)
             return response.get("ContentLength")
         except Exception:
+            logger.warning("Error obteniendo tamaño de archivo S3 key=%s", s3_key, exc_info=True)
             return None
 
 

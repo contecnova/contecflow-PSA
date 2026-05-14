@@ -356,7 +356,7 @@ def ask(
                     "error": None,
                 }
             except Exception:
-                pass
+                logger.warning("Fallback SQL también falló para org_id=%s", org_id, exc_info=True)
         return {
             "question": question,
             "sql": raw_sql,

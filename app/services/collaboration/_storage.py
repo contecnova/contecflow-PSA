@@ -196,8 +196,10 @@ def _scan_with_clamd(data: bytes) -> tuple[str, dict] | None:
                 buf += part
             response = buf.decode(errors="replace").strip("\0\r\n ")
         finally:
-            try: sock.close()
-            except Exception: pass
+            try:
+                sock.close()
+            except Exception:
+                logger.exception("Error cerrando socket clamd")
         if response.endswith("OK"):
             return "clean", {"clamd_response": response}
         if "FOUND" in response:

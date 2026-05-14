@@ -68,6 +68,7 @@ def soc_svc(db, user) -> "SecurityEventService | None":
         org_id = str(user.organization_id) if user and user.organization_id else None
         return SecurityEventService(db=db, org_id=org_id) if org_id else None
     except Exception:
+        logger.warning("Error inicializando SecurityEventService para user=%s", getattr(user, "id", None), exc_info=True)
         return None
 
 
@@ -185,6 +186,7 @@ def validate_https_discovery_url(discovery_url: str) -> str:
     try:
         addrinfo = socket.getaddrinfo(hostname, parsed.port or 443, proto=socket.IPPROTO_TCP)
     except Exception:
+        logger.warning("Error resolviendo getaddrinfo para hostname=%s puerto=%s", hostname, parsed.port or 443, exc_info=True)
         addrinfo = []
 
     for entry in addrinfo:

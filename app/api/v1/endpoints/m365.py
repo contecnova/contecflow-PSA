@@ -292,7 +292,7 @@ async def get_users_presence(
             user_data = await _graph_get(f"/users/{upn}?$select=id,displayName")
             ids.append(user_data.get("id"))
         except Exception:
-            pass  # skip unresolvable UPNs
+            logger.warning("Error resolviendo UPN M365 %s, se omite", upn, exc_info=True)
 
     if not ids:
         return []
@@ -342,6 +342,7 @@ def sync_to_planner(
         existing_response = _graph_get_sync(f"/planner/plans/{active_plan_id}/tasks")
         existing_titles = {t.get("title", "").lower() for t in existing_response.get("value", [])}
     except Exception:
+        logger.warning("Error obteniendo tareas existentes del plan Planner %s", active_plan_id, exc_info=True)
         existing_titles = set()
 
     created = 0
@@ -360,7 +361,7 @@ def sync_to_planner(
             try:
                 due_str = datetime.combine(task.due_date, datetime.min.time()).isoformat() + "Z"
             except Exception:
-                pass
+                logger.warning("Error formateando due_date para tarea %s", getattr(task, "id", None), exc_info=True)
         payload = {
             "planId": active_plan_id,
             "title":  title,
@@ -371,6 +372,7 @@ def sync_to_planner(
             _graph_post_sync("/planner/tasks", payload)
             created += 1
         except Exception:
+            logger.warning("Error creando tarea Planner '%s' en plan %s", title, active_plan_id, exc_info=True)
             errors += 1
 
     return {

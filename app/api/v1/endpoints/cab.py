@@ -186,6 +186,7 @@ async def fire_webhook(
     try:
         payload_json = json.loads(payload_str)
     except Exception:
+        logger.warning("Payload JSON inválido en webhook CAB slug=%s", slug, exc_info=True)
         payload_json = {}
 
     # Verify HMAC signature — all triggers must be signed

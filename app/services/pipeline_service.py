@@ -237,7 +237,8 @@ def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str)
         db.add(rev)
         rev_contract_id = rev.id
     except Exception:
-        pass  # Non-blocking: project creation must not fail if revenue module errors
+        # Non-blocking: project creation must not fail if revenue module errors
+        logger.exception("Error no bloqueante creando contrato de ingresos para opp=%s", getattr(opp, "code", None))
 
     db.commit()
     db.refresh(project)

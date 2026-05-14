@@ -10,6 +10,8 @@ Routes:
   GET  /models                 — list trained models for current org
   GET  /logs                   — recent prediction logs
 """
+import logging
+
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
@@ -19,6 +21,8 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 from app.services import ml_trainer
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["AI Predictions"])
 
@@ -32,6 +36,7 @@ async def overrun_risk(
     try:
         body = await request.json()
     except Exception:
+        logger.warning("Body JSON inválido en /overrun-risk para user_id=%s", getattr(current_user, "id", None), exc_info=True)
         return {
             "error": "Invalid JSON body",
             "risk_level": "unknown",

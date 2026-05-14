@@ -527,6 +527,7 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
             )
             absence_hours += work_days * 8
     except Exception:
+        logger.warning("Error calculando absence_hours, se usa 0.0", exc_info=True)
         absence_hours = 0.0
 
     total = booking_hours + capacity_hours

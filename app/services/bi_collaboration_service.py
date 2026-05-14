@@ -7,10 +7,13 @@ for now to preserve backward compatibility with existing runtime configs.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func, inspect
@@ -50,6 +53,7 @@ def _from_json_value(value: str, default: Any) -> Any:
     try:
         return json.loads(value)
     except Exception:
+        logger.warning("Error parseando JSON en BI collaboration setting", exc_info=True)
         return default
 
 
@@ -64,6 +68,7 @@ def _table_exists(db: Session, table_name: str) -> bool:
         bind = db.get_bind()
         return table_name in inspect(bind).get_table_names()
     except Exception:
+        logger.warning("Error inspeccionando existencia de tabla %s", table_name, exc_info=True)
         return False
 
 
@@ -142,6 +147,7 @@ def _get_json(db: Session, key: str, organization_id: Optional[str], default: An
     try:
         return json.loads(row.value)
     except Exception:
+        logger.warning("Error parseando JSON de AppSetting key=%s organization_id=%s", key, organization_id, exc_info=True)
         return default
 
 
@@ -459,6 +465,7 @@ def governance_overview(db: Session, *, organization_id: Optional[str]) -> dict[
     try:
         from app.services.olap.etl import DUCKDB_PATH
     except Exception:
+        logger.warning("Error importando DUCKDB_PATH desde olap.etl", exc_info=True)
         DUCKDB_PATH = ""
 
     duckdb_exists = bool(DUCKDB_PATH and os.path.exists(DUCKDB_PATH))

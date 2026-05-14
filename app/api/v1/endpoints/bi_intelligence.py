@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -21,6 +22,8 @@ from app.core.security import create_access_token, decode_token
 from app.db.session import get_db, SessionLocal
 from app.models.user import User
 from app.services import bi_intelligence_service as svc
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -405,6 +408,7 @@ def phase2_etl_catalog(current_user: User = Depends(get_current_user)):
         from app.integrations import bi_etl_connectors
         return {"connectors": bi_etl_connectors.list_connectors()}
     except Exception:
+        logger.exception("Error cargando catálogo de conectores ETL")
         return {"connectors": []}
 
 

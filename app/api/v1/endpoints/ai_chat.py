@@ -564,6 +564,7 @@ Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
                         organization_id=getattr(current_user, "organization_id", None),
                     )
                 except Exception:
+                    _logger.exception("Error ejecutando call_ai para instrucción de agente NexusAgent")
                     fallback_text = (
                         f"⚠ No hay proveedor IA configurado. "
                         f"Configura Google Gemini, OpenAI u otro proveedor en **IA & Conectores** "
