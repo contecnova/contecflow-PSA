@@ -13,6 +13,7 @@ import { Shield } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
+import { openConfirmGlobal } from '../context/ConfirmContext'
 
 const ROLES_META = {
   R: { label: 'Responsible',  short: 'R', color: 'var(--accent)',   bg: 'rgba(79,142,247,0.15)',  desc: 'Ejecuta el trabajo' },
@@ -232,7 +233,7 @@ export default function RACIPage() {
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
                               <div style={{ position: 'relative' }}>
                                 <RoleCell role={a.role} editable={false} />
-                                <button onClick={() => deleteEntry(a.entry_id)}
+                                <button onClick={() => { openConfirmGlobal({ message: '¿Quitar esta asignación RACI? Esta acción no se puede deshacer.', onConfirm: () => deleteEntry(a.entry_id), danger: true }) }}
                                   title="Quitar asignacion"
                                   style={{ position: 'absolute', top: -6, right: -6, width: 14, height: 14, borderRadius: '50%', background: 'var(--danger)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: "var(--text-3xs)", display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
                                   ×

@@ -15,6 +15,7 @@ import { TrendingUp, Lock, LockOpen, RefreshCw } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
+import { openConfirmGlobal } from '../context/ConfirmContext'
 
 const fs = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
@@ -577,7 +578,7 @@ export default function RevenuePage() {
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center' }}>
                           {!isReversed && (
-                            <button onClick={() => { if (window.confirm('¿Revertir esta entrada?')) reverseEntry(e.id) }}
+                            <button onClick={() => { openConfirmGlobal({ message: '¿Revertir esta entrada? Esta acción no se puede deshacer.', onConfirm: () => reverseEntry(e.id), danger: true }) }}
                               style={{ fontSize: "var(--text-xs)", padding:'3px 9px', borderRadius:6, border:'1px solid rgba(239,68,68,0.3)', background:'transparent', color:'var(--danger)', cursor:'pointer', fontFamily:'inherit' }}>
                               ↩ Revertir
                             </button>

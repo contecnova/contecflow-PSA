@@ -291,7 +291,7 @@ function Problems() {
                         </button>
                       )}
                       <button onClick={() => { setEditing(p); setShowModal(true) }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
-                      <button onClick={() => confirm(`Eliminar "${p.title}"?`) && deleteProblem(p.id)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(255,71,87,0.3)', background: 'transparent', color: COLOR.danger, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
+                      <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar "${p.title}"? Esta acción no se puede deshacer.`, onConfirm: () => deleteProblem(p.id), danger: true }) }} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(255,71,87,0.3)', background: 'transparent', color: COLOR.danger, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
                     </div>
                   </div>
                   {p.root_cause && (

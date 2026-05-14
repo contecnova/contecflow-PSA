@@ -12,6 +12,7 @@ import {
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtCurrency, fmtDate, fmtPct } from '../utils/helpers'
 import { pipelineApi } from '../services/api'
+import { openConfirmGlobal } from '../context/ConfirmContext'
 
 const STAGES = ['lead', 'qualification', 'proposal', 'negotiation', 'won', 'lost', 'cancelled']
 
@@ -152,8 +153,15 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }) {
     }
   }
 
-  async function handleConvert() {
-    if (!window.confirm(`¿Convertir "${opp.name}" a proyecto? Se marcará la oportunidad como ganada y se creará un contrato ASC 606 automáticamente.`)) return
+  function handleConvert() {
+    openConfirmGlobal({
+      message: `¿Convertir "${opp.name}" a proyecto? Se marcará la oportunidad como ganada y se creará un contrato ASC 606 automáticamente.`,
+      onConfirm: async () => { await doConvert() },
+      danger: true,
+    })
+  }
+
+  async function doConvert() {
     try {
       const res = await convertToProject.mutateAsync(opp.id)
       setConvertResult(res.data)
@@ -425,14 +433,19 @@ export default function PipelinePage() {
     }
   }
 
-  async function handleDelete(opportunity) {
-    if (!window.confirm(`Eliminar la oportunidad ${opportunity.name}?`)) return
-    try {
-      await deleteOpportunity.mutateAsync(opportunity.id)
-      toast.success('Oportunidad eliminada')
-    } catch (mutationError) {
-      toast.error(extractErr(mutationError, 'No se pudo eliminar la oportunidad'))
-    }
+  function handleDelete(opportunity) {
+    openConfirmGlobal({
+      message: `¿Eliminar la oportunidad "${opportunity.name}"? Esta acción no se puede deshacer.`,
+      danger: true,
+      onConfirm: async () => {
+        try {
+          await deleteOpportunity.mutateAsync(opportunity.id)
+          toast.success('Oportunidad eliminada')
+        } catch (mutationError) {
+          toast.error(extractErr(mutationError, 'No se pudo eliminar la oportunidad'))
+        }
+      },
+    })
   }
 
   return (

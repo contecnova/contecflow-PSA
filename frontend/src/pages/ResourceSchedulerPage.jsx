@@ -17,6 +17,7 @@ import PageHeader from '../components/layout/PageHeader'
 import { CalendarDays } from 'lucide-react'
 import { Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import { openConfirmGlobal } from '../context/ConfirmContext'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -278,8 +279,12 @@ export default function ResourceSchedulerPage() {
       if (e.key === 'Escape') { setPanel(null); setDragState(null); setSelected(null) }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBooking) {
         setPanel(null)
-        deleteBooking(selectedBooking.id)
-        setSelected(null)
+        const bookingId = selectedBooking.id
+        openConfirmGlobal({
+          message: '¿Eliminar esta reserva? Esta acción no se puede deshacer.',
+          danger: true,
+          onConfirm: () => { deleteBooking(bookingId); setSelected(null) },
+        })
       }
     }
     window.addEventListener('keydown', handler)
@@ -752,9 +757,17 @@ export default function ResourceSchedulerPage() {
             setSelected(null)
           }}
           onDelete={() => {
-            if (panel.booking.id) deleteBooking(panel.booking.id)
-            setPanel(null)
-            setSelected(null)
+            const bookingId = panel.booking.id
+            if (!bookingId) { setPanel(null); setSelected(null); return }
+            openConfirmGlobal({
+              message: '¿Eliminar esta reserva? Esta acción no se puede deshacer.',
+              danger: true,
+              onConfirm: () => {
+                deleteBooking(bookingId)
+                setPanel(null)
+                setSelected(null)
+              },
+            })
           }}
           onClose={() => { setPanel(null); setSelected(null) }}
         />

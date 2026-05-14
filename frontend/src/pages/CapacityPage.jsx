@@ -16,6 +16,7 @@ import PageShell from '../components/layout/PageShell'
 import { TrendingUp } from 'lucide-react'
 import { Button, Modal, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import { openConfirmGlobal } from '../context/ConfirmContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 
@@ -233,7 +234,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
               {plan.planned_hours}h
             </span>
             <button
-              onClick={e => { e.stopPropagation(); deletePlan(plan.id) }}
+              onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: `¿Eliminar la planificación de ${plan.planned_hours}h en "${plan.project_name || 'Libre'}"? Esta acción no se puede deshacer.`, onConfirm: () => deletePlan(plan.id), danger: true }) }}
               style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-3xs)", padding: '0 1px', lineHeight: 1, flexShrink: 0 }}>
               ×
             </button>

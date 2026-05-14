@@ -14,6 +14,7 @@ import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { openConfirmGlobal } from '../context/ConfirmContext'
 
 function getTypeMeta(t) {
   return {
@@ -290,7 +291,7 @@ export default function ChangelogPage() {
         />
       ) : (
         <div data-export-table="changelog-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {entries.map(e => <EntryCard key={e.id} entry={e} onDelete={deleteEntry} />)}
+          {entries.map(e => <EntryCard key={e.id} entry={e} onDelete={(id) => openConfirmGlobal({ message: `¿Eliminar la entrada "${e.title}"? Esta acción no se puede deshacer.`, onConfirm: () => deleteEntry(id), danger: true })} />)}
         </div>
       )}
 
