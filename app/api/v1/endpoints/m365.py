@@ -37,24 +37,17 @@ from app.services import m365_service
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-GRAPH_BASE = m365_service.GRAPH_BASE
-
-
 # ── Helpers (delegated to m365_service) ──────────────────────────────────────
+# Only the helpers actually referenced by the endpoints below are aliased;
+# unused passthroughs (GRAPH_BASE, get_graph_token{,_sync}, graph_patch) have
+# been removed — they live in m365_service and can be imported directly there.
 _m365_configured = m365_service.m365_configured
 _require_m365 = m365_service.require_m365
-_get_graph_token = m365_service.get_graph_token
-_get_graph_token_sync = m365_service.get_graph_token_sync
 _graph_get = m365_service.graph_get
 _graph_post = m365_service.graph_post
-_graph_patch = m365_service.graph_patch
 _graph_delete = m365_service.graph_delete
 _graph_get_sync = m365_service.graph_get_sync
 _graph_post_sync = m365_service.graph_post_sync
-
-
-# ── Schemas ───────────────────────────────────────────────────────────────────
-
 
 
 # ── Status endpoint ──────────────────────────────────────────────────────────
@@ -251,11 +244,19 @@ async def receive_teams_webhook(
     """
     Receive incoming messages from a Teams bot (e.g. task updates, commands).
     Processes: 'create_task', 'list_projects', 'log_hours' commands from Teams chat.
+
+    NOTE (audit #94): the response strings below are *intentional* UX fallbacks
+    — short bot replies that point the user to the correct NexusPM screen.
+    They are NOT stub placeholders for a missing backend implementation;
+    the actual data (tasks, projects, imputations) lives in their own endpoints
+    and the Teams bot is only meant to be a thin shortcut. Keep them as
+    constants here so the bot's surface is reviewable in one place.
     """
     text = payload.get("text", "").lower().strip()
     command = payload.get("command") or text.split()[0] if text else ""
 
-    # Simple command dispatch
+    # Simple command dispatch — fixed Spanish copy is the product spec for the
+    # Teams bot integration (single-tenant, Spanish-only deployment for now).
     if "create_task" in command or "nueva tarea" in text:
         return {"type": "message", "text": "Para crear una tarea ve a NexusPM → Tareas → Nueva tarea. [Abrir NexusPM](/)"}
     if "log_hours" in command or "imputar" in text:
@@ -263,6 +264,7 @@ async def receive_teams_webhook(
     if "projects" in command or "proyectos" in text:
         return {"type": "message", "text": "Consulta tus proyectos activos en NexusPM → Proyectos. [Ver proyectos](/projects)"}
 
+    # Default greeting / help reply when no known command matched.
     return {"type": "message", "text": "Hola! Puedo ayudarte con: `crear tarea`, `imputar horas`, `proyectos`. Escribe un comando."}
 
 
