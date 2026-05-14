@@ -13,6 +13,10 @@ def admin_no_org_token(client, db):
     from app.models.user import User, UserRole, UserStatus
     from app.core.security import get_password_hash
     from tests.conftest import TEST_PASSWORD
+    # Audit #37: users.organization_id es NOT NULL. Este "no-org admin" se
+    # crea con la default org para preservar el escenario de test del
+    # endpoint org-scoped (que sigue devolviendo 400 si NO se pasa
+    # X-Organization-Id explícito en el request).
     no_org_admin = User(
         id="admin-no-org-id",
         username="admin_no_org",
@@ -22,7 +26,7 @@ def admin_no_org_token(client, db):
         status=UserStatus.active,
         is_active=True,
         hashed_password=get_password_hash(TEST_PASSWORD),
-        organization_id=None,
+        organization_id="00000000-0000-0000-0000-000000000001",
     )
     db.add(no_org_admin)
     db.commit()
@@ -98,6 +102,11 @@ class TestABACAdminDashboard:
         data = res.json()
         assert "total" in data
 
+    @pytest.mark.skip(
+        reason="Audit #37: users.organization_id es NOT NULL — el escenario "
+               "'admin sin org' ya no puede ocurrir en BD. El endpoint sigue "
+               "devolviendo 400 si el contexto no resuelve la org."
+    )
     def test_overview_no_org_returns_400(self, client, admin_no_org_token):
         """Admin without org_id returns 400 from org-scoped endpoint."""
         res = client.get("/api/v1/abac/admin/overview", headers=auth(admin_no_org_token))
@@ -194,6 +203,8 @@ class TestEnforceABACHelper:
         from app.core.abac_enforce import enforce_abac
         from app.models.user import User, UserRole, UserStatus
 
+        # Audit #37: User.organization_id es NOT NULL — usamos default org.
+        # El superadmin bypassea ABAC sea cual sea su org.
         su = User(
             id="su-test",
             username="superadmin_t",
@@ -203,6 +214,7 @@ class TestEnforceABACHelper:
             status=UserStatus.active,
             is_active=True,
             is_superadmin=True,
+            organization_id="00000000-0000-0000-0000-000000000001",
             hashed_password="x",
         )
         db.add(su)
@@ -211,6 +223,13 @@ class TestEnforceABACHelper:
         # Should NOT raise — superadmin bypass
         enforce_abac(db, su, "timesheet", action="read")
 
+    @pytest.mark.skip(
+        reason="Audit #37: users.organization_id es NOT NULL — el escenario "
+               "'user con organization_id=None' ya no puede ocurrir. El bypass "
+               "de fail-open por falta de org se mantiene en abac_enforce.py "
+               "como safety net (`if not org_id: return`) pero ya no es "
+               "alcanzable en runtime con datos válidos."
+    )
     def test_no_org_user_bypasses_abac(self, db):
         from app.core.abac_enforce import enforce_abac
         from app.models.user import User, UserRole, UserStatus
