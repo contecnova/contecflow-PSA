@@ -57,6 +57,7 @@ class Organization(Base):
         "UserOrganizationMembership",
         foreign_keys="UserOrganizationMembership.organization_id",
         cascade="all, delete-orphan",
+        overlaps="organization",  # SAWarning: overlaps con UserOrganizationMembership.organization
     )
     member_users = relationship(
         "User",
