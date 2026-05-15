@@ -10,6 +10,7 @@ from app.services import pipeline_service
 from app.services.pipeline_service import STAGE_LABELS, serialize_opportunity as _opp_out
 from app.services import proposal_service as proposal_svc
 from app.schemas.pipeline import OpportunityIn, OpportunityUpdate, PipelineActivityIn as ActivityIn, StageConfigIn
+from app.core.responses import APIListResponse
 
 router = APIRouter()
 
@@ -24,7 +25,8 @@ def list_opportunities(
     current_user: User = Depends(get_current_user),
 ):
     opps = pipeline_service.get_opportunities(db, current_user, stage=stage, owner_id=owner_id)
-    return [_opp_out(o) for o in opps]
+    items = [_opp_out(o) for o in opps]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/pipeline", summary="Vista kanban del pipeline")
@@ -100,11 +102,12 @@ def get_activities(
     current_user: User = Depends(get_current_user),
 ):
     acts = pipeline_service.list_activities(db, opp_id)
-    return [{
+    items = [{
         "id": a.id, "type": a.type, "content": a.content,
         "user_name": a.user.full_name if a.user else "Sistema",
         "created_at": str(a.created_at)[:16],
     } for a in acts]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/{opp_id}/activities", summary="Añadir actividad")
@@ -192,7 +195,8 @@ def list_templates(
     current_user: User = Depends(get_current_user),
 ):
     templates = proposal_svc.list_templates(db)
-    return [proposal_svc.serialize_template(t) for t in templates]
+    items = [proposal_svc.serialize_template(t) for t in templates]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/proposals/templates", summary="Crear plantilla de propuesta")

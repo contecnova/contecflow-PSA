@@ -12,6 +12,7 @@ from app.services.abac import ABACService, DEFAULT_ABAC_ATTRIBUTES
 from app.schemas.abac import (
     AttributeDefinitionSchema, UserAttributeAssignSchema, UserAttributeSchema, ABACPolicyCreateSchema, ABACPolicySchema, AccessEvaluationRequestSchema, AccessEvaluationResponseSchema
 )
+from app.core.responses import APIListResponse
 
 
 # ============================================================================
@@ -25,19 +26,20 @@ router = APIRouter(tags=["ABAC"])
 # Attribute Definition Management
 # ============================================================================
 
-@router.get("/attribute-definitions")
+@router.get("/attribute-definitions", response_model=APIListResponse[AttributeDefinitionSchema])
 def list_attribute_definitions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     active_only: bool = Query(True),
-) -> List[AttributeDefinitionSchema]:
+):
     """List available attribute definitions for org."""
     org_id = current_user.organization_id
     if not org_id:
         raise HTTPException(status_code=400, detail="User organization not set")
     service = ABACService(db, org_id)
     definitions = service.list_attribute_definitions(active_only=active_only)
-    return [AttributeDefinitionSchema.model_validate(d) for d in definitions]
+    items = [AttributeDefinitionSchema.model_validate(d) for d in definitions]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/attribute-definitions")
@@ -166,19 +168,20 @@ def revoke_user_attribute(
 # ABAC Policy Management
 # ============================================================================
 
-@router.get("/policies")
+@router.get("/policies", response_model=APIListResponse[ABACPolicySchema])
 def list_policies(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     active_only: bool = Query(True),
-) -> List[ABACPolicySchema]:
+):
     """List ABAC policies for org."""
     org_id = current_user.organization_id
     if not org_id:
         raise HTTPException(status_code=400, detail="User organization not set")
     service = ABACService(db, org_id)
     policies = service.list_policies(active_only=active_only)
-    return [ABACPolicySchema.model_validate(p) for p in policies]
+    items = [ABACPolicySchema.model_validate(p) for p in policies]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/policies")

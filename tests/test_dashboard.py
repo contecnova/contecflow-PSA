@@ -17,7 +17,9 @@ def test_dashboard_kpis_no_auth(client, db):
 def test_projects_health(client, admin_token, db):
     res = client.get("/api/v1/dashboard/projects-health", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    body = res.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    assert isinstance(rows, list)
 
 
 def test_my_tasks_summary(client, dev_token, db):

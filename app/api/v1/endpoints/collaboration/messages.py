@@ -19,11 +19,12 @@ from app.schemas.collaboration import (
 )
 from app.services.collaboration import messages as msg_svc
 from app.services.collaboration._permissions import _org, assert_conversation_access
+from app.core.responses import APIListResponse
 
 router = APIRouter()
 
 
-@router.get("/conversations/{conversation_id}/messages", response_model=List[MessageOut], summary="Listar mensajes")
+@router.get("/conversations/{conversation_id}/messages", response_model=APIListResponse[MessageOut], summary="Listar mensajes")
 def list_messages(
     conversation_id: str,
     before: Optional[str] = None,
@@ -36,7 +37,8 @@ def list_messages(
     assert_conversation_access(db, current_user, conversation_id)
     enforce_abac(db, current_user, "collaboration_message", resource_id=conversation_id, action="read")
     rows = msg_svc.list_messages(db, current_user, conversation_id, before=before, limit=limit, thread_root=thread_root)
-    return [MessageOut(**msg_svc._serialize_message(db, m)) for m in rows]
+    items = [MessageOut(**msg_svc._serialize_message(db, m)) for m in rows]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/messages", response_model=MessageOut, summary="Enviar mensaje")
@@ -84,12 +86,13 @@ def delete_message(message_id: str, current_user: User = Depends(get_current_use
     return {"deleted": True}
 
 
-@router.get("/messages/{message_id}/versions", response_model=List[MessageVersionOut], summary="Historial del mensaje")
+@router.get("/messages/{message_id}/versions", response_model=APIListResponse[MessageVersionOut], summary="Historial del mensaje")
 def get_versions(message_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = msg_svc.get_message_versions(db, current_user, message_id)
-    return [MessageVersionOut(
+    items = [MessageVersionOut(
         id=r.id, body=r.body, edited_by_user_id=r.edited_by_user_id, edited_at=r.edited_at
     ) for r in rows]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 # ── Reactions ────────────────────────────────────────────────────────────────

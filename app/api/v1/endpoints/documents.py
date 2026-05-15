@@ -245,7 +245,7 @@ def upload_version(
     )
 
 
-@router.get("/{doc_id}/versions", response_model=List[DocumentVersionOut], summary="Get version history")
+@router.get("/{doc_id}/versions", response_model=APIListResponse[DocumentVersionOut], summary="Get version history")
 def get_versions(
     doc_id: str,
     db: Session = Depends(get_db),
@@ -255,7 +255,7 @@ def get_versions(
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user)
 
-    return [DocumentVersionOut(
+    items = [DocumentVersionOut(
         id=v.id,
         version_num=v.version_num,
         file_name=v.file_name,
@@ -268,6 +268,7 @@ def get_versions(
         download_url=file_storage.generate_presigned_url(v.file_key) if v.file_key else None,
         s3_url=file_storage.generate_presigned_url(v.file_key) if v.file_key else None,
     ) for v in doc.versions]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 # ── Permission Management ──────────────────────────────────────────────────
@@ -297,7 +298,7 @@ def add_permission(
     )
 
 
-@router.get("/{doc_id}/permissions", response_model=list[DocumentPermissionOut], summary="List document permissions")
+@router.get("/{doc_id}/permissions", response_model=APIListResponse[DocumentPermissionOut], summary="List document permissions")
 def list_permissions(
     doc_id: str,
     db: Session = Depends(get_db),
@@ -306,7 +307,8 @@ def list_permissions(
     """List explicit grants on this document."""
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.viewer)
-    return doc_svc.list_document_permissions(db, doc_id)
+    items = doc_svc.list_document_permissions(db, doc_id)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.delete("/{doc_id}/permissions/{perm_id}", summary="Revoke document access")

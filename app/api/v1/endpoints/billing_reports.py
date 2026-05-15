@@ -55,6 +55,7 @@ from app.schemas.billing_reports import (
     OkResponse,
 )
 import app.services.billing_reports_service as _svc
+from app.core.responses import APIListResponse
 
 router = APIRouter()
 
@@ -211,7 +212,7 @@ def execute_import(
         raise HTTPException(500, "Error al finalizar la importación")
 
 
-@router.get("/import/jobs", response_model=List[ImportJobHistoryOut], summary="Historial de importaciones")
+@router.get("/import/jobs", response_model=APIListResponse[ImportJobHistoryOut], summary="Historial de importaciones")
 def import_jobs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=200),
@@ -219,7 +220,8 @@ def import_jobs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return get_import_jobs(db, page, page_size, response)
+    items = get_import_jobs(db, page, page_size, response)
+    return APIListResponse.ok(items=items, total=len(items), page=page, page_size=page_size)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -227,7 +229,7 @@ def import_jobs(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-@router.get("/invoices", response_model=List[InvoiceOut], summary="Listar facturas")
+@router.get("/invoices", response_model=APIListResponse[InvoiceOut], summary="Listar facturas")
 def list_invoices(
     project_id: Optional[str] = None,
     status: Optional[str] = None,
@@ -244,7 +246,8 @@ def list_invoices(
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
     from app.services.billing_reports_service import invoice_out
-    return [invoice_out(inv) for inv in invoices]
+    items = [invoice_out(inv) for inv in invoices]
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post("/invoices/from-timesheets", response_model=Dict[str, Any], summary="Generar factura desde timesheets aprobados")
@@ -358,13 +361,14 @@ def sla_dashboard(
     return _svc.get_sla_dashboard(db)
 
 
-@router.get("/itsm-metrics/agent-performance", response_model=List[AgentPerformanceOut], summary="Rendimiento por agente")
+@router.get("/itsm-metrics/agent-performance", response_model=APIListResponse[AgentPerformanceOut], summary="Rendimiento por agente")
 def agent_performance(
     days: int = Query(30),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_agent_performance(days, db)
+    items = _svc.get_agent_performance(days, db)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/itsm-metrics/pause-sla/{ticket_id}", response_model=SlaPauseResumeOut, summary="Pausar/reanudar SLA (pendiente cliente)")
@@ -381,12 +385,13 @@ def pause_resume_sla(
 # AUTOMATION WORKFLOWS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.get("/automation-workflows", response_model=List[AutomationWorkflowOut], summary="Listar workflows multi-paso")
+@router.get("/automation-workflows", response_model=APIListResponse[AutomationWorkflowOut], summary="Listar workflows multi-paso")
 def list_workflows(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_workflows_all(db)
+    items = _svc.list_workflows_all(db)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/automation-workflows", response_model=AutomationWorkflowOut, status_code=201, summary="Crear workflow")
@@ -417,7 +422,7 @@ def delete_workflow(
     return _svc.delete_workflow(wf_id, db)
 
 
-@router.get("/automation-workflows/{wf_id}/executions", response_model=List[WorkflowExecutionOut], summary="Historial de ejecuciones")
+@router.get("/automation-workflows/{wf_id}/executions", response_model=APIListResponse[WorkflowExecutionOut], summary="Historial de ejecuciones")
 def workflow_executions(
     wf_id: str,
     page: int = Query(1, ge=1),
@@ -426,7 +431,8 @@ def workflow_executions(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return get_workflow_executions(db, wf_id, page, page_size, response)
+    items = get_workflow_executions(db, wf_id, page, page_size, response)
+    return APIListResponse.ok(items=items, total=len(items), page=page, page_size=page_size)
 
 
 @router.post("/automation-workflows/{wf_id}/run", response_model=Dict[str, Any], summary="Ejecutar workflow ahora")
@@ -485,12 +491,13 @@ def update_workflow_step_retries(
 # PROJECT TEMPLATES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.get("/templates", response_model=List[ProjectTemplateOut], summary="Listar plantillas de proyecto")
+@router.get("/templates", response_model=APIListResponse[ProjectTemplateOut], summary="Listar plantillas de proyecto")
 def list_templates(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_templates_all(db)
+    items = _svc.list_templates_all(db)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/templates", response_model=TemplateCreateOut, status_code=201, summary="Crear plantilla de proyecto")
@@ -530,12 +537,13 @@ def smartmatch(
 
 # ── Scheduled Reports ──────────────────────────────────────────────────────────
 
-@router.get("/scheduled-reports", response_model=List[ScheduledReportOut], summary="Listar informes programados")
+@router.get("/scheduled-reports", response_model=APIListResponse[ScheduledReportOut], summary="Listar informes programados")
 def list_scheduled_reports(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.list_scheduled_reports(db)
+    items = _svc.list_scheduled_reports(db)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/scheduled-reports", response_model=ScheduledReportCreateOut, status_code=201, summary="Crear informe programado")

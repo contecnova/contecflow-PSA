@@ -95,7 +95,9 @@ def test_expense_full_lifecycle(client, admin_token, pm_token, dev_token, db):
     # El PM ve el gasto en la cola de pendientes
     pending = client.get("/api/v1/expenses/pending", headers=auth(pm_token))
     assert pending.status_code == 200
-    ids = [e["id"] for e in pending.json()]
+    _pending_body = pending.json()
+    _pending_items = _pending_body.get("items") if isinstance(_pending_body, dict) else _pending_body
+    ids = [e["id"] for e in _pending_items]
     assert exp_id in ids
 
     # PM aprueba el gasto
@@ -386,7 +388,9 @@ def test_project_delivery_and_profitability_flow(client, pm_token, dev_token, db
     # Verificar dashboard global (projects-health es accesible a PMs)
     dashboard = client.get("/api/v1/dashboard/projects-health", headers=auth(pm_token))
     assert dashboard.status_code == 200
-    assert isinstance(dashboard.json(), list)
+    body = dashboard.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    assert isinstance(rows, list)
 
 
 def test_project_full_crud_lifecycle(client, pm_token, admin_token, db):

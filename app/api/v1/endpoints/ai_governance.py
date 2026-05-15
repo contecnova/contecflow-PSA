@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_user
+from app.core.responses import APIListResponse
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -150,7 +151,7 @@ def create_policy(
     return PolicyOut.model_validate(policy)
 
 
-@router.get("/policies", response_model=List[PolicyOut])
+@router.get("/policies", response_model=APIListResponse[PolicyOut])
 def list_policies(
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
@@ -158,7 +159,8 @@ def list_policies(
 ):
     verify_admin_or_governance_role(current_user)
     policies = svc_list_policies(db, org_id=_org(current_user), active_only=active_only)
-    return [PolicyOut.model_validate(p) for p in policies]
+    items = [PolicyOut.model_validate(p) for p in policies]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/policies/{policy_id}", response_model=PolicyOut)

@@ -22,16 +22,18 @@ from app.services.collaboration import bots as bot_svc
 from app.services.collaboration._permissions import (
     _org, assert_conversation_access,
 )
+from app.core.responses import APIListResponse
 
 router = APIRouter()
 
 
 # ── Bots ─────────────────────────────────────────────────────────────────────
-@router.get("/bots", response_model=List[BotOut], summary="Listar bots disponibles")
+@router.get("/bots", response_model=APIListResponse[BotOut], summary="Listar bots disponibles")
 def list_bots(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = db.query(CollaborationBotApp).filter(CollaborationBotApp.organization_id == _org(current_user)).all()
-    return [BotOut(id=b.id, kind=b.kind, handle=b.handle, display_name=b.display_name,
+    items = [BotOut(id=b.id, kind=b.kind, handle=b.handle, display_name=b.display_name,
                    description=b.description, avatar_url=b.avatar_url, is_enabled=b.is_enabled) for b in rows]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/bots/invoke", summary="Invocar bot directamente (no slash)")
@@ -79,10 +81,11 @@ def slash_help():
 
 
 # ── Integrations ─────────────────────────────────────────────────────────────
-@router.get("/integrations", response_model=List[IntegrationOut], summary="Listar integraciones")
+@router.get("/integrations", response_model=APIListResponse[IntegrationOut], summary="Listar integraciones")
 def list_integrations(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = db.query(CollaborationIntegration).filter(CollaborationIntegration.organization_id == _org(current_user)).all()
-    return [IntegrationOut(id=r.id, kind=r.kind, name=r.name, is_enabled=r.is_enabled, config=r.config or {}, created_at=r.created_at) for r in rows]
+    items = [IntegrationOut(id=r.id, kind=r.kind, name=r.name, is_enabled=r.is_enabled, config=r.config or {}, created_at=r.created_at) for r in rows]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/integrations", response_model=IntegrationOut, summary="Crear integración")
@@ -112,14 +115,15 @@ def delete_integration(integration_id: str, current_user: User = Depends(get_cur
 
 
 # ── Webhooks ────────────────────────────────────────────────────────────────
-@router.get("/webhooks", response_model=List[WebhookOut], summary="Listar webhooks")
+@router.get("/webhooks", response_model=APIListResponse[WebhookOut], summary="Listar webhooks")
 def list_webhooks(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = db.query(CollaborationWebhook).filter(CollaborationWebhook.organization_id == _org(current_user)).all()
-    return [WebhookOut(
+    items = [WebhookOut(
         id=w.id, direction=w.direction, name=w.name, url=w.url, secret_token=w.secret_token,
         target_channel_id=w.target_channel_id, events=w.events or [], is_active=w.is_active,
         last_called_at=w.last_called_at, failure_count=w.failure_count,
     ) for w in rows]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/webhooks", response_model=WebhookOut, summary="Crear webhook")

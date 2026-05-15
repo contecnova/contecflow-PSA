@@ -6,6 +6,7 @@ from datetime import date
 from app.db.session import get_db
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, require_admin, require_admin_or_hr, require_admin_or_pm, require_any_manager, require_internal_user
+from app.core.responses import APIListResponse
 from app.models.user import User, UserRole, UserStatus
 from app.schemas import (
     UserCreate, UserUpdate, UserSelfUpdate, UserPublic, UserWithRate, UserLoad
@@ -32,7 +33,7 @@ from app.services.user_service import (
 router = APIRouter()
 
 
-@router.get("", response_model=List[UserPublic], summary="Listar todos los recursos")
+@router.get("", response_model=APIListResponse[UserPublic], summary="Listar todos los recursos")
 def list_users(
     department: Optional[str] = None,
     role: Optional[UserRole] = None,
@@ -55,26 +56,28 @@ def list_users(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
-    return users
+    return APIListResponse.ok(items=users, total=total, page=page, page_size=page_size)
 
 
-@router.get("/with-rates", response_model=List[UserWithRate], summary="Listar recursos con tarifas (admin/hr)")
+@router.get("/with-rates", response_model=APIListResponse[UserWithRate], summary="Listar recursos con tarifas (admin/hr)")
 def list_users_with_rates(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_hr),
 ):
     enforce_abac(db, current_user, "user", action="read")
-    return list_active_users_with_rates(db, current_user)
+    items = list_active_users_with_rates(db, current_user)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.get("/load", response_model=List[UserLoad], summary="Mapa de carga actual de todos los recursos")
+@router.get("/load", response_model=APIListResponse[UserLoad], summary="Mapa de carga actual de todos los recursos")
 def get_load_map(
     week_start: Optional[date] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "user", action="read")
-    return get_load_map_payload(db, current_user, week_start)
+    items = get_load_map_payload(db, current_user, week_start)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/org-chart", summary="Org chart jerárquico")

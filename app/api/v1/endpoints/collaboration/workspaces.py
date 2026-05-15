@@ -32,6 +32,7 @@ from app.services.collaboration._permissions import (
 )
 from app.services.collaboration._search import search_engine
 from app.services.collaboration import workspaces as ws_svc
+from app.core.responses import APIListResponse
 
 router = APIRouter()
 
@@ -61,7 +62,7 @@ def update_workspace(payload: WorkspaceUpdate, current_user: User = Depends(get_
 
 
 # ── Teams ────────────────────────────────────────────────────────────────────
-@router.get("/teams", response_model=List[TeamOut], summary="Listar mis equipos")
+@router.get("/teams", response_model=APIListResponse[TeamOut], summary="Listar mis equipos")
 def list_teams(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     teams = ws_svc.list_teams(db, current_user)
     out: List[TeamOut] = []
@@ -73,7 +74,7 @@ def list_teams(current_user: User = Depends(get_current_user), db: Session = Dep
             channel_count=db.query(CollaborationChannel).filter(CollaborationChannel.team_id == t.id).count(),
             created_at=t.created_at,
         ))
-    return out
+    return APIListResponse.ok(items=out, total=len(out))
 
 
 @router.post("/teams", response_model=TeamOut, summary="Crear equipo")
@@ -107,7 +108,7 @@ def update_team(team_id: str, payload: TeamUpdate, current_user: User = Depends(
     )
 
 
-@router.get("/teams/{team_id}/members", response_model=List[TeamMemberOut], summary="Miembros del equipo")
+@router.get("/teams/{team_id}/members", response_model=APIListResponse[TeamMemberOut], summary="Miembros del equipo")
 def list_team_members(team_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     assert_team_access(db, current_user, team_id)
     org = _org(current_user)
@@ -129,7 +130,7 @@ def list_team_members(team_id: str, current_user: User = Depends(get_current_use
             user_email=u.email if u else None,
             role=m.role, joined_at=m.joined_at,
         ))
-    return out
+    return APIListResponse.ok(items=out, total=len(out))
 
 
 @router.post("/teams/{team_id}/members", summary="Añadir miembros al equipo")
@@ -146,7 +147,7 @@ def remove_team_member(team_id: str, user_id: str, current_user: User = Depends(
 
 
 # ── Channels ─────────────────────────────────────────────────────────────────
-@router.get("/channels", response_model=List[ChannelOut], summary="Listar canales accesibles")
+@router.get("/channels", response_model=APIListResponse[ChannelOut], summary="Listar canales accesibles")
 def list_channels(team_id: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org = _org(current_user)
     chs = ws_svc.list_channels(db, current_user, team_id=team_id)
@@ -163,7 +164,7 @@ def list_channels(team_id: Optional[str] = None, current_user: User = Depends(ge
             unread_count=unread,
             last_activity_at=None,
         ))
-    return out
+    return APIListResponse.ok(items=out, total=len(out))
 
 
 @router.post("/channels", response_model=ChannelOut, summary="Crear canal")
@@ -208,7 +209,7 @@ def add_channel_members(channel_id: str, payload: TeamMemberUpsert, current_user
     return {"added": n}
 
 
-@router.get("/channels/{channel_id}/members", response_model=List[ChannelMemberOut], summary="Miembros del canal")
+@router.get("/channels/{channel_id}/members", response_model=APIListResponse[ChannelMemberOut], summary="Miembros del canal")
 def list_channel_members(channel_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org = _org(current_user)
     ch = db.query(CollaborationChannel).filter(CollaborationChannel.id == channel_id, CollaborationChannel.organization_id == org).first()
@@ -225,7 +226,7 @@ def list_channel_members(channel_id: str, current_user: User = Depends(get_curre
             is_starred=m.is_starred, is_muted=m.is_muted,
             last_read_at=m.last_read_at,
         ))
-    return out
+    return APIListResponse.ok(items=out, total=len(out))
 
 
 # ── Direct + Group ───────────────────────────────────────────────────────────

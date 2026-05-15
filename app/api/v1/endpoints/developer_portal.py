@@ -28,6 +28,7 @@ from app.core.deps import get_current_user, get_db
 from app.core.abac_enforce import enforce_abac
 from app.models.user import User, UserRole
 from app.services import developer_portal_service as svc
+from app.core.responses import APIListResponse
 
 router = APIRouter(prefix="/developer", tags=["Developer Portal"])
 
@@ -75,7 +76,8 @@ _app_out = svc.serialize_app
 @router.get("/apps", summary="Listar mis aplicaciones OAuth")
 def list_apps(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     apps = svc.list_apps_for_user(db, current_user.id)
-    return [_app_out(a) for a in apps]
+    items = [_app_out(a) for a in apps]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/apps", summary="Registrar nueva aplicación OAuth", status_code=201)

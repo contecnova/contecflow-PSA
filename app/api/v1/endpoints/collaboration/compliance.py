@@ -20,18 +20,20 @@ from app.schemas.collaboration import (
 )
 from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import _org
+from app.core.responses import APIListResponse
 
 router = APIRouter()
 
 
 # ── Retention ────────────────────────────────────────────────────────────────
-@router.get("/retention", response_model=List[RetentionPolicyOut], summary="Políticas de retención")
+@router.get("/retention", response_model=APIListResponse[RetentionPolicyOut], summary="Políticas de retención")
 def list_policies(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = db.query(CollaborationRetentionPolicy).filter(CollaborationRetentionPolicy.organization_id == _org(current_user)).all()
-    return [RetentionPolicyOut(
+    items = [RetentionPolicyOut(
         id=r.id, name=r.name, scope=r.scope, target_id=r.target_id,
         retention_months=r.retention_months, apply_to=r.apply_to, is_active=r.is_active,
     ) for r in rows]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/retention", response_model=RetentionPolicyOut, summary="Crear política de retención",
@@ -101,16 +103,17 @@ def run_retention(current_user: User = Depends(get_current_user), db: Session = 
 
 
 # ── Legal Hold ───────────────────────────────────────────────────────────────
-@router.get("/legal-holds", response_model=List[LegalHoldOut], summary="Casos de legal hold")
+@router.get("/legal-holds", response_model=APIListResponse[LegalHoldOut], summary="Casos de legal hold")
 def list_holds(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = db.query(CollaborationLegalHold).filter(CollaborationLegalHold.organization_id == _org(current_user)).all()
-    return [LegalHoldOut(
+    items = [LegalHoldOut(
         id=r.id, case_reference=r.case_reference, description=r.description,
         custodian_user_ids=r.custodian_user_ids or [],
         custodian_client_ids=r.custodian_client_ids or [],
         channel_ids=r.channel_ids or [],
         started_at=r.started_at, ended_at=r.ended_at, is_active=r.is_active,
     ) for r in rows]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/legal-holds", response_model=LegalHoldOut, summary="Crear legal hold",
@@ -231,17 +234,18 @@ def list_decisions(limit: int = 100, current_user: User = Depends(get_current_us
     return out
 
 
-@router.get("/audit", response_model=List[AuditEventOut], summary="Eventos de auditoría",
+@router.get("/audit", response_model=APIListResponse[AuditEventOut], summary="Eventos de auditoría",
             dependencies=[Depends(require_admin)])
 @limiter.limit("30/minute")
 def list_audit(request: Request, limit: int = 200, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = db.query(CollaborationAuditEvent).filter(
         CollaborationAuditEvent.organization_id == _org(current_user),
     ).order_by(CollaborationAuditEvent.created_at.desc()).limit(min(limit, 1000)).all()
-    return [AuditEventOut(
+    items = [AuditEventOut(
         id=r.id, actor_user_id=r.actor_user_id, action=r.action, entity_type=r.entity_type,
         entity_id=r.entity_id, payload=r.payload or {}, created_at=r.created_at,
     ) for r in rows]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/audit/verify", summary="Verificar integridad de la cadena de auditoría",

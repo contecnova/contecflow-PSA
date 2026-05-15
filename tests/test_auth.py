@@ -252,7 +252,8 @@ def test_login_requires_mfa_when_passkey_exists(client, db):
 def test_active_sessions_panel_and_revoke_device(client, admin_token, db):
     list_res = client.get("/api/v1/auth/sessions/active", headers=auth(admin_token))
     assert list_res.status_code == 200
-    sessions = list_res.json()
+    body = list_res.json()
+    sessions = body.get("items") if isinstance(body, dict) else body
     assert len(sessions) >= 1
     first = sessions[0]
     assert "risk_score" in first

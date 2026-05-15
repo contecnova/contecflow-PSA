@@ -10,6 +10,7 @@ from app.core.deps import get_current_user, Request
 from app.models.user import User
 from app.schemas.auth import ActiveSessionOut
 from app.services.session_security import parse_risk_reasons, revoke_session_by_jti
+from app.core.responses import APIListResponse
 
 import app.services.auth_service as _svc
 from app.services.auth_service import (
@@ -19,7 +20,7 @@ from app.services.auth_service import (
 router = APIRouter()
 
 
-@router.get("/sessions/active", response_model=list[ActiveSessionOut], summary="Panel de sesiones activas del usuario")
+@router.get("/sessions/active", response_model=APIListResponse[ActiveSessionOut], summary="Panel de sesiones activas del usuario")
 def list_active_sessions(
     request: Request,
     db: Session = Depends(get_db),
@@ -29,7 +30,7 @@ def list_active_sessions(
     current_jti = _current_refresh_jti(request)
     now = datetime.now(timezone.utc)
     sessions = _svc.get_active_user_sessions(db, current_user.id, now)
-    return [
+    items = [
         ActiveSessionOut(
             id=s.id,
             ip_address=s.ip_address,
@@ -51,6 +52,7 @@ def list_active_sessions(
         )
         for s in sessions
     ]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.delete("/sessions/{session_id}", summary="Revocar dispositivo/sesión específica")

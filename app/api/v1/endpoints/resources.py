@@ -9,6 +9,7 @@ from typing import List, Optional, Dict
 import logging
 
 from app.core.deps import get_db, get_current_user, require_any_manager
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.models.resources import ResourceAlertType
 from app.services.resource_analytics import (
@@ -112,7 +113,7 @@ class AvailableUserBySkill(BaseModel):
 
 # ── Availability Matrix ────────────────────────────────────────────────────
 
-@router.get("/availability-matrix", response_model=List[AvailabilityRecord], summary="Get team availability matrix")
+@router.get("/availability-matrix", response_model=APIListResponse[AvailabilityRecord], summary="Get team availability matrix")
 def get_availability_matrix(
     weeks_ahead: int = Query(4, ge=1, le=12),
     project_id: Optional[str] = None,
@@ -127,7 +128,7 @@ def get_availability_matrix(
     team_user_ids = _svc_get_team_user_ids(db, current_user, project_id)
     availability = resource_analytics.get_team_availability(db, team_user_ids, weeks_ahead)
 
-    return [
+    items = [
         AvailabilityRecord(
             user_id=a["user_id"],
             user_name=a["user_name"],
@@ -141,11 +142,12 @@ def get_availability_matrix(
         )
         for a in availability
     ]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 # ── Load Scoring ───────────────────────────────────────────────────────────
 
-@router.get("/load-scoring", response_model=List[LoadScoreRecord], summary="Get users by current load")
+@router.get("/load-scoring", response_model=APIListResponse[LoadScoreRecord], summary="Get users by current load")
 def get_load_scoring(
     min_load_pct: float = Query(0, ge=0),
     max_load_pct: float = Query(200, le=500),
@@ -176,7 +178,7 @@ def get_load_scoring(
         if min_load_pct <= s["load_pct"] <= max_load_pct
     ]
 
-    return filtered
+    return APIListResponse.ok(items=filtered, total=len(filtered))
 
 
 # ── Team Health ────────────────────────────────────────────────────────────
@@ -201,7 +203,7 @@ def get_team_health(
 
 # ── Skill Gaps ─────────────────────────────────────────────────────────────
 
-@router.get("/{project_id}/skill-gaps", response_model=List[Dict], summary="Analyze skill gaps in project")
+@router.get("/{project_id}/skill-gaps", response_model=APIListResponse[Dict], summary="Analyze skill gaps in project")
 def get_skill_gaps(
     project_id: str,
     db: Session = Depends(get_db),
@@ -209,12 +211,12 @@ def get_skill_gaps(
 ):
     """Analyze required vs available skills in a project."""
     gaps = resource_analytics.get_skill_gaps(db, project_id)
-    return gaps
+    return APIListResponse.ok(items=gaps, total=len(gaps))
 
 
 # ── Available Users by Skill ───────────────────────────────────────────────
 
-@router.get("/available-by-skill/{skill_id}", response_model=List[AvailableUserBySkill], summary="Get users with skill ranked by availability")
+@router.get("/available-by-skill/{skill_id}", response_model=APIListResponse[AvailableUserBySkill], summary="Get users with skill ranked by availability")
 def get_available_by_skill(
     skill_id: str,
     db: Session = Depends(get_db),
@@ -223,7 +225,7 @@ def get_available_by_skill(
     """Get all users with a skill, ranked by available hours."""
     available = resource_analytics.get_available_users_by_skill(db, skill_id)
 
-    return [
+    items = [
         AvailableUserBySkill(
             user_id=a["user_id"],
             user_name=a["user_name"],
@@ -233,11 +235,12 @@ def get_available_by_skill(
         )
         for a in available
     ]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 # ── Utilization History ────────────────────────────────────────────────────
 
-@router.get("/utilization-history", response_model=List[UtilizationSnapshotOut], summary="Get historical utilization data")
+@router.get("/utilization-history", response_model=APIListResponse[UtilizationSnapshotOut], summary="Get historical utilization data")
 def get_utilization_history(
     user_id: Optional[str] = None,
     weeks_back: int = Query(12, ge=1, le=52),
@@ -247,7 +250,7 @@ def get_utilization_history(
     """Get historical resource utilization snapshots."""
     snapshots = _svc_get_utilization_history(db, user_id=user_id, weeks_back=weeks_back)
 
-    return [
+    items = [
         UtilizationSnapshotOut(
             user_id=s.user_id,
             user_name=s.user.full_name if s.user else "Unknown",
@@ -261,11 +264,12 @@ def get_utilization_history(
         )
         for s in snapshots
     ]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 # ── Alerts ─────────────────────────────────────────────────────────────────
 
-@router.get("/alerts", response_model=List[ResourceAlertOut], summary="Get resource alerts")
+@router.get("/alerts", response_model=APIListResponse[ResourceAlertOut], summary="Get resource alerts")
 def get_alerts(
     acknowledged: bool = Query(False),
     alert_type: Optional[ResourceAlertType] = None,
@@ -275,7 +279,7 @@ def get_alerts(
     """Get resource alerts (overload, skill gaps, etc)."""
     alerts = _svc_get_alerts(db, current_user, acknowledged=acknowledged, alert_type=alert_type)
 
-    return [
+    items = [
         ResourceAlertOut(
             id=a.id,
             user_id=a.user_id,
@@ -288,6 +292,7 @@ def get_alerts(
         )
         for a in alerts
     ]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.patch("/alerts/{alert_id}/acknowledge", summary="Acknowledge alert")
@@ -302,7 +307,7 @@ def acknowledge_alert(
 
 # ── Forecast ───────────────────────────────────────────────────────────────
 
-@router.get("/forecast", response_model=List[AvailabilityRecord], summary="4-week availability forecast")
+@router.get("/forecast", response_model=APIListResponse[AvailabilityRecord], summary="4-week availability forecast")
 def get_forecast(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),

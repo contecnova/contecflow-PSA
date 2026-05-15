@@ -17,7 +17,9 @@ def test_list_sprints_empty(client, pm_token, db):
     pid = _create_project(client, pm_token)
     res = client.get(f"/api/v1/sprints/{pid}/sprints", headers=auth(pm_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    body = res.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    assert isinstance(rows, list)
 
 
 def test_create_sprint(client, pm_token, db):

@@ -26,6 +26,7 @@ from app.core.ratelimit import limiter
 from app.models.user import User, UserRole
 from app.services import public_forms_service
 from app.services.public_forms_service import serialize_form as _form_out
+from app.core.responses import APIListResponse
 
 router = APIRouter(prefix="/forms", tags=["Public Forms"])
 log = logging.getLogger(__name__)
@@ -78,7 +79,8 @@ class SubmitFormIn(BaseModel):
 @router.get("", summary="Listar formularios públicos")
 def list_forms(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     forms = public_forms_service.list_forms(db, current_user.id)
-    return [_form_out(f) for f in forms]
+    items = [_form_out(f) for f in forms]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("", summary="Crear formulario público", status_code=201)
@@ -148,7 +150,7 @@ def list_submissions(form_id: str, db: Session = Depends(get_db), current_user: 
     if form.created_by != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(403, "Acceso denegado")
     subs = public_forms_service.list_submissions(db, form_id)
-    return [
+    items = [
         {
             "id": s.id,
             "submitter_name": s.submitter_name,
@@ -163,6 +165,7 @@ def list_submissions(form_id: str, db: Session = Depends(get_db), current_user: 
         }
         for s in subs
     ]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 # ── Public (unauthenticated) endpoints ────────────────────────────────────────

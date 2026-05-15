@@ -5,6 +5,7 @@ from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_any_manager
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.schemas import DashboardKPIs, ProjectHealthItem, ResourceLoadItem
 from app.services.dashboard_service import (
@@ -26,22 +27,24 @@ def get_kpis(
     return get_global_kpis(db, current_user)
 
 
-@router.get("/projects-health", response_model=List[ProjectHealthItem], summary="Salud de todos los proyectos")
+@router.get("/projects-health", response_model=APIListResponse[ProjectHealthItem], summary="Salud de todos los proyectos")
 def projects_health_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return svc_get_projects_health(db, current_user)
+    items = svc_get_projects_health(db, current_user)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.get("/resource-load", response_model=List[ResourceLoadItem], summary="Carga detallada por recurso")
+@router.get("/resource-load", response_model=APIListResponse[ResourceLoadItem], summary="Carga detallada por recurso")
 def get_resource_load_endpoint(
     week_start: Optional[date] = None,
     department: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return get_resource_load(week_start, department, db, current_user)
+    items = get_resource_load(week_start, department, db, current_user)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/profitability", summary="Rentabilidad por proyecto (solo admin)")

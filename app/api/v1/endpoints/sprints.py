@@ -97,7 +97,8 @@ def list_sprints(
     current_user: User = Depends(get_current_user),
 ):
     sprints = svc.list_sprints_for_project(db, project_id, status, current_user)
-    return [_sprint_out(s, include_tasks=True) for s in sprints]
+    items = [_sprint_out(s, include_tasks=True) for s in sprints]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/{project_id}/sprints", summary="Crear sprint")
@@ -296,7 +297,8 @@ def get_project_backlog(
     current_user: User = Depends(get_current_user),
 ):
     tasks = svc.get_project_backlog_tasks(db, project_id)
-    return [_task_out(t) for t in tasks]
+    items = [_task_out(t) for t in tasks]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/{project_id}/velocity", summary="Histórico de velocidad por sprint")

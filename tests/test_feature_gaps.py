@@ -296,7 +296,8 @@ class TestCurrencyConversion:
     def test_get_exchange_rates(self, client, pm_token, db):
         res = client.get("/api/v1/currency/rates", headers=auth(pm_token))
         assert res.status_code == 200
-        data = res.json()
+        body = res.json()
+        data = body.get("items") if isinstance(body, dict) else body
         # Endpoint returns a list of rate objects
         assert isinstance(data, list)
 

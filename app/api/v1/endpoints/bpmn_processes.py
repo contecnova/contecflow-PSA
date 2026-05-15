@@ -26,6 +26,7 @@ from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db
 from app.models.bpmn_process import BPMNProcess
 from app.models.user import User
+from app.core.responses import APIListResponse
 import app.services.bpmn_process_service as svc
 
 router = APIRouter(tags=["BPMN Processes"])
@@ -92,17 +93,19 @@ def list_processes(
     org_id = getattr(current_user, "organization_id", None)
     procs = svc.list_processes(db, organization_id=org_id, category=category,
                                include_inactive=include_inactive)
-    return [svc.serialize_process(p) for p in procs]
+    items = [svc.serialize_process(p) for p in procs]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/catalogue", summary="Preview the seed catalogue")
 def get_catalogue(_: User = Depends(get_current_user)):
-    return [
+    items = [
         {"key": e["key"], "name": e["name"], "category": e["category"],
          "icon": e.get("icon"), "description": e.get("description"),
          "steps": e["steps"]}
         for e in svc.PROCESS_CATALOGUE
     ]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/seed", summary="Seed every catalogued process for the current org")
@@ -217,7 +220,8 @@ def list_versions(
     proc = svc.get_process(db, process_id)
     if not proc:
         raise HTTPException(404, "Process not found")
-    return [svc.serialize_version(v, include_xml=False) for v in proc.versions]
+    items = [svc.serialize_version(v, include_xml=False) for v in proc.versions]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/{process_id}/versions/{version}", summary="Get a specific version (with XML)")

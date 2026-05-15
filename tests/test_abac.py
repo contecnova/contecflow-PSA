@@ -396,7 +396,8 @@ class TestABACEndpoints:
         headers = get_auth_headers(test_admin_user)
         response = client.get("/api/v1/abac/attribute-definitions", headers=headers)
         assert response.status_code == 200
-        data = response.json()
+        body = response.json()
+        data = body.get("items") if isinstance(body, dict) else body
         assert any(a["attribute_key"] == "region" for a in data)
 
     def test_get_user_attributes(self, db: Session, test_manager_user: User):

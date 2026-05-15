@@ -196,14 +196,15 @@ def get_lockout_status(
 
 # ── Imputation Alerts ──────────────────────────────────────────────────────
 
-@router.get("/alerts", response_model=List[ImputationAlertOut], summary="Get missing imputation alerts")
+@router.get("/alerts", response_model=APIListResponse[ImputationAlertOut], summary="Get missing imputation alerts")
 def get_imputation_alerts(
     acknowledged: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get alerts for missing/incomplete imputations."""
-    return list_alerts_payload(db, current_user, acknowledged)
+    items = list_alerts_payload(db, current_user, acknowledged)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/alerts/{alert_id}/dismiss", summary="Dismiss imputation alert")

@@ -31,6 +31,7 @@ from app.core.deps import get_current_user, require_admin_or_hr
 from app.db.session import get_db
 from app.models.user import User
 from app.models.user_cost import CountryEmployerCost, UserCostProfile
+from app.core.responses import APIListResponse
 import app.services.cost_service as svc
 
 router = APIRouter(tags=["User Costs"])
@@ -92,7 +93,8 @@ def list_countries(
 ):
     org_id = getattr(current_user, "organization_id", None)
     rows = svc.list_country_presets(db, organization_id=org_id)
-    return [svc.serialize_country(c) for c in rows]
+    items = [svc.serialize_country(c) for c in rows]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/countries", summary="Create or override an org-specific country preset")
@@ -188,7 +190,8 @@ def list_user_profiles(
     _: User = Depends(require_admin_or_hr),
 ):
     profiles = svc.list_profiles(db, user_id)
-    return [svc.serialize_profile(p) for p in profiles]
+    items = [svc.serialize_profile(p) for p in profiles]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/users/{user_id}/profiles", summary="Create a new cost profile for a user")

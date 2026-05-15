@@ -207,7 +207,9 @@ class TestAIGovernanceAPI:
     def test_list_policies_empty(self, client, admin_with_org):
         res = client.get("/api/v1/ai-governance/policies", headers=auth(admin_with_org))
         assert res.status_code == 200
-        assert res.json() == []
+        body = res.json()
+        items = body.get("items") if isinstance(body, dict) else body
+        assert items == []
 
     def test_create_policy_admin(self, client, admin_with_org):
         payload = {

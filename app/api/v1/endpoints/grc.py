@@ -24,6 +24,7 @@ from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services.grc_sod import record_sod_violation as _record_sod_violation
 import app.services.grc_service as grc_svc
+from app.core.responses import APIListResponse
 
 router = APIRouter(tags=["GRC"])
 
@@ -207,7 +208,8 @@ def list_sod_rules(
 ):
     _ensure_sod_seeded(db)
     rules = grc_svc.list_sod_rules_db(db)
-    return [_rule_out(r) for r in rules]
+    items = [_rule_out(r) for r in rules]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 _rule_out = grc_svc.serialize_sod_rule
@@ -305,7 +307,8 @@ def list_violations(
     current_user: User = Depends(require_any_manager),
 ):
     rows = grc_svc.list_violations_db(db, resolved, limit)
-    return [_violation_out(v) for v in rows]
+    items = [_violation_out(v) for v in rows]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 _violation_out = grc_svc.serialize_violation
@@ -336,7 +339,7 @@ def get_audit_log(
     current_user: User = Depends(require_admin),
 ):
     rows = grc_svc.list_audit_log_db(db, severity, action_type, limit)
-    return [
+    items = [
         {
             "id": e.id,
             "timestamp": str(e.timestamp)[:19] if e.timestamp else None,
@@ -351,6 +354,7 @@ def get_audit_log(
         }
         for e in rows
     ]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 # ── Utility: check_permission (for internal use by other endpoints) ───────────

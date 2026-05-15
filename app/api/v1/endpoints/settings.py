@@ -12,6 +12,7 @@ from app.core.abac_enforce import enforce_abac
 from app.core.config import settings as app_settings
 from app.models.user import User, UserRole
 import app.services.settings_service as _svc
+from app.core.responses import APIListResponse
 from app.schemas.settings import (
     SettingOut,
     SettingUpdate,
@@ -51,9 +52,10 @@ def get_org_defaults(_: User = Depends(get_current_user)):
         "tax_rate": app_settings.DEFAULT_TAX_RATE,
     }
 
-@router.get("/general", response_model=List[SettingOut])
+@router.get("/general", response_model=APIListResponse[SettingOut])
 def get_general_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return _svc.get_general_settings(db)
+    items = _svc.get_general_settings(db)
+    return APIListResponse.ok(items=items, total=len(items))
 
 @router.patch("/general/{key}", response_model=SettingOut)
 def update_setting(key: str, payload: SettingUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
@@ -61,9 +63,10 @@ def update_setting(key: str, payload: SettingUpdate, db: Session = Depends(get_d
 
 # ── Project types ─────────────────────────────────────────────────────────────
 
-@router.get("/project-types", response_model=List[ProjectTypeOut])
+@router.get("/project-types", response_model=APIListResponse[ProjectTypeOut])
 def get_project_types(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return _svc.get_project_types(db)
+    items = _svc.get_project_types(db)
+    return APIListResponse.ok(items=items, total=len(items))
 
 @router.post("/project-types", response_model=ProjectTypeOut)
 def create_project_type(payload: ProjectTypeIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
@@ -89,9 +92,10 @@ def delete_project_type(item_id: str, db: Session = Depends(get_db), _: User = D
 
 # ── Project statuses ──────────────────────────────────────────────────────────
 
-@router.get("/project-statuses", response_model=List[ProjectStatusOut])
+@router.get("/project-statuses", response_model=APIListResponse[ProjectStatusOut])
 def get_project_statuses(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return _svc.get_project_statuses(db)
+    items = _svc.get_project_statuses(db)
+    return APIListResponse.ok(items=items, total=len(items))
 
 @router.post("/project-statuses", response_model=ProjectStatusOut)
 def create_project_status(payload: ProjectStatusIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
@@ -117,9 +121,10 @@ def delete_project_status(item_id: str, db: Session = Depends(get_db), _: User =
 
 # ── Task statuses ─────────────────────────────────────────────────────────────
 
-@router.get("/task-statuses", response_model=List[TaskStatusOut])
+@router.get("/task-statuses", response_model=APIListResponse[TaskStatusOut])
 def get_task_statuses(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return _svc.get_task_statuses(db)
+    items = _svc.get_task_statuses(db)
+    return APIListResponse.ok(items=items, total=len(items))
 
 @router.post("/task-statuses", response_model=TaskStatusOut)
 def create_task_status(payload: TaskStatusIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
@@ -145,9 +150,10 @@ def delete_task_status(item_id: str, db: Session = Depends(get_db), _: User = De
 
 # ── Departments ───────────────────────────────────────────────────────────────
 
-@router.get("/departments", response_model=List[DepartmentOut])
+@router.get("/departments", response_model=APIListResponse[DepartmentOut])
 def get_departments(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return _svc.get_departments(db)
+    items = _svc.get_departments(db)
+    return APIListResponse.ok(items=items, total=len(items))
 
 @router.post("/departments", response_model=DepartmentOut)
 def create_department(payload: DepartmentIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
@@ -173,9 +179,10 @@ def delete_department(item_id: str, db: Session = Depends(get_db), _: User = Dep
 
 # ── Holidays ──────────────────────────────────────────────────────────────────
 
-@router.get("/holidays", response_model=List[HolidayOut])
+@router.get("/holidays", response_model=APIListResponse[HolidayOut])
 def get_holidays(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return _svc.get_holidays(db)
+    items = _svc.get_holidays(db)
+    return APIListResponse.ok(items=items, total=len(items))
 
 @router.post("/holidays", response_model=HolidayOut)
 def create_holiday(payload: HolidayIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):

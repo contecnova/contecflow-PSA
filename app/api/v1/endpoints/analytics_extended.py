@@ -10,6 +10,7 @@ import csv
 import io
 from app.services import v238_service, analytics_service
 from app.core.deps import get_db, get_current_user, require_any_manager
+from app.core.responses import APIListResponse
 from app.models.user import User
 from pydantic import BaseModel
 
@@ -307,7 +308,7 @@ def get_document_analytics(
 
 # ── Advanced Resource Forecast ─────────────────────────────────────────────
 
-@router.get("/resources/forecast-advanced", response_model=List[ResourceForecast], summary="Advanced resource forecast")
+@router.get("/resources/forecast-advanced", response_model=APIListResponse[ResourceForecast], summary="Advanced resource forecast")
 def get_advanced_forecast(
     weeks_ahead: int = Query(12, ge=1, le=52),
     include_risk_assessment: bool = True,
@@ -350,7 +351,8 @@ def get_advanced_forecast(
             )
         )
 
-    return sorted(forecasts, key=lambda x: x.avg_load_pct, reverse=True)
+    items = sorted(forecasts, key=lambda x: x.avg_load_pct, reverse=True)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 # ── Export Endpoints ───────────────────────────────────────────────────────

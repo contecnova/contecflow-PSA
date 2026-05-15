@@ -10,6 +10,7 @@ from app.models.billing_reports import InvoiceStatus
 from app.models.user import User
 from app.services import currency_rates_service
 from app.schemas.currency_rates import ExchangeRateCreate
+from app.core.responses import APIListResponse
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ def list_exchange_rates(
     current_user: User = Depends(get_current_user),
 ):
     rates = currency_rates_service.list_exchange_rates(db, base_currency, target_currency)
-    return [
+    items = [
         {
             "id": r.id,
             "from_currency": r.from_currency,
@@ -33,6 +34,7 @@ def list_exchange_rates(
         }
         for r in rates
     ]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/currency/rates", summary="Create/update exchange rate", status_code=201)

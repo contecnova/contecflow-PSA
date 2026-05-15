@@ -51,7 +51,8 @@ class TestExchangeRateCRUD:
         _create_rate(client, admin_token, "EUR", "GBP", 0.85)
         res = client.get("/api/v1/currency/rates", headers=auth(admin_token))
         assert res.status_code == 200
-        data = res.json()
+        body = res.json()
+        data = body.get("items") if isinstance(body, dict) else body
         assert isinstance(data, list)
         assert len(data) >= 2
 

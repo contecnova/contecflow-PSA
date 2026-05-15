@@ -14,7 +14,9 @@ def test_get_general_settings(client, admin_token, db):
 def test_list_project_types(client, admin_token, db):
     res = client.get("/api/v1/settings/project-types", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    body = res.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    assert isinstance(rows, list)
 
 
 def test_create_project_type(client, admin_token, db):
@@ -47,7 +49,9 @@ def test_delete_project_type(client, admin_token, db):
 
     listed = client.get("/api/v1/settings/project-types", headers=auth(admin_token))
     assert listed.status_code == 200
-    assert all(pt["id"] != created["id"] for pt in listed.json())
+    body = listed.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    assert all(pt["id"] != created["id"] for pt in rows)
 
     row = db.query(CustomProjectType).filter(CustomProjectType.id == created["id"]).first()
     assert row is not None
@@ -57,7 +61,9 @@ def test_delete_project_type(client, admin_token, db):
 def test_list_departments(client, admin_token, db):
     res = client.get("/api/v1/settings/departments", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    body = res.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    assert isinstance(rows, list)
 
 
 def test_create_department(client, admin_token, db):
@@ -80,7 +86,9 @@ def test_delete_department(client, admin_token, db):
 
     listed = client.get("/api/v1/settings/departments", headers=auth(admin_token))
     assert listed.status_code == 200
-    assert all(d["id"] != dept["id"] for d in listed.json())
+    body = listed.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    assert all(d["id"] != dept["id"] for d in rows)
 
     row = db.query(Department).filter(Department.id == dept["id"]).first()
     assert row is not None
@@ -90,7 +98,9 @@ def test_delete_department(client, admin_token, db):
 def test_list_holidays(client, admin_token, db):
     res = client.get("/api/v1/settings/holidays", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    body = res.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    assert isinstance(rows, list)
 
 
 def test_create_holiday(client, admin_token, db):
@@ -114,7 +124,9 @@ def test_delete_holiday_hard_and_hidden(client, admin_token, db):
 
     listed = client.get("/api/v1/settings/holidays", headers=auth(admin_token))
     assert listed.status_code == 200
-    assert all(h["id"] != created["id"] for h in listed.json())
+    body = listed.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    assert all(h["id"] != created["id"] for h in rows)
 
     row = db.query(Holiday).filter(Holiday.id == created["id"]).first()
     assert row is None
@@ -130,4 +142,6 @@ def test_settings_require_admin(client, dev_token, db):
 def test_task_statuses_list(client, admin_token, db):
     res = client.get("/api/v1/settings/task-statuses", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    body = res.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    assert isinstance(rows, list)

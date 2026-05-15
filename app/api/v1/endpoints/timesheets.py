@@ -30,7 +30,7 @@ _sync_timesheet = sync_timesheet_from_imputations_flow
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.get("/my", response_model=List[TimesheetOut], summary="Mis timesheets")
+@router.get("/my", response_model=APIListResponse[TimesheetOut], summary="Mis timesheets")
 def get_my_timesheets(
     weeks: int = Query(8, ge=1, le=52),
     db: Session = Depends(get_db),
@@ -54,7 +54,7 @@ def get_my_timesheets(
             "reviewed_at": ts.reviewed_at,
             "review_notes": ts.review_notes,
         })
-    return results
+    return APIListResponse.ok(items=results, total=len(results))
 
 
 @router.get("/my/{week_start}/lines", summary="Líneas de un timesheet")

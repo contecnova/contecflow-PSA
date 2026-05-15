@@ -10,6 +10,7 @@ from app.models.billing_reports import Invoice, InvoiceLine
 from app.schemas.billing_reports import InvoiceCreate, InvoiceOut, InvoiceSummaryOut
 from app.services import billing_reports_service
 from app.services.psa_flows import build_invoice_preview_from_timesheets_flow
+from app.core.responses import APIListResponse
 
 router = APIRouter(tags=["Invoices"])
 
@@ -78,7 +79,7 @@ def create_invoice(
     return billing_reports_service.invoice_out(inv)
 
 
-@router.get("", response_model=List[InvoiceOut])
+@router.get("", response_model=APIListResponse[InvoiceOut])
 def list_invoices(
     project_id: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
@@ -87,9 +88,10 @@ def list_invoices(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q, _ = billing_reports_service.query_invoices(db, project_id=project_id, status=status)
+    q, total = billing_reports_service.query_invoices(db, project_id=project_id, status=status)
     invoices = q.offset(skip).limit(limit).all()
-    return [billing_reports_service.invoice_out(inv) for inv in invoices]
+    items = [billing_reports_service.invoice_out(inv) for inv in invoices]
+    return APIListResponse.ok(items=items, total=total)
 
 
 @router.get("/summary", response_model=InvoiceSummaryOut)

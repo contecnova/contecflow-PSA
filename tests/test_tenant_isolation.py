@@ -8,7 +8,9 @@ from tests.conftest import auth
 def test_users_endpoint_is_scoped_to_current_tenant(client, admin_token, db, seed_multitenant):
     res = client.get("/api/v1/users", headers=auth(admin_token))
     assert res.status_code == 200
-    usernames = {user["username"] for user in res.json()}
+    body = res.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    usernames = {user["username"] for user in rows}
     assert usernames == {"admin", "pm_test", "dev_test", "hr_test"}
     assert "outsider" not in usernames
 
@@ -16,15 +18,19 @@ def test_users_endpoint_is_scoped_to_current_tenant(client, admin_token, db, see
 def test_users_with_rates_is_scoped_to_current_tenant(client, admin_token, db, seed_multitenant):
     res = client.get("/api/v1/users/with-rates", headers=auth(admin_token))
     assert res.status_code == 200
-    usernames = {user["username"] for user in res.json()}
+    body = res.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    usernames = {user["username"] for user in rows}
     assert "outsider" not in usernames
-    assert all(user["username"] != "outsider" for user in res.json())
+    assert all(user["username"] != "outsider" for user in rows)
 
 
 def test_user_load_map_is_scoped_to_current_tenant(client, admin_token, db, seed_multitenant):
     res = client.get("/api/v1/users/load", headers=auth(admin_token))
     assert res.status_code == 200
-    usernames = {row["user"]["username"] for row in res.json()}
+    body = res.json()
+    rows = body.get("items") if isinstance(body, dict) else body
+    usernames = {row["user"]["username"] for row in rows}
     assert usernames == {"admin", "pm_test", "dev_test", "hr_test"}
     assert "outsider" not in usernames
 

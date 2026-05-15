@@ -16,6 +16,7 @@ from app.schemas.collaboration import CallStartIn, CallSummaryOut, CallTokenOut
 from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import _org, assert_conversation_access
 from app.services.collaboration.livekit import issue_access_token, url as lk_url
+from app.core.responses import APIListResponse
 
 router = APIRouter()
 
@@ -210,12 +211,13 @@ async def transcribe_chunk(
     return {"text": text or ""}
 
 
-@router.get("/conversations/{conversation_id}/calls", response_model=List[CallSummaryOut], summary="Historial de llamadas")
+@router.get("/conversations/{conversation_id}/calls", response_model=APIListResponse[CallSummaryOut], summary="Historial de llamadas")
 def list_calls(conversation_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     assert_conversation_access(db, current_user, conversation_id)
     rows = db.query(CollaborationCall).filter(CollaborationCall.conversation_id == conversation_id).order_by(CollaborationCall.started_at.desc()).limit(50).all()
-    return [CallSummaryOut(
+    items = [CallSummaryOut(
         id=c.id, conversation_id=c.conversation_id, kind=c.kind, status=c.status,
         started_at=c.started_at, ended_at=c.ended_at, duration_seconds=c.duration_seconds,
         is_recorded=c.is_recorded, has_transcript=c.has_transcript, has_summary=c.has_summary,
     ) for c in rows]
+    return APIListResponse.ok(items=items, total=len(items))

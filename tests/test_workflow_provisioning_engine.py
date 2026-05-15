@@ -67,7 +67,8 @@ def test_run_workflow_now_executes_provision_identity_step(client, admin_token, 
         headers=auth(admin_token),
     )
     assert hist_res.status_code == 200, hist_res.text
-    history = hist_res.json()
+    _hist_body = hist_res.json()
+    history = _hist_body.get("items") if isinstance(_hist_body, dict) else _hist_body
     assert history
     step_log = history[0]["steps_log"][0]
     assert step_log["ok"] is True
@@ -150,7 +151,9 @@ def test_update_workflow_step_retries_endpoint(client, admin_token):
 
     wf_list_res = client.get("/api/v1/billing-reports/automation-workflows", headers=auth(admin_token))
     assert wf_list_res.status_code == 200, wf_list_res.text
-    workflow = next(w for w in wf_list_res.json() if w["id"] == wf_id)
+    _wf_body = wf_list_res.json()
+    _wf_items = _wf_body.get("items") if isinstance(_wf_body, dict) else _wf_body
+    workflow = next(w for w in _wf_items if w["id"] == wf_id)
     step_id = workflow["steps"][0]["id"]
 
     patch_res = client.patch(
@@ -207,7 +210,9 @@ def test_run_workflow_now_retries_failed_action_and_records_metrics(client, admi
         headers=auth(admin_token),
     )
     assert hist_res.status_code == 200, hist_res.text
-    step_log = hist_res.json()[0]["steps_log"][0]
+    _hist2_body = hist_res.json()
+    _hist2_items = _hist2_body.get("items") if isinstance(_hist2_body, dict) else _hist2_body
+    step_log = _hist2_items[0]["steps_log"][0]
     assert step_log["retry_attempts"] == 1
     assert step_log["execution_attempts"] == 2
     assert step_log["duration_ms"] >= 0

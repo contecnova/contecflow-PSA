@@ -56,7 +56,8 @@ def pending_expenses(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "expense", action="read")
-    return [_expense_out(e) for e in svc_list_pending_expenses(db, project_id)]
+    items = [_expense_out(e) for e in svc_list_pending_expenses(db, project_id)]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("", summary="Listar todos los gastos (admin/PM) — alias de /team")
@@ -66,7 +67,8 @@ def list_all_expenses_alias(
     status: Optional[str] = Query(None),
     user_id: Optional[str] = Query(None),
 ):
-    return [_expense_out(e) for e in svc_list_all_expenses(db, cu, status, user_id)]
+    items = [_expense_out(e) for e in svc_list_all_expenses(db, cu, status, user_id)]
+    return APIListResponse.ok(items=items, total=len(items))
 
 @router.get("/team", summary="Todos los gastos del equipo (admin/PM)")
 def team_expenses(

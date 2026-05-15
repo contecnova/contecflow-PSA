@@ -49,6 +49,7 @@ from app.services.approval_engine import (
     serialize_approval_request as _request_out,
 )
 from app.schemas.approvals import WorkflowIn, StepIn, ApprovalRequestIn, DecisionIn
+from app.core.responses import APIListResponse
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,8 @@ def list_workflows_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return [_workflow_out(w, include_steps=True) for w in list_workflows(db, entity_type=entity_type)]
+    items = [_workflow_out(w, include_steps=True) for w in list_workflows(db, entity_type=entity_type)]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/workflows", summary="Crear flujo de aprobación")
@@ -235,7 +237,8 @@ def list_requests_endpoint(
     # Non-managers can only query their own requests
     if not mine and current_user.role not in (UserRole.admin, UserRole.pm, UserRole.hr):
         raise HTTPException(403, "Acceso denegado: solo managers pueden ver todas las solicitudes")
-    return [_request_out(r) for r in list_approval_requests(db, current_user, status=status, entity_type=entity_type, mine=mine)]
+    items = [_request_out(r) for r in list_approval_requests(db, current_user, status=status, entity_type=entity_type, mine=mine)]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/requests/pending-my-action", summary="Solicitudes que yo debo aprobar ahora")
@@ -382,7 +385,8 @@ def list_groups(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return [_group_out(g) for g in list_approval_groups(db)]
+    items = [_group_out(g) for g in list_approval_groups(db)]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/groups", summary="Crear grupo de aprobadores")

@@ -15,7 +15,8 @@ def _auth_headers(token):
 
 
 def _conv_id(client, headers):
-    chans = client.get("/api/v1/collaboration/channels", headers=headers).json()
+    body = client.get("/api/v1/collaboration/channels", headers=headers).json()
+    chans = body.get("items") if isinstance(body, dict) else body
     return chans[0]["conversation_id"]
 
 
@@ -23,7 +24,8 @@ def test_workspace_lazy_create(client, admin_token):
     h = _auth_headers(admin_token)
     r = client.get("/api/v1/collaboration/workspace", headers=h)
     assert r.status_code == 200
-    teams = client.get("/api/v1/collaboration/teams", headers=h).json()
+    body = client.get("/api/v1/collaboration/teams", headers=h).json()
+    teams = body.get("items") if isinstance(body, dict) else body
     assert len(teams) == 1
 
 
@@ -34,11 +36,13 @@ def test_send_edit_delete_message(client, admin_token):
     r = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "hola"}, headers=h)
     assert r.status_code == 200
     mid = r.json()["id"]
-    msgs = client.get(f"/api/v1/collaboration/conversations/{cid}/messages", headers=h).json()
+    _msg_body = client.get(f"/api/v1/collaboration/conversations/{cid}/messages", headers=h).json()
+    msgs = _msg_body.get("items") if isinstance(_msg_body, dict) else _msg_body
     assert any(m["id"] == mid for m in msgs)
     r = client.patch(f"/api/v1/collaboration/messages/{mid}", json={"body": "editado"}, headers=h)
     assert r.status_code == 200
-    v = client.get(f"/api/v1/collaboration/messages/{mid}/versions", headers=h).json()
+    _v_body = client.get(f"/api/v1/collaboration/messages/{mid}/versions", headers=h).json()
+    v = _v_body.get("items") if isinstance(_v_body, dict) else _v_body
     assert len(v) == 1
     r = client.delete(f"/api/v1/collaboration/messages/{mid}", headers=h)
     assert r.status_code == 200

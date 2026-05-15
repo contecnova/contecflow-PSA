@@ -44,7 +44,8 @@ def list_absences(
         status=status,
         limit=limit,
     )
-    return [_absence_out(a) for a in absences]
+    items = [_absence_out(a) for a in absences]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/my", response_model=APIListResponse[dict], summary="Mis ausencias")
@@ -160,7 +161,8 @@ def get_team_absences(
     current_user: User = Depends(require_any_manager),
 ):
     absences = absence_service.get_team_absences(db, month=month, user_id=user_id, status=status)
-    return [_absence_out(a) for a in absences]
+    items = [_absence_out(a) for a in absences]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/pending", response_model=APIListResponse[dict], summary="Ausencias pendientes de aprobación")

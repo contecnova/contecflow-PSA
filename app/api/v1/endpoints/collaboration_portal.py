@@ -39,6 +39,7 @@ from app.services.collaboration._bus import (
     client_user_channel, conv_channel,
 )
 from app.services.collaboration._permissions import is_client_conversation_participant
+from app.core.responses import APIListResponse
 
 router = APIRouter()
 
@@ -86,7 +87,7 @@ def list_conversations(current_client: ClientUser = Depends(get_current_client),
     return out
 
 
-@router.get("/conversations/{conversation_id}/messages", response_model=List[MessageOut], summary="Mensajes (cliente)")
+@router.get("/conversations/{conversation_id}/messages", response_model=APIListResponse[MessageOut], summary="Mensajes (cliente)")
 def list_messages(conversation_id: str, before: Optional[str] = None, limit: int = Query(50, le=200), current_client: ClientUser = Depends(get_current_client), db: Session = Depends(get_db)):
     if not is_client_conversation_participant(db, current_client, conversation_id):
         raise HTTPException(403, "No tienes acceso a esta conversación")
@@ -101,7 +102,8 @@ def list_messages(conversation_id: str, before: Optional[str] = None, limit: int
     rows = q.order_by(CollaborationMessage.sent_at.desc()).limit(limit).all()
     rows.reverse()
     from app.services.collaboration.messages import _serialize_message
-    return [MessageOut(**_serialize_message(db, m)) for m in rows]
+    items = [MessageOut(**_serialize_message(db, m)) for m in rows]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/messages", response_model=MessageOut, summary="Enviar mensaje (cliente)")

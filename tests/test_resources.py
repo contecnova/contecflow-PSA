@@ -55,7 +55,8 @@ def test_availability_matrix(db: Session, resource_client):
 
     response = client.get("/api/v1/resources/availability-matrix?weeks_ahead=4", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body.get("items") if isinstance(body, dict) else body
     assert isinstance(data, list)
     # Should have users × weeks records
     if data:
@@ -78,7 +79,8 @@ def test_availability_matrix_for_project(db: Session, resource_client):
         headers=headers,
     )
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body.get("items") if isinstance(body, dict) else body
     assert isinstance(data, list)
 
 
@@ -91,7 +93,8 @@ def test_load_scoring(db: Session, resource_client):
 
     response = client.get("/api/v1/resources/load-scoring", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body.get("items") if isinstance(body, dict) else body
     assert isinstance(data, list)
 
     if data:
@@ -118,7 +121,8 @@ def test_load_scoring_filters(db: Session, resource_client):
         headers=headers,
     )
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body.get("items") if isinstance(body, dict) else body
 
     if data:
         for item in data:
@@ -162,7 +166,8 @@ def test_skill_gaps(db: Session, resource_client):
 
     response = client.get(f"/api/v1/resources/{project.id}/skill-gaps", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body.get("items") if isinstance(body, dict) else body
     assert isinstance(data, list)
 
 
@@ -178,7 +183,8 @@ def test_available_by_skill(db: Session, resource_client):
 
     response = client.get(f"/api/v1/resources/available-by-skill/{skill.id}", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body.get("items") if isinstance(body, dict) else body
     assert isinstance(data, list)
 
     if data:
@@ -198,7 +204,8 @@ def test_utilization_history(db: Session, resource_client):
 
     response = client.get("/api/v1/resources/utilization-history?weeks_back=12", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body.get("items") if isinstance(body, dict) else body
     assert isinstance(data, list)
 
     if data:
@@ -224,7 +231,8 @@ def test_utilization_history_for_user(db: Session, resource_client):
         headers=headers,
     )
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body.get("items") if isinstance(body, dict) else body
     assert isinstance(data, list)
 
     if data:
@@ -241,7 +249,8 @@ def test_get_resource_alerts(db: Session, resource_client):
 
     response = client.get("/api/v1/resources/alerts", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body.get("items") if isinstance(body, dict) else body
     assert isinstance(data, list)
 
     if data:
@@ -294,7 +303,8 @@ def test_forecast(db: Session, resource_client):
 
     response = client.get("/api/v1/resources/forecast", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body.get("items") if isinstance(body, dict) else body
     assert isinstance(data, list)
 
 
@@ -305,7 +315,8 @@ def test_availability_matrix_iso_week_calculation(db: Session, resource_client):
 
     response = client.get("/api/v1/resources/availability-matrix?weeks_ahead=4", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body.get("items") if isinstance(body, dict) else body
 
     if data:
         # Verify week_iso format and uniqueness per user
@@ -351,7 +362,8 @@ def test_organization_filtering_in_availability(db: Session, resource_client):
 
     response = client.get("/api/v1/resources/availability-matrix", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body.get("items") if isinstance(body, dict) else body
 
     # Get current user's organization
     from app.models.user import User
