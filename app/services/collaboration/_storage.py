@@ -24,6 +24,8 @@ from typing import BinaryIO, Optional
 
 logger = logging.getLogger(__name__)
 
+# env-driven: collaboration uploads root + ClamAV/storage backend knobs are deployment
+# infra tuning, not application config — kept out of Settings on purpose.
 UPLOADS_ROOT = Path(os.environ.get("UPLOADS_DIR", "uploads"))
 COLLAB_ROOT = UPLOADS_ROOT / "collaboration"
 COLLAB_ROOT.mkdir(parents=True, exist_ok=True)

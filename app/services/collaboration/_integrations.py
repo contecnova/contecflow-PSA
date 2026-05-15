@@ -114,6 +114,8 @@ def auth_url_for(kind: str, integration_id: str) -> Optional[str]:
     p = PROVIDERS.get(kind)
     if not p:
         return None
+    # env-driven: per-provider OAuth credentials are looked up dynamically by env var
+    # name (see PROVIDERS table). Not in Settings because providers are pluggable.
     client_id = os.environ.get(p.client_id_env)
     redirect = os.environ.get(p.redirect_env, "http://localhost:8000/api/v1/collaboration/integrations/oauth/callback")
     if not client_id:

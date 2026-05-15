@@ -318,6 +318,8 @@ def transcribe_voice_audio(
     if (getattr(settings, "STT_PROVIDER", "openai") or "openai").lower() == "openai" and not settings.OPENAI_API_KEY:
         legacy_key = _openai_key_from_db(db)
         if legacy_key:
+            # env-driven shim: bridge legacy DB-stored key into the OpenAI SDK env
+            # contract. Intentionally writes to os.environ — the factory reads from there.
             os.environ["OPENAI_API_KEY"] = legacy_key  # el factory leerá esto
 
     from app.services.stt import transcribe_audio as _stt_transcribe, STTError as _STTError  # noqa: PLC0415

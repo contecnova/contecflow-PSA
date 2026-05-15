@@ -13,7 +13,7 @@ from sqlalchemy.pool import NullPool
 from app.core.config import settings
 
 # ── Logging rico ──────────────────────────────────────────────────────────────
-_log_level_name = (settings.LOG_LEVEL or os.environ.get("LOG_LEVEL", "INFO")).upper()
+_log_level_name = (settings.LOG_LEVEL or "INFO").upper()
 _log_level = getattr(logging, _log_level_name, logging.INFO)
 logging.basicConfig(
     level=_log_level,

@@ -192,6 +192,8 @@ class OpenSearchSearch:
     def __init__(self):
         try:
             from opensearchpy import OpenSearch
+            # env-driven: OpenSearch is an optional pluggable backend; config kept out
+            # of Settings to avoid coupling core config to an optional dependency.
             url = os.environ.get("OPENSEARCH_URL", "http://localhost:9200")
             user = os.environ.get("OPENSEARCH_USER")
             pwd = os.environ.get("OPENSEARCH_PASSWORD")

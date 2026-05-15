@@ -106,6 +106,8 @@ def org_channel(organization_id: str) -> str:
 
 # ── Backend selection ────────────────────────────────────────────────────────
 def _build_bus() -> EventBus:
+    # env-driven backend selector: collaboration event bus implementation
+    # (memory/redis/nats) is a deployment topology choice, not application config.
     backend = os.environ.get("COLLAB_BUS_BACKEND", "memory").lower()
     if backend == "memory":
         return EventBus()

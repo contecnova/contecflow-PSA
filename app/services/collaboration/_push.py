@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 def _vapid_claims():
+    # env-driven: VAPID keys for web-push are deployment-specific secrets and an
+    # optional capability; intentionally not part of Settings.
     contact = os.environ.get("VAPID_CONTACT", "mailto:noreply@contecflow.local")
     return {"sub": contact}
 

@@ -35,6 +35,8 @@ def transcribe_audio_chunk(data: bytes, filename: str = "chunk.webm") -> str:
         logger.warning("Factory STT crash for chunk: %s", exc)
 
     # Fallback legacy — solo si el factory completo no pudo.
+    # env-driven feature toggle: legacy fallback path bypasses the STT factory and
+    # is intentionally controlled via raw env to keep the failsafe independent of Settings.
     if os.environ.get("OPENAI_API_KEY"):
         return _via_openai(data, filename) or ""
     if os.environ.get("WHISPER_LOCAL") == "1":

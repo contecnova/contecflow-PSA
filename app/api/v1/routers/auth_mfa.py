@@ -90,10 +90,9 @@ def mfa_setup(
         raise HTTPException(500, f"Dependencia faltante en 2FA: {ie}")
     except Exception as e:
         import traceback
-        import os
         tb = traceback.format_exc()
         logger.error("MFA setup error: %s\nTraceback:\n%s", e, tb)
-        msg = str(e) if settings.DEBUG or os.environ.get("DEBUG") else "Error al configurar 2FA"
+        msg = str(e) if settings.ENVIRONMENT == "development" else "Error al configurar 2FA"
         raise HTTPException(500, msg)
 
 

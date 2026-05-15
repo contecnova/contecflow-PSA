@@ -21,6 +21,8 @@ from typing import Optional
 
 @dataclass
 class LiveKitConfig:
+    # env-driven: LiveKit is an optional realtime backend; credentials kept out of
+    # Settings to avoid forcing every deployment to define LIVEKIT_* envs.
     url: str = os.environ.get("LIVEKIT_URL", "wss://livekit.local")
     api_key: Optional[str] = os.environ.get("LIVEKIT_API_KEY")
     api_secret: Optional[str] = os.environ.get("LIVEKIT_API_SECRET")
