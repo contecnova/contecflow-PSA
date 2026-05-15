@@ -656,7 +656,7 @@ def record_reassign_feedback_bg(background_tasks, db, item_id: str, item_type: s
                 assignment.was_accepted = False
                 _db.commit()
         except Exception:
-            pass
+            logging.getLogger(__name__).warning("Failed to mark SemAssignment rejection for item=%s type=%s", item_id, item_type, exc_info=True)
         finally:
             _db.close()
 
@@ -671,7 +671,7 @@ def refresh_profile_bg(background_tasks: "BackgroundTasks", db: "Session", user_
         try:
             SemanticAssigner(_db).refresh_user_profile(user_id)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning("SemanticAssigner.refresh_user_profile failed for user=%s", user_id, exc_info=True)
         finally:
             _db.close()
 

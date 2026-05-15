@@ -46,6 +46,7 @@ def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_t
         return call_ai(db, messages, system=system, module=module,
                        user_id=user_id, max_tokens=max_tokens)
     except Exception:
+        _log.warning("Unified AI call failed for module=%s user=%s; falling back to direct Claude", module, user_id, exc_info=True)
         resp = call_claude(messages, system=system, max_tokens=max_tokens)
         return extract_text(resp)
 
@@ -125,7 +126,7 @@ def compute_kb_embedding(db, article_id: str, text: str):
             art.embedding = json.dumps(emb)
             db.commit()
     except Exception:
-        pass
+        _log.warning("Failed to compute KB embedding for article=%s", article_id, exc_info=True)
 
 
 def log_action(db, user_id, module, action_type, input_s=None, output_s=None,
@@ -687,11 +688,13 @@ def kb_vector_search(db, query_text: str, limit: int = 5, only_published: bool =
                 sim = _cosine(q_emb, a_emb)
                 scored.append((sim, a))
             except Exception:
+                _log.debug("Skipping KB article %s due to embedding decode failure", getattr(a, "id", None), exc_info=True)
                 continue
 
         scored.sort(key=lambda x: x[0], reverse=True)
         return [a for _, a in scored[:limit]]
     except Exception:
+        _log.warning("KB semantic search failed", exc_info=True)
         return []
 
 
@@ -709,6 +712,7 @@ def openai_key_from_db(db) -> Optional[str]:
         ).first()
         return p.api_key if p and p.api_key else None
     except Exception:
+        _log.warning("Failed to load OpenAI provider key from DB", exc_info=True)
         return None
 
 
@@ -1253,6 +1257,7 @@ Responde SOLO con JSON:
                 db.add(action)
         meeting.status = "done"
     except Exception as e:
+        _log.exception("Meeting assistant processing failed for meeting=%s", getattr(meeting, "id", None))
         meeting.summary = f"Error procesando con IA: {str(e)[:100]}"
         meeting.status = "failed"
 
@@ -1428,6 +1433,7 @@ def extract_pdf_text(pdf_bytes: bytes) -> str:
             try:
                 chunks.append(page.extract_text() or "")
             except Exception:
+                _log.debug("PDF page extract_text failed, skipping page", exc_info=True)
                 continue
         return "\n\n".join(chunks).strip()
     except Exception as exc:
@@ -1521,6 +1527,7 @@ Responde SOLO con JSON:
             contract.scope_creep_alerts = at_risk
         contract.status = "done"
     except Exception as e:
+        _log.exception("Contract intelligence analysis failed for contract=%s", getattr(contract, "id", None))
         contract.scope_summary = f"Error: {str(e)[:100]}"
         contract.status = "failed"
 
@@ -1599,6 +1606,7 @@ Responde SOLO con JSON:
             content = data.get("content", "")
             tags    = data.get("tags", [])
     except Exception as e:
+        _log.exception("KB article generation failed for title=%s", title)
         content = f"Error generando artículo: {str(e)[:100]}"
 
     article = AIKBArticle(
@@ -1685,6 +1693,7 @@ def client_portal_chat(db: Session, payload: dict) -> dict:
     try:
         client_user = verify_client_token(client_token, db)
     except Exception:
+        _log.warning("Client portal chat: invalid client token presented", exc_info=True)
         raise ValueError("invalid_token")
 
     if not client_user:
@@ -1738,6 +1747,7 @@ def _client_portal_chat_for_user(db: Session, client_user, message: str, session
             module="client_portal", max_tokens=800
         )
     except Exception as e:
+        _log.exception("Client portal chat AI call failed for session=%s", getattr(session, "id", None))
         response_text = f"Error del asistente: {str(e)[:80]}"
 
     db.add(AIClientChatMessage(session_id=session.id, role="assistant", content=response_text))
@@ -1947,6 +1957,7 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
         else:
             scheduled = []
     except Exception as exc:
+        _log.exception("Smart schedule AI call failed for user=%s project=%s", current_user.id, payload.project_id)
         return {"scheduled": [], "error": str(exc),
                 "message": "AI scheduling falló — configura un proveedor IA en IA & Conectores"}
 
@@ -1962,7 +1973,7 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
             status="success",
         )
     except Exception:
-        pass  # audit best-effort
+        _log.debug("Best-effort audit log_action failed for smart_schedule", exc_info=True)
 
     return {"scheduled": scheduled, "unscheduled_count": len(unscheduled), "capacity_summary": capacity[:10]}
 

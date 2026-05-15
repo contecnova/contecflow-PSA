@@ -1191,6 +1191,7 @@ def validate_import_csv(entity_type: str, content: bytes) -> dict:
     try:
         text = content.decode("utf-8-sig")
     except Exception:
+        _logger.warning("CSV import validation rejected non-UTF8 payload", exc_info=True)
         raise ValueError("not_utf8")
 
     reader = csv.DictReader(io.StringIO(text))
@@ -1241,6 +1242,7 @@ def execute_import_csv(entity_type: str, content: bytes, filename: str, current_
     try:
         text = content.decode("utf-8-sig")
     except Exception:
+        _logger.warning("CSV import execution rejected non-UTF8 payload (filename=%s)", filename, exc_info=True)
         raise ValueError("not_utf8")
 
     reader = csv.DictReader(io.StringIO(text))
@@ -1279,6 +1281,7 @@ def execute_import_csv(entity_type: str, content: bytes, filename: str, current_
                 db.add(p)
                 succeeded += 1
             except Exception as e:
+                _logger.warning("CSV import row %s failed for projects: %s", i, e, exc_info=True)
                 failed_rows += 1
                 errors.append({"row": i, "error": str(e)[:100]})
 
@@ -1306,6 +1309,7 @@ def execute_import_csv(entity_type: str, content: bytes, filename: str, current_
                 db.add(u)
                 succeeded += 1
             except Exception as e:
+                _logger.warning("CSV import row %s failed for users: %s", i, e, exc_info=True)
                 failed_rows += 1
                 errors.append({"row": i, "error": str(e)[:100]})
 
@@ -1328,6 +1332,7 @@ def execute_import_csv(entity_type: str, content: bytes, filename: str, current_
                 db.add(imp)
                 succeeded += 1
             except Exception as e:
+                _logger.warning("CSV import row %s failed for imputations: %s", i, e, exc_info=True)
                 failed_rows += 1
                 errors.append({"row": i, "error": str(e)[:100]})
 

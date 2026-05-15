@@ -223,6 +223,7 @@ def upload_version(
     try:
         version = doc_svc.create_document_version(db, doc, doc_id, file, content, change_note, current_user, s3_key, file_size)
     except Exception:
+        logger.exception("DB write failed for new version of doc=%s; rolling back storage upload", doc_id)
         # Prevent storage/DB split-brain when upload succeeds but DB fails.
         try:
             file_storage.delete_file(s3_key)

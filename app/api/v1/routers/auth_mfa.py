@@ -169,7 +169,7 @@ def mfa_validate(
             if soc:
                 soc.mfa_failed(user_id=user.id, ip=_client_ip(request), method="totp")
         except Exception:
-            pass
+            logger.warning("SOC mfa_failed audit raised for user=%s", user.id, exc_info=True)
         raise HTTPException(401, "Código 2FA incorrecto")
 
     access_token = create_access_token(subject=user.id, extra={"role": user.role})
@@ -191,7 +191,7 @@ def mfa_validate(
                 ua=request.headers.get("User-Agent", ""),
             )
     except Exception:
-        pass
+        logger.warning("SOC login_success audit raised for user=%s during MFA validate", user.id, exc_info=True)
     _svc.commit_db(db)
 
     _set_auth_cookies(response, access_token, new_refresh_token)

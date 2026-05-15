@@ -80,6 +80,7 @@ def get_portal_session_config(db: Session) -> dict:
     try:
         minutes = max(1, int(minutes_raw))
     except Exception:
+        logger.warning("Invalid idle_timeout_minutes=%r in portal settings; using default", minutes_raw, exc_info=True)
         minutes = int(defaults["idle_timeout_minutes"])
 
     return {
@@ -1506,7 +1507,7 @@ def _resolve_doc_project_name(doc, db: Session) -> str:
         if proj:
             return proj.name
     except Exception:
-        pass
+        logger.warning("Failed to resolve project name for portal doc=%s", getattr(doc, "id", None), exc_info=True)
     return "—"
 
 

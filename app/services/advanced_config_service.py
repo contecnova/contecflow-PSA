@@ -5,6 +5,7 @@ Covers: seeders, vacation balance computation, project template application.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import date, datetime, timedelta
 from typing import Optional
 
@@ -13,6 +14,8 @@ from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 from app.models.advanced_config import AlertConfig
 from app.models.advanced_config import TaskType
 from app.models.advanced_config import NumberingSequence
@@ -270,6 +273,7 @@ def apply_template_to_project(
             )
         }
     except Exception:
+        logger.exception("Failed to apply project template; rolling back")
         db.rollback()
         raise
 
@@ -740,6 +744,7 @@ def save_custom_field_values(entity_id: str, values: dict, db: Session) -> dict:
         db.commit()
         return {"ok": True}
     except Exception:
+        logger.exception("Failed to persist CustomFieldValue for entity=%s", entity_id)
         db.rollback()
         raise
 
@@ -846,6 +851,7 @@ def create_template(data: dict, user_id: str, user_role: str, db: Session) -> di
         db.commit()
         return {"id": t.id, "name": t.name}
     except Exception:
+        logger.exception("Failed to persist project template")
         db.rollback()
         raise
 

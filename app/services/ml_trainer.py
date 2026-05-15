@@ -197,6 +197,7 @@ def train_all_orgs(db: Session) -> list:
             r = train_model(db, org.id)
             results.append({"org_id": org.id, "org_name": org.name, **r})
         except Exception as e:
+            logger.exception("ML training failed for org=%s", org.id)
             results.append({"org_id": org.id, "error": str(e)})
     return results
 

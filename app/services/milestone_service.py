@@ -11,6 +11,7 @@ Funciones exportadas:
 """
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import date, datetime, timezone
 from typing import Optional
@@ -28,6 +29,8 @@ from app.models.pipeline import Contract
 from app.models.project import Project
 from app.models.project import Project as Proj
 from app.services.notifications import notify_user
+
+logger = logging.getLogger(__name__)
 from fastapi import HTTPException
 
 
@@ -135,7 +138,7 @@ def complete_milestone(milestone_id: str, current_user: User, db: Session):
         from app.services.revenue_service import recognize_on_milestone
         recognize_on_milestone(db, milestone_id, current_user.id)
     except Exception:
-        pass  # Non-blocking: billing flow must not fail if recognition fails
+        logger.warning("Revenue recognition failed (non-blocking) for milestone=%s user=%s", milestone_id, current_user.id, exc_info=True)
 
     return m
 
@@ -335,6 +338,7 @@ def _notify_pm_approval_requested(m, message, current_user, db: Session) -> None
             )
             db.commit()
     except Exception:
+        logger.warning("Failed to notify approver(s) for milestone=%s", m.id, exc_info=True)
         db.rollback()
 
 
@@ -353,6 +357,7 @@ def _notify_requester_approved(m, current_user, db: Session) -> None:
             )
             db.commit()
         except Exception:
+            logger.warning("Failed to notify requester of approval for milestone=%s", m.id, exc_info=True)
             db.rollback()
 
 
@@ -371,6 +376,7 @@ def _notify_requester_rejected(m, rejection_reason: str, current_user, db: Sessi
             )
             db.commit()
         except Exception:
+            logger.warning("Failed to notify requester of rejection for milestone=%s", m.id, exc_info=True)
             db.rollback()
 
 

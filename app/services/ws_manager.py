@@ -74,6 +74,7 @@ class ConnectionManager:
             try:
                 await ws.send_text(json.dumps(message))
             except Exception:
+                log.debug("WS send_text failed for user=%s; marking connection dead", user_id, exc_info=True)
                 dead.append(ws)
         for ws in dead:
             self.connections[user_id].remove(ws)

@@ -452,7 +452,7 @@ async def ws_portal_notifications(
                         if msg.get("type") == "ping":
                             await websocket.send_text(json.dumps({"type": "pong"}))
                     except Exception:
-                        pass
+                        log.debug("Portal WS received non-JSON or malformed message", exc_info=True)
             except WebSocketDisconnect:
                 poll_task.cancel()
         finally:
@@ -539,7 +539,7 @@ async def _broadcast_doc_local(doc_id: str, message: dict, exclude: WebSocket = 
         try:
             await ws.send_text(text)
         except Exception:
-            pass
+            log.debug("Doc collab broadcast send_text failed for doc=%s", doc_id, exc_info=True)
 
 
 @router.websocket("/doc/{doc_id}")
@@ -601,6 +601,7 @@ async def ws_doc_collab(
             try:
                 check_document_access(doc, user, required_level=None)  # viewer mínimo
             except Exception:
+                log.info("Doc WS access denied for user=%s doc=%s", user_id, doc_id, exc_info=True)
                 await websocket.close(code=4003, reason="Sin permiso para acceder al documento")
                 return
 
@@ -639,7 +640,7 @@ async def ws_doc_collab(
                             out = {"type": msg_type, "data": msg.get("data"), "from": user_id}
                             await _broadcast_doc(doc_id, out, exclude=websocket)
                     except Exception:
-                        pass
+                        log.debug("Doc collab WS received malformed message for doc=%s user=%s", doc_id, user_id, exc_info=True)
             except WebSocketDisconnect:
                 pass
         finally:

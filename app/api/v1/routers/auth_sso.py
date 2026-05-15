@@ -45,6 +45,7 @@ def _safe_url(url: str) -> str:
         p = urllib.parse.urlsplit(url)
         return urllib.parse.urlunsplit((p.scheme, p.netloc, p.path, "", ""))
     except Exception:
+        logger.debug("_safe_url could not parse URL=%r", url, exc_info=True)
         return "<unparseable-url>"
 
 
@@ -53,6 +54,7 @@ def _normalized_origin(uri: str) -> tuple[str, str, int] | None:
     try:
         parsed = urlparse(uri.strip())
     except Exception:
+        logger.debug("_normalized_origin urlparse failed for uri=%r", uri, exc_info=True)
         return None
     if parsed.scheme not in {"http", "https"}:
         return None
@@ -280,6 +282,7 @@ def sso_callback(
         except HTTPException:
             raise
         except Exception as jwt_err:
+            logger.warning("SSO callback id_token verification failed for config=%s", config_id, exc_info=True)
             raise HTTPException(502, f"id_token inválido o firma incorrecta: {jwt_err}")
 
         # Extraer email y nombre según configuración del proveedor

@@ -48,6 +48,7 @@ def _to_number(value, default: float = 0.0) -> float:
             return default
         return float(value)
     except Exception:
+        logger.debug("Storytelling _to_number coercion failed for value=%r; using default", value, exc_info=True)
         return default
 
 

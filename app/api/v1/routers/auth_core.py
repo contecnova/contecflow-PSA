@@ -86,6 +86,7 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
     try:
         password_ok = verify_password(payload.password, user.hashed_password)
     except Exception:
+        logger.warning("verify_password raised unexpectedly for user=%s", user.id, exc_info=True)
         password_ok = False
 
     # Local recovery path: only enabled explicitly and never on production-like DB URLs
@@ -125,7 +126,7 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
                                  ua=request.headers.get("User-Agent", ""),
                                  reason="bad_credentials")
         except Exception:
-            pass
+            logger.warning("SOC login_failed audit failed for user=%s", user.id, exc_info=True)
         if lock_for > 0:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -146,7 +147,7 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
                 ua=request.headers.get("User-Agent", ""),
             )
     except Exception:
-        pass
+        logger.warning("SOC login_success audit failed for user=%s", user.id, exc_info=True)
 
     # Enforce MFA: users with TOTP or registered passkeys must complete
     # a second factor challenge before receiving auth tokens.
@@ -195,6 +196,7 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
     try:
         _svc.commit_db(db)
     except Exception:
+        logger.exception("commit_db failed during login finalization for user=%s", user.id)
         db.rollback()
         raise HTTPException(status_code=500, detail="Error al iniciar sesión. Inténtalo de nuevo.")
 
@@ -351,6 +353,7 @@ def change_password(
         try:
             challenge_data, challenge_row = read_mfa_challenge(db, mfa_token)
         except Exception as e:
+            logger.info("MFA challenge read failed during change-password for user=%s", current_user.id, exc_info=True)
             raise HTTPException(401, f"MFA inválido: {str(e)}")
     
     if not current_pw or not new_pw:

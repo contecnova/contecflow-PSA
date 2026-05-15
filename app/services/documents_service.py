@@ -727,6 +727,7 @@ def create_document_version(db, doc, doc_id: str, file: object, content: bytes, 
     try:
         db.commit()
     except Exception:
+        logger.exception("Failed to commit new document version for doc=%s", doc_id)
         db.rollback()
         raise
     db.refresh(version)

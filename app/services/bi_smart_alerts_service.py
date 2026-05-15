@@ -12,6 +12,7 @@ State is persisted in AppSetting JSON, scoped by organization.
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -20,6 +21,8 @@ from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
 from app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 RULES_KEY = "bi.smart_alerts.rules"
 LOG_KEY = "bi.smart_alerts.log"
@@ -193,6 +196,7 @@ def _get_json(db: Session, key: str, organization_id: Optional[str], default: An
     try:
         return json.loads(row.value)
     except Exception:
+        logger.warning("Failed to decode JSON for AppSetting key=%s org=%s", key, organization_id, exc_info=True)
         return default
 
 
@@ -444,6 +448,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
     try:
         series = _month_series(db, organization_id, months_history=24)
     except Exception:
+        logger.warning("Failed to load _month_series for smart alerts org=%s", organization_id, exc_info=True)
         series = []
     if not series:
         series = [{"month": f"2025-{m:02d}", "revenue": 0.0, "cost": 0.0, "hours": 0.0} for m in range(1, 13)]
@@ -490,6 +495,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             try:
                 v = {"+": a+b, "-": a-b, "*": a*b, "/": a/b if b else 0.0}.get(op, a)
             except Exception:
+                logger.debug("Custom metric %s arithmetic failed (op=%s a=%s b=%s)", metric_key, op, a, b, exc_info=True)
                 v = 0.0
             result.append(round(v * scale, 4))
         return result
@@ -564,6 +570,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 return [round(bkt_sum[m["month"]]/bkt_cnt[m["month"]],1)
                         if bkt_cnt.get(m["month"],0) > 0 else 0.0 for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
     # expenses
@@ -598,6 +605,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                     bkt[k] += 1.0
             return [float(bkt.get(m["month"],0.0)) for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
     # imputations financial
@@ -633,6 +641,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 return [round(bkt_s[m["month"]]/bkt_c[m["month"]],2)
                         if bkt_c.get(m["month"],0) > 0 else 0.0 for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
     # ── Cost structure (UserCostProfile snapshots end-of-month) ────────────────
@@ -738,6 +747,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                     out.append(0.0)
             return out
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
     # ── Resource / Capacity ────────────────────────────────────────────────────
@@ -751,6 +761,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             ).all()
             return _bucket_sum(rows, start=start_date)
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "billable_pct":
         t = _fetch_metric_series(db, "hours_logged", organization_id)
@@ -771,6 +782,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 if tot and tot > 160: bkt[str(mo)] += 1.0
             return [float(bkt.get(m["month"],0.0)) for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "avg_user_load_pct":
         try:
@@ -785,6 +797,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             return [round(bkt_s[m["month"]]/bkt_c[m["month"]],2)
                     if bkt_c.get(m["month"],0) > 0 else 0.0 for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "users_at_capacity":
         try:
@@ -796,6 +809,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                     bkt[w[:7]] += 1.0
             return [float(bkt.get(m["month"],0.0)) for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "users_underutilized":
         try:
@@ -807,6 +821,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                     bkt[w[:7]] += 1.0
             return [float(bkt.get(m["month"],0.0)) for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "snapshot_billable_pct":
         try:
@@ -820,6 +835,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             return [round(bkt_s[m["month"]]/bkt_c[m["month"]],2)
                     if bkt_c.get(m["month"],0)>0 else 0.0 for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key in ("pending_timesheets","timesheets_draft_count","timesheets_submitted_count",
                        "timesheets_rejected_count","timesheet_cost_total","timesheet_avg_hours"):
@@ -851,6 +867,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 return [round(bkt_s[m["month"]]/bkt_c[m["month"]],2)
                         if bkt_c.get(m["month"],0)>0 else 0.0 for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key in ("absence_days","absence_vacation_days","absence_sick_days",
                        "absence_training_days","absence_pending_count"):
@@ -877,6 +894,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                     bkt[k] += float(wd or 0)
             return [float(bkt.get(m["month"],0.0)) for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "certified_users_count":
         try:
@@ -887,6 +905,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             ).scalar() or 0
             return _current(float(count))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key in ("resource_alerts_overload","resource_alerts_skill_gap"):
         try:
@@ -897,6 +916,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 q = q.filter(ResourceAlert.acknowledged_at == None)  # noqa: E711
             return _current(float(q.count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
     # ── Projects ───────────────────────────────────────────────────────────────
@@ -905,6 +925,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             from app.models.project import Project, ProjectStatus as PS
             return _current(float(db.query(Project).filter(Project.status == PS.active).count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "projects_at_risk":
         try:
@@ -913,6 +934,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 Project.status == PS.active, Project.risk_level.in_([PR.high, PR.critical])
             ).count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "projects_over_budget":
         try:
@@ -927,6 +949,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             ).all()
             return _current(float(sum(1 for pid, bgt in projects if costs.get(pid, 0) > float(bgt or 0))))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "projects_overdue":
         try:
@@ -939,24 +962,28 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 Project.end_date_planned < today
             ).count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "projects_on_hold":
         try:
             from app.models.project import Project, ProjectStatus as PS
             return _current(float(db.query(Project).filter(Project.status == PS.on_hold).count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "projects_cancelled":
         try:
             from app.models.project import Project, ProjectStatus as PS
             return _current(float(db.query(Project).filter(Project.status == PS.cancelled).count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "projects_completed_count":
         try:
             from app.models.project import Project, ProjectStatus as PS
             return _current(float(db.query(Project).filter(Project.status == PS.completed).count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key in ("milestones_overdue","milestones_pending","milestones_completed",
                        "milestones_invoiced","milestones_pending_approval"):
@@ -987,6 +1014,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                     ProjectMilestone.billing_status == "pending_approval"
                 ).count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key in ("deliverables_in_progress","deliverables_in_review",
                        "deliverables_accepted","deliverables_rejected"):
@@ -1000,6 +1028,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 Deliverable.status == STATUS[metric_key]
             ).count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key in ("change_requests_total","change_requests_pending",
                        "change_requests_cost_impact","change_requests_schedule"):
@@ -1020,6 +1049,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 v = db.query(sqf.sum(ChangeRequest.schedule_impact_days)).scalar() or 0.0
                 return _current(float(v))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
     # ── Tasks ──────────────────────────────────────────────────────────────────
@@ -1035,12 +1065,14 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                     bkt[f"{dd.year:04d}-{dd.month:02d}"] += 1.0
             return [float(bkt.get(m["month"],0.0)) for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "tasks_blocked":
         try:
             from app.models.task import Task, TaskStatus
             return _current(float(db.query(Task).filter(Task.status == TaskStatus.blocked).count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "tasks_created":
         try:
@@ -1048,6 +1080,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             rows = db.query(Task.created_at).filter(Task.created_at >= start_date).all()
             return _bucket_count(rows, start=start_date)
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "tasks_completed":
         try:
@@ -1059,6 +1092,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             ).all()
             return _bucket_count(rows, start=start_date)
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "task_completion_rate":
         c = _fetch_metric_series(db, "tasks_completed", organization_id)
@@ -1116,6 +1150,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                         if bkt_cnt.get(m["month"],0)>0 else 0.0 for m in series]
             return [float(bkt.get(m["month"],0.0)) for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "ticket_time_log_total":
         try:
@@ -1125,6 +1160,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             ).all()
             return _bucket_sum(rows, start=start_date)
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "sla_breach_count":
         try:
@@ -1134,6 +1170,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             ).all()
             return _bucket_count(rows, start=start_date)
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "sla_compliance_pct":
         try:
@@ -1143,6 +1180,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             ).first()
             return _current(float(row[0]) if row and row[0] is not None else 0.0)
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key in ("kb_articles_published","kb_views_total","kb_helpful_count"):
         try:
@@ -1157,6 +1195,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 v = db.query(sqf.sum(KBArticle.helpful_count)).scalar() or 0
                 return _current(float(v))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "problems_open":
         try:
@@ -1165,12 +1204,14 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 Problem.status.in_([ProblemStatus.open, ProblemStatus.investigating])
             ).count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "known_errors_active":
         try:
             from app.models.service_desk import KnownError
             return _current(float(db.query(KnownError).filter(KnownError.is_active == True).count()))  # noqa: E712
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key in ("itsm_changes_total","itsm_changes_emergency","itsm_changes_downtime"):
         try:
@@ -1186,6 +1227,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 v = db.query(sqf.sum(ITSMChangeRequest.downtime_minutes)).scalar() or 0
                 return _current(float(v))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key in ("assets_total","assets_deployed","assets_in_repair",
                        "license_seats_total","license_used_total","asset_value_total"):
@@ -1208,6 +1250,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 v = db.query(sqf.sum(Asset.current_value)).filter(Asset.current_value != None).scalar() or 0  # noqa: E711
                 return _current(float(v))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "major_incidents_active":
         try:
@@ -1216,6 +1259,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 MajorIncident.status == MajorIncidentStatus.active
             ).count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key == "escalations_total":
         try:
@@ -1225,6 +1269,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             ).all()
             return _bucket_count(rows, start=start_date)
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key in ("playbook_success_count","playbook_failure_count"):
         try:
@@ -1234,6 +1279,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             v = db.query(sqf.sum(field)).scalar() or 0
             return _current(float(v))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
     # ── Approvals & Workflows ──────────────────────────────────────────────────
@@ -1245,6 +1291,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 ApprovalRequest.status == STATUS[metric_key]
             ).count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key in ("workflow_runs_total","workflow_success_total","workflow_error_total"):
         try:
@@ -1256,6 +1303,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             v = db.query(sqf.sum(FIELD[metric_key])).scalar() or 0
             return _current(float(v))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
     # ── GRC & Compliance ──────────────────────────────────────────────────────
@@ -1267,6 +1315,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 q = q.filter(SodViolation.resolved == False)  # noqa: E712
             return _current(float(q.count()))
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
     if metric_key in ("grc_audit_events_total","grc_critical_events"):
         try:
@@ -1283,6 +1332,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                         bkt[f"{ts.year:04d}-{ts.month:02d}"] += 1.0
             return [float(bkt.get(m["month"],0.0)) for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
     # ── Imports & Data ────────────────────────────────────────────────────────
@@ -1310,6 +1360,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                         if bkt_tot.get(m["month"],0)>0 else 0.0 for m in series]
             return [float(bkt.get(m["month"],0.0)) for m in series]
         except Exception:
+            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
     return _empty_like()

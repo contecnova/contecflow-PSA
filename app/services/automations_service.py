@@ -54,11 +54,13 @@ def check_conditions(conditions: Optional[dict], context: dict) -> bool:
         try:
             return float(ctx_value) > float(value)
         except Exception:
+            logger.debug("Automation condition greater_than eval failed (ctx=%r value=%r)", ctx_value, value, exc_info=True)
             return False
     elif operator == "less_than":
         try:
             return float(ctx_value) < float(value)
         except Exception:
+            logger.debug("Automation condition less_than eval failed (ctx=%r value=%r)", ctx_value, value, exc_info=True)
             return False
     elif operator == "contains":
         return str(value).lower() in str(ctx_value).lower()
@@ -132,6 +134,7 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
                         send_email_notification(to=to_addr, subject=subject, body=body)
                         results.append({"action": atype, "ok": True, "to": to_addr})
                     except Exception as email_err:
+                        logger.exception("Automation send_email action failed for to=%s", to_addr)
                         results.append({"action": atype, "ok": False, "error": str(email_err)})
                 else:
                     results.append({"action": atype, "ok": False, "error": "Missing 'to' parameter"})
@@ -189,6 +192,7 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
                                 pass
                             results.append({"action": atype, "ok": True, "url": url})
                         except Exception as wh_err:
+                            logger.exception("Automation webhook POST failed url=%s", url)
                             results.append({"action": atype, "ok": False, "error": str(wh_err)})
                 else:
                     results.append({"action": atype, "ok": False, "error": "Missing 'url' parameter"})
@@ -265,6 +269,7 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
                                     "branch_taken": branch_label, "branch_results": []})
 
         except Exception as e:
+            logger.exception("Automation action %s execution failed", atype)
             results.append({"action": atype, "ok": False, "error": str(e)})
 
     return results

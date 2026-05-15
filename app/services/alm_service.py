@@ -5,6 +5,7 @@ Covers: input data cleaning, serialisers for Vendor / Contract / License / Asset
 """
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime, timedelta
 from typing import Optional
 
@@ -15,6 +16,8 @@ from app.models.alm import (
     ALMVendor, ALMContract, ALMLicense, ALMLicenseAssignment,
     ALMAsset, ALMCostCenter, ALMSoftwareInstall,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # ── Input cleaner ─────────────────────────────────────────────────────────────
@@ -37,16 +40,19 @@ def clean_input(data: dict, model_cls, date_fields=None, int_fields=None, float_
                 parts = str(v).split("-")
                 out[k] = date(int(parts[0]), int(parts[1]), int(parts[2]))
             except Exception:
+                logger.debug("ALM clean_input: invalid date field %s=%r → None", k, v, exc_info=True)
                 out[k] = None
         elif k in int_fields:
             try:
                 out[k] = int(v)
             except Exception:
+                logger.debug("ALM clean_input: invalid int field %s=%r → None", k, v, exc_info=True)
                 out[k] = None
         elif k in float_fields:
             try:
                 out[k] = float(v)
             except Exception:
+                logger.debug("ALM clean_input: invalid float field %s=%r → None", k, v, exc_info=True)
                 out[k] = None
         else:
             out[k] = v
@@ -68,6 +74,7 @@ def get_linked_clients_for_license(license_id, db: Session) -> list:
                 result.append({"id": cl.id, "name": cl.name})
         return result
     except Exception:
+        logger.warning("Failed to load linked clients for license=%s", license_id, exc_info=True)
         return []
 
 
@@ -84,6 +91,7 @@ def get_linked_clients_for_contract(contract_id, db: Session) -> list:
                 result.append({"id": cl.id, "name": cl.name})
         return result
     except Exception:
+        logger.warning("Failed to load linked clients for contract=%s", contract_id, exc_info=True)
         return []
 
 
@@ -312,6 +320,7 @@ def update_contract_record(cid: str, data: dict, db: Session) -> dict:
                     parts = v.split("-")
                     v = date(int(parts[0]), int(parts[1]), int(parts[2]))
                 except Exception:
+                    logger.debug("ALM contract update: invalid date %s=%r for cid=%s → None", k, v, cid, exc_info=True)
                     v = None
             setattr(c, k, v)
     db.commit()

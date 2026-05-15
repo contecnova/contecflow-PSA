@@ -12,6 +12,7 @@ so it can evolve without immediate schema migrations.
 from __future__ import annotations
 
 import json
+import logging
 import math
 import random
 from collections import defaultdict
@@ -23,6 +24,8 @@ from sqlalchemy.orm import Session
 from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.settings import AppSetting
+
+logger = logging.getLogger(__name__)
 from app.models.user import User
 from app.services import report_builder_service
 from app.services.scheduled_reports import execute_report_now
@@ -52,6 +55,7 @@ def _get_json(db: Session, key: str, organization_id: Optional[str], default: An
     try:
         return json.loads(row.value)
     except Exception:
+        logger.warning("Failed to decode JSON for AppSetting key=%s org=%s", key, organization_id, exc_info=True)
         return default
 
 
@@ -710,12 +714,14 @@ def ml_predict_project_overrun_lgbm(
         try:
             duration_days = max(1, (end - start).days)
         except Exception:
+            logger.debug("Project %s duration_days fallback (start=%r end=%r)", p.id, start, end, exc_info=True)
             duration_days = 30
 
         elapsed_days = max(0, (today - start).days) if hasattr(start, "days") or True else 0
         try:
             elapsed_days = max(0, (today - start).days)
         except Exception:
+            logger.debug("Project %s elapsed_days fallback (start=%r)", p.id, start, exc_info=True)
             elapsed_days = 0
 
         elapsed_pct = min(1.0, elapsed_days / duration_days)
@@ -815,6 +821,7 @@ def save_connector_config(
             try:
                 stored[field] = encrypt_value(stored[field])
             except Exception:
+                logger.warning("Failed to encrypt connector %s field %s; storing as-is", connector, field, exc_info=True)
                 stored[field] = stored[field]  # store as-is if encryption unavailable
 
     stored["configured_at"] = _iso_now()
@@ -846,6 +853,7 @@ def run_etl_connector_sync(
         etl = bi_etl_connectors.get_connector(connector)
         result = etl.run_sync(config=cfg, organization_id=organization_id, db=db)
     except Exception as exc:
+        logger.exception("ETL connector sync failed for connector=%s org=%s", connector, organization_id)
         result = {"ok": False, "error": str(exc), "records_ingested": 0}
 
     # Update state regardless of success/failure
@@ -894,4 +902,4 @@ def publish_kpi_snapshot(organization_id: Optional[str], snapshot: dict[str, Any
         channel = f"contecflow:bi:kpi:{organization_id or 'global'}"
         r.publish(channel, _json.dumps(snapshot, ensure_ascii=False))
     except Exception:
-        pass  # Redis unavailable — silently skip push
+        logger.debug("Skipped KPI snapshot publish — Redis unavailable", exc_info=True)

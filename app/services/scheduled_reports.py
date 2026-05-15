@@ -212,6 +212,7 @@ def _execute_report(report: ScheduledReport, db) -> None:
                 data=[], summary={}, filters={},
             )
         except Exception:
+            logger.exception("Legacy PDF fallback also failed for report '%s'", report.name)
             pdf_bytes = b""
 
     safe_name = report.name.replace(" ", "_")[:40]

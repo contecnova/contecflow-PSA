@@ -176,6 +176,7 @@ def sync_provider_models(pid: str, db: Session = Depends(get_db), _=Depends(requ
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
+        _logger.exception("svc_sync_provider_models failed for provider=%s", p.id)
         update_provider_test_result(db, p, success=False, error=str(e))
         raise HTTPException(500, f"No se pudieron sincronizar modelos: {str(e)}")
 
@@ -205,6 +206,7 @@ def sync_all_provider_models(db: Session = Depends(get_db), _=Depends(require_ad
                 "default_model": p.default_model,
             })
         except Exception as e:
+            _logger.exception("svc_sync_provider_models failed for provider=%s in bulk sync", p.id)
             failures += 1
             update_provider_test_result(db, p, success=False, error=str(e))
             results.append({

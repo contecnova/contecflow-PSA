@@ -267,6 +267,7 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
             with urllib.request.urlopen(req, timeout=5) as resp:
                 return resp.status in (200, 201), None
         except Exception as e:
+            _logger.exception("Webhook delivery failed for platform=%s", config.platform)
             return False, str(e)
 
     _logger.info("[SLACK SIMULATED] %s → %s: %s", config.platform, ch, text)
@@ -1272,6 +1273,7 @@ def create_and_run_pdf_export(
         filename = f"contecflow_{export_type}_{source_id or 'export'}_{datetime.now().strftime('%Y%m%d')}.pdf"
         return pdf_bytes, filename
     except Exception as e:
+        _logger.exception("PDF generation job failed (export_type=%s source_id=%s)", export_type, source_id)
         job.status = "failed"
         job.error = str(e)[:500]
         db.commit()

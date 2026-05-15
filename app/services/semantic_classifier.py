@@ -234,6 +234,7 @@ class SemanticAssigner(ServiceBase):
                 db.commit()
                 db.refresh(self.config)
             except Exception:
+                logger.warning("Concurrent SemConfig insert race; re-reading", exc_info=True)
                 db.rollback()  # otra request lo creó concurrentemente — re-leer
                 self.config = db.query(SemConfig).first() or SemConfig()
         runtime_backend, runtime_model_name = self._resolve_embeddings_runtime(self.config)
@@ -263,7 +264,7 @@ class SemanticAssigner(ServiceBase):
             ]
             corpus.extend(profile_texts)
         except Exception:
-            pass
+            logger.warning("Failed to load SemProfile texts for TF-IDF corpus", exc_info=True)
         try:
             cache_texts = [
                 c.text_snippet for c in self.db.query(SemEmbeddingCache)
@@ -272,7 +273,7 @@ class SemanticAssigner(ServiceBase):
             ]
             corpus.extend(cache_texts)
         except Exception:
-            pass
+            logger.warning("Failed to load SemEmbeddingCache snippets for TF-IDF corpus", exc_info=True)
         if corpus:
             try:
                 self.model.fit_global(corpus)
@@ -537,6 +538,7 @@ class SemanticAssigner(ServiceBase):
                 else:
                     load_ratio = min(1.0, (p.open_tickets + p.open_tasks) / max(p.max_load, 1))
             except Exception:
+                logger.debug("ResourceAnalyticsService.get_user_availability failed for user=%s; falling back to item-load ratio", p.user_id, exc_info=True)
                 load_ratio = min(1.0, (p.open_tickets + p.open_tasks) / max(p.max_load, 1))
 
             # Mejora 6: penalización por concentración excesiva del mismo tipo
@@ -717,7 +719,7 @@ class SemanticAssigner(ServiceBase):
                             corrected_by="llm_auto",
                         )
                     except Exception:
-                        pass  # never block suggestion on cache write failure
+                        logger.debug("Best-effort cache of LLM suggestion as feedback failed", exc_info=True)
                 return self._result(uid, 0.75, "llm", {}, False,
                                     f"LLM: {reason}")
         except Exception:

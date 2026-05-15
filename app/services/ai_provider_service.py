@@ -725,6 +725,7 @@ def call_ai(
         try:
             governance_user = db.query(User).filter(User.id == user_id).first()
         except Exception:
+            _logger.warning("Failed to load governance_user for user_id=%s", user_id, exc_info=True)
             governance_user = None
 
     if not skip_guardrails and governance_user and messages:
@@ -832,6 +833,7 @@ def call_ai(
     try:
         db.commit()
     except Exception:
+        _logger.warning("Failed to persist AIUsageLog entry; rolling back", exc_info=True)
         db.rollback()
 
     if error_msg is None and result.get("cost_usd", 0) > 0:
@@ -923,6 +925,7 @@ def diagnose_provider(provider) -> dict:
             result["error"] = None
 
     except Exception as exc:
+        _logger.warning("Provider diagnostic failed for id=%s name=%s: %s", provider.id, provider.name, exc, exc_info=True)
         latency_ms = round((time.time() - t0) * 1000)
         result["latency_ms"] = latency_ms
         result["error"] = str(exc)

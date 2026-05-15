@@ -136,6 +136,7 @@ def _verify_api_key(key: str, hashed: str) -> bool:
     try:
         return _bcrypt.checkpw(key.encode(), hashed.encode())
     except Exception:
+        logger.warning("Bookings API key verification raised unexpectedly", exc_info=True)
         return False
 
 
@@ -1016,6 +1017,7 @@ def _render_step_value(value, context: dict):
         try:
             return value.format_map({k: ("" if v is None else v) for k, v in context.items()})
         except Exception:
+            logger.debug("Workflow step value templating failed; keeping raw value=%r", value, exc_info=True)
             return value
     if isinstance(value, list):
         return [_render_step_value(v, context) for v in value]
@@ -1300,6 +1302,7 @@ def process_workflow_queue_record(db, workflow_id: str | None = None) -> dict:
                                 break
                             step_result["retry_attempts"] = retry_idx
                         except Exception as e:
+                            logger.warning("Workflow step %s action failed (attempt=%s): %s", getattr(step, "id", None), retry_idx, e, exc_info=True)
                             last_action_res = {"ok": False, "error": str(e)}
                         if retry_idx < max_retries:
                             step_result["retry_attempts"] = retry_idx + 1
@@ -1360,6 +1363,7 @@ def process_workflow_queue_record(db, workflow_id: str | None = None) -> dict:
                         step_result["ok"] = False
                         step_result["error"] = f"SSRF protection blocked URL: {_ssrf_exc}"
                     except Exception as e:
+                        logger.exception("Workflow webhook step failed for workflow=%s", item.workflow_id)
                         step_result["ok"] = False; step_result["error"] = str(e)[:100]
                 step_finished_at = datetime.now(timezone.utc)
                 step_result["started_at"] = step_started_at.isoformat()
@@ -1391,6 +1395,7 @@ def process_workflow_queue_record(db, workflow_id: str | None = None) -> dict:
             processed += 1
             db.commit()
         except Exception as e:
+            logger.exception("Workflow queue item %s processing failed", item.id)
             item.status     = "failed" if item.attempts >= 3 else "pending"
             item.last_error = str(e)[:500]
             errors += 1

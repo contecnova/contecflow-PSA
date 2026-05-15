@@ -60,6 +60,7 @@ async def github_webhook(
     try:
         payload = await request.json()
     except Exception:
+        _logger.warning("GitHub webhook rejected: invalid JSON payload event=%s", x_github_event, exc_info=True)
         raise HTTPException(400, "Invalid JSON payload")
 
     try:
@@ -85,6 +86,7 @@ async def gitlab_webhook(
     try:
         payload = await request.json()
     except Exception:
+        _logger.warning("GitLab webhook rejected: invalid JSON payload", exc_info=True)
         raise HTTPException(400, "Invalid JSON payload")
 
     try:

@@ -369,7 +369,7 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
             try:
                 filters = json.loads(getattr(report, "filters_json", "{}") or "{}")
             except Exception:
-                pass
+                logger.warning("Failed to parse filters_json for report %s", getattr(report, "id", None), exc_info=True)
             return _legacy_pdf(
                 title=report.name,
                 metric_label=(report.metric or "custom").replace("_", " ").title(),

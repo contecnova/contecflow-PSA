@@ -1437,6 +1437,7 @@ def auto_compute_revenue(period_str: str, db: Session) -> dict:
                 )
             results.append({"rule_id": rule.id, "project": project.name, "amount": amount_delta, "status": "ok"})
         except Exception as e:
+            logger.exception("Revenue rule %s computation failed for period %s", rule.id, period_str)
             results.append({"rule_id": rule.id, "status": "error", "error": str(e)})
 
     db.commit()

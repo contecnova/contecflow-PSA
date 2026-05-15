@@ -63,6 +63,7 @@ def _get_json(db: Session, key: str, org_id: Optional[str], *, default=None):
     try:
         return json.loads(row.value)
     except Exception:
+        logger.warning("Failed to decode O365 AppSetting JSON key=%s org=%s", key, org_id, exc_info=True)
         return default
 
 
@@ -180,6 +181,7 @@ def run_sync(
             return {"ok": False, "error": "client_secret required for sync", "synced": []}
         token = _get_graph_token(tenant_id, client_id, secret)
     except Exception as exc:
+        logger.exception("O365 Graph auth failed for tenant=%s client=%s", tenant_id, client_id)
         return {"ok": False, "error": f"Authentication failed: {exc}", "synced": []}
 
     for report_name in target_reports:
@@ -189,6 +191,7 @@ def run_sync(
             _set_json(db, key, org_id, {"rows": rows, "fetched_at": _now_iso(), "count": len(rows)}, f"O365 {report_name} data")
             results.append({"report": report_name, "ok": True, "records": len(rows)})
         except Exception as exc:
+            logger.exception("O365 report sync failed for report=%s org=%s", report_name, org_id)
             results.append({"report": report_name, "ok": False, "error": str(exc)})
 
     # Update last_sync_at

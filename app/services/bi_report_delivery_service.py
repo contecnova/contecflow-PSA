@@ -58,6 +58,7 @@ def _get_json(db: Session, key: str, organization_id: Optional[str], default: An
     try:
         return json.loads(row.value)
     except Exception:
+        logger.warning("Failed to decode JSON for AppSetting key=%s org=%s", key, organization_id, exc_info=True)
         return default if default is not None else {}
 
 
@@ -434,6 +435,7 @@ def _send_email(recipients: List[str], subject: str, body_html: str, attachment_
             send_email(to=recipient, subject=subject, body_html=body_html)
         return True
     except Exception:
+        logger.warning("Primary email_service path failed; falling back to direct SMTP", exc_info=True)
         try:
             import smtplib
             from email.mime.multipart import MIMEMultipart
@@ -502,6 +504,7 @@ def send_schedule_now(
         columns = report_data.get("columns") or []
         rows = report_data.get("rows") or []
     except Exception as exc:
+        logger.exception("Failed to generate report preview for preset=%s org=%s", preset_id, organization_id)
         errors.append(f"report_generation: {exc}")
         columns, rows = [], []
 
@@ -526,6 +529,7 @@ def send_schedule_now(
             attachment_bytes = _export_to_pdf(title, columns, rows)
             attachment_filename = f"{preset_id}_{ts}.pdf"
     except Exception as exc:
+        logger.exception("Failed to generate report attachment for preset=%s format=%s", preset_id, export_format)
         errors.append(f"export_generation: {exc}")
 
     summary = (
@@ -565,6 +569,7 @@ def send_schedule_now(
                     else:
                         results["email"] = "skipped_no_recipients"
             except Exception as exc:
+                logger.exception("BI delivery channel %s failed for schedule=%s", channel, schedule_id)
                 errors.append(f"{channel}: {exc}")
                 results[channel] = "error"
 
@@ -669,6 +674,7 @@ def run_due_deliveries(db: Session) -> Dict[str, Any]:
         try:
             schedules = json.loads(row.value or "{}")
         except Exception:
+            logger.warning("Failed to decode BI schedules JSON for org=%s", org_id, exc_info=True)
             continue
 
         for sched in schedules.values():
@@ -704,6 +710,7 @@ def _is_schedule_due(sched: Dict[str, Any]) -> bool:
     try:
         last_dt = datetime.fromisoformat(last_run)
     except Exception:
+        logger.debug("Schedule has invalid last_run_at=%r; treating as due", last_run, exc_info=True)
         return True
 
     thresholds = {

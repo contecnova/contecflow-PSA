@@ -241,6 +241,7 @@ def _parse_trigger_conditions(raw: Optional[str]) -> dict:
     try:
         return json.loads(raw)
     except Exception:
+        logger.warning("Failed to parse approval trigger conditions JSON", exc_info=True)
         return {}
 
 
@@ -265,6 +266,7 @@ def _matches_conditions(conditions: dict, context: dict) -> bool:
         if conditions.get("amount_lte") is not None and float(amount or 0) > float(conditions["amount_lte"]):
             return False
     except Exception:
+        logger.warning("Failed to evaluate amount conditions for approval (amount=%r)", amount, exc_info=True)
         return False
     return True
 
@@ -1235,7 +1237,7 @@ def _is_authorized(step, current_user: User, requested_by: str, db: Session) -> 
                 if current_user.id in members:
                     return True
             except Exception:
-                pass
+                logger.warning("Failed to parse approval group member_ids for group=%s", group.id, exc_info=True)
     if step.approver_type == "group" and step.approver_group_id:
         return False  # already checked above
     # Solo autoriza si el usuario está explícitamente configurado como aprobador
@@ -1276,7 +1278,7 @@ def _record_sod_violation(req, current_user: User, db: Session) -> None:
             )
             db.flush()
     except Exception:
-        pass
+        logger.warning("Failed to record SoD violation for approval request=%s user=%s", req.id, current_user.id, exc_info=True)
 
 
 def _notify_requester_approved(req, db: Session) -> None:
@@ -1293,7 +1295,7 @@ def _notify_requester_approved(req, db: Session) -> None:
         ))
         db.commit()
     except Exception:
-        pass
+        logger.warning("Failed to notify requester of approved request=%s", req.id, exc_info=True)
 
 
 def _apply_entity_final_decision(req, final_decision: str, actor, db: Session) -> None:
@@ -1542,12 +1544,14 @@ def _check_auto_approval(wf, payload) -> Optional[str]:
                 if float(ctx.get("amount", 0)) >= float(conds["amount_lt"]):
                     match = False
             except Exception:
+                logger.debug("auto_approve rule amount_lt eval failed for ctx=%r", ctx, exc_info=True)
                 match = False
         if "amount_gt" in conds:
             try:
                 if float(ctx.get("amount", 0)) <= float(conds["amount_gt"]):
                     match = False
             except Exception:
+                logger.debug("auto_approve rule amount_gt eval failed for ctx=%r", ctx, exc_info=True)
                 match = False
         if "department" in conds:
             if ctx.get("department") != conds["department"]:
@@ -1576,24 +1580,25 @@ def _step_condition_met(step, req) -> bool:
     try:
         cond = json.loads(step.step_condition)
     except Exception:
+        logger.warning("Failed to parse approval step_condition for step=%s", getattr(step, "id", None), exc_info=True)
         return True
     ctx = {}
     try:
         ctx = json.loads(req.entity_summary or "{}")
     except Exception:
-        pass
+        logger.debug("Approval request entity_summary not JSON for req=%s", getattr(req, "id", None), exc_info=True)
     if "amount_gt" in cond:
         try:
             if float(ctx.get("amount", 0)) <= float(cond["amount_gt"]):
                 return False
         except Exception:
-            pass
+            logger.debug("Step condition amount_gt eval failed for step=%s", getattr(step, "id", None), exc_info=True)
     if "amount_lt" in cond:
         try:
             if float(ctx.get("amount", 0)) >= float(cond["amount_lt"]):
                 return False
         except Exception:
-            pass
+            logger.debug("Step condition amount_lt eval failed for step=%s", getattr(step, "id", None), exc_info=True)
     if "department" in cond:
         if ctx.get("department") != cond["department"]:
             return False
@@ -1724,6 +1729,7 @@ def _resolve_pending_responsible_user(step, db: Session) -> Optional[str]:
             members = json.loads(g.member_ids or "[]") if g else []
             return members[0] if members else None
         except Exception:
+            logger.warning("Failed to resolve responsible user from approval group=%s", step.approver_group_id, exc_info=True)
             return None
     return None
 
