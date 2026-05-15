@@ -51,7 +51,7 @@ class ReportTemplate(BaseModel):
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.get("/schema")
+@router.get("/schema", summary="Obtener esquema de entidades disponibles")
 def get_schema(_: User = Depends(get_current_user)):
     return {
         "entities":  _svc.ENTITIES,
@@ -60,7 +60,7 @@ def get_schema(_: User = Depends(get_current_user)):
     }
 
 
-@router.post("/preview")
+@router.post("/preview", summary="Previsualizar informe")
 def preview_report(
     q: ReportQuery,
     db: Session = Depends(get_db),
@@ -81,7 +81,7 @@ def preview_report(
 
 from fastapi import Query
 
-@router.post("/export")
+@router.post("/export", summary="Exportar informe a CSV")
 def export_report(
     q: ReportQuery,
     page: int = Query(1, ge=1, description="Número de página para exportación paginada"),
@@ -100,7 +100,7 @@ def export_report(
     return _svc.build_csv_response(q.columns, result["items"], q.entity, pagination=result)
 
 
-@router.get("/templates")
+@router.get("/templates", summary="Listar plantillas de informes")
 def list_templates(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -108,7 +108,7 @@ def list_templates(
     return _svc.load_user_templates(str(current_user.id), db)
 
 
-@router.post("/templates")
+@router.post("/templates", summary="Guardar plantilla de informe")
 def save_template(
     tpl: ReportTemplate,
     db: Session = Depends(get_db),
@@ -124,7 +124,7 @@ def save_template(
     return record
 
 
-@router.delete("/templates/{template_id}")
+@router.delete("/templates/{template_id}", summary="Eliminar plantilla de informe")
 def delete_template(
     template_id: int,
     db: Session = Depends(get_db),

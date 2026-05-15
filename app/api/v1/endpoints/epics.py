@@ -35,24 +35,24 @@ router = APIRouter()
 
 
 
-@router.get("/wiki/spaces")
+@router.get("/wiki/spaces", summary="Listar espacios de wiki")
 def list_spaces(project_id: Optional[str] = None,
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return list_wiki_spaces(project_id, db)
 
 
-@router.post("/wiki/spaces")
+@router.post("/wiki/spaces", summary="Crear espacio de wiki")
 def create_space(p: WikiSpaceIn, db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return create_wiki_space(p.model_dump(), cu.id, db)
 
 
-@router.patch("/wiki/spaces/{space_id}")
+@router.patch("/wiki/spaces/{space_id}", summary="Actualizar espacio de wiki")
 def update_space(space_id: str, p: WikiSpaceIn,
                  db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return update_wiki_space(space_id, p.model_dump(exclude_unset=True), db)
 
 
-@router.delete("/wiki/spaces/{space_id}")
+@router.delete("/wiki/spaces/{space_id}", summary="Eliminar espacio de wiki")
 def delete_space(space_id: str, db: Session = Depends(get_db),
                  cu: User = Depends(require_admin_or_pm)):
     enforce_abac(db, cu, "wiki_space", space_id, action="delete")
@@ -65,49 +65,49 @@ def delete_space(space_id: str, db: Session = Depends(get_db),
 
 
 
-@router.get("/wiki/spaces/{space_id}/pages")
+@router.get("/wiki/spaces/{space_id}/pages", summary="Listar páginas del espacio de wiki")
 def list_pages(space_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return list_wiki_pages(space_id, db)
 
 
-@router.post("/wiki/spaces/{space_id}/pages")
+@router.post("/wiki/spaces/{space_id}/pages", summary="Crear página de wiki")
 def create_page(space_id: str, p: WikiPageIn,
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return create_wiki_page(space_id, p.title, p.slug, p.content,
                             p.parent_id, p.is_published, p.sort_order, cu.id, db)
 
 
-@router.get("/wiki/pages/{page_id}")
+@router.get("/wiki/pages/{page_id}", summary="Obtener página de wiki")
 def get_page(page_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return get_wiki_page(page_id, db)
 
 
-@router.patch("/wiki/pages/{page_id}")
+@router.patch("/wiki/pages/{page_id}", summary="Actualizar página de wiki")
 def update_page(page_id: str, p: WikiPageIn,
                 db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return update_wiki_page(page_id, p.title, p.slug, p.content,
                             p.parent_id, p.sort_order, p.is_published, p.change_note, cu.id, db)
 
 
-@router.delete("/wiki/pages/{page_id}")
+@router.delete("/wiki/pages/{page_id}", summary="Eliminar página de wiki")
 def delete_page(page_id: str, db: Session = Depends(get_db),
                 cu: User = Depends(require_admin_or_pm)):
     enforce_abac(db, cu, "wiki_page", page_id, action="delete")
     return delete_wiki_page(page_id, db)
 
 
-@router.get("/wiki/pages/{page_id}/versions")
+@router.get("/wiki/pages/{page_id}/versions", summary="Listar versiones de la página")
 def page_versions(page_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return list_page_versions(page_id, db)
 
 
-@router.post("/wiki/pages/{page_id}/restore/{version_num}")
+@router.post("/wiki/pages/{page_id}/restore/{version_num}", summary="Restaurar versión de página")
 def restore_version(page_id: str, version_num: int,
                     db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return restore_wiki_version(page_id, version_num, cu.id, db)
 
 
-@router.get("/wiki/search")
+@router.get("/wiki/search", summary="Buscar páginas en la wiki")
 def search_wiki(q: str, space_id: Optional[str] = None,
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return search_wiki_pages(q, space_id, db)
@@ -115,14 +115,14 @@ def search_wiki(q: str, space_id: Optional[str] = None,
 
 # ── Wiki templates ─────────────────────────────────────────────────────────────
 
-@router.get("/wiki/templates")
+@router.get("/wiki/templates", summary="Listar plantillas de wiki")
 def list_templates(db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return list_wiki_templates(db)
 
 
 
 
-@router.post("/wiki/templates")
+@router.post("/wiki/templates", summary="Crear plantilla de wiki")
 def create_template(p: WikiTemplateIn, db: Session = Depends(get_db),
                     cu: User = Depends(require_admin_or_pm)):
     return create_wiki_template(p.name, p.description, p.icon, p.content, cu.id, db)

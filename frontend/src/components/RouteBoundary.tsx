@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import type { ComponentType, ErrorInfo, ReactNode } from 'react'
 
 /**
  * RouteBoundary — per-section error boundary.
@@ -14,23 +15,33 @@ import { Component } from 'react'
  *  - resetKey: optional key (e.g. pathname) that, when changed, clears the
  *    error state so navigating away from a broken page recovers the UI.
  */
-export default class RouteBoundary extends Component {
-  constructor(props) {
+interface RouteBoundaryProps {
+  section?: string
+  resetKey?: string | number | null
+  children?: ReactNode
+}
+
+interface RouteBoundaryState {
+  error: Error | null
+}
+
+export default class RouteBoundary extends Component<RouteBoundaryProps, RouteBoundaryState> {
+  constructor(props: RouteBoundaryProps) {
     super(props)
     this.state = { error: null }
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): RouteBoundaryState {
     return { error }
   }
 
-  componentDidUpdate(prevProps) {
+  componentDidUpdate(prevProps: RouteBoundaryProps) {
     if (this.state.error && this.props.resetKey !== prevProps.resetKey) {
       this.setState({ error: null })
     }
   }
 
-  componentDidCatch(error, info) {
+  componentDidCatch(error: Error, info: ErrorInfo) {
     const section = this.props.section || 'unknown'
     // Local console log — always available.
     console.error(`[RouteBoundary:${section}]`, error, info?.componentStack)
@@ -161,8 +172,11 @@ export default class RouteBoundary extends Component {
  *   const SafeBIPage = withRouteBoundary(BIPage, 'BI')
  *   <Route path="/executive" element={<SafeBIPage />} />
  */
-export function withRouteBoundary(PageComponent, section) {
-  function Wrapped(props) {
+export function withRouteBoundary<P extends object>(
+  PageComponent: ComponentType<P>,
+  section?: string,
+): ComponentType<P> {
+  function Wrapped(props: P) {
     return (
       <RouteBoundary section={section}>
         <PageComponent {...props} />

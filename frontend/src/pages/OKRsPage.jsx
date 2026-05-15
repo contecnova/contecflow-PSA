@@ -11,6 +11,7 @@ import { Trophy, Plus } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
+import { LARGE_PAGE_SIZE } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
 
 const PERIOD_OPTS = ['Q1','Q2','Q3','Q4','H1','H2','annual']
@@ -204,11 +205,11 @@ function ObjModal({ obj, onClose }) {
 
   const { data: users = [] } = useQuery({
     queryKey: ['okr-users-pick'],
-    queryFn: () => usersApi.list({ page_size: 200 }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => usersApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
   })
   const { data: projects = [] } = useQuery({
     queryKey: ['okr-projects-pick'],
-    queryFn: () => projectsApi.list({ page_size: 200 }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
   })
   const { data: departments = [] } = useQuery({
     queryKey: ['okr-departments-pick'],
@@ -324,7 +325,7 @@ function KRModal({ objective, onClose }) {
 
   const { data: users = [] } = useQuery({
     queryKey: ['okr-users-pick'],
-    queryFn: () => usersApi.list({ page_size: 200 }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => usersApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
   })
 
   const { mutate, isPending } = useMutation({

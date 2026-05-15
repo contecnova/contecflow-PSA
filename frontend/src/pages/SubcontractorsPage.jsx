@@ -11,6 +11,7 @@ import { Users } from 'lucide-react'
 import { Button, Modal, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
+import { STALE_5_MIN_MS } from '../constants/timings'
 const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
@@ -56,7 +57,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
   const { data: skillCatalog = [] } = useQuery({
     queryKey: ['skills-catalog'],
     queryFn: () => skillsApi.catalog().then(r => r.data?.items ?? r.data ?? []),
-    staleTime: 300000,
+    staleTime: STALE_5_MIN_MS,
   })
 
   const [credsInfo, setCredsInfo] = useState(null)

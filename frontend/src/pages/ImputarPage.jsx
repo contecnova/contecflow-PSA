@@ -11,6 +11,7 @@ import { Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtDate, fmtNumber, extractErr} from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
+import { NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
 
 const HOUR_OPTIONS = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8]
@@ -205,7 +206,7 @@ export default function ImputarPage() {
   const { data: activeTimer } = useQuery({
     queryKey: ['timer-current'],
     queryFn: () => imputationsApi.timerCurrent().then(r => r.data).catch(() => null),
-    refetchInterval: 30000,
+    refetchInterval: NOTIFICATIONS_POLL_MS,
   })
 
   const { data: todayImputations = [] } = useQuery({
@@ -224,7 +225,7 @@ export default function ImputarPage() {
             .catch(() => ({ anomalies: [] }))
         : Promise.resolve({ anomalies: [] }),
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000,  // 5 min — heurística suave, no refrescar agresivamente
+    staleTime: STALE_5_MIN_MS,  // 5 min — heurística suave, no refrescar agresivamente
   })
 
   // Map ISO date → high_hours anomaly para badge inline en WeekGrid.

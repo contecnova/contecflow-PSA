@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { searchApi } from '../../services/api'
+import { INPUT_DEBOUNCE_MS } from '../../constants/timings'
 import { useAppT } from '../../i18n/AppLangContext'
 
 const ICON_MAP = { project:'⬡', task:'▦', ticket:'🎫', user:'👤', invoice:'🧾', opportunity:'🎪' }
@@ -38,7 +39,7 @@ export default function GlobalSearch({ onClose }) {
   useEffect(() => { inputRef.current?.focus() }, [])
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQ(q), 150)
+    const timer = setTimeout(() => setDebouncedQ(q), INPUT_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [q])
 

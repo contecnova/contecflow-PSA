@@ -10,6 +10,7 @@ import { Timer } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
+import { DEFAULT_PAGE_SIZE, LARGE_PAGE_SIZE, NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS } from '../constants/timings'
 
 const FS = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -63,14 +64,14 @@ function StartModal({ onClose, onStart, isPending }) {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-list-timer'],
-    queryFn: () => projectsApi.list({ page_size: 200, status: 'active' }).then(r =>
+    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE, status: 'active' }).then(r =>
       Array.isArray(r.data) ? r.data : (r.data.items || [])
     ),
   })
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks-for-project-timer', projectId],
-    queryFn: () => tasksApi.list({ project_id: projectId, assigned_to_me: true, page_size: 200 }).then(r =>
+    queryFn: () => tasksApi.list({ project_id: projectId, assigned_to_me: true, page_size: LARGE_PAGE_SIZE }).then(r =>
       Array.isArray(r.data) ? r.data : (r.data.items || [])
     ),
     enabled: !!projectId,
@@ -159,7 +160,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks-for-stop-timer', currentTimer?.project_id, 'mine'],
-    queryFn: () => tasksApi.list({ project_id: currentTimer?.project_id, assigned_to_me: true, page_size: 200 }).then(r =>
+    queryFn: () => tasksApi.list({ project_id: currentTimer?.project_id, assigned_to_me: true, page_size: LARGE_PAGE_SIZE }).then(r =>
       Array.isArray(r.data) ? r.data : (r.data.items || [])
     ),
     enabled: !!currentTimer?.project_id,
@@ -265,26 +266,26 @@ export default function TimerPage() {
   const { data: currentTimer } = useQuery({
     queryKey: ['timer-current'],
     queryFn: () => imputationsApi.timerCurrent().then(r => r.data),
-    refetchInterval: 30_000,
+    refetchInterval: NOTIFICATIONS_POLL_MS,
   })
 
   const { data: timerProject } = useQuery({
     queryKey: ['timer-current-project', currentTimer?.project_id],
     queryFn: () => projectsApi.get(currentTimer.project_id).then(r => r.data),
     enabled: !!currentTimer?.project_id && !currentTimer?.project_name,
-    staleTime: 300_000,
+    staleTime: STALE_5_MIN_MS,
   })
 
   const { data: timerTask } = useQuery({
     queryKey: ['timer-current-task', currentTimer?.task_id],
     queryFn: () => tasksApi.get(currentTimer.task_id).then(r => r.data),
     enabled: !!currentTimer?.task_id && !currentTimer?.task_name,
-    staleTime: 300_000,
+    staleTime: STALE_5_MIN_MS,
   })
 
   const { data: timerHistory = [] } = useQuery({
     queryKey: ['timer-history'],
-    queryFn: () => imputationsApi.list({ page_size: 50 }).then(r => {
+    queryFn: () => imputationsApi.list({ page_size: DEFAULT_PAGE_SIZE }).then(r => {
       const data = r.data
       const items = Array.isArray(data) ? data : (data.items || [])
       return items.filter(imp => imp.timer_session_id)

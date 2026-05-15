@@ -11,6 +11,7 @@ import PageShell from '../components/layout/PageShell'
 import { Bell } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
+import { DEFAULT_PAGE_SIZE } from '../constants/timings'
 
 const ALERT_TYPE_CFG = {
   budget_overrun:     { icon:'💰', color:'var(--danger)',  label:'Presupuesto excedido' },
@@ -186,7 +187,7 @@ export default function NotificationsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['notifications-page', filter],
     queryFn: () => api.get('/enterprise/notifications', {
-      params: { page_size: 50, ...(filter !== 'all' && { is_read: filter === 'read' }) }
+      params: { page_size: DEFAULT_PAGE_SIZE, ...(filter !== 'all' && { is_read: filter === 'read' }) }
     }).then(r => r.data).catch(() => ({ notifications:[], unread_count:0 })),
     refetchInterval: 60000,
   })

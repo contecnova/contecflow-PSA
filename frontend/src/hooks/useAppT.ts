@@ -1,9 +1,37 @@
 import { useContext, useMemo } from 'react';
 import { AppLangContext } from '../i18n/AppLangContext';
+// @ts-expect-error — translationRuntime es un .mjs sin tipos (migración gradual #115)
 import { resolveTranslation } from '../i18n/translationRuntime.mjs';
 
 const NOOP = () => {};
-const EMPTY_OBJ = {};
+const EMPTY_OBJ: Record<string, unknown> = {};
+
+export type TranslationParams = Record<string, string | number | boolean | null | undefined>;
+
+export type TFunction = (
+  moduleOrFullKey: string,
+  keyOrParams?: string | TranslationParams,
+  maybeParams?: TranslationParams,
+) => string;
+
+export interface AppT {
+  t: TFunction;
+  lang: string;
+  setLang: (lang: string) => void;
+  loading: boolean;
+  translations: Record<string, unknown>;
+  setCustomTranslations: (translations: Record<string, unknown>) => void;
+}
+
+interface AppLangContextValue {
+  lang?: string;
+  setLang?: (lang: string) => void;
+  loading?: boolean;
+  translations?: Record<string, unknown>;
+  setCustomTranslations?: (translations: Record<string, unknown>) => void;
+  baseTranslations?: Record<string, unknown>;
+  allTranslations?: { en?: Record<string, unknown>; es?: Record<string, unknown>; [k: string]: unknown };
+}
 
 /**
  * useAppT — Hook de traducción empresarial
@@ -19,8 +47,8 @@ const EMPTY_OBJ = {};
  *   t('dashboard.title', { lang: 'en' })
  *   t('dashboard.title', { name: 'Juan', lang: 'es' })
  */
-export function useAppT() {
-  const ctx = useContext(AppLangContext);
+export function useAppT(): AppT {
+  const ctx = useContext(AppLangContext) as AppLangContextValue | null;
   // Fallbacks seguros
   const lang = ctx?.lang || 'es';
   const setLang = ctx?.setLang || NOOP;
@@ -29,7 +57,7 @@ export function useAppT() {
   const setCustomTranslations = ctx?.setCustomTranslations || NOOP;
 
   // Traducción robusta con interpolación y fallback
-  const t = useMemo(() => {
+  const t = useMemo<TFunction>(() => {
     /**
      * Traduce una clave con soporte para:
      * - t('mod.key')
@@ -38,31 +66,33 @@ export function useAppT() {
      * - t('mod', 'key', { var1, lang })
      */
     return function translate(moduleOrFullKey, keyOrParams, maybeParams) {
-      let module, keyPath = [], params;
+      let moduleName: string;
+      let keyPath: string[] = [];
+      let params: TranslationParams;
       // Soporta t('mod.key', { ... }) o t('mod', 'key', { ... })
       if (typeof keyOrParams === 'object' && keyOrParams !== null && !Array.isArray(keyOrParams)) {
         // t('mod.key', { ... })
-        params = keyOrParams;
+        params = keyOrParams as TranslationParams;
         if (moduleOrFullKey.includes('.')) {
           const parts = moduleOrFullKey.split('.');
-          module = parts[0];
+          moduleName = parts[0];
           keyPath = parts.slice(1);
         } else {
           return moduleOrFullKey;
         }
       } else if (typeof maybeParams === 'object' && maybeParams !== null && !Array.isArray(maybeParams)) {
         // t('mod', 'key', { ... })
-        module = moduleOrFullKey;
+        moduleName = moduleOrFullKey;
         keyPath = String(keyOrParams).split('.');
         params = maybeParams;
       } else {
         // t('mod.key') o t('mod', 'key')
         if (keyOrParams) {
-          module = moduleOrFullKey;
+          moduleName = moduleOrFullKey;
           keyPath = String(keyOrParams).split('.');
         } else if (moduleOrFullKey.includes('.')) {
           const parts = moduleOrFullKey.split('.');
-          module = parts[0];
+          moduleName = parts[0];
           keyPath = parts.slice(1);
         } else {
           return moduleOrFullKey;
@@ -74,7 +104,7 @@ export function useAppT() {
       const dict = ctx?.translations || {};
       let trans = resolveTranslation({
         lang,
-        moduleName: module,
+        moduleName,
         keyPath,
         runtimeTranslations: dict,
         baseTranslations: ctx?.baseTranslations || {},
@@ -84,20 +114,20 @@ export function useAppT() {
 
       // Interpolación de variables: {var}
       if (params && typeof trans === 'string') {
-        trans = trans.replace(/\{(\w+)\}/g, (_, name) =>
-          params[name] !== undefined ? params[name] : `{${name}}`
+        trans = trans.replace(/\{(\w+)\}/g, (_: string, name: string) =>
+          params[name] !== undefined ? String(params[name]) : `{${name}}`,
         );
       }
-      return trans;
+      return trans as string;
     };
   }, [ctx, lang]);
 
-  return useMemo(() => ({
+  return useMemo<AppT>(() => ({
     t,
     lang,
-    setLang,
+    setLang: setLang as (lang: string) => void,
     loading,
-    translations,
-    setCustomTranslations,
+    translations: translations as Record<string, unknown>,
+    setCustomTranslations: setCustomTranslations as (translations: Record<string, unknown>) => void,
   }), [t, lang, setLang, loading, translations, setCustomTranslations]);
 }

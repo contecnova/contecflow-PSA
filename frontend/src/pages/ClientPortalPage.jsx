@@ -20,6 +20,7 @@ import { fmtDate, fmtCurrency, extractErr} from '../utils/helpers'
 import { STATUS_CFG, FR_STATUS_CFG } from '../constants/sharedStatus'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { LARGE_PAGE_SIZE, NOTIFICATIONS_POLL_MS } from '../constants/timings'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../components/portal/GovernedConversations'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
@@ -166,7 +167,7 @@ function CreateClientModal({ projectId, onClose }) {
 
   const { data: allProjects = [] } = useQuery({
     queryKey: ['projects-list'],
-    queryFn: () => projectsApi.list({ page_size: 200 }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
   })
 
   const { mutate, isPending } = useMutation({
@@ -246,7 +247,7 @@ function EditClientModal({ client, onClose, onSaved }) {
   const t = useAppT()
   const { data: allProjects = [] } = useQuery({
     queryKey: ['projects-list'],
-    queryFn: () => projectsApi.list({ page_size: 200 }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
   })
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => portalApi.updateClient(client.id, data),
@@ -897,7 +898,7 @@ function StatsPanel({ projectId }) {
     queryKey: ['portal-stats', projectId],
     queryFn: () => portalApi.stats(projectId).then(r => r.data),
     enabled: !!projectId,
-    refetchInterval: 30000,
+    refetchInterval: NOTIFICATIONS_POLL_MS,
   })
   if (!stats) return null
   return (
@@ -928,7 +929,7 @@ export default function ClientPortalPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list({ page_size: 200 }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
   })
 
   const TABS = [
