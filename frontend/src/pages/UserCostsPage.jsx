@@ -261,7 +261,11 @@ function KpiBox({ icon, label, value, sub, accent = 'var(--accent)' }) {
 
 function CountryCard({ c, onEdit }) {
   return (
-    <div onClick={onEdit} style={{
+    <div onClick={onEdit}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit() } }}
+      style={{
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8,
       padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 6,
     }}>

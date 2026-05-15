@@ -178,11 +178,14 @@ export default function VoiceCommandModal({ open, onClose }) {
   const pendingLabel = _formatPendingAction(pendingAction)
 
   return (
-    <div onClick={onClose} style={{
+    <div role="presentation" onClick={onClose} style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
       zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div onClick={e => e.stopPropagation()} style={{
+      <div role="dialog" aria-modal="true" tabIndex={-1}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => { if (e.key === 'Escape') onClose() }}
+        style={{
         width: 480, maxWidth: '92vw',
         background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
         borderRadius: 12, padding: '22px 26px',

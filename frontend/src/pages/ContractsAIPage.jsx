@@ -70,9 +70,11 @@ function ContractDetailPanel({ contractId, onClose }) {
   if (!contractId) return null
 
   return (
-    <div onClick={onClose}
+    <div role="presentation" onClick={onClose}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
-      <div onClick={e => e.stopPropagation()}
+      <div role="dialog" aria-modal="true" tabIndex={-1}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => { if (e.key === 'Escape') onClose() }}
         style={{
           width: 720, maxWidth: '95vw', height: '100%',
           background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',
