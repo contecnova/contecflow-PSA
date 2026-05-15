@@ -51,6 +51,7 @@ const SLA_COLOR = {
 // Refuerzo: exportar para debug si es necesario
 // export const inp = inp;
 import { useState } from 'react'
+import { z } from 'zod'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { clientsApi, unwrapList } from '../services/api'
@@ -58,6 +59,7 @@ import { Button, Spinner, EmptyState, Modal, useSort, SortableTH, ViewToggle } f
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { extractErr} from '../utils/helpers'
+import { useFormValidation } from '../hooks/useFormValidation'
 import { useAppT } from '../i18n/AppLangContext'
 import { Briefcase } from 'lucide-react'
 import {
@@ -69,6 +71,27 @@ import {
 } from './clients/ClientsPageTabs'
 
 
+// ── Zod schema mirroring backend Client model (app/models/clients.py) ────────
+const optionalString = (max) => z.union([
+  z.literal(''),
+  z.string().trim().max(max, `Máximo ${max} caracteres`),
+]).optional()
+const optionalEmail = z.union([
+  z.literal(''),
+  z.string().trim().email('Email inválido').max(200, 'Máximo 200 caracteres'),
+]).optional()
+
+const clientCreateSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es obligatorio').max(255, 'Máximo 255 caracteres'),
+  short_name: optionalString(50),
+  tax_id: optionalString(50),
+  contact_name: optionalString(200),
+  contact_email: optionalEmail,
+  contact_phone: optionalString(50),
+  status: z.string().min(1),
+  industry: z.string().min(1),
+  notes: z.union([z.literal(''), z.string().max(2000, 'Máximo 2000 caracteres')]).optional(),
+})
 
 
 
@@ -84,6 +107,7 @@ export default function ClientsPage() {
   const [activeTab, setActiveTab] = useState('contacts')
   const [showCreate, setShowCreate] = useState(false)
   const [newForm, setNewForm] = useState({ name: '', short_name: '', tax_id: '', contact_name: '', contact_email: '', contact_phone: '', status: 'active', industry: 'other', notes: '' })
+  const createValidation = useFormValidation(clientCreateSchema)
   const [showEdit, setShowEdit] = useState(false)
   const [editClientForm, setEditClientForm] = useState({})
   const [clientView, setClientView] = useState('grid')
@@ -107,6 +131,7 @@ export default function ClientsPage() {
       qc.invalidateQueries(['clients'])
       setShowCreate(false)
       setNewForm({ name: '', short_name: '', tax_id: '', contact_name: '', contact_email: '', contact_phone: '', status: 'active', industry: 'other', notes: '' })
+      createValidation.setErrors({})
       toast.success('Cliente creado correctamente')
     },
     onError: e => toast.error(extractErr(e, 'Error al crear cliente')),
@@ -429,35 +454,50 @@ export default function ClientsPage() {
       )}
 
       {/* Modal nuevo cliente */}
-      {showCreate && (
-        <Modal open title="Nuevo cliente" onClose={() => setShowCreate(false)} width={600}>
+      {showCreate && (() => {
+        const setCreateField = (key) => (e) => {
+          const value = e.target.value
+          setNewForm(f => ({ ...f, [key]: value }))
+          createValidation.clearFieldError(key)
+        }
+        const submitCreate = () => {
+          const result = createValidation.validateForm(newForm)
+          if (!result.success) return
+          create(newForm)
+        }
+        const errField = (key) => createValidation.errors[key] && (
+          <div style={{ color: 'var(--danger)', fontSize: 'var(--text-xs)', marginTop: 4 }}>{createValidation.errors[key]}</div>
+        )
+        return (
+        <Modal open title="Nuevo cliente" onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={600}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-            <div><label style={lbl}>Nombre *</label><input value={newForm.name} onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Nombre corto</label><input value={newForm.short_name} onChange={e => setNewForm(f => ({ ...f, short_name: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>CIF / NIF / VAT</label><input value={newForm.tax_id} onChange={e => setNewForm(f => ({ ...f, tax_id: e.target.value }))} style={inp} /></div>
+            <div><label style={lbl}>Nombre *</label><input value={newForm.name} onChange={setCreateField('name')} style={createValidation.inputStyle(inp, 'name')} />{errField('name')}</div>
+            <div><label style={lbl}>Nombre corto</label><input value={newForm.short_name} onChange={setCreateField('short_name')} style={createValidation.inputStyle(inp, 'short_name')} />{errField('short_name')}</div>
+            <div><label style={lbl}>CIF / NIF / VAT</label><input value={newForm.tax_id} onChange={setCreateField('tax_id')} style={createValidation.inputStyle(inp, 'tax_id')} />{errField('tax_id')}</div>
             <div><label style={lbl}>Sector</label>
-              <select value={newForm.industry} onChange={e => setNewForm(f => ({ ...f, industry: e.target.value }))} style={inp}>
+              <select value={newForm.industry} onChange={setCreateField('industry')} style={inp}>
                 {INDUSTRIES.map(i => <option key={i} value={i}>{i.charAt(0).toUpperCase() + i.slice(1)}</option>)}
               </select>
             </div>
-            <div><label style={lbl}>Contacto principal</label><input value={newForm.contact_name} onChange={e => setNewForm(f => ({ ...f, contact_name: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Email contacto</label><input type="email" value={newForm.contact_email} onChange={e => setNewForm(f => ({ ...f, contact_email: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Teléfono</label><input value={newForm.contact_phone} onChange={e => setNewForm(f => ({ ...f, contact_phone: e.target.value }))} style={inp} /></div>
+            <div><label style={lbl}>Contacto principal</label><input value={newForm.contact_name} onChange={setCreateField('contact_name')} style={createValidation.inputStyle(inp, 'contact_name')} />{errField('contact_name')}</div>
+            <div><label style={lbl}>Email contacto</label><input type="email" value={newForm.contact_email} onChange={setCreateField('contact_email')} style={createValidation.inputStyle(inp, 'contact_email')} />{errField('contact_email')}</div>
+            <div><label style={lbl}>Teléfono</label><input value={newForm.contact_phone} onChange={setCreateField('contact_phone')} style={createValidation.inputStyle(inp, 'contact_phone')} />{errField('contact_phone')}</div>
             <div><label style={lbl}>Estado</label>
-              <select value={newForm.status} onChange={e => setNewForm(f => ({ ...f, status: e.target.value }))} style={inp}>
+              <select value={newForm.status} onChange={setCreateField('status')} style={inp}>
                 {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
           </div>
-          <div style={{ marginBottom: 16 }}><label style={lbl}>Notas</label><textarea value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inp, minHeight: 70, resize: 'vertical' }} /></div>
+          <div style={{ marginBottom: 16 }}><label style={lbl}>Notas</label><textarea value={newForm.notes} onChange={setCreateField('notes')} style={{ ...createValidation.inputStyle(inp, 'notes'), minHeight: 70, resize: 'vertical' }} />{errField('notes')}</div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
-            <Button onClick={() => create(newForm)} disabled={!newForm.name || creating}>
+            <button onClick={() => { setShowCreate(false); createValidation.setErrors({}) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <Button onClick={submitCreate} disabled={creating}>
               {creating ? '⟳ Creando...' : '✓ Crear cliente'}
             </Button>
           </div>
         </Modal>
-      )}
+        )
+      })()}
       </div>
     </PageShell>
   )

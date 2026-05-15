@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { z } from 'zod'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -8,6 +9,7 @@ import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import { Search, Layers, Sparkles, Building2 } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { extractErr } from '../utils/helpers'
+import { useFormValidation } from '../hooks/useFormValidation'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSection } from './settings-sections/SettingsAdvancedSections'
 
@@ -285,6 +287,32 @@ const COMMON_TIMEZONES = [
   'Australia/Sydney', 'Pacific/Auckland',
 ]
 
+// Zod schema mirroring backend UserBase/UserCreate (app/schemas/users.py)
+const userFormSchemaBase = z.object({
+  username: z.string().trim().min(1, 'El usuario es obligatorio').max(150, 'Máximo 150 caracteres'),
+  email: z.string().trim().min(1, 'El email es obligatorio').email('Email inválido').max(200, 'Máximo 200 caracteres'),
+  full_name: z.string().trim().min(1, 'El nombre completo es obligatorio').max(255, 'Máximo 255 caracteres'),
+  role: z.string().min(1, 'Selecciona un rol'),
+  department: z.union([z.literal(''), z.string().max(100)]).optional(),
+  job_title: z.union([z.literal(''), z.string().max(150)]).optional(),
+  weekly_capacity_hours: z.coerce.number({ invalid_type_error: 'Debe ser un número' })
+    .min(0, 'No puede ser negativo')
+    .max(168, 'Máximo 168h/semana'),
+  hourly_rate: z.union([
+    z.literal(''),
+    z.coerce.number({ invalid_type_error: 'Debe ser un número' }).nonnegative('No puede ser negativo'),
+  ]).optional(),
+  timezone: z.union([z.literal(''), z.string()]).optional(),
+  organization_ids: z.array(z.string()).optional(),
+  organization_id: z.union([z.literal(''), z.string()]).optional(),
+})
+const userCreateSchema = userFormSchemaBase.extend({
+  password: z.string().min(6, 'Mínimo 6 caracteres').max(128, 'Máximo 128 caracteres'),
+})
+const userEditSchema = userFormSchemaBase.extend({
+  password: z.union([z.literal(''), z.string().min(6, 'Mínimo 6 caracteres')]).optional(),
+})
+
 function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], departments = [], organizations = [] }) {
   const isEdit = !!user
   const [form, setForm] = useState({
@@ -303,7 +331,11 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
     organization_id: user?.organization_id || '',
     password: '',
   })
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const validation = useFormValidation(isEdit ? userEditSchema : userCreateSchema)
+  const set = (k) => (e) => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
+    validation.clearFieldError(k)
+  }
   const setOrganizations = (e) => {
     const values = Array.from(e.target.selectedOptions).map(o => o.value)
     setForm((f) => {
@@ -312,31 +344,37 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         : (values[0] || '')
       return { ...f, organization_ids: values, organization_id: nextPrimary }
     })
+    validation.clearFieldError('organization_ids')
   }
+  const errField = (key) => validation.errors[key] && (
+    <div style={{ color: 'var(--danger)', fontSize: 'var(--text-xs)', marginTop: 4 }}>{validation.errors[key]}</div>
+  )
   const handleSubmit = (e) => {
     e.preventDefault()
+    const result = validation.validateForm(form)
+    if (!result.success) return
     onSave(form)
   }
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? `Editar — ${user.full_name}` : 'Nuevo Usuario'} width={580}>
       <form onSubmit={handleSubmit}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>Nombre completo *</label><input value={form.full_name} onChange={set('full_name')} style={fs} /></div>
-        <div><label style={ls}>Usuario *</label><input value={form.username} onChange={set('username')} style={fs} /></div>
-        <div><label style={ls}>Email *</label><input type="email" value={form.email} onChange={set('email')} style={fs} /></div>
-        <div><label style={ls}>Rol</label><select value={form.role} onChange={set('role')} style={fs}>
+        <div style={{ gridColumn: '1/-1' }}><label style={ls}>Nombre completo *</label><input value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />{errField('full_name')}</div>
+        <div><label style={ls}>Usuario *</label><input value={form.username} onChange={set('username')} style={validation.inputStyle(fs, 'username')} />{errField('username')}</div>
+        <div><label style={ls}>Email *</label><input type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />{errField('email')}</div>
+        <div><label style={ls}>Rol</label><select value={form.role} onChange={set('role')} style={validation.inputStyle(fs, 'role')}>
           {roles.length > 0
             ? roles.map(r => <option key={r.name} value={r.name}>{r.description || r.name}</option>)
             : Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)
           }
-        </select></div>
+        </select>{errField('role')}</div>
         <div><label style={ls}>Departamento</label><select value={form.department} onChange={set('department')} style={fs}>
           <option value="">— Sin departamento —</option>
           {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
         </select></div>
         <div><label style={ls}>Cargo</label><input value={form.job_title} onChange={set('job_title')} style={fs} /></div>
-        <div><label style={ls}>Horas semanales</label><input type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} style={fs} /></div>
-        <div><label style={ls}>Tarifa €/hora</label><input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={fs} /></div>
+        <div><label style={ls}>Horas semanales</label><input type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} style={validation.inputStyle(fs, 'weekly_capacity_hours')} />{errField('weekly_capacity_hours')}</div>
+        <div><label style={ls}>Tarifa €/hora</label><input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} />{errField('hourly_rate')}</div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Organizaciones (selección múltiple)</label>
           <select multiple value={form.organization_ids} onChange={setOrganizations} style={{ ...fs, minHeight: 112 }}>
@@ -362,10 +400,10 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
             {COMMON_TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
-        {!isEdit && <div style={{ gridColumn: '1/-1' }}><label style={ls}>Contraseña *</label><input type="password" value={form.password} onChange={set('password')} style={fs} /></div>}
+        {!isEdit && <div style={{ gridColumn: '1/-1' }}><label style={ls}>Contraseña *</label><input type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} />{errField('password')}</div>}
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" disabled={isPending || !form.full_name || !form.username || !form.email || (!isEdit && !form.password)}>
+          <Button type="submit" disabled={isPending}>
             {isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear'}
           </Button>
         </div>
