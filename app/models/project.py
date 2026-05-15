@@ -43,6 +43,7 @@ class Project(Base):
 
     # Multi-tenancy: row-level org isolation
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True)
+    is_active = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
     code = Column(String(20), unique=True, nullable=False, index=True)  # e.g. PRJ-001
     name = Column(String(255), nullable=False)
