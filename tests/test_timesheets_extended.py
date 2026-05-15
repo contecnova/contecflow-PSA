@@ -164,10 +164,10 @@ def test_review_timesheet_approve(client, dev_token, pm_token, db):
     ts_id = None
 
     # Find submitted timesheet id via pending list
+    # audit #90: assert instead of silent skip — submit above must produce a pending timesheet
     _pending_payload = client.get("/api/v1/timesheets/pending", headers=auth(pm_token)).json()
     pending = _pending_payload.get("items") if isinstance(_pending_payload, dict) else _pending_payload
-    if not pending:
-        pytest.skip("No submitted timesheet found")
+    assert pending, "submitted timesheet should appear in pending list"
 
     ts_id = pending[0]["id"]
     res = client.post(f"/api/v1/timesheets/{ts_id}/review",
@@ -185,10 +185,10 @@ def test_review_timesheet_reject(client, dev_token, pm_token, db):
     week = str(next_monday())
     client.post(f"/api/v1/timesheets/my/{week}/submit", headers=auth(dev_token))
 
+    # audit #90: assert instead of silent skip — submit above must produce a pending timesheet
     _pending_payload = client.get("/api/v1/timesheets/pending", headers=auth(pm_token)).json()
     pending = _pending_payload.get("items") if isinstance(_pending_payload, dict) else _pending_payload
-    if not pending:
-        pytest.skip("No submitted timesheet found")
+    assert pending, "submitted timesheet should appear in pending list"
 
     ts_id = pending[0]["id"]
     res = client.post(f"/api/v1/timesheets/{ts_id}/review",

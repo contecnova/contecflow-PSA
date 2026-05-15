@@ -13,6 +13,39 @@ def resource_client(client, admin_token):
     return (client, admin_token)
 
 
+def _make_project(db: Session, code="RES-TEST-001", name="Resource Test Project"):
+    """Create a minimal Project locally (audit #90: avoid seed dependency)."""
+    from app.models.project import Project, ProjectType, ProjectStatus
+    admin = db.query(User).filter(User.id == "admin-test-id").first()
+    project = Project(
+        code=code,
+        name=name,
+        project_type=ProjectType.consulting,
+        status=ProjectStatus.active,
+        organization_id=admin.organization_id if admin else None,
+        pm_id="pm-test-id",
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def _make_skill(db: Session, name="Resource Test Skill"):
+    """Create a minimal Skill locally (audit #90: avoid seed dependency)."""
+    from app.models.resources import Skill, SkillCategory
+    admin = db.query(User).filter(User.id == "admin-test-id").first()
+    skill = Skill(
+        name=name,
+        category=SkillCategory.technical,
+        organization_id=admin.organization_id if admin else None,
+    )
+    db.add(skill)
+    db.commit()
+    db.refresh(skill)
+    return skill
+
+
 # ── Availability Matrix Tests ──────────────────────────────────────────────
 
 def test_availability_matrix(db: Session, resource_client):
@@ -37,10 +70,8 @@ def test_availability_matrix_for_project(db: Session, resource_client):
     client, token = resource_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    from app.models.project import Project
-    project = db.query(Project).first()
-    if not project:
-        pytest.skip("No project found")
+    # audit #90: create the project locally instead of depending on seed data
+    project = _make_project(db, code="RES-AVAIL-001", name="Availability Matrix Project")
 
     response = client.get(
         f"/api/v1/resources/availability-matrix?weeks_ahead=4&project_id={project.id}",
@@ -126,10 +157,8 @@ def test_skill_gaps(db: Session, resource_client):
     client, token = resource_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    from app.models.project import Project
-    project = db.query(Project).first()
-    if not project:
-        pytest.skip("No project found")
+    # audit #90: create the project locally instead of depending on seed data
+    project = _make_project(db, code="RES-SKILL-001", name="Skill Gaps Project")
 
     response = client.get(f"/api/v1/resources/{project.id}/skill-gaps", headers=headers)
     assert response.status_code == 200
@@ -144,10 +173,8 @@ def test_available_by_skill(db: Session, resource_client):
     client, token = resource_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    from app.models.resources import Skill
-    skill = db.query(Skill).first()
-    if not skill:
-        pytest.skip("No skill found")
+    # audit #90: create the skill locally instead of depending on seed data
+    skill = _make_skill(db, name="Python (resources test)")
 
     response = client.get(f"/api/v1/resources/available-by-skill/{skill.id}", headers=headers)
     assert response.status_code == 200
@@ -188,9 +215,9 @@ def test_utilization_history_for_user(db: Session, resource_client):
     client, token = resource_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    user = db.query(User).filter(User.is_active == True).first()
-    if not user:
-        pytest.skip("No active user found")
+    # audit #90: rely on conftest-seeded admin user instead of silent skip
+    user = db.query(User).filter(User.id == "admin-test-id").first()
+    assert user is not None, "conftest must seed admin-test-id"
 
     response = client.get(
         f"/api/v1/resources/utilization-history?user_id={user.id}&weeks_back=12",
@@ -232,10 +259,9 @@ def test_acknowledge_alert(db: Session, resource_client, admin_token):
 
     from app.models.resources import ResourceAlert, ResourceAlertType
 
-    # Create an alert
-    user = db.query(User).filter(User.is_active == True).first()
-    if not user:
-        pytest.skip("No active user found")
+    # audit #90: rely on conftest-seeded admin user instead of silent skip
+    user = db.query(User).filter(User.id == "admin-test-id").first()
+    assert user is not None, "conftest must seed admin-test-id"
 
     alert = ResourceAlert(
         user_id=user.id,
