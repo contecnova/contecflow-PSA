@@ -204,7 +204,12 @@ def redact_pii(
 
 
 # ── Guardrail Policy DB Model + Engine ───────────────────────────────────────
-# (imported lazily to avoid circular imports — DB is optional)
+# NOTE (audit #110): an older comment claimed model imports were lazy to
+# avoid circular imports. Verified: app.models.ai_governance only depends on
+# app.db.base; nothing in app.models imports this service. The model classes
+# (AIGuardrailPolicyModel, AIGuardrailAuditLog) are imported eagerly at the
+# top of this module and the redundant lazy re-imports inside _load_policies()
+# and _audit() have been removed.
 
 @dataclass
 class GuardrailPolicy:
@@ -269,7 +274,6 @@ class AIGuardrailEngine:
         ):
             return self._policies_cache
         try:
-            from app.models.ai_governance import AIGuardrailPolicyModel
             rows = self.db.query(AIGuardrailPolicyModel).filter(
                 AIGuardrailPolicyModel.org_id  == self.org_id,
                 AIGuardrailPolicyModel.is_active == True,
@@ -432,7 +436,6 @@ class AIGuardrailEngine:
         request_id: Optional[str],
     ) -> None:
         try:
-            from app.models.ai_governance import AIGuardrailAuditLog
             record = AIGuardrailAuditLog(
                 id             = str(uuid.uuid4()),
                 org_id         = self.org_id,

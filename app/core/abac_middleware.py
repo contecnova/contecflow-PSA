@@ -19,12 +19,23 @@ from __future__ import annotations
 import logging
 from typing import Callable
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from app.core.abac_registry import ABAC_ROUTE_REGISTRY
+# NOTE (audit #110): the SessionLocal / enforce_abac imports below used to be
+# deferred inside dispatch() with the comment "Import here to avoid circular
+# imports". After investigation that risk does NOT exist:
+#   - app.db.session only depends on sqlalchemy + app.core.config.
+#   - app.core.abac_enforce only depends on app.models.user and
+#     app.services.abac, neither of which imports this middleware (the
+#     middleware is referenced exclusively from app.main).
+# Hoisting these imports to the top makes ImportErrors fail fast at startup
+# instead of on the first ABAC-registered request.
+from app.core.abac_enforce import enforce_abac
+from app.db.session import SessionLocal
 
 logger = logging.getLogger("contecflow.abac.middleware")
 
@@ -65,10 +76,6 @@ class ABACMiddleware(BaseHTTPMiddleware):
             if user is not None:
                 resource_type, action = registry_entry
                 try:
-                    # Import here to avoid circular imports at module load time.
-                    from app.db.session import SessionLocal
-                    from app.core.abac_enforce import enforce_abac
-
                     db = SessionLocal()
                     try:
                         enforce_abac(db, user, resource_type, resource_id=None, action=action)
@@ -79,8 +86,6 @@ class ABACMiddleware(BaseHTTPMiddleware):
                     # enforce_abac raises HTTPException(403) on denial; we
                     # translate that to a JSON response here since we are in
                     # middleware context (outside normal FastAPI exception handling).
-                    from fastapi import HTTPException
-
                     if isinstance(exc, HTTPException):
                         logger.info(
                             "ABAC middleware denied access: user=%s path=%s resource=%s action=%s",

@@ -14,10 +14,12 @@ from fastapi import HTTPException
 from app.models.billing_reports import RolePermission, SodRule, SodViolation, GrcAuditLog
 
 
-# ── Lazy model imports (avoid circular imports at module load) ─────────────────
-
-def _models():
-    return RolePermission, SodRule, SodViolation, GrcAuditLog
+# NOTE (audit #110): an earlier version of this file used a ``_models()``
+# function that returned the four model classes, ostensibly to avoid circular
+# imports at module load. Verified: app.models.billing_reports only depends on
+# app.db.base / sqlalchemy and nothing inside app.models imports this service,
+# so there was never a real cycle. The classes are now imported eagerly at the
+# top of the file and used directly by each function.
 
 
 # ── Session helpers ───────────────────────────────────────────────────────────
@@ -40,7 +42,6 @@ def log_grc_entry(
     severity: str = "info",
 ) -> None:
     """Add a GRC audit log entry to the session (no commit)."""
-    RolePermission, SodRule, SodViolation, GrcAuditLog = _models()
     entry = GrcAuditLog(
         id=str(uuid.uuid4()),
         user_id=user_id,
@@ -58,7 +59,6 @@ def log_grc_entry(
 
 def ensure_matrix_seeded(db: Session, default_matrix: dict) -> None:
     """Seed default_matrix into DB if grc_role_permissions is empty."""
-    RolePermission, *_ = _models()
     count = db.query(RolePermission).count()
     if count == 0:
         rows = []
@@ -75,7 +75,6 @@ def ensure_matrix_seeded(db: Session, default_matrix: dict) -> None:
 
 def ensure_sod_seeded(db: Session, default_sod_rules: list) -> None:
     """Seed default_sod_rules into DB if grc_sod_rules is empty."""
-    _, SodRule, *_ = _models()
     count = db.query(SodRule).count()
     if count == 0:
         rows = [
@@ -96,7 +95,6 @@ def ensure_sod_seeded(db: Session, default_sod_rules: list) -> None:
 
 def get_all_permissions(db: Session):
     """Return all RolePermission rows."""
-    RolePermission, *_ = _models()
     return db.query(RolePermission).all()
 
 
@@ -106,7 +104,6 @@ def upsert_permission(
     allowed: bool, updated_by: Optional[str],
 ):
     """Update existing permission or create it if missing. Returns (row, old_value)."""
-    RolePermission, *_ = _models()
     row = db.query(RolePermission).filter(
         RolePermission.role == role,
         RolePermission.module == module,
@@ -128,7 +125,6 @@ def upsert_permission(
 
 def reset_permission_matrix(db: Session, default_matrix: dict) -> None:
     """Delete all permissions and re-seed from default_matrix."""
-    RolePermission, *_ = _models()
     db.query(RolePermission).delete()
     db.commit()
     ensure_matrix_seeded(db, default_matrix)
@@ -136,7 +132,6 @@ def reset_permission_matrix(db: Session, default_matrix: dict) -> None:
 
 def get_role_permission(db: Session, role: str, module: str, action: str):
     """Return a single RolePermission row or None."""
-    RolePermission, *_ = _models()
     return db.query(RolePermission).filter(
         RolePermission.role == role,
         RolePermission.module == module,
@@ -148,7 +143,6 @@ def get_role_permission(db: Session, role: str, module: str, action: str):
 
 def list_sod_rules_db(db: Session):
     """Return all SodRule rows ordered by risk."""
-    _, SodRule, *_ = _models()
     return db.query(SodRule).order_by(SodRule.risk).all()
 
 
@@ -162,7 +156,6 @@ def create_sod_rule_db(
     created_by: Optional[str],
 ):
     """Create and persist a new SodRule. Returns the new rule (before commit)."""
-    _, SodRule, *_ = _models()
     rule = SodRule(
         id=str(uuid.uuid4()),
         module_a=module_a, action_a=action_a,
@@ -178,7 +171,6 @@ def create_sod_rule_db(
 
 def get_sod_rule_or_404(db: Session, rule_id: str):
     """Return SodRule by id or raise HTTP 404."""
-    _, SodRule, *_ = _models()
     rule = db.query(SodRule).filter(SodRule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404)
@@ -206,7 +198,6 @@ def delete_sod_rule_db(db: Session, rule) -> None:
 
 def get_active_sod_rules(db: Session):
     """Return all active SodRule rows."""
-    _, SodRule, *_ = _models()
     return db.query(SodRule).filter(SodRule.is_active == True).all()
 
 
@@ -214,7 +205,6 @@ def get_active_sod_rules(db: Session):
 
 def list_violations_db(db: Session, resolved: Optional[bool], limit: int):
     """Return SodViolation rows, optionally filtered by resolved status."""
-    _, _, SodViolation, _ = _models()
     q = db.query(SodViolation)
     if resolved is not None:
         q = q.filter(SodViolation.resolved == resolved)
@@ -223,7 +213,6 @@ def list_violations_db(db: Session, resolved: Optional[bool], limit: int):
 
 def get_violation_or_404(db: Session, violation_id: str):
     """Return SodViolation by id or raise HTTP 404."""
-    _, _, SodViolation, _ = _models()
     v = db.query(SodViolation).filter(SodViolation.id == violation_id).first()
     if not v:
         raise HTTPException(status_code=404)
@@ -247,7 +236,6 @@ def list_audit_log_db(
     limit: int,
 ):
     """Return GrcAuditLog rows with optional filters."""
-    _, _, _, GrcAuditLog = _models()
     q = db.query(GrcAuditLog)
     if severity:
         q = q.filter(GrcAuditLog.severity == severity)
