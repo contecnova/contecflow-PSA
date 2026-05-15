@@ -68,13 +68,16 @@ class TestImputationCostCalculation:
             assert data["cost_amount"] == pytest.approx(200.0, rel=1e-2)
 
     def test_imputation_cost_zero_when_no_rate(self, client, admin_token, db):
-        """La API rechaza imputation de usuarios sin hourly_rate con 400 (no 500)."""
+        """La API rechaza imputation de usuarios sin hourly_rate con 400 (regla de negocio)."""
         pid = _make_project(client, admin_token, "FC02")
-        # admin no tiene hourly_rate → la API devuelve 400 (regla de negocio)
+        # admin no tiene hourly_rate → la API debe devolver 400 con detalle explicativo
         r = _log_hours(client, admin_token, pid, 2.0)
-        # 400 es el comportamiento correcto; cualquier cosa que no sea 5xx es aceptable
-        assert r.status_code != 500, f"La API no debe retornar 500: {r.text}"
-        assert r.status_code in (200, 201, 400, 422), f"Unexpected status: {r.status_code} {r.text}"
+        assert r.status_code == 400, f"Expected 400 (no rate assigned) but got {r.status_code}: {r.text}"
+        body = r.json()
+        # FastAPI HTTPException → {"detail": "..."}
+        detail = body.get("detail", "")
+        assert isinstance(detail, str) and detail, f"Expected non-empty 'detail' in body, got: {body}"
+        assert "tarifa" in detail.lower(), f"Expected error to mention 'tarifa', got: {detail}"
 
     def test_partial_hours_cost(self, client, admin_token, dev_token, db):
         """Verificar que fracciones de hora se calculan correctamente (0.5h × 50 = 25)."""
@@ -130,7 +133,9 @@ class TestImputationRoleVisibility:
         r = client.get("/api/v1/imputations", headers=auth(dev_token))
         assert r.status_code == 200
         data = r.json()
-        for imp in data:
+        # #67: APIListResponse wrapper — items en payload["items"] o array legacy
+        items = data.get("items") if isinstance(data, dict) else data
+        for imp in items:
             assert imp.get("user_id") == "dev-test-id" or imp.get("user", {}).get("id") == "dev-test-id"
 
     def test_admin_can_see_all_imputations(self, client, admin_token, dev_token, db):
@@ -144,8 +149,10 @@ class TestImputationRoleVisibility:
         assert r2.status_code in (200, 201), f"Imputation 2 failed: {r2.text}"
         r = client.get("/api/v1/imputations", headers=auth(admin_token))
         assert r.status_code == 200
-        # Admin debe ver al menos las 2 imputaciones creadas
-        assert len(r.json()) >= 2
+        # #67: APIListResponse wrapper
+        body = r.json()
+        items = body.get("items") if isinstance(body, dict) else body
+        assert len(items) >= 2
 
 
 # ── Tarifas — Visibilidad por rol ──────────────────────────────────────────────
@@ -165,6 +172,13 @@ class TestRateVisibility:
     def test_hr_sees_hourly_rates(self, client, hr_token, db):
         r = client.get("/api/v1/users/with-rates", headers=auth(hr_token))
         assert r.status_code == 200
+        users = r.json()
+        assert isinstance(users, list) and len(users) > 0, "HR should see at least one user with rate"
+        # HR debe ver el campo hourly_rate (no filtrado a None por RBAC)
+        assert all("hourly_rate" in u for u in users), (
+            f"All user entries should expose 'hourly_rate' key to HR, got keys: "
+            f"{[set(u.keys()) for u in users[:2]]}"
+        )
 
     def test_employee_cannot_see_rates_endpoint(self, client, dev_token, db):
         r = client.get("/api/v1/users/with-rates", headers=auth(dev_token))
@@ -200,7 +214,12 @@ class TestRateCards:
         self._create_rate_card(client, admin_token, "RC List")
         r = client.get("/api/v1/rate-cards", headers=auth(admin_token))
         assert r.status_code == 200
-        assert isinstance(r.json(), list)
+        body = r.json()
+        # #67: APIListResponse wrapper o lista legacy
+        items = body.get("items") if isinstance(body, dict) else body
+        assert isinstance(items, list), f"Expected list of items, got: {type(items).__name__}"
+        names = [rc.get("name") for rc in items]
+        assert "RC List" in names, f"Created rate card 'RC List' not found in list: {names}"
 
     def test_rate_card_employee_cannot_create(self, client, dev_token, db):
         r = self._create_rate_card(client, dev_token)
@@ -342,22 +361,62 @@ class TestExpenseApproval:
             assert my_expense.get("status") in ("pending", "submitted", "draft", None)
 
     def test_admin_can_approve_expense(self, client, admin_token, dev_token, db):
+        """El admin debe poder aprobar un gasto vía POST /{id}/review.
+
+        El gasto debe estar en estado `submitted` (post submit) para ser
+        revisable — un draft acabado de crear devuelve 400 "no está
+        pendiente de revisión".
+        """
         eid = self._create_expense(client, dev_token)
-        # Try approve — admins should be able to approve
-        r = client.post(f"/api/v1/expenses/{eid}/approve", headers=auth(admin_token))
-        # 404 means endpoint path is different; 200/204 means success; 403 means role check
-        assert r.status_code in (200, 204, 404), f"Unexpected: {r.status_code} {r.text}"
+        # Submit first: draft → submitted (pending review)
+        submit_r = client.post(f"/api/v1/expenses/my/{eid}/submit", headers=auth(dev_token))
+        assert submit_r.status_code in (200, 201), f"Submit failed: {submit_r.text}"
+        r = client.post(
+            f"/api/v1/expenses/{eid}/review",
+            headers=auth(admin_token),
+            json={"approved": True},
+        )
+        assert r.status_code == 200, f"Expected 200 approving expense but got {r.status_code}: {r.text}"
+        body = r.json()
+        # El gasto aprobado debe reflejar el cambio de estado
+        status = body.get("status") or body.get("expense", {}).get("status")
+        assert status in ("approved", "reviewed"), f"Expected approved status, got: {body}"
 
     def test_employee_cannot_approve_own_expense(self, client, dev_token, db):
+        """Un empleado nunca puede aprobar su propio gasto (RBAC: require_any_manager)."""
         eid = self._create_expense(client, dev_token)
-        r = client.post(f"/api/v1/expenses/{eid}/approve", headers=auth(dev_token))
-        assert r.status_code in (401, 403, 404)
+        r = client.post(
+            f"/api/v1/expenses/{eid}/review",
+            headers=auth(dev_token),
+            json={"approved": True},
+        )
+        assert r.status_code in (401, 403), (
+            f"Employee should be forbidden from approving, got {r.status_code}: {r.text}"
+        )
+        body = r.json()
+        assert "detail" in body, f"Expected 'detail' in error body, got: {body}"
 
     def test_expense_amount_must_be_positive(self, client, dev_token, db):
-        # The API may accept 0 or negative — this documents current behavior
+        """Documenta el comportamiento actual frente a importes negativos.
+
+        SMOKE TEST INTENCIONAL: ni el schema (ExpenseCreate.amount: float) ni el servicio
+        (create_expense_record) validan que amount > 0, así que la API actualmente acepta
+        importes negativos con 200/201. Idealmente debería rechazarlos con 400/422; mientras
+        tanto este test fija el contrato actual y verifica que el body es consistente.
+        TODO(backend): añadir `pydantic.Field(gt=0)` en `ExpenseCreate.amount` y migrar
+        este test a `assert r.status_code in (400, 422)`.
+        """
         r = client.post("/api/v1/expenses", headers=auth(dev_token), json={
             "description": "Gasto negativo", "amount": -50.0,
             "category": "other", "expense_date": str(date.today()),
         })
-        # Ideally 400/422, but document actual behavior
-        assert r.status_code in (200, 201, 400, 422), f"Unexpected: {r.status_code}"
+        assert r.status_code in (200, 201, 400, 422), (
+            f"Unexpected status (must be accepted or validated, never 5xx): {r.status_code} {r.text}"
+        )
+        body = r.json()
+        if r.status_code in (200, 201):
+            # Si lo acepta, debe devolver un objeto con id y reflejar el amount negativo
+            assert "id" in body, f"Expected 'id' in created expense, got: {body}"
+            assert body.get("amount") == -50.0, f"Expected amount=-50.0 round-trip, got: {body}"
+        else:
+            assert "detail" in body, f"Expected validation 'detail' in body, got: {body}"
