@@ -11,7 +11,7 @@ from app.api.v1.endpoints import (
     accounting_hub, okrs, performance, training, documents, resources,
     invoices, documents_collab, analytics_extended, portfolio,
     git_integration, esign, report_builder, nps, m365, m365_bi,
-    backlog, export_template, cicd, events, documents_edit,
+    backlog, export_template, events, documents_edit,
     gantt_suggestions, templates, revenue, predictions,
     bi_collaboration, bi_intelligence, bi_platform,
     bi_smart_alerts, bi_bookmarks, bi_report_builder_v2,
@@ -79,7 +79,6 @@ router.include_router(m365_bi.router,                                          t
 # ── Framework/pipeline modules ─────────────────────────────────────────────────
 router.include_router(backlog.router,          tags=["Backlog"])
 router.include_router(export_template.router,  tags=["Export Templates"])
-router.include_router(cicd.router,             tags=["CICD"])
 router.include_router(events.router,           tags=["Events"])
 router.include_router(documents_edit.router,   tags=["Documents"])
 router.include_router(gantt_suggestions.router, tags=["Gantt Suggestions"])
