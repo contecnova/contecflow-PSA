@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date as _date, datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -11,7 +11,7 @@ from app.schemas.users import UserPublic
 class ImputationCreate(BaseModel):
     task_id: Optional[str] = Field(default=None, description="ID de la tarea asociada a la imputación")
     project_id: str = Field(..., description="ID del proyecto al que se imputan las horas")
-    date: date = Field(..., description="Fecha de la imputación")
+    date: _date = Field(..., description="Fecha de la imputación")
     hours: float = Field(..., gt=0, le=24, description="Horas imputadas (mayor que 0 y máximo 24)")
     description: Optional[str] = Field(default=None, description="Descripción del trabajo imputado")
     is_billable: bool = Field(default=False, description="Indica si la imputación es facturable")
@@ -34,7 +34,7 @@ class ImputationOut(BaseModel):
     user: UserPublic = Field(..., description="Usuario que realizó la imputación")
     task: Optional[TaskOut] = Field(default=None, description="Tarea asociada a la imputación")
     project: Optional[ProjectSummary] = Field(default=None, description="Resumen del proyecto asociado")
-    date: date = Field(..., description="Fecha de la imputación")
+    date: _date = Field(..., description="Fecha de la imputación")
     hours: float = Field(..., description="Horas imputadas")
     cost_amount: Optional[float] = Field(default=None, description="Coste calculado de la imputación en euros")
     description: Optional[str] = Field(default=None, description="Descripción del trabajo imputado")
@@ -51,8 +51,8 @@ class ImputationOut(BaseModel):
 
 class WeekSummary(BaseModel):
     user_id: str = Field(..., description="ID del usuario al que pertenece el resumen")
-    week_start: date = Field(..., description="Fecha de inicio de la semana")
-    week_end: date = Field(..., description="Fecha de fin de la semana")
+    week_start: _date = Field(..., description="Fecha de inicio de la semana")
+    week_end: _date = Field(..., description="Fecha de fin de la semana")
     total_hours: float = Field(..., description="Total de horas imputadas en la semana")
     capacity_hours: float = Field(..., description="Capacidad de horas planificada para la semana")
     load_pct: float = Field(..., description="Porcentaje de carga sobre la capacidad")
