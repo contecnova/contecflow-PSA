@@ -218,11 +218,11 @@ function CABBoard() {
   const qc = useQueryClient()
   const { data: pendingCRs = [], isLoading } = useQuery({
     queryKey: ['cab-pending'],
-    queryFn: () => cabApi.changes().then(r => r.data),
+    queryFn: () => cabApi.changes().then(r => r.data?.items ?? r.data ?? []),
   })
   const { data: windows = [] } = useQuery({
     queryKey: ['maintenance-windows'],
-    queryFn: () => cabApi.windows().then(r => r.data),
+    queryFn: () => cabApi.windows().then(r => r.data?.items ?? r.data ?? []),
   })
   const { mutate: vote, isPending: _saving } = useMutation({
     mutationFn: ({ id, vote, comment }) => cabApi.vote(id, { vote, comment }),

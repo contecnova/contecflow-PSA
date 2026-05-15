@@ -33,6 +33,7 @@ class IssueType(Base):
     is_subtask   = Column(Boolean, default=False)           # puede ser subtarea
     sort_order   = Column(Integer, default=0)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
+    is_active    = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
     fields       = relationship("IssueTypeField", back_populates="issue_type",
                                 cascade="all, delete-orphan")

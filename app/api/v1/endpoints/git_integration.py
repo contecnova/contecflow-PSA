@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.services.git_service import (
     get_pull_request,
@@ -132,17 +133,20 @@ class DeployOut(BaseModel):
         from_attributes = True
 
 
-@router.get("/pull-requests", response_model=List[PROut], summary="Listar Pull Requests")
+@router.get("/pull-requests", response_model=APIListResponse[PROut], summary="Listar Pull Requests")
 def list_prs(
     task_id:    Optional[int] = Query(None),
     project_id: Optional[int] = Query(None),
     status:     Optional[str] = Query(None),
     provider:   Optional[str] = Query(None),
     limit:      int           = Query(50, le=200),
+    page:       int           = Query(1, ge=1),
+    page_size:  int           = Query(50, ge=1, le=200),
     db:         Session       = Depends(get_db),
     _:          User          = Depends(get_current_user),
 ):
-    return list_pull_requests(db, task_id=task_id, project_id=project_id, status=status, provider=provider, limit=limit)
+    items = list_pull_requests(db, task_id=task_id, project_id=project_id, status=status, provider=provider, limit=limit)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.get("/pull-requests/{pr_id}", response_model=PROut, summary="Detalle de PR")
@@ -157,16 +161,19 @@ def get_pr(
     return pr
 
 
-@router.get("/deployments", response_model=List[DeployOut], summary="Listar deployments")
+@router.get("/deployments", response_model=APIListResponse[DeployOut], summary="Listar deployments")
 def list_deployments(
     task_id:    Optional[int] = Query(None),
     project_id: Optional[int] = Query(None),
     status:     Optional[str] = Query(None),
     limit:      int           = Query(50, le=200),
+    page:       int           = Query(1, ge=1),
+    page_size:  int           = Query(50, ge=1, le=200),
     db:         Session       = Depends(get_db),
     _:          User          = Depends(get_current_user),
 ):
-    return svc_list_deployments(db, task_id=task_id, project_id=project_id, status=status, limit=limit)
+    items = svc_list_deployments(db, task_id=task_id, project_id=project_id, status=status, limit=limit)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/tasks/{task_id}/branch", summary="Sugerir nombre de rama para una tarea")

@@ -115,7 +115,9 @@ def test_submit_timesheet_twice_fails(client, dev_token, pm_token, db):
 def test_get_pending_timesheets(client, pm_token, db):
     res = client.get("/api/v1/timesheets/pending", headers=auth(pm_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    items = payload.get("items") if isinstance(payload, dict) else payload
+    assert isinstance(items, list)
 
 
 def test_get_pending_timesheets_non_manager_fails(client, dev_token, db):
@@ -128,7 +130,9 @@ def test_get_pending_timesheets_non_manager_fails(client, dev_token, db):
 def test_get_team_timesheets(client, pm_token, db):
     res = client.get("/api/v1/timesheets/team", headers=auth(pm_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    items = payload.get("items") if isinstance(payload, dict) else payload
+    assert isinstance(items, list)
 
 
 def test_get_team_timesheets_with_filters(client, pm_token, db):
@@ -138,7 +142,9 @@ def test_get_team_timesheets_with_filters(client, pm_token, db):
         headers=auth(pm_token),
     )
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    items = payload.get("items") if isinstance(payload, dict) else payload
+    assert isinstance(items, list)
 
 
 def test_team_timesheets_requires_manager(client, dev_token, db):
@@ -158,7 +164,8 @@ def test_review_timesheet_approve(client, dev_token, pm_token, db):
     ts_id = None
 
     # Find submitted timesheet id via pending list
-    pending = client.get("/api/v1/timesheets/pending", headers=auth(pm_token)).json()
+    _pending_payload = client.get("/api/v1/timesheets/pending", headers=auth(pm_token)).json()
+    pending = _pending_payload.get("items") if isinstance(_pending_payload, dict) else _pending_payload
     if not pending:
         pytest.skip("No submitted timesheet found")
 
@@ -178,7 +185,8 @@ def test_review_timesheet_reject(client, dev_token, pm_token, db):
     week = str(next_monday())
     client.post(f"/api/v1/timesheets/my/{week}/submit", headers=auth(dev_token))
 
-    pending = client.get("/api/v1/timesheets/pending", headers=auth(pm_token)).json()
+    _pending_payload = client.get("/api/v1/timesheets/pending", headers=auth(pm_token)).json()
+    pending = _pending_payload.get("items") if isinstance(_pending_payload, dict) else _pending_payload
     if not pending:
         pytest.skip("No submitted timesheet found")
 

@@ -168,7 +168,7 @@ export default function ResourceHeatmap() {
 
   const { data: bookingsRaw = [] } = useQuery({
     queryKey: ['bookings'],
-    queryFn: () => api.get('/bookings').then(r => r.data),
+    queryFn: () => api.get('/bookings').then(r => r.data?.items ?? r.data ?? []),
     enabled: showBookingsPanel,
   })
   const bookings = Array.isArray(bookingsRaw) ? bookingsRaw : []

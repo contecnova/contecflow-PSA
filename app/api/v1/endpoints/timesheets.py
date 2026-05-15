@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.services.psa_flows import (
     review_timesheet_flow,
@@ -75,24 +76,30 @@ def submit_timesheet(
     return {"message": "Timesheet enviado para aprobación", "status": ts.status}
 
 
-@router.get("/pending", response_model=List[TimesheetOut], summary="Timesheets pendientes de revisión (managers)")
+@router.get("/pending", response_model=APIListResponse[TimesheetOut], summary="Timesheets pendientes de revisión (managers)")
 def get_pending_timesheets(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _tsvc.list_pending_timesheets(db)
+    items = _tsvc.list_pending_timesheets(db)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
-@router.get("/team", response_model=List[TimesheetOut], summary="Todos los timesheets del equipo")
+@router.get("/team", response_model=APIListResponse[TimesheetOut], summary="Todos los timesheets del equipo")
 def get_team_timesheets(
     week_start: Optional[date] = None,
     user_id: Optional[str] = None,
     status: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "timesheet", action="read")
-    return _tsvc.list_team_timesheets(db, week_start, user_id, status)
+    items = _tsvc.list_team_timesheets(db, week_start, user_id, status)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/{timesheet_id}/review", summary="Aprobar o rechazar timesheet")

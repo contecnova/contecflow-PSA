@@ -47,7 +47,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
   })
   const { data: clients = [] } = useQuery({
     queryKey: ['clients'],
-    queryFn: () => clientsApi.list().then(r => r.data),
+    queryFn: () => clientsApi.list().then(r => r.data?.items ?? r.data ?? []),
   })
   const { data: dynamicFormRules } = useQuery({
     queryKey: ['sd-dynamic-forms'],

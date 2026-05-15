@@ -54,7 +54,7 @@ export default function GlobalSearchModal({ open, onClose }) {
             id: t.id, type: 'task', title: t.title, subtitle: t.project_name, status: t.status
           }))),
         clientsApi.list({ q, limit: 5 }).then(r =>
-          (r.data || []).slice(0,4).map(c => ({
+          (r.data?.items ?? r.data ?? []).slice(0,4).map(c => ({
             id: c.id, type: 'client', title: c.name, subtitle: c.industry, status: c.status
           }))),
         ticketsApi.list({ search: q, limit: 5 }).then(r =>

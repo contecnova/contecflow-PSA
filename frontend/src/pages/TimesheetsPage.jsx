@@ -234,13 +234,13 @@ export default function TimesheetsPage() {
 
   const { data: pending = [], isLoading: loadingPending } = useQuery({
     queryKey: ['timesheets-pending'],
-    queryFn: () => timesheetsApi.pending().then(r => r.data),
+    queryFn: () => timesheetsApi.pending().then(r => r.data?.items ?? r.data ?? []),
     enabled: hasRole('admin', 'pm', 'hr'),
   })
 
   const { data: teamSheets = [], isLoading: loadingTeam } = useQuery({
     queryKey: ['timesheets-team'],
-    queryFn: () => timesheetsApi.team().then(r => r.data),
+    queryFn: () => timesheetsApi.team().then(r => r.data?.items ?? r.data ?? []),
     enabled: hasRole('admin', 'pm', 'hr'),
   })
 

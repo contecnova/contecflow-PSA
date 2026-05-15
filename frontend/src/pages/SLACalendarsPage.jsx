@@ -22,6 +22,7 @@ const TIMEZONES = ['Europe/Madrid','Europe/London','America/New_York','America/C
 const DAYS_MAP  = {1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:'Sábado',7:'Domingo'}
 
 function CalendarForm({ cal, onClose }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const { timezone: defaultTimezone } = useOrgSettings()
@@ -96,9 +97,9 @@ function CalendarForm({ cal, onClose }) {
           </div>
         </div>
         <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate()} disabled={isPending || !form.name.trim()} loading={isPending}>
-            {isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear calendario'}
+            {isPending ? t('common.saving') : isEdit ? t('common.save') : 'Crear calendario'}
           </Button>
         </div>
       </div>
@@ -118,7 +119,7 @@ function HolidaysModal({ cal, onClose }) {
 
   const { data: holidays = [] } = useQuery({
     queryKey: ['holidays', cal.id],
-    queryFn: () => slaCalendarsApi.holidays(cal.id).then(r => r.data).catch(() => []),
+    queryFn: () => slaCalendarsApi.holidays(cal.id).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
   })
 
   const { mutate: addH, isPending } = useMutation({
@@ -240,7 +241,7 @@ export default function SLACalendarsPage() {
 
   const { data: calendars = [], isLoading } = useQuery({
     queryKey: ['sla-calendars'],
-    queryFn: () => slaCalendarsApi.list().then(r => r.data).catch(() => []),
+    queryFn: () => slaCalendarsApi.list().then(r => r.data?.items ?? r.data ?? []).catch(() => []),
   })
 
   const { mutate: deleteCal } = useMutation({

@@ -179,7 +179,7 @@ export default function ESignPage() {
 
   const { data: envelopes = [], isLoading } = useQuery({
     queryKey: ['esign-envelopes'],
-    queryFn: () => api.get('/esign').then(r => r.data),
+    queryFn: () => api.get('/esign').then(r => r.data?.items ?? r.data ?? []),
   })
 
   const { mutate: voidEnv } = useMutation({

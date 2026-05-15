@@ -69,6 +69,8 @@ class AIProvider(Base):
     updated_at   = Column(DateTime(timezone=True), onupdate=func.now())
     created_by   = Column(String(36), ForeignKey("users.id"), nullable=True)
 
+    is_active    = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
+
 
 class AIUsageLog(Base):
     """Log de uso de IA por petición."""

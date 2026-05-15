@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.core.config import settings
 from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 import app.services.cmdb_service as svc
 
@@ -215,9 +216,15 @@ class CMDBRelationIn(BaseModel):
     rel_type: str = "depends_on"
 
 
-@router.get("/categories")
-def list_cmdb_categories(db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return svc.list_cmdb_categories(db)
+@router.get("/categories", response_model=APIListResponse[dict])
+def list_cmdb_categories(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    cu: User = Depends(get_current_user),
+):
+    items = svc.list_cmdb_categories(db)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/categories")
@@ -226,17 +233,20 @@ def create_cmdb_category(p: CMDBCategoryIn, db: Session = Depends(get_db),
     return svc.create_cmdb_category(p.name, p.icon, p.color, db)
 
 
-@router.get("/items")
+@router.get("/items", response_model=APIListResponse[dict])
 def list_cmdb_items(
     ci_type: Optional[str] = None, status: Optional[str] = None,
     category_id: Optional[str] = None, q: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), cu: User = Depends(get_current_user),
 ):
     try:
-        return svc.list_cmdb_items(ci_type, status, category_id, q, cu.organization_id, db)
+        items = svc.list_cmdb_items(ci_type, status, category_id, q, cu.organization_id, db)
     except Exception:
         logger.exception("/cmdb/items failed for user_id=%s", getattr(cu, "id", None))
-        return []
+        items = []
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/items")
@@ -434,9 +444,15 @@ class SLAHolidayIn(BaseModel):
     name: Optional[str] = None
 
 
-@router.get("/sla-calendars")
-def list_sla_calendars(db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return svc.list_sla_calendars(db)
+@router.get("/sla-calendars", response_model=APIListResponse[dict])
+def list_sla_calendars(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    cu: User = Depends(get_current_user),
+):
+    items = svc.list_sla_calendars(db)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/sla-calendars")
@@ -459,10 +475,16 @@ def delete_sla_calendar(cal_id: str, db: Session = Depends(get_db),
     return svc.delete_sla_calendar(cal_id, db)
 
 
-@router.get("/sla-calendars/{cal_id}/holidays")
-def list_holidays(cal_id: str, db: Session = Depends(get_db),
-                  cu: User = Depends(get_current_user)):
-    return svc.list_sla_holidays(cal_id, db)
+@router.get("/sla-calendars/{cal_id}/holidays", response_model=APIListResponse[dict])
+def list_holidays(
+    cal_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    cu: User = Depends(get_current_user),
+):
+    items = svc.list_sla_holidays(cal_id, db)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/sla-calendars/{cal_id}/holidays")

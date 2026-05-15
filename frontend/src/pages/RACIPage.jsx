@@ -65,6 +65,7 @@ function RoleCell({ role, onClick, editable }) {
 }
 
 function AddEntryModal({ projectId, users, onClose, onSaved }) {
+  const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState({ item_type: 'deliverable', item_label: '', user_id: '', role: 'R' })
 
@@ -113,9 +114,9 @@ function AddEntryModal({ projectId, users, onClose, onSaved }) {
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button onClick={() => save()} disabled={isPending || !form.item_label || !form.user_id}>
-          {isPending ? 'Guardando...' : 'Añadir entrada'}
+          {isPending ? t('common.saving') : 'Añadir entrada'}
         </Button>
       </div>
     </div>
@@ -190,7 +191,7 @@ export default function RACIPage() {
       {!selectedProject ? (
         <EmptyState icon="📋" title="Selecciona un proyecto" description="Elige un proyecto para ver y gestionar su matriz RACI" />
       ) : isLoading ? (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>Cargando RACI...</span></div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>{t('common.loading')}</span></div>
       ) : items.length === 0 ? (
         <EmptyState icon="📊" title="Matriz RACI vacia" description="Anade la primera entrada para empezar a asignar responsabilidades" action={<button className="btn-primary" onClick={() => setShowAdd(true)} style={{ fontSize: "var(--text-base)", padding: '8px 20px' }}>+ Añadir primera entrada</button>} />
       ) : (

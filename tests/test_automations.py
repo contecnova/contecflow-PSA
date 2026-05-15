@@ -6,7 +6,9 @@ from tests.conftest import auth
 def test_list_automations_empty(client, admin_token, db):
     res = client.get("/api/v1/automations", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    payload = res.json()
+    items = payload.get("items") if isinstance(payload, dict) else payload
+    assert isinstance(items, list)
 
 
 def test_create_automation(client, admin_token, db):
@@ -50,7 +52,9 @@ def test_delete_automation(client, admin_token, db):
 
     listed = client.get("/api/v1/automations", headers=auth(admin_token))
     assert listed.status_code == 200
-    assert all(r["id"] != rule["id"] for r in listed.json())
+    listed_payload = listed.json()
+    listed_items = listed_payload.get("items") if isinstance(listed_payload, dict) else listed_payload
+    assert all(r["id"] != rule["id"] for r in listed_items)
 
     row = db.query(AutomationRule).filter(AutomationRule.id == rule["id"]).first()
     assert row is not None

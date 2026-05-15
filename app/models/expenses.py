@@ -65,6 +65,8 @@ class Expense(Base):
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     updated_at   = Column(DateTime(timezone=True), onupdate=func.now())
 
+    is_active    = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
+
     user         = relationship("User", foreign_keys=[user_id])
     reviewer     = relationship("User", foreign_keys=[reviewed_by])
     project      = relationship("Project")

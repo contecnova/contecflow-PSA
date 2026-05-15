@@ -290,7 +290,10 @@ def get_project_raci(project_id: str, db: Session) -> dict:
         raise ValueError("Proyecto no encontrado")
     entries = (
         db.query(RACIEntry)
-        .filter(RACIEntry.project_id == project_id)
+        .filter(
+            RACIEntry.project_id == project_id,
+            RACIEntry.is_active == True,  # audit #36 soft-delete
+        )
         .order_by(RACIEntry.item_type, RACIEntry.item_label)
         .all()
     )
@@ -339,6 +342,7 @@ def upsert_raci(project_id: str, entries_in: list, db: Session) -> dict:
             existing.role = role_enum
             existing.item_type = entry_in.item_type
             existing.item_id = entry_in.item_id
+            existing.is_active = True  # audit #36 — re-upsert reactiva
             existing.updated_at = datetime.now(timezone.utc)
             updated += 1
         else:
@@ -361,7 +365,8 @@ def delete_raci_entry(project_id: str, entry_id: str, db: Session) -> None:
     ).first()
     if not entry:
         raise ValueError("Entrada RACI no encontrada")
-    db.delete(entry)
+    # audit #36 soft-delete — la matriz RACI conserva histórico de responsables.
+    entry.is_active = False
     db.commit()
 
 
@@ -506,7 +511,10 @@ def get_project_changelog(
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")
-    q = db.query(PCE).filter(PCE.project_id == project_id)
+    q = db.query(PCE).filter(
+        PCE.project_id == project_id,
+        PCE.is_active == True,  # audit #36 soft-delete
+    )
     if entry_type:
         try:
             q = q.filter(PCE.entry_type == ChangelogEntryType(entry_type))
@@ -645,7 +653,8 @@ def delete_changelog_entry(project_id: str, entry_id: str, db: Session) -> None:
     ).first()
     if not entry:
         raise ValueError("Entrada no encontrada")
-    db.delete(entry)
+    # audit #36 soft-delete — conserva historial de releases.
+    entry.is_active = False
     db.commit()
 
 
@@ -654,7 +663,10 @@ def delete_changelog_entry(project_id: str, entry_id: str, db: Session) -> None:
 def list_uat_cases(
     project_id: str, status: "Optional[str]", task_id: "Optional[str]", db: Session
 ) -> dict:
-    q = db.query(UATCase).filter(UATCase.project_id == project_id)
+    q = db.query(UATCase).filter(
+        UATCase.project_id == project_id,
+        UATCase.is_active == True,  # audit #36 soft-delete
+    )
     if status:
         try:
             q = q.filter(UATCase.status == UATStatus(status))
@@ -718,7 +730,8 @@ def delete_uat_case(project_id: str, case_id: str, db: Session) -> None:
     ).first()
     if not case:
         raise ValueError("Caso UAT no encontrado")
-    db.delete(case)
+    # audit #36 soft-delete — preserva el caso para histórico de QA.
+    case.is_active = False
     db.commit()
 
 
@@ -726,7 +739,10 @@ def export_uat_report(project_id: str, db: Session) -> dict:
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")
-    cases = db.query(UATCase).filter(UATCase.project_id == project_id).order_by(UATCase.created_at).all()
+    cases = db.query(UATCase).filter(
+        UATCase.project_id == project_id,
+        UATCase.is_active == True,  # audit #36 soft-delete
+    ).order_by(UATCase.created_at).all()
     STATUS_EMOJI = {"pending": "⏳", "passed": "✅", "failed": "❌", "blocked": "🔒", "skipped": "⏭"}
     PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     sorted_cases = sorted(cases, key=lambda c: PRIORITY_ORDER.get(c.priority, 2))

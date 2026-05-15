@@ -738,7 +738,7 @@ export default function AutomationsPage() {
 
   const { data: raw = [], isLoading } = useQuery({
     queryKey: ['automations'],
-    queryFn: () => automationsApi.list().then(r => r.data),
+    queryFn: () => automationsApi.list().then(r => r.data?.items ?? r.data ?? []),
     refetchInterval: 60000,
   })
   const rules = Array.isArray(raw) ? raw : []

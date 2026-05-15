@@ -23,6 +23,7 @@ from pydantic import BaseModel, HttpUrl
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.responses import APIListResponse
 from app.db.session import get_db
 from app.models.jira_integration import (
     JiraConfig,
@@ -116,13 +117,14 @@ def _serialize_config(c: JiraConfig) -> dict:
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 
-@router.get("/configs", summary="Listar configuraciones Jira")
+@router.get("/configs", response_model=APIListResponse[dict], summary="Listar configuraciones Jira")
 def list_jira_configs(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
+    total = db.query(JiraConfig).count()
     configs = (
         db.query(JiraConfig)
         .order_by(JiraConfig.created_at.desc())
@@ -130,7 +132,8 @@ def list_jira_configs(
         .limit(page_size)
         .all()
     )
-    return [_serialize_config(c) for c in configs]
+    items = [_serialize_config(c) for c in configs]
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post("/configs", summary="Crear configuración Jira")

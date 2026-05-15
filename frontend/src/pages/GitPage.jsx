@@ -60,12 +60,12 @@ export default function GitPage() {
 
   const { data: prs = [], isLoading: loadPR } = useQuery({
     queryKey: ['git-prs'],
-    queryFn: () => gitApi.pullRequests().then(r => r.data),
+    queryFn: () => gitApi.pullRequests().then(r => r.data?.items ?? r.data ?? []),
   })
 
   const { data: deploys = [], isLoading: loadDep } = useQuery({
     queryKey: ['git-deploys'],
-    queryFn: () => gitApi.deployments().then(r => r.data),
+    queryFn: () => gitApi.deployments().then(r => r.data?.items ?? r.data ?? []),
   })
 
   const fmtDate = (d) => d ? new Date(d).toLocaleString('es-ES', {

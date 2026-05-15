@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 import app.services.automations_service as _svc
 from app.models.automations import TriggerType, ActionType
@@ -52,14 +53,17 @@ class RuleUpdate(BaseModel):
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.get("", summary="Listar reglas de automatización")
+@router.get("", response_model=APIListResponse[dict], summary="Listar reglas de automatización")
 def list_rules(
     project_id: Optional[str] = None,
     is_active: Optional[bool] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_rules_for_user(db, current_user, project_id, is_active)
+    items = _svc.list_rules_for_user(db, current_user, project_id, is_active)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("", summary="Crear regla de automatización")

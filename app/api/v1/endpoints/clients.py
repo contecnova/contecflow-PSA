@@ -4,12 +4,13 @@ Un cliente puede tener: proyectos, contratos, licencias ALM, activos,
 usuarios de portal y acceso al Service Desk independientemente de
 si tiene proyectos vinculados.
 """
-from fastapi import APIRouter, Depends, HTTPException, Body, Response
+from fastapi import APIRouter, Depends, HTTPException, Body, Query, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.services.client_service import (
     get_client_detail as _out_detail,
@@ -25,12 +26,14 @@ router = APIRouter()
 
 # ── CRUD principal ─────────────────────────────────────────────────────────────
 
-@router.get("")
+@router.get("", response_model=APIListResponse[dict])
 def list_clients(
     q: Optional[str] = None,
     status: Optional[str] = None,
     industry: Optional[str] = None,
     limit: Optional[int] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
     response: Response = None,
@@ -39,7 +42,8 @@ def list_clients(
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
-    return _svc.list_clients(db, cu, q=q, status=status, industry=industry, limit=limit)
+    items = _svc.list_clients(db, cu, q=q, status=status, industry=industry, limit=limit)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("")

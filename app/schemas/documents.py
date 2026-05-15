@@ -33,19 +33,19 @@ class ApprovalStatus(str, Enum):
 # ── Version Schemas ───────────────────────────────────────────────────────
 
 class DocumentVersionOut(BaseModel):
-    id: str
-    version_num: int
-    file_name: str
-    file_size: Optional[int] = None
-    file_mime_type: Optional[str] = None
-    change_note: Optional[str] = None
-    uploader_id: str
-    uploader_name: str
-    created_at: datetime
+    id: str = Field(..., description="Identificador único de la versión")
+    version_num: int = Field(..., description="Número secuencial de la versión")
+    file_name: str = Field(..., description="Nombre del archivo subido")
+    file_size: Optional[int] = Field(default=None, description="Tamaño del archivo en bytes")
+    file_mime_type: Optional[str] = Field(default=None, description="Tipo MIME del archivo")
+    change_note: Optional[str] = Field(default=None, description="Nota de cambio asociada a la versión")
+    uploader_id: str = Field(..., description="ID del usuario que subió la versión")
+    uploader_name: str = Field(..., description="Nombre del usuario que subió la versión")
+    created_at: datetime = Field(..., description="Fecha de creación de la versión")
     # download_url is the canonical field used by the frontend.
     # s3_url is kept for backward compatibility (same value).
-    download_url: Optional[str] = None
-    s3_url: Optional[str] = None
+    download_url: Optional[str] = Field(default=None, description="URL de descarga del archivo")
+    s3_url: Optional[str] = Field(default=None, description="URL S3 mantenida por compatibilidad")
 
     class Config:
         from_attributes = True
@@ -54,16 +54,16 @@ class DocumentVersionOut(BaseModel):
 # ── Permission Schemas ─────────────────────────────────────────────────────
 
 class DocumentPermissionOut(BaseModel):
-    id: str
+    id: str = Field(..., description="Identificador único del permiso")
     # One of these three identifies the subject of the grant
-    user_id: Optional[str] = None
-    user_name: Optional[str] = None
-    role: Optional[str] = None
-    department: Optional[str] = None
-    access_level: DocumentAccessLevel
-    granted_by_name: Optional[str] = None
-    granted_at: datetime
-    expires_at: Optional[datetime] = None
+    user_id: Optional[str] = Field(default=None, description="ID del usuario beneficiario del permiso")
+    user_name: Optional[str] = Field(default=None, description="Nombre del usuario beneficiario del permiso")
+    role: Optional[str] = Field(default=None, description="Rol al que se concede el permiso")
+    department: Optional[str] = Field(default=None, description="Departamento al que se concede el permiso")
+    access_level: DocumentAccessLevel = Field(..., description="Nivel de acceso concedido")
+    granted_by_name: Optional[str] = Field(default=None, description="Nombre de quien concedió el permiso")
+    granted_at: datetime = Field(..., description="Fecha en que se concedió el permiso")
+    expires_at: Optional[datetime] = Field(default=None, description="Fecha de expiración del permiso")
 
     class Config:
         from_attributes = True
@@ -71,74 +71,74 @@ class DocumentPermissionOut(BaseModel):
 
 class DocumentPermissionCreate(BaseModel):
     """Grant access to a document. Provide exactly ONE of user_id / role / department."""
-    user_id: Optional[str] = None
-    role: Optional[str] = None  # UserRole value (e.g. "pm", "team_lead")
-    department: Optional[str] = None
-    access_level: DocumentAccessLevel
-    expires_at: Optional[datetime] = None
+    user_id: Optional[str] = Field(default=None, description="ID del usuario al que se concede acceso")
+    role: Optional[str] = Field(default=None, description="Rol al que se concede acceso (p. ej. pm, team_lead)")
+    department: Optional[str] = Field(default=None, description="Departamento al que se concede acceso")
+    access_level: DocumentAccessLevel = Field(..., description="Nivel de acceso a otorgar")
+    expires_at: Optional[datetime] = Field(default=None, description="Fecha de expiración del permiso")
 
 
 # ── Main Document Schemas ──────────────────────────────────────────────────
 
 class DocumentBase(BaseModel):
-    title: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
-    category: DocumentCategory = DocumentCategory.other
-    requires_approval: bool = False
+    title: str = Field(..., min_length=1, max_length=255, description="Título del documento")
+    description: Optional[str] = Field(default=None, description="Descripción del documento")
+    category: DocumentCategory = Field(default=DocumentCategory.other, description="Categoría del documento")
+    requires_approval: bool = Field(default=False, description="Indica si el documento requiere aprobación")
 
 
 class DocumentCreate(DocumentBase):
-    project_id: Optional[str] = None
-    client_id: Optional[str] = None
-    milestone_id: Optional[str] = None
+    project_id: Optional[str] = Field(default=None, description="ID del proyecto asociado al documento")
+    client_id: Optional[str] = Field(default=None, description="ID del cliente asociado al documento")
+    milestone_id: Optional[str] = Field(default=None, description="ID del milestone asociado al documento")
 
 
 class DocumentUpdate(BaseModel):
-    title: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    category: Optional[DocumentCategory] = None
-    requires_approval: Optional[bool] = None
-    is_archived: Optional[bool] = None
+    title: Optional[str] = Field(None, min_length=1, max_length=255, description="Título del documento")
+    description: Optional[str] = Field(default=None, description="Descripción del documento")
+    category: Optional[DocumentCategory] = Field(default=None, description="Categoría del documento")
+    requires_approval: Optional[bool] = Field(default=None, description="Indica si requiere aprobación")
+    is_archived: Optional[bool] = Field(default=None, description="Indica si el documento está archivado")
 
 
 class DocumentOut(DocumentBase):
-    id: str
-    project_id: Optional[str] = None
-    client_id: Optional[str] = None
-    milestone_id: Optional[str] = None
-    approval_status: ApprovalStatus
-    requires_approval: bool
-    is_archived: bool
-    created_by: str
-    created_by_name: str
-    updated_by: Optional[str] = None
-    updated_by_name: Optional[str] = None
-    approved_by: Optional[str] = None
-    approved_by_name: Optional[str] = None
-    approved_at: Optional[datetime] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    ai_summary: Optional[str] = None
-    versions: List[DocumentVersionOut] = []
-    permissions: List[DocumentPermissionOut] = []
-    tags: List[str] = []
-    approval_request: Optional[dict] = None
+    id: str = Field(..., description="Identificador único del documento")
+    project_id: Optional[str] = Field(default=None, description="ID del proyecto asociado")
+    client_id: Optional[str] = Field(default=None, description="ID del cliente asociado")
+    milestone_id: Optional[str] = Field(default=None, description="ID del milestone asociado")
+    approval_status: ApprovalStatus = Field(..., description="Estado de aprobación del documento")
+    requires_approval: bool = Field(..., description="Indica si el documento requiere aprobación")
+    is_archived: bool = Field(..., description="Indica si el documento está archivado")
+    created_by: str = Field(..., description="ID del usuario que creó el documento")
+    created_by_name: str = Field(..., description="Nombre del usuario que creó el documento")
+    updated_by: Optional[str] = Field(default=None, description="ID del último usuario que actualizó el documento")
+    updated_by_name: Optional[str] = Field(default=None, description="Nombre del último usuario que actualizó el documento")
+    approved_by: Optional[str] = Field(default=None, description="ID del usuario que aprobó el documento")
+    approved_by_name: Optional[str] = Field(default=None, description="Nombre del usuario que aprobó el documento")
+    approved_at: Optional[datetime] = Field(default=None, description="Fecha de aprobación del documento")
+    created_at: datetime = Field(..., description="Fecha de creación del documento")
+    updated_at: Optional[datetime] = Field(default=None, description="Fecha de la última actualización")
+    ai_summary: Optional[str] = Field(default=None, description="Resumen generado por IA del documento")
+    versions: List[DocumentVersionOut] = Field(default=[], description="Lista de versiones del documento")
+    permissions: List[DocumentPermissionOut] = Field(default=[], description="Lista de permisos sobre el documento")
+    tags: List[str] = Field(default=[], description="Etiquetas asociadas al documento")
+    approval_request: Optional[dict] = Field(default=None, description="Datos de la solicitud de aprobación si existe")
 
     class Config:
         from_attributes = True
 
 
 class DocumentListOut(BaseModel):
-    id: str
-    title: str
-    category: DocumentCategory
-    is_archived: bool
-    requires_approval: bool = False
-    approval_status: ApprovalStatus
-    created_by_name: str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    latest_version: Optional[DocumentVersionOut] = None
+    id: str = Field(..., description="Identificador único del documento")
+    title: str = Field(..., description="Título del documento")
+    category: DocumentCategory = Field(..., description="Categoría del documento")
+    is_archived: bool = Field(..., description="Indica si el documento está archivado")
+    requires_approval: bool = Field(default=False, description="Indica si el documento requiere aprobación")
+    approval_status: ApprovalStatus = Field(..., description="Estado de aprobación del documento")
+    created_by_name: str = Field(..., description="Nombre del usuario que creó el documento")
+    created_at: datetime = Field(..., description="Fecha de creación del documento")
+    updated_at: Optional[datetime] = Field(default=None, description="Fecha de la última actualización")
+    latest_version: Optional[DocumentVersionOut] = Field(default=None, description="Última versión disponible del documento")
 
     class Config:
         from_attributes = True
@@ -147,23 +147,23 @@ class DocumentListOut(BaseModel):
 # ── File Upload Schemas ────────────────────────────────────────────────────
 
 class DocumentVersionCreate(BaseModel):
-    change_note: Optional[str] = Field(None, max_length=500)
+    change_note: Optional[str] = Field(None, max_length=500, description="Nota de cambio asociada a la nueva versión")
 
 
 class DocumentApprovalPayload(BaseModel):
-    status: ApprovalStatus = ApprovalStatus.approved
-    note: Optional[str] = None
-    notes: Optional[str] = None
+    status: ApprovalStatus = Field(default=ApprovalStatus.approved, description="Estado final de la aprobación")
+    note: Optional[str] = Field(default=None, description="Nota o comentario de la decisión de aprobación")
+    notes: Optional[str] = Field(default=None, description="Notas adicionales sobre la aprobación")
 
 
 # ── Search/Filter Schemas ──────────────────────────────────────────────────
 
 class DocumentFilterParams(BaseModel):
-    category: Optional[DocumentCategory] = None
-    tags: Optional[List[str]] = None
-    created_by_id: Optional[str] = None
-    project_id: Optional[str] = None
-    client_id: Optional[str] = None
-    is_archived: Optional[bool] = False
-    search: Optional[str] = None
-    approval_status: Optional[ApprovalStatus] = None
+    category: Optional[DocumentCategory] = Field(default=None, description="Filtrar por categoría de documento")
+    tags: Optional[List[str]] = Field(default=None, description="Filtrar por etiquetas")
+    created_by_id: Optional[str] = Field(default=None, description="Filtrar por ID del creador")
+    project_id: Optional[str] = Field(default=None, description="Filtrar por proyecto asociado")
+    client_id: Optional[str] = Field(default=None, description="Filtrar por cliente asociado")
+    is_archived: Optional[bool] = Field(default=False, description="Filtrar por estado de archivado")
+    search: Optional[str] = Field(default=None, description="Texto de búsqueda libre")
+    approval_status: Optional[ApprovalStatus] = Field(default=None, description="Filtrar por estado de aprobación")

@@ -118,7 +118,9 @@ def export_expenses_excel(
     """
     import io
 
-    q = db.query(Expense).join(UserModel, Expense.user_id == UserModel.id, isouter=True)
+    q = db.query(Expense).join(
+        UserModel, Expense.user_id == UserModel.id, isouter=True
+    ).filter(Expense.is_active == True)  # audit #36 soft-delete
     if date_from:
         q = q.filter(Expense.expense_date >= date_from)
     if date_to:
@@ -272,7 +274,10 @@ def list_my_expenses(
 
     q = db.query(Expense).options(
         joinedload(Expense.project), joinedload(Expense.reviewer)
-    ).filter(Expense.user_id == user_id)
+    ).filter(
+        Expense.user_id == user_id,
+        Expense.is_active == True,  # audit #36 soft-delete
+    )
     if status:      q = q.filter(Expense.status == status)
     if project_id:  q = q.filter(Expense.project_id == project_id)
     if date_from:   q = q.filter(Expense.expense_date >= date_from)
@@ -284,7 +289,10 @@ def list_pending_expenses(db: Session, project_id: Optional[str] = None):
 
     q = db.query(Expense).options(
         joinedload(Expense.user), joinedload(Expense.project)
-    ).filter(Expense.status == ExpenseStatus.submitted)
+    ).filter(
+        Expense.status == ExpenseStatus.submitted,
+        Expense.is_active == True,  # audit #36 soft-delete
+    )
     if project_id:
         q = q.filter(Expense.project_id == project_id)
     return q.order_by(Expense.submitted_at).all()
@@ -297,7 +305,7 @@ def list_all_expenses(
     user_id: Optional[str] = None,
 ):
 
-    q = db.query(Expense)
+    q = db.query(Expense).filter(Expense.is_active == True)  # audit #36 soft-delete
     if current_user.role not in (UserRole.admin, UserRole.pm, UserRole.hr):
         q = q.filter(Expense.user_id == current_user.id)
     elif not current_user.is_superadmin and current_user.organization_id:
@@ -328,7 +336,7 @@ def list_team_expenses(
 
     q = db.query(Expense).options(
         joinedload(Expense.user), joinedload(Expense.project), joinedload(Expense.reviewer)
-    )
+    ).filter(Expense.is_active == True)  # audit #36 soft-delete
     if not current_user.is_superadmin and current_user.organization_id:
         org_user_ids = db.query(UserModel.id).filter(
             UserModel.organization_id == current_user.organization_id
@@ -485,7 +493,8 @@ def delete_my_expense(db: Session, expense_id: str, user_id: str) -> dict:
         raise HTTPException(404)
     if expense.status not in [ExpenseStatus.draft, ExpenseStatus.rejected]:
         raise HTTPException(400, "Solo se pueden eliminar gastos en borrador o rechazados")
-    db.delete(expense)
+    # audit #36 soft-delete — preserva el histórico para auditoría financiera.
+    expense.is_active = False
     db.commit()
     return {"ok": True, "message": "Gasto eliminado correctamente"}
 

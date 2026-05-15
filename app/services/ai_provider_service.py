@@ -432,7 +432,7 @@ def call_provider(provider, messages: list, system: str = None,
 # ── CRUD service functions ────────────────────────────────────────────────────
 
 def list_providers(db: Session, *, is_superadmin: bool, organization_id) -> list:
-    q = db.query(AIProvider)
+    q = db.query(AIProvider).filter(AIProvider.is_active == True)  # audit #36 soft-delete
     if not is_superadmin and organization_id:
         q = q.filter(AIProvider.organization_id == organization_id)
     return q.order_by(AIProvider.is_default.desc(), AIProvider.name).all()
@@ -508,7 +508,8 @@ def update_provider(db: Session, provider, data: dict, *,
 
 
 def delete_provider(db: Session, provider) -> None:
-    db.delete(provider)
+    # audit #36 soft-delete — preserva trazabilidad de uso (AIUsageLog).
+    provider.is_active = False
     db.commit()
 
 
@@ -573,7 +574,10 @@ def get_default_provider(
     1) Org-specific provider
     2) Global shared provider (organization_id is NULL)
     """
-    base_q = db.query(AIProvider).filter(AIProvider.status != "error")
+    base_q = db.query(AIProvider).filter(
+        AIProvider.status != "error",
+        AIProvider.is_active == True,  # audit #36 soft-delete
+    )
 
     def _pick(q):
         # Determinism: si hay default explícito, gana. Si no, orden estable por
@@ -616,7 +620,10 @@ def _try_fallback_providers(
     Returns result dict if success, None if all fail.
     """
     # Get all available active providers
-    query = db.query(AIProvider).filter(AIProvider.status != "error")
+    query = db.query(AIProvider).filter(
+        AIProvider.status != "error",
+        AIProvider.is_active == True,  # audit #36 soft-delete
+    )
     
     if not is_superadmin and organization_id:
         # Try org-specific first, then shared

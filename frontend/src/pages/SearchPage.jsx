@@ -45,7 +45,7 @@ function FTSMode() {
       const calls = await Promise.allSettled([
         ents.includes('project')  ? projectsApi.list({ search: q, limit: 8 }).then(r => ({ type: 'project', items: r.data?.items || r.data || [] })) : null,
         ents.includes('task')     ? tasksApi.list({ search: q, limit: 8 }).then(r => ({ type: 'task',    items: r.data?.items || r.data || [] })) : null,
-        ents.includes('client')   ? clientsApi.list({ q, limit: 8 }).then(r => ({ type: 'client',  items: r.data || [] })) : null,
+        ents.includes('client')   ? clientsApi.list({ q, limit: 8 }).then(r => ({ type: 'client',  items: r.data?.items ?? r.data ?? [] })) : null,
         ents.includes('ticket')   ? ticketsApi.list({ search: q, page_size: 8 }).then(r => ({ type: 'ticket',  items: r.data?.tickets || r.data?.items || (Array.isArray(r.data) ? r.data : []) })) : null,
         ents.includes('contract') ? contractsApi.list({ q, limit: 8 }).then(r => ({ type: 'contract', items: r.data?.items || r.data || [] })) : null,
       ].filter(Boolean))

@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.config import settings
 
@@ -11,69 +11,69 @@ from app.core.config import settings
 class InvoiceLineOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: str
-    order: int
-    description: str
-    quantity: float
-    unit: Optional[str] = None
-    unit_price: float
-    discount_pct: float
-    amount: float
-    source_type: Optional[str] = None
+    id: str = Field(..., description="Identificador único de la línea de factura")
+    order: int = Field(..., description="Orden de la línea en la factura")
+    description: str = Field(..., description="Descripción del concepto facturado")
+    quantity: float = Field(..., description="Cantidad facturada")
+    unit: Optional[str] = Field(default=None, description="Unidad de medida (horas, días, etc.)")
+    unit_price: float = Field(..., description="Precio unitario en euros")
+    discount_pct: float = Field(..., description="Porcentaje de descuento aplicado")
+    amount: float = Field(..., description="Importe total de la línea en euros")
+    source_type: Optional[str] = Field(default=None, description="Tipo de origen del concepto (imputación, milestone...)")
 
 
 class InvoiceOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: str
-    number: str
-    project_id: Optional[str] = None
-    client_id: Optional[str] = None
-    project_name: Optional[str] = None
-    project_code: Optional[str] = None
-    client_name: Optional[str] = None
-    client_email: Optional[str] = None
-    client_vat: Optional[str] = None
-    subtotal: Optional[float] = None
-    tax_rate: Optional[float] = None
-    tax_amount: Optional[float] = None
-    total: Optional[float] = None
-    currency: Optional[str] = None
-    issue_date: Optional[date] = None
-    due_date: Optional[date] = None
-    paid_date: Optional[date] = None
-    status: Optional[str] = None
-    notes: Optional[str] = None
-    po_reference: Optional[str] = None
-    period_from: Optional[date] = None
-    period_to: Optional[date] = None
-    lines: List[InvoiceLineOut] = []
-    created_at: Optional[datetime] = None
+    id: str = Field(..., description="Identificador único de la factura")
+    number: str = Field(..., description="Número de factura")
+    project_id: Optional[str] = Field(default=None, description="ID del proyecto facturado")
+    client_id: Optional[str] = Field(default=None, description="ID del cliente facturado")
+    project_name: Optional[str] = Field(default=None, description="Nombre del proyecto facturado")
+    project_code: Optional[str] = Field(default=None, description="Código del proyecto facturado")
+    client_name: Optional[str] = Field(default=None, description="Nombre del cliente facturado")
+    client_email: Optional[str] = Field(default=None, description="Email de contacto del cliente")
+    client_vat: Optional[str] = Field(default=None, description="NIF/CIF del cliente")
+    subtotal: Optional[float] = Field(default=None, description="Subtotal de la factura en euros")
+    tax_rate: Optional[float] = Field(default=None, description="Tipo impositivo aplicado")
+    tax_amount: Optional[float] = Field(default=None, description="Importe de impuestos en euros")
+    total: Optional[float] = Field(default=None, description="Importe total de la factura en euros")
+    currency: Optional[str] = Field(default=None, description="Moneda de la factura")
+    issue_date: Optional[date] = Field(default=None, description="Fecha de emisión de la factura")
+    due_date: Optional[date] = Field(default=None, description="Fecha de vencimiento de la factura")
+    paid_date: Optional[date] = Field(default=None, description="Fecha de pago de la factura")
+    status: Optional[str] = Field(default=None, description="Estado de la factura")
+    notes: Optional[str] = Field(default=None, description="Notas internas de la factura")
+    po_reference: Optional[str] = Field(default=None, description="Referencia de la orden de compra del cliente")
+    period_from: Optional[date] = Field(default=None, description="Inicio del periodo facturado")
+    period_to: Optional[date] = Field(default=None, description="Fin del periodo facturado")
+    lines: List[InvoiceLineOut] = Field(default=[], description="Lista de líneas de la factura")
+    created_at: Optional[datetime] = Field(default=None, description="Fecha de creación de la factura")
 
 
 # ── Generic ────────────────────────────────────────────────────────────────────
 
 class OkResponse(BaseModel):
-    ok: bool = True
+    ok: bool = Field(default=True, description="Indica que la operación se completó correctamente")
 
 
 class InvoiceStatusOut(BaseModel):
-    count: int
-    total: float
+    count: int = Field(..., description="Número de facturas en este estado")
+    total: float = Field(..., description="Importe total agregado en euros")
 
 
 class InvoiceSummaryOut(BaseModel):
-    by_status: Dict[str, InvoiceStatusOut]
-    total_invoiced: float
-    total_paid: float
-    total_pending: float
-    overdue_count: int
-    overdue_amount: float
+    by_status: Dict[str, InvoiceStatusOut] = Field(..., description="Agregación de facturas por estado")
+    total_invoiced: float = Field(..., description="Importe total facturado en euros")
+    total_paid: float = Field(..., description="Importe total cobrado en euros")
+    total_pending: float = Field(..., description="Importe pendiente de cobro en euros")
+    overdue_count: int = Field(..., description="Número de facturas vencidas")
+    overdue_amount: float = Field(..., description="Importe vencido total en euros")
 
 
 class InvoiceStatusUpdateOut(BaseModel):
-    ok: bool
-    status: str
+    ok: bool = Field(..., description="Indica si la actualización se realizó correctamente")
+    status: str = Field(..., description="Nuevo estado aplicado a la factura")
 
 
 # ── Approval workflow output schemas ───────────────────────────────────────────
@@ -400,38 +400,38 @@ class SmartMatchOut(BaseModel):
 # ── Report ─────────────────────────────────────────────────────────────────────
 
 class ReportSave(BaseModel):
-    name: str
-    description: Optional[str] = None
-    category: Optional[str] = "custom"
-    icon: str = "📊"
-    is_public: bool = False
-    data_source: str
-    filters: Optional[dict] = None
-    columns: Optional[list] = None
-    group_by: Optional[str] = None
-    chart_type: Optional[str] = "table"
-    chart_x: Optional[str] = None
-    chart_y: Optional[str] = None
-    schedule_cron: Optional[str] = None
-    schedule_emails: Optional[list] = None
+    name: str = Field(..., description="Nombre del informe")
+    description: Optional[str] = Field(default=None, description="Descripción del informe")
+    category: Optional[str] = Field(default="custom", description="Categoría del informe")
+    icon: str = Field(default="📊", description="Icono representativo del informe")
+    is_public: bool = Field(default=False, description="Indica si el informe es público para toda la organización")
+    data_source: str = Field(..., description="Origen de datos del informe")
+    filters: Optional[dict] = Field(default=None, description="Filtros aplicados al informe")
+    columns: Optional[list] = Field(default=None, description="Columnas a mostrar en el informe")
+    group_by: Optional[str] = Field(default=None, description="Campo por el que se agrupan los resultados")
+    chart_type: Optional[str] = Field(default="table", description="Tipo de visualización (table, bar, line...)")
+    chart_x: Optional[str] = Field(default=None, description="Campo usado como eje X del gráfico")
+    chart_y: Optional[str] = Field(default=None, description="Campo usado como eje Y del gráfico")
+    schedule_cron: Optional[str] = Field(default=None, description="Expresión cron para envío programado del informe")
+    schedule_emails: Optional[list] = Field(default=None, description="Lista de emails destinatarios del envío programado")
 
 
 class InvoiceCreate(BaseModel):
-    project_id: Optional[str] = None
-    contract_id: Optional[str] = None
-    client_name: Optional[str] = None
-    client_address: Optional[str] = None
-    client_vat: Optional[str] = None
-    client_email: Optional[str] = None
-    issue_date: date
-    due_date: Optional[date] = None
-    tax_rate: float = settings.DEFAULT_TAX_RATE
-    currency: str = settings.DEFAULT_CURRENCY
-    notes: Optional[str] = None
-    po_reference: Optional[str] = None
-    period_from: Optional[date] = None
-    period_to: Optional[date] = None
-    lines: List[dict] = []
+    project_id: Optional[str] = Field(default=None, description="ID del proyecto a facturar")
+    contract_id: Optional[str] = Field(default=None, description="ID del contrato asociado a la factura")
+    client_name: Optional[str] = Field(default=None, description="Nombre del cliente facturado")
+    client_address: Optional[str] = Field(default=None, description="Dirección postal del cliente")
+    client_vat: Optional[str] = Field(default=None, description="NIF/CIF del cliente")
+    client_email: Optional[str] = Field(default=None, description="Email de contacto del cliente")
+    issue_date: date = Field(..., description="Fecha de emisión de la factura")
+    due_date: Optional[date] = Field(default=None, description="Fecha de vencimiento de la factura")
+    tax_rate: float = Field(default=settings.DEFAULT_TAX_RATE, description="Tipo impositivo aplicado")
+    currency: str = Field(default=settings.DEFAULT_CURRENCY, description="Moneda de la factura")
+    notes: Optional[str] = Field(default=None, description="Notas internas de la factura")
+    po_reference: Optional[str] = Field(default=None, description="Referencia de la orden de compra del cliente")
+    period_from: Optional[date] = Field(default=None, description="Inicio del periodo facturado")
+    period_to: Optional[date] = Field(default=None, description="Fin del periodo facturado")
+    lines: List[dict] = Field(default=[], description="Líneas de la factura")
 
 
 class WorkflowCreate(BaseModel):

@@ -9,6 +9,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.schemas.bookings import (
     BookingCreate,
@@ -59,18 +60,21 @@ def get_gantt_leveling(
 
 # ── Resource Bookings ─────────────────────────────────────────────────────────
 
-@router.get("")
+@router.get("", response_model=APIListResponse[dict])
 def list_bookings(
     user_id: Optional[str] = None,
     project_id: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     booking_type: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return svc.list_bookings_records(user_id, project_id, start_date, end_date,
-                                     booking_type, current_user.organization_id, db)
+    items = svc.list_bookings_records(user_id, project_id, start_date, end_date,
+                                      booking_type, current_user.organization_id, db)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.get("/heatmap")
@@ -102,10 +106,15 @@ def delete_booking(booking_id: str, db: Session = Depends(get_db),
 
 # ── SLA Schedules ─────────────────────────────────────────────────────────────
 
-@router.get("/sla-schedules")
-def list_sla_schedules(db: Session = Depends(get_db),
-                       current_user: User = Depends(get_current_user)):
-    return svc.list_sla_schedules_records(db)
+@router.get("/sla-schedules", response_model=APIListResponse[dict])
+def list_sla_schedules(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    items = svc.list_sla_schedules_records(db)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/sla-schedules")
@@ -137,11 +146,16 @@ def delete_holiday(schedule_id: str, holiday_id: str,
 
 # ── API Keys ──────────────────────────────────────────────────────────────────
 
-@router.get("/api-keys")
-def list_api_keys(db: Session = Depends(get_db),
-                  current_user: User = Depends(get_current_user)):
+@router.get("/api-keys", response_model=APIListResponse[dict])
+def list_api_keys(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     is_superadmin = getattr(current_user, "role", "") in ("superadmin", "admin")
-    return svc.list_api_keys_records(current_user.id, is_superadmin, db)
+    items = svc.list_api_keys_records(current_user.id, is_superadmin, db)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/api-keys")
@@ -164,10 +178,15 @@ def verify_api_key_endpoint(payload: dict = Body(...), db: Session = Depends(get
 
 # ── Recurring Invoices ────────────────────────────────────────────────────────
 
-@router.get("/recurring")
-def list_recurring(db: Session = Depends(get_db),
-                   current_user: User = Depends(require_any_manager)):
-    return svc.list_recurring_records(db)
+@router.get("/recurring", response_model=APIListResponse[dict])
+def list_recurring(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    items = svc.list_recurring_records(db)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/recurring")

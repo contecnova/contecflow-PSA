@@ -480,7 +480,7 @@ export default function CMDBPage() {
 
   const { data: categories = [] } = useQuery({
     queryKey: ['cmdb-categories'],
-    queryFn: () => cmdbApi.categories().then(r => r.data).catch(() => []),
+    queryFn: () => cmdbApi.categories().then(r => r.data?.items ?? r.data ?? []).catch(() => []),
   })
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['cmdb-items', filterType, filterStatus, searchQ],
@@ -489,7 +489,7 @@ export default function CMDBPage() {
       if (filterType)   p.ci_type = filterType
       if (filterStatus) p.status  = filterStatus
       if (searchQ)      p.q       = searchQ
-      return cmdbApi.items(p).then(r => r.data).catch(() => [])
+      return cmdbApi.items(p).then(r => r.data?.items ?? r.data ?? []).catch(() => [])
     },
   })
 

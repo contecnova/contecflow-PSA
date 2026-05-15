@@ -24,6 +24,7 @@ logger = logging.getLogger("contecflow.v14")
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.core.ratelimit import limiter
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.models.cab import (
@@ -38,13 +39,16 @@ import app.services.cab_service as _svc
 # CHANGE ADVISORY BOARD (CAB)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.get("/cab/changes", summary="CRs pendientes de revisión CAB")
+@router.get("/cab/changes", response_model=APIListResponse[dict], summary="CRs pendientes de revisión CAB")
 def cab_pending_changes(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     """All change requests that need CAB review."""
-    return _svc.get_cab_pending_changes(db, current_user.id)
+    items = _svc.get_cab_pending_changes(db, current_user.id)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 class CABVoteCreate(BaseModel):
@@ -82,13 +86,16 @@ def close_cab_vote(
         raise HTTPException(400, str(e))
 
 
-@router.get("/cab/windows", summary="Ventanas de mantenimiento")
+@router.get("/cab/windows", response_model=APIListResponse[dict], summary="Ventanas de mantenimiento")
 def list_maintenance_windows(
     upcoming_only: bool = Query(False),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.list_maintenance_windows(upcoming_only, db)
+    items = _svc.list_maintenance_windows(upcoming_only, db)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 class WindowCreate(BaseModel):
@@ -147,12 +154,15 @@ def _trigger_out(t: WebhookTrigger) -> dict:
     return _svc.trigger_out(t)
 
 
-@router.get("/webhooks", summary="Listar webhook triggers configurados")
+@router.get("/webhooks", response_model=APIListResponse[dict], summary="Listar webhook triggers configurados")
 def list_webhook_triggers(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_webhook_triggers(db)
+    items = _svc.list_webhook_triggers(db)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/webhooks", summary="Crear webhook trigger")
@@ -325,12 +335,15 @@ def email_logs(
 # GDPR
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.get("/gdpr/requests", summary="Listar solicitudes GDPR")
+@router.get("/gdpr/requests", response_model=APIListResponse[dict], summary="Listar solicitudes GDPR")
 def list_gdpr_requests(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.list_gdpr_requests(db)
+    items = _svc.list_gdpr_requests(db)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 class GDPRRequestCreate(BaseModel):

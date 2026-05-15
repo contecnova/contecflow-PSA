@@ -43,6 +43,7 @@ class RACIEntry(Base):
 
     created_at  = Column(DateTime, default=datetime.utcnow)
     updated_at  = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active   = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
     user    = relationship("User", lazy="joined")
     project = relationship("Project")
@@ -84,6 +85,7 @@ class SprintRetroNote(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active  = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
     sprint         = relationship("Sprint")
     facilitated_by = relationship("User", foreign_keys=[facilitated_by_id])
@@ -157,6 +159,7 @@ class ProjectChangelogEntry(Base):
     author_id  = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active  = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
     author  = relationship("User", foreign_keys=[author_id])
     project = relationship("Project")
@@ -199,6 +202,7 @@ class UATCase(Base):
     executed_at = Column(DateTime, nullable=True)
     created_at  = Column(DateTime, default=datetime.utcnow)
     updated_at  = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active   = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
     project     = relationship("Project")
     task        = relationship("Task", foreign_keys=[task_id])

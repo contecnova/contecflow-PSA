@@ -18,7 +18,7 @@ export default function WebhookLogPage() {
   // Obtener los webhooks configurados
   const { data: webhooks = [] } = useQuery({
     queryKey: ['webhooks-list'],
-    queryFn: () => webhooksApi.list().then(r => r.data).catch(() => []),
+    queryFn: () => webhooksApi.list().then(r => r.data?.items ?? r.data ?? []).catch(() => []),
   })
 
   // Obtener logs de todos los webhooks

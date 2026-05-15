@@ -548,7 +548,9 @@ class TestResourceSchedulerBookings:
 
         listed = client.get("/api/v1/bookings", headers=auth(pm_token))
         assert listed.status_code == 200
-        ids = [item["id"] for item in listed.json()]
+        _listed_payload = listed.json()
+        _listed_items = _listed_payload.get("items") if isinstance(_listed_payload, dict) else _listed_payload
+        ids = [item["id"] for item in _listed_items]
         assert b["id"] not in ids
 
         row = db.query(ResourceBooking).filter(ResourceBooking.id == b["id"]).first()

@@ -31,6 +31,7 @@ const LS = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', 
   letterSpacing:'0.07em', display:'block', marginBottom:4 }
 
 function CourseModal({ course, onClose }) {
+  const t = useAppT()
   const toast = useToast(); const qc = useQueryClient()
   const isEdit = !!course?.id
   const [form, setForm] = useState({
@@ -61,9 +62,9 @@ function CourseModal({ course, onClose }) {
         <div><label style={LS}>URL</label>
           <input value={form.url} onChange={e=>setForm(f=>({...f,url:e.target.value}))} style={IS} placeholder="https://proveedor.com/curso" aria-label="URL del curso" /></div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={()=>mutate(form)} disabled={isPending||!form.title} loading={isPending}>
-            {isEdit ? 'Guardar' : 'Crear curso'}
+            {isEdit ? t('common.save') : 'Crear curso'}
           </Button>
         </div>
       </div>
@@ -72,6 +73,7 @@ function CourseModal({ course, onClose }) {
 }
 
 function CertModal({ cert, userId, onClose }) {
+  const t = useAppT()
   const toast = useToast(); const qc = useQueryClient()
   const isEdit = !!cert?.id
   const [form, setForm] = useState({
@@ -111,9 +113,9 @@ function CertModal({ cert, userId, onClose }) {
         <div><label style={LS}>URL verificación</label>
           <input value={form.url} onChange={e=>setForm(f=>({...f,url:e.target.value}))} style={IS} placeholder="https://verificacion.com/certificado" aria-label="URL de verificacion" /></div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={()=>mutate(form)} disabled={isPending||!form.name||!form.user_id} loading={isPending}>
-            {isEdit ? 'Guardar' : 'Añadir'}
+            {isEdit ? t('common.save') : 'Añadir'}
           </Button>
         </div>
       </div>

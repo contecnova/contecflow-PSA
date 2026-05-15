@@ -50,6 +50,7 @@ class ESignEnvelope(Base):
     expires_at      = Column(DateTime, nullable=True)
     created_at      = Column(DateTime, default=datetime.utcnow)
     updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active       = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
     document    = relationship("Document",       back_populates=None, foreign_keys=[document_id])
     created_by  = relationship("User",           back_populates=None, foreign_keys=[created_by_id])

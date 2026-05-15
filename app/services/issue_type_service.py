@@ -85,7 +85,10 @@ def list_issue_types(project_id: str, db: Session) -> list:
     types = (
         db.query(IssueType)
         .options(joinedload(IssueType.fields))
-        .filter(IssueType.project_id == project_id)
+        .filter(
+            IssueType.project_id == project_id,
+            IssueType.is_active == True,  # audit #36 soft-delete
+        )
         .order_by(IssueType.sort_order).all()
     )
     return [serialize_issue_type(t) for t in types]
@@ -168,7 +171,9 @@ def delete_issue_type(project_id: str, type_id: str, db: Session) -> dict:
     ).count()
     if in_use:
         raise ValueError(f"No se puede eliminar: {in_use} tareas usan este tipo. Reasígnalas primero")
-    db.delete(it); db.commit()
+    # audit #36 soft-delete — el tipo conserva su histórico para tareas legacy.
+    it.is_active = False
+    db.commit()
     return {"deleted": True}
 
 

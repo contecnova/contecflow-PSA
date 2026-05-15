@@ -12,7 +12,7 @@ import { clientsApi } from '../services/api'
 export function useClients(params = {}) {
   return useQuery({
     queryKey: ['clients', params],
-    queryFn: () => clientsApi.list(params).then(r => r.data),
+    queryFn: () => clientsApi.list(params).then(r => r.data?.items ?? r.data ?? []),
     staleTime: 2 * 60 * 1000,
   })
 }
@@ -21,7 +21,7 @@ export function useClients(params = {}) {
 export function useAllClients() {
   return useQuery({
     queryKey: ['clients'],
-    queryFn: () => clientsApi.list().then(r => r.data),
+    queryFn: () => clientsApi.list().then(r => r.data?.items ?? r.data ?? []),
     staleTime: 2 * 60 * 1000,
   })
 }

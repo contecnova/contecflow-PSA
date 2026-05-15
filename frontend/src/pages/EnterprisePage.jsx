@@ -27,7 +27,7 @@ function WebhooksTab() {
   const [showLogs, setShowLogs] = useState(null)
   const [form, setForm] = useState({ name:'', slug:'', workflow_id:'' })
 
-  const { data: triggers = [], isLoading } = useQuery({ queryKey:['wh-triggers'], queryFn:() => webhooksApi.list().then(r => r.data) })
+  const { data: triggers = [], isLoading } = useQuery({ queryKey:['wh-triggers'], queryFn:() => webhooksApi.list().then(r => r.data?.items ?? r.data ?? []) })
   const { data: workflows = [] } = useQuery({ queryKey:['workflows-ent'], queryFn:() => autoWorkflowsApi.list().then(r => r.data) })
   const { data: logs = [] } = useQuery({ queryKey:['wh-logs', showLogs], queryFn:() => webhooksApi.logs(showLogs).then(r => r.data), enabled:!!showLogs })
 
@@ -113,7 +113,7 @@ function GDPRTab() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ request_type:'erasure', subject_user_id:'', subject_email:'', notes:'' })
 
-  const { data: requests = [], isLoading } = useQuery({ queryKey:['gdpr'], queryFn:() => gdprApi.list().then(r => r.data) })
+  const { data: requests = [], isLoading } = useQuery({ queryKey:['gdpr'], queryFn:() => gdprApi.list().then(r => r.data?.items ?? r.data ?? []) })
   const { data: usersRaw = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list().then(r => r.data) })
   const users = Array.isArray(usersRaw) ? usersRaw : []
 

@@ -45,7 +45,7 @@ const SELECT_STYLE = {
 export function ClientSelect({ value = '', onChange, placeholder = 'Seleccionar cliente…', required = false, style }) {
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ['clients'],
-    queryFn: () => clientsApi.list().then(r => r.data),
+    queryFn: () => clientsApi.list().then(r => r.data?.items ?? r.data ?? []),
     staleTime: 2 * 60 * 1000,
   })
 

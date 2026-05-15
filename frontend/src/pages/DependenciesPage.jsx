@@ -114,7 +114,7 @@ function DepForm({ projectId, tasks, onClose }) {
         )}
 
         <div style={{display:'flex', justifyContent:'flex-end', gap:10, marginTop:8}}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate()} disabled={isPending || !form.predecessor_id || !form.successor_id} loading={isPending}>
             {isPending ? 'Creando...' : 'Crear dependencia'}
           </Button>

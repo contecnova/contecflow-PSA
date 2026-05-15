@@ -35,6 +35,7 @@ function StatusBadge({ status }) {
 
 // ── Modal de rechazo ──────────────────────────────────────────────────────────
 function RejectModal({ milestone, onClose, onReject }) {
+  const t = useAppT()
   const [reason, setReason] = useState('')
   const milestoneLabel = milestone?.name || milestone?.title || milestone?.code || milestone?.id
   return (
@@ -62,7 +63,7 @@ function RejectModal({ milestone, onClose, onReject }) {
           placeholder="Describe el motivo del rechazo" aria-label="Motivo del rechazo" />
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
         <Button variant="danger" onClick={() => onReject(reason)} disabled={!reason.trim()}>✗ Confirmar rechazo</Button>
       </div>
     </Modal>
@@ -191,6 +192,7 @@ function MilestoneCard({ m, projectName, onRefresh }) {
 
 // ── Formulario de nuevo milestone ─────────────────────────────────────────────
 function NewMilestoneModal({ projectId, onClose, onSave }) {
+  const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState({ name: '', description: '', due_date: '', billing_amount: '', billing_pct: '' })
   const { mutate, isPending } = useMutation({
@@ -230,7 +232,7 @@ function NewMilestoneModal({ projectId, onClose, onSave }) {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
         <Button onClick={() => mutate()} loading={isPending} disabled={!form.name || isPending}>Crear milestone</Button>
       </div>
     </Modal>

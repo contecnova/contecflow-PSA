@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, require_admin
+from app.core.responses import APIListResponse
 from app.models.esign import ESignEnvelope, ESignProvider, ESignStatus
 from app.models.user import User
 from app.models.settings import AppSetting
@@ -125,22 +126,25 @@ from app.services.esign_service import (
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.get("", response_model=List[EnvelopeOut], summary="Listar solicitudes de firma")
+@router.get("", response_model=APIListResponse[EnvelopeOut], summary="Listar solicitudes de firma")
 def list_envelopes(
     document_id: Optional[int] = Query(None),
     status:      Optional[str] = Query(None),
     limit:       int           = Query(50, le=200),
+    page:        int           = Query(1, ge=1),
+    page_size:   int           = Query(50, ge=1, le=200),
     db:          Session       = Depends(get_db),
     current_user: User         = Depends(get_current_user),
 ):
     created_by_id = None if current_user.is_superadmin else current_user.id
-    return esign_service.list_envelopes(
+    items = esign_service.list_envelopes(
         db,
         created_by_id=created_by_id,
         document_id=document_id,
         status=status,
         limit=limit,
     )
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("", response_model=EnvelopeOut, summary="Crear solicitud de firma")
