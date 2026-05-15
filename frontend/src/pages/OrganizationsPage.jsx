@@ -14,12 +14,37 @@ import PageShell from '../components/layout/PageShell'
 import { Building2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
+import { z } from 'zod'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 const fs = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
 const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
 const PLAN_COLORS = { starter:'var(--text-2)', pro:'var(--accent)', enterprise:'var(--success)' }
+
+const PLAN_VALUES = ['starter', 'pro', 'enterprise']
+
+const organizationCreateSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es obligatorio').max(120, 'Máximo 120 caracteres'),
+  slug: z.string().trim().min(2, 'Mínimo 2 caracteres').max(60, 'Máximo 60 caracteres').regex(/^[a-z0-9-]+$/, 'Solo minúsculas, números y guiones'),
+  plan: z.enum(PLAN_VALUES),
+  max_users: z.coerce.number().int().positive('Debe ser mayor que 0').max(100000, 'Valor demasiado alto'),
+  max_projects: z.coerce.number().int().positive('Debe ser mayor que 0').max(100000, 'Valor demasiado alto'),
+  admin_email: z.string().trim().email('Email inválido').or(z.literal('')).optional(),
+  timezone: z.string().optional(),
+})
+
+const organizationUpdateSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es obligatorio').max(120, 'Máximo 120 caracteres'),
+  plan: z.enum(PLAN_VALUES),
+  max_users: z.coerce.number().int().positive('Debe ser mayor que 0').max(100000, 'Valor demasiado alto'),
+  max_projects: z.coerce.number().int().positive('Debe ser mayor que 0').max(100000, 'Valor demasiado alto'),
+  admin_email: z.string().trim().email('Email inválido').or(z.literal('')).optional(),
+  timezone: z.string().optional(),
+  locale: z.string().optional(),
+  primary_color: z.string().optional(),
+})
 
 export default function OrganizationsPage() {
   // ...existing code...
@@ -58,6 +83,8 @@ export default function OrganizationsPage() {
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState({ name:'', slug:'', plan:'starter', max_users:25, max_projects:100, admin_email:'', timezone: defaultTimezone })
   const [editForm, setEditForm] = useState(null)
+  const createValidation = useFormValidation(organizationCreateSchema)
+  const editValidation = useFormValidation(organizationUpdateSchema)
 
   const { data: orgs = [], isLoading } = useQuery({ queryKey:['orgs'], queryFn:() => organizationsApi.list().then(r=>r.data) })
   const { data: detail } = useQuery({ queryKey:['org-detail', selected], queryFn:() => organizationsApi.get(selected).then(r=>r.data), enabled:!!selected })
@@ -78,9 +105,21 @@ export default function OrganizationsPage() {
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => organizationsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['orgs']); setShowCreate(false) },
+    onSuccess: () => { qc.invalidateQueries(['orgs']); setShowCreate(false); createValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
+
+  const submitCreate = () => {
+    const result = createValidation.validateForm(form)
+    if (!result.success) return
+    create(result.data)
+  }
+
+  const submitEdit = () => {
+    const result = editValidation.validateForm(editForm)
+    if (!result.success) return
+    update({ id: selected, data: result.data })
+  }
   const { mutate: toggle } = useMutation({
     mutationFn: ({ id, is_active }) => organizationsApi.update(id, { is_active }),
     onSuccess: () => qc.invalidateQueries(['orgs']),
@@ -88,7 +127,7 @@ export default function OrganizationsPage() {
   })
   const { mutate: update, isPending: isUpdating } = useMutation({
     mutationFn: ({ id, data }) => organizationsApi.update(id, data),
-    onSuccess: () => { qc.invalidateQueries(['orgs']); qc.invalidateQueries(['org-detail', selected]); setShowEdit(false) },
+    onSuccess: () => { qc.invalidateQueries(['orgs']); qc.invalidateQueries(['org-detail', selected]); setShowEdit(false); editValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, 'Error al actualizar')),
   })
 
@@ -244,11 +283,19 @@ export default function OrganizationsPage() {
       </div>
 
       {showCreate && (
-        <Modal open title="Nueva organizacion" onClose={() => setShowCreate(false)} width={520}>
+        <Modal open title="Nueva organizacion" onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={520}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <div><label style={ls}>Nombre</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>Slug (identificador único)</label><input value={form.slug} onChange={e=>setForm(f=>({...f,slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} style={fs} /></div>
+              <div>
+                <label style={ls}>Nombre</label>
+                <input value={form.name} onChange={e=>{ setForm(f=>({...f,name:e.target.value})); createValidation.clearFieldError('name') }} style={createValidation.inputStyle(fs, 'name')} />
+                {createValidation.errors.name && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.name}</div>}
+              </div>
+              <div>
+                <label style={ls}>Slug (identificador único)</label>
+                <input value={form.slug} onChange={e=>{ setForm(f=>({...f,slug:e.target.value.toLowerCase().replace(/\s+/g,'-')})); createValidation.clearFieldError('slug') }} style={createValidation.inputStyle(fs, 'slug')} />
+                {createValidation.errors.slug && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.slug}</div>}
+              </div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
               <div><label style={ls}>Plan</label>
@@ -256,23 +303,39 @@ export default function OrganizationsPage() {
                   {['starter','pro','enterprise'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
-              <div><label style={ls}>Máx. usuarios</label><input type="number" value={form.max_users} onChange={e=>setForm(f=>({...f,max_users:+e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>Máx. proyectos</label><input type="number" value={form.max_projects} onChange={e=>setForm(f=>({...f,max_projects:+e.target.value}))} style={fs} /></div>
+              <div>
+                <label style={ls}>Máx. usuarios</label>
+                <input type="number" value={form.max_users} onChange={e=>{ setForm(f=>({...f,max_users:+e.target.value})); createValidation.clearFieldError('max_users') }} style={createValidation.inputStyle(fs, 'max_users')} />
+                {createValidation.errors.max_users && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.max_users}</div>}
+              </div>
+              <div>
+                <label style={ls}>Máx. proyectos</label>
+                <input type="number" value={form.max_projects} onChange={e=>{ setForm(f=>({...f,max_projects:+e.target.value})); createValidation.clearFieldError('max_projects') }} style={createValidation.inputStyle(fs, 'max_projects')} />
+                {createValidation.errors.max_projects && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.max_projects}</div>}
+              </div>
             </div>
-            <div><label style={ls}>Email del admin</label><input value={form.admin_email} onChange={e=>setForm(f=>({...f,admin_email:e.target.value}))} style={fs} /></div>
+            <div>
+              <label style={ls}>Email del admin</label>
+              <input value={form.admin_email} onChange={e=>{ setForm(f=>({...f,admin_email:e.target.value})); createValidation.clearFieldError('admin_email') }} style={createValidation.inputStyle(fs, 'admin_email')} />
+              {createValidation.errors.admin_email && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.admin_email}</div>}
+            </div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
-              <Button variant="secondary" onClick={()=>setShowCreate(false)}>Cancelar</Button>
-              <Button onClick={()=>create(form)} disabled={isPending||!form.name||!form.slug}>{isPending?'Creando...':'Crear'}</Button>
+              <Button variant="secondary" onClick={()=>{ setShowCreate(false); createValidation.setErrors({}) }}>Cancelar</Button>
+              <Button onClick={submitCreate} disabled={isPending}>{isPending?'Creando...':'Crear'}</Button>
             </div>
           </div>
         </Modal>
       )}
 
       {showEdit && editForm && (
-        <Modal open title="Editar organizacion" onClose={() => setShowEdit(false)} width={520}>
+        <Modal open title="Editar organizacion" onClose={() => { setShowEdit(false); editValidation.setErrors({}) }} width={520}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <div><label style={ls}>Nombre</label><input value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
+              <div>
+                <label style={ls}>Nombre</label>
+                <input value={editForm.name} onChange={e=>{ setEditForm(f=>({...f,name:e.target.value})); editValidation.clearFieldError('name') }} style={editValidation.inputStyle(fs, 'name')} />
+                {editValidation.errors.name && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.name}</div>}
+              </div>
               {/* El slug no se puede editar */}
               <div><label style={ls}>Slug</label><input value={detail.slug} disabled style={{...fs, background:'#f5f5f5'}} /></div>
             </div>
@@ -282,13 +345,25 @@ export default function OrganizationsPage() {
                   {['starter','pro','enterprise'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
-              <div><label style={ls}>Máx. usuarios</label><input type="number" value={editForm.max_users} onChange={e=>setEditForm(f=>({...f,max_users:+e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>Máx. proyectos</label><input type="number" value={editForm.max_projects} onChange={e=>setEditForm(f=>({...f,max_projects:+e.target.value}))} style={fs} /></div>
+              <div>
+                <label style={ls}>Máx. usuarios</label>
+                <input type="number" value={editForm.max_users} onChange={e=>{ setEditForm(f=>({...f,max_users:+e.target.value})); editValidation.clearFieldError('max_users') }} style={editValidation.inputStyle(fs, 'max_users')} />
+                {editValidation.errors.max_users && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.max_users}</div>}
+              </div>
+              <div>
+                <label style={ls}>Máx. proyectos</label>
+                <input type="number" value={editForm.max_projects} onChange={e=>{ setEditForm(f=>({...f,max_projects:+e.target.value})); editValidation.clearFieldError('max_projects') }} style={editValidation.inputStyle(fs, 'max_projects')} />
+                {editValidation.errors.max_projects && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.max_projects}</div>}
+              </div>
             </div>
-            <div><label style={ls}>Email del admin</label><input value={editForm.admin_email} onChange={e=>setEditForm(f=>({...f,admin_email:e.target.value}))} style={fs} /></div>
+            <div>
+              <label style={ls}>Email del admin</label>
+              <input value={editForm.admin_email} onChange={e=>{ setEditForm(f=>({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} style={editValidation.inputStyle(fs, 'admin_email')} />
+              {editValidation.errors.admin_email && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.admin_email}</div>}
+            </div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
-              <Button variant="secondary" onClick={()=>setShowEdit(false)}>Cancelar</Button>
-              <Button onClick={()=>update({ id: selected, data: editForm })} disabled={isUpdating||!editForm.name}>{isUpdating?'Guardando...':'Guardar'}</Button>
+              <Button variant="secondary" onClick={()=>{ setShowEdit(false); editValidation.setErrors({}) }}>Cancelar</Button>
+              <Button onClick={submitEdit} disabled={isUpdating}>{isUpdating?'Guardando...':'Guardar'}</Button>
             </div>
           </div>
         </Modal>

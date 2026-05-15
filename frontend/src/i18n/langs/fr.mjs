@@ -22,6 +22,9 @@ const fr = {
     searching: 'Recherche...',
     write_at_least_2: 'Tapez au moins 2 caractères pour rechercher',
     navigate: 'naviguer', open: 'ouvrir',
+    update: 'Mettre à jour',
+    error_update: 'Échec de la mise à jour',
+    error_delete: 'Échec de la suppression',
   },
   nav: {
     dashboard: 'Tableau de bord', projects: 'Projets', tasks: 'T\u00e2ches',

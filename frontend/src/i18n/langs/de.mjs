@@ -26,6 +26,9 @@ const de = {
     searching: 'Suche...',
     write_at_least_2: 'Mindestens 2 Zeichen zum Suchen eingeben',
     navigate: 'navigieren', open: 'öffnen',
+    update: 'Aktualisieren',
+    error_update: 'Aktualisierung fehlgeschlagen',
+    error_delete: 'Löschen fehlgeschlagen',
   },
   nav: {
     dashboard: 'Dashboard', projects: 'Projekte', tasks: 'Aufgaben',

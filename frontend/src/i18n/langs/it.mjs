@@ -26,6 +26,9 @@ const it = {
     searching: 'Ricerca...',
     write_at_least_2: 'Digita almeno 2 caratteri per cercare',
     navigate: 'navigare', open: 'aprire',
+    update: 'Aggiorna',
+    error_update: 'Aggiornamento fallito',
+    error_delete: 'Eliminazione fallita',
   },
   nav: {
     dashboard: 'Dashboard', projects: 'Progetti', tasks: 'Attività',

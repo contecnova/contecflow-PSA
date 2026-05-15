@@ -1655,6 +1655,10 @@ const es = {
     no_results: 'Sin resultados',
     priority: 'Prioridad',
     completed: 'Completado',
+    loading: 'Cargando...',
+    update: 'Actualizar',
+    error_update: 'Error al actualizar',
+    error_delete: 'Error al eliminar',
   },
   projects: {
     title: 'Cartera de Proyectos',

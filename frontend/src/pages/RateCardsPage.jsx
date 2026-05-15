@@ -10,13 +10,39 @@ import PageShell from '../components/layout/PageShell'
 import { Tag } from 'lucide-react'
 import { Button, Modal, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import { z } from 'zod'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
+const optionalPositive = z.union([z.literal(''), z.coerce.number().nonnegative('Debe ser ≥ 0')]).optional()
+const optionalDate = z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida')]).optional()
+
+const rateEntrySchema = z.object({
+  label: z.string().trim().min(1, 'El rol o perfil es obligatorio').max(120, 'Máximo 120 caracteres'),
+  billing_rate: optionalPositive,
+  cost_rate: optionalPositive,
+  escalation_pct: z.coerce.number().min(0, 'No puede ser negativo').max(100, 'Máximo 100%'),
+  valid_from: optionalDate,
+  valid_to: optionalDate,
+  notes: z.string().max(500, 'Máximo 500 caracteres').optional(),
+}).refine(d => {
+  if (!d.valid_from || !d.valid_to) return true
+  return d.valid_from <= d.valid_to
+}, { message: 'La fecha de fin debe ser posterior a la de inicio', path: ['valid_to'] })
+
+const rateTableSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es obligatorio').max(120, 'Máximo 120 caracteres'),
+  description: z.string().max(500, 'Máximo 500 caracteres').optional(),
+  applies_to: z.enum(['role', 'department', 'client']),
+  is_default: z.boolean().optional(),
+})
+
 // ── Formulario de entrada ─────────────────────────────────────────────────────
 function EntryForm({ tableId, entry, onClose }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const isEdit = !!entry?.id
@@ -29,6 +55,12 @@ function EntryForm({ tableId, entry, onClose }) {
     valid_to:       entry?.valid_to       || '',
     notes:          entry?.notes          || '',
   })
+  const validation = useFormValidation(rateEntrySchema)
+
+  const setField = (key) => (e) => {
+    setForm(f => ({ ...f, [key]: e.target.value }))
+    validation.clearFieldError(key)
+  }
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
@@ -43,12 +75,13 @@ function EntryForm({ tableId, entry, onClose }) {
   })
 
   const save = () => {
-    if (!form.label) return
+    const result = validation.validateForm(form)
+    if (!result.success) return
     mutate({
-      ...form,
-      billing_rate:   form.billing_rate   ? +form.billing_rate   : null,
-      cost_rate:      form.cost_rate      ? +form.cost_rate      : null,
-      escalation_pct: +form.escalation_pct,
+      ...result.data,
+      billing_rate:   result.data.billing_rate === '' || result.data.billing_rate == null ? null : Number(result.data.billing_rate),
+      cost_rate:      result.data.cost_rate === '' || result.data.cost_rate == null ? null : Number(result.data.cost_rate),
+      escalation_pct: Number(result.data.escalation_pct),
     })
   }
 
@@ -93,7 +126,7 @@ function EntryForm({ tableId, entry, onClose }) {
       )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>Cancelar</button>
+        <button onClick={onClose} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>{t('common.cancel')}</button>
         <Button onClick={save} loading={isPending} disabled={!form.label || isPending}>
           {isEdit ? '💾 Guardar' : '+ Añadir'}
         </Button>
@@ -104,6 +137,7 @@ function EntryForm({ tableId, entry, onClose }) {
 
 // ── Detalle de tabla ──────────────────────────────────────────────────────────
 function RateTableDetail({ tableId, onBack }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showEntry, setShowEntry]   = useState(false)
@@ -129,7 +163,7 @@ function RateTableDetail({ tableId, onBack }) {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Cargando...</div>
+  if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>{t('common.loading')}</div>
   if (!table) return null
 
   const entries = table.entries || []
@@ -226,7 +260,7 @@ function RateTableDetail({ tableId, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowDupe(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowDupe(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => duplicate()} loading={duping}>Duplicar +{dupeEsc}%</Button>
           </div>
         </Modal>
@@ -279,7 +313,7 @@ export default function RateCardsPage() {
       </div>
 
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>Cargando...</div>
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>{t('common.loading')}</div>
       ) : tables.length === 0 ? (
         <EmptyState icon="💰" title="Sin tablas de tarifas" description="Crea la primera tabla para definir precios y costes" />
       ) : (

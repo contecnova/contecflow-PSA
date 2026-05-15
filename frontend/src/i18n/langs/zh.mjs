@@ -22,6 +22,9 @@ const zh = {
     searching: '搜索中...',
     write_at_least_2: '请输入至少2个字符进行搜索',
     navigate: '导航', open: '打开',
+    update: '更新',
+    error_update: '更新失败',
+    error_delete: '删除失败',
   },
   nav: {
     dashboard: '仪表盘', projects: '项目', tasks: '任务',

@@ -32,7 +32,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }) {
   const [expanded, setExpanded] = useState(true)
   const [forceRefresh, setForceRefresh] = useState(false)
 
-  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: ['bi-narrative', lang, forceRefresh],
     queryFn: () => analyticsApi.narrative({ lang, force_refresh: forceRefresh }).then(r => r.data),
     staleTime: 55 * 60 * 1000,
@@ -40,8 +40,8 @@ export default function NarrativeCard({ lang = 'es', style = {} }) {
   })
 
   const handleRefresh = () => {
+    // Toggling forceRefresh changes the queryKey, which triggers an automatic refetch.
     setForceRefresh(f => !f)
-    setTimeout(() => refetch(), 50)
   }
 
   return (

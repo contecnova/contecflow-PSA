@@ -70,6 +70,7 @@ function StatusBadge({ status }) {
 }
 
 function CRFormModal({ cr, projectId, onClose }) {
+  const t = useAppT()
   const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
@@ -146,9 +147,9 @@ function CRFormModal({ cr, projectId, onClose }) {
           {validation.errors.scope_impact && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.scope_impact}</p>}
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={submit} disabled={isPending} loading={isPending}>
-            {isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear CR'}
+            {isPending ? t('common.saving') : isEdit ? t('common.save') : 'Crear CR'}
           </Button>
         </div>
       </div>
@@ -157,6 +158,7 @@ function CRFormModal({ cr, projectId, onClose }) {
 }
 
 function ReviewCRModal({ cr, projectId, onClose }) {
+  const t = useAppT()
   const idPrefix = useId()
   const toast = useToast()
   const qc = useQueryClient()
@@ -201,7 +203,7 @@ function ReviewCRModal({ cr, projectId, onClose }) {
         {validation.errors.resolution_notes && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.resolution_notes}</p>}
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button variant="danger" onClick={() => submitReview(false)} disabled={isPending} loading={isPending}>✕ Rechazar</Button>
         <Button onClick={() => submitReview(true)} disabled={isPending} loading={isPending}>✓ Aprobar</Button>
       </div>
@@ -211,6 +213,7 @@ function ReviewCRModal({ cr, projectId, onClose }) {
 
 // ── CAB Board Tab ─────────────────────────────────────────────────────────────
 function CABBoard() {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const { data: pendingCRs = [], isLoading } = useQuery({
@@ -245,7 +248,7 @@ function CABBoard() {
       <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:20 }}>
         <div>
           <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:14 }}>CRs pendientes de votación CAB ({pendingCRs.length})</div>
-          {isLoading ? <div style={{ color:'var(--text-2)', fontSize: "var(--text-base)" }}>Cargando...</div> :
+          {isLoading ? <div style={{ color:'var(--text-2)', fontSize: "var(--text-base)" }}>{t('common.loading')}</div> :
             pendingCRs.length === 0 ? (
               <div style={{ ...card, padding:32, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>Sin CRs pendientes de votación</div>
             ) : pendingCRs.map(cr => {

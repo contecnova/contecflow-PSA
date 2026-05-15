@@ -89,6 +89,7 @@ const workOrderSchema = z.object({
 })
 
 function ContractFormModal({ contract, onClose }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!contract?.id
@@ -229,9 +230,9 @@ function ContractFormModal({ contract, onClose }) {
           <textarea value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} />
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={submit} disabled={isPending} loading={isPending}>
-            {isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear contrato'}
+            {isPending ? t('common.saving') : isEdit ? t('common.save') : 'Crear contrato'}
           </Button>
         </div>
       </div>
@@ -240,6 +241,7 @@ function ContractFormModal({ contract, onClose }) {
 }
 
 function ContractDetail({ contract, onClose, onEdit }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showWO, setShowWO] = useState(false)
@@ -344,7 +346,7 @@ function ContractDetail({ contract, onClose, onEdit }) {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button size="sm" onClick={submitWO}>Crear OT</Button>
-              <Button size="sm" variant="secondary" onClick={() => setShowWO(false)}>Cancelar</Button>
+              <Button size="sm" variant="secondary" onClick={() => setShowWO(false)}>{t('common.cancel')}</Button>
             </div>
           </div>
         )}

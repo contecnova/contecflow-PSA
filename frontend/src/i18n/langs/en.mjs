@@ -1437,6 +1437,10 @@ const en = {
     new: 'New',
     are_you_sure: 'Are you sure?',
     no_results: 'No results',
+    loading: 'Loading...',
+    update: 'Update',
+    error_update: 'Update failed',
+    error_delete: 'Delete failed',
   },
   projects: {
     title: 'Projects',

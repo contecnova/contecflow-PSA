@@ -296,9 +296,9 @@ export function IdiomasSection() {
                         return merged
                       })
                       setHasUnsaved(true)
-                      alert('Traducciones importadas. Revisa y guarda para aplicar.')
+                      toast.success('Traducciones importadas. Revisa y guarda para aplicar.')
                     } catch {
-                      alert('Error al leer el archivo JSON')
+                      toast.error('Error al leer el archivo JSON')
                     }
                   }
                   reader.readAsText(file)
@@ -365,9 +365,9 @@ export function IdiomasSection() {
                         return merged
                       })
                       setHasUnsaved(true)
-                      alert('Traducciones importadas. Revisa y guarda para aplicar.')
+                      toast.success('Traducciones importadas. Revisa y guarda para aplicar.')
                     } catch {
-                      alert('Error al leer el archivo JSON')
+                      toast.error('Error al leer el archivo JSON')
                     }
                   }
                   reader.readAsText(file)

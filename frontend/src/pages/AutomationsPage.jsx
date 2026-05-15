@@ -517,6 +517,7 @@ function StepConfig({ step, onChange }) {
 
 function WorkflowModal({ workflow, onClose }) {
   const t = useAppT()
+  const toast = useToast()
   const isEdit = !!workflow
   const [form, setForm] = useState({
     name: workflow?.name || '',
@@ -526,7 +527,7 @@ function WorkflowModal({ workflow, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? workflowsLegacyApi.update(workflow.id, d) : workflowsLegacyApi.create(d),
     onSuccess: onClose,
-    onError: e => alert(extractErr(e, t('common.error'))),
+    onError: e => toast.error(extractErr(e, t('common.error'))),
   })
   const addStep = () => setForm(f => ({ ...f, steps: [...f.steps, { type: 'create_alert', params: { message: '', severity: 'info' } }] }))
   const removeStep = i => setForm(f => ({ ...f, steps: f.steps.filter((_, idx) => idx !== i) }))

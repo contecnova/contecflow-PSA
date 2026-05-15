@@ -22,6 +22,9 @@ const pl = {
     searching: 'Wyszukiwanie...',
     write_at_least_2: 'Wpisz co najmniej 2 znaki, aby wyszukać',
     navigate: 'nawiguj', open: 'otwórz',
+    update: 'Aktualizuj',
+    error_update: 'Aktualizacja nieudana',
+    error_delete: 'Usuwanie nieudane',
   },
   nav: {
     dashboard: 'Pulpit', projects: 'Projekty', tasks: 'Zadania',

@@ -1,3 +1,5 @@
+import { useToast } from '../../context/ToastContext'
+
 function isVisible(el) {
   if (!el) return false
   const style = window.getComputedStyle(el)
@@ -147,12 +149,13 @@ function exportVisibleListToExcel({ targetSelector, filePrefix } = {}) {
 }
 
 function AutoListExportButton({ exportTargetSelector, exportFilePrefix }) {
+  const toast = useToast()
   return (
     <button
       type="button"
       onClick={() => {
         const ok = exportVisibleListToExcel({ targetSelector: exportTargetSelector, filePrefix: exportFilePrefix })
-        if (!ok) window.alert('No hay una lista exportable en la vista actual.')
+        if (!ok) toast.error('No hay una lista exportable en la vista actual.')
       }}
       style={{
         display: 'flex', alignItems: 'center', gap: 6,

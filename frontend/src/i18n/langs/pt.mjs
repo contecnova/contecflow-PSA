@@ -26,6 +26,9 @@ const pt = {
     searching: 'Pesquisando...',
     write_at_least_2: 'Digite pelo menos 2 caracteres para pesquisar',
     navigate: 'navegar', open: 'abrir',
+    update: 'Atualizar',
+    error_update: 'Falha ao atualizar',
+    error_delete: 'Falha ao excluir',
   },
   nav: {
     dashboard: 'Painel', projects: 'Projetos', tasks: 'Tarefas',

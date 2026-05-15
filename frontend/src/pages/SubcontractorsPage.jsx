@@ -262,7 +262,7 @@ function WorkersPanel({ subId }) {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  if (isLoading) return <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-2)' }}>Cargando...</div>
+  if (isLoading) return <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-2)' }}>{t('common.loading')}</div>
 
   return (
     <div>
@@ -594,7 +594,7 @@ function SubDetail({ sub, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowTimelog(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowTimelog(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => logHours(tlForm)} loading={logging} disabled={!tlForm.hours || logging}>Registrar horas</Button>
           </div>
         </Modal>
@@ -631,7 +631,7 @@ function SubDetail({ sub, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowInvoice(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowInvoice(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => createInv(invForm)} loading={invoicing} disabled={!invForm.invoice_number || !invForm.amount || invoicing}>Registrar factura</Button>
           </div>
         </Modal>
@@ -666,7 +666,7 @@ function SubDetail({ sub, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowAssign(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowAssign(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => createAssign(asgForm)} loading={assigning} disabled={!asgForm.project_id || assigning}>Crear asignación</Button>
           </div>
         </Modal>
@@ -719,7 +719,7 @@ export default function SubcontractorsPage() {
       setEditTarget(null)
       toast.success('Subcontratista actualizado')
     },
-    onError: e => toast.error(extractErr(e, 'Error al actualizar')),
+    onError: e => toast.error(extractErr(e, t('common.error_update'))),
   })
   const { mutate: remove } = useMutation({
     mutationFn: id => enterpriseSubsApi.delete(id),
@@ -728,7 +728,7 @@ export default function SubcontractorsPage() {
       qc.invalidateQueries(['sub-dashboard'])
       toast.success('Subcontratista eliminado')
     },
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    onError: e => toast.error(extractErr(e, t('common.error_delete'))),
   })
 
   if (selected) return <SubDetail sub={selected} onBack={() => setSelected(null)} />
@@ -759,7 +759,7 @@ export default function SubcontractorsPage() {
       </div>
 
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>Cargando...</div>
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>{t('common.loading')}</div>
       ) : subs.length === 0 ? (
         <EmptyState icon="🤝" title="Sin subcontratistas" description="Crea el primer colaborador externo para empezar" />
       ) : view === 'grid' ? (
@@ -875,7 +875,7 @@ export default function SubcontractorsPage() {
             <textarea value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => create(form)} loading={isPending} disabled={!form.name || isPending}>Crear subcontratista</Button>
           </div>
         </Modal>
@@ -916,7 +916,7 @@ export default function SubcontractorsPage() {
             <textarea value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => { setShowEdit(false); setEditTarget(null) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => { setShowEdit(false); setEditTarget(null) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => update({id: editTarget.id, ...editForm})} loading={updating} disabled={!editForm.name || updating}>Guardar cambios</Button>
           </div>
         </Modal>
