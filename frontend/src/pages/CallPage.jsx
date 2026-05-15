@@ -237,6 +237,7 @@ export default function CallPage() {
           const fd = new FormData()
           fd.append('audio', blob, 'chunk.webm')
           try {
+            // #45: kept as fetch() — side-effects/realtime/optimistic
             const r = await fetch(`/api/v1/collaboration/calls/${callId}/transcribe-chunk`, {
               method: 'POST', body: fd, credentials: 'include',
             })

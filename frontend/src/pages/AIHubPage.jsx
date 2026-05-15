@@ -1,7 +1,7 @@
 import { PROVIDER_META } from '../constants/api'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
-import { useId, useState, useEffect } from 'react'
+import { useId, useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { predictiveObservabilityApi, aiProvidersApi } from '../services/api'
@@ -312,26 +312,30 @@ function TestModal({ provider, onClose }) {
 function GovernanceTab() {
   // Read-only viewer del audit log + stats. El CRUD de policies se gestiona
   // vía API directa hasta que se complete la UI dedicada (decisión ARCH).
-  const [policies, setPolicies] = useState([])
-  const [auditLog, setAuditLog] = useState([])
-  const [stats, setStats] = useState(null)
-  const [loading, setLoading] = useState(true)
+  // #45: converted fetch() → useQuery (read-only GETs, no side-effects).
+  // TODO: añadir queryKeys.aiGovernance.* en constants/queryKeys.js
+  const { data: policiesRaw = [], isLoading: loadingPolicies } = useQuery({
+    queryKey: ['ai-governance', 'policies'],
+    queryFn: () => fetch('/api/v1/ai-governance/policies', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : []),
+    staleTime: 60_000,
+  })
+  const { data: auditLogRaw = [], isLoading: loadingAudit } = useQuery({
+    queryKey: ['ai-governance', 'audit-log', { limit: 50 }],
+    queryFn: () => fetch('/api/v1/ai-governance/audit-log?limit=50', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : []),
+    staleTime: 30_000,
+  })
+  const { data: stats = null, isLoading: loadingStats } = useQuery({
+    queryKey: ['ai-governance', 'audit-log-stats'],
+    queryFn: () => fetch('/api/v1/ai-governance/audit-log/stats', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null),
+    staleTime: 60_000,
+  })
 
-  useEffect(() => {
-    let mounted = true
-    Promise.all([
-      fetch('/api/v1/ai-governance/policies', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
-      fetch('/api/v1/ai-governance/audit-log?limit=50', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
-      fetch('/api/v1/ai-governance/audit-log/stats', { credentials: 'include' }).then(r => r.ok ? r.json() : null),
-    ]).then(([pol, log, st]) => {
-      if (!mounted) return
-      setPolicies(Array.isArray(pol) ? pol : (pol.items || []))
-      setAuditLog(Array.isArray(log) ? log : (log.items || []))
-      setStats(st)
-      setLoading(false)
-    }).catch(() => setLoading(false))
-    return () => { mounted = false }
-  }, [])
+  const policies = Array.isArray(policiesRaw) ? policiesRaw : (policiesRaw.items || [])
+  const auditLog = Array.isArray(auditLogRaw) ? auditLogRaw : (auditLogRaw.items || [])
+  const loading = loadingPolicies || loadingAudit || loadingStats
 
   if (loading) return <div style={{ padding: 24 }}><Spinner /></div>
 

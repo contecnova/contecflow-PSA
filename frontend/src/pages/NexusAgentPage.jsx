@@ -109,6 +109,7 @@ export default function ContecflowAgentPage() {
     abortRef.current = ctrl
 
     try {
+      // #45: kept as fetch() — side-effects/realtime/optimistic
       const resp = await fetch('/api/v1/ai/agent/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

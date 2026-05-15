@@ -91,6 +91,7 @@ export default function ChatRealtimeProvider({ children }) {
       if (cancelled || stoppedByLogout || attempt >= 8) return
       attempt += 1
       try {
+        // #45: kept as fetch() — side-effects/realtime/optimistic
         const r = await fetch(`${API_BASE}/ws/ticket`, { credentials: 'include' })
         if (!r.ok) {
           // Token might have just expired — give up quietly; useEffect will
