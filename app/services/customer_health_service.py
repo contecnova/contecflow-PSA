@@ -66,6 +66,7 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
             delivery = s.HEALTH_DEFAULT_NO_DATA
             projects = []
     except Exception:
+        logger.warning("Fallo calculando score de entrega para cliente %s", client_id, exc_info=True)
         delivery = s.HEALTH_DEFAULT_NO_DATA
         projects = []
     components["delivery"] = {"value": delivery, "weight": s.HEALTH_WEIGHT_DELIVERY}
@@ -78,6 +79,7 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
                         and p.actual_cost <= p.budget)
         budget_score = round((in_budget / max(len(projects), 1)) * 100, 1) if projects else s.HEALTH_DEFAULT_NO_DATA
     except Exception:
+        logger.warning("Fallo calculando score de presupuesto para cliente %s", client_id, exc_info=True)
         budget_score = s.HEALTH_DEFAULT_NO_DATA
     components["budget"] = {"value": budget_score, "weight": s.HEALTH_WEIGHT_BUDGET}
 
@@ -96,6 +98,7 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
                   if hasattr(t, "sla_breached") and not t.sla_breached]
         ticket_score = round((len(sla_ok) / max(len(resolved), 1)) * 100, 1) if resolved else s.HEALTH_DEFAULT_NO_DATA
     except Exception:
+        logger.warning("Fallo calculando score de resolución de tickets para cliente %s", client_id, exc_info=True)
         ticket_score = s.HEALTH_DEFAULT_NO_DATA
     components["ticket_resolution"] = {"value": ticket_score, "weight": s.HEALTH_WEIGHT_TICKETS}
 
@@ -108,6 +111,7 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
         ).count() if hasattr(PortalSession, "client_id") else 0
         portal_score = min(100.0, s.HEALTH_PORTAL_BASE_SCORE + (portal_sessions * s.HEALTH_PORTAL_SCORE_PER_SESSION))
     except Exception:
+        logger.warning("Fallo calculando score de actividad del portal para cliente %s", client_id, exc_info=True)
         portal_score = 50.0
     components["portal_activity"] = {"value": portal_score, "weight": s.HEALTH_WEIGHT_PORTAL}
 

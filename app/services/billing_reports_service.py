@@ -472,6 +472,7 @@ def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db
     try:
         inv.status = InvoiceStatus(new_status)
     except Exception:
+        _logger.warning("Estado de factura no es enum válido, usando string crudo: %s", new_status)
         inv.status = new_status
     if new_status == "paid":
         inv.paid_date = date.today()
@@ -1344,6 +1345,7 @@ def execute_import_csv(entity_type: str, content: bytes, filename: str, current_
                   new_values={"succeeded": succeeded, "failed": failed_rows})
         db.commit()
     except Exception:
+        _logger.exception("Fallo finalizando import CSV (entity=%s, job=%s)", entity_type, job.id)
         db.rollback()
         raise RuntimeError("finalize_failed")
 

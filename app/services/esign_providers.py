@@ -117,6 +117,7 @@ def docusign_exchange_code(
         err = exc.read().decode()[:300]
         return {"ok": False, "error": f"DocuSign token exchange failed: HTTP {exc.code}: {err}"}
     except Exception as exc:
+        logger.warning("Fallo intercambiando código OAuth de DocuSign: %s", exc)
         return {"ok": False, "error": str(exc)}
 
 
@@ -159,6 +160,7 @@ def docusign_refresh_token(
         err = exc.read().decode()[:200]
         return {"ok": False, "error": f"DocuSign refresh failed: HTTP {exc.code}: {err}"}
     except Exception as exc:
+        logger.warning("Fallo refrescando token de DocuSign: %s", exc)
         return {"ok": False, "error": str(exc)}
 
 
@@ -342,6 +344,7 @@ def adobe_sign_exchange_code(
         err = exc.read().decode()[:300]
         return {"ok": False, "error": f"Adobe Sign token exchange failed: HTTP {exc.code}: {err}"}
     except Exception as exc:
+        logger.warning("Fallo intercambiando código OAuth de Adobe Sign: %s", exc)
         return {"ok": False, "error": str(exc)}
 
 
@@ -380,6 +383,7 @@ def adobe_sign_refresh_token(
         err = exc.read().decode()[:200]
         return {"ok": False, "error": f"Adobe Sign refresh failed: HTTP {exc.code}: {err}"}
     except Exception as exc:
+        logger.warning("Fallo refrescando token de Adobe Sign: %s", exc)
         return {"ok": False, "error": str(exc)}
 
 
@@ -429,6 +433,7 @@ def adobe_sign_upload_document(
         err = exc.read().decode()[:300]
         return {"ok": False, "error": f"Adobe Sign document upload failed: HTTP {exc.code}: {err}"}
     except Exception as exc:
+        logger.warning("Fallo subiendo documento a Adobe Sign: %s", exc)
         return {"ok": False, "error": str(exc)}
 
 

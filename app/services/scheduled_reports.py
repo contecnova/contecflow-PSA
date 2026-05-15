@@ -171,12 +171,12 @@ def _execute_report(report: ScheduledReport, db) -> None:
     try:
         recipients = json.loads(report.recipients or "[]")
     except Exception:
-        pass
+        logger.warning("No se pudieron parsear los destinatarios del informe '%s'", report.name)
     try:
         extra = json.loads(getattr(report, "recipients_extra", None) or "[]")
         recipients = list(dict.fromkeys(recipients + extra))  # deduplicate, preserve order
     except Exception:
-        pass
+        logger.warning("No se pudieron parsear los destinatarios extra del informe '%s'", report.name)
 
     # Org context (report created_by user's org)
     org_id: Optional[str] = None
@@ -186,7 +186,7 @@ def _execute_report(report: ScheduledReport, db) -> None:
         if creator:
             org_id = getattr(creator, "organization_id", None)
     except Exception:
-        pass
+        logger.exception("Error resolviendo organización del creador del informe '%s'", report.name)
 
     # Fetch OLAP KPIs for Slack summary (always, even if no email)
     kpis: dict = {}
@@ -194,7 +194,7 @@ def _execute_report(report: ScheduledReport, db) -> None:
         from app.services.olap.query_engine import get_kpi_summary
         kpis = get_kpi_summary(org_id)
     except Exception:
-        pass
+        logger.warning("Fallo obteniendo KPIs OLAP para el informe '%s'", report.name)
 
     # Generate PDF
     pdf_bytes: bytes = b""
@@ -263,6 +263,7 @@ def run_due_reports() -> None:
                     try:
                         db.commit()
                     except Exception:
+                        logger.exception("Fallo persistiendo estado de error del informe '%s'", report.name)
                         db.rollback()
                     logger.error("Report '%s' failed: %s", report.name, exc, exc_info=True)
         finally:
@@ -287,7 +288,7 @@ def execute_report_now(report_id: str, db) -> dict:
         try:
             recipients = json.loads(report.recipients or "[]")
         except Exception:
-            pass
+            logger.warning("No se pudieron parsear los destinatarios del informe '%s'", report.name)
         return {"ok": True, "recipients": recipients, "report_type": getattr(report, "report_type", "custom")}
     except Exception as exc:
         report.last_status = "error"
@@ -295,5 +296,6 @@ def execute_report_now(report_id: str, db) -> dict:
         try:
             db.commit()
         except Exception:
+            logger.exception("Fallo persistiendo estado de error del informe '%s'", report.name)
             db.rollback()
         return {"ok": False, "error": str(exc)}

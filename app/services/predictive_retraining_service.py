@@ -30,6 +30,7 @@ def _parse_dt(raw: Optional[str]) -> Optional[datetime]:
     try:
         return datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except Exception:
+        logger.warning("No se pudo parsear datetime ISO: %r", raw)
         return None
 
 
@@ -49,6 +50,7 @@ def _get_json(db: Session, key: str, organization_id: Optional[str], default: di
     try:
         payload = json.loads(row.value)
     except Exception:
+        logger.warning("Fallo parseando JSON de AppSetting key=%s; usando default", key)
         return default or {}
     return payload if isinstance(payload, dict) else (default or {})
 

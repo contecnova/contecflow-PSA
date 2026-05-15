@@ -1,6 +1,7 @@
 """
 integrations_hub.py — Endpoints para Slack, Teams y Jira.
 """
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Body, Query, Request
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -13,6 +14,8 @@ from app.core.secret_utils import decrypt_config_secrets
 from app.db.session import get_db
 from app.core.deps import require_any_manager
 from app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["integrations-hub"])
 
@@ -276,6 +279,7 @@ async def slack_inbound_command(
         else:
             return _slack_help()
     except Exception as exc:
+        logger.warning("Fallo procesando comando entrante de Slack: %s", exc, exc_info=True)
         return {"response_type": "ephemeral", "text": f"❌ Error: {exc}"}
 
 
@@ -338,6 +342,7 @@ async def teams_inbound_command(
         except HTTPException:
             raise
         except Exception:
+            logger.warning("Token bearer de Teams inválido o malformado")
             raise HTTPException(403, "Invalid Teams bearer token")
 
     body = await request.json()
@@ -367,6 +372,7 @@ async def teams_inbound_command(
             result = _slack_help()
         reply_text = result.get("text", "✅")
     except Exception as exc:
+        logger.warning("Fallo procesando comando entrante de Teams: %s", exc, exc_info=True)
         reply_text = f"❌ Error: {exc}"
 
     # Return Teams Activity reply format

@@ -181,6 +181,7 @@ def install_integration_connector(
     try:
         encrypted = encrypt_value(config_json)
     except Exception:
+        logger.warning("Fallo cifrando config de instancia de integración; almacenando en claro como fallback", exc_info=True)
         encrypted = config_json
 
     instance = IntegrationInstance(

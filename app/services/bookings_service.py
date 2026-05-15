@@ -908,7 +908,7 @@ def sso_create_or_login_user(db, email, name, role_from_sso, config, redirect_to
                 mapping = json.loads(config.role_mapping)
                 role = mapping.get(role_from_sso, role)
             except Exception:
-                pass
+                logger.warning("Fallo parseando role_mapping de SSO config; usando rol por defecto", exc_info=True)
         username = email.split("@")[0]
         if db.query(User).filter(User.username == username).first():
             username = f"{username}_{secrets.token_hex(4)}"
@@ -1080,6 +1080,7 @@ def _validate_provision_url(url: str) -> None:
     try:
         addrinfo = _socket.getaddrinfo(hostname, parsed.port or 443, proto=_socket.IPPROTO_TCP)
     except Exception:
+        logger.warning("Fallo resolviendo getaddrinfo para hostname=%s en validación SSRF", hostname, exc_info=True)
         addrinfo = []
 
     for entry in addrinfo:

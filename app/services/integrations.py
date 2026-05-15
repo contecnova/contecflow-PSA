@@ -11,9 +11,12 @@ Funciones:
 """
 from app.core.config import settings
 import json
+import logging
 import urllib.request
 import urllib.parse
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 from app.models.cab import IntegrationConfig
 from app.models.imputation import Imputation
 from app.models.project import Project
@@ -54,6 +57,7 @@ def send_slack_message(
             body = resp.read().decode()
         return {"ok": True, "response": body}
     except Exception as e:
+        logger.warning("Fallo enviando mensaje a Slack: %s", e)
         return {"ok": False, "error": str(e)}
 
 
@@ -119,6 +123,7 @@ def send_teams_message(
             body = resp.read().decode()
         return {"ok": True, "response": body}
     except Exception as e:
+        logger.warning("Fallo enviando mensaje a Microsoft Teams: %s", e)
         return {"ok": False, "error": str(e)}
 
 
@@ -153,6 +158,7 @@ def _jira_request(config_dict: dict, method: str, path: str, body: Optional[dict
         body_err = e.read().decode()[:300]
         return {"ok": False, "error": f"HTTP {e.code}: {body_err}"}
     except Exception as e:
+        logger.warning("Fallo en petición Jira %s %s: %s", method, path, e)
         return {"ok": False, "error": str(e)}
 
 
@@ -385,6 +391,7 @@ def _xero_request(config_dict: dict, method: str, path: str, body=None) -> dict:
         err = e.read().decode()[:300]
         return {"ok": False, "error": f"HTTP {e.code}: {err}"}
     except Exception as e:
+        logger.warning("Fallo en petición Xero %s %s: %s", method, path, e)
         return {"ok": False, "error": str(e)}
 
 
@@ -416,6 +423,7 @@ def _qb_request(config_dict: dict, method: str, path: str, body=None) -> dict:
         err = e.read().decode()[:300]
         return {"ok": False, "error": f"HTTP {e.code}: {err}"}
     except Exception as e:
+        logger.warning("Fallo en petición QuickBooks %s %s: %s", method, path, e)
         return {"ok": False, "error": str(e)}
 
 

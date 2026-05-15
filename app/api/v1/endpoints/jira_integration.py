@@ -240,6 +240,7 @@ def test_jira_connection(
     except httpx.HTTPStatusError as exc:
         return {"ok": False, "error": f"HTTP {exc.response.status_code}: {exc.response.text[:200]}"}
     except Exception as exc:
+        logger.warning("Fallo verificando cuenta Jira: %s", exc)
         return {"ok": False, "error": str(exc)}
 
 

@@ -252,7 +252,7 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
                     return True, None
                 return False, result.get("error", "Slack API error")
         except Exception:
-            pass
+            _logger.warning("Fallo enviando mensaje vía Slack bot token", exc_info=True)
 
     if config.webhook_url:
         try:
@@ -382,7 +382,7 @@ Responde SOLO con JSON: {{"hours": <número>, "confidence": <0-100>, "reasoning"
                 confidence = parsed.get("confidence", confidence)
                 reasoning = parsed.get("reasoning", reasoning) + " [Claude API]"
         except Exception:
-            pass
+            _logger.warning("Fallo llamando a Claude API para estimación de horas; usando fallback", exc_info=True)
 
     existing = db.query(AITaskEstimate).filter(AITaskEstimate.task_id == task_id).first()
     if existing:
@@ -509,7 +509,7 @@ Responde SOLO con JSON:
                 confidence = parsed.get("confidence", 75)
                 reasoning = parsed.get("reasoning", reasoning) + " [Claude API]"
         except Exception:
-            pass
+            _logger.warning("Fallo llamando a Claude API para triage de ticket; usando fallback", exc_info=True)
 
     existing = db.query(AITicketTriage).filter(AITicketTriage.ticket_id == ticket_id).first()
     if existing:

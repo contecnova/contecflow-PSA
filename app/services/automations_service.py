@@ -1,10 +1,13 @@
 """
 Automations service — business logic extracted from automations.py router.
 """
+import logging
 from typing import Optional
 from datetime import date, datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 import json
+
+logger = logging.getLogger(__name__)
 
 from app.models.automations import AutomationRule, AutomationExecution, ActionType
 from app.models.alert import Alert, AlertType, AlertSeverity
@@ -170,7 +173,7 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
                             except ValueError:
                                 raise
                             except Exception:
-                                pass
+                                logger.warning("Fallo resolviendo getaddrinfo para webhook host=%s en SSRF check", _host)
                     except ValueError as ssrf_e:
                         _ssrf_err = str(ssrf_e)
                     if _ssrf_err:

@@ -16,10 +16,13 @@ import io
 import hashlib
 import hmac as _hmac
 import json
+import logging
 import uuid
 from typing import Optional
 
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.models.ml_model import MLModel, MLModelType, MLPredictionLog
 from app.models.project import Project
@@ -141,6 +144,7 @@ def train_model(db: Session, organization_id: str) -> dict:
         scores = cross_val_score(clf, X_arr, y_arr, cv=cv, scoring="roc_auc")
         accuracy = float(scores.mean())
     except Exception:
+        logger.warning("Fallo calculando ROC-AUC en cross-validation ML; accuracy=None", exc_info=True)
         accuracy = None
 
     clf.fit(X_arr, y_arr)
@@ -284,7 +288,7 @@ def predict_project(db: Session, project_id: str, organization_id: str,
                 used_heuristic = False
                 ml_model_id = ml_record.id
             except Exception:
-                pass  # Fall through to heuristic
+                logger.warning("Fallo en predicción ML; usando fallback heurístico", exc_info=True)
 
     # ── Heuristic fallback ────────────────────────────────────────────────────
     if ml_result is None:
@@ -318,6 +322,7 @@ def predict_project(db: Session, project_id: str, organization_id: str,
         db.add(log)
         db.commit()
     except Exception:
+        logger.warning("Fallo persistiendo MLPredictionLog para project=%s", project_id, exc_info=True)
         db.rollback()
 
     return {
@@ -374,7 +379,7 @@ def portfolio_risk_summary(db: Session, organization_id: str,
                     "recommendation": result.get("recommendation"),
                 })
         except Exception:
-            pass
+            logger.warning("Fallo prediciendo riesgo para project=%s", proj.id, exc_info=True)
 
     total = sum(counts.values())
     return {
