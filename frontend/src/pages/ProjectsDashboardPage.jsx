@@ -11,6 +11,7 @@ import {
   COLOR, DashPageShell, KpiCard, KpiIcon, GaugeCard, BarRow, SectionCard, DashEmpty,
   dateRange, typePalette,
 } from '../components/dashboard/DashKit'
+import { useAppT } from '../i18n/AppLangContext'
 
 const STATUS_COLORS = {
   active:    COLOR.accent,
@@ -23,18 +24,18 @@ const STATUS_COLORS = {
   archived:  'var(--text-3)',
 }
 
-const STATUS_LABELS = {
-  active:    'Activo',
-  planning:  'Planificación',
-  on_hold:   'En espera',
-  paused:    'Pausado',
-  completed: 'Completado',
-  closed:    'Cerrado',
-  cancelled: 'Cancelado',
-  archived:  'Archivado',
-}
-
 export default function ProjectsDashboardPage() {
+  const t = useAppT()
+  const STATUS_LABELS = {
+    active:    t('projects_dashboard.status_active'),
+    planning:  t('projects_dashboard.status_planning'),
+    on_hold:   t('projects_dashboard.status_on_hold'),
+    paused:    t('projects_dashboard.status_paused'),
+    completed: t('projects_dashboard.status_completed'),
+    closed:    t('projects_dashboard.status_closed'),
+    cancelled: t('projects_dashboard.status_cancelled'),
+    archived:  t('projects_dashboard.status_archived'),
+  }
   const [days, setDays] = useState(30)
   const params = dateRange(days)
 
@@ -106,34 +107,34 @@ export default function ProjectsDashboardPage() {
   return (
     <DashPageShell
       icon={<FolderOpen size={18} />}
-      title="Cartera de Proyectos"
-      subtitle="Estado, salud y rendimiento de todos los proyectos"
+      title={t('projects_dashboard.title')}
+      subtitle={t('projects_dashboard.subtitle')}
       days={days} setDays={setDays}
       periods={[30, 90, 365]}
     >
       <div className="ds-page">
         {/* KPI row */}
         <div className="ds-grid-stats">
-          <KpiCard icon={<KpiIcon icon={Hexagon} />} label="Total proyectos"
+          <KpiCard icon={<KpiIcon icon={Hexagon} />} label={t('projects_dashboard.kpi_total')}
             value={total} color="var(--text-1)" accentBar={COLOR.accent} />
-          <KpiCard icon={<KpiIcon icon={Activity} />} label="Activos"
+          <KpiCard icon={<KpiIcon icon={Activity} />} label={t('projects_dashboard.kpi_active')}
             value={active} color={COLOR.accent} accentBar={COLOR.accent} />
-          <KpiCard icon={<KpiIcon icon={AlertOctagon} />} label="Críticos"
+          <KpiCard icon={<KpiIcon icon={AlertOctagon} />} label={t('projects_dashboard.kpi_critical')}
             value={crit}
             color={crit > 0 ? COLOR.danger : COLOR.success}
             accentBar={crit > 0 ? COLOR.danger : COLOR.success}
-            sub={crit > 0 ? 'Fuera de plazo o presupuesto' : 'Sin proyectos críticos'} />
-          <KpiCard icon={<KpiIcon icon={Zap} />} label="En riesgo"
+            sub={crit > 0 ? t('projects_dashboard.critical_sub_active') : t('projects_dashboard.critical_sub_none')} />
+          <KpiCard icon={<KpiIcon icon={Zap} />} label={t('projects_dashboard.kpi_at_risk')}
             value={warn}
             color={warn > 0 ? COLOR.warning : COLOR.success}
             accentBar={warn > 0 ? COLOR.warning : COLOR.success}
-            sub="Presupuesto > 80% o alertas" />
-          <KpiCard icon={<KpiIcon icon={AlertTriangle} />} label="Riesgos abiertos"
+            sub={t('projects_dashboard.at_risk_sub')} />
+          <KpiCard icon={<KpiIcon icon={AlertTriangle} />} label={t('projects_dashboard.kpi_open_risks')}
             value={risks.length}
             color={highRisks > 0 ? COLOR.danger : risks.length > 0 ? COLOR.warning : COLOR.success}
             accentBar={COLOR.warning}
-            sub={highRisks > 0 ? `${highRisks} de alta gravedad` : undefined} />
-          <KpiCard icon={<KpiIcon icon={ListTodo} />} label="Tareas vencidas"
+            sub={highRisks > 0 ? `${highRisks} ${t('projects_dashboard.high_severity_sub')}` : undefined} />
+          <KpiCard icon={<KpiIcon icon={ListTodo} />} label={t('projects_dashboard.kpi_overdue_tasks')}
             value={kpis?.tasks_overdue ?? 0}
             color={(kpis?.tasks_overdue ?? 0) > 0 ? COLOR.warning : COLOR.success}
             accentBar={COLOR.warning} />
@@ -141,33 +142,33 @@ export default function ProjectsDashboardPage() {
 
         {/* Gauges */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
-          <GaugeCard label="Proyectos a tiempo"
+          <GaugeCard label={t('projects_dashboard.gauge_on_time')}
             value={onTimePct} color={onTimeColor}
-            sub={onTimePct >= 80 ? 'Excelente rendimiento' : onTimePct >= 60 ? 'Aceptable' : 'Requiere atención'} />
+            sub={onTimePct >= 80 ? t('projects_dashboard.excellent_performance') : onTimePct >= 60 ? t('projects_dashboard.acceptable') : t('projects_dashboard.needs_attention')} />
           {budgetPct != null && (
-            <GaugeCard label="Uso de presupuesto"
+            <GaugeCard label={t('projects_dashboard.gauge_budget_usage')}
               value={budgetPct} color={budgetColor}
-              sub={budgetPct > 90 ? 'Presupuesto casi agotado' : budgetPct > 70 ? 'Consumo elevado' : 'Bajo control'} />
+              sub={budgetPct > 90 ? t('projects_dashboard.budget_almost_depleted') : budgetPct > 70 ? t('projects_dashboard.budget_high_use') : t('projects_dashboard.budget_under_control')} />
           )}
         </div>
 
         {/* Charts */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-3)' }}>
-          <SectionCard title="Por tipo de proyecto">
+          <SectionCard title={t('projects_dashboard.section_by_type')}>
             {byType.length === 0
-              ? <DashEmpty title="Sin datos por tipo" />
+              ? <DashEmpty title={t('projects_dashboard.no_type_data')} />
               : byType.map((row, i) => (
                   <BarRow key={row.label || i}
-                    label={row.label || 'Sin tipo'}
+                    label={row.label || t('projects_dashboard.no_type')}
                     count={row.value || 0} total={totalByType}
                     color={typePalette[i % typePalette.length]} />
                 ))
             }
           </SectionCard>
 
-          <SectionCard title="Por estado">
+          <SectionCard title={t('projects_dashboard.section_by_status')}>
             {statusRows.length === 0
-              ? <DashEmpty title="Sin datos de estado" />
+              ? <DashEmpty title={t('projects_dashboard.no_status_data')} />
               : statusRows.map(row => (
                   <BarRow key={row.label}
                     label={row.label} count={row.count}
@@ -179,7 +180,7 @@ export default function ProjectsDashboardPage() {
 
         {/* At-risk list */}
         {crit > 0 && (
-          <SectionCard title="Proyectos críticos" badge={crit}>
+          <SectionCard title={t('projects_dashboard.section_critical_projects')} badge={crit}>
             <div className="ds-stack-sm">
               {health
                 .filter(p => p.schedule_deviation_days > 0 || p.budget_used_pct > 100)
@@ -200,7 +201,7 @@ export default function ProjectsDashboardPage() {
                           {p.project_name}
                         </div>
                         <div className="ds-muted">
-                          Presupuesto: {budPct}% · Desviación: {p.schedule_deviation_days > 0 ? `+${p.schedule_deviation_days}d` : 'OK'}
+                          {t('projects_dashboard.budget_label')}: {budPct}% · {t('projects_dashboard.deviation_label')}: {p.schedule_deviation_days > 0 ? `+${p.schedule_deviation_days}d` : t('projects_dashboard.deviation_ok')}
                         </div>
                       </div>
                       <span style={{

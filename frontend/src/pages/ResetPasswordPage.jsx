@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../services/api'
+import { useAppT } from '../i18n/AppLangContext'
 
 function strengthScore(password) {
   let score = 0
@@ -14,6 +15,7 @@ function strengthScore(password) {
 }
 
 export default function ResetPasswordPage() {
+  const t = useAppT()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
@@ -25,19 +27,27 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false)
 
   const score = useMemo(() => strengthScore(password), [password])
-  const strengthLabel = ['Muy debil', 'Debil', 'Aceptable', 'Buena', 'Fuerte', 'Excelente'][score]
+  const strengthLabels = [
+    t('reset_password.strength_very_weak'),
+    t('reset_password.strength_weak'),
+    t('reset_password.strength_acceptable'),
+    t('reset_password.strength_good'),
+    t('reset_password.strength_strong'),
+    t('reset_password.strength_excellent'),
+  ]
+  const strengthLabel = strengthLabels[score]
 
   const submit = async () => {
     if (!token) {
-      setError('El enlace de restablecimiento es invalido o esta incompleto.')
+      setError(t('reset_password.invalid_token_error'))
       return
     }
     if (!password) {
-      setError('Introduce una nueva contrasena.')
+      setError(t('reset_password.new_password_required'))
       return
     }
     if (password !== confirmPassword) {
-      setError('Las contrasenas no coinciden.')
+      setError(t('reset_password.passwords_dont_match'))
       return
     }
 
@@ -46,11 +56,11 @@ export default function ResetPasswordPage() {
     setSuccess('')
     try {
       const { data } = await authApi.resetPassword({ token, new_password: password })
-      setSuccess(data?.message || 'Contrasena actualizada correctamente.')
+      setSuccess(data?.message || t('reset_password.success_message'))
       setTimeout(() => navigate('/login'), 1200)
     } catch (e) {
       const raw = e.response?.data?.detail
-      setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'No se pudo restablecer la contrasena.'))
+      setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || t('reset_password.generic_error')))
     } finally {
       setLoading(false)
     }
@@ -61,15 +71,15 @@ export default function ResetPasswordPage() {
       <div className="login-brand-panel">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <h2 style={{ fontSize: "var(--text-3xl)", fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.2, color: 'var(--text-1)', marginBottom: 12 }}>
-            Restablecer
+            {t('reset_password.brand_title_line1')}
             <br />
-            <span style={{ color: 'var(--accent)' }}>contrasena</span>
+            <span style={{ color: 'var(--accent)' }}>{t('reset_password.brand_title_line2')}</span>
           </h2>
           <p style={{ color: 'var(--text-2)', fontSize: "var(--text-md)", lineHeight: 1.6, marginBottom: 20, maxWidth: 320 }}>
-            Define una contrasena nueva para volver a entrar en tu cuenta.
+            {t('reset_password.brand_subtitle')}
           </p>
           <Link to="/login" style={{ color: 'var(--accent)', textDecoration: 'none', fontSize: "var(--text-base)" }}>
-            Volver al inicio de sesion
+            {t('reset_password.back_to_login')}
           </Link>
         </div>
       </div>
@@ -77,7 +87,7 @@ export default function ResetPasswordPage() {
       <div className="login-form-panel">
         <div style={{ width: '100%', maxWidth: 380 }}>
           <h3 style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-1)', marginBottom: 8 }}>
-            Nueva contrasena
+            {t('reset_password.form_title')}
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -85,7 +95,7 @@ export default function ResetPasswordPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Nueva contraseña"
+              placeholder={t('reset_password.new_password_placeholder')}
               autoComplete="new-password"
               style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)", outline: 'none', boxSizing: 'border-box' }}
             />
@@ -94,13 +104,13 @@ export default function ResetPasswordPage() {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirma la contraseña"
+              placeholder={t('reset_password.confirm_password_placeholder')}
               autoComplete="new-password"
               style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)", outline: 'none', boxSizing: 'border-box' }}
             />
 
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-              Fortaleza: <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{strengthLabel}</span>
+              {t('reset_password.strength_label')}: <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{strengthLabel}</span>
             </div>
 
             {error && (
@@ -122,7 +132,7 @@ export default function ResetPasswordPage() {
               className="btn-primary"
               style={{ width: '100%', padding: '12px', marginTop: 4, fontSize: "var(--text-md)", fontWeight: 700 }}
             >
-              {loading ? 'Actualizando...' : 'Actualizar contrasena'}
+              {loading ? t('reset_password.updating') : t('reset_password.submit_button')}
             </button>
           </div>
         </div>

@@ -24,8 +24,10 @@ import {
   Captions, Disc, Users, X, Send, Hand,
 } from 'lucide-react'
 import { collabApi } from '../services/collaborationApi'
+import { useAppT } from '../i18n/AppLangContext'
 
 export default function CallPage() {
+  const t = useAppT()
   const { callId } = useParams()
   const [params] = useSearchParams()
   const navigate = useNavigate()
@@ -139,7 +141,7 @@ export default function CallPage() {
       const list = []
       list.push({
         id: roomRef.current.localParticipant.identity,
-        name: 'Tú',
+        name: t('call.you'),
         audioOnly: !roomRef.current.localParticipant.isCameraEnabled,
         raised: false,
         quality: networkQuality,
@@ -161,18 +163,18 @@ export default function CallPage() {
       if (msg.type === 'chat') {
         setChatItems(prev => [...prev, {
           time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-          name: sender?.name || sender?.identity || 'Otro',
+          name: sender?.name || sender?.identity || t('call.other'),
           body: msg.body, me: false,
         }])
       } else if (msg.type === 'reaction') {
         setChatItems(prev => [...prev, {
           time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-          name: sender?.name || 'Otro',
-          body: `reaccionó ${msg.emoji}`,
+          name: sender?.name || t('call.other'),
+          body: `${t('call.reacted')} ${msg.emoji}`,
           me: false, reaction: true,
         }])
       } else if (msg.type === 'caption') {
-        setCaptionLines(prev => [...prev.slice(-5), { name: sender?.name || 'Otro', text: msg.text, ts: Date.now() }])
+        setCaptionLines(prev => [...prev.slice(-5), { name: sender?.name || t('call.other'), text: msg.text, ts: Date.now() }])
       }
     }
 
@@ -243,7 +245,7 @@ export default function CallPage() {
             })
             const data = await r.json()
             if (data?.text) {
-              setCaptionLines(prev => [...prev.slice(-5), { name: 'Tú', text: data.text, ts: Date.now() }])
+              setCaptionLines(prev => [...prev.slice(-5), { name: t('call.you'), text: data.text, ts: Date.now() }])
               if (roomRef.current) {
                 const enc = new TextEncoder().encode(JSON.stringify({ type: 'caption', text: data.text }))
                 roomRef.current.localParticipant.publishData(enc, { reliable: true })
@@ -296,13 +298,13 @@ export default function CallPage() {
     if (!roomRef.current) return
     const enc = new TextEncoder().encode(JSON.stringify({ type: 'reaction', emoji: '✋' }))
     roomRef.current.localParticipant.publishData(enc, { reliable: true })
-    setChatItems(prev => [...prev, { time: now(), name: 'Tú', body: '✋ levantaste la mano', me: true, reaction: true }])
+    setChatItems(prev => [...prev, { time: now(), name: t('call.you'), body: `✋ ${t('call.raised_hand')}`, me: true, reaction: true }])
   }
 
   const sendChat = () => {
     if (!chatMsg.trim()) return
     const body = chatMsg
-    setChatItems(prev => [...prev, { time: now(), me: true, name: 'Tú', body }])
+    setChatItems(prev => [...prev, { time: now(), me: true, name: t('call.you'), body }])
     setChatMsg('')
     if (roomRef.current) {
       const enc = new TextEncoder().encode(JSON.stringify({ type: 'chat', body }))
@@ -324,7 +326,7 @@ export default function CallPage() {
 
   const tilesToShow = isLiveKitReal && participants.length > 0
     ? participants
-    : [{ id: 'me', name: 'Tú', local: true, audioOnly: cameraOff }, { id: 'wait1', name: 'Esperando…' }]
+    : [{ id: 'me', name: t('call.you'), local: true, audioOnly: cameraOff }, { id: 'wait1', name: t('call.waiting') }]
 
   return (
     <div style={{
@@ -336,11 +338,11 @@ export default function CallPage() {
         borderBottom: '1px solid rgba(255,255,255,0.08)',
       }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>Reunión Contecflow</div>
-          <div style={{ fontSize: 11, color: '#94a3b8' }}>Sala {livekitRoom?.slice(-12)}{isLiveKitReal ? ' · LiveKit' : ' · dev'}</div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{t('call.meeting_title')}</div>
+          <div style={{ fontSize: 11, color: '#94a3b8' }}>{t('call.room_label')} {livekitRoom?.slice(-12)}{isLiveKitReal ? ' · LiveKit' : ' · dev'}</div>
         </div>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', fontFamily: 'var(--font-mono)', fontSize: 14, color: '#e0e7ff' }}>
-          <QualityBadge q={networkQuality} fallback={autoFallback} />
+          <QualityBadge q={networkQuality} fallback={autoFallback} t={t} />
           <span>{fmtDuration(duration)}</span>
         </div>
       </div>
@@ -373,10 +375,11 @@ export default function CallPage() {
             items={chatItems}
             value={chatMsg} onChange={setChatMsg} onSend={sendChat}
             onClose={() => setShowChat(false)}
+            t={t}
           />
         )}
         {showParticipants && (
-          <ParticipantsPanel onClose={() => setShowParticipants(false)} participants={participants} />
+          <ParticipantsPanel onClose={() => setShowParticipants(false)} participants={participants} t={t} />
         )}
       </div>
 
@@ -384,34 +387,34 @@ export default function CallPage() {
         height: 76, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
         background: '#0e1322', borderTop: '1px solid rgba(255,255,255,0.08)',
       }}>
-        <CtrlBtn icon={muted ? MicOff : Mic} active={!muted} dangerWhenOff={muted} onClick={() => setMuted(m => !m)} label={muted ? 'Activar mic' : 'Silenciar'} />
-        <CtrlBtn icon={cameraOff ? VideoOff : Video} active={!cameraOff} dangerWhenOff={cameraOff} onClick={() => setCameraOff(c => !c)} label={cameraOff ? 'Encender cámara' : 'Apagar cámara'} />
-        <CtrlBtn icon={Monitor} active={sharing} onClick={startScreenShare} label="Compartir pantalla" />
-        <CtrlBtn icon={Hand} onClick={raiseHand} label="Levantar mano" />
-        <CtrlBtn icon={Captions} active={captions} onClick={() => setCaptions(c => !c)} label="Subtítulos" />
-        <CtrlBtn icon={Disc} active={recording} onClick={toggleRecording} label="Grabar" />
-        <CtrlBtn icon={Users} active={showParticipants} onClick={() => setShowParticipants(p => !p)} label="Participantes" />
-        <CtrlBtn icon={MessageSquare} active={showChat} onClick={() => setShowChat(s => !s)} label="Chat" />
+        <CtrlBtn icon={muted ? MicOff : Mic} active={!muted} dangerWhenOff={muted} onClick={() => setMuted(m => !m)} label={muted ? t('call.activate_mic') : t('call.mute')} />
+        <CtrlBtn icon={cameraOff ? VideoOff : Video} active={!cameraOff} dangerWhenOff={cameraOff} onClick={() => setCameraOff(c => !c)} label={cameraOff ? t('call.turn_on_camera') : t('call.turn_off_camera')} />
+        <CtrlBtn icon={Monitor} active={sharing} onClick={startScreenShare} label={t('call.share_screen')} />
+        <CtrlBtn icon={Hand} onClick={raiseHand} label={t('call.raise_hand')} />
+        <CtrlBtn icon={Captions} active={captions} onClick={() => setCaptions(c => !c)} label={t('call.captions')} />
+        <CtrlBtn icon={Disc} active={recording} onClick={toggleRecording} label={t('call.record')} />
+        <CtrlBtn icon={Users} active={showParticipants} onClick={() => setShowParticipants(p => !p)} label={t('call.participants')} />
+        <CtrlBtn icon={MessageSquare} active={showChat} onClick={() => setShowChat(s => !s)} label={t('call.chat')} />
         <button onClick={leave} style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
           height: 44, padding: '0 18px', borderRadius: 22,
           background: '#dc2626', color: '#fff', border: 'none',
           cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
         }}>
-          <Phone size={14} style={{ transform: 'rotate(135deg)' }} /> Salir
+          <Phone size={14} style={{ transform: 'rotate(135deg)' }} /> {t('call.leave')}
         </button>
-        <button onClick={endCall} title="Cerrar para todos" style={{
+        <button onClick={endCall} title={t('call.end_for_all_tooltip')} style={{
           height: 44, padding: '0 14px', borderRadius: 22,
           background: 'transparent', color: '#fca5a5', border: '1px solid #b91c1c',
           cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
         }}>
-          Finalizar para todos
+          {t('call.end_for_all')}
         </button>
       </div>
 
       {!isLiveKitReal && (
         <div style={{ position: 'absolute', top: 70, right: 16, padding: '8px 12px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 8, fontSize: 11, maxWidth: 320, color: '#fcd34d' }}>
-          Modo dev: cámara y micrófono locales. Para llamadas multi-usuario configura LIVEKIT_API_KEY/SECRET/URL en backend.
+          {t('call.dev_mode_warning')}
         </div>
       )}
     </div>
@@ -420,12 +423,12 @@ export default function CallPage() {
 
 function now() { return new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) }
 
-function QualityBadge({ q, fallback }) {
+function QualityBadge({ q, fallback, t }) {
   const map = {
-    excellent: { color: '#10b981', label: 'Excelente' },
-    good: { color: '#34d399', label: 'Buena' },
-    poor: { color: '#f59e0b', label: 'Mala' },
-    lost: { color: '#dc2626', label: 'Perdida' },
+    excellent: { color: '#10b981', label: t('call.quality_excellent') },
+    good: { color: '#34d399', label: t('call.quality_good') },
+    poor: { color: '#f59e0b', label: t('call.quality_poor') },
+    lost: { color: '#dc2626', label: t('call.quality_lost') },
   }
   const m = map[q] || map.excellent
   return (
@@ -434,7 +437,7 @@ function QualityBadge({ q, fallback }) {
       padding: '3px 10px', borderRadius: 999,
       background: `${m.color}25`, color: m.color, fontSize: 11, fontWeight: 700,
     }}>
-      ●  {m.label}{fallback ? ' · audio-only' : ''}
+      ●  {m.label}{fallback ? ` · ${t('call.audio_only_suffix')}` : ''}
     </span>
   )
 }
@@ -485,15 +488,15 @@ function CtrlBtn({ icon: Icon, active, onClick, label, dangerWhenOff }) {
   )
 }
 
-function ChatLateral({ items, value, onChange, onSend, onClose }) {
+function ChatLateral({ items, value, onChange, onSend, onClose, t }) {
   return (
     <div style={{ width: 320, borderLeft: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <span style={{ fontWeight: 700, fontSize: 13 }}>Chat de la reunión</span>
+        <span style={{ fontWeight: 700, fontSize: 13 }}>{t('call.meeting_chat')}</span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1' }}><X size={14} /></button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
-        {items.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>Sin mensajes aún</div>}
+        {items.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>{t('call.no_messages_yet')}</div>}
         {items.map((m, i) => (
           <div key={i} style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 11, color: '#94a3b8' }}>{m.time} {m.name}</div>
@@ -504,7 +507,7 @@ function ChatLateral({ items, value, onChange, onSend, onClose }) {
       <div style={{ padding: 10, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 6 }}>
         <input value={value} onChange={e => onChange(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && onSend()}
-          placeholder="Escribe…"
+          placeholder={t('call.write_placeholder')}
           style={{
             flex: 1, padding: '8px 10px',
             background: '#1f2738', border: '1px solid #2c3a55', borderRadius: 8,
@@ -520,19 +523,19 @@ function ChatLateral({ items, value, onChange, onSend, onClose }) {
   )
 }
 
-function ParticipantsPanel({ onClose, participants }) {
+function ParticipantsPanel({ onClose, participants, t }) {
   return (
     <div style={{ width: 280, borderLeft: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <span style={{ fontWeight: 700, fontSize: 13 }}>Participantes ({participants.length})</span>
+        <span style={{ fontWeight: 700, fontSize: 13 }}>{t('call.participants')} ({participants.length})</span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1' }}><X size={14} /></button>
       </div>
       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {participants.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>Esperando participantes…</div>}
+        {participants.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>{t('call.waiting_participants')}</div>}
         {participants.map(p => (
           <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
             <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#4f8ef7,#7c3aed)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>{(p.name||'?').charAt(0).toUpperCase()}</span>
-            <span style={{ flex: 1 }}>{p.name}{p.local ? ' (tú)' : ''}</span>
+            <span style={{ flex: 1 }}>{p.name}{p.local ? ` (${t('call.you_lower')})` : ''}</span>
             {p.raised && <span>✋</span>}
             {p.audioOnly && <Mic size={11} style={{ color: '#94a3b8' }} />}
           </div>

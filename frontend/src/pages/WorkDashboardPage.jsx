@@ -12,6 +12,7 @@ import {
   COLOR, DashPageShell, KpiCard, KpiIcon, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow, SectionCard, DashEmpty,
   dateRange,
 } from '../components/dashboard/DashKit'
+import { useAppT } from '../i18n/AppLangContext'
 
 // ── Date helpers ────────────────────────────────────────────────────────────
 function startOfWeekIso() {
@@ -49,18 +50,18 @@ const formatTrendPct = (deltaPct, baseline) =>
 // ── Hero banner ─────────────────────────────────────────────────────────────
 // Saludo + acciones rápidas. Sustituye "¿qué hacemos hoy?" por una versión
 // más sobria con una CTA destacada y atajos secundarios.
-function Hero({ navigate, userName }) {
+function Hero({ navigate, userName, t }) {
   const now = new Date()
   const day = new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(now)
   const date = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long' }).format(now)
   const hour = now.getHours()
-  const greeting = hour < 13 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches'
+  const greeting = hour < 13 ? t('work_dashboard.greeting_morning') : hour < 20 ? t('work_dashboard.greeting_afternoon') : t('work_dashboard.greeting_evening')
 
   const SHORTCUTS = [
-    { label: 'Nueva tarea',   icon: Plus,   path: '/tasks' },
-    { label: 'Imputar horas', icon: Clock,  path: '/imputar' },
-    { label: 'Nuevo ticket',  icon: Ticket, path: '/service-desk' },
-    { label: 'Cronómetro',    icon: Timer,  path: '/time' },
+    { label: t('work_dashboard.shortcut_new_task'),   icon: Plus,   path: '/tasks' },
+    { label: t('work_dashboard.shortcut_log_hours'),  icon: Clock,  path: '/imputar' },
+    { label: t('work_dashboard.shortcut_new_ticket'), icon: Ticket, path: '/service-desk' },
+    { label: t('work_dashboard.shortcut_timer'),      icon: Timer,  path: '/time' },
   ]
 
   return (
@@ -90,7 +91,7 @@ function Hero({ navigate, userName }) {
           onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(79,142,247,0.4)' }}
           onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(79,142,247,0.3)' }}
         >
-          <Clock size={14} /> Imputar horas
+          <Clock size={14} /> {t('work_dashboard.shortcut_log_hours')}
         </button>
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
@@ -125,6 +126,7 @@ function Hero({ navigate, userName }) {
 
 // ── Main page ───────────────────────────────────────────────────────────────
 export default function WorkDashboardPage() {
+  const t = useAppT()
   const navigate = useNavigate()
   const toast = useToast()
   const { user } = useAuth()
@@ -197,7 +199,7 @@ export default function WorkDashboardPage() {
   })
 
   useEffect(() => {
-    if (taskStatsError) toast.error('No se pudieron cargar las métricas personales del dashboard')
+    if (taskStatsError) toast.error(t('work_dashboard.metrics_load_error'))
   }, [taskStatsError]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const tasksOpen    = taskStats?.open ?? 0
@@ -225,7 +227,7 @@ export default function WorkDashboardPage() {
     const hasStableBaseline = previousValue != null && previousValue >= TREND_MIN_BASELINE_HOURS
     const deltaPct = hasStableBaseline ? Math.round((delta / previousValue) * 100) : null
     return {
-      label: row.label || `Mes ${index + 1}`,
+      label: row.label || `${t('work_dashboard.month_label')} ${index + 1}`,
       hours: currentValue, delta, deltaPct,
       hasBaseline: previousValue != null, hasStableBaseline,
       color: previousValue == null ? COLOR.accent
@@ -237,11 +239,11 @@ export default function WorkDashboardPage() {
   const maxTrendHours = Math.max(...hoursTrendRows.map(row => row.hours || 0), 1)
 
   const activityRows = [
-    { label: 'Tareas abiertas',         count: tasksOpen,    color: COLOR.accent },
-    { label: 'Tareas vencidas',         count: tasksOverdue, color: COLOR.danger },
-    { label: 'Aprobaciones pendientes', count: pendingApprv, color: COLOR.warning },
-    { label: 'Gastos pendientes',       count: pendingExp,   color: COLOR.purple },
-    { label: 'Ausencias pendientes',    count: pendingAbsences, color: 'var(--sky-blue)' },
+    { label: t('work_dashboard.row_open_tasks'),         count: tasksOpen,    color: COLOR.accent },
+    { label: t('work_dashboard.row_overdue_tasks'),      count: tasksOverdue, color: COLOR.danger },
+    { label: t('work_dashboard.row_pending_approvals'),  count: pendingApprv, color: COLOR.warning },
+    { label: t('work_dashboard.row_pending_expenses'),   count: pendingExp,   color: COLOR.purple },
+    { label: t('work_dashboard.row_pending_absences'),   count: pendingAbsences, color: 'var(--sky-blue)' },
   ]
   const totalActivity = activityRows.reduce((s, r) => s + r.count, 0)
 
@@ -250,93 +252,93 @@ export default function WorkDashboardPage() {
   return (
     <DashPageShell
       icon={<Clock size={18} />}
-      title="Mi Trabajo"
-      subtitle="Tu vista del día — tareas, horas, aprobaciones y tendencias personales"
+      title={t('work_dashboard.title')}
+      subtitle={t('work_dashboard.subtitle')}
       showPeriodSuffix={false}
     >
       <div className="ds-page">
-        <Hero navigate={navigate} userName={user?.full_name || user?.name} />
+        <Hero navigate={navigate} userName={user?.full_name || user?.name} t={t} />
 
         {/* KPI row */}
         <div className="ds-grid-stats">
           {isLoading ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : <>
             <KpiCard
-              icon={<KpiIcon icon={CheckCircle2} />} label="Tareas abiertas"
+              icon={<KpiIcon icon={CheckCircle2} />} label={t('work_dashboard.kpi_open_tasks')}
               value={tasksOpen}
               color={tasksOpen > 10 ? COLOR.warning : 'var(--text-1)'}
               accentBar={COLOR.accent}
-              action={{ label: 'Ver tareas', to: '/tasks?view=list&mine=1&status=open' }} />
+              action={{ label: t('work_dashboard.action_view_tasks'), to: '/tasks?view=list&mine=1&status=open' }} />
             <KpiCard
-              icon={<KpiIcon icon={AlertTriangle} />} label="Tareas vencidas"
+              icon={<KpiIcon icon={AlertTriangle} />} label={t('work_dashboard.kpi_overdue_tasks')}
               value={tasksOverdue}
               color={tasksOverdue > 0 ? COLOR.danger : COLOR.success}
               accentBar={tasksOverdue > 0 ? COLOR.danger : COLOR.success}
-              sub={tasksOverdue > 0 ? 'Requieren atención' : 'Todo al día'}
-              action={tasksOverdue > 0 ? { label: 'Revisar vencidas', to: '/tasks?view=list&mine=1&status=open&overdue=1' } : undefined} />
+              sub={tasksOverdue > 0 ? t('work_dashboard.needs_attention') : t('work_dashboard.all_up_to_date')}
+              action={tasksOverdue > 0 ? { label: t('work_dashboard.action_review_overdue'), to: '/tasks?view=list&mine=1&status=open&overdue=1' } : undefined} />
             <KpiCard
-              icon={<KpiIcon icon={Clock} />} label="Horas esta semana"
+              icon={<KpiIcon icon={Clock} />} label={t('work_dashboard.kpi_hours_week')}
               value={hoursWeek.toFixed(1)}
               color={hoursColor} accentBar={hoursColor}
-              sub={weekDateRangeLabel() ? `${weekDateRangeLabel()} · Obj: ${hoursTarget}h` : `Objetivo: ${hoursTarget}h`}
-              action={{ label: 'Imputar horas', to: '/imputar' }} />
+              sub={weekDateRangeLabel() ? `${weekDateRangeLabel()} · ${t('work_dashboard.target_short')}: ${hoursTarget}h` : `${t('work_dashboard.target_word')}: ${hoursTarget}h`}
+              action={{ label: t('work_dashboard.shortcut_log_hours'), to: '/imputar' }} />
             <KpiCard
-              icon={<KpiIcon icon={Calendar} />} label="Horas este mes"
+              icon={<KpiIcon icon={Calendar} />} label={t('work_dashboard.kpi_hours_month')}
               value={totalHoursMonth.toFixed(1)}
               color={COLOR.accent} accentBar={COLOR.accent}
-              sub={prev > 0 ? `Mes anterior: ${prev.toFixed(1)}h` : undefined}
-              action={{ label: 'Ver timesheets', to: '/timesheets' }} />
+              sub={prev > 0 ? `${t('work_dashboard.previous_month')}: ${prev.toFixed(1)}h` : undefined}
+              action={{ label: t('work_dashboard.action_view_timesheets'), to: '/timesheets' }} />
             <KpiCard
-              icon={<KpiIcon icon={Bell} />} label="Aprobaciones"
+              icon={<KpiIcon icon={Bell} />} label={t('work_dashboard.kpi_approvals')}
               value={pendingApprv}
               color={pendingApprv > 0 ? COLOR.warning : COLOR.success}
               accentBar={pendingApprv > 0 ? COLOR.warning : COLOR.success}
-              sub={pendingApprv > 0 ? 'Pendientes de mi acción' : 'Sin pendientes'}
-              action={pendingApprv > 0 ? { label: 'Revisar', to: '/approvals' } : undefined} />
+              sub={pendingApprv > 0 ? t('work_dashboard.pending_my_action') : t('work_dashboard.no_pending')}
+              action={pendingApprv > 0 ? { label: t('work_dashboard.action_review'), to: '/approvals' } : undefined} />
             <KpiCard
-              icon={<KpiIcon icon={Wallet} />} label="Gastos pendientes"
+              icon={<KpiIcon icon={Wallet} />} label={t('work_dashboard.kpi_pending_expenses')}
               value={pendingExp}
               color={pendingExp > 0 ? COLOR.purple : COLOR.success}
               accentBar={COLOR.purple}
-              sub={pendingExp > 0 ? 'Mis gastos por aprobar' : 'Sin gastos pendientes'}
-              action={pendingExp > 0 ? { label: 'Ver gastos', to: '/expenses' } : undefined} />
+              sub={pendingExp > 0 ? t('work_dashboard.my_expenses_to_approve') : t('work_dashboard.no_pending_expenses')}
+              action={pendingExp > 0 ? { label: t('work_dashboard.action_view_expenses'), to: '/expenses' } : undefined} />
           </>}
         </div>
 
         {/* Gauges */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
           {isLoading ? <><GaugeCardSkeleton /><GaugeCardSkeleton /></> : <>
-            <GaugeCard label="Horas semana / objetivo"
+            <GaugeCard label={t('work_dashboard.gauge_hours_target')}
               value={hoursWeekPct} color={hoursColor}
-              sub={`${hoursWeek.toFixed(1)}h de ${hoursTarget}h objetivo`} />
-            <GaugeCard label="Tareas completadas"
+              sub={`${hoursWeek.toFixed(1)}h ${t('work_dashboard.of_word')} ${hoursTarget}h ${t('work_dashboard.target_word')}`} />
+            <GaugeCard label={t('work_dashboard.gauge_tasks_completed')}
               value={taskCompletionPct} color={COLOR.success}
-              sub="Ratio de resolución de tareas" />
+              sub={t('work_dashboard.task_resolution_ratio')} />
           </>}
         </div>
 
         {/* Activity + trend */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-3)' }}>
-          <SectionCard title="Resumen de actividad">
+          <SectionCard title={t('work_dashboard.section_activity_summary')}>
             {totalActivity === 0 ? (
               <div className="ds-empty" style={{ padding: 'var(--space-6) var(--space-4)' }}>
                 <CheckCircle2 size={32} className="ds-empty__icon" style={{ color: 'var(--success)' }} />
-                <div className="ds-empty__title">Todo en orden</div>
-                <div className="ds-empty__desc">No hay elementos pendientes ahora mismo.</div>
+                <div className="ds-empty__title">{t('work_dashboard.all_in_order_title')}</div>
+                <div className="ds-empty__desc">{t('work_dashboard.all_in_order_desc')}</div>
               </div>
             ) : activityRows.map(row => (
               <BarRow key={row.label} label={row.label} count={row.count}
                 total={Math.max(totalActivity, 1)} color={row.color} />
             ))}
-            <ActivityFooter pendingAbsences={pendingAbsences} />
+            <ActivityFooter pendingAbsences={pendingAbsences} t={t} />
           </SectionCard>
 
-          <SectionCard title="Tendencia de horas (mensual)">
+          <SectionCard title={t('work_dashboard.section_hours_trend')}>
             {hoursTrendRows.length === 0 ? (
-              <DashEmpty icon="—" title="Sin datos de horas" />
+              <DashEmpty icon="—" title={t('work_dashboard.no_hours_data')} />
             ) : (
               <div className="ds-stack" style={{ gap: 'var(--space-3)' }}>
                 {hoursTrendRows.map((row, i) => (
-                  <TrendRow key={row.label || i} row={row} max={maxTrendHours} />
+                  <TrendRow key={row.label || i} row={row} max={maxTrendHours} t={t} />
                 ))}
               </div>
             )}
@@ -348,7 +350,7 @@ export default function WorkDashboardPage() {
 }
 
 // ── Activity footer (if absences pending, hint a quick CTA) ──────────────────
-function ActivityFooter({ pendingAbsences }) {
+function ActivityFooter({ pendingAbsences, t }) {
   if (pendingAbsences === 0) return null
   return (
     <div style={{
@@ -358,34 +360,34 @@ function ActivityFooter({ pendingAbsences }) {
       fontSize: 'var(--text-xs)', color: 'var(--text-3)',
     }}>
       <Plane size={11} />
-      <span>{pendingAbsences} ausencia{pendingAbsences !== 1 ? 's' : ''} esperando aprobación</span>
+      <span>{pendingAbsences} {pendingAbsences !== 1 ? t('work_dashboard.absences_waiting_plural') : t('work_dashboard.absences_waiting_singular')}</span>
       <a href="/absences" style={{ marginLeft: 'auto', color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
-        Ver <ArrowRight size={10} style={{ display: 'inline-block', verticalAlign: 'middle' }} />
+        {t('work_dashboard.see')} <ArrowRight size={10} style={{ display: 'inline-block', verticalAlign: 'middle' }} />
       </a>
     </div>
   )
 }
 
 // ── Trend row — fila individual del breakdown mensual ───────────────────────
-function TrendRow({ row, max }) {
+function TrendRow({ row, max, t }) {
   const TrendIcon = row.delta > 0 ? ArrowUpRight : row.delta < 0 ? ArrowDownRight : Minus
   return (
     <div>
       <div className="ds-row-between" style={{ marginBottom: 6 }}>
         <div className="ds-stack-sm">
           <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', fontWeight: 600 }}>{row.label}</div>
-          <div className="ds-muted">{row.hours.toFixed(1)}h totales</div>
+          <div className="ds-muted">{row.hours.toFixed(1)}h {t('work_dashboard.total_lower')}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: row.color, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            {row.hasBaseline ? <><TrendIcon size={11} /> {formatTrendPct(row.deltaPct, row.hours)}</> : 'Base'}
+            {row.hasBaseline ? <><TrendIcon size={11} /> {formatTrendPct(row.deltaPct, row.hours)}</> : t('work_dashboard.base_short')}
           </div>
           <div className="ds-muted">
             {row.hasBaseline
               ? (row.hasStableBaseline
                 ? formatTrendDelta(row.delta)
-                : `${formatTrendDelta(row.delta)} · base < ${TREND_MIN_BASELINE_HOURS}h`)
-              : 'Primer mes comparable'}
+                : `${formatTrendDelta(row.delta)} · ${t('work_dashboard.base_lt')} ${TREND_MIN_BASELINE_HOURS}h`)
+              : t('work_dashboard.first_comparable_month')}
           </div>
         </div>
       </div>

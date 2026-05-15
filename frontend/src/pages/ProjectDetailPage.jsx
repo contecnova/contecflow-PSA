@@ -7,23 +7,17 @@ import { fmtDate, fmtCurrency, TYPE_LABELS } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check, Sparkles } from 'lucide-react'
 import SmartScheduleModal from '../components/SmartScheduleModal'
+import { useAppT } from '../i18n/AppLangContext'
 
-const TABS = [
-  { id: 'overview',  label: 'Overview',    icon: FolderOpen },
-  { id: 'tasks',     label: 'Tareas',      icon: CheckSquare },
-  { id: 'team',      label: 'Equipo',      icon: Users },
-  { id: 'risks',     label: 'Riesgos',     icon: AlertTriangle },
-]
-
-const STATUS_CFG = {
-  planning:  { color: 'var(--text-2)',   label: 'Planificación' },
-  active:    { color: 'var(--accent)',   label: 'Activo' },
-  on_hold:   { color: 'var(--warning)',  label: 'En espera' },
-  paused:    { color: 'var(--warning)',  label: 'Pausado' },
-  completed: { color: 'var(--success)',  label: 'Completado' },
-  closed:    { color: 'var(--success)',  label: 'Cerrado' },
-  cancelled: { color: 'var(--text-3)',   label: 'Cancelado' },
-  archived:  { color: 'var(--text-4)',   label: 'Archivado' },
+const STATUS_COLOR_MAP = {
+  planning:  'var(--text-2)',
+  active:    'var(--accent)',
+  on_hold:   'var(--warning)',
+  paused:    'var(--warning)',
+  completed: 'var(--success)',
+  closed:    'var(--success)',
+  cancelled: 'var(--text-3)',
+  archived:  'var(--text-4)',
 }
 
 const RISK_COLOR = { low: 'var(--success)', medium: 'var(--warning)', high: 'var(--danger)', critical: 'var(--danger)' }
@@ -39,6 +33,7 @@ function MetaItem({ label, value }) {
 }
 
 function OverviewTab({ project }) {
+  const t = useAppT()
   const budgetPct = project.budget_used_pct ?? 0
   const budgetColor = budgetPct > 90 ? 'var(--danger)' : budgetPct > 70 ? 'var(--warning)' : 'var(--success)'
 
@@ -47,7 +42,7 @@ function OverviewTab({ project }) {
       {/* Progress */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: "var(--text-base)" }}>
-          <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>Progreso del proyecto</span>
+          <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{t('project_detail.project_progress')}</span>
           <span style={{ color: 'var(--accent)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{(project.progress_pct ?? 0).toFixed(0)}%</span>
         </div>
         <LoadBar value={project.progress_pct ?? 0} />
@@ -55,28 +50,28 @@ function OverviewTab({ project }) {
 
       {/* Metadata grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
-        <MetaItem label="Tipo" value={TYPE_LABELS[project.project_type] || project.project_type} />
-        <MetaItem label="PM" value={project.pm_name} />
-        <MetaItem label="Cliente" value={project.client_name} />
-        <MetaItem label="Departamento" value={project.department} />
-        <MetaItem label="Inicio" value={project.start_date ? fmtDate(project.start_date) : null} />
-        <MetaItem label="Fin previsto" value={project.end_date_planned ? fmtDate(project.end_date_planned) : null} />
+        <MetaItem label={t('project_detail.meta_type')} value={TYPE_LABELS[project.project_type] || project.project_type} />
+        <MetaItem label={t('project_detail.meta_pm')} value={project.pm_name} />
+        <MetaItem label={t('project_detail.meta_client')} value={project.client_name} />
+        <MetaItem label={t('project_detail.meta_department')} value={project.department} />
+        <MetaItem label={t('project_detail.meta_start')} value={project.start_date ? fmtDate(project.start_date) : null} />
+        <MetaItem label={t('project_detail.meta_end_planned')} value={project.end_date_planned ? fmtDate(project.end_date_planned) : null} />
         {project.budget_amount && (
-          <MetaItem label="Presupuesto" value={fmtCurrency(project.budget_amount)} />
+          <MetaItem label={t('project_detail.meta_budget')} value={fmtCurrency(project.budget_amount)} />
         )}
-        <MetaItem label="Equipo" value={project.team_size ? `${project.team_size} personas` : null} />
+        <MetaItem label={t('project_detail.meta_team')} value={project.team_size ? `${project.team_size} ${t('project_detail.people')}` : null} />
       </div>
 
       {/* Budget bar */}
       {project.budget_amount && (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: "var(--text-base)" }}>
-            <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>Ejecución de presupuesto</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{t('project_detail.budget_execution')}</span>
             <span style={{ color: budgetColor, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{budgetPct.toFixed(0)}%</span>
           </div>
           <LoadBar value={Math.min(budgetPct, 100)} color={budgetColor} />
           <div style={{ marginTop: 8, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-            Total: {fmtCurrency(project.budget_amount)}
+            {t('project_detail.total')}: {fmtCurrency(project.budget_amount)}
           </div>
         </div>
       )}
@@ -84,7 +79,7 @@ function OverviewTab({ project }) {
       {/* Description */}
       {project.description && (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
-          <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Descripción</div>
+          <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>{t('project_detail.description')}</div>
           <p style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.7, margin: 0 }}>{project.description}</p>
         </div>
       )}
@@ -92,8 +87,8 @@ function OverviewTab({ project }) {
       {/* Quick links */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {[
-          { label: 'Ver Gantt', to: `/gantt?project=${project.id}`, icon: BarChart2 },
-          { label: 'Ver tareas completas', to: `/tasks?project_id=${project.id}`, icon: CheckSquare },
+          { label: t('project_detail.view_gantt'), to: `/gantt?project=${project.id}`, icon: BarChart2 },
+          { label: t('project_detail.view_full_tasks'), to: `/tasks?project_id=${project.id}`, icon: CheckSquare },
         ].map(({ label, to, icon: Icon }) => (
           <Link key={to} to={to} style={{
             display: 'flex', alignItems: 'center', gap: 6,
@@ -114,6 +109,7 @@ function OverviewTab({ project }) {
 }
 
 function TasksTab({ projectId }) {
+  const t = useAppT()
   const { data, isLoading } = useQuery({
     queryKey: ['project-detail-tasks', projectId],
     queryFn: () => tasksApi.list({ project_id: projectId, page_size: 50 }).then(r => {
@@ -130,22 +126,22 @@ function TasksTab({ projectId }) {
   if (tasks.length === 0) return (
     <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
       <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>📋</div>
-      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Sin tareas en este proyecto</div>
+      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>{t('project_detail.no_tasks')}</div>
       <Link to={`/tasks?project_id=${projectId}`} style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
-        + Crear primera tarea →
+        {t('project_detail.create_first_task')}
       </Link>
     </div>
   )
 
-  const open   = tasks.filter(t => t.status !== 'done' && t.status !== 'closed')
-  const done   = tasks.filter(t => t.status === 'done' || t.status === 'closed')
+  const open   = tasks.filter(tk => tk.status !== 'done' && tk.status !== 'closed')
+  const done   = tasks.filter(tk => tk.status === 'done' || tk.status === 'closed')
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-3)', paddingBottom: 4 }}>
-        <span>Total: <b style={{ color: 'var(--text-1)' }}>{tasks.length}</b></span>
-        <span>Abiertas: <b style={{ color: 'var(--accent)' }}>{open.length}</b></span>
-        <span>Completadas: <b style={{ color: 'var(--success)' }}>{done.length}</b></span>
+        <span>{t('project_detail.total')}: <b style={{ color: 'var(--text-1)' }}>{tasks.length}</b></span>
+        <span>{t('project_detail.open_tasks')}: <b style={{ color: 'var(--accent)' }}>{open.length}</b></span>
+        <span>{t('project_detail.completed_tasks')}: <b style={{ color: 'var(--success)' }}>{done.length}</b></span>
       </div>
       {tasks.map(task => (
         <div key={task.id} style={{
@@ -183,6 +179,7 @@ function TasksTab({ projectId }) {
 }
 
 function TeamTab({ projectId }) {
+  const t = useAppT()
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['project-detail-team', projectId],
     queryFn: () => projectsApi.team(projectId).then(r => {
@@ -196,9 +193,9 @@ function TeamTab({ projectId }) {
   if (members.length === 0) return (
     <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
       <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>👥</div>
-      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Sin miembros asignados</div>
+      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>{t('project_detail.no_members')}</div>
       <Link to="/resources" style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
-        Gestionar recursos →
+        {t('project_detail.manage_resources')}
       </Link>
     </div>
   )
@@ -237,6 +234,7 @@ function TeamTab({ projectId }) {
 }
 
 function RisksTab({ projectId }) {
+  const t = useAppT()
   const { data: risks = [], isLoading } = useQuery({
     queryKey: ['project-detail-risks', projectId],
     queryFn: () => risksApi.list(projectId).then(r => {
@@ -250,9 +248,9 @@ function RisksTab({ projectId }) {
   if (risks.length === 0) return (
     <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
       <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>✅</div>
-      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Sin riesgos registrados</div>
+      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>{t('project_detail.no_risks')}</div>
       <Link to="/risks" style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
-        Ver gestión de riesgos →
+        {t('project_detail.view_risk_mgmt')}
       </Link>
     </div>
   )
@@ -299,6 +297,17 @@ function RisksTab({ projectId }) {
 }
 
 function EditProjectForm({ project, onSave, onCancel, isPending }) {
+  const t = useAppT()
+  const STATUS_CFG = {
+    planning:  { color: STATUS_COLOR_MAP.planning,  label: t('project_detail.status_planning') },
+    active:    { color: STATUS_COLOR_MAP.active,    label: t('project_detail.status_active') },
+    on_hold:   { color: STATUS_COLOR_MAP.on_hold,   label: t('project_detail.status_on_hold') },
+    paused:    { color: STATUS_COLOR_MAP.paused,    label: t('project_detail.status_paused') },
+    completed: { color: STATUS_COLOR_MAP.completed, label: t('project_detail.status_completed') },
+    closed:    { color: STATUS_COLOR_MAP.closed,    label: t('project_detail.status_closed') },
+    cancelled: { color: STATUS_COLOR_MAP.cancelled, label: t('project_detail.status_cancelled') },
+    archived:  { color: STATUS_COLOR_MAP.archived,  label: t('project_detail.status_archived') },
+  }
   const [form, setForm] = useState({
     name: project.name || '',
     description: project.description || '',
@@ -318,13 +327,13 @@ function EditProjectForm({ project, onSave, onCancel, isPending }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600 }}>
       <div>
-        <label style={labelStyle}>Nombre del proyecto</label>
+        <label style={labelStyle}>{t('project_detail.project_name_label')}</label>
         <input value={form.name} onChange={e => set('name', e.target.value)} style={inputStyle}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
       <div>
-        <label style={labelStyle}>Estado</label>
+        <label style={labelStyle}>{t('project_detail.status_label')}</label>
         <select value={form.status} onChange={e => set('status', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
           {Object.entries(STATUS_CFG).map(([v, cfg]) => (
             <option key={v} value={v}>{cfg.label}</option>
@@ -332,19 +341,19 @@ function EditProjectForm({ project, onSave, onCancel, isPending }) {
         </select>
       </div>
       <div>
-        <label style={labelStyle}>Fecha fin prevista</label>
+        <label style={labelStyle}>{t('project_detail.end_date_label')}</label>
         <input type="date" value={form.end_date_planned} onChange={e => set('end_date_planned', e.target.value)} style={inputStyle}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
       <div>
-        <label style={labelStyle}>Presupuesto (€)</label>
+        <label style={labelStyle}>{t('project_detail.budget_label')}</label>
         <input type="number" value={form.budget_amount} onChange={e => set('budget_amount', e.target.value)} style={inputStyle}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
       <div>
-        <label style={labelStyle}>Descripción</label>
+        <label style={labelStyle}>{t('project_detail.description_label')}</label>
         <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={4}
           style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
@@ -353,10 +362,10 @@ function EditProjectForm({ project, onSave, onCancel, isPending }) {
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={() => onSave(form)} disabled={isPending || !form.name.trim()}
           style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: isPending || !form.name.trim() ? 'not-allowed' : 'pointer', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit', opacity: !form.name.trim() ? 0.5 : 1 }}>
-          <Check size={13} />{isPending ? 'Guardando…' : 'Guardar cambios'}
+          <Check size={13} />{isPending ? t('project_detail.saving') : t('project_detail.save_changes')}
         </button>
         <button onClick={onCancel} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', borderRadius: 8, background: 'transparent', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-          <X size={13} /> Cancelar
+          <X size={13} /> {t('project_detail.cancel')}
         </button>
       </div>
     </div>
@@ -364,6 +373,23 @@ function EditProjectForm({ project, onSave, onCancel, isPending }) {
 }
 
 export default function ProjectDetailPage() {
+  const t = useAppT()
+  const TABS = [
+    { id: 'overview',  label: t('project_detail.tab_overview'), icon: FolderOpen },
+    { id: 'tasks',     label: t('project_detail.tab_tasks'),    icon: CheckSquare },
+    { id: 'team',      label: t('project_detail.tab_team'),     icon: Users },
+    { id: 'risks',     label: t('project_detail.tab_risks'),    icon: AlertTriangle },
+  ]
+  const STATUS_CFG = {
+    planning:  { color: STATUS_COLOR_MAP.planning,  label: t('project_detail.status_planning') },
+    active:    { color: STATUS_COLOR_MAP.active,    label: t('project_detail.status_active') },
+    on_hold:   { color: STATUS_COLOR_MAP.on_hold,   label: t('project_detail.status_on_hold') },
+    paused:    { color: STATUS_COLOR_MAP.paused,    label: t('project_detail.status_paused') },
+    completed: { color: STATUS_COLOR_MAP.completed, label: t('project_detail.status_completed') },
+    closed:    { color: STATUS_COLOR_MAP.closed,    label: t('project_detail.status_closed') },
+    cancelled: { color: STATUS_COLOR_MAP.cancelled, label: t('project_detail.status_cancelled') },
+    archived:  { color: STATUS_COLOR_MAP.archived,  label: t('project_detail.status_archived') },
+  }
   const { id } = useParams()
   const navigate = useNavigate()
   const toast = useToast()
@@ -383,10 +409,10 @@ export default function ProjectDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries(['project', id])
       qc.invalidateQueries(['projects'])
-      toast.success('Proyecto actualizado')
+      toast.success(t('project_detail.project_updated'))
       setEditing(false)
     },
-    onError: () => toast.error('Error al guardar cambios'),
+    onError: () => toast.error(t('project_detail.save_error')),
   })
 
   if (isLoading) return (
@@ -398,7 +424,7 @@ export default function ProjectDetailPage() {
   if (!project) return (
     <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)' }}>
       <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>🔍</div>
-      <div>Proyecto no encontrado</div>
+      <div>{t('project_detail.project_not_found')}</div>
     </div>
   )
 
@@ -427,7 +453,7 @@ export default function ProjectDetailPage() {
             onMouseEnter={e => e.currentTarget.style.color = 'var(--text-1)'}
             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
           >
-            <ChevronLeft size={14} /> Proyectos
+            <ChevronLeft size={14} /> {t('project_detail.back_projects')}
           </button>
           {project.code && (
             <>
@@ -455,11 +481,11 @@ export default function ProjectDetailPage() {
                   background: `${riskColor}15`, border: `1px solid ${riskColor}35`,
                   color: riskColor, textTransform: 'uppercase', letterSpacing: '0.06em',
                 }}>
-                  Riesgo {project.risk_level}
+                  {t('project_detail.risk_label')} {project.risk_level}
                 </span>
               )}
               {project.pm_name && (
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>PM: {project.pm_name}</span>
+                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('project_detail.pm_label')}: {project.pm_name}</span>
               )}
               {project.client_name && (
                 <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>· {project.client_name}</span>
@@ -477,7 +503,7 @@ export default function ProjectDetailPage() {
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-2)' }}
               >
-                <Edit2 size={12} /> Editar
+                <Edit2 size={12} /> {t('project_detail.edit_button')}
               </button>
             )}
             <Link to={`/tasks?project_id=${project.id}`} style={{
@@ -486,7 +512,7 @@ export default function ProjectDetailPage() {
               borderRadius: 8, color: 'var(--text-2)', textDecoration: 'none',
               fontSize: "var(--text-sm)", fontWeight: 600, transition: 'all 0.1s',
             }}>
-              <CheckSquare size={12} /> Tareas
+              <CheckSquare size={12} /> {t('project_detail.tab_tasks')}
             </Link>
             <Link to={`/gantt?project=${project.id}`} style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
@@ -503,7 +529,7 @@ export default function ProjectDetailPage() {
               borderRadius: 8, color: 'var(--text-2)', textDecoration: 'none',
               fontSize: "var(--text-sm)", fontWeight: 600, transition: 'all 0.1s',
             }}>
-              🤖 Analizar contrato IA
+              🤖 {t('project_detail.analyze_contract_ai')}
             </Link>
             {/* I27: Auto-planificar tareas del proyecto */}
             <button
@@ -514,9 +540,9 @@ export default function ProjectDetailPage() {
                 borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer',
                 fontSize: "var(--text-sm)", fontWeight: 600,
               }}
-              title="Sugerir fechas para tareas sin planificar usando IA"
+              title={t('project_detail.auto_schedule_tooltip')}
             >
-              <Sparkles size={12} /> Auto-planificar
+              <Sparkles size={12} /> {t('project_detail.auto_schedule')}
             </button>
           </div>
         </div>

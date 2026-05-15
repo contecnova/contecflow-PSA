@@ -1,6 +1,8 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useAppT } from '../i18n/AppLangContext'
 
 export default function NotFoundPage() {
+  const t = useAppT()
   const location = useLocation()
 
   return (
@@ -24,13 +26,13 @@ export default function NotFoundPage() {
       }}>
         <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>404</div>
         <h1 style={{ margin: '0 0 10px', fontSize: "var(--text-xl-em)", color: 'var(--warning)' }}>
-          Página no encontrada
+          {t('not_found_page.title')}
         </h1>
         <p style={{ margin: '0 0 8px', color: 'var(--text-2)', lineHeight: 1.6 }}>
-          La URL que intentaste abrir no existe o ya no está disponible.
+          {t('not_found_page.message')}
         </p>
         <p style={{ margin: '0 0 18px', color: 'var(--text-2)', lineHeight: 1.6 }}>
-          Ruta solicitada: <strong style={{ color: 'var(--text-1)' }}>{location.pathname}</strong>
+          {t('not_found_page.requested_route')} <strong style={{ color: 'var(--text-1)' }}>{location.pathname}</strong>
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link
@@ -45,7 +47,7 @@ export default function NotFoundPage() {
               fontWeight: 600,
             }}
           >
-            Volver al inicio
+            {t('not_found_page.go_home')}
           </Link>
           <Link
             to="/tasks"
@@ -59,7 +61,7 @@ export default function NotFoundPage() {
               fontWeight: 600,
             }}
           >
-            Ir a tareas
+            {t('not_found_page.go_tasks')}
           </Link>
         </div>
       </div>

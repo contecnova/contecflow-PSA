@@ -10,29 +10,30 @@ import {
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { collabApi } from '../services/collaborationApi'
-
-const TABS = [
-  { id: 'retention',     label: 'Retención',     icon: ShieldCheck },
-  { id: 'legal_hold',    label: 'Legal Hold',    icon: Scale },
-  { id: 'integrations',  label: 'Integraciones', icon: Plug },
-  { id: 'webhooks',      label: 'Webhooks',      icon: Webhook },
-  { id: 'audit',         label: 'Auditoría',     icon: ScrollText },
-  { id: 'ediscovery',    label: 'eDiscovery',    icon: Search },
-]
+import { useAppT } from '../i18n/AppLangContext'
 
 export default function ChatAdminPage() {
+  const t = useAppT()
   const [tab, setTab] = useState('retention')
+  const TABS = [
+    { id: 'retention',     label: t('chat_admin.tab_retention'),     icon: ShieldCheck },
+    { id: 'legal_hold',    label: t('chat_admin.tab_legal_hold'),    icon: Scale },
+    { id: 'integrations',  label: t('chat_admin.tab_integrations'), icon: Plug },
+    { id: 'webhooks',      label: t('chat_admin.tab_webhooks'),      icon: Webhook },
+    { id: 'audit',         label: t('chat_admin.tab_audit'),         icon: ScrollText },
+    { id: 'ediscovery',    label: t('chat_admin.tab_ediscovery'),    icon: Search },
+  ]
   return (
     <div style={{ padding: '20px 26px' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 6px' }}>Admin Collaboration</h1>
-      <p style={{ color: 'var(--text-2)', margin: '0 0 18px', fontSize: 'var(--text-sm)' }}>Políticas, integraciones, auditoría y eDiscovery del chat interno.</p>
+      <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 6px' }}>{t('chat_admin.title')}</h1>
+      <p style={{ color: 'var(--text-2)', margin: '0 0 18px', fontSize: 'var(--text-sm)' }}>{t('chat_admin.subtitle')}</p>
 
       <div role="tablist" style={{ display: 'flex', gap: 4, marginBottom: 22, borderBottom: '1px solid var(--surface-4)', flexWrap: 'wrap' }}>
-        {TABS.map(t => {
-          const Icon = t.icon
-          const active = tab === t.id
+        {TABS.map(tabItem => {
+          const Icon = tabItem.icon
+          const active = tab === tabItem.id
           return (
-            <button key={t.id} role="tab" aria-selected={active} onClick={() => setTab(t.id)} style={{
+            <button key={tabItem.id} role="tab" aria-selected={active} onClick={() => setTab(tabItem.id)} style={{
               background: 'transparent', border: 'none',
               borderBottom: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
               padding: '10px 14px', cursor: 'pointer', fontFamily: 'inherit',
@@ -40,7 +41,7 @@ export default function ChatAdminPage() {
               color: active ? 'var(--accent)' : 'var(--text-2)',
               display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
-              <Icon size={13} /> {t.label}
+              <Icon size={13} /> {tabItem.label}
             </button>
           )
         })}
@@ -102,6 +103,7 @@ const inputStyle = {
 
 // ── Retention ────────────────────────────────────────────────────────────────
 function RetentionTab() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const { data = [] } = useQuery({ queryKey: ['retention'], queryFn: collabApi.listRetention })
@@ -109,24 +111,24 @@ function RetentionTab() {
 
   const create = useMutation({
     mutationFn: () => collabApi.createRetention(form),
-    onSuccess: () => { qc.invalidateQueries(['retention']); toast.success('Política creada'); setForm({ name: '', scope: 'workspace', retention_months: 24, apply_to: 'all' }) },
+    onSuccess: () => { qc.invalidateQueries(['retention']); toast.success(t('chat_admin.policy_created')); setForm({ name: '', scope: 'workspace', retention_months: 24, apply_to: 'all' }) },
   })
   const run = useMutation({
     mutationFn: () => collabApi.runRetention(),
-    onSuccess: (d) => toast.success(`Ejecutado: ${d.deleted} mensajes purgados`),
+    onSuccess: (d) => toast.success(t('chat_admin.executed_purged', { deleted: d.deleted })),
   })
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 18 }}>
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Políticas de retención</h3>
-          <Btn variant="secondary" icon={RefreshCcw} onClick={() => run.mutate()}>Ejecutar barrido</Btn>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{t('chat_admin.retention_policies')}</h3>
+          <Btn variant="secondary" icon={RefreshCcw} onClick={() => run.mutate()}>{t('chat_admin.run_sweep')}</Btn>
         </div>
-        {data.length === 0 ? <Empty text="Sin políticas — añade una en el panel derecho." /> : (
+        {data.length === 0 ? <Empty text={t('chat_admin.no_policies_hint')} /> : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
             <thead><tr style={{ borderBottom: '1px solid var(--surface-4)', textAlign: 'left' }}>
-              <th style={th}>Nombre</th><th style={th}>Ámbito</th><th style={th}>Aplica a</th><th style={th}>Meses</th><th style={th}>Activa</th>
+              <th style={th}>{t('chat_admin.col_name')}</th><th style={th}>{t('chat_admin.col_scope')}</th><th style={th}>{t('chat_admin.col_apply_to')}</th><th style={th}>{t('chat_admin.col_months')}</th><th style={th}>{t('chat_admin.col_active')}</th>
             </tr></thead>
             <tbody>{data.map(r => (
               <tr key={r.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
@@ -138,26 +140,26 @@ function RetentionTab() {
         )}
       </Card>
       <Card>
-        <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>Nueva política</h4>
+        <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>{t('chat_admin.new_policy')}</h4>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <Field label="Nombre"><input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
-          <Field label="Ámbito">
+          <Field label={t('chat_admin.col_name')}><input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
+          <Field label={t('chat_admin.col_scope')}>
             <select style={inputStyle} value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value })}>
-              <option value="workspace">Todo el workspace</option>
-              <option value="team">Equipo concreto</option>
-              <option value="channel">Canal concreto</option>
+              <option value="workspace">{t('chat_admin.scope_workspace')}</option>
+              <option value="team">{t('chat_admin.scope_team')}</option>
+              <option value="channel">{t('chat_admin.scope_channel')}</option>
             </select>
           </Field>
-          <Field label="Aplica a">
+          <Field label={t('chat_admin.col_apply_to')}>
             <select style={inputStyle} value={form.apply_to} onChange={e => setForm({ ...form, apply_to: e.target.value })}>
-              <option value="all">Mensajes + adjuntos + llamadas</option>
-              <option value="messages">Solo mensajes</option>
-              <option value="attachments">Solo adjuntos</option>
-              <option value="calls">Solo llamadas</option>
+              <option value="all">{t('chat_admin.apply_all')}</option>
+              <option value="messages">{t('chat_admin.apply_messages')}</option>
+              <option value="attachments">{t('chat_admin.apply_attachments')}</option>
+              <option value="calls">{t('chat_admin.apply_calls')}</option>
             </select>
           </Field>
-          <Field label="Meses de retención"><input type="number" min={1} max={120} style={inputStyle} value={form.retention_months} onChange={e => setForm({ ...form, retention_months: parseInt(e.target.value, 10) || 24 })} /></Field>
-          <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.name}>Crear política</Btn>
+          <Field label={t('chat_admin.retention_months_label')}><input type="number" min={1} max={120} style={inputStyle} value={form.retention_months} onChange={e => setForm({ ...form, retention_months: parseInt(e.target.value, 10) || 24 })} /></Field>
+          <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.name}>{t('chat_admin.create_policy')}</Btn>
         </div>
       </Card>
     </div>
@@ -166,6 +168,7 @@ function RetentionTab() {
 
 // ── Legal hold ───────────────────────────────────────────────────────────────
 function LegalHoldTab() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const { data = [] } = useQuery({ queryKey: ['legal-holds'], queryFn: collabApi.listLegalHolds })
@@ -176,17 +179,17 @@ function LegalHoldTab() {
       custodian_user_ids: form.custodian_user_ids.split(',').map(s => s.trim()).filter(Boolean),
       channel_ids: form.channel_ids.split(',').map(s => s.trim()).filter(Boolean),
     }),
-    onSuccess: () => { qc.invalidateQueries(['legal-holds']); toast.success('Hold creado'); setForm({ case_reference: '', description: '', custodian_user_ids: '', channel_ids: '' }) },
+    onSuccess: () => { qc.invalidateQueries(['legal-holds']); toast.success(t('chat_admin.hold_created')); setForm({ case_reference: '', description: '', custodian_user_ids: '', channel_ids: '' }) },
   })
   const release = useMutation({
     mutationFn: (id) => collabApi.releaseLegalHold(id),
-    onSuccess: () => { qc.invalidateQueries(['legal-holds']); toast.success('Hold liberado') },
+    onSuccess: () => { qc.invalidateQueries(['legal-holds']); toast.success(t('chat_admin.hold_released')) },
   })
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 18 }}>
       <Card>
-        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>Casos legal hold ({data.length})</h3>
-        {data.length === 0 ? <Empty text="Sin holds activos" /> : (
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>{t('chat_admin.legal_hold_cases')} ({data.length})</h3>
+        {data.length === 0 ? <Empty text={t('chat_admin.no_holds')} /> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {data.map(h => (
               <div key={h.id} style={{ padding: 12, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
@@ -195,10 +198,10 @@ function LegalHoldTab() {
                     <div style={{ fontWeight: 700 }}>{h.case_reference}</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{h.description}</div>
                   </div>
-                  {h.is_active && <Btn variant="danger" icon={X} onClick={() => release.mutate(h.id)}>Liberar</Btn>}
+                  {h.is_active && <Btn variant="danger" icon={X} onClick={() => release.mutate(h.id)}>{t('chat_admin.release')}</Btn>}
                 </div>
                 <div style={{ marginTop: 6, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
-                  Iniciado: {h.started_at?.slice(0, 10)} {h.ended_at && `· Cerrado: ${h.ended_at.slice(0, 10)}`}
+                  {t('chat_admin.started_label')}: {h.started_at?.slice(0, 10)} {h.ended_at && `· ${t('chat_admin.closed_label')}: ${h.ended_at.slice(0, 10)}`}
                 </div>
               </div>
             ))}
@@ -206,13 +209,13 @@ function LegalHoldTab() {
         )}
       </Card>
       <Card>
-        <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>Nuevo caso</h4>
+        <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>{t('chat_admin.new_case')}</h4>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <Field label="Referencia caso"><input style={inputStyle} value={form.case_reference} onChange={e => setForm({ ...form, case_reference: e.target.value })} placeholder="CASO-2026-001" /></Field>
-          <Field label="Descripción"><textarea rows={2} style={inputStyle} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></Field>
-          <Field label="Custodios (user_ids, coma)"><input style={inputStyle} value={form.custodian_user_ids} onChange={e => setForm({ ...form, custodian_user_ids: e.target.value })} /></Field>
-          <Field label="Canales (channel_ids, coma)"><input style={inputStyle} value={form.channel_ids} onChange={e => setForm({ ...form, channel_ids: e.target.value })} /></Field>
-          <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.case_reference}>Crear hold</Btn>
+          <Field label={t('chat_admin.case_reference_label')}><input style={inputStyle} value={form.case_reference} onChange={e => setForm({ ...form, case_reference: e.target.value })} placeholder="CASO-2026-001" /></Field>
+          <Field label={t('chat_admin.description_label')}><textarea rows={2} style={inputStyle} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></Field>
+          <Field label={t('chat_admin.custodians_label')}><input style={inputStyle} value={form.custodian_user_ids} onChange={e => setForm({ ...form, custodian_user_ids: e.target.value })} /></Field>
+          <Field label={t('chat_admin.channels_label')}><input style={inputStyle} value={form.channel_ids} onChange={e => setForm({ ...form, channel_ids: e.target.value })} /></Field>
+          <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.case_reference}>{t('chat_admin.create_hold')}</Btn>
         </div>
       </Card>
     </div>
@@ -221,40 +224,41 @@ function LegalHoldTab() {
 
 // ── Integrations ────────────────────────────────────────────────────────────
 function IntegrationsTab() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const { data = [] } = useQuery({ queryKey: ['integrations'], queryFn: collabApi.listIntegrations })
   const [form, setForm] = useState({ kind: 'jira', name: '', config: '{}' })
   const create = useMutation({
     mutationFn: () => collabApi.createIntegration({ kind: form.kind, name: form.name, config: tryJson(form.config) }),
-    onSuccess: () => { qc.invalidateQueries(['integrations']); toast.success('Integración creada') },
+    onSuccess: () => { qc.invalidateQueries(['integrations']); toast.success(t('chat_admin.integration_created')) },
   })
   const remove = useMutation({
     mutationFn: (id) => collabApi.deleteIntegration(id),
-    onSuccess: () => { qc.invalidateQueries(['integrations']); toast.success('Eliminada') },
+    onSuccess: () => { qc.invalidateQueries(['integrations']); toast.success(t('chat_admin.deleted')) },
   })
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 18 }}>
       <Card>
-        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>Integraciones ({data.length})</h3>
-        {data.length === 0 ? <Empty text="Aún no has conectado integraciones (Jira, GitHub, M365, Google, SD…)" /> : (
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>{t('chat_admin.integrations')} ({data.length})</h3>
+        {data.length === 0 ? <Empty text={t('chat_admin.no_integrations')} /> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {data.map(it => (
               <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
                 <div>
                   <div style={{ fontWeight: 700 }}>{it.name}</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{it.kind}{!it.is_enabled && ' · deshabilitado'}</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{it.kind}{!it.is_enabled && ` · ${t('chat_admin.disabled')}`}</div>
                 </div>
-                <Btn variant="danger" icon={X} onClick={() => remove.mutate(it.id)}>Eliminar</Btn>
+                <Btn variant="danger" icon={X} onClick={() => remove.mutate(it.id)}>{t('chat_admin.delete')}</Btn>
               </div>
             ))}
           </div>
         )}
       </Card>
       <Card>
-        <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>Conectar integración</h4>
+        <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>{t('chat_admin.connect_integration')}</h4>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <Field label="Tipo">
+          <Field label={t('chat_admin.kind_label')}>
             <select style={inputStyle} value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}>
               <option value="jira">Jira</option>
               <option value="github">GitHub</option>
@@ -263,12 +267,12 @@ function IntegrationsTab() {
               <option value="microsoft_365">Microsoft 365</option>
               <option value="service_desk">Service Desk</option>
               <option value="nexus_ai">Nexus AI</option>
-              <option value="custom_webhook">Webhook personalizado</option>
+              <option value="custom_webhook">{t('chat_admin.custom_webhook')}</option>
             </select>
           </Field>
-          <Field label="Nombre"><input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
-          <Field label="Config (JSON)"><textarea rows={3} style={inputStyle} value={form.config} onChange={e => setForm({ ...form, config: e.target.value })} /></Field>
-          <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.name}>Crear</Btn>
+          <Field label={t('chat_admin.col_name')}><input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
+          <Field label={t('chat_admin.config_json_label')}><textarea rows={3} style={inputStyle} value={form.config} onChange={e => setForm({ ...form, config: e.target.value })} /></Field>
+          <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.name}>{t('chat_admin.create')}</Btn>
         </div>
       </Card>
     </div>
@@ -277,6 +281,7 @@ function IntegrationsTab() {
 
 // ── Webhooks ────────────────────────────────────────────────────────────────
 function WebhooksTab() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const { data = [] } = useQuery({ queryKey: ['webhooks'], queryFn: collabApi.listWebhooks })
@@ -287,13 +292,13 @@ function WebhooksTab() {
       target_channel_id: form.target_channel_id || null,
       events: form.events.split(',').map(s => s.trim()).filter(Boolean),
     }),
-    onSuccess: () => { qc.invalidateQueries(['webhooks']); toast.success('Webhook creado') },
+    onSuccess: () => { qc.invalidateQueries(['webhooks']); toast.success(t('chat_admin.webhook_created')) },
   })
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 18 }}>
       <Card>
-        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>Webhooks ({data.length})</h3>
-        {data.length === 0 ? <Empty text="Sin webhooks definidos" /> : (
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>{t('chat_admin.webhooks')} ({data.length})</h3>
+        {data.length === 0 ? <Empty text={t('chat_admin.no_webhooks')} /> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {data.map(w => (
               <div key={w.id} style={{ padding: 12, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
@@ -302,7 +307,7 @@ function WebhooksTab() {
                   {w.direction === 'incoming' ? `POST /api/v1/collaboration/webhooks/incoming/${w.secret_token}` : (w.url || '—')}
                 </div>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
-                  Eventos: {w.events?.join(', ') || '—'}
+                  {t('chat_admin.events_label')}: {w.events?.join(', ') || '—'}
                 </div>
               </div>
             ))}
@@ -310,19 +315,19 @@ function WebhooksTab() {
         )}
       </Card>
       <Card>
-        <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>Nuevo webhook</h4>
+        <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>{t('chat_admin.new_webhook')}</h4>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <Field label="Dirección">
+          <Field label={t('chat_admin.direction_label')}>
             <select style={inputStyle} value={form.direction} onChange={e => setForm({ ...form, direction: e.target.value })}>
-              <option value="incoming">Entrante (push externo a un canal)</option>
-              <option value="outgoing">Saliente (Contecflow → URL externa)</option>
+              <option value="incoming">{t('chat_admin.direction_incoming')}</option>
+              <option value="outgoing">{t('chat_admin.direction_outgoing')}</option>
             </select>
           </Field>
-          <Field label="Nombre"><input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
-          {form.direction === 'outgoing' && <Field label="URL destino"><input style={inputStyle} value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} /></Field>}
-          <Field label="Canal destino (channel_id)"><input style={inputStyle} value={form.target_channel_id} onChange={e => setForm({ ...form, target_channel_id: e.target.value })} /></Field>
-          <Field label="Eventos (coma)"><input style={inputStyle} value={form.events} onChange={e => setForm({ ...form, events: e.target.value })} placeholder="message.created,channel.created" /></Field>
-          <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.name}>Crear</Btn>
+          <Field label={t('chat_admin.col_name')}><input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
+          {form.direction === 'outgoing' && <Field label={t('chat_admin.target_url_label')}><input style={inputStyle} value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} /></Field>}
+          <Field label={t('chat_admin.target_channel_label')}><input style={inputStyle} value={form.target_channel_id} onChange={e => setForm({ ...form, target_channel_id: e.target.value })} /></Field>
+          <Field label={t('chat_admin.events_input_label')}><input style={inputStyle} value={form.events} onChange={e => setForm({ ...form, events: e.target.value })} placeholder="message.created,channel.created" /></Field>
+          <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.name}>{t('chat_admin.create')}</Btn>
         </div>
       </Card>
     </div>
@@ -331,6 +336,7 @@ function WebhooksTab() {
 
 // ── Audit ───────────────────────────────────────────────────────────────────
 function AuditTab() {
+  const t = useAppT()
   const { data = [] } = useQuery({ queryKey: ['audit'], queryFn: () => collabApi.listAudit(200), refetchInterval: 30000 })
   const verify = useMutation({
     mutationFn: () => collabApi.verifyAudit(),
@@ -338,19 +344,19 @@ function AuditTab() {
   return (
     <Card>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Eventos de auditoría ({data.length})</h3>
-        <Btn variant="secondary" icon={ShieldCheck} onClick={() => verify.mutate()}>Verificar cadena</Btn>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{t('chat_admin.audit_events')} ({data.length})</h3>
+        <Btn variant="secondary" icon={ShieldCheck} onClick={() => verify.mutate()}>{t('chat_admin.verify_chain')}</Btn>
       </div>
       {verify.data && (
         <div style={{ marginBottom: 12, padding: '10px 14px', background: verify.data.is_valid ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', border: `1px solid ${verify.data.is_valid ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: 8, fontSize: 'var(--text-sm)' }}>
           {verify.data.is_valid
-            ? `✓ Cadena íntegra. ${verify.data.total} eventos en ${verify.data.chains} cadena(s).`
-            : `⚠ Cadena rota: ${verify.data.breaks?.length} ruptura(s) detectada(s).`}
+            ? t('chat_admin.chain_ok', { total: verify.data.total, chains: verify.data.chains })
+            : t('chat_admin.chain_broken', { breaks: verify.data.breaks?.length })}
         </div>
       )}
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
         <thead><tr style={{ borderBottom: '1px solid var(--surface-4)', textAlign: 'left' }}>
-          <th style={th}>Fecha</th><th style={th}>Acción</th><th style={th}>Tipo</th><th style={th}>Entity</th><th style={th}>Actor</th>
+          <th style={th}>{t('chat_admin.col_date')}</th><th style={th}>{t('chat_admin.col_action')}</th><th style={th}>{t('chat_admin.col_type')}</th><th style={th}>{t('chat_admin.col_entity')}</th><th style={th}>{t('chat_admin.col_actor')}</th>
         </tr></thead>
         <tbody>{data.map(e => (
           <tr key={e.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
@@ -367,6 +373,7 @@ function AuditTab() {
 
 // ── eDiscovery ──────────────────────────────────────────────────────────────
 function EdiscoveryTab() {
+  const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState({ case_reference: '', user_ids: '', keywords: '', date_from: '', date_to: '' })
   const exp = useMutation({
@@ -385,21 +392,21 @@ function EdiscoveryTab() {
       a.download = `ediscovery_${form.case_reference || 'export'}_${Date.now()}.json`
       a.click()
       URL.revokeObjectURL(a.href)
-      toast.success(`Exportados ${data.total} mensajes`)
+      toast.success(t('chat_admin.exported_messages', { total: data.total }))
     },
   })
   return (
     <Card>
-      <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>Export legal (eDiscovery)</h3>
+      <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>{t('chat_admin.ediscovery_title')}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-        <Field label="Caso"><input style={inputStyle} value={form.case_reference} onChange={e => setForm({ ...form, case_reference: e.target.value })} /></Field>
-        <Field label="Custodios (user_ids, coma)"><input style={inputStyle} value={form.user_ids} onChange={e => setForm({ ...form, user_ids: e.target.value })} /></Field>
-        <Field label="Palabras clave (coma)"><input style={inputStyle} value={form.keywords} onChange={e => setForm({ ...form, keywords: e.target.value })} /></Field>
+        <Field label={t('chat_admin.case_short_label')}><input style={inputStyle} value={form.case_reference} onChange={e => setForm({ ...form, case_reference: e.target.value })} /></Field>
+        <Field label={t('chat_admin.custodians_label')}><input style={inputStyle} value={form.user_ids} onChange={e => setForm({ ...form, user_ids: e.target.value })} /></Field>
+        <Field label={t('chat_admin.keywords_label')}><input style={inputStyle} value={form.keywords} onChange={e => setForm({ ...form, keywords: e.target.value })} /></Field>
         <div />
-        <Field label="Desde"><input type="datetime-local" style={inputStyle} value={form.date_from} onChange={e => setForm({ ...form, date_from: e.target.value })} /></Field>
-        <Field label="Hasta"><input type="datetime-local" style={inputStyle} value={form.date_to} onChange={e => setForm({ ...form, date_to: e.target.value })} /></Field>
+        <Field label={t('chat_admin.from_label')}><input type="datetime-local" style={inputStyle} value={form.date_from} onChange={e => setForm({ ...form, date_from: e.target.value })} /></Field>
+        <Field label={t('chat_admin.to_label')}><input type="datetime-local" style={inputStyle} value={form.date_to} onChange={e => setForm({ ...form, date_to: e.target.value })} /></Field>
       </div>
-      <Btn icon={Download} onClick={() => exp.mutate()} disabled={exp.isPending}>{exp.isPending ? 'Exportando…' : 'Exportar JSON'}</Btn>
+      <Btn icon={Download} onClick={() => exp.mutate()} disabled={exp.isPending}>{exp.isPending ? t('chat_admin.exporting') : t('chat_admin.export_json')}</Btn>
     </Card>
   )
 }

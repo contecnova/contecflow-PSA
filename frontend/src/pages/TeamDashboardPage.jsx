@@ -9,16 +9,7 @@ import {
   COLOR, DashPageShell, KpiCard, KpiIcon, GaugeCard, BarRow, SectionCard, DashEmpty,
   dateRange, typePalette,
 } from '../components/dashboard/DashKit'
-
-const ROLE_LABELS = {
-  admin: 'Admin',
-  pm: 'PM',
-  team_lead: 'Team Lead',
-  employee: 'Empleado',
-  hr: 'RRHH',
-  finance: 'Finanzas',
-  client_user: 'Cliente',
-}
+import { useAppT } from '../i18n/AppLangContext'
 
 const okrCategory = (o) => {
   if (o.status === 'cancelled') return 'cancelled'
@@ -28,6 +19,16 @@ const okrCategory = (o) => {
 }
 
 export default function TeamDashboardPage() {
+  const t = useAppT()
+  const ROLE_LABELS = {
+    admin: t('team_dashboard.role_admin'),
+    pm: t('team_dashboard.role_pm'),
+    team_lead: t('team_dashboard.role_team_lead'),
+    employee: t('team_dashboard.role_employee'),
+    hr: t('team_dashboard.role_hr'),
+    finance: t('team_dashboard.role_finance'),
+    client_user: t('team_dashboard.role_client_user'),
+  }
   const [days, setDays] = useState(30)
   const params = dateRange(days)
 
@@ -110,7 +111,7 @@ export default function TeamDashboardPage() {
   }).length
 
   const deptCounts = resources.reduce((acc, r) => {
-    const dept = r.department || 'Sin departamento'
+    const dept = r.department || t('team_dashboard.no_department')
     acc[dept] = (acc[dept] || 0) + 1; return acc
   }, {})
   const deptRows = Object.entries(deptCounts)
@@ -119,7 +120,7 @@ export default function TeamDashboardPage() {
     .map(([dept, count]) => ({ label: dept, count }))
 
   const roleCounts = resources.reduce((acc, r) => {
-    const role = r.role || r.job_title || 'Sin rol'
+    const role = r.role || r.job_title || t('team_dashboard.no_role')
     acc[role] = (acc[role] || 0) + 1; return acc
   }, {})
   const roleRows = Object.entries(roleCounts)
@@ -130,33 +131,33 @@ export default function TeamDashboardPage() {
   return (
     <DashPageShell
       icon={<Users size={18} />}
-      title="Equipo y Personas"
-      subtitle="Métricas de capacidad, rendimiento y desarrollo del equipo"
+      title={t('team_dashboard.title')}
+      subtitle={t('team_dashboard.subtitle')}
       days={days} setDays={setDays}
       periods={[30, 90, 365]}
     >
       <div className="ds-page">
         {/* KPI row */}
         <div className="ds-grid-stats">
-          <KpiCard icon={<KpiIcon icon={Users} />} label="Personas en equipo"
+          <KpiCard icon={<KpiIcon icon={Users} />} label={t('team_dashboard.kpi_team_size')}
             value={teamSize} color="var(--text-1)" accentBar={COLOR.accent} />
-          <KpiCard icon={<KpiIcon icon={Target} />} label="OKRs activos"
+          <KpiCard icon={<KpiIcon icon={Target} />} label={t('team_dashboard.kpi_active_okrs')}
             value={totalOkrs} color={COLOR.purple} accentBar={COLOR.purple}
-            sub={completedOkrs > 0 ? `${completedOkrs} completados` : undefined} />
-          <KpiCard icon={<KpiIcon icon={Star} />} label="Reviews pendientes"
+            sub={completedOkrs > 0 ? `${completedOkrs} ${t('team_dashboard.completed_lower')}` : undefined} />
+          <KpiCard icon={<KpiIcon icon={Star} />} label={t('team_dashboard.kpi_pending_reviews')}
             value={pendingReviews}
             color={pendingReviews > 0 ? COLOR.warning : COLOR.success}
             accentBar={pendingReviews > 0 ? COLOR.warning : COLOR.success}
-            sub={completedReviews > 0 ? `${completedReviews} completadas` : undefined} />
-          <KpiCard icon={<KpiIcon icon={GraduationCap} />} label="Formaciones"
+            sub={completedReviews > 0 ? `${completedReviews} ${t('team_dashboard.completed_fem_plural')}` : undefined} />
+          <KpiCard icon={<KpiIcon icon={GraduationCap} />} label={t('team_dashboard.kpi_trainings')}
             value={trainingTotal}
             color={COLOR.accent} accentBar={COLOR.accent}
-            sub={`${trainingCompleted} completadas · ${trainingInProgress} en curso`} />
-          <KpiCard icon={<KpiIcon icon={Plane} />} label="Ausencias hoy"
+            sub={`${trainingCompleted} ${t('team_dashboard.completed_fem_plural')} · ${trainingInProgress} ${t('team_dashboard.in_progress_lower')}`} />
+          <KpiCard icon={<KpiIcon icon={Plane} />} label={t('team_dashboard.kpi_absences_today')}
             value={todayAbsences}
             color={todayAbsences > 0 ? COLOR.warning : COLOR.success}
             accentBar={todayAbsences > 0 ? COLOR.warning : COLOR.success} />
-          <KpiCard icon={<KpiIcon icon={Zap} />} label="Ausencias pendientes"
+          <KpiCard icon={<KpiIcon icon={Zap} />} label={t('team_dashboard.kpi_pending_absences')}
             value={absences.filter(a => a.status === 'pending').length}
             color={COLOR.purple} accentBar={COLOR.purple} />
         </div>
@@ -164,28 +165,28 @@ export default function TeamDashboardPage() {
         {/* Gauges */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
           {utilPct != null && (
-            <GaugeCard label="Utilización media equipo"
+            <GaugeCard label={t('team_dashboard.gauge_avg_utilization')}
               value={utilPct} color={utilColor}
-              sub={utilPct >= 70 ? 'Buen aprovechamiento' : utilPct >= 50 ? 'Capacidad disponible' : 'Baja ocupación'} />
+              sub={utilPct >= 70 ? t('team_dashboard.good_use') : utilPct >= 50 ? t('team_dashboard.capacity_available') : t('team_dashboard.low_occupancy')} />
           )}
           {okrPct != null && (
-            <GaugeCard label="OKRs completados"
+            <GaugeCard label={t('team_dashboard.gauge_okrs_completed')}
               value={okrPct} color={okrColor}
-              sub={`${completedOkrs} de ${totalOkrs} objetivos`} />
+              sub={`${completedOkrs} ${t('team_dashboard.of_word')} ${totalOkrs} ${t('team_dashboard.objectives')}`} />
           )}
           {trainingTotal > 0 && (
-            <GaugeCard label="Formación completada"
+            <GaugeCard label={t('team_dashboard.gauge_training_completed')}
               value={Math.round((trainingCompleted / trainingTotal) * 100)}
               color={COLOR.success}
-              sub={`${trainingCompleted} de ${trainingTotal} formaciones`} />
+              sub={`${trainingCompleted} ${t('team_dashboard.of_word')} ${trainingTotal} ${t('team_dashboard.trainings_lower')}`} />
           )}
         </div>
 
         {/* Distribution charts */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-3)' }}>
-          <SectionCard title="Distribución por departamento" badge={deptRows.length}>
+          <SectionCard title={t('team_dashboard.section_by_department')} badge={deptRows.length}>
             {deptRows.length === 0
-              ? <DashEmpty title="Sin departamentos definidos" />
+              ? <DashEmpty title={t('team_dashboard.no_departments')} />
               : deptRows.map((row, i) => (
                   <BarRow key={row.label}
                     label={row.label} count={row.count}
@@ -195,9 +196,9 @@ export default function TeamDashboardPage() {
             }
           </SectionCard>
 
-          <SectionCard title="Distribución por rol" badge={roleRows.length}>
+          <SectionCard title={t('team_dashboard.section_by_role')} badge={roleRows.length}>
             {roleRows.length === 0
-              ? <DashEmpty title="Sin roles definidos" />
+              ? <DashEmpty title={t('team_dashboard.no_roles')} />
               : roleRows.map((row, i) => (
                   <BarRow key={row.label}
                     label={row.label} count={row.count}
@@ -210,13 +211,13 @@ export default function TeamDashboardPage() {
 
         {/* OKRs breakdown */}
         {okrs.length > 0 && (
-          <SectionCard title="Estado de OKRs" badge={totalOkrs}>
+          <SectionCard title={t('team_dashboard.section_okr_status')} badge={totalOkrs}>
             {(() => {
               const groups = [
-                { label: 'Completados', count: okrBuckets.completed   || 0, color: COLOR.success },
-                { label: 'En progreso', count: okrBuckets.in_progress || 0, color: COLOR.accent },
-                { label: 'Sin iniciar', count: okrBuckets.pending     || 0, color: 'var(--text-3)' },
-                { label: 'Cancelados',  count: okrBuckets.cancelled   || 0, color: COLOR.danger },
+                { label: t('team_dashboard.okr_completed'), count: okrBuckets.completed   || 0, color: COLOR.success },
+                { label: t('team_dashboard.okr_in_progress'), count: okrBuckets.in_progress || 0, color: COLOR.accent },
+                { label: t('team_dashboard.okr_not_started'), count: okrBuckets.pending     || 0, color: 'var(--text-3)' },
+                { label: t('team_dashboard.okr_cancelled'),  count: okrBuckets.cancelled   || 0, color: COLOR.danger },
               ].filter(g => g.count > 0)
               return groups.map(g => (
                 <BarRow key={g.label} label={g.label}

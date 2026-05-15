@@ -1,8 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useAppT } from '../i18n/AppLangContext'
 
 export default function ForbiddenPage() {
+  const t = useAppT()
   const location = useLocation()
-  const from = location.state?.from || 'ruta desconocida'
+  const from = location.state?.from || t('forbidden.unknown_route')
 
   return (
     <div style={{
@@ -25,16 +27,16 @@ export default function ForbiddenPage() {
       }}>
         <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>403</div>
         <h1 style={{ margin: '0 0 10px', fontSize: "var(--text-xl-em)", color: 'var(--danger)' }}>
-          Acceso denegado
+          {t('forbidden.title')}
         </h1>
         <p style={{ margin: '0 0 8px', color: 'var(--text-2)', lineHeight: 1.6 }}>
-          No tienes permiso para acceder a esta ruta.
+          {t('forbidden.message')}
         </p>
         <p style={{ margin: '0 0 18px', color: 'var(--text-2)', lineHeight: 1.6 }}>
-          Ruta solicitada: <strong style={{ color: 'var(--text-1)' }}>{from}</strong>
+          {t('forbidden.requested_route')} <strong style={{ color: 'var(--text-1)' }}>{from}</strong>
         </p>
         <p style={{ margin: '0 0 22px', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
-          Si crees que esto es un error, contacta con tu administrador.
+          {t('forbidden.contact_admin')}
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link
@@ -49,7 +51,7 @@ export default function ForbiddenPage() {
               fontWeight: 600,
             }}
           >
-            Ir al inicio
+            {t('forbidden.go_home')}
           </Link>
           <Link
             to="/imputar"
@@ -63,7 +65,7 @@ export default function ForbiddenPage() {
               fontWeight: 600,
             }}
           >
-            Ir a imputaciones
+            {t('forbidden.go_timesheets')}
           </Link>
         </div>
       </div>

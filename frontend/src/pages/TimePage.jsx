@@ -1,16 +1,11 @@
 import { useState, Suspense, lazy } from 'react'
 import { Clock, Timer, ListChecks } from 'lucide-react'
 import { Spinner, Tabs } from '../components/ui'
+import { useAppT } from '../i18n/AppLangContext'
 
 const ImputarPage      = lazy(() => import('./ImputarPage'))
 const TimerPageContent = lazy(() => import('./TimerPage'))
 const TimesheetsPage   = lazy(() => import('./TimesheetsPage'))
-
-const TABS = [
-  { id: 'log',   label: 'Registrar',   icon: <Clock size={13} /> },
-  { id: 'timer', label: 'Cronómetro',  icon: <Timer size={13} /> },
-  { id: 'week',  label: 'Semana',      icon: <ListChecks size={13} /> },
-]
 
 function TabFallback() {
   return (
@@ -21,7 +16,14 @@ function TabFallback() {
 }
 
 export default function TimePage() {
+  const t = useAppT()
   const [tab, setTab] = useState('log')
+
+  const TABS = [
+    { id: 'log',   label: t('time_page.tab_log'),   icon: <Clock size={13} /> },
+    { id: 'timer', label: t('time_page.tab_timer'), icon: <Timer size={13} /> },
+    { id: 'week',  label: t('time_page.tab_week'),  icon: <ListChecks size={13} /> },
+  ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -35,7 +37,7 @@ export default function TimePage() {
           items={TABS}
           active={tab}
           onChange={setTab}
-          ariaLabel="Tiempo"
+          ariaLabel={t('time_page.aria_label')}
           style={{ marginBottom: 0 }}
         />
       </div>
