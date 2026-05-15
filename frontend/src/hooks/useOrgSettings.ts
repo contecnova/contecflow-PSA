@@ -6,9 +6,21 @@
  * loading or if the endpoint is temporarily unavailable.
  */
 import { useQuery } from '@tanstack/react-query'
+// TODO type: api service is still JS; treat default export as untyped axios instance.
 import api from '../services/api'
 
-const FALLBACK = {
+export interface OrgSettings {
+  currency: string
+  timezone: string
+  language: string
+  working_hours_per_day: number
+  weekly_capacity_hours: number
+  vacation_days_per_year: number
+  tax_rate: number
+  [extra: string]: unknown
+}
+
+const FALLBACK: OrgSettings = {
   currency: 'EUR',
   timezone: 'Europe/Madrid',
   language: 'es',
@@ -18,12 +30,12 @@ const FALLBACK = {
   tax_rate: 21.0,
 }
 
-export function useOrgSettings() {
-  const { data } = useQuery({
+export function useOrgSettings(): OrgSettings {
+  const { data } = useQuery<Partial<OrgSettings>>({
     queryKey: ['org-defaults'],
-    queryFn: () => api.get('/settings/org-defaults').then(r => r.data),
+    queryFn: () => api.get('/settings/org-defaults').then((r: { data: Partial<OrgSettings> }) => r.data),
     staleTime: 5 * 60 * 1000, // 5 min
     retry: 1,
   })
-  return { ...FALLBACK, ...data }
+  return { ...FALLBACK, ...(data ?? {}) }
 }

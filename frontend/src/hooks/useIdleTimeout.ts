@@ -1,33 +1,47 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 
-const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click']
+const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'] as const
+
+export interface UseIdleTimeoutOptions {
+  /** Si el timeout está activado */
+  enabled: boolean
+  /** Minutos de inactividad antes de cerrar */
+  timeoutMinutes: number | null | undefined
+  /** Callback llamado al expirar (debe hacer logout) */
+  onTimeout: () => void
+  /** Segundos antes del cierre en que se muestra aviso (default 60) */
+  warningSeconds?: number
+}
+
+export interface UseIdleTimeoutResult {
+  showWarning: boolean
+  secondsLeft: number
+  dismiss: () => void
+}
 
 /**
  * useIdleTimeout — cierra la sesión tras N minutos de inactividad.
- *
- * @param {object} opts
- * @param {boolean}  opts.enabled        - Si el timeout está activado
- * @param {number}   opts.timeoutMinutes - Minutos de inactividad antes de cerrar
- * @param {function} opts.onTimeout      - Callback llamado al expirar (debe hacer logout)
- * @param {number}   [opts.warningSeconds=60] - Segundos antes del cierre en que se muestra aviso
- *
- * @returns {{ showWarning: boolean, secondsLeft: number, dismiss: function }}
  */
-export function useIdleTimeout({ enabled, timeoutMinutes, onTimeout, warningSeconds = 60 }) {
+export function useIdleTimeout({
+  enabled,
+  timeoutMinutes,
+  onTimeout,
+  warningSeconds = 60,
+}: UseIdleTimeoutOptions): UseIdleTimeoutResult {
   const [showWarning, setShowWarning] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState(warningSeconds)
 
-  const idleTimer   = useRef(null)
-  const warnTimer   = useRef(null)
-  const countdown   = useRef(null)
-  const onTimeoutRef = useRef(onTimeout)
+  const idleTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const warnTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const countdown   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const onTimeoutRef = useRef<() => void>(onTimeout)
 
   useEffect(() => { onTimeoutRef.current = onTimeout }, [onTimeout])
 
   const clearAll = useCallback(() => {
-    clearTimeout(idleTimer.current)
-    clearTimeout(warnTimer.current)
-    clearInterval(countdown.current)
+    if (idleTimer.current) clearTimeout(idleTimer.current)
+    if (warnTimer.current) clearTimeout(warnTimer.current)
+    if (countdown.current) clearInterval(countdown.current)
   }, [])
 
   const startTimers = useCallback(() => {
@@ -43,9 +57,9 @@ export function useIdleTimeout({ enabled, timeoutMinutes, onTimeout, warningSeco
       setShowWarning(true)
       setSecondsLeft(warningSeconds)
       countdown.current = setInterval(() => {
-        setSecondsLeft(s => {
+        setSecondsLeft((s) => {
           if (s <= 1) {
-            clearInterval(countdown.current)
+            if (countdown.current) clearInterval(countdown.current)
             return 0
           }
           return s - 1
@@ -74,11 +88,11 @@ export function useIdleTimeout({ enabled, timeoutMinutes, onTimeout, warningSeco
       return
     }
     startTimers()
-    const reset = () => startTimers()
-    ACTIVITY_EVENTS.forEach(e => window.addEventListener(e, reset, { passive: true }))
+    const reset = (): void => { startTimers() }
+    ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, reset, { passive: true }))
     return () => {
       clearAll()
-      ACTIVITY_EVENTS.forEach(e => window.removeEventListener(e, reset))
+      ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, reset))
     }
   }, [enabled, startTimers, clearAll])
 

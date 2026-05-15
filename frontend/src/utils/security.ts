@@ -10,16 +10,13 @@
  */
 
 /** Protocols that are safe to embed in href attributes. */
-const SAFE_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
+const SAFE_PROTOCOLS = new Set<string>(['http:', 'https:', 'mailto:'])
 
 /**
  * Return `url` when it is safe to use as an href value, otherwise return '#'.
  * Handles relative URLs, absolute URLs, and blocks all dangerous protocols.
- *
- * @param {string|null|undefined} url
- * @returns {string}
  */
-export function sanitizeUrl(url) {
+export function sanitizeUrl(url: string | null | undefined): string {
   if (!url || typeof url !== 'string') return '#'
 
   const trimmed = url.trim()
@@ -48,10 +45,7 @@ export function sanitizeUrl(url) {
 /**
  * Return true only when the URL passes the sanitizeUrl check (not '#').
  * Useful for conditional rendering: {isSafeUrl(c.url) && <a href={c.url}>...}
- *
- * @param {string|null|undefined} url
- * @returns {boolean}
  */
-export function isSafeUrl(url) {
+export function isSafeUrl(url: string | null | undefined): boolean {
   return sanitizeUrl(url) !== '#'
 }

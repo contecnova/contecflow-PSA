@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
  * Returns `true` when the browser has network connectivity.
  * Updates automatically when connectivity changes.
  */
-export function useOnlineStatus() {
-  const [online, setOnline] = useState(() => navigator.onLine)
+export function useOnlineStatus(): boolean {
+  const [online, setOnline] = useState<boolean>(() => navigator.onLine)
 
   useEffect(() => {
     const handleOnline  = () => setOnline(true)
