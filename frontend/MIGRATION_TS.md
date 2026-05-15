@@ -54,36 +54,44 @@ All React Query hooks now declare `UseQueryResult<T>` / `UseMutationResult<TData
 ### Tooling
 - `frontend/vite.config.js`: vitest `test.include` widened to `src/**/*.test.{js,jsx,ts,tsx}` so `helpers.test.ts` runs.
 
-## Recommended next batches
+## Final state (2026-05-15)
 
-Each batch should remain reviewable in a single PR (~30 files).
+All batches **closed**. Coverage: **380/380 .ts/.tsx, 0 .js/.jsx**.
 
-### Batch B: Remaining hooks (~17 files)
-`useAbsences`, `useAnalytics`, `useApprovals`, `useClients`, `useDocCollab`, `useExpenses`, `useForecasts`, `useImputations`, `useInvalidate`, `useLicenses`, `useNotificationBadges`, `usePipeline`, `useProjects`, `useRateCards`, `useSprints`, `useSwipeGesture`, `useTasks`, `useTickets`, `useTraining`, `useUsers`, `useUserPreferences`, `hooks/index.js`.
-**Risk:** low. Same pattern as Batch A. `useNotificationBadges` and `useUserPreferences` touch `AuthContext` — needs context typing first or temporary `as any`.
+| Batch | Scope | Status |
+|---|---|---|
+| A (pilot) | utils + 19 hooks | ✅ b410398 |
+| B | remaining hooks + hooks/index | ✅ 00f13ce |
+| C | services + axios client | ⚠️ deferred — see "Open type-debt" below |
+| D | constants + small contexts | ✅ 00f13ce |
+| E | charts + leaf UI + components/ui | ✅ 00f13ce + 9664589 |
+| F | features + portal + layout aggregators | ✅ 00f13ce + 9664589 + 9d7a3cd |
+| G | pages + AuthContext + ChatRealtimeContext + tests + entrypoints | ✅ 00f13ce + 9664589 |
+| polish | type-quality on top 38 layout/bi/servicedesk/dashboard files | ✅ 9d7a3cd |
 
-### Batch C: Services + axios client (~6 files)
-`services/api.js` (1856 LOC), `services/settingsApi.js`, `services/collaborationApi.js`, `services/biOfflineDb.js`, `services/offlineQueue.js`, `services/offlineSync.js` (745 LOC).
-**Risk:** medium. Big files. `api.js` should be split into one file per resource (e.g. `services/api/clients.ts`) during migration. Once `api` exports are typed, remove all `// TODO type: services/api still JS` markers and tighten every hook's return type.
-**Blocker:** axios `AxiosResponse<T>` typing — currently every hook treats response as `{ data: unknown }`. After this batch, hooks can return real domain types instead of `unknown`.
+## Open type-debt
 
-### Batch D: Constants + small contexts (~10 files)
-`constants/queryKeys.js`, `constants/api.js`, `constants/errors.js`, `constants/theme.js`, `constants/business_config.json`, `constants/constants.json`, `context/ConfirmContext.jsx`, plus a few `i18n/*.js` helpers.
-**Risk:** low. `queryKeys` is consumed everywhere — once typed, every hook's `queryKey` parameter can use `as const` tuples and enable cache key inference.
+The migration closes the file-extension goal (100% .ts/.tsx). The
+following type-quality items remain as future polish — none block
+correctness because `tsconfig.json` runs `allowJs: true` and
+`noImplicitAny: false`:
 
-### Batch E: Charts + simple components (~30 files)
-Leaf components in `src/charts/`, `src/components/ui/`, `src/components/feedback/`, etc. — anything with minimal props or no children.
-**Risk:** medium. Most react components need `React.FC<Props>` or explicit `Props` interface; complex prop drilling can wait.
-
-### Batch F: Features + portal components (~40 files)
-`src/features/*`, `src/components/portal/*`, `src/components/layout/*`. Many touch ChatRealtimeContext + i18n.
-**Risk:** medium-high — coordinate with the chat realtime work.
-
-### Batch G: Pages + AuthContext + ChatRealtimeContext (~80 files)
-The large surface. Should be done last because:
-- Pages import many hooks (now typed) but also many components (not yet typed).
-- `AuthContext.jsx` (207 LOC) and `ChatRealtimeContext.jsx` (261 LOC) are central — type them carefully in a dedicated PR.
-- Coordinate with Wave B (i18n) so we don't fight over the same files.
+1. **`services/api.ts` (1856 LOC).** Canonical, working, but a single
+   file. An incomplete split attempt under `services/api/*.ts` was
+   reverted in 2da391e because no caller imported from it and the
+   re-export coverage was only 26%. Future: split `api.ts` into
+   per-resource modules under `services/api/` AND migrate every caller
+   in lockstep so the file can be deleted.
+2. **`AxiosResponse<T>` propagation.** Hooks still treat responses as
+   `{ data: unknown }` because `api.ts` exports loose shapes. Resolved
+   when the split above completes.
+3. **`// TODO type:` markers across ~140 files** (mostly pages and
+   components that got mechanical rename + minimal Props/useState
+   typing). Grep `// TODO type:` for the canonical list.
+4. **i18n `t()` keys are stringly-typed.** Optional improvement via
+   `i18next-resources-for-ts` codegen.
+5. **`useLocation().state` is `unknown` in many pages.** Should be
+   addressed per-page when each page's domain types stabilize.
 
 ## Known type-debt blockers
 
