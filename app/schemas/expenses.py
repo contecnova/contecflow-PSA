@@ -1,47 +1,47 @@
 from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.config import settings
 
 
 class ExpenseIn(BaseModel):
-    user_id: Optional[str] = None
-    project_id: Optional[str] = None
-    category: Optional[str] = None
-    amount: Optional[float] = None
-    currency: Optional[str] = None
-    expense_date: Optional[date] = None
-    description: Optional[str] = None
-    notes: Optional[str] = None
-    receipt_url: Optional[str] = None
-    status: Optional[str] = None
-    is_billable: Optional[bool] = None
+    user_id: Optional[str] = Field(None, description="ID del usuario propietario del gasto")
+    project_id: Optional[str] = Field(None, description="ID del proyecto al que se imputa el gasto")
+    category: Optional[str] = Field(None, description="Categoría del gasto")
+    amount: Optional[float] = Field(None, description="Importe del gasto")
+    currency: Optional[str] = Field(None, description="Moneda en formato ISO 4217")
+    expense_date: Optional[date] = Field(None, description="Fecha en la que se produjo el gasto")
+    description: Optional[str] = Field(None, description="Descripción breve del gasto")
+    notes: Optional[str] = Field(None, description="Notas internas adicionales")
+    receipt_url: Optional[str] = Field(None, description="URL del justificante adjunto")
+    status: Optional[str] = Field(None, description="Estado del gasto (draft, submitted, approved, rejected)")
+    is_billable: Optional[bool] = Field(None, description="Indica si el gasto es facturable al cliente")
 
 
 class ExpenseCreate(BaseModel):
-    project_id: Optional[str] = None
-    contract_id: Optional[str] = None
-    category: str
-    description: str
-    amount: float
-    currency: str = settings.DEFAULT_CURRENCY
-    expense_date: date
-    is_billable: bool = True
-    receipt_name: Optional[str] = None
-    notes: Optional[str] = None
+    project_id: Optional[str] = Field(None, description="ID del proyecto asociado al gasto")
+    contract_id: Optional[str] = Field(None, description="ID del contrato asociado al gasto")
+    category: str = Field(..., description="Categoría del gasto")
+    description: str = Field(..., description="Descripción breve del gasto")
+    amount: float = Field(..., description="Importe del gasto")
+    currency: str = Field(settings.DEFAULT_CURRENCY, description="Moneda en formato ISO 4217")
+    expense_date: date = Field(..., description="Fecha en la que se produjo el gasto")
+    is_billable: bool = Field(True, description="Indica si el gasto es facturable al cliente")
+    receipt_name: Optional[str] = Field(None, description="Nombre del archivo de justificante")
+    notes: Optional[str] = Field(None, description="Notas internas adicionales")
 
 
 class ExpenseUpdate(BaseModel):
-    category: Optional[str] = None
-    description: Optional[str] = None
-    amount: Optional[float] = None
-    expense_date: Optional[date] = None
-    is_billable: Optional[bool] = None
-    notes: Optional[str] = None
+    category: Optional[str] = Field(None, description="Nueva categoría del gasto")
+    description: Optional[str] = Field(None, description="Nueva descripción del gasto")
+    amount: Optional[float] = Field(None, description="Nuevo importe del gasto")
+    expense_date: Optional[date] = Field(None, description="Nueva fecha del gasto")
+    is_billable: Optional[bool] = Field(None, description="Actualiza si es facturable al cliente")
+    notes: Optional[str] = Field(None, description="Nuevas notas internas")
 
 
 class ExpenseReviewPayload(BaseModel):
-    approved: bool
-    rejection_reason: Optional[str] = None
+    approved: bool = Field(..., description="Indica si el gasto se aprueba")
+    rejection_reason: Optional[str] = Field(None, description="Motivo de rechazo en caso de no aprobar")

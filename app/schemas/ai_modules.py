@@ -1,40 +1,40 @@
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class MeetingProcessPayload(BaseModel):
-    title: Optional[str] = None
-    project_id: Optional[str] = None
-    platform: str = "upload"
-    transcript: str
-    participants: Optional[List[str]] = None
-    meeting_date: Optional[str] = None
-    duration_min: Optional[int] = None
+    title: Optional[str] = Field(None, description="Título de la reunión")
+    project_id: Optional[str] = Field(None, description="ID del proyecto asociado a la reunión")
+    platform: str = Field("upload", description="Plataforma de origen (upload, teams, zoom, meet)")
+    transcript: str = Field(..., description="Transcripción literal de la reunión")
+    participants: Optional[List[str]] = Field(None, description="Lista de participantes identificados")
+    meeting_date: Optional[str] = Field(None, description="Fecha de la reunión en formato ISO")
+    duration_min: Optional[int] = Field(None, description="Duración de la reunión en minutos")
 
 class ContractAnalyzePayload(BaseModel):
-    project_id: Optional[str] = None
-    client_name: Optional[str] = None
-    filename: Optional[str] = None
-    contract_text: str
+    project_id: Optional[str] = Field(None, description="ID del proyecto al que se asocia el contrato")
+    client_name: Optional[str] = Field(None, description="Nombre del cliente contraparte")
+    filename: Optional[str] = Field(None, description="Nombre del archivo original del contrato")
+    contract_text: str = Field(..., description="Texto completo del contrato a analizar")
 
 class VoiceCommandPayload(BaseModel):
-    transcript: str
-    confidence: Optional[float] = None
+    transcript: str = Field(..., description="Transcripción del comando de voz")
+    confidence: Optional[float] = Field(None, description="Nivel de confianza de la transcripción (0-1)")
     # Si False (default), el comando se interpreta pero NO se ejecuta —
     # devuelve `pending_action` para que el cliente muestre confirmación
     # humana antes de hacer write. Si True, ejecuta directamente.
-    confirm: bool = False
+    confirm: bool = Field(False, description="Si es True ejecuta directamente, si no devuelve acción pendiente de confirmación")
 
 class SmartScheduleRequest(BaseModel):
-    project_id: Optional[str] = None
-    max_tasks: int = 20
+    project_id: Optional[str] = Field(None, description="ID del proyecto a planificar")
+    max_tasks: int = Field(20, description="Número máximo de tareas a considerar en la planificación")
 
 class OverrunPredictionOut(BaseModel):
-    project_id:             str
-    project_name:           str
-    cost_overrun_prob:      float
-    schedule_overrun_prob:  float
-    cost_overrun_pct:       float
-    schedule_overrun_days:  int
-    confidence:             str
-    signals:                list
-    recommendation:         str
+    project_id: str = Field(..., description="ID del proyecto evaluado")
+    project_name: str = Field(..., description="Nombre del proyecto evaluado")
+    cost_overrun_prob: float = Field(..., description="Probabilidad estimada de desviación de coste")
+    schedule_overrun_prob: float = Field(..., description="Probabilidad estimada de desviación de plazos")
+    cost_overrun_pct: float = Field(..., description="Porcentaje estimado de desviación de coste")
+    schedule_overrun_days: int = Field(..., description="Días estimados de retraso sobre el plan")
+    confidence: str = Field(..., description="Nivel de confianza cualitativo de la predicción")
+    signals: list = Field(..., description="Señales o indicadores que justifican la predicción")
+    recommendation: str = Field(..., description="Recomendación accionable derivada del análisis")

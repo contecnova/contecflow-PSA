@@ -4,20 +4,20 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 class SemConfigPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    engine_mode: str | None = None
-    embeddings_backend: str | None = None
-    threshold_ticket: float | None = Field(default=None, ge=0.0, le=1.0)
-    threshold_task: float | None = Field(default=None, ge=0.0, le=1.0)
-    threshold_expert_cache: float | None = Field(default=None, ge=0.0, le=1.0)
-    load_balance_weight: float | None = Field(default=None, ge=0.0, le=1.0)
-    threshold_critical: float | None = Field(default=None, ge=0.0, le=1.0)
-    threshold_high: float | None = Field(default=None, ge=0.0, le=1.0)
-    threshold_medium: float | None = Field(default=None, ge=0.0, le=1.0)
-    threshold_low: float | None = Field(default=None, ge=0.0, le=1.0)
-    history_decay_days: float | None = Field(default=None, gt=0.0, le=3650.0)
-    auto_assign_tickets: bool | None = None
-    auto_assign_tasks: bool | None = None
-    local_model_name: str | None = Field(default=None, min_length=1, max_length=200)
+    engine_mode: str | None = Field(default=None, description="Modo del motor semántico (auto, manual, etc.)")
+    embeddings_backend: str | None = Field(default=None, description="Backend de embeddings ('tfidf' o 'transformer')")
+    threshold_ticket: float | None = Field(default=None, ge=0.0, le=1.0, description="Umbral de similitud para asignación de tickets (0-1)")
+    threshold_task: float | None = Field(default=None, ge=0.0, le=1.0, description="Umbral de similitud para asignación de tareas (0-1)")
+    threshold_expert_cache: float | None = Field(default=None, ge=0.0, le=1.0, description="Umbral de similitud para reutilizar caché de expertos (0-1)")
+    load_balance_weight: float | None = Field(default=None, ge=0.0, le=1.0, description="Peso del balance de carga al asignar (0-1)")
+    threshold_critical: float | None = Field(default=None, ge=0.0, le=1.0, description="Umbral semántico para criticidad crítica (0-1)")
+    threshold_high: float | None = Field(default=None, ge=0.0, le=1.0, description="Umbral semántico para criticidad alta (0-1)")
+    threshold_medium: float | None = Field(default=None, ge=0.0, le=1.0, description="Umbral semántico para criticidad media (0-1)")
+    threshold_low: float | None = Field(default=None, ge=0.0, le=1.0, description="Umbral semántico para criticidad baja (0-1)")
+    history_decay_days: float | None = Field(default=None, gt=0.0, le=3650.0, description="Días de decaimiento del peso histórico")
+    auto_assign_tickets: bool | None = Field(default=None, description="Activa la asignación automática de tickets")
+    auto_assign_tasks: bool | None = Field(default=None, description="Activa la asignación automática de tareas")
+    local_model_name: str | None = Field(default=None, min_length=1, max_length=200, description="Nombre del modelo local de embeddings")
 
     @field_validator("engine_mode")
     @classmethod

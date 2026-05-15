@@ -20,37 +20,37 @@ _logger = logging.getLogger(__name__)
 
 
 class ChatPayload(BaseModel):
-    message: str
-    conversation_id: Optional[str] = None
-    context_type: str = "global"
-    context_id:   Optional[str] = None
+    message: str = Field(..., description="Mensaje enviado por el usuario al asistente")
+    conversation_id: Optional[str] = Field(None, description="ID de la conversación existente o None para iniciar una nueva")
+    context_type: str = Field("global", description="Tipo de contexto del chat (global, project, task, etc.)")
+    context_id: Optional[str] = Field(None, description="ID del recurso al que se asocia el contexto")
 
 
 class AgentPayload(BaseModel):
-    instruction: str
-    auto_approve: bool = False   # if True, skip confirmation for low-risk tools
+    instruction: str = Field(..., description="Instrucción en lenguaje natural para el agente")
+    auto_approve: bool = Field(False, description="Si es True, omite confirmación para herramientas de bajo riesgo")
 
 
 class PromptTemplatePayload(BaseModel):
-    module: str
-    name: str
-    content: str
-    is_active: bool = True
+    module: str = Field(..., description="Módulo al que pertenece la plantilla de prompt")
+    name: str = Field(..., description="Nombre identificativo de la plantilla")
+    content: str = Field(..., description="Contenido del prompt con placeholders")
+    is_active: bool = Field(True, description="Indica si la plantilla está activa")
 
 
 # ── Audit #61: schemas for AIMessage.tool_calls / tool_results ──────────────
 
 class ToolCall(BaseModel):
     """A tool invocation persisted on ``AIMessage.tool_calls`` (JSON-as-Text)."""
-    name: str
-    arguments: dict = Field(default_factory=dict)
+    name: str = Field(..., description="Nombre de la herramienta invocada")
+    arguments: dict = Field(default_factory=dict, description="Argumentos pasados a la herramienta")
 
 
 class ToolResult(BaseModel):
     """A tool result persisted on ``AIMessage.tool_results`` (JSON-as-Text)."""
-    tool_use_id: str
-    content: Any = None
-    is_error: bool = False
+    tool_use_id: str = Field(..., description="ID de la invocación de herramienta asociada")
+    content: Any = Field(None, description="Contenido devuelto por la herramienta")
+    is_error: bool = Field(False, description="Indica si la ejecución devolvió un error")
 
 
 def serialize_tool_calls(tool_calls: Optional[List[dict]]) -> Optional[str]:

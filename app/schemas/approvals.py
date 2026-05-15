@@ -12,10 +12,10 @@ _logger = logging.getLogger(__name__)
 
 class AutoApprovalRuleConditions(BaseModel):
     """Conditions evaluated by ``approval_engine._check_auto_approval``."""
-    amount_lt: Optional[float] = None
-    amount_gt: Optional[float] = None
-    department: Optional[str] = None
-    category: Optional[str] = None
+    amount_lt: Optional[float] = Field(None, description="Importe debe ser menor que este umbral")
+    amount_gt: Optional[float] = Field(None, description="Importe debe ser mayor que este umbral")
+    department: Optional[str] = Field(None, description="Departamento al que se aplica la regla")
+    category: Optional[str] = Field(None, description="Categoría a la que se aplica la regla")
 
 
 class AutoApprovalRule(BaseModel):
@@ -25,11 +25,12 @@ class AutoApprovalRule(BaseModel):
     so that future condition keys can be added in the engine without breaking
     historic rows.
     """
-    action: str = "auto_approve"
+    action: str = Field("auto_approve", description="Acción a ejecutar cuando se cumplen las condiciones")
     conditions: AutoApprovalRuleConditions = Field(
-        default_factory=AutoApprovalRuleConditions
+        default_factory=AutoApprovalRuleConditions,
+        description="Conjunto de condiciones evaluadas para la regla",
     )
-    label: Optional[str] = None
+    label: Optional[str] = Field(None, description="Etiqueta descriptiva de la regla")
 
     model_config = {"extra": "allow"}
 
@@ -82,15 +83,15 @@ def parse_auto_approval_rules(raw: Optional[str]) -> List[dict]:
 
 
 class WorkflowIn(BaseModel):
-    name: str
-    description: Optional[str] = None
-    entity_type: str
-    is_default: bool = False
-    trigger_conditions: Optional[str] = "{}"
+    name: str = Field(..., description="Nombre del workflow de aprobación")
+    description: Optional[str] = Field(None, description="Descripción detallada del workflow")
+    entity_type: str = Field(..., description="Tipo de entidad sobre la que aplica el workflow")
+    is_default: bool = Field(False, description="Indica si es el workflow por defecto para el tipo de entidad")
+    trigger_conditions: Optional[str] = Field("{}", description="Condiciones JSON que activan el workflow")
     # v2 enterprise
-    chain_on_approval_workflow_id: Optional[str] = None
-    sla_block_on_breach: bool = False
-    auto_approval_rules: Optional[str] = None
+    chain_on_approval_workflow_id: Optional[str] = Field(None, description="Workflow encadenado a ejecutar tras la aprobación")
+    sla_block_on_breach: bool = Field(False, description="Bloquea la entidad si se incumple el SLA")
+    auto_approval_rules: Optional[str] = Field(None, description="Reglas JSON de auto-aprobación")
 
     @field_validator("auto_approval_rules", mode="before")
     @classmethod
@@ -105,23 +106,23 @@ class WorkflowIn(BaseModel):
 
 
 class StepIn(BaseModel):
-    step_order: int
-    name: str
-    approver_type: str
-    approver_role: Optional[str] = None
-    approver_user_id: Optional[str] = None
-    approver_department: Optional[str] = None
-    is_optional: bool = False
-    timeout_hours: int = 72
-    on_timeout: str = "escalate"
-    escalate_to_user_id: Optional[str] = None
+    step_order: int = Field(..., description="Orden secuencial del paso dentro del workflow")
+    name: str = Field(..., description="Nombre descriptivo del paso de aprobación")
+    approver_type: str = Field(..., description="Tipo de aprobador (user, role, group, department)")
+    approver_role: Optional[str] = Field(None, description="Rol del aprobador si aplica")
+    approver_user_id: Optional[str] = Field(None, description="ID del usuario aprobador específico")
+    approver_department: Optional[str] = Field(None, description="Departamento aprobador si aplica")
+    is_optional: bool = Field(False, description="Indica si el paso puede omitirse")
+    timeout_hours: int = Field(72, description="Horas hasta que se considera vencido el paso")
+    on_timeout: str = Field("escalate", description="Acción al vencer el SLA (escalate, auto_approve, auto_reject)")
+    escalate_to_user_id: Optional[str] = Field(None, description="Usuario al que se escala en caso de timeout")
     # v2 enterprise
-    approver_group_id: Optional[str] = None
-    parallel_quorum: bool = False
-    required_approvals: int = 1
-    step_condition: Optional[str] = None
-    requires_attachment: bool = False
-    reminder_hours: Optional[int] = None
+    approver_group_id: Optional[str] = Field(None, description="ID del grupo de aprobadores")
+    parallel_quorum: bool = Field(False, description="Aprobación paralela con quorum requerido")
+    required_approvals: int = Field(1, description="Número de aprobaciones requeridas para avanzar")
+    step_condition: Optional[str] = Field(None, description="Condición JSON que debe cumplirse para activar el paso")
+    requires_attachment: bool = Field(False, description="Indica si la decisión requiere adjuntar evidencia")
+    reminder_hours: Optional[int] = Field(None, description="Horas tras las que se envía recordatorio")
 
     @field_validator("approver_user_id", "escalate_to_user_id", "approver_group_id", mode="before")
     @classmethod
@@ -130,15 +131,15 @@ class StepIn(BaseModel):
 
 
 class ApprovalRequestIn(BaseModel):
-    workflow_id: Optional[str] = None
-    entity_type: str
-    entity_id: str
-    entity_summary: Optional[str] = None
-    context: Optional[Any] = None
+    workflow_id: Optional[str] = Field(None, description="ID del workflow a ejecutar (opcional si hay default)")
+    entity_type: str = Field(..., description="Tipo de entidad para la que se solicita aprobación")
+    entity_id: str = Field(..., description="ID de la entidad sometida a aprobación")
+    entity_summary: Optional[str] = Field(None, description="Resumen legible de la entidad para el aprobador")
+    context: Optional[Any] = Field(None, description="Contexto adicional usado por las reglas de auto-aprobación")
 
 
 class DecisionIn(BaseModel):
-    decision: str
-    note: Optional[str] = None
-    delegate_to: Optional[str] = None
-    attachment_url: Optional[str] = None
+    decision: str = Field(..., description="Decisión del aprobador (approve, reject, delegate)")
+    note: Optional[str] = Field(None, description="Comentario o justificación de la decisión")
+    delegate_to: Optional[str] = Field(None, description="ID del usuario al que se delega la decisión")
+    attachment_url: Optional[str] = Field(None, description="URL del documento adjunto como evidencia")
