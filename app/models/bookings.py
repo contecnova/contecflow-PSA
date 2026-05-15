@@ -48,6 +48,9 @@ class TaskDependency(Base):
     successor   = relationship("Task", foreign_keys=[successor_id])
     creator     = relationship("User", foreign_keys=[created_by])
 
+    def __repr__(self) -> str:
+        return f"<TaskDependency id={self.id!r} type={self.dependency_type!r}>"
+
 
 # ── Resource Bookings ─────────────────────────────────────────────────────────
 
@@ -83,6 +86,9 @@ class ResourceBooking(Base):
     task    = relationship("Task")
     creator = relationship("User", foreign_keys=[created_by])
 
+    def __repr__(self) -> str:
+        return f"<ResourceBooking id={self.id!r} user_id={self.user_id!r}>"
+
 
 # ── Exchange Rates ────────────────────────────────────────────────────────────
 
@@ -98,6 +104,9 @@ class ExchangeRate(Base):
     effective_date = Column(Date, nullable=False, index=True)
     source        = Column(String(50), default="manual")  # manual | ecb | openexchange
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self) -> str:
+        return f"<ExchangeRate id={self.id!r} {self.from_currency}->{self.to_currency} rate={self.rate!r}>"
 
 
 # ── SLA Business Hours Schedules ──────────────────────────────────────────────
@@ -165,6 +174,9 @@ class ApiKey(Base):
 
     user = relationship("User", foreign_keys=[user_id])
 
+    def __repr__(self) -> str:
+        return f"<ApiKey id={self.id!r} name={self.name!r}>"
+
 
 # ── Recurring Invoices ────────────────────────────────────────────────────────
 
@@ -211,6 +223,9 @@ class RecurringInvoice(Base):
     project  = relationship("Project")
     contract = relationship("Contract")
     creator  = relationship("User", foreign_keys=[created_by])
+
+    def __repr__(self) -> str:
+        return f"<RecurringInvoice id={self.id!r} name={self.name!r}>"
 
 
 # ── Workflow Queue (execution engine) ─────────────────────────────────────────

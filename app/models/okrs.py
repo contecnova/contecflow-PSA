@@ -42,6 +42,9 @@ class Objective(Base):
     key_results = relationship("KeyResult", back_populates="objective",
                                cascade="all, delete-orphan", order_by="KeyResult.title")
 
+    def __repr__(self) -> str:
+        return f"<Objective id={self.id!r} title={self.title!r}>"
+
 
 class KRType(str, enum.Enum):
     percentage = "percentage"   # 0-100%
@@ -75,6 +78,9 @@ class KeyResult(Base):
                                  cascade="all, delete-orphan",
                                  order_by="KRCheckin.created_at.desc()")
 
+    def __repr__(self) -> str:
+        return f"<KeyResult id={self.id!r} title={self.title!r}>"
+
 
 class KRCheckin(Base):
     """Actualización de progreso de un Key Result."""
@@ -89,3 +95,6 @@ class KRCheckin(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     kr         = relationship("KeyResult", back_populates="checkins")
     author     = relationship("User", foreign_keys=[author_id])
+
+    def __repr__(self) -> str:
+        return f"<KRCheckin id={self.id!r} value={self.value!r}>"

@@ -7,6 +7,7 @@ from app.db.base import Base
 
 
 class UserSession(Base):
+    """Sesión activa de un usuario con metadatos de dispositivo, IP y nivel de riesgo."""
     __tablename__ = "user_sessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -40,3 +41,6 @@ class UserSession(Base):
     @property
     def is_active(self) -> bool:
         return self.revoked_at is None
+
+    def __repr__(self) -> str:
+        return f"<UserSession id={self.id!r} user_id={self.user_id!r}>"

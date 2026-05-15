@@ -24,6 +24,7 @@ class TaskPriority(str, enum.Enum):
 
 
 class Task(Base):
+    """Tarea de proyecto: unidad básica de trabajo asignable y trackeable."""
     __tablename__ = "tasks"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -115,6 +116,7 @@ class Task(Base):
 
 
 class TaskComment(Base):
+    """Comentario textual asociado a una tarea, escrito por un usuario."""
     __tablename__ = "task_comments"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -128,3 +130,6 @@ class TaskComment(Base):
 
     task = relationship("Task", back_populates="comments")
     author = relationship("User")
+
+    def __repr__(self) -> str:
+        return f"<TaskComment id={self.id!r} task_id={self.task_id!r}>"

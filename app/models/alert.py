@@ -24,6 +24,7 @@ class AlertSeverity(str, enum.Enum):
 
 
 class Alert(Base):
+    """Notificación generada por el sistema sobre umbrales o riesgos detectados."""
     __tablename__ = "alerts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

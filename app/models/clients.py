@@ -32,6 +32,7 @@ class ClientIndustry(str, enum.Enum):
 
 
 class Client(Base):
+    """Empresa/organización cliente: entidad central que agrupa proyectos y contactos."""
     __tablename__ = "clients"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -83,6 +84,9 @@ class Client(Base):
                                    cascade="all, delete-orphan")
     sla_policy      = relationship("SLAPolicy", foreign_keys=[sla_policy_id])  # TODO #56: inverse en SLAPolicy (service_desk/*)
 
+    def __repr__(self) -> str:
+        return f"<Client id={self.id!r} name={self.name!r}>"
+
 
 class ClientContactRole(str, enum.Enum):
     primary      = "primary"       # Contacto principal
@@ -112,6 +116,9 @@ class ClientContact(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     client = relationship("Client", back_populates="contacts")
+
+    def __repr__(self) -> str:
+        return f"<ClientContact id={self.id!r} full_name={self.full_name!r}>"
 
 
 class ClientServiceAccess(str, enum.Enum):
@@ -161,6 +168,9 @@ class ClientPortalConfig(Base):
 
     client = relationship("Client", back_populates="portal_config", uselist=False)
 
+    def __repr__(self) -> str:
+        return f"<ClientPortalConfig id={self.id!r}>"
+
 
 class ClientLicenseLink(Base):
     """Vincula una licencia ALM a un cliente."""
@@ -176,6 +186,9 @@ class ClientLicenseLink(Base):
 
     client  = relationship("Client", back_populates="license_links")
 
+    def __repr__(self) -> str:
+        return f"<ClientLicenseLink id={self.id!r}>"
+
 
 class ClientContractLink(Base):
     """Vincula un contrato (pipeline) a un cliente de la entidad Client."""
@@ -189,3 +202,6 @@ class ClientContractLink(Base):
     linked_at   = Column(DateTime(timezone=True), server_default=func.now())
 
     client   = relationship("Client", back_populates="contract_links")
+
+    def __repr__(self) -> str:
+        return f"<ClientContractLink id={self.id!r}>"

@@ -30,6 +30,7 @@ class ExpenseStatus(str, enum.Enum):
 
 
 class Expense(Base):
+    """Gasto del usuario imputado a un proyecto, con flujo de aprobación y reembolso."""
     __tablename__ = "expenses"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -71,3 +72,6 @@ class Expense(Base):
     reviewer     = relationship("User", foreign_keys=[reviewed_by])
     project      = relationship("Project")
     contract     = relationship("Contract")
+
+    def __repr__(self) -> str:
+        return f"<Expense id={self.id!r} code={self.code!r}>"

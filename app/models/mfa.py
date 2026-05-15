@@ -66,6 +66,9 @@ class Organization(Base):
         viewonly=True,
     )
 
+    def __repr__(self) -> str:
+        return f"<Organization id={self.id!r} name={self.name!r}>"
+
 
 # ── MFA / 2FA ─────────────────────────────────────────────────────────────────
 
@@ -86,6 +89,9 @@ class MFAConfig(Base):
     user         = relationship("User", foreign_keys=[user_id])
     backup_codes = relationship("MFABackupCode", back_populates="mfa_config",
                                 cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return f"<MFAConfig id={self.id!r} user_id={self.user_id!r}>"
 
 
 class MFABackupCode(Base):
@@ -160,6 +166,9 @@ class SlackConfig(Base):
 
     notifications = relationship("SlackNotificationLog", back_populates="config",
                                  cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return f"<SlackConfig id={self.id!r} platform={self.platform!r}>"
 
 
 class SlackNotificationLog(Base):

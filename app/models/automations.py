@@ -88,6 +88,9 @@ class AutomationRule(Base):
                               cascade="all, delete-orphan",
                               order_by="AutomationExecution.executed_at.desc()")
 
+    def __repr__(self) -> str:
+        return f"<AutomationRule id={self.id!r} name={self.name!r}>"
+
 
 class AutomationExecution(Base):
     """Log of every automation rule execution."""
@@ -103,3 +106,6 @@ class AutomationExecution(Base):
     executed_at = Column(DateTime(timezone=True), server_default=func.now())
 
     rule = relationship("AutomationRule", back_populates="executions")
+
+    def __repr__(self) -> str:
+        return f"<AutomationExecution id={self.id!r} rule_id={self.rule_id!r}>"

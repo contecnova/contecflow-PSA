@@ -96,6 +96,9 @@ class Document(Base):
         Index('ix_documents_client_created', 'client_id', 'created_at'),
     )
 
+    def __repr__(self) -> str:
+        return f"<Document id={self.id!r} title={self.title!r}>"
+
 
 # ── Document Version ───────────────────────────────────────────────────────
 
@@ -131,6 +134,9 @@ class DocumentVersion(Base):
     # Relationships
     document = relationship("Document", back_populates="versions")
     uploader = relationship("User", foreign_keys=[created_by])  # TODO #56: inverse en User
+
+    def __repr__(self) -> str:
+        return f"<DocumentVersion id={self.id!r} version_num={self.version_num!r}>"
 
 
 # ── Document Permission ────────────────────────────────────────────────────
@@ -173,6 +179,9 @@ class DocumentPermission(Base):
         Index('ix_doc_perm_document_department', 'document_id', 'department'),
     )
 
+    def __repr__(self) -> str:
+        return f"<DocumentPermission id={self.id!r}>"
+
 
 # ── Document Tag ───────────────────────────────────────────────────────────
 
@@ -189,6 +198,9 @@ class DocumentTag(Base):
 
     # Relationships
     document = relationship("Document", back_populates="tags")
+
+    def __repr__(self) -> str:
+        return f"<DocumentTag id={self.id!r} tag_name={self.tag_name!r}>"
 
 
 # ── Document Access Log ───────────────────────────────────────────────────
@@ -209,3 +221,6 @@ class DocumentAccessLog(Base):
 
     document = relationship("Document")  # TODO #56: inverse opcional (audit log)
     user = relationship("User")  # TODO #56: inverse en User
+
+    def __repr__(self) -> str:
+        return f"<DocumentAccessLog id={self.id!r} action={self.action!r}>"

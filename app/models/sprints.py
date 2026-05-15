@@ -17,6 +17,7 @@ class SprintStatus(str, enum.Enum):
 
 
 class Sprint(Base):
+    """Sprint Scrum: ventana temporal con backlog, métricas y retrospectiva."""
     __tablename__ = "sprints"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -54,6 +55,9 @@ class Sprint(Base):
                                 order_by="SprintTask.backlog_order",
                                 lazy="selectin")
 
+    def __repr__(self) -> str:
+        return f"<Sprint id={self.id!r} name={self.name!r}>"
+
 
 class SprintTask(Base):
     """Association between a task and a sprint, with backlog ordering."""
@@ -69,3 +73,6 @@ class SprintTask(Base):
 
     sprint = relationship("Sprint", back_populates="sprint_tasks")
     task   = relationship("Task")  # TODO #56: inverse en Task (task.py)
+
+    def __repr__(self) -> str:
+        return f"<SprintTask id={self.id!r} sprint_id={self.sprint_id!r}>"

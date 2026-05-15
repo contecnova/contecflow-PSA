@@ -45,6 +45,9 @@ class ActivityEvent(Base):
 
     actor = relationship("User", foreign_keys=[actor_id])
 
+    def __repr__(self) -> str:
+        return f"<ActivityEvent id={self.id!r} verb={self.verb!r}>"
+
 
 # ── Project Health Score ──────────────────────────────────────────────────────
 
@@ -68,6 +71,9 @@ class ProjectHealthSnapshot(Base):
     snapshot_at      = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     project = relationship("Project")
+
+    def __repr__(self) -> str:
+        return f"<ProjectHealthSnapshot id={self.id!r} score={self.score!r}>"
 
 
 # ── Recurring Tasks ───────────────────────────────────────────────────────────
@@ -112,6 +118,9 @@ class RecurringTask(Base):
     assignee = relationship("User", foreign_keys=[assignee_id])
     creator  = relationship("User", foreign_keys=[created_by])
 
+    def __repr__(self) -> str:
+        return f"<RecurringTask id={self.id!r} title={self.title!r}>"
+
 
 # ── Resource Demand Forecast (from pipeline) ──────────────────────────────────
 
@@ -135,6 +144,9 @@ class ResourceDemandForecast(Base):
     updated_at       = Column(DateTime(timezone=True), onupdate=func.now())
 
     opportunity = relationship("Opportunity")
+
+    def __repr__(self) -> str:
+        return f"<ResourceDemandForecast id={self.id!r} role={self.role_or_skill!r}>"
 
 
 # ── Vendor Scorecard ──────────────────────────────────────────────────────────
@@ -167,3 +179,6 @@ class VendorScore(Base):
 
     vendor    = relationship("ALMVendor")
     evaluator = relationship("User", foreign_keys=[evaluator_id])
+
+    def __repr__(self) -> str:
+        return f"<VendorScore id={self.id!r} period={self.period!r}>"

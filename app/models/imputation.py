@@ -104,6 +104,9 @@ class TimerSession(Base):
         Index('ix_timer_session_user_active', 'user_id', 'ended_at'),
     )
 
+    def __repr__(self) -> str:
+        return f"<TimerSession id={self.id!r} user_id={self.user_id!r}>"
+
 
 # ── Imputation Alerts ──────────────────────────────────────────────────────
 
@@ -125,6 +128,9 @@ class ImputationAlert(Base):
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id])  # TODO #56: inverse en User
+
+    def __repr__(self) -> str:
+        return f"<ImputationAlert id={self.id!r} alert_date={self.alert_date!r}>"
 
 
 # ── Imputation Snapshots ───────────────────────────────────────────────────
@@ -157,3 +163,6 @@ class ImputationSnapshot(Base):
     __table_args__ = (
         Index('ix_imputation_snapshot_user_date', 'user_id', 'snapshot_date'),
     )
+
+    def __repr__(self) -> str:
+        return f"<ImputationSnapshot id={self.id!r} snapshot_date={self.snapshot_date!r}>"

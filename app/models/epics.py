@@ -16,6 +16,7 @@ from app.db.base import Base
 # ─── 1. WIKI ──────────────────────────────────────────────────────────────────
 
 class WikiSpace(Base):
+    """Espacio wiki que agrupa páginas relacionadas (por proyecto u organizacional)."""
     __tablename__ = "wiki_spaces"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
@@ -31,6 +32,7 @@ class WikiSpace(Base):
 
 
 class WikiPage(Base):
+    """Página de un espacio wiki, con jerarquía padre/hijos y versionado."""
     __tablename__ = "wiki_pages"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
@@ -99,6 +101,7 @@ class WikiComment(Base):
 # ─── 2. ÉPICAS Y ROADMAP ──────────────────────────────────────────────────────
 
 class Epic(Base):
+    """Épica: agrupación de alto nivel de tareas dentro del roadmap de un proyecto."""
     __tablename__ = "epics"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
@@ -118,6 +121,9 @@ class Epic(Base):
     epic_tasks  = relationship("EpicTask",       back_populates="epic", cascade="all, delete-orphan")
     dependencies= relationship("EpicDependency", foreign_keys="EpicDependency.epic_id",
                                back_populates="epic", cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return f"<Epic id={self.id!r} title={self.title!r}>"
 
 
 class EpicTask(Base):
@@ -173,6 +179,7 @@ class TaskStateSnapshot(Base):
 # ─── 5. MENCIONES Y COMENTARIOS THREADED ─────────────────────────────────────
 
 class Mention(Base):
+    """Mención @usuario vinculada a una entidad (task, ticket, wiki, comment)."""
     __tablename__ = "mentions"
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
@@ -183,6 +190,9 @@ class Mention(Base):
     context_text   = Column(String(500), nullable=True)
     is_read        = Column(Boolean, default=False, index=True)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self) -> str:
+        return f"<Mention id={self.id!r} entity_type={self.entity_type!r}>"
 
 
 class ThreadedComment(Base):

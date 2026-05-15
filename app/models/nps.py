@@ -16,6 +16,7 @@ class NPSCategory(str, enum.Enum):
 
 
 class ClientNPS(Base):
+    """Respuesta NPS recogida de un cliente con su categoría (promotor/pasivo/detractor)."""
     __tablename__ = "client_nps"
 
     id         = Column(Integer, primary_key=True, index=True)
@@ -29,6 +30,9 @@ class ClientNPS(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, index=True)
 
     client = relationship("Client", backref="nps_responses")
+
+    def __repr__(self) -> str:
+        return f"<ClientNPS id={self.id!r} score={self.score!r}>"
 
 
 class ClientHealthSnapshot(Base):
@@ -49,3 +53,6 @@ class ClientHealthSnapshot(Base):
     snapshot_at      = Column(DateTime(timezone=True), default=datetime.utcnow, index=True)
 
     client = relationship("Client", backref="health_snapshots")
+
+    def __repr__(self) -> str:
+        return f"<ClientHealthSnapshot id={self.id!r} health_score={self.health_score!r}>"
