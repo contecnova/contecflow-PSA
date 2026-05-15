@@ -279,6 +279,7 @@ def sso_callback(
                     status_code=502,
                     detail="No se pudo obtener JWKS URI del proveedor SSO. Imposible verificar la firma del id_token.",
                 )
+        # intentional: chained re-raise preserves context
         except HTTPException:
             raise
         except Exception as jwt_err:

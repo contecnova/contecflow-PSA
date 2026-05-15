@@ -226,6 +226,7 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
             logger.warning("SD assignment stats: failed loading agent members (org=%s): %s", org_id, exc)
             try:
                 db.rollback()
+            # intentional: cleanup path, logging would cascade
             except Exception:
                 pass
             members = []
@@ -254,6 +255,7 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
                 logger.warning("SD assignment stats: failed loading ticket load map (org=%s): %s", org_id, exc)
                 try:
                     db.rollback()
+                # intentional: cleanup path, logging would cascade
                 except Exception:
                     pass
                 load_by_user = {}
@@ -301,6 +303,7 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
                 logger.warning("SD assignment stats: failed loading unassigned count (org=%s): %s", org_id, exc)
                 try:
                     db.rollback()
+                # intentional: cleanup path, logging would cascade
                 except Exception:
                     pass
                 total_unassigned = 0
@@ -320,6 +323,7 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
         logger.exception("SD assignment stats: unexpected error (org=%s): %s", org_id, exc)
         try:
             db.rollback()
+        # intentional: cleanup path, logging would cascade
         except Exception:
             pass
         return {

@@ -310,6 +310,7 @@ def count_working_days(start, end, holidays: list) -> float:
         elif isinstance(h, str):
             try:
                 holiday_dates.add(date.fromisoformat(h))
+            # intentional: best-effort fallback, log noise outweighs diagnostic value
             except Exception:
                 pass
     count = 0

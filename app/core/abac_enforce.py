@@ -92,6 +92,7 @@ def enforce_abac(
                        + (f"/{resource_id}" if resource_id else ""),
             )
 
+    # intentional: chained re-raise preserves context
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001

@@ -87,6 +87,7 @@ def create_custom_metric(
     org_id = getattr(current_user, "organization_id", None)
     try:
         metric = svc.create_custom_metric(db, organization_id=org_id, payload=body.model_dump(), current_user=current_user)
+    # intentional: chained re-raise preserves context
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return metric
@@ -129,6 +130,7 @@ def create_alert_rule(
             payload=body.model_dump(),
             current_user=current_user,
         )
+    # intentional: chained re-raise preserves context
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return rule
@@ -149,6 +151,7 @@ def update_alert_rule(
             rule_id=rule_id,
             payload=body.model_dump(exclude_none=True),
         )
+    # intentional: chained re-raise preserves context
     except ValueError as exc:
         code = 404 if str(exc) == "rule_not_found" else 422
         raise HTTPException(status_code=code, detail=str(exc)) from exc

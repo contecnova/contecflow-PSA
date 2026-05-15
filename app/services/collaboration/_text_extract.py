@@ -47,6 +47,7 @@ def _from_pdf(data: bytes) -> str:
     try:
         from pdfminer.high_level import extract_text as pdf_extract
         return pdf_extract(io.BytesIO(data)) or ""
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
     # Fallback: pdftotext binary

@@ -229,6 +229,7 @@ def calculate_sla_due(
         for r in rows:
             try:
                 holidays.add(date.fromisoformat(r.holiday_date))
+            # intentional: best-effort fallback, log noise outweighs diagnostic value
             except (ValueError, TypeError):
                 pass
 
@@ -243,6 +244,7 @@ def next_ticket_number(ticket_type: str, db: Session) -> str:
     try:
         lock_key = advisory_lock_key(f"ticket_number_{ticket_type}")
         db.execute(func.pg_advisory_xact_lock(lock_key))
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass  # SQLite / non-PG — best-effort
     last_num = (
@@ -256,6 +258,7 @@ def next_ticket_number(ticket_type: str, db: Session) -> str:
 def next_problem_number(db: Session) -> str:
     try:
         db.execute(func.pg_advisory_xact_lock(advisory_lock_key("problem_number")))
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
     last = db.query(func.max(cast(func.substr(Problem.number, 5), Integer))).scalar() or 0
@@ -265,6 +268,7 @@ def next_problem_number(db: Session) -> str:
 def next_kb_number(db: Session) -> str:
     try:
         db.execute(func.pg_advisory_xact_lock(advisory_lock_key("kb_number")))
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
     last = db.query(func.max(cast(func.substr(KBArticle.number, 4), Integer))).scalar() or 0

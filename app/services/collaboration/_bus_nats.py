@@ -56,6 +56,7 @@ class NatsBus(EventBus):
                     for q in queues:
                         try:
                             q.put_nowait(event)
+                        # intentional: best-effort fallback, log noise outweighs diagnostic value
                         except asyncio.QueueFull:
                             pass
                 self._subs_by_channel[ch] = await self._nc.subscribe(ch, cb=cb)

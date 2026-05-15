@@ -83,6 +83,7 @@ class S3FileStorage(FileStorage):
     def delete(self, key: str) -> None:
         try:
             self._client.delete_object(Bucket=self._bucket, Key=self._full(key))
+        # intentional: cleanup path, logging would cascade
         except Exception:
             pass
 

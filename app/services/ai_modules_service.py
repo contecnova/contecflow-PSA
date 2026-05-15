@@ -747,6 +747,7 @@ Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_descript
                 intent = data.get("intent", "unknown")
                 entities = data.get("entities", {})
                 action_taken = data.get("action_description", "")
+            # intentional: best-effort fallback, log noise outweighs diagnostic value
             except json.JSONDecodeError:
                 pass
     except Exception as e:

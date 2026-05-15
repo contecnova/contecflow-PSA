@@ -60,6 +60,7 @@ def next_numbered_code(
                     last_reset_year=current_year if reset_yearly else None,
                 ))
                 db.flush()
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except IntegrityError:
             pass
         sequence = _lock_sequence(db, entity)

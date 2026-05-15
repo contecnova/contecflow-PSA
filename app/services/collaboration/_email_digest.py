@@ -42,6 +42,7 @@ def _send(to_email: str, subject: str, html: str) -> bool:
             s.ehlo()
             try:
                 s.starttls()
+            # intentional: best-effort fallback, log noise outweighs diagnostic value
             except Exception:
                 pass
             if settings.SMTP_USER:

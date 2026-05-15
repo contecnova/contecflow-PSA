@@ -135,6 +135,7 @@ def consume_mfa_challenge(row: MFAChallenge) -> None:
 def resolve_sso_role(default_role: str):
     try:
         return UserRole(default_role)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except ValueError:
         return UserRole.employee
 
@@ -170,6 +171,7 @@ def validate_https_discovery_url(discovery_url: str) -> str:
 
     try:
         ip_obj = ipaddress.ip_address(hostname)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except ValueError:
         ip_obj = None
 

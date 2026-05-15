@@ -153,9 +153,11 @@ def decrypt_float(ciphertext: Optional[str]) -> Optional[float]:
         # Fallback: try to parse as plaintext float (for migration)
         try:
             return float(ciphertext)
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except (ValueError, TypeError):
             return None
     try:
         return float(raw)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except (ValueError, TypeError):
         return None

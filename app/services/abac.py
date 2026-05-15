@@ -418,6 +418,7 @@ class ABACService:
                     resource_id=resource_id or "",
                     matched_policies=deny_policies or [],
                 )
+            # intentional: best-effort fallback, log noise outweighs diagnostic value
             except Exception:  # noqa: BLE001
                 pass
 

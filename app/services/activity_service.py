@@ -183,6 +183,7 @@ def activity_feed_payload(
         try:
             before_dt = datetime.fromisoformat(before)
             q = q.filter(ActivityEvent.created_at < before_dt)
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except ValueError:
             pass
     events = q.order_by(ActivityEvent.created_at.desc()).limit(limit).all()

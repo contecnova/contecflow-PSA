@@ -160,6 +160,7 @@ def start(interval: int = DEFAULT_INTERVAL_SECONDS):
         loop = asyncio.get_event_loop()
         _loop_task = loop.create_task(_run_forever(interval))
         logger.info("collaboration scheduled-msg loop started (interval=%ss)", interval)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except RuntimeError:
         # No loop yet (eg test sync). Will be started on first FastAPI startup.
         pass

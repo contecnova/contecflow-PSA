@@ -353,6 +353,7 @@ def find_default_workflow(entity_type: str, db: Session, category: Optional[str]
         for wf in sorted(candidates, key=lambda w: (not w.is_default)):
             try:
                 conditions = json.loads(wf.trigger_conditions or "{}")
+            # intentional: best-effort fallback, log noise outweighs diagnostic value
             except (ValueError, TypeError):
                 conditions = {}
             if conditions.get("category") == category:

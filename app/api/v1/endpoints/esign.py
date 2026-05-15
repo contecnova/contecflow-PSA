@@ -386,6 +386,7 @@ async def docusign_webhook(
             raise HTTPException(404, f"Envelope {provider_id} no encontrado")
         esign_service.update_envelope_from_webhook(db, env, new_status)
         _logger.info(f"[eSign] DocuSign webhook: envelope {provider_id} → {new_status}")
+    # intentional: chained re-raise preserves context
     except HTTPException:
         raise
     except Exception:
@@ -434,6 +435,7 @@ async def adobe_webhook(
             raise HTTPException(404, f"Agreement {provider_id} no encontrado")
         esign_service.update_envelope_from_webhook(db, env, new_status)
         _logger.info(f"[eSign] Adobe Sign webhook: agreement {provider_id} → {new_status}")
+    # intentional: chained re-raise preserves context
     except HTTPException:
         raise
     except Exception:

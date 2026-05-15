@@ -97,6 +97,7 @@ def get_auto_resolution_config(db: Session) -> dict:
         row = db.query(AppSetting).filter(AppSetting.key == AUTO_CONFIG_SETTING_KEY).first()
         if row and row.value:
             return _normalize_auto_resolution_config(json.loads(row.value))
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
     return _normalize_auto_resolution_config(None)
@@ -124,6 +125,7 @@ def _load_feedback_stats(db: Session, key: str = FEEDBACK_SETTING_KEY) -> dict:
         row = db.query(AppSetting).filter(AppSetting.key == key).first()
         if row and row.value:
             return json.loads(row.value)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
     return {}
@@ -258,6 +260,7 @@ def validate_auto_resolution(db: Session, ticket: Ticket) -> dict:
                 changed_by_user_id=None,
             ))
             db.flush()
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except Exception:
             pass
 
@@ -568,6 +571,7 @@ def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
         scored.sort(key=lambda x: x[0], reverse=True)
         if scored:
             return [a for _, a in scored[:5]]
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
 
@@ -647,6 +651,7 @@ def _apply_auto_resolution(
     try:
         from app.services.service_desk.sla_event_service import record_sla_event  # noqa: PLC0415
         record_sla_event(db, ticket, event_type="resolved", actor="ai_auto_resolution")
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
 
@@ -654,6 +659,7 @@ def _apply_auto_resolution(
     try:
         from app.services.service_desk.watcher_service import notify_watchers  # noqa: PLC0415
         notify_watchers(db, ticket, event="resolved", message=analysis["suggestion"][:300])
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
 

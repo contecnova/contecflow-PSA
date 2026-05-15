@@ -58,6 +58,7 @@ def _get_queries(db: Session, org_id: Optional[str]) -> dict:
         return {}
     try:
         return json.loads(row.value)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         return {}
 
@@ -151,6 +152,7 @@ def _as_float(value: Any) -> Optional[float]:
         return float(value)
     try:
         return float(value)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except (TypeError, ValueError):
         return None
 
@@ -235,6 +237,7 @@ def _safe_sort_rows(rows: list[dict], sort_by: Optional[str], sort_dir: str) -> 
 
     try:
         return sorted(rows, key=_key, reverse=reverse)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         return rows
 

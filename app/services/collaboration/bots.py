@@ -94,6 +94,7 @@ def _post_bot_message(
                 "reactions": [], "attachments": [], "is_pinned": False, "is_redacted": False,
             },
         }))
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except RuntimeError:
         pass
     return msg

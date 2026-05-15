@@ -216,6 +216,7 @@ def get_dsr_stats(db: Session, *, org_id: Optional[str]) -> dict:
                 dl = dl.replace(tzinfo=timezone.utc)
             if now > dl:
                 overdue.append(d)
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except Exception:
             pass
     consents = list(_get_setting(db, _KEY_CONSENT, org_id, {}).values())

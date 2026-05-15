@@ -84,6 +84,7 @@ def _parse_literal(s: str):
         if "." in s:
             return float(s)
         return int(s)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except ValueError:
         pass
     # bool / null / sin comillas → string libre

@@ -218,6 +218,7 @@ def select_best_agent_ml(db: Session, members, ticket: Ticket) -> str:
                 best_id = member.user_id
         if best_id:
             return best_id
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
     # fallback

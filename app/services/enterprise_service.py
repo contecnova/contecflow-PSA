@@ -55,6 +55,7 @@ def _validate_webhook_url(url: str) -> None:
     """
     try:
         parsed = _urlparse.urlparse(url)
+    # intentional: chained re-raise preserves context
     except Exception as exc:  # noqa: BLE001 — urlparse rarely raises, be safe
         raise ValueError(f"URL malformada: {url!r}") from exc
 
@@ -71,6 +72,7 @@ def _validate_webhook_url(url: str) -> None:
     # Resolve all addresses the hostname maps to and reject any internal one.
     try:
         addr_infos = socket.getaddrinfo(hostname, None)
+    # intentional: chained re-raise preserves context
     except socket.gaierror as exc:
         raise ValueError(f"No se pudo resolver el hostname {hostname!r}: {exc}") from exc
 

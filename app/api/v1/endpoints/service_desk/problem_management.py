@@ -545,6 +545,7 @@ def complete_rca_wizard(
     problem = get_scoped_problem_or_404(db, current_user, problem_id)
     try:
         result = complete_wizard(db, problem)
+    # intentional: chained re-raise preserves context
     except HTTPException:
         raise
     except Exception as exc:

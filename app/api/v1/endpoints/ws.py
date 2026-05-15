@@ -641,6 +641,7 @@ async def ws_doc_collab(
                             await _broadcast_doc(doc_id, out, exclude=websocket)
                     except Exception:
                         log.debug("Doc collab WS received malformed message for doc=%s user=%s", doc_id, user_id, exc_info=True)
+            # intentional: cleanup path, logging would cascade
             except WebSocketDisconnect:
                 pass
         finally:

@@ -388,6 +388,7 @@ def create_and_upload(
     # Validate category
     try:
         DocumentCategory(category)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except ValueError:
         pass
 

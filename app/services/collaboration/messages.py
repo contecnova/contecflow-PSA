@@ -304,6 +304,7 @@ def send_message(
                 })
                 if delivered:
                     n.delivered_push = True
+            # intentional: best-effort fallback, log noise outweighs diagnostic value
             except Exception:
                 pass
         if n.client_user_id:

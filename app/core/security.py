@@ -86,6 +86,7 @@ def decode_token(token: str) -> Optional[dict]:
         kid = None
         try:
             kid = jwt.get_unverified_header(token).get("kid")
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except Exception:
             kid = None
 
@@ -96,6 +97,7 @@ def decode_token(token: str) -> Optional[dict]:
         for key in keys.values():
             try:
                 return jwt.decode(token, key, algorithms=[ALGORITHM])
+            # intentional: best-effort fallback, log noise outweighs diagnostic value
             except Exception:
                 continue
         return None

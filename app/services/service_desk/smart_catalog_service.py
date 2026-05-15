@@ -370,6 +370,7 @@ def auto_prefill_request_form(
                     fname = field.get("name", "")
                     if "nombre" in fname.lower() or "name" in fname.lower():
                         custom_fields[fname] = ""
+            # intentional: best-effort fallback, log noise outweighs diagnostic value
             except (json.JSONDecodeError, TypeError):
                 pass
 

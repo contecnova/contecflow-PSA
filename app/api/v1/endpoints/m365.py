@@ -336,6 +336,7 @@ def sync_to_planner(
                 "error": "PLAN_ID_REQUIRED",
                 "message": "Provide plan_id. To find your plan ID: https://graph.microsoft.com/v1.0/me/planner/plans",
             })
+        # intentional: chained re-raise preserves context
         except HTTPException:
             raise
 

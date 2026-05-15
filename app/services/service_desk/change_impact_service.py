@@ -1136,6 +1136,7 @@ def simulate_change_whatif(
     if "change_type" in overrides:
         try:
             sim_change_type = ChangeType(overrides["change_type"])
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except ValueError:
             pass  # ignore invalid enum, keep original
 

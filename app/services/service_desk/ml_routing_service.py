@@ -263,6 +263,7 @@ def score_agent_for_ticket_ml(db: Session, user: User, ticket: Ticket) -> dict[s
             si = db.query(ServiceItem).filter(ServiceItem.id == ticket.service_item_id).first()
             if si:
                 category_id = si.category_id
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
 
@@ -366,6 +367,7 @@ def record_routing_event(db: Session, ticket: Ticket) -> None:
                 si = db.query(ServiceItem).filter(ServiceItem.id == ticket.service_item_id).first()
                 if si:
                     category_id = si.category_id
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except Exception:
             pass
 

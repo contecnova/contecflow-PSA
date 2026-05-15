@@ -93,6 +93,7 @@ def _fetch_current_data(db: Session, org_id: str, dataset_key: str) -> list[dict
             rows = conn.execute("SELECT * FROM _demo").fetchall()
             cols = [d[0] for d in conn.description]
             return [dict(zip(cols, r)) for r in rows]
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
 

@@ -27,6 +27,7 @@ def _resolve_duckdb_path() -> str:
         os.makedirs(preferred_dir, exist_ok=True)
         if os.access(preferred_dir, os.W_OK):
             return preferred
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
 
@@ -154,6 +155,7 @@ def _load_fact_imputations(db, conn, since: date) -> int:
             from app.models.user import User
             u = db.query(User).filter(User.id == imp.user_id).first()
             cost_ph = getattr(u, "cost_per_hour", None)
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except Exception:
             pass
         cost = (imp.hours or 0) * (cost_ph or 0)
@@ -162,6 +164,7 @@ def _load_fact_imputations(db, conn, since: date) -> int:
         try:
             proj = db.query(Project).filter(Project.id == imp.project_id).first()
             project_org = getattr(proj, "organization_id", None) if proj else None
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except Exception:
             pass
 

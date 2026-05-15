@@ -248,6 +248,7 @@ def execute_erasure(
         # Auto-resolve the DSR
         svc.resolve_dsr(db, dsr_id=dsr_id, org_id=org_id, resolution_notes="Erasure pipeline executed automatically", execute_erasure_pipeline=False)
         return {"ok": True, "dsr_id": dsr_id, "erasure_report": report}
+    # intentional: chained re-raise preserves context
     except HTTPException:
         raise
     except Exception as exc:

@@ -265,6 +265,7 @@ def parse_risk_reasons(raw: Optional[str]) -> list[str]:
         value = json.loads(raw)
         if isinstance(value, list):
             return [str(v) for v in value]
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
     return []

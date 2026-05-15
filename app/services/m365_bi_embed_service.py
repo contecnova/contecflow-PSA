@@ -420,6 +420,7 @@ def create_sharepoint_page_with_bi(
             "embed_url": embed_url,
             "expires_at": embed_cfg["expires_at"],
         }
+    # intentional: chained re-raise preserves context
     except httpx.HTTPStatusError as exc:
         raise HTTPException(exc.response.status_code, f"Graph Sites API error: {exc.response.text}") from exc
 

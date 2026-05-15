@@ -317,6 +317,7 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
     db.add(imputation)
     try:
         db.flush()
+    # intentional: chained re-raise preserves context
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail="Ya existe una imputación para esta tarea en esa fecha.") from exc

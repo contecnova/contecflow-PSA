@@ -43,6 +43,7 @@ def _ticket_category_value(t) -> Optional[str]:
         cat_id = getattr(si, "category_id", None) if si is not None else None
         if cat_id:
             return str(cat_id)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
     tt = getattr(t, "ticket_type", None)

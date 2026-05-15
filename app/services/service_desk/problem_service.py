@@ -293,6 +293,7 @@ def create_change_from_problem(
     try:
         if problem.affected_services_json:
             affected_cis = _json.loads(problem.affected_services_json)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
 

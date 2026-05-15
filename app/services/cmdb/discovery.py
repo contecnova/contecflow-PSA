@@ -137,6 +137,7 @@ def discover_kubernetes(provider_config: dict[str, Any]) -> list[dict[str, Any]]
             k8s_config.load_kube_config(config_file=provider_config["kubeconfig_path"])
         else:
             k8s_config.load_kube_config()
+    # intentional: chained re-raise preserves context
     except Exception as exc:
         raise RuntimeError(f"No se pudo cargar kubeconfig: {exc}") from exc
 

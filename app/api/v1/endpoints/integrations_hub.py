@@ -339,6 +339,7 @@ async def teams_inbound_command(
             claims = _json.loads(_b64.urlsafe_b64decode(padded))
             if claims.get("aud") != bot_app_id and claims.get("appid") != bot_app_id:
                 raise HTTPException(403, "Teams token audience mismatch")
+        # intentional: chained re-raise preserves context
         except HTTPException:
             raise
         except Exception:

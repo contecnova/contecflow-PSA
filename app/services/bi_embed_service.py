@@ -109,6 +109,7 @@ def validate_embed_token(db: Session, org_id: str, token: str) -> dict:
     """Validate an embed token.  Returns decoded claims or raises 401."""
     try:
         claims = jwt.decode(token, _embed_secret(org_id), algorithms=[_EMBED_ALGO])
+    # intentional: chained re-raise preserves context
     except JWTError as exc:
         raise HTTPException(401, f"Token de embed inválido: {exc}") from exc
 

@@ -10,6 +10,7 @@ def _parse_ip(value: Optional[str]) -> Optional[str]:
         return None
     try:
         return str(ipaddress.ip_address(raw))
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except ValueError:
         return None
 
@@ -22,6 +23,7 @@ def _trusted_proxy_networks() -> list[ipaddress._BaseNetwork]:
             continue
         try:
             cidrs.append(ipaddress.ip_network(item, strict=False))
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except ValueError:
             continue
     return cidrs

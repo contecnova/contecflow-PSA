@@ -117,6 +117,7 @@ class FileStorage:
     def delete(self, key: str) -> None:
         try:
             self._abs(key).unlink()
+        # intentional: cleanup path, logging would cascade
         except FileNotFoundError:
             pass
 

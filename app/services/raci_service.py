@@ -452,6 +452,7 @@ def get_burnout_risk(department: "Optional[str]", min_risk_level: "Optional[str]
         try:
             min_idx = order.index(min_risk_level)
             results = [r for r in results if order.index(r["risk_level"]) >= min_idx]
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except ValueError:
             pass
     results.sort(key=lambda r: r["risk_score"], reverse=True)
@@ -518,6 +519,7 @@ def get_project_changelog(
     if entry_type:
         try:
             q = q.filter(PCE.entry_type == ChangelogEntryType(entry_type))
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except ValueError:
             pass
     if since:
@@ -670,6 +672,7 @@ def list_uat_cases(
     if status:
         try:
             q = q.filter(UATCase.status == UATStatus(status))
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except ValueError:
             pass
     if task_id:

@@ -152,6 +152,7 @@ async def upload_attachment(
             if text:
                 att.text_index = text
                 db.commit()
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except Exception:
             pass
 

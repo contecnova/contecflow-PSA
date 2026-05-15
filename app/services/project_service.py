@@ -406,12 +406,14 @@ def list_milestones_payload(
         try:
             df = date.fromisoformat(date_from)
             q = q.filter(ProjectMilestone.due_date >= df)
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except ValueError:
             pass
     if date_to:
         try:
             dt = date.fromisoformat(date_to)
             q = q.filter(ProjectMilestone.due_date <= dt)
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except ValueError:
             pass
     if status:
@@ -491,6 +493,7 @@ def create_project_record(db: Session, payload, current_user):
     try:
         from app.services.collaboration._project_sync import on_project_created
         on_project_created(db, project, current_user)
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         # No bloquear creación de proyecto si collaboration falla
         pass

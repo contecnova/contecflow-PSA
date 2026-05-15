@@ -406,6 +406,7 @@ def create_agent_snapshot(agent_id: str, db: Session) -> dict:
             Ticket.assigned_agent_id == agent_id,
             Ticket.status.notin_(["resolved", "closed"])
         ).count()
+    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         pass
 

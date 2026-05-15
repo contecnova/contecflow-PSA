@@ -120,6 +120,7 @@ def _log_sync(
     if row and row.value:
         try:
             logs = json.loads(row.value)
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except Exception:
             logs = []
     entry = {
@@ -975,6 +976,7 @@ class PluginRegistry:
             return []
         try:
             return json.loads(row.value)
+        # intentional: best-effort fallback, log noise outweighs diagnostic value
         except (json.JSONDecodeError, TypeError):
             return []
 
