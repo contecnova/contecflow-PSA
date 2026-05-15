@@ -6,22 +6,39 @@ import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { enterpriseApi } from '../../services/api'
 
+// TODO type: notification payload — needs shared type from enterpriseApi
+interface NotificationItem {
+  id: string | number
+  title: string
+  body?: string
+  icon?: string
+  color?: string
+  is_read?: boolean
+  action_url?: string
+  created_at?: string
+}
+
+interface NotificationsResponse {
+  notifications?: NotificationItem[]
+  unread_count?: number
+}
+
 export default function NotificationsPanel() {
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
+  const [open, setOpen] = useState<boolean>(false)
+  const ref = useRef<HTMLDivElement | null>(null)
   const qc = useQueryClient()
 
-  const { data, refetch } = useQuery({
+  const { data, refetch } = useQuery<NotificationsResponse>({
     queryKey: ['notifications'],
     queryFn: () => enterpriseApi.notifications({ page_size: 15 }).then(r => r.data),
     refetchInterval: 30000,
   })
 
-  const notifications = data?.notifications || []
+  const notifications: NotificationItem[] = data?.notifications || []
   const unreadCount = data?.unread_count || 0
 
   const { mutate: markRead } = useMutation({
-    mutationFn: id => enterpriseApi.markNotificationRead(id),
+    mutationFn: (id: NotificationItem['id']) => enterpriseApi.markNotificationRead(id),
     onSuccess: () => qc.invalidateQueries(['notifications']),
   })
   const { mutate: markAll } = useMutation({
@@ -31,12 +48,12 @@ export default function NotificationsPanel() {
 
   // Close on click outside
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const timeAgo = (dateStr) => {
+  const timeAgo = (dateStr?: string): string => {
     if (!dateStr) return ''
     const diff = Date.now() - new Date(dateStr).getTime()
     const mins = Math.floor(diff / 60000)

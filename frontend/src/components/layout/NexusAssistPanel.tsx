@@ -12,9 +12,30 @@ const SUGGESTIONS = [
   '¿Cuántas horas se han imputado en los últimos 7 días?',
 ]
 
-export default function ContecflowAssistPanel({ open, onClose, context }) {
+interface AssistContext {
+  page?: string
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+// TODO type: conversation summary payload — needs shared type from nexusAgentApi
+interface ConversationSummary {
+  id: string
+  title: string
+}
+
+interface Props {
+  open: boolean
+  onClose: () => void
+  context?: AssistContext
+}
+
+export default function ContecflowAssistPanel({ open, onClose, context }: Props) {
   // Derive human-readable page label from path
-  const PAGE_LABELS = {
+  const PAGE_LABELS: Record<string, string> = {
     '/': 'Dashboard', '/projects': 'Proyectos', '/tasks': 'Tareas',
     '/timesheets': 'Imputaciones', '/resources': 'Recursos', '/clients': 'Clientes',
     '/pipeline': 'Pipeline', '/expenses': 'Gastos', '/documents': 'Documentos',
@@ -23,20 +44,20 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
     '/settings': 'Ajustes',
   }
   const pageLabel = context?.page
-    ? (Object.entries(PAGE_LABELS).find(([k]) => context.page === k || context.page.startsWith(k + '/'))?.[1] || context.page)
+    ? (Object.entries(PAGE_LABELS).find(([k]) => context.page === k || context.page!.startsWith(k + '/'))?.[1] || context.page)
     : null
   const qc = useQueryClient()
   const { openConfirm } = useConfirm()
-  const [convId, setConvId]   = useState(null)
-  const [input, setInput]     = useState('')
-  const [messages, setMessages] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [restoredOnce, setRestoredOnce] = useState(false)
-  const bottomRef = useRef(null)
+  const [convId, setConvId]   = useState<string | null>(null)
+  const [input, setInput]     = useState<string>('')
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [loading, setLoading] = useState<boolean>(false)
+  const [restoredOnce, setRestoredOnce] = useState<boolean>(false)
+  const bottomRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
-  const { data: conversations = [] } = useQuery({
+  const { data: conversations = [] } = useQuery<ConversationSummary[]>({
     queryKey: ['ai-conversations'],
     queryFn: () => nexusAgentApi.listConversations().then(r => r.data),
     enabled: open,
@@ -111,7 +132,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
     return {}
   })()
 
-  const sendMessage = async (text) => {
+  const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return
     const userText = text.trim(); setInput(''); setLoading(true)
     setMessages(prev => [...prev, { role: 'user', content: userText }])
@@ -131,7 +152,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
     setLoading(false)
   }
 
-  const loadConv = async (id) => {
+  const loadConv = async (id: string) => {
     const { data } = await nexusAgentApi.getConversation(id)
     setConvId(id); setMessages(data.messages || [])
   }

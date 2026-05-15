@@ -6,7 +6,28 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 
 // ── Definición de tours por ruta ──────────────────────────────────────────────
-const TOURS = {
+interface TourStep {
+  title: string
+  text: string
+  target: string | null
+  position: 'center' | 'top' | 'bottom' | 'left' | 'right'
+}
+
+interface HighlightRect {
+  top: number
+  left: number
+  width: number
+  height: number
+}
+
+interface TooltipPos {
+  top: string
+  left: string
+  transform: string
+  position?: 'fixed'
+}
+
+const TOURS: Record<string, TourStep[]> = {
   '/projects': [
     { title: '⬡ Proyectos', text: 'Aquí gestionas todos tus proyectos. Puedes crear proyectos desde cero o instanciar una plantilla predefinida.', target: null, position: 'center' },
     { title: '+ Nuevo proyecto', text: 'Crea un nuevo proyecto con nombre, tipo, fechas y presupuesto. Asigna un PM y vincula al cliente.', target: '[data-tour="btn-new-project"]', position: 'bottom' },
@@ -30,24 +51,28 @@ const TOURS = {
 
 const STORAGE_KEY = 'contecflow-tour-completed'
 
-function getCompleted() {
+function getCompleted(): Record<string, boolean> {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }
   catch { return {} }
 }
 
-function markCompleted(route) {
+function markCompleted(route: string) {
   const c = getCompleted()
   c[route] = true
   localStorage.setItem(STORAGE_KEY, JSON.stringify(c))
 }
 
+interface OnboardingTourProps {
+  route: string
+}
+
 // ── Componente principal ───────────────────────────────────────────────────────
-export default function OnboardingTour({ route }) {
-  const [step, setStep]     = useState(0)
-  const [active, setActive] = useState(false)
-  const [pos, setPos]       = useState({ top: '50%', left: '50%', transform: 'translate(-50%,-50%)' })
-  const [highlight, setHighlight] = useState(null)
-  const tourRef = useRef(null)
+export default function OnboardingTour({ route }: OnboardingTourProps) {
+  const [step, setStep]     = useState<number>(0)
+  const [active, setActive] = useState<boolean>(false)
+  const [pos, setPos]       = useState<TooltipPos>({ top: '50%', left: '50%', transform: 'translate(-50%,-50%)' })
+  const [highlight, setHighlight] = useState<HighlightRect | null>(null)
+  const tourRef = useRef<HTMLDivElement | null>(null)
 
   const steps = useMemo(() => TOURS[route] || [], [route])
 
@@ -84,7 +109,8 @@ export default function OnboardingTour({ route }) {
     const spaceBelow = window.innerHeight - rect.bottom
     const spaceAbove = rect.top
 
-    let top, left
+    let top: number
+    let left: number
     if (spaceBelow > tooltipH + 20 || spaceBelow > spaceAbove) {
       top  = rect.bottom + 12
     } else {
@@ -206,7 +232,7 @@ export default function OnboardingTour({ route }) {
 
 // ── Hook para reiniciar un tour ───────────────────────────────────────────────
 export function useRestartTour() {
-  return (route) => {
+  return (route: string) => {
     const c = getCompleted()
     delete c[route]
     localStorage.setItem(STORAGE_KEY, JSON.stringify(c))
@@ -215,7 +241,7 @@ export function useRestartTour() {
 }
 
 // ── Botón de ayuda flotante ───────────────────────────────────────────────────
-export function TourHelpButton({ route }) {
+export function TourHelpButton({ route }: { route: string }) {
   const restart = useRestartTour()
   if (!TOURS[route]) return null
   return (

@@ -19,7 +19,7 @@
  *   5. Cierre con resolución: resolved / transferred / abandoned / voicemail.
  *   6. La configuración es por organización (greeting, idioma, menú DTMF, keywords de intent).
  */
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { voiceAgentApi } from '../../services/api'
@@ -28,7 +28,39 @@ import { Phone, Mic, StopCircle, Plus, ExternalLink, Edit2, Trash2 } from 'lucid
 import { Card, Button, Tabs, Spinner, EmptyState, Modal } from '../ui'
 import { useToast } from '../../context/ToastContext'
 
-const INTENT_COLORS = {
+// TODO type: voiceAgentApi payloads — needs shared types
+interface VoiceTurn {
+  id?: string | number
+  speaker?: string
+  text?: string
+  intent?: string
+  created_at?: string
+  [k: string]: unknown
+}
+
+interface VoiceSession {
+  id: string | number
+  caller?: string
+  caller_id?: string
+  channel?: string
+  status?: string
+  created_at?: string
+  ticket_id?: string | number | null
+  ticket_number?: string | null
+  turns?: VoiceTurn[]
+  resolution?: string
+  [k: string]: unknown
+}
+
+interface VoiceAgentConfig {
+  greeting?: string
+  language?: string
+  max_silence_seconds?: number
+  dtmf_menu?: Record<string, string>
+  intent_keywords?: Record<string, string[]>
+}
+
+const INTENT_COLORS: Record<string, string> = {
   incident: 'var(--danger)',
   query:    'var(--accent)',
   urgent:   'var(--orange)',
@@ -90,10 +122,21 @@ const chip = (color) => ({
 
 // ── Sesión activa ──────────────────────────────────────────────────────────────
 
-function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sending, closing, creatingTicket, openTicket }) {
-  const [turnText, setTurnText] = useState('')
-  const [resolution, setResolution] = useState('resolved')
-  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+interface ActiveSessionCardProps {
+  session: VoiceSession
+  onClose: (resolution: string) => void
+  onCreateTicket: () => void
+  onAddTurn: (text: string) => void
+  sending: boolean
+  closing: boolean
+  creatingTicket: boolean
+  openTicket: (id: string | number) => void
+}
+
+function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sending, closing, creatingTicket, openTicket }: ActiveSessionCardProps) {
+  const [turnText, setTurnText] = useState<string>('')
+  const [resolution, setResolution] = useState<string>('resolved')
+  const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false)
 
   const transcript = session.transcript || []
   const entities = session.entities || {}
@@ -269,14 +312,20 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
 
 // ── Configuración (greeting, idioma, DTMF, keywords) ──────────────────────────
 
-function ConfigEditor({ config, onSave, saving }) {
+interface ConfigEditorProps {
+  config: VoiceAgentConfig | undefined | null
+  onSave: (draft: VoiceAgentConfig) => void
+  saving: boolean
+}
+
+function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
   const t = useAppT()
-  const [draft, setDraft] = useState(null)
-  const [newKey, setNewKey] = useState('')
-  const [newLabel, setNewLabel] = useState('')
-  const [newIntent, setNewIntent] = useState('incident')
-  const [editingIntent, setEditingIntent] = useState(null)
-  const [newKw, setNewKw] = useState('')
+  const [draft, setDraft] = useState<VoiceAgentConfig | null>(null)
+  const [newKey, setNewKey] = useState<string>('')
+  const [newLabel, setNewLabel] = useState<string>('')
+  const [newIntent, setNewIntent] = useState<string>('incident')
+  const [editingIntent, setEditingIntent] = useState<string | null>(null)
+  const [newKw, setNewKw] = useState<string>('')
 
   useEffect(() => {
     if (config && !draft) setDraft({
@@ -513,7 +562,7 @@ function ConfigEditor({ config, onSave, saving }) {
 
 // ── Modal de detalle de sesión cerrada ────────────────────────────────────────
 
-function SessionDetailModal({ session, onClose, openTicket }) {
+function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSession | null; onClose: () => void; openTicket: (id: string | number) => void }) {
   if (!session) return null
   const transcript = session.transcript || []
   const entities = session.entities || {}
@@ -604,12 +653,12 @@ export default function VoiceAgentPanel() {
   const qc = useQueryClient()
   const navigate = useNavigate()
 
-  const [activeSessionId, setActiveSessionId] = useState(null)
-  const [callerInput, setCallerInput] = useState('+34600000000')
-  const [channel, setChannel] = useState('phone')
-  const [tab, setTab] = useState('sessions')
-  const [historyFilter, setHistoryFilter] = useState('') // '' | 'active' | 'closed'
-  const [detailSession, setDetailSession] = useState(null)
+  const [activeSessionId, setActiveSessionId] = useState<string | number | null>(null)
+  const [callerInput, setCallerInput] = useState<string>('+34600000000')
+  const [channel, setChannel] = useState<string>('phone')
+  const [tab, setTab] = useState<string>('sessions')
+  const [historyFilter, setHistoryFilter] = useState<string>('') // '' | 'active' | 'closed'
+  const [detailSession, setDetailSession] = useState<VoiceSession | null>(null)
 
   const { data: sessionsData, isLoading } = useQuery({
     queryKey: ['voice-sessions', historyFilter],

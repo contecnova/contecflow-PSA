@@ -16,7 +16,7 @@
  *   GET   /bi/collaboration/notifications?include_read=false                      -> { items }
  *   PATCH /bi/collaboration/notifications/{id}                                    { is_read }
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biCollaborationApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -29,10 +29,10 @@ const SHARE_PERMISSIONS = [
   { value: 'edit',  label: 'Editar',  color: 'var(--warning)' },
   { value: 'admin', label: 'Admin',   color: 'var(--danger)' },
 ]
-const PERMISSION_LABEL = Object.fromEntries(SHARE_PERMISSIONS.map(p => [p.value, p.label]))
-const PERMISSION_COLOR = Object.fromEntries(SHARE_PERMISSIONS.map(p => [p.value, p.color]))
+const PERMISSION_LABEL: Record<string, string> = Object.fromEntries(SHARE_PERMISSIONS.map(p => [p.value, p.label]))
+const PERMISSION_COLOR: Record<string, string> = Object.fromEntries(SHARE_PERMISSIONS.map(p => [p.value, p.color]))
 
-const fieldLabel = {
+const fieldLabel: React.CSSProperties = {
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   color: 'var(--text-3)',
@@ -40,7 +40,7 @@ const fieldLabel = {
   letterSpacing: '0.06em',
   marginBottom: 6,
 }
-const inputBase = {
+const inputBase: React.CSSProperties = {
   width: '100%',
   background: 'var(--surface-3)',
   border: '1px solid var(--surface-4)',
@@ -52,7 +52,7 @@ const inputBase = {
   outline: 'none',
   boxSizing: 'border-box',
 }
-const chip = (color) => ({
+const chip = (color: string): React.CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   textTransform: 'uppercase',
@@ -65,16 +65,20 @@ const chip = (color) => ({
   whiteSpace: 'nowrap',
 })
 
-export default function BiDashboardCollabPanel({ dashboardKey = 'main' }) {
+interface BiDashboardCollabPanelProps {
+  dashboardKey?: string
+}
+
+export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDashboardCollabPanelProps) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [tab, setTab] = useState('comments')
-  const [newComment, setNewComment] = useState('')
-  const [viewName, setViewName] = useState('')
-  const [shareUserId, setShareUserId] = useState('')
-  const [shareUserName, setShareUserName] = useState('')
-  const [sharePermission, setSharePermission] = useState('view')
+  const [tab, setTab] = useState<string>('comments')
+  const [newComment, setNewComment] = useState<string>('')
+  const [viewName, setViewName] = useState<string>('')
+  const [shareUserId, setShareUserId] = useState<string>('')
+  const [shareUserName, setShareUserName] = useState<string>('')
+  const [sharePermission, setSharePermission] = useState<string>('view')
 
   const { data: commentsData, isLoading: commentsLoading } = useQuery({
     queryKey: ['bi-collab-comments', dashboardKey],

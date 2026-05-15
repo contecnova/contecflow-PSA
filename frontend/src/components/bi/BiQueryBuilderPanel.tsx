@@ -6,7 +6,7 @@
  *   saved    — list + run saved queries
  *   results  — last execution result as table
  */
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biQueryBuilderApi } from '../../services/api'
 
@@ -16,10 +16,51 @@ const TABS = [
   { id: 'results', label: '📊 Resultados' },
 ]
 
-const ps = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20, marginBottom: 16 }
-const ls = { display: 'block', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4, fontWeight: 500 }
-const is = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', boxSizing: 'border-box' }
-const btn = (accent) => ({ padding: '7px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600, background: accent ? 'var(--accent)' : 'var(--surface-3)', color: accent ? '#fff' : 'var(--text-1)' })
+const ps: React.CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20, marginBottom: 16 }
+const ls: React.CSSProperties = { display: 'block', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4, fontWeight: 500 }
+const is: React.CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', boxSizing: 'border-box' }
+const btn = (accent: boolean): React.CSSProperties => ({ padding: '7px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600, background: accent ? 'var(--accent)' : 'var(--surface-3)', color: accent ? '#fff' : 'var(--text-1)' })
+
+// TODO type: biQueryBuilderApi schema/payload — needs shared type
+interface DatasetField {
+  name: string
+  type?: string
+  [k: string]: unknown
+}
+
+interface DatasetMeta {
+  name: string
+  fields: DatasetField[]
+  [k: string]: unknown
+}
+
+interface Schema {
+  datasets?: DatasetMeta[]
+}
+
+interface FilterEntry {
+  field: string
+  operator: string
+  value: string
+}
+
+interface AggregationEntry {
+  func: string
+  field: string
+  alias?: string
+}
+
+interface SavedQuery {
+  id: string | number
+  name: string
+  [k: string]: unknown
+}
+
+interface QueryResult {
+  columns?: string[]
+  rows?: Array<Record<string, unknown>>
+  [k: string]: unknown
+}
 
 const OPERATORS = ['=', '!=', '>', '>=', '<', '<=', 'contains', 'starts_with', 'is_null', 'is_not_null']
 const AGG_FUNCS  = ['count', 'sum', 'avg', 'min', 'max']
@@ -27,36 +68,36 @@ const NULL_OPS = new Set(['is_null', 'is_not_null'])
 
 export default function BiQueryBuilderPanel() {
   const qc = useQueryClient()
-  const [tab, setTab] = useState('builder')
-  const [results, setResults] = useState(null)
-  const [execError, setExecError] = useState(null)
+  const [tab, setTab] = useState<string>('builder')
+  const [results, setResults] = useState<QueryResult | null>(null)
+  const [execError, setExecError] = useState<string | null>(null)
 
   // ── Schema ────────────────────────────────────────────────────────────────
-  const { data: schema } = useQuery({
+  const { data: schema } = useQuery<Schema>({
     queryKey: ['bi-qb-schema'],
     queryFn: biQueryBuilderApi.getSchema,
     staleTime: 60_000,
   })
 
-  const datasets = useMemo(() => schema?.datasets ?? [], [schema])
+  const datasets = useMemo<DatasetMeta[]>(() => schema?.datasets ?? [], [schema])
 
   // ── Saved queries ─────────────────────────────────────────────────────────
-  const { data: savedData } = useQuery({
+  const { data: savedData } = useQuery<{ items?: SavedQuery[] }>({
     queryKey: ['bi-qb-queries'],
     queryFn: biQueryBuilderApi.listQueries,
   })
-  const savedQueries = savedData?.items ?? []
+  const savedQueries: SavedQuery[] = savedData?.items ?? []
 
   // ── Builder state ─────────────────────────────────────────────────────────
-  const [dataset, setDataset] = useState('')
-  const [selectedFields, setSelectedFields] = useState([])
-  const [filters, setFilters] = useState([{ field: '', operator: '=', value: '' }])
-  const [groupBy, setGroupBy] = useState([])
-  const [aggregations, setAggregations] = useState([])
-  const [sortBy, setSortBy] = useState('')
-  const [sortDir, setSortDir] = useState('desc')
-  const [limit, setLimit] = useState(100)
-  const [queryName, setQueryName] = useState('')
+  const [dataset, setDataset] = useState<string>('')
+  const [selectedFields, setSelectedFields] = useState<string[]>([])
+  const [filters, setFilters] = useState<FilterEntry[]>([{ field: '', operator: '=', value: '' }])
+  const [groupBy, setGroupBy] = useState<string[]>([])
+  const [aggregations, setAggregations] = useState<AggregationEntry[]>([])
+  const [sortBy, setSortBy] = useState<string>('')
+  const [sortDir, setSortDir] = useState<string>('desc')
+  const [limit, setLimit] = useState<number>(100)
+  const [queryName, setQueryName] = useState<string>('')
 
   const currentDatasetMeta = useMemo(() => datasets.find(d => d.name === dataset), [datasets, dataset])
   const availableFields = currentDatasetMeta?.fields ?? []
@@ -67,10 +108,10 @@ export default function BiQueryBuilderPanel() {
     onSuccess: () => { qc.invalidateQueries(['bi-qb-queries']); setQueryName('') },
   })
 
-  const previewMut = useMutation({
+  const previewMut = useMutation<QueryResult, { message?: string }, unknown>({
     mutationFn: biQueryBuilderApi.previewQuery,
     onSuccess: (data) => { setResults(data); setTab('results') },
-    onError: (e) => setExecError(e.message ?? 'Error ejecutando preview'),
+    onError: (e) => setExecError(e?.message ?? 'Error ejecutando preview'),
   })
 
   const execSavedMut = useMutation({

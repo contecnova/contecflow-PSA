@@ -1,12 +1,42 @@
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { biIntelligenceApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 
-const EMPTY_FILTER = { column: '', operator: 'eq', value: '' }
+// TODO type: biIntelligenceApi.queryBuilderSchema payload — needs shared type
+interface ColumnDef {
+  type?: string
+  label?: string
+  [k: string]: unknown
+}
+
+interface EntityDef {
+  columns?: Record<string, ColumnDef>
+  [k: string]: unknown
+}
+
+interface BuilderSchema {
+  entities?: Record<string, EntityDef>
+  operators?: Record<string, string[]>
+  groups?: Record<string, string[]>
+}
+
+interface FilterEntry {
+  column: string
+  operator: string
+  value: string
+}
+
+interface QueryTemplate {
+  id: string | number
+  name: string
+  [k: string]: unknown
+}
+
+const EMPTY_FILTER: FilterEntry = { column: '', operator: 'eq', value: '' }
 const NULL_OPS = new Set(['is_null', 'is_not_null'])
 
-function RowTable({ rows = [], columns = [] }) {
+function RowTable({ rows = [], columns = [] }: { rows?: Array<Record<string, unknown>>; columns?: string[] }) {
   if (!rows.length || !columns.length) return null
   return (
     <div style={{ overflowX: 'auto', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
@@ -46,30 +76,30 @@ function RowTable({ rows = [], columns = [] }) {
 
 export default function VisualQueryBuilderWidget() {
   const t = useAppT()
-  const [entity, setEntity] = useState('projects')
-  const [selectedColumns, setSelectedColumns] = useState([])
-  const [filters, setFilters] = useState([])
-  const [sortColumn, setSortColumn] = useState('')
-  const [sortDirection, setSortDirection] = useState('asc')
-  const [templateName, setTemplateName] = useState('')
+  const [entity, setEntity] = useState<string>('projects')
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([])
+  const [filters, setFilters] = useState<FilterEntry[]>([])
+  const [sortColumn, setSortColumn] = useState<string>('')
+  const [sortDirection, setSortDirection] = useState<string>('asc')
+  const [templateName, setTemplateName] = useState<string>('')
 
-  const schemaQuery = useQuery({
+  const schemaQuery = useQuery<BuilderSchema>({
     queryKey: ['bi-intelligence-query-builder-schema'],
     queryFn: () => biIntelligenceApi.queryBuilderSchema().then((r) => r.data),
     staleTime: 5 * 60_000,
   })
 
   const previewMutation = useMutation({
-    mutationFn: (payload) => biIntelligenceApi.queryBuilderPreview(payload).then((r) => r.data),
+    mutationFn: (payload: Record<string, unknown>) => biIntelligenceApi.queryBuilderPreview(payload).then((r) => r.data),
   })
 
-  const templatesQuery = useQuery({
+  const templatesQuery = useQuery<{ items?: QueryTemplate[] } | QueryTemplate[]>({
     queryKey: ['bi-intelligence-query-builder-templates'],
     queryFn: () => biIntelligenceApi.queryBuilderTemplates().then((r) => r.data),
   })
 
   const saveTemplateMutation = useMutation({
-    mutationFn: (payload) => biIntelligenceApi.saveQueryBuilderTemplate(payload).then((r) => r.data),
+    mutationFn: (payload: Record<string, unknown>) => biIntelligenceApi.saveQueryBuilderTemplate(payload).then((r) => r.data),
     onSuccess: () => {
       setTemplateName('')
       templatesQuery.refetch()
@@ -77,7 +107,7 @@ export default function VisualQueryBuilderWidget() {
   })
 
   const deleteTemplateMutation = useMutation({
-    mutationFn: (id) => biIntelligenceApi.deleteQueryBuilderTemplate(id).then((r) => r.data),
+    mutationFn: (id: QueryTemplate['id']) => biIntelligenceApi.deleteQueryBuilderTemplate(id).then((r) => r.data),
     onSuccess: () => templatesQuery.refetch(),
   })
 

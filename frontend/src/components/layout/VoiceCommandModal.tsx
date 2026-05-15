@@ -22,7 +22,25 @@ import { useToast } from '../../context/ToastContext'
 import { Mic, Square, X } from 'lucide-react'
 
 
-function _formatPendingAction(pa) {
+// TODO type: voice pending_action payload — needs shared type from voiceApi
+interface PendingAction {
+  type: string
+  hours?: number
+  project_name?: string
+  title?: string
+  priority?: string
+  [key: string]: unknown
+}
+
+interface TranscribeResult {
+  whisper_transcript?: string
+  intent?: string
+  entities?: Record<string, unknown>
+  action?: string
+  pending_action?: PendingAction
+}
+
+function _formatPendingAction(pa: PendingAction | undefined | null): string | null {
   if (!pa) return null
   switch (pa.type) {
     case 'log_hours':
@@ -37,15 +55,20 @@ function _formatPendingAction(pa) {
 }
 
 
-export default function VoiceCommandModal({ open, onClose }) {
+interface VoiceCommandModalProps {
+  open: boolean
+  onClose: () => void
+}
+
+export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalProps) {
   const toast = useToast()
-  const [recording, setRecording] = useState(false)
-  const [audioBlob, setAudioBlob] = useState(null)
-  const [transcribeResult, setTranscribeResult] = useState(null)
-  const [error, setError] = useState(null)
-  const mediaRecorderRef = useRef(null)
-  const chunksRef = useRef([])
-  const streamRef = useRef(null)
+  const [recording, setRecording] = useState<boolean>(false)
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
+  const [transcribeResult, setTranscribeResult] = useState<TranscribeResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const streamRef = useRef<MediaStream | null>(null)
 
   // Cleanup al cerrar
   useEffect(() => {
@@ -107,8 +130,10 @@ export default function VoiceCommandModal({ open, onClose }) {
       rec.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data)
       }
-      rec.onerror = (e) => {
-        setError(e?.error?.message || 'No se pudo grabar audio con el micrófono.')
+      rec.onerror = (e: Event) => {
+        // TODO type: MediaRecorderErrorEvent — DOM types vary across libs
+        const err = (e as unknown as { error?: { message?: string } })?.error
+        setError(err?.message || 'No se pudo grabar audio con el micrófono.')
         setRecording(false)
         _stopMediaTracks()
       }
@@ -118,10 +143,11 @@ export default function VoiceCommandModal({ open, onClose }) {
         _stopMediaTracks()
       }
       rec.start(1000)
-    } catch (err) {
-      const msg = err?.name === 'NotAllowedError'
+    } catch (err: unknown) {
+      const e = err as { name?: string; message?: string } | undefined
+      const msg = e?.name === 'NotAllowedError'
         ? 'Permiso de micrófono denegado. Habilítalo en la configuración del navegador.'
-        : `No se pudo acceder al micrófono: ${err?.message || err}`
+        : `No se pudo acceder al micrófono: ${e?.message || String(err)}`
       setError(msg)
     }
   }
@@ -146,10 +172,11 @@ export default function VoiceCommandModal({ open, onClose }) {
       fd.append('audio', audioBlob, `voice.${ext}`)
       return voiceApi.transcribe(fd).then(r => r.data)
     },
-    onSuccess: (data) => {
+    onSuccess: (data: TranscribeResult) => {
       setTranscribeResult(data)
     },
-    onError: (e) => {
+    // TODO type: backend error envelope — needs shared type
+    onError: (e: { response?: { data?: { detail?: string } }; message?: string }) => {
       const msg = e?.response?.data?.detail || e?.message || 'Error en la transcripción'
       setError(msg)
     },
@@ -162,11 +189,12 @@ export default function VoiceCommandModal({ open, onClose }) {
         transcript: transcribeResult?.whisper_transcript || '',
         confirm: true,
       }).then(r => r.data),
-    onSuccess: (data) => {
+    onSuccess: (data: { action?: string }) => {
       toast.success(data?.action || 'Acción ejecutada')
       onClose()
     },
-    onError: (e) => {
+    // TODO type: backend error envelope — needs shared type
+    onError: (e: { response?: { data?: { detail?: string } }; message?: string }) => {
       const msg = e?.response?.data?.detail || e?.message || 'Error ejecutando la acción'
       toast.error(msg)
     },

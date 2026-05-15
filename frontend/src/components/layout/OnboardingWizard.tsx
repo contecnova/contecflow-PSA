@@ -13,7 +13,14 @@ import { X, ChevronRight, ChevronLeft, CheckCircle, ExternalLink, RefreshCw } fr
 import { projectsApi, usersApi, slaSchedulesApi, sprintsApi, imputationsApi, onboardingApi } from '../../services/api'
 
 // ── Per-step rich metadata ────────────────────────────────────────────────────
-const STEP_META = {
+interface StepMeta {
+  action_label: string
+  path: string
+  tips: string[]
+  verify: () => Promise<boolean>
+}
+
+const STEP_META: Record<string, StepMeta> = {
   create_project: {
     action_label: 'Ir a Proyectos',
     path: '/projects',
@@ -98,21 +105,37 @@ const STEP_META = {
   },
 }
 
+// TODO type: onboarding payload — needs shared type from onboardingApi
+interface OnboardingStep {
+  id: string
+  title: string
+  description: string
+  icon: string
+}
+
+interface OnboardingState {
+  steps?: OnboardingStep[]
+  completed_steps?: string[]
+  progress_pct?: number
+  is_complete?: boolean
+  is_dismissed?: boolean
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function OnboardingWizard() {
   const qc = useQueryClient()
   const navigate = useNavigate()
-  const [activeStep, setActiveStep] = useState(0)
-  const [verifying, setVerifying]   = useState(false)
+  const [activeStep, setActiveStep] = useState<number>(0)
+  const [verifying, setVerifying]   = useState<boolean>(false)
 
-  const { data: state, refetch } = useQuery({
+  const { data: state, refetch } = useQuery<OnboardingState>({
     queryKey: ['onboarding'],
     queryFn: () => onboardingApi.get().then(r => r.data),
     staleTime: 5000,
   })
 
   const { mutate: completeStep } = useMutation({
-    mutationFn: step_id => onboardingApi.completeStep({ step_id }),
+    mutationFn: (step_id: string) => onboardingApi.completeStep({ step_id }),
     onSuccess: () => qc.invalidateQueries(['onboarding']),
   })
 

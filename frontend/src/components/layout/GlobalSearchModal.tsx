@@ -8,7 +8,23 @@ import { useQuery } from '@tanstack/react-query'
 import { projectsApi, tasksApi, clientsApi, ticketsApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 
-const ENTITY_CFG = {
+interface EntityCfg {
+  icon: string
+  color: string
+  label: string
+  path: (p: SearchResultItem) => string
+}
+
+// TODO type: search result payload — derived locally from listing APIs
+interface SearchResultItem {
+  id: string | number
+  type: string
+  title: string
+  subtitle?: string
+  status?: string
+}
+
+const ENTITY_CFG: Record<string, EntityCfg> = {
   project:  { icon: '⬡', color: 'var(--accent)', label: 'Proyecto',  path: _p => `/projects` },
   task:     { icon: '▦', color: 'var(--success)', label: 'Tarea',     path: _p => `/tasks` },
   client:   { icon: '🏢', color: 'var(--warning)', label: 'Cliente',   path: _p => `/clients` },
@@ -17,11 +33,16 @@ const ENTITY_CFG = {
   wiki:     { icon: '📚', color: 'var(--accent)', label: 'Wiki',      path: _p => `/wiki` },
 }
 
-export default function GlobalSearchModal({ open, onClose }) {
+interface Props {
+  open: boolean
+  onClose: () => void
+}
+
+export default function GlobalSearchModal({ open, onClose }: Props) {
   const t = useAppT()
-  const [q, setQ] = useState('')
-  const [selected, setSelected] = useState(0)
-  const inputRef = useRef(null)
+  const [q, setQ] = useState<string>('')
+  const [selected, setSelected] = useState<number>(0)
+  const inputRef = useRef<HTMLInputElement | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -29,7 +50,7 @@ export default function GlobalSearchModal({ open, onClose }) {
   }, [open])
 
   useEffect(() => {
-    const handler = (e) => {
+    const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); open ? onClose() : null }
       if (!open) return
       if (e.key === 'Escape') onClose()
@@ -40,7 +61,7 @@ export default function GlobalSearchModal({ open, onClose }) {
     return () => window.removeEventListener('keydown', handler)
   }, [open, onClose])
 
-  const { data: results = [], isFetching } = useQuery({
+  const { data: results = [], isFetching } = useQuery<SearchResultItem[]>({
     queryKey: ['global-search', q],
     queryFn: async () => {
       if (q.trim().length < 2) return []
@@ -75,7 +96,7 @@ export default function GlobalSearchModal({ open, onClose }) {
 
   const clampedSelected = Math.min(selected, Math.max(0, results.length - 1))
 
-  const go = useCallback((item) => {
+  const go = useCallback((item: SearchResultItem | undefined) => {
     if (!item) return
     const cfg = ENTITY_CFG[item.type]
     navigate(cfg?.path(item) || '/')
@@ -83,7 +104,7 @@ export default function GlobalSearchModal({ open, onClose }) {
   }, [navigate, onClose])
 
   useEffect(() => {
-    const handler = (e) => {
+    const handler = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && open && results[clampedSelected]) {
         go(results[clampedSelected])
       }

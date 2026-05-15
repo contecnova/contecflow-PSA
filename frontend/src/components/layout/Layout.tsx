@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
@@ -33,7 +33,7 @@ import {
   CalendarRange, Plus, Inbox, Database, Wallet,
 } from 'lucide-react'
 
-const ROUTE_LABELS = {
+const ROUTE_LABELS: Record<string, string> = {
   '/work-dashboard': 'Dashboard', '/projects-dashboard': 'Dashboard',
   '/team-dashboard': 'Dashboard', '/finance-dashboard': 'Dashboard',
   '/support-dashboard': 'Dashboard',
@@ -83,7 +83,7 @@ const ROUTE_LABELS = {
   '/settings/project-workflows': 'Project Issue Flows',
 }
 
-const ROUTE_SECTION = {
+const ROUTE_SECTION: Record<string, string> = {
   '/work-dashboard': 'My Work', '/projects-dashboard': 'Projects',
   '/team-dashboard': 'Team', '/finance-dashboard': 'Finance',
   '/support-dashboard': 'Support',
@@ -129,7 +129,7 @@ const ROUTE_SECTION = {
   '/developer': 'Settings',
 }
 
-const PATH_NAV_KEY = {
+const PATH_NAV_KEY: Record<string, string> = {
   '/work-dashboard': 'work_dashboard', '/projects-dashboard': 'projects_dashboard',
   '/team-dashboard': 'team_dashboard', '/finance-dashboard': 'finance_dashboard',
   '/support-dashboard': 'support_dashboard',
@@ -156,7 +156,7 @@ const PATH_NAV_KEY = {
 const SZ = 13
 
 // ── Quick Access defaults per role ─────────────────────────────────────────────
-const QUICK_ACCESS = {
+const QUICK_ACCESS: Record<string, string[]> = {
   admin:     ['/projects', '/alerts', '/settings', '/users', '/pipeline', '/executive'],
   pm:        ['/projects', '/tasks', '/pipeline', '/invoices', '/resources', '/reports'],
   team_lead: ['/tasks', '/sprints', '/projects', '/kanban-advanced', '/imputar', '/timesheets'],
@@ -177,7 +177,7 @@ const WORKSPACE_GROUPS = {
   settings: ['configuracion'],
 }
 
-const LAYOUT_TEXT = {
+const LAYOUT_TEXT: Record<string, Record<string, string>> = {
   es: {
     shortcuts: 'Atajos',
     keyboard_shortcuts: 'Atajos de teclado',
@@ -383,14 +383,23 @@ const NAV_GROUPS = [
   ]},
 ]
 
-function formatTimerDisplay(seconds) {
+function formatTimerDisplay(seconds: number): string {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   const s = seconds % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-function computeTimerElapsed(timer) {
+// TODO type: timer payload — needs shared type from timer API
+interface TimerState {
+  started_at: string
+  paused_at?: string | null
+  paused_duration_secs?: number
+  total_elapsed_seconds?: number | null
+  [key: string]: unknown
+}
+
+function computeTimerElapsed(timer: TimerState | null | undefined): number {
   if (!timer) return 0
   if (timer.paused_at && timer.total_elapsed_seconds != null) return timer.total_elapsed_seconds
   const startStr = timer.started_at.endsWith('Z') || timer.started_at.includes('+')
@@ -399,9 +408,9 @@ function computeTimerElapsed(timer) {
   if (timer.paused_at) {
     const pausedStr = timer.paused_at.endsWith('Z') || timer.paused_at.includes('+')
       ? timer.paused_at : timer.paused_at + 'Z'
-    return Math.max(0, Math.floor((new Date(pausedStr) - new Date(startStr)) / 1000) - paused)
+    return Math.max(0, Math.floor((new Date(pausedStr).getTime() - new Date(startStr).getTime()) / 1000) - paused)
   }
-  return Math.max(0, Math.floor((Date.now() - new Date(startStr)) / 1000) - paused)
+  return Math.max(0, Math.floor((Date.now() - new Date(startStr).getTime()) / 1000) - paused)
 }
 
 const SHORTCUTS = [
@@ -416,18 +425,21 @@ const SHORTCUTS = [
   { keys: ['G', 'S'], labelKey: 'shortcut_go_service_desk' },
 ]
 
-function getNavKeyForPath(path) {
+// TODO type: i18n t() — uses module-shorthand signature
+type TFn = (module: string, key?: string) => string
+
+function getNavKeyForPath(path: string): string {
   return PATH_NAV_KEY[path] || path?.replace(/^\//, '').replace(/-/g, '_')
 }
 
-function getNavLabel(path, fallbackLabel, t) {
+function getNavLabel(path: string, fallbackLabel: string | undefined, t: TFn | null | undefined): string {
   const navKey = getNavKeyForPath(path)
   const translated = t ? t('nav', navKey) : null
   if (translated && translated !== navKey) return translated
   return ROUTE_LABELS[path] || fallbackLabel || path?.replace(/^\//, '').replace(/-/g, ' ')
 }
 
-function getSectionLabel(path, t) {
+function getSectionLabel(path: string, t: TFn | null | undefined): string | null {
   const group = NAV_GROUPS.find(g => (g.items || []).some(
     i => !i.divider && (path === i.to || path.startsWith(i.to + '/'))
   ))
@@ -437,17 +449,17 @@ function getSectionLabel(path, t) {
   return group.label
 }
 
-function ShortcutsModal({ onClose, text }) {
-  const dialogRef = useRef(null)
+function ShortcutsModal({ onClose, text }: { onClose: () => void; text: Record<string, string> }) {
+  const dialogRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     // Focus the modal container on mount
     dialogRef.current?.focus()
-    const h = (e) => {
+    const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { onClose(); return }
       // Focus trap
       if (e.key === 'Tab') {
-        const focusable = dialogRef.current?.querySelectorAll('button,[href],[tabindex]:not([tabindex="-1"])')
+        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>('button,[href],[tabindex]:not([tabindex="-1"])')
         if (!focusable?.length) return
         const first = focusable[0]; const last = focusable[focusable.length - 1]
         if (e.shiftKey ? document.activeElement === first : document.activeElement === last) {
@@ -491,7 +503,27 @@ function ShortcutsModal({ onClose, text }) {
   )
 }
 
-function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin, text = {} }) {
+// TODO type: nav item config — defined as plain object literal in NAV_GROUPS
+interface NavItemConfig {
+  to: string
+  icon: React.ReactNode
+  label?: string
+  roles?: string[]
+  divider?: boolean
+}
+
+interface NavItemProps {
+  item: NavItemConfig
+  collapsed?: boolean
+  alertCount?: number
+  approvalCount?: number
+  t?: TFn | null
+  pinned?: string[]
+  onPin: (to: string) => void
+  text?: Record<string, string>
+}
+
+function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin, text = {} }: NavItemProps) {
   const { unread: chatUnread } = useChatRealtime()
   const badge = item.to === '/alerts' ? alertCount
               : item.to === '/approvals' ? approvalCount
@@ -502,7 +534,7 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
                    : 'var(--danger)'
   const displayLabel = getNavLabel(item.to, item.label, t)
   const isPinned = pinned?.includes(item.to)
-  const [hover, setHover] = useState(false)
+  const [hover, setHover] = useState<boolean>(false)
 
   return (
     <div style={{ position: 'relative' }}>
@@ -552,16 +584,38 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
   )
 }
 
-function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pinned, onPin, workspace }) {
+// TODO type: nav group config — defined as plain object literal in NAV_GROUPS
+interface NavGroupConfig {
+  id?: string
+  label: string
+  groupKey?: string
+  icon?: React.ReactNode
+  items: NavItemConfig[]
+  single?: boolean
+}
+
+interface NavGroupProps {
+  group: NavGroupConfig
+  collapsed?: boolean
+  alertCount?: number
+  approvalCount?: number
+  hasRole: (...roles: string[]) => boolean
+  t?: TFn | null
+  pinned?: string[]
+  onPin: (to: string) => void
+  workspace: string
+}
+
+function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pinned, onPin, workspace }: NavGroupProps) {
   const location = useLocation()
   const isAnyChildActive = group.items.filter(i => !i.divider).some(
     i => location.pathname === i.to || location.pathname.startsWith(i.to + '/')
   )
-  const [open, setOpen] = useState(isAnyChildActive)
-  const [hoverOpen, setHoverOpen] = useState(false)
-  const [hoverTop, setHoverTop] = useState(0)
-  const groupRef = useRef(null)
-  const hoverTimer = useRef(null)
+  const [open, setOpen] = useState<boolean>(isAnyChildActive)
+  const [hoverOpen, setHoverOpen] = useState<boolean>(false)
+  const [hoverTop, setHoverTop] = useState<number>(0)
+  const groupRef = useRef<HTMLDivElement | null>(null)
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Keep open when the active child lives here; respect forceOpen override
   useEffect(() => { if (isAnyChildActive) setOpen(true) }, [isAnyChildActive])
@@ -579,7 +633,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
 
   const handleEnter = () => {
     if (!collapsed) return
-    clearTimeout(hoverTimer.current)
+    if (hoverTimer.current) clearTimeout(hoverTimer.current)
     const rect = groupRef.current?.getBoundingClientRect()
     if (rect) setHoverTop(rect.top)
     setHoverOpen(true)
@@ -599,7 +653,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
         </div>
         {hoverOpen && (
           <div className="nav-hover-preview" style={{ left: 52, top: hoverTop - 4 }}
-            onPointerEnter={() => { clearTimeout(hoverTimer.current); setHoverOpen(true) }}
+            onPointerEnter={() => { if (hoverTimer.current) clearTimeout(hoverTimer.current); setHoverOpen(true) }}
             onPointerLeave={() => { hoverTimer.current = setTimeout(() => setHoverOpen(false), 150) }}
           >
             <div className="nav-hover-title">{groupLabel}</div>
@@ -665,11 +719,23 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
 // ── Favourites / Recents ─────────────────────────────────────────────────────
 const PINNED_KEY = 'contecflow_pinned_routes'
 
-function _lsGet(key) {
+function _lsGet(key: string): string[] {
   try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] }
 }
 
-function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount, t, allNavItems, quickItems, text }) {
+interface FavoritesSectionProps {
+  pinned: string[]
+  onPin: (to: string) => void
+  collapsed?: boolean
+  alertCount?: number
+  approvalCount?: number
+  t?: TFn | null
+  allNavItems: NavItemConfig[]
+  quickItems: NavItemConfig[]
+  text: Record<string, string>
+}
+
+function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount, t, allNavItems, quickItems, text }: FavoritesSectionProps) {
   const pinnedItems = pinned.map(path => allNavItems.find(i => i.to === path)).filter(Boolean)
   const showQuick   = pinnedItems.length === 0
   const displayItems = showQuick ? quickItems : pinnedItems
@@ -696,10 +762,51 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
   )
 }
 
-function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, chatUnread, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen, onQuickCreate, onVoiceOpen }) {
+// TODO type: timer payload — needs shared type from timer API
+interface ActiveTimer {
+  project_id?: string | number
+  task_id?: string | number
+  project_name?: string
+  task_name?: string
+  [key: string]: unknown
+}
+
+// TODO type: auth user payload — needs shared type from authContext
+interface AuthUser {
+  id?: string | number
+  full_name?: string
+  email?: string
+  role?: string
+  avatar_url?: string
+  [key: string]: unknown
+}
+
+interface TopAppBarProps {
+  onSearchOpen: () => void
+  onAiToggle: () => void
+  aiOpen: boolean
+  onChatToggle: () => void
+  chatOpen: boolean
+  chatUnread: number
+  user: AuthUser | null | undefined
+  onProfileOpen: () => void
+  onLogout: () => void
+  alertCount?: number
+  approvalCount?: number
+  t?: TFn | null
+  allNavItems: NavItemConfig[]
+  text: Record<string, string>
+  activeTimer: ActiveTimer | null | undefined
+  timerElapsed: number
+  onAlertsOpen: () => void
+  onQuickCreate: () => void
+  onVoiceOpen: () => void
+}
+
+function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, chatUnread, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen, onQuickCreate, onVoiceOpen }: TopAppBarProps) {
   const location = useLocation()
-  const [chatBadgeVisible, setChatBadgeVisible] = useState(chatUnread > 0)
-  const [chatBadgeCount, setChatBadgeCount] = useState(chatUnread)
+  const [chatBadgeVisible, setChatBadgeVisible] = useState<boolean>(chatUnread > 0)
+  const [chatBadgeCount, setChatBadgeCount] = useState<number>(chatUnread)
 
   useEffect(() => {
     if (chatUnread > 0) {
@@ -971,10 +1078,13 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
 }
 
 // ── Sidebar nav search ────────────────────────────────────────────────────────
-function NavSearch({ value, onChange, text }) {
-  const ref = useRef(null)
+function NavSearch({ value, onChange, text }: { value: string; onChange: (v: string) => void; text: Record<string, string> }) {
+  const ref = useRef<HTMLInputElement | null>(null)
   useEffect(() => {
-    const h = (e) => { if (e.key === '/' && !e.target?.matches('input,textarea,[contenteditable]')) { e.preventDefault(); ref.current?.focus() } }
+    const h = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (e.key === '/' && !target?.matches?.('input,textarea,[contenteditable]')) { e.preventDefault(); ref.current?.focus() }
+    }
     document.addEventListener('keydown', h)
     return () => document.removeEventListener('keydown', h)
   }, [])
@@ -1009,7 +1119,17 @@ function NavSearch({ value, onChange, text }) {
   )
 }
 
-function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigate, text, t }) {
+interface NavSearchResultsProps {
+  query: string
+  hasRole: (...roles: string[]) => boolean
+  alertCount?: number
+  approvalCount?: number
+  onNavigate: () => void
+  text: Record<string, string>
+  t?: TFn | null
+}
+
+function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigate, text, t }: NavSearchResultsProps) {
   const allItems = useMemo(() => NAV_GROUPS.flatMap(g => g.items || []).filter(i => !i.divider), [])
   const q = query.toLowerCase().trim()
   const matches = allItems.filter(i => {
@@ -1050,7 +1170,7 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
   )
 }
 
-export default function Layout({ children }) {
+export default function Layout({ children }: { children?: React.ReactNode }) {
   const { user, logout, hasRole } = useAuth()
   const navigate = useNavigate()
   const { prefs, save } = useUserPreferences()
@@ -1076,7 +1196,7 @@ export default function Layout({ children }) {
   }, [prefs?.ui_density])
 
   const location = useLocation()
-  const [pinned, setPinned] = useState(() => _lsGet(PINNED_KEY))
+  const [pinned, setPinned] = useState<string[]>(() => _lsGet(PINNED_KEY))
 
   // Build helpers once
   const allNavItems = useMemo(() => NAV_GROUPS.flatMap(g => g.items || []).filter(i => !i.divider), [])
@@ -1088,7 +1208,7 @@ export default function Layout({ children }) {
     return paths.map(p => allNavItems.find(i => i.to === p)).filter(Boolean)
   }, [user?.role, allNavItems])
 
-  const togglePin = useCallback((path) => {
+  const togglePin = useCallback((path: string) => {
     setPinned(prev => {
       const updated = prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
       localStorage.setItem(PINNED_KEY, JSON.stringify(updated))
@@ -1096,25 +1216,25 @@ export default function Layout({ children }) {
     })
   }, [])
 
-  const [collapsed, setCollapsed] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState<boolean>(false)
+  const [mobileOpen, setMobileOpen] = useState<boolean>(false)
   const swipeHandlers = useSwipeGesture({
     onSwipeRight: () => setMobileOpen(true),
     onSwipeLeft:  () => setMobileOpen(false),
   })
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [aiOpen, setAiOpen] = useState(false)
-  const [chatOpen, setChatOpen] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
-  const [shortcutsOpen, setShortcutsOpen] = useState(false)
-  const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false)
-  const [quickCreateOpen, setQuickCreateOpen] = useState(false)
-  const [voiceOpen, setVoiceOpen] = useState(false)
-  const [navSearch, setNavSearch] = useState('')
-  const [workspace, setWorkspace] = useState(() => localStorage.getItem(NAV_WORKSPACE_KEY) || 'all')
-  const [timerElapsed, setTimerElapsed] = useState(0)
+  const [searchOpen, setSearchOpen] = useState<boolean>(false)
+  const [aiOpen, setAiOpen] = useState<boolean>(false)
+  const [chatOpen, setChatOpen] = useState<boolean>(false)
+  const [profileOpen, setProfileOpen] = useState<boolean>(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState<boolean>(false)
+  const [alertsDrawerOpen, setAlertsDrawerOpen] = useState<boolean>(false)
+  const [quickCreateOpen, setQuickCreateOpen] = useState<boolean>(false)
+  const [voiceOpen, setVoiceOpen] = useState<boolean>(false)
+  const [navSearch, setNavSearch] = useState<string>('')
+  const [workspace, setWorkspace] = useState<string>(() => localStorage.getItem(NAV_WORKSPACE_KEY) || 'all')
+  const [timerElapsed, setTimerElapsed] = useState<number>(0)
 
-  const { data: activeTimer } = useQuery({
+  const { data: activeTimer } = useQuery<ActiveTimer | null>({
     queryKey: ['timer-current'],
     queryFn: () => api.get('/imputations/timer/current').then(r => r.data).catch(() => null),
     refetchInterval: 5_000,
@@ -1132,7 +1252,7 @@ export default function Layout({ children }) {
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [activeTimer])
-  const [isOverlayNav, setIsOverlayNav] = useState(() => {
+  const [isOverlayNav, setIsOverlayNav] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     return window.innerWidth <= 1024
   })

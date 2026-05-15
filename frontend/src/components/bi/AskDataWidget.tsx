@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { analyticsApi } from '../../services/api'
 import { Search, Send, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react'
@@ -12,7 +12,7 @@ const EXAMPLE_QUESTIONS = [
   'Muéstrame los tickets con SLA incumplido esta semana',
 ]
 
-function ResultTable({ columns, rows }) {
+function ResultTable({ columns, rows }: { columns?: string[]; rows?: Array<Record<string, unknown>> }) {
   if (!columns?.length || !rows?.length) return null
   return (
     <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
@@ -48,24 +48,34 @@ function ResultTable({ columns, rows }) {
   )
 }
 
-export default function AskDataWidget({ style = {} }) {
-  const [question, setQuestion] = useState('')
-  const [showSql, setShowSql] = useState(false)
-  const [showExamples, setShowExamples] = useState(false)
-  const inputRef = useRef(null)
+// TODO type: analyticsApi.ask response — needs shared type
+interface AskResult {
+  error?: string
+  row_count?: number
+  truncated?: boolean
+  sql?: string
+  columns?: string[]
+  rows?: Array<Record<string, unknown>>
+}
 
-  const mutation = useMutation({
-    mutationFn: (q) => analyticsApi.ask(q).then(r => r.data),
+export default function AskDataWidget({ style = {} }: { style?: React.CSSProperties }) {
+  const [question, setQuestion] = useState<string>('')
+  const [showSql, setShowSql] = useState<boolean>(false)
+  const [showExamples, setShowExamples] = useState<boolean>(false)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  const mutation = useMutation<AskResult, unknown, string>({
+    mutationFn: (q: string) => analyticsApi.ask(q).then(r => r.data),
   })
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const q = question.trim()
     if (!q) return
     mutation.mutate(q)
   }
 
-  const handleExample = (q) => {
+  const handleExample = (q: string) => {
     setQuestion(q)
     setShowExamples(false)
     mutation.mutate(q)

@@ -2,7 +2,7 @@
  * BiO365Panel — Office 365 productivity analytics.
  * Conecta con /api/v1/bi/o365/*
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biO365Api } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -18,7 +18,22 @@ const REPORTS = [
   { key: 'user_adoption',     label: 'Adopción'   },
 ]
 
-const S = {
+// TODO type: biO365Api config payload — needs shared type
+interface O365Config {
+  tenant_id?: string
+  client_id?: string
+  client_secret?: string
+  enabled?: boolean
+}
+
+interface O365ConfigForm {
+  tenant_id: string
+  client_id: string
+  client_secret: string
+  enabled: boolean
+}
+
+const S: Record<string, React.CSSProperties> = {
   card:  { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' },
   input: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
   btn:   { padding: '7px 14px', borderRadius: 8, background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
@@ -29,12 +44,12 @@ export default function BiO365Panel() {
   const t             = useAppT()
   const { tokens }    = useChartTheme()
   const qc            = useQueryClient()
-  const [tab,          setTab]          = useState('reports')
-  const [selectedReport, setSelectedReport] = useState('teams_activity')
-  const [configForm,   setConfigForm]   = useState({ tenant_id: '', client_id: '', client_secret: '', enabled: true })
-  const [configLoaded, setConfigLoaded] = useState(false)
+  const [tab,          setTab]          = useState<string>('reports')
+  const [selectedReport, setSelectedReport] = useState<string>('teams_activity')
+  const [configForm,   setConfigForm]   = useState<O365ConfigForm>({ tenant_id: '', client_id: '', client_secret: '', enabled: true })
+  const [configLoaded, setConfigLoaded] = useState<boolean>(false)
 
-  const { data: config } = useQuery({
+  const { data: config } = useQuery<O365Config>({
     queryKey: ['bi-o365-config'],
     queryFn:  () => biO365Api.getConfig().then(r => r.data),
     onSuccess: (d) => {

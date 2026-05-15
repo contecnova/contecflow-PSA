@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MessageSquare, Search, Send, X, ExternalLink, Plus, User, Minus, Maximize2, Volume2, VolumeX } from 'lucide-react'
 import { collabApi } from '../../services/collaborationApi'
@@ -10,7 +10,7 @@ const LS_MIN_KEY = 'chat_global_minimized'
 const LS_LAST_CONV_KEY = 'chat_global_last_conversation'
 const LS_SOUND_KEY = 'chat_global_sound_enabled'
 
-const fieldStyle = {
+const fieldStyle: React.CSSProperties = {
   width: '100%',
   boxSizing: 'border-box',
   background: 'var(--surface-3)',
@@ -23,7 +23,15 @@ const fieldStyle = {
   fontFamily: 'inherit',
 }
 
-function labelForConversation(c) {
+// TODO type: chat conversation payload — needs shared type from collabApi
+interface Conversation {
+  id: string
+  title?: string
+  kind?: 'direct' | 'channel' | string
+  [key: string]: unknown
+}
+
+function labelForConversation(c: Conversation | null | undefined): string {
   if (!c) return 'Sin conversación'
   if (c.title) return c.title
   if (c.kind === 'direct') return 'Chat directo'
@@ -31,7 +39,7 @@ function labelForConversation(c) {
   return 'Conversación'
 }
 
-function safeLsGet(key, fallback) {
+function safeLsGet(key: string, fallback: string): string {
   try {
     const raw = localStorage.getItem(key)
     return raw == null ? fallback : raw
@@ -40,7 +48,7 @@ function safeLsGet(key, fallback) {
   }
 }
 
-function safeLsSet(key, value) {
+function safeLsSet(key: string, value: string): void {
   try {
     localStorage.setItem(key, value)
   } catch {
@@ -48,31 +56,38 @@ function safeLsSet(key, value) {
   }
 }
 
-export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull }) {
+interface Props {
+  open: boolean
+  unread?: number
+  onClose: () => void
+  onOpenFull?: () => void
+}
+
+export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull }: Props) {
   const { user } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   const realtime = useChatRealtime()
 
-  const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth <= 860 : false))
-  const [visible, setVisible] = useState(false)
-  const [minimized, setMinimized] = useState(() => safeLsGet(LS_MIN_KEY, '0') === '1')
+  const [isMobile, setIsMobile] = useState<boolean>(() => (typeof window !== 'undefined' ? window.innerWidth <= 860 : false))
+  const [visible, setVisible] = useState<boolean>(false)
+  const [minimized, setMinimized] = useState<boolean>(() => safeLsGet(LS_MIN_KEY, '0') === '1')
 
-  const [filter, setFilter] = useState('')
-  const [activeConvId, setActiveConvId] = useState(() => safeLsGet(LS_LAST_CONV_KEY, ''))
-  const [draft, setDraft] = useState('')
-  const [newDirectOpen, setNewDirectOpen] = useState(false)
-  const [userSearch, setUserSearch] = useState('')
-  const [soundEnabled, setSoundEnabled] = useState(() => safeLsGet(LS_SOUND_KEY, '1') !== '0')
-  const [typingUsers, setTypingUsers] = useState({})
-  const [clearedUnreadMap, setClearedUnreadMap] = useState({})
-  const [panelBadgeVisible, setPanelBadgeVisible] = useState(unread > 0)
-  const [panelBadgeCount, setPanelBadgeCount] = useState(unread)
-  const [notifyMode, setNotifyMode] = useState('all')
-  const [dndEnabled, setDndEnabled] = useState(false)
-  const [stickToBottom, setStickToBottom] = useState(true)
-  const composerRef = useRef(null)
-  const messagesRef = useRef(null)
+  const [filter, setFilter] = useState<string>('')
+  const [activeConvId, setActiveConvId] = useState<string>(() => safeLsGet(LS_LAST_CONV_KEY, ''))
+  const [draft, setDraft] = useState<string>('')
+  const [newDirectOpen, setNewDirectOpen] = useState<boolean>(false)
+  const [userSearch, setUserSearch] = useState<string>('')
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => safeLsGet(LS_SOUND_KEY, '1') !== '0')
+  const [typingUsers, setTypingUsers] = useState<Record<string, unknown>>({})
+  const [clearedUnreadMap, setClearedUnreadMap] = useState<Record<string, number>>({})
+  const [panelBadgeVisible, setPanelBadgeVisible] = useState<boolean>(unread > 0)
+  const [panelBadgeCount, setPanelBadgeCount] = useState<number>(unread)
+  const [notifyMode, setNotifyMode] = useState<string>('all')
+  const [dndEnabled, setDndEnabled] = useState<boolean>(false)
+  const [stickToBottom, setStickToBottom] = useState<boolean>(true)
+  const composerRef = useRef<HTMLTextAreaElement | null>(null)
+  const messagesRef = useRef<HTMLDivElement | null>(null)
 
   const scrollToBottom = () => {
     const node = messagesRef.current

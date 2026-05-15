@@ -8,7 +8,7 @@
  * 3. Idioma
  * 4. Seguridad (cambio de contraseña, MFA)
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi, authApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
@@ -50,26 +50,45 @@ const LANGUAGES = [
   { code: 'zh', label: '中文',       flag: '🇨🇳' },
 ]
 
-const IS = {
+const IS: React.CSSProperties = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
   borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
 
-export default function UserProfilePanel({ onClose }) {
+interface ProfileForm {
+  email: string
+  first_name: string
+  last_name: string
+  phone: string
+  job_title: string
+  avatar_url: string
+}
+
+interface PasswordForm {
+  current: string
+  new: string
+  confirm: string
+}
+
+interface Props {
+  onClose: () => void
+}
+
+export default function UserProfilePanel({ onClose }: Props) {
   const { user, setUser } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   const { prefs, save: savePrefs } = useUserPreferences()
   const { lang: activeLang, setLang } = useAppLang()
 
-  const [tab, setTab] = useState('profile')
+  const [tab, setTab] = useState<string>('profile')
 
   // ── Idioma (local pending antes de guardar) ─────────────────────────────────
-  const [pendingLang, setPendingLang] = useState(activeLang)
+  const [pendingLang, setPendingLang] = useState<string>(activeLang)
 
   // ── Perfil ──────────────────────────────────────────────────────────────────
-  const [profileForm, setProfileForm] = useState({
+  const [profileForm, setProfileForm] = useState<ProfileForm>({
     email:      user?.email      || '',
     first_name: user?.first_name || '',
     last_name:  user?.last_name  || '',
@@ -79,25 +98,26 @@ export default function UserProfilePanel({ onClose }) {
   })
 
   const { mutate: saveProfile, isPending: savingProfile } = useMutation({
-    mutationFn: (data) => usersApi.updateMe(data),
-    onSuccess: (res) => {
+    mutationFn: (data: ProfileForm) => usersApi.updateMe(data),
+    onSuccess: (res: { data: unknown }) => {
       setUser(res.data)
       qc.invalidateQueries({ queryKey: ['auth-me'] })
       toast.success('Perfil actualizado')
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al guardar'),
+    // TODO type: backend error envelope — needs shared type
+    onError: (e: { response?: { data?: { detail?: string } } }) => toast.error(e?.response?.data?.detail || 'Error al guardar'),
   })
 
   // ── Apariencia ──────────────────────────────────────────────────────────────
-  const [localTheme,   setLocalTheme]   = useState(prefs?.theme_mode  || 'freight')
-  const [localAccent,  setLocalAccent]  = useState(
+  const [localTheme,   setLocalTheme]   = useState<string>(prefs?.theme_mode  || 'freight')
+  const [localAccent,  setLocalAccent]  = useState<string>(
     (prefs?.accent_color && /^#[0-9a-fA-F]{6}$/.test(prefs.accent_color))
       ? prefs.accent_color
       : '#4f8ef7'
   )
-  const [localDensity, setLocalDensity] = useState(prefs?.ui_density  || 'normal')
+  const [localDensity, setLocalDensity] = useState<string>(prefs?.ui_density  || 'normal')
 
-  const applyTheme = (themeId) => {
+  const applyTheme = (themeId: string) => {
     setLocalTheme(themeId)
     if (themeId === 'system') {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -107,7 +127,7 @@ export default function UserProfilePanel({ onClose }) {
     }
   }
 
-  const applyAccent = (color) => {
+  const applyAccent = (color: string) => {
     setLocalAccent(color)
     const root = document.documentElement
     root.style.setProperty('--accent', color)
@@ -121,11 +141,12 @@ export default function UserProfilePanel({ onClose }) {
   }
 
   // ── Contraseña ──────────────────────────────────────────────────────────────
-  const [pwForm, setPwForm] = useState({ current: '', new: '', confirm: '' })
+  const [pwForm, setPwForm] = useState<PasswordForm>({ current: '', new: '', confirm: '' })
   const { mutate: changePassword, isPending: changingPw } = useMutation({
-    mutationFn: (data) => authApi.changePassword(data),
+    mutationFn: (data: { current_password: string; new_password: string }) => authApi.changePassword(data),
     onSuccess: () => { toast.success('Contraseña actualizada'); setPwForm({ current:'', new:'', confirm:'' }) },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al cambiar contraseña'),
+    // TODO type: backend error envelope — needs shared type
+    onError: (e: { response?: { data?: { detail?: string } } }) => toast.error(e?.response?.data?.detail || 'Error al cambiar contraseña'),
   })
 
   const TABS = [
@@ -259,7 +280,7 @@ export default function UserProfilePanel({ onClose }) {
                     style={{ width: 40, height: 40, borderRadius: '50%',
                       marginTop: 6, objectFit: 'cover',
                       border: '2px solid var(--surface-4)' }}
-                    onError={e => { e.target.style.display = 'none' }} />
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                 )}
               </div>
 
@@ -354,11 +375,11 @@ export default function UserProfilePanel({ onClose }) {
                   Densidad de la interfaz
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  {[
+                  {([
                     ['compact',     '▤ Compacta'],
                     ['normal',      '▥ Normal'],
                     ['comfortable', '▦ Confortable'],
-                  ].map(([val, label]) => (
+                  ] as Array<[string, string]>).map(([val, label]) => (
                     <button key={val} onClick={() => setLocalDensity(val)}
                       style={{ flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: "var(--text-xs)",
                         fontWeight: 600, border: `1px solid ${localDensity === val ? 'rgba(79,142,247,0.5)' : 'var(--surface-4)'}`,
@@ -455,11 +476,11 @@ export default function UserProfilePanel({ onClose }) {
                     textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>
                     Cambiar contraseña
                   </div>
-                  {[
+                  {([
                     ['current', 'Contraseña actual', 'Tu contraseña actual'],
                     ['new',     'Nueva contraseña',  'Mínimo 8 caracteres'],
                     ['confirm', 'Confirmar nueva',   'Repite la nueva contraseña'],
-                  ].map(([key, label, ph]) => (
+                  ] as Array<[keyof PasswordForm, string, string]>).map(([key, label, ph]) => (
                     <div key={key}>
                       <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                         textTransform: 'uppercase', letterSpacing: '0.07em',

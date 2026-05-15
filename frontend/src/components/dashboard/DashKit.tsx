@@ -2,6 +2,7 @@
  * DashKit — componentes visuales compartidos para todos los dashboards de sección.
  * Mismo sistema de diseño que MetricsDashboardTab y BIPage.
  */
+import React from 'react'
 import { Link } from 'react-router-dom'
 import { COLOR } from '../../constants/theme'
 import PageShell from '../layout/PageShell'
@@ -9,11 +10,16 @@ import PageHeader from '../layout/PageHeader'
 
 export { COLOR }
 
+interface KpiIconProps {
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>
+  size?: number
+}
+
 /* ── KpiIcon — wrapper para usar iconos Lucide en KpiCard ───────────────────
  * Sustituye el patrón de pasar emojis (icon="✅") por un icono de la librería.
  * Mantiene la altura y centrado consistentes con el resto de la card.
  */
-export function KpiIcon({ icon: Icon, size = 14 }) {
+export function KpiIcon({ icon: Icon, size = 14 }: KpiIconProps) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16 }}>
       <Icon size={size} strokeWidth={2.2} />
@@ -22,7 +28,7 @@ export function KpiIcon({ icon: Icon, size = 14 }) {
 }
 
 /* ── Design tokens ─────────────────────────────────────────────────────────── */
-export const S = {
+export const S: Record<string, React.CSSProperties> = {
   card: {
     background: 'var(--surface-2)',
     border: '1px solid var(--surface-4)',
@@ -41,7 +47,7 @@ export const S = {
 }
 
 /* ── Period selector ───────────────────────────────────────────────────────── */
-export function PeriodButton({ active, label, onClick }) {
+export function PeriodButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
     <button onClick={onClick} style={{
       padding: '7px 18px', borderRadius: 8,
@@ -55,7 +61,17 @@ export function PeriodButton({ active, label, onClick }) {
 }
 
 /* ── KPI card ──────────────────────────────────────────────────────────────── */
-export function KpiCard({ label, value, sub, color, icon, accentBar, action }) {
+interface KpiCardProps {
+  label: string
+  value?: number | string | null
+  sub?: React.ReactNode
+  color?: string
+  icon?: React.ReactNode
+  accentBar?: string
+  action?: { to: string; label?: string }
+}
+
+export function KpiCard({ label, value, sub, color, icon, accentBar, action }: KpiCardProps) {
   const bar = accentBar ?? color ?? COLOR.accent
   return (
     <div style={{ ...S.card, display: 'flex', flexDirection: 'column' }}>
@@ -100,7 +116,7 @@ export function KpiCard({ label, value, sub, color, icon, accentBar, action }) {
 }
 
 /* ── Gauge (ring SVG + number) ─────────────────────────────────────────────── */
-function RingGauge({ value, color, size = 68 }) {
+function RingGauge({ value, color, size = 68 }: { value?: number | null; color: string; size?: number }) {
   const r = (size - 8) / 2
   const circ = 2 * Math.PI * r
   const progress = Math.min(Math.max(value ?? 0, 0), 100) / 100
@@ -113,7 +129,15 @@ function RingGauge({ value, color, size = 68 }) {
   )
 }
 
-export function GaugeCard({ label, value, color, suffix = '%', sub }) {
+interface GaugeCardProps {
+  label: string
+  value?: number | null
+  color: string
+  suffix?: string
+  sub?: React.ReactNode
+}
+
+export function GaugeCard({ label, value, color, suffix = '%', sub }: GaugeCardProps) {
   return (
     <div style={{ ...S.card, ...S.cardPad, display: 'flex', alignItems: 'center', gap: 16 }}>
       <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -144,7 +168,15 @@ export function GaugeCard({ label, value, color, suffix = '%', sub }) {
 }
 
 /* ── Bar row ───────────────────────────────────────────────────────────────── */
-export function BarRow({ label, count, total, color, displayValue }) {
+interface BarRowProps {
+  label: string
+  count: number
+  total: number
+  color: string
+  displayValue?: React.ReactNode
+}
+
+export function BarRow({ label, count, total, color, displayValue }: BarRowProps) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
     <div style={{ marginBottom: 14 }}>
@@ -174,7 +206,7 @@ export function BarRow({ label, count, total, color, displayValue }) {
 }
 
 /* ── Section card wrapper ──────────────────────────────────────────────────── */
-export function SectionCard({ title, children, badge }) {
+export function SectionCard({ title, children, badge }: { title: string; children?: React.ReactNode; badge?: React.ReactNode }) {
   return (
     <div style={S.card}>
       <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -195,6 +227,17 @@ export function SectionCard({ title, children, badge }) {
 /* ── Page shell (header + period selector) ───────────────────────────────────
    Wrapper sobre <PageShell> + <PageHeader>. Mantiene API legacy con icon/title/
    subtitle/days/setDays/periods para los Dashboards. */
+interface DashPageShellProps {
+  icon?: React.ReactNode
+  title: string
+  subtitle?: string
+  days?: number
+  setDays?: (d: number) => void
+  periods?: number[]
+  showPeriodSuffix?: boolean
+  children?: React.ReactNode
+}
+
 export function DashPageShell({
   icon,
   title,
@@ -204,7 +247,7 @@ export function DashPageShell({
   periods = [7, 30, 90],
   showPeriodSuffix = true,
   children,
-}) {
+}: DashPageShellProps) {
   const hasPeriodSelector = Array.isArray(periods) && periods.length > 0 && typeof days === 'number' && typeof setDays === 'function'
   const headerSubtitle = showPeriodSuffix && typeof days === 'number'
     ? `${subtitle} · últimos ${days} días`
@@ -245,7 +288,7 @@ if (typeof document !== 'undefined' && !document.getElementById('skeleton-pulse-
   style.textContent = skeletonPulse
   document.head.appendChild(style)
 }
-const skBox = (w, h, r = 6, extra = {}) => ({
+const skBox = (w: number | string, h: number | string, r: number | string = 6, extra: React.CSSProperties = {}): React.CSSProperties => ({
   width: w, height: h, borderRadius: r,
   background: 'var(--surface-4)',
   animation: 'skeletonPulse 1.4s ease-in-out infinite',
@@ -282,7 +325,7 @@ export function GaugeCardSkeleton() {
 }
 
 /* ── Empty state ───────────────────────────────────────────────────────────── */
-export function DashEmpty({ icon = '📊', title = 'Sin datos', description }) {
+export function DashEmpty({ icon = '📊', title = 'Sin datos', description }: { icon?: React.ReactNode; title?: string; description?: React.ReactNode }) {
   return (
     <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--text-3)' }}>
       <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16, opacity: 0.4 }}>{icon}</div>
@@ -295,13 +338,13 @@ export function DashEmpty({ icon = '📊', title = 'Sin datos', description }) {
 }
 
 /* ── helpers ───────────────────────────────────────────────────────────────── */
-export function dateRange(days) {
+export function dateRange(days: number): { date_from: string; date_to: string } {
   const d_to = new Date().toISOString().slice(0, 10)
   const d_from = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10)
   return { date_from: d_from, date_to: d_to }
 }
 
-export function fmtCur(v, lang = 'es', currency) {
+export function fmtCur(v: number | null | undefined, lang: string = 'es', currency?: string): string {
   if (v == null) return '—'
   if (!currency) return new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES', { maximumFractionDigits: 0 }).format(v)
   return new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES', {

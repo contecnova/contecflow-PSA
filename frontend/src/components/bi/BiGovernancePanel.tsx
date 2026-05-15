@@ -7,7 +7,7 @@
  *   GET  /bi/governance/audit/access?days=N      -> { items: [{action, resource|dataset_id, user_id, accessed_at, ...}], count }
  *   GET  /bi/governance/overview                 -> overview snapshot
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biCollaborationApi, biGovernanceAuditApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -23,9 +23,9 @@ const POLICY_TYPES = [
   { id: 'masking',           label: 'Enmascaramiento' },
 ]
 
-const POLICY_TYPE_LABEL = Object.fromEntries(POLICY_TYPES.map(p => [p.id, p.label]))
+const POLICY_TYPE_LABEL: Record<string, string> = Object.fromEntries(POLICY_TYPES.map(p => [p.id, p.label]))
 
-const fieldLabel = {
+const fieldLabel: React.CSSProperties = {
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   color: 'var(--text-3)',
@@ -33,7 +33,7 @@ const fieldLabel = {
   letterSpacing: '0.06em',
   marginBottom: 6,
 }
-const inputBase = {
+const inputBase: React.CSSProperties = {
   width: '100%',
   background: 'var(--surface-3)',
   border: '1px solid var(--surface-4)',
@@ -60,7 +60,15 @@ const chip = (color) => ({
 
 // ── Overview structured renderer ──────────────────────────────────────────────
 
-function OverviewSection({ icon: Icon, iconColor, title, children, badge }) {
+interface OverviewSectionProps {
+  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>
+  iconColor: string
+  title: string
+  children?: React.ReactNode
+  badge?: React.ReactNode
+}
+
+function OverviewSection({ icon: Icon, iconColor, title, children, badge }: OverviewSectionProps) {
   return (
     <div style={{
       background: 'var(--surface-3)',
@@ -83,7 +91,13 @@ function OverviewSection({ icon: Icon, iconColor, title, children, badge }) {
   )
 }
 
-function MetricRow({ label, value, mono }) {
+interface MetricRowProps {
+  label: string
+  value: React.ReactNode
+  mono?: boolean
+}
+
+function MetricRow({ label, value, mono }: MetricRowProps) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -102,7 +116,8 @@ function MetricRow({ label, value, mono }) {
   )
 }
 
-function OverviewView({ data }) {
+// TODO type: biCollaborationApi.getGovernanceOverview payload — needs shared type
+function OverviewView({ data }: { data?: Record<string, unknown> | null }) {
   const ts = data.timestamp ? new Date(data.timestamp) : null
   const olap = data.olap || {}
   const sched = data.scheduled_reports || {}
@@ -205,11 +220,11 @@ export default function BiGovernancePanel() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [tab, setTab] = useState('policies')
-  const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ name: '', policy_type: 'data_retention' })
-  const [auditDays, setAuditDays] = useState(30)
-  const [auditUserFilter, setAuditUserFilter] = useState('')
+  const [tab, setTab] = useState<string>('policies')
+  const [showCreate, setShowCreate] = useState<boolean>(false)
+  const [form, setForm] = useState<{ name: string; policy_type: string }>({ name: '', policy_type: 'data_retention' })
+  const [auditDays, setAuditDays] = useState<number>(30)
+  const [auditUserFilter, setAuditUserFilter] = useState<string>('')
 
   const { data: policiesData, isLoading: policiesLoading } = useQuery({
     queryKey: ['bi-gov-policies'],

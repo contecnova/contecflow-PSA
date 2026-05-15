@@ -6,30 +6,52 @@ import { X, Bell, ExternalLink } from 'lucide-react'
 import { fmtRelative } from '../../utils/helpers'
 import { useAuth } from '../../context/AuthContext'
 
-const SEVERITY_CFG = {
+interface SeverityCfg {
+  dot: string
+  bg: string
+  border: string
+  label: string
+}
+
+const SEVERITY_CFG: Record<string, SeverityCfg> = {
   critical: { dot: 'var(--danger)',  bg: 'var(--danger-bg)',  border: 'var(--danger-border)',  label: 'Crítica' },
   warning:  { dot: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)', label: 'Aviso' },
   info:     { dot: 'var(--accent)',  bg: 'var(--accent-muted)', border: 'var(--accent-glow)',   label: 'Info' },
 }
 
-const TYPE_ICONS = {
+const TYPE_ICONS: Record<string, string> = {
   overload: '🔥', burnout_risk: '⚠️', budget_exceeded: '💰', budget_critical: '🚨',
   deadline_risk: '📅', task_blocked: '🔒', hours_deviation: '⏱️', no_imputation: '📋',
 }
 
-export default function AlertsDrawer({ onClose }) {
+// TODO type: backend alert payload — needs shared type from alertsApi
+interface AlertItem {
+  id: string | number
+  severity: string
+  alert_type?: string
+  title: string
+  description?: string
+  created_at: string
+  is_read?: boolean
+}
+
+interface Props {
+  onClose: () => void
+}
+
+export default function AlertsDrawer({ onClose }: Props) {
   const { hasRole } = useAuth()
   const qc = useQueryClient()
-  const drawerRef = useRef(null)
+  const drawerRef = useRef<HTMLDivElement | null>(null)
 
-  const { data: alerts = [], isLoading } = useQuery({
+  const { data: alerts = [], isLoading } = useQuery<AlertItem[]>({
     queryKey: ['alerts-drawer'],
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []),
     refetchInterval: 30_000,
   })
 
   const { mutate: resolve } = useMutation({
-    mutationFn: (id) => alertsApi.resolve(id),
+    mutationFn: (id: AlertItem['id']) => alertsApi.resolve(id),
     onSuccess: () => {
       qc.invalidateQueries(['alerts-drawer'])
       qc.invalidateQueries(['alerts-page'])
@@ -38,7 +60,7 @@ export default function AlertsDrawer({ onClose }) {
   })
 
   const { mutate: markRead } = useMutation({
-    mutationFn: (id) => alertsApi.read(id),
+    mutationFn: (id: AlertItem['id']) => alertsApi.read(id),
     onSuccess: () => {
       qc.invalidateQueries(['alerts-drawer'])
       qc.invalidateQueries(['notification-badges'])
@@ -47,7 +69,7 @@ export default function AlertsDrawer({ onClose }) {
 
   // Close on Escape + focus trap
   useEffect(() => {
-    const handler = (e) => {
+    const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', handler)

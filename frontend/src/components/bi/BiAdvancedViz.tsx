@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import DynamicChart from '../../charts/DynamicChart'
 import useMediaQuery from '../../hooks/useMediaQuery'
 
@@ -17,8 +17,8 @@ const CHART_TYPES = [
   { key: 'scatter3d', label: 'Scatter 3D (Plotly)' },
 ]
 
-export default function BiAdvancedViz({ style }) {
-  const [activeChart, setActiveChart] = useState('sankey')
+export default function BiAdvancedViz({ style }: { style?: React.CSSProperties }) {
+  const [activeChart, setActiveChart] = useState<string>('sankey')
   const isMobile = useMediaQuery('(max-width: 900px)')
 
   return (

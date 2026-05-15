@@ -2,12 +2,42 @@
  * SmartAlertsPanel — Reglas + historial de alertas BI inteligentes
  * (forecasting, anomaly trends, threshold). Reutilizable.
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { biSmartAlertsApi } from '../../services/api'
 import { COLOR } from '../../constants/theme'
 
-const S = {
+// TODO type: biSmartAlertsApi payloads — needs shared types
+interface AlertRule {
+  id: string | number
+  name: string
+  metric_key: string
+  condition: string
+  severity: string
+  [k: string]: unknown
+}
+
+interface AlertHistoryEntry {
+  id: string | number
+  rule_id?: string | number
+  fired_at?: string
+  severity?: string
+  message?: string
+  acknowledged?: boolean
+  [k: string]: unknown
+}
+
+interface SupportedMetric {
+  key: string
+  label: string
+}
+
+interface SupportedMetrics {
+  metrics?: SupportedMetric[]
+  conditions?: string[]
+}
+
+const S: Record<string, React.CSSProperties> = {
   card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' },
   cardPad:     { padding: '20px 24px' },
   input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' },
@@ -16,24 +46,24 @@ const S = {
 }
 
 export default function SmartAlertsPanel() {
-  const [tick, setTick] = useState(0)
-  const [name, setName] = useState('')
-  const [metric, setMetric] = useState('revenue')
-  const [condition, setCondition] = useState('trend_down')
-  const [severity, setSeverity] = useState('warning')
+  const [tick, setTick] = useState<number>(0)
+  const [name, setName] = useState<string>('')
+  const [metric, setMetric] = useState<string>('revenue')
+  const [condition, setCondition] = useState<string>('trend_down')
+  const [severity, setSeverity] = useState<string>('warning')
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
 
-  const { data: rules } = useQuery({
+  const { data: rules } = useQuery<{ items?: AlertRule[] }>({
     queryKey: ['bi-alert-rules', tick],
     queryFn: () => biSmartAlertsApi.listRules().then(r => r.data).catch(() => ({ items: [] })),
     staleTime: 30_000,
   })
-  const { data: history } = useQuery({
+  const { data: history } = useQuery<{ items?: AlertHistoryEntry[] }>({
     queryKey: ['bi-alert-history', tick],
     queryFn: () => biSmartAlertsApi.getHistory(50).then(r => r.data).catch(() => ({ items: [] })),
     staleTime: 30_000,
   })
-  const { data: supported } = useQuery({
+  const { data: supported } = useQuery<SupportedMetrics>({
     queryKey: ['bi-alert-supported-metrics'],
     queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data).catch(() => ({ metrics: [], conditions: [] })),
     staleTime: 600_000,
@@ -50,13 +80,13 @@ export default function SmartAlertsPanel() {
       setTick(x => x + 1)
     } catch (_) { /* ignore */ }
   }
-  async function deleteRule(id) {
+  async function deleteRule(id: AlertRule['id']) {
     try { await biSmartAlertsApi.deleteRule(id); setTick(x => x + 1) } catch (_) { /* ignore */ }
   }
   async function seedDefaults() {
     try { await biSmartAlertsApi.seedDefaults(); setTick(x => x + 1) } catch (_) { /* ignore */ }
   }
-  async function ack(id) {
+  async function ack(id: AlertHistoryEntry['id']) {
     try { await biSmartAlertsApi.acknowledge(id); setTick(x => x + 1) } catch (_) { /* ignore */ }
   }
 

@@ -5,39 +5,80 @@
  * Nivel 2: Pantalla completa por widget (Esc para cerrar)
  * Nivel 3: Pestañas multi-dashboard, filtro global de fechas, exportar
  */
-import { useState, useRef, useEffect, useCallback, createContext, useContext, useMemo } from 'react'
+import React, { useState, useRef, useEffect, useCallback, createContext, useContext, useMemo } from 'react'
 import GridLayout from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 
+// TODO type: widget config — defined as plain object literal at each page
+interface LayoutItem {
+  i: string
+  x?: number
+  y?: number
+  w?: number
+  h?: number
+  minW?: number
+  minH?: number
+  [k: string]: unknown
+}
+
+interface WidgetMeta {
+  id: string
+  defaultHidden?: boolean
+  defaultPos?: Partial<LayoutItem>
+  aspectRatio?: number | string
+  [k: string]: unknown
+}
+
+interface DashboardConfig {
+  visible: string[]
+  layout: LayoutItem[]
+}
+
+interface DashboardEntry {
+  id: string
+  name: string
+  config: DashboardConfig
+}
+
+interface DateRangeValue {
+  from?: string
+  to?: string
+}
+
 // ── Contexto para propagar dateRange a todos los widgets ──────────────────────
-export const DateRangeCtx = createContext(null)
+export const DateRangeCtx = createContext<DateRangeValue | null>(null)
 export const useDateRange = () => useContext(DateRangeCtx)
 
 // ── Hook de persistencia multi-dashboard ─────────────────────────────────────
-function buildDefaultConfig(allWidgets) {
+function buildDefaultConfig(allWidgets: WidgetMeta[]): DashboardConfig {
   return {
     visible: allWidgets.filter(w => !w.defaultHidden).map(w => w.id),
     layout: allWidgets.map(w => ({ i: w.id, ...w.defaultPos })),
   }
 }
 
-function useDashboards(storageKey, allWidgets, api) {
-  const [dashboards, setDashboards] = useState(null)
-  const [activeId, setActiveId] = useState('main')
+// TODO type: api shape — needs shared services/api type
+interface ApiShape {
+  patch: (path: string, body: unknown) => Promise<unknown> & { catch: (fn: (e: unknown) => void) => unknown }
+}
+
+function useDashboards(storageKey: string, allWidgets: WidgetMeta[], api?: ApiShape | null) {
+  const [dashboards, setDashboards] = useState<DashboardEntry[] | null>(null)
+  const [activeId, setActiveId] = useState<string>('main')
 
   const defaultDashboards = useMemo(
     () => [{ id: 'main', name: 'Principal', config: buildDefaultConfig(allWidgets) }],
     [allWidgets],
   )
 
-  const saveLocal = useCallback((d) => {
-    try { localStorage.setItem(storageKey, JSON.stringify(d)) } catch {}
+  const saveLocal = useCallback((d: DashboardEntry[]) => {
+    try { localStorage.setItem(storageKey, JSON.stringify(d)) } catch { /* ignore */ }
   }, [storageKey])
 
-  const saveBackend = useCallback((d) => {
+  const saveBackend = useCallback((d: DashboardEntry[]) => {
     if (!api) return
-    api.patch('/users/me/preferences', { [`dboards_${storageKey}`]: d }).catch(() => {})
+    api.patch('/users/me/preferences', { [`dboards_${storageKey}`]: d }).catch(() => { /* ignore */ })
   }, [api, storageKey])
 
   useEffect(() => {
@@ -60,29 +101,29 @@ function useDashboards(storageKey, allWidgets, api) {
   const active = boards.find(d => d.id === activeId) || boards[0]
   const config = active?.config || buildDefaultConfig(allWidgets)
 
-  const save = useCallback((newBoards) => {
+  const save = useCallback((newBoards: DashboardEntry[]) => {
     setDashboards(newBoards)
     saveLocal(newBoards)
     saveBackend(newBoards)
   }, [saveLocal, saveBackend])
 
-  const updConfig = useCallback((newCfg) => {
+  const updConfig = useCallback((newCfg: DashboardConfig) => {
     save(boards.map(d => d.id === activeId ? { ...d, config: newCfg } : d))
   }, [boards, activeId, save])
 
-  const toggleWidget = useCallback((id) => {
+  const toggleWidget = useCallback((id: string) => {
     const visible = config.visible.includes(id)
       ? config.visible.filter(x => x !== id)
       : [...config.visible, id]
     updConfig({ ...config, visible })
   }, [config, updConfig])
 
-  const updateLayout = useCallback((newLayout) => {
-    const byId = Object.fromEntries(allWidgets.map(w => [w.id, w]))
-    const map = Object.fromEntries(config.layout.map(l => [l.i, l]))
+  const updateLayout = useCallback((newLayout: LayoutItem[]) => {
+    const byId: Record<string, WidgetMeta> = Object.fromEntries(allWidgets.map(w => [w.id, w]))
+    const map: Record<string, LayoutItem> = Object.fromEntries(config.layout.map(l => [l.i, l]))
     newLayout.forEach(item => {
-      const meta = byId[item.i] || {}
-      let normalized = { ...item }
+      const meta: Partial<WidgetMeta> = byId[item.i] || {}
+      let normalized: LayoutItem = { ...item }
       if (meta.aspectRatio && Number(meta.aspectRatio) > 0) {
         const minH = Number(meta.defaultPos?.minH) || 1
         const expectedH = Math.max(minH, Math.round((item.w || 1) / Number(meta.aspectRatio)))
@@ -97,19 +138,19 @@ function useDashboards(storageKey, allWidgets, api) {
 
   const createDashboard = useCallback(() => {
     const id = `d${Date.now()}`
-    const newB = [...boards, { id, name: `Dashboard ${boards.length + 1}`, config: buildDefaultConfig(allWidgets) }]
+    const newB: DashboardEntry[] = [...boards, { id, name: `Dashboard ${boards.length + 1}`, config: buildDefaultConfig(allWidgets) }]
     save(newB)
     setActiveId(id)
   }, [boards, allWidgets, save])
 
-  const deleteDashboard = useCallback((id) => {
+  const deleteDashboard = useCallback((id: string) => {
     if (boards.length <= 1) return
     const newB = boards.filter(d => d.id !== id)
     save(newB)
     if (activeId === id) setActiveId(newB[0].id)
   }, [boards, activeId, save])
 
-  const renameDashboard = useCallback((id, name) => {
+  const renameDashboard = useCallback((id: string, name: string) => {
     save(boards.map(d => d.id === id ? { ...d, name } : d))
   }, [boards, save])
 
@@ -137,12 +178,12 @@ const PRESETS = [
   { label: 'Trim', fn: () => startOf('quarter') },
   { label: 'Año',  fn: () => startOf('year') },
 ]
-function sub(days) {
+function sub(days: number): DateRangeValue {
   const to = new Date(), from = new Date()
   from.setDate(from.getDate() - days)
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }
 }
-function startOf(unit) {
+function startOf(unit: 'month' | 'quarter' | 'year'): DateRangeValue {
   const to = new Date()
   let from = new Date()
   if (unit === 'month') from = new Date(to.getFullYear(), to.getMonth(), 1)
@@ -151,8 +192,8 @@ function startOf(unit) {
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }
 }
 
-function DateRangePicker({ value, onChange }) {
-  const [custom, setCustom] = useState(false)
+function DateRangePicker({ value, onChange }: { value: DateRangeValue | null; onChange: (v: DateRangeValue | null) => void }) {
+  const [custom, setCustom] = useState<boolean>(false)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
       {PRESETS.map(p => (
@@ -187,6 +228,19 @@ function DateRangePicker({ value, onChange }) {
   )
 }
 
+interface WidgetCellProps {
+  id: string
+  allWidgets: WidgetMeta[]
+  renderWidget: (id: string, ctx: { dateRange: DateRangeValue | null; height: number }) => React.ReactNode
+  dateRange: DateRangeValue | null
+  locked: boolean
+  onFullScreen: (id: string) => void
+  rowHeight: number
+  marginY: number
+  currentRows: number
+  onAutoHeight?: (id: string, rows: number) => void
+}
+
 // ── Celda de widget — mide su altura y la pasa al widget ──────────────────────
 function WidgetCell({
   id,
@@ -199,10 +253,10 @@ function WidgetCell({
   marginY,
   currentRows,
   onAutoHeight,
-}) {
-  const contentRef = useRef(null)
-  const [height, setHeight] = useState(200)
-  const rafRef = useRef(null)
+}: WidgetCellProps) {
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const [height, setHeight] = useState<number>(200)
+  const rafRef = useRef<number | null>(null)
 
   useEffect(() => {
     const el = contentRef.current
@@ -295,10 +349,20 @@ function WidgetCell({
   )
 }
 
-function toGridRows(px, rowHeight, marginY) {
+function toGridRows(px: number, rowHeight: number, marginY: number): number {
   const rh = Number(rowHeight) || 30
   const my = Number(marginY) || 0
   return Math.max(1, Math.ceil((Math.max(0, px) + my) / (rh + my)))
+}
+
+interface DashboardGridProps {
+  storageKey: string
+  title: string
+  subtitle?: string
+  allWidgets: WidgetMeta[]
+  renderWidget: (id: string, ctx: { dateRange: DateRangeValue | null; height: number }) => React.ReactNode
+  headerExtra?: React.ReactNode
+  api?: ApiShape | null
 }
 
 // ── DashboardGrid principal ───────────────────────────────────────────────────
@@ -310,7 +374,7 @@ export default function DashboardGrid({
   renderWidget,
   headerExtra,
   api,
-}) {
+}: DashboardGridProps) {
   const GRID_ROW_HEIGHT = 30
   const GRID_MARGIN_Y = 12
 
@@ -321,14 +385,14 @@ export default function DashboardGrid({
     createDashboard, deleteDashboard, renameDashboard,
   } = useDashboards(storageKey, allWidgets, api)
 
-  const [locked, setLocked] = useState(false)
-  const [fullScreenId, setFullScreenId] = useState(null)
-  const [configOpen, setConfigOpen] = useState(false)
-  const [dateRange, setDateRange] = useState(null)
-  const [renamingId, setRenamingId] = useState(null)
-  const [renameValue, setRenameValue] = useState('')
-  const containerRef = useRef(null)
-  const [gridWidth, setGridWidth] = useState(0)
+  const [locked, setLocked] = useState<boolean>(false)
+  const [fullScreenId, setFullScreenId] = useState<string | null>(null)
+  const [configOpen, setConfigOpen] = useState<boolean>(false)
+  const [dateRange, setDateRange] = useState<DateRangeValue | null>(null)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState<string>('')
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [gridWidth, setGridWidth] = useState<number>(0)
 
   useEffect(() => {
     const el = containerRef.current

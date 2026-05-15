@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import api, { alertsApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 
-const _TYPE_CFG = {
+const _TYPE_CFG: Record<string, { icon: string; color: string }> = {
   alert:      { icon: '🔔', color: 'var(--warning)' },
   task:       { icon: '▦',  color: 'var(--success)' },
   ticket:     { icon: '🎫', color: 'var(--purple)' },
@@ -16,15 +16,30 @@ const _TYPE_CFG = {
   default:    { icon: '●',  color: 'var(--text-2)' },
 }
 
-export default function NotificationCenter({ collapsed }) {
-  const [open, setOpen] = useState(false)
+// TODO type: notification payload — needs shared type from alerts API
+interface NotificationItem {
+  id: string | number
+  title: string
+  message?: string
+  severity?: string
+  created_at?: string
+  is_read?: boolean
+  _source?: string
+}
+
+interface Props {
+  collapsed?: boolean
+}
+
+export default function NotificationCenter({ collapsed }: Props) {
+  const [open, setOpen] = useState<boolean>(false)
   const nav = useNavigate()
   const qc = useQueryClient()
   const { user, loading } = useAuth()
 
   // ── WebSocket para notificaciones en tiempo real ─────────────────────────────
-  const [wsAlerts, setWsAlerts] = useState([])
-  const wsRef = useRef(null)
+  const [wsAlerts, setWsAlerts] = useState<NotificationItem[]>([])
+  const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
     if (loading || !user) {
@@ -34,7 +49,7 @@ export default function NotificationCenter({ collapsed }) {
     }
 
     let cancelled = false
-    let ping
+    let ping: ReturnType<typeof setInterval> | undefined
     ;(async () => {
       try {
         const { data } = await api.get('/ws/ticket')  // cookie-authenticated
@@ -74,21 +89,21 @@ export default function NotificationCenter({ collapsed }) {
     return () => { cancelled = true; clearInterval(ping); wsRef.current?.close() }
   }, [loading, user])
 
-  const { data: httpAlerts = [] } = useQuery({
+  const { data: httpAlerts = [] } = useQuery<NotificationItem[]>({
     queryKey: ['notif-alerts'],
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
     refetchInterval: wsRef.current ? 120000 : 30000,  // sondeo más lento si hay WS
   })
 
   // Combinar alertas HTTP con notificaciones WS (WS tiene prioridad)
-  const wsNotifs = wsAlerts.map(n => ({ ...n, is_read: false, _source: 'ws' }))
-  const httpAlertsFilt = (httpAlerts || []).filter(a => !wsNotifs.find(n => n.id === a.id))
+  const wsNotifs: NotificationItem[] = wsAlerts.map(n => ({ ...n, is_read: false, _source: 'ws' }))
+  const httpAlertsFilt: NotificationItem[] = (httpAlerts || []).filter(a => !wsNotifs.find(n => n.id === a.id))
 
-  const alerts = [...wsNotifs, ...httpAlertsFilt]
+  const alerts: NotificationItem[] = [...wsNotifs, ...httpAlertsFilt]
   const unread = alerts.filter(a => !a.is_read).length
 
   const { mutate: markRead } = useMutation({
-    mutationFn: (id) => api.patch(`/alerts/${id}`, { is_read: true }),
+    mutationFn: (id: NotificationItem['id']) => api.patch(`/alerts/${id}`, { is_read: true }),
     onSuccess: () => qc.invalidateQueries(['notif-alerts']),
   })
 
@@ -97,7 +112,7 @@ export default function NotificationCenter({ collapsed }) {
     onSuccess: () => qc.invalidateQueries(['notif-alerts']),
   })
 
-  const SEV_COLOR = { critical: 'var(--danger)', warning: 'var(--warning)', info: 'var(--accent)', low: 'var(--text-2)' }
+  const SEV_COLOR: Record<string, string> = { critical: 'var(--danger)', warning: 'var(--warning)', info: 'var(--accent)', low: 'var(--text-2)' }
 
   return (
     <div style={{ position: 'relative' }}>

@@ -16,7 +16,7 @@
  *          ], method_used, reasoning, lgbm_available,
  *        }
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { incidentAssignmentApi, ticketsApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -25,7 +25,49 @@ import { UserCheck, BarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { Card, Button, Spinner, EmptyState } from '../ui'
 
-const fieldLabel = {
+// TODO type: incidentAssignmentApi payloads — needs shared types
+interface AgentScore {
+  user_id: string | number
+  name: string
+  score: number
+  kw_score?: number
+  workload_score?: number
+  is_on_call?: boolean
+  active_tickets?: number
+}
+
+interface Recommendation {
+  recommended_user_id?: string | number
+  recommended_name?: string
+  confidence?: number
+  all_scores?: AgentScore[]
+  method_used?: string
+  reasoning?: string
+  lgbm_available?: boolean
+}
+
+interface AgentLoad {
+  user_id: string | number
+  agent_id?: string | number
+  name?: string
+  agent_name?: string
+  open_tickets?: number
+  active_tickets?: number
+  capacity?: number
+  specializations?: string[]
+  is_on_call?: boolean
+  groups?: string[]
+}
+
+interface AssignmentStats {
+  total_recommendations?: number
+  last_recommendation_at?: string
+  lgbm_available?: boolean
+  total_unassigned?: number
+  agent_loads?: AgentLoad[]
+}
+
+const fieldLabel: React.CSSProperties = {
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   color: 'var(--text-3)',
@@ -33,7 +75,7 @@ const fieldLabel = {
   letterSpacing: '0.06em',
   marginBottom: 6,
 }
-const inputBase = {
+const inputBase: React.CSSProperties = {
   width: '100%',
   background: 'var(--surface-3)',
   border: '1px solid var(--surface-4)',
@@ -49,15 +91,15 @@ const inputBase = {
 export default function IncidentAssignmentPanel() {
   const t = useAppT()
   const { tokens } = useChartTheme()
-  const [ticketId, setTicketId] = useState('')
-  const [ticketTitle, setTicketTitle] = useState('')
-  const [ticketDescription, setTicketDescription] = useState('')
-  const [priority, setPriority] = useState('p3_medium')
-  const [recommendation, setRecommendation] = useState(null)
+  const [ticketId, setTicketId] = useState<string>('')
+  const [ticketTitle, setTicketTitle] = useState<string>('')
+  const [ticketDescription, setTicketDescription] = useState<string>('')
+  const [priority, setPriority] = useState<string>('p3_medium')
+  const [recommendation, setRecommendation] = useState<Recommendation | null>(null)
 
-  const [applySuccess, setApplySuccess] = useState(false)
+  const [applySuccess, setApplySuccess] = useState<boolean>(false)
 
-  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<AssignmentStats>({
     queryKey: ['incident-assign-stats'],
     queryFn: () => incidentAssignmentApi.stats().then(r => r.data),
     refetchInterval: 30_000,

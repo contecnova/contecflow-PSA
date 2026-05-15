@@ -1,21 +1,38 @@
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Calendar } from 'lucide-react'
 import { useAppT } from '../../hooks/useAppT'
 
-const RANGE_PRESETS = {
+interface RangePreset {
+  key: string
+  days: number
+}
+
+const RANGE_PRESETS: Record<string, RangePreset> = {
   week: { key: 'date_range_filter.week', days: 7 },
   month: { key: 'date_range_filter.month', days: 30 },
   quarter: { key: 'date_range_filter.quarter', days: 90 },
   year: { key: 'date_range_filter.year', days: 365 },
 }
 
-export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, disabled = false }) {
-  const { t } = useAppT()
-  const [customOpen, setCustomOpen] = useState(false)
-  const [localFrom, setLocalFrom] = useState(dateFrom || '')
-  const [localTo, setLocalTo] = useState(dateTo || '')
+interface DateChange {
+  date_from: string
+  date_to: string
+}
 
-  const applyPreset = useCallback((days) => {
+interface DateRangeFilterBarProps {
+  dateFrom?: string
+  dateTo?: string
+  onDateChange: (range: DateChange) => void
+  disabled?: boolean
+}
+
+export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, disabled = false }: DateRangeFilterBarProps) {
+  const { t } = useAppT()
+  const [customOpen, setCustomOpen] = useState<boolean>(false)
+  const [localFrom, setLocalFrom] = useState<string>(dateFrom || '')
+  const [localTo, setLocalTo] = useState<string>(dateTo || '')
+
+  const applyPreset = useCallback((days: number) => {
     const to = new Date()
     const from = new Date(to)
     from.setDate(to.getDate() - (days - 1))
@@ -35,7 +52,7 @@ export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, dis
   const getLabel = () =>
     dateFrom && dateTo ? `${dateFrom} — ${dateTo}` : t('date_range_filter.select_range')
 
-  const btnBase = {
+  const btnBase: React.CSSProperties = {
     padding: '4px 12px',
     fontSize: '0.875em',
     borderRadius: '6px',

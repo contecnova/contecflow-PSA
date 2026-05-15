@@ -8,10 +8,17 @@ import { searchApi } from '../../services/api'
 import { INPUT_DEBOUNCE_MS } from '../../constants/timings'
 import { useAppT } from '../../i18n/AppLangContext'
 
-const ICON_MAP = { project:'⬡', task:'▦', ticket:'🎫', user:'👤', invoice:'🧾', opportunity:'🎪' }
-const TYPE_LABELS = { project:'Proyecto', task:'Tarea', ticket:'Ticket', user:'Usuario', invoice:'Factura', opportunity:'Oportunidad' }
+const ICON_MAP: Record<string, string> = { project:'⬡', task:'▦', ticket:'🎫', user:'👤', invoice:'🧾', opportunity:'🎪' }
+const TYPE_LABELS: Record<string, string> = { project:'Proyecto', task:'Tarea', ticket:'Ticket', user:'Usuario', invoice:'Factura', opportunity:'Oportunidad' }
 
-const QUICK_ACTIONS = [
+interface QuickAction {
+  label: string
+  icon: string
+  path: string
+  hint: string
+}
+
+const QUICK_ACTIONS: QuickAction[] = [
   { label: 'Nueva tarea',         icon: '✅', path: '/tasks',           hint: 'Ir a tareas' },
   { label: 'Imputar horas',       icon: '⏱',  path: '/time',            hint: 'Registro de tiempo' },
   { label: 'Nuevo ticket soporte',icon: '🎫', path: '/service-desk',    hint: 'Service desk' },
@@ -22,16 +29,39 @@ const QUICK_ACTIONS = [
   { label: 'Configuración',       icon: '⚙️',  path: '/settings',        hint: 'Ajustes del sistema' },
 ]
 
-export default function GlobalSearch({ onClose }) {
+// TODO type: search result payload — needs shared type from searchApi
+interface SearchResult {
+  id: string | number
+  type?: string
+  title: string
+  subtitle?: string
+  status?: string
+  url?: string
+}
+
+interface SearchResponse {
+  flat?: SearchResult[]
+  grouped?: Record<string, SearchResult[]>
+}
+
+type FlatItem =
+  | { kind: 'action'; path: string }
+  | { kind: 'result'; url?: string }
+
+interface Props {
+  onClose: () => void
+}
+
+export default function GlobalSearch({ onClose }: Props) {
   const t = useAppT()
   const navigate = useNavigate()
-  const [q, setQ] = useState('')
-  const [debouncedQ, setDebouncedQ] = useState('')
-  const [selectedIdx, setSelectedIdx] = useState(-1)
-  const inputRef = useRef(null)
-  const listRef = useRef(null)
+  const [q, setQ] = useState<string>('')
+  const [debouncedQ, setDebouncedQ] = useState<string>('')
+  const [selectedIdx, setSelectedIdx] = useState<number>(-1)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const listRef = useRef<HTMLDivElement | null>(null)
 
-  function runAction(path) {
+  function runAction(path: string) {
     navigate(path)
     onClose()
   }
@@ -46,17 +76,17 @@ export default function GlobalSearch({ onClose }) {
   // Reset selection whenever query changes
   useEffect(() => { setSelectedIdx(-1) }, [debouncedQ])
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<SearchResponse>({
     queryKey: ['global-search', debouncedQ],
     queryFn: () => searchApi.search({ q: debouncedQ }).then(r => r.data),
     enabled: debouncedQ.length >= 2,
   })
 
-  const results = useMemo(() => data?.flat ?? [], [data])
-  const grouped = useMemo(() => data?.grouped ?? {}, [data])
+  const results = useMemo<SearchResult[]>(() => data?.flat ?? [], [data])
+  const grouped = useMemo<Record<string, SearchResult[]>>(() => data?.grouped ?? {}, [data])
 
   // Flat list of navigable items for keyboard nav
-  const flatItems = useMemo(() => {
+  const flatItems = useMemo<FlatItem[]>(() => {
     if (debouncedQ.length < 2) {
       return QUICK_ACTIONS.map(a => ({ kind: 'action', path: a.path }))
     }
@@ -66,11 +96,11 @@ export default function GlobalSearch({ onClose }) {
   // Scroll selected item into view
   useEffect(() => {
     if (selectedIdx < 0 || !listRef.current) return
-    const items = listRef.current.querySelectorAll('[data-nav-item]')
+    const items = listRef.current.querySelectorAll<HTMLElement>('[data-nav-item]')
     items[selectedIdx]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [selectedIdx])
 
-  function handleKeyDown(e) {
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Escape') { onClose(); return }
     if (e.key === 'ArrowDown') {
       e.preventDefault()

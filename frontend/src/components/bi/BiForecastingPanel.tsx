@@ -2,7 +2,7 @@
  * BiForecastingPanel.jsx — BI Forecasting panel (time-series predictions).
  * Connects to /api/v1/bi/forecast/* endpoints.
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { biForecastingApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -12,9 +12,21 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend,
 } from 'recharts'
 
-const METHODS = ['linear', 'holt', 'prophet']
+// TODO type: biForecastingApi response — needs shared type
+interface ForecastPoint {
+  value: number
+  lower?: number
+  upper?: number
+}
 
-const S = {
+interface ForecastResult {
+  forecast?: Array<ForecastPoint | number>
+  mape?: number
+}
+
+const METHODS = ['linear', 'holt', 'prophet'] as const
+
+const S: Record<string, React.CSSProperties> = {
   card:   { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' },
   input:  { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
   select: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none' },
@@ -25,17 +37,17 @@ const S = {
 export default function BiForecastingPanel() {
   const t              = useAppT()
   const { tokens }     = useChartTheme()
-  const [metric, setMetric]   = useState('revenue')
-  const [method, setMethod]   = useState('linear')
-  const [periods, setPeriods] = useState(6)
-  const [forecastData, setForecastData] = useState(null)
+  const [metric, setMetric]   = useState<string>('revenue')
+  const [method, setMethod]   = useState<string>('linear')
+  const [periods, setPeriods] = useState<number>(6)
+  const [forecastData, setForecastData] = useState<ForecastResult | null>(null)
 
-  const { data: metricsData } = useQuery({
+  const { data: metricsData } = useQuery<{ metrics?: string[] }>({
     queryKey: ['bi-forecast-metrics'],
     queryFn:  () => biForecastingApi.listMetrics().then(r => r.data),
   })
 
-  const forecastMutation = useMutation({
+  const forecastMutation = useMutation<ForecastResult, unknown, { metric: string; method: string; periods: number }>({
     mutationFn: (payload) => biForecastingApi.run(payload).then(r => r.data),
     onSuccess:  (data) => setForecastData(data),
   })

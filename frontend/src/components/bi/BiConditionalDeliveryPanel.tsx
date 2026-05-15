@@ -2,13 +2,39 @@
  * BiConditionalDeliveryPanel — Entrega condicional de reportes.
  * Conecta con /api/v1/bi/delivery/rules
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biConditionalDeliveryApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Bell, Play, ToggleLeft, ToggleRight } from 'lucide-react'
 
-const S = {
+// TODO type: biConditionalDeliveryApi rule payload — needs shared type
+interface DeliveryRule {
+  id: string | number
+  name: string
+  report_id: string
+  condition_type: string
+  diff_threshold_pct?: number
+  enabled: boolean
+}
+
+interface DeliveryRulesResponse {
+  items?: DeliveryRule[]
+}
+
+interface RuleForm {
+  name: string
+  report_id: string
+  diff_threshold_pct: number
+  recipients: string
+}
+
+interface EvaluateResult {
+  should_deliver?: boolean
+  [k: string]: unknown
+}
+
+const S: Record<string, React.CSSProperties> = {
   card:  { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' },
   input: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
   btn:   { padding: '8px 16px', borderRadius: 8, background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
@@ -19,27 +45,27 @@ export default function BiConditionalDeliveryPanel() {
   const t  = useAppT()
   const qc = useQueryClient()
 
-  const [form, setForm] = useState({ name: '', report_id: '', diff_threshold_pct: 10, recipients: '' })
-  const [evaluateResult, setEvaluateResult] = useState({})
+  const [form, setForm] = useState<RuleForm>({ name: '', report_id: '', diff_threshold_pct: 10, recipients: '' })
+  const [evaluateResult, setEvaluateResult] = useState<Record<string, EvaluateResult>>({})
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<DeliveryRulesResponse>({
     queryKey: ['bi-delivery-rules'],
     queryFn:  () => biConditionalDeliveryApi.listRules().then(r => r.data),
   })
 
   const createMutation = useMutation({
-    mutationFn: (payload) => biConditionalDeliveryApi.createRule(payload).then(r => r.data),
+    mutationFn: (payload: { name: string; report_id: string; diff_threshold_pct: number; schedule_cron: string; recipients: string[] }) => biConditionalDeliveryApi.createRule(payload).then(r => r.data),
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ['bi-delivery-rules'] }); setForm({ name: '', report_id: '', diff_threshold_pct: 10, recipients: '' }) },
   })
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, enabled }) => biConditionalDeliveryApi.updateRule(id, { enabled }).then(r => r.data),
+    mutationFn: ({ id, enabled }: { id: DeliveryRule['id']; enabled: boolean }) => biConditionalDeliveryApi.updateRule(id, { enabled }).then(r => r.data),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-delivery-rules'] }),
   })
 
-  const evaluateMutation = useMutation({
+  const evaluateMutation = useMutation<EvaluateResult, unknown, DeliveryRule['id']>({
     mutationFn: (id) => biConditionalDeliveryApi.evaluate(id, { current_data: {} }).then(r => r.data),
-    onSuccess:  (data, id) => setEvaluateResult(prev => ({ ...prev, [id]: data })),
+    onSuccess:  (data, id) => setEvaluateResult(prev => ({ ...prev, [String(id)]: data })),
   })
 
   return (

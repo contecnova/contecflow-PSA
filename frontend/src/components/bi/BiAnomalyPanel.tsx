@@ -2,20 +2,55 @@
  * BiAnomalyPanel.jsx — BI Anomaly Detection + Churn Prediction panel.
  * Connects to /api/v1/bi/anomaly/* and /api/v1/bi/churn/* endpoints.
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { biAnomalyApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { AlertTriangle, TrendingDown } from 'lucide-react'
 
-const RISK_COLORS = {
+const RISK_COLORS: Record<string, string> = {
   low:      'var(--success)',
   medium:   'var(--warning)',
   high:     'var(--danger)',
   critical: 'var(--danger)',
 }
 
-const S = {
+// TODO type: biAnomalyApi responses — needs shared types
+interface AnomalyPoint {
+  period?: string
+  index?: number
+  value?: number
+  score?: number
+}
+
+interface AnomalyResult {
+  anomaly_count?: number
+  total_points?: number
+  anomalies?: AnomalyPoint[]
+}
+
+interface ChurnFactor {
+  feature: string
+  importance?: number
+}
+
+interface ChurnResult {
+  churn_probability: number
+  risk_level?: string
+  top_factors?: Array<ChurnFactor | string>
+}
+
+interface ChurnFeatures {
+  monthly_revenue: number
+  support_tickets_last_90d: number
+  nps_score: number
+  contract_months_remaining: number
+  logins_last_30d: number
+  open_invoices: number
+  [k: string]: number
+}
+
+const S: Record<string, React.CSSProperties> = {
   card:   { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' },
   input:  { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
   select: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none' },
@@ -27,11 +62,11 @@ const S = {
 export default function BiAnomalyPanel() {
   const t = useAppT()
 
-  const [anomalyMetric, setAnomalyMetric] = useState('revenue')
-  const [anomalyResult, setAnomalyResult] = useState(null)
+  const [anomalyMetric, setAnomalyMetric] = useState<string>('revenue')
+  const [anomalyResult, setAnomalyResult] = useState<AnomalyResult | null>(null)
 
-  const [churnClientId, setChurnClientId] = useState('')
-  const [churnFeatures, setChurnFeatures] = useState({
+  const [churnClientId, setChurnClientId] = useState<string>('')
+  const [churnFeatures, setChurnFeatures] = useState<ChurnFeatures>({
     monthly_revenue: 5000,
     support_tickets_last_90d: 3,
     nps_score: 7,
@@ -39,19 +74,20 @@ export default function BiAnomalyPanel() {
     logins_last_30d: 10,
     open_invoices: 1,
   })
-  const [churnResult, setChurnResult] = useState(null)
+  const [churnResult, setChurnResult] = useState<ChurnResult | null>(null)
 
-  const { data: infoData } = useQuery({
+  // TODO type: biAnomalyApi.getInfo response
+  const { data: infoData } = useQuery<{ sklearn_available?: boolean; lgbm_available?: boolean }>({
     queryKey: ['bi-anomaly-info'],
     queryFn: () => biAnomalyApi.getInfo().then(r => r.data),
   })
 
-  const anomalyMutation = useMutation({
+  const anomalyMutation = useMutation<AnomalyResult, unknown, { metric: string }>({
     mutationFn: (payload) => biAnomalyApi.detect(payload).then(r => r.data),
     onSuccess: setAnomalyResult,
   })
 
-  const churnMutation = useMutation({
+  const churnMutation = useMutation<ChurnResult, unknown, { client_id: string; features: ChurnFeatures }>({
     mutationFn: (payload) => biAnomalyApi.churnPredict(payload).then(r => r.data),
     onSuccess: setChurnResult,
   })

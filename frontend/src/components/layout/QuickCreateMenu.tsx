@@ -20,16 +20,22 @@ const ACTIONS = [
   { id: 'smart_schedule', icon: Sparkles, label: 'Auto-planificar tareas IA', color: 'var(--purple)', inline: true },
 ]
 
-function CreateTaskForm({ onClose }) {
+// TODO type: project payload — needs shared type from projectsApi
+interface ProjectOption {
+  id: string | number
+  name: string
+}
+
+function CreateTaskForm({ onClose }: { onClose: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
-  const [title, setTitle] = useState('')
-  const [projectId, setProjectId] = useState('')
-  const inputRef = useRef(null)
+  const [title, setTitle] = useState<string>('')
+  const [projectId, setProjectId] = useState<string>('')
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectOption[]>({
     queryKey: ['projects-quick'],
     queryFn: () => projectsApi.list({ page_size: 200, status: 'active' }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
@@ -106,18 +112,18 @@ function CreateTaskForm({ onClose }) {
   )
 }
 
-export default function QuickCreateMenu({ onClose }) {
+export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
-  const [activeAction, setActiveAction] = useState(null)
-  const panelRef = useRef(null)
+  const [activeAction, setActiveAction] = useState<string | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
 
-  function handleAction(id) {
+  function handleAction(id: string) {
     const action = ACTIONS.find(a => a.id === id)
     if (!action) return
     if (action.inline) { setActiveAction(id); return }

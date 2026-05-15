@@ -2,12 +2,40 @@
  * Cmdb3dGraph.jsx — CMDB dependency graph (D3 force-directed) + blast radius lookup.
  * Connects to /api/v1/sd/cmdb/3d-graph and /api/v1/sd/cmdb/blast-radius/*.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import * as d3 from 'd3'
 import { cmdb3dApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Card, Button, Spinner } from '../ui'
+
+// TODO type: cmdb3dApi payloads — needs shared types
+interface CiNode {
+  id: string
+  label?: string
+  layer?: number
+  type?: string
+  [k: string]: unknown
+}
+
+interface CiEdge {
+  source: string | CiNode
+  target: string | CiNode
+  type?: string
+  [k: string]: unknown
+}
+
+interface GraphData {
+  nodes?: CiNode[]
+  edges?: CiEdge[]
+}
+
+interface BlastResult {
+  error?: string
+  affected_cis?: string[]
+  affected_count?: number
+  [k: string]: unknown
+}
 
 const LAYER_COLORS = [
   'var(--accent)',
@@ -19,7 +47,7 @@ const LAYER_COLORS = [
 ]
 const LAYER_LABELS = ['Aplicación', 'Infraestructura', 'Red', 'Base de datos', 'Servicio', 'Externo']
 
-const fieldLabel = {
+const fieldLabel: React.CSSProperties = {
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   color: 'var(--text-3)',
@@ -27,7 +55,7 @@ const fieldLabel = {
   letterSpacing: '0.06em',
   marginBottom: 4,
 }
-const inputBase = {
+const inputBase: React.CSSProperties = {
   width: '100%',
   background: 'var(--surface-3)',
   border: '1px solid var(--surface-4)',
@@ -40,15 +68,16 @@ const inputBase = {
   boxSizing: 'border-box',
 }
 
-export default function Cmdb3dGraph({ className = '' }) {
+export default function Cmdb3dGraph({ className = '' }: { className?: string }) {
   const t = useAppT()
-  const svgRef = useRef(null)
-  const simulationRef = useRef(null)
-  const [blastCiId, setBlastCiId] = useState('')
-  const [blastResult, setBlastResult] = useState(null)
-  const [maxNodes, setMaxNodes] = useState(80)
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  // TODO type: d3.Simulation generics — keep loose to avoid widening every callsite
+  const simulationRef = useRef<d3.Simulation<CiNode, CiEdge> | null>(null)
+  const [blastCiId, setBlastCiId] = useState<string>('')
+  const [blastResult, setBlastResult] = useState<BlastResult | null>(null)
+  const [maxNodes, setMaxNodes] = useState<number>(80)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<GraphData>({
     queryKey: ['cmdb-3d-graph', maxNodes],
     queryFn: () => cmdb3dApi.getGraph({ max_nodes: maxNodes }).then(r => r.data),
   })
@@ -63,7 +92,7 @@ export default function Cmdb3dGraph({ className = '' }) {
     }
   }
 
-  const renderGraph = useCallback((graphData, width) => {
+  const renderGraph = useCallback((graphData: GraphData | undefined, width?: number) => {
     if (!graphData || !svgRef.current) return
     const nodes = (graphData.nodes ?? []).map(n => ({ ...n }))
     const links = (graphData.edges ?? []).map(e => ({ ...e }))

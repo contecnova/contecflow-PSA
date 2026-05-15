@@ -7,15 +7,15 @@
  *   POST /sd/auto-resolution/run-close-job           -> { processed, auto_closed, validated, failed, status, timestamp }
  *   POST /sd/tickets/{id}/auto-resolution/feedback   { success: bool } -> { recorded, ticket_id, success }
  */
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { autoResolutionApi, ticketsApi } from '../../services/api'
 import { Card, Button, Spinner, Modal, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 
-const card = { padding: '20px 22px' }
+const card: React.CSSProperties = { padding: '20px 22px' }
 
-const fieldLabel = {
+const fieldLabel: React.CSSProperties = {
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   color: 'var(--text-3)',
@@ -24,7 +24,14 @@ const fieldLabel = {
   marginBottom: 6,
 }
 
-function StatCard({ label, value, accent, sub }) {
+interface StatCardProps {
+  label: string
+  value?: number | string | null
+  accent: string
+  sub?: React.ReactNode
+}
+
+function StatCard({ label, value, accent, sub }: StatCardProps) {
   return (
     <div style={{
       flex: '1 1 140px',
@@ -47,10 +54,10 @@ function StatCard({ label, value, accent, sub }) {
   )
 }
 
-function FeedbackModal({ ticketId, onClose }) {
+function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClose: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
-  const [success, setSuccess] = useState(true)
+  const [success, setSuccess] = useState<boolean>(true)
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => ticketsApi.autoResolutionFeedback(ticketId, { success }),
@@ -109,8 +116,8 @@ function FeedbackModal({ ticketId, onClose }) {
   )
 }
 
-function FeedbackLookup({ onOpen }) {
-  const [id, setId] = useState('')
+function FeedbackLookup({ onOpen }: { onOpen: (id: string) => void }) {
+  const [id, setId] = useState<string>('')
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
       <input
@@ -132,7 +139,7 @@ function FeedbackLookup({ onOpen }) {
   )
 }
 
-function formatDurationMs(ms) {
+function formatDurationMs(ms: number | null | undefined): string {
   if (!Number.isFinite(ms) || ms == null) return '—'
   if (ms < 1000) return `${ms} ms`
   const sec = Math.round(ms / 1000)
@@ -142,7 +149,7 @@ function formatDurationMs(ms) {
   return `${min}m ${rem}s`
 }
 
-function formatDateTime(value) {
+function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—'
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return '—'
@@ -152,8 +159,9 @@ function formatDateTime(value) {
 export default function AutoResolutionPanel() {
   const toast = useToast()
   const qc = useQueryClient()
-  const [feedbackTicketId, setFeedbackTicketId] = useState(null)
-  const [cfgDraft, setCfgDraft] = useState(null)
+  const [feedbackTicketId, setFeedbackTicketId] = useState<string | number | null>(null)
+  // TODO type: auto-resolution config payload — needs shared type
+  const [cfgDraft, setCfgDraft] = useState<Record<string, unknown> | null>(null)
 
   const { data: config, isLoading: configLoading } = useQuery({
     queryKey: ['sd-auto-resolution-config'],

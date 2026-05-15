@@ -10,7 +10,7 @@
  *   POST /sd/changes/{cr_id}/rollout-plans/{plan_id}/simulate
  *   POST /sd/changes/{cr_id}/rollback                         { reason }
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { changeRolloutApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -18,7 +18,33 @@ import { GitBranch, ChevronRight, CheckCircle, AlertTriangle, RotateCcw, Play, P
 import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 
-const STATUS_META = {
+// TODO type: changeRolloutApi rollout plan/phase payloads — needs shared types
+interface RolloutPhase {
+  name: string
+  description?: string
+  target_pct: number
+  duration_minutes?: number
+  gate_criteria?: string[]
+}
+
+interface RolloutPlan {
+  id: string | number
+  name?: string
+  change_request_id: string
+  strategy: string
+  status?: string
+  risk_level?: string
+  rollout_phases?: RolloutPhase[]
+}
+
+interface RolloutForm {
+  change_request_id: string
+  strategy: string
+  phases: number
+  name: string
+}
+
+const STATUS_META: Record<string, { label: string; color: string }> = {
   draft:        { label: 'Borrador',   color: 'var(--text-3)' },
   approved:     { label: 'Aprobado',   color: 'var(--success)' },
   in_progress:  { label: 'En curso',   color: 'var(--accent)' },
@@ -26,21 +52,21 @@ const STATUS_META = {
   completed:    { label: 'Completado', color: 'var(--success)' },
 }
 
-const RISK_COLOR = {
+const RISK_COLOR: Record<string, string> = {
   low: 'var(--success)',
   medium: 'var(--warning)',
   high: 'var(--orange)',
   critical: 'var(--danger)',
 }
 
-const STRATEGY_LABEL = {
+const STRATEGY_LABEL: Record<string, string> = {
   canary:     'Canary',
   blue_green: 'Blue/Green',
   rolling:    'Rolling',
   big_bang:   'Big Bang',
 }
 
-const fieldLabel = {
+const fieldLabel: React.CSSProperties = {
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   color: 'var(--text-3)',
@@ -48,7 +74,7 @@ const fieldLabel = {
   letterSpacing: '0.06em',
   marginBottom: 6,
 }
-const inputBase = {
+const inputBase: React.CSSProperties = {
   width: '100%',
   background: 'var(--surface-3)',
   border: '1px solid var(--surface-4)',
@@ -60,7 +86,7 @@ const inputBase = {
   outline: 'none',
   boxSizing: 'border-box',
 }
-const chip = (color) => ({
+const chip = (color: string): React.CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   textTransform: 'uppercase',
@@ -77,7 +103,7 @@ const chip = (color) => ({
  * Build canonical rollout_phases from strategy + total phases.
  * Each strategy maps to a sensible default progression.
  */
-function buildPhases(strategy, total) {
+function buildPhases(strategy: string, total: number | string): RolloutPhase[] {
   const n = Math.max(1, Math.min(10, Number(total) || 3))
   switch (strategy) {
     case 'canary': {
@@ -122,23 +148,24 @@ export default function ChangeRolloutPanel() {
   const toast = useToast()
   const qc = useQueryClient()
 
-  const [selectedId, setSelectedId] = useState(null)
-  const [showCreate, setShowCreate] = useState(false)
-  const [changeRequestFilter, setChangeRequestFilter] = useState('')
-  const [form, setForm] = useState({ change_request_id: '', strategy: 'canary', phases: 3, name: '' })
-  const [simulate, setSimulate] = useState(null)
+  const [selectedId, setSelectedId] = useState<string | number | null>(null)
+  const [showCreate, setShowCreate] = useState<boolean>(false)
+  const [changeRequestFilter, setChangeRequestFilter] = useState<string>('')
+  const [form, setForm] = useState<RolloutForm>({ change_request_id: '', strategy: 'canary', phases: 3, name: '' })
+  // TODO type: simulate response — needs shared type
+  const [simulate, setSimulate] = useState<Record<string, unknown> | null>(null)
 
-  const { data: plansData, isLoading } = useQuery({
+  const { data: plansData, isLoading } = useQuery<{ items?: RolloutPlan[] }>({
     queryKey: ['change-rollout-plans', changeRequestFilter],
     queryFn: () => changeRolloutApi.listPlans(changeRequestFilter).then(r => r.data),
     enabled: Boolean(changeRequestFilter.trim()),
   })
 
-  const plans = plansData?.items ?? []
+  const plans: RolloutPlan[] = plansData?.items ?? []
   const selectedPlan = plans.find(p => p.id === selectedId)
 
   const createMutation = useMutation({
-    mutationFn: (data) => {
+    mutationFn: (data: RolloutForm) => {
       const phases = buildPhases(data.strategy, data.phases)
       return changeRolloutApi.createPlan(data.change_request_id, {
         title: data.name?.trim() || `Plan ${STRATEGY_LABEL[data.strategy] || data.strategy}`,

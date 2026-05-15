@@ -7,22 +7,39 @@
  *   t('common.save')             → "Guardar" | "Save" | ...
  *   t('tasks.new_task', 'es')    → fuerza español independientemente
  */
-import { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { APP_LANGUAGES, APP_TRANSLATIONS, loadLanguage } from './appTranslations'
 import { deepMergeTranslations, resolveTranslation, getByPath } from './translationRuntime.mjs'
 import api from '../services/api'
 
-export const AppLangContext = createContext(null)
+// TODO type: translations come from .mjs runtime with deep dynamic shape; keep loose
+type TranslationModule = Record<string, unknown>
+type Translations = Record<string, TranslationModule>
+type CustomTranslations = Record<string, TranslationModule>
+
+interface AppLangContextValue {
+  lang: string
+  setLang: (code: string) => void
+  t: (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
+  translations: Translations
+  baseTranslations: Translations
+  setCustomTranslations: (data: CustomTranslations) => void
+  customTrans: CustomTranslations
+  loading: boolean
+  allTranslations: Record<string, Translations>
+}
+
+export const AppLangContext = createContext<AppLangContextValue | null>(null)
 
 export const STORAGE_KEY = 'contecflow_operator_lang'
 
 // Traducciones custom guardadas por el admin (sobreescriben las base)
 const CUSTOM_KEY = 'contecflow_custom_translations'
 
-function mergeCustom(base, custom) {
+function mergeCustom(base: Translations, custom: CustomTranslations | null | undefined): Translations {
   if (!custom || typeof custom !== 'object') return base
-  const merged = { ...base }
+  const merged: Translations = { ...base }
   for (const mod of Object.keys(base)) {
     merged[mod] = {
       ...base[mod],
@@ -32,7 +49,7 @@ function mergeCustom(base, custom) {
   return merged
 }
 
-function mergeWithEnglishFallback(targetLang) {
+function mergeWithEnglishFallback(targetLang: string): Translations {
   const safeLang = APP_TRANSLATIONS[targetLang] ? targetLang : 'es'
   const target = APP_TRANSLATIONS[safeLang] || APP_TRANSLATIONS.es || {}
   if (safeLang === 'en') return target
@@ -40,14 +57,14 @@ function mergeWithEnglishFallback(targetLang) {
   return deepMergeTranslations(english, target)
 }
 
-function isTestEnvironment() {
+function isTestEnvironment(): boolean {
   if (typeof process !== 'undefined' && process.env?.VITEST) return true
   if (typeof import.meta !== 'undefined' && import.meta.env?.MODE === 'test') return true
   return false
 }
 
-export function AppLangProvider({ children }) {
-  const [lang, setLangState] = useState(() => {
+export function AppLangProvider({ children }: { children?: ReactNode }) {
+  const [lang, setLangState] = useState<string>(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) return stored
     // Detectar idioma navegador (primer acceso)
@@ -59,22 +76,22 @@ export function AppLangProvider({ children }) {
   const user = auth?.user ?? null
   const inTest = isTestEnvironment()
 
-  const [customTrans, setCustomTrans] = useState(() => {
+  const [customTrans, setCustomTrans] = useState<CustomTranslations>(() => {
     try {
       const stored = localStorage.getItem(CUSTOM_KEY)
       return stored ? JSON.parse(stored) : {}
     } catch { return {} }
   })
-  const [baseTranslations, setBaseTranslations] = useState(() => inTest ? mergeWithEnglishFallback(lang) : {})
-  const [translations, setTranslations] = useState(() => {
+  const [baseTranslations, setBaseTranslations] = useState<Translations>(() => inTest ? mergeWithEnglishFallback(lang) : {})
+  const [translations, setTranslations] = useState<Translations>(() => {
     if (!inTest) return {}
     const base = mergeWithEnglishFallback(lang)
     const custom = customTrans[lang] || {}
     return mergeCustom(base, custom)
   })
-  const [loading, setLoading] = useState(() => !inTest)
+  const [loading, setLoading] = useState<boolean>(() => !inTest)
 
-  const resolveRawByFullKey = useCallback((fullKey) => {
+  const resolveRawByFullKey = useCallback((fullKey: string): string | undefined => {
     if (!fullKey || typeof fullKey !== 'string' || !fullKey.includes('.')) return undefined
     const parts = fullKey.split('.')
     const moduleName = parts[0]
@@ -125,7 +142,7 @@ export function AppLangProvider({ children }) {
     setLoading(false)
   }, [inTest, lang, customTrans])
 
-  const setLang = useCallback((code) => {
+  const setLang = useCallback((code: string) => {
     setLangState(code)
     localStorage.setItem(STORAGE_KEY, code)
     // Solo persistir en backend si hay usuario autenticado
@@ -137,18 +154,18 @@ export function AppLangProvider({ children }) {
   // Escuchar evento de sincronización de idioma (emitido por useUserPreferences
   // al cargar o actualizar prefs del backend)
   useEffect(() => {
-    const handler = (e) => {
-      const code = e.detail?.lang
+    const handler = (e: Event) => {
+      const code = (e as CustomEvent<{ lang?: string }>).detail?.lang
       if (code) {
         setLangState(code)
         localStorage.setItem(STORAGE_KEY, code)
       }
     }
-    window.addEventListener('contecflow-lang-sync', handler)
-    return () => window.removeEventListener('contecflow-lang-sync', handler)
+    window.addEventListener('contecflow-lang-sync', handler as EventListener)
+    return () => window.removeEventListener('contecflow-lang-sync', handler as EventListener)
   }, [])
 
-  const setCustomTranslations = useCallback((data) => {
+  const setCustomTranslations = useCallback((data: CustomTranslations) => {
     setCustomTrans(data)
     localStorage.setItem(CUSTOM_KEY, JSON.stringify(data))
   }, [])
@@ -158,7 +175,7 @@ export function AppLangProvider({ children }) {
   //   t('module', 'key')
   //   t('module.key', { var: value })
   //   t('module.key', 'Fallback')
-  const t = useCallback((moduleOrFullKey, keyOrParams) => {
+  const t = useCallback((moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>): string => {
     // Detect if second argument is an interpolation params object
     const isParams = keyOrParams !== null
       && typeof keyOrParams === 'object'
@@ -177,8 +194,8 @@ export function AppLangProvider({ children }) {
 
     const key = isParams ? undefined : keyOrParams
 
-    let module
-    let keyPath = []
+    let module: string | undefined
+    let keyPath: string[] = []
     if (key) {
       module = moduleOrFullKey
       keyPath = String(key).split('.')
@@ -202,8 +219,8 @@ export function AppLangProvider({ children }) {
 
     // Apply interpolation: replace {varName} placeholders
     if (params && typeof trans === 'string') {
-      trans = trans.replace(/\{(\w+)\}/g, (_, name) =>
-        params[name] !== undefined ? params[name] : `{${name}}`
+      trans = trans.replace(/\{(\w+)\}/g, (_: string, name: string) =>
+        (params as Record<string, unknown>)[name] !== undefined ? String((params as Record<string, unknown>)[name]) : `{${name}}`
       )
     }
 

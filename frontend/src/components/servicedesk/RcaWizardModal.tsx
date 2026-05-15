@@ -11,15 +11,30 @@
  *   POST /sd/problems/{id}/rca-wizard/ai-assist{ step }
  *   POST /sd/problems/{id}/rca-wizard/complete
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { problemsApi } from '../../services/api'
 import { Button, Spinner, Modal } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { COLOR } from '../../constants/theme'
 
-const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const LS = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
+// TODO type: problemsApi RCA wizard payloads — needs shared types
+interface WizardStepDef {
+  prompt?: string
+  hint?: string
+  answer?: string
+  [k: string]: unknown
+}
+
+interface WizardState {
+  steps?: WizardStepDef[]
+  current_step?: number
+  template?: string
+  [k: string]: unknown
+}
+
+const IS: React.CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const LS: React.CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
 const TEMPLATES = [
   { value: 'five_whys',     label: '5 Porqués',       desc: 'Iteración de causas encadenadas' },
@@ -27,8 +42,8 @@ const TEMPLATES = [
   { value: 'itil_standard', label: 'ITIL estándar',    desc: 'Flujo ITIL Problem Management' },
 ]
 
-function TemplateSelector({ onStart, isPending }) {
-  const [tpl, setTpl] = useState('five_whys')
+function TemplateSelector({ onStart, isPending }: { onStart: (template: string) => void; isPending: boolean }) {
+  const [tpl, setTpl] = useState<string>('five_whys')
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
@@ -54,17 +69,24 @@ function TemplateSelector({ onStart, isPending }) {
   )
 }
 
-function WizardStep({ problemId, state, onRefresh, onComplete }) {
+interface WizardStepProps {
+  problemId: string | number
+  state: WizardState | null | undefined
+  onRefresh: () => void
+  onComplete: (result: unknown) => void
+}
+
+function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps) {
   const toast = useToast()
-  const steps = state?.steps ?? []
+  const steps: WizardStepDef[] = state?.steps ?? []
   const currentStep = state?.current_step ?? 0
   const totalSteps = steps.length
   const isLast = currentStep >= totalSteps - 1
-  const stepDef = steps[currentStep] ?? {}
+  const stepDef: WizardStepDef = steps[currentStep] ?? {}
 
-  const [answer, setAnswer] = useState('')
-  const [aiHint, setAiHint] = useState(null)
-  const [aiLoading, setAiLoading] = useState(false)
+  const [answer, setAnswer] = useState<string>('')
+  const [aiHint, setAiHint] = useState<string | null>(null)
+  const [aiLoading, setAiLoading] = useState<boolean>(false)
 
   const { mutate: submitStep, isPending: submitting } = useMutation({
     mutationFn: () => problemsApi.rcaWizardStep(problemId, { step: currentStep, answer }),
@@ -168,7 +190,13 @@ function WizardStep({ problemId, state, onRefresh, onComplete }) {
   )
 }
 
-export default function RcaWizardModal({ problem, onClose, onCompleted }) {
+interface RcaWizardModalProps {
+  problem: { id: string | number; number?: string; title?: string }
+  onClose: () => void
+  onCompleted: (result?: unknown) => void
+}
+
+export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWizardModalProps) {
   const qc = useQueryClient()
   const toast = useToast()
 

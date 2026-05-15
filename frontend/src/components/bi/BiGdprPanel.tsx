@@ -9,7 +9,7 @@
  *   Máscaras       — Field-level masking rules (hash/redact/partial/suppress/pseudonymize).
  *   Estadísticas   — KPI dashboard: pending DSRs, SLA overdue, consent totals, type breakdown.
  */
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biGdprApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -17,6 +17,18 @@ import {
   Shield, AlertTriangle, CheckCircle, Download, Trash2,
   Clock, Users, ToggleLeft, ToggleRight,
 } from 'lucide-react'
+
+// TODO type: biGdprApi payloads — needs shared types
+interface DsrItem {
+  id: string | number
+  user_id: string
+  request_type: string
+  status: string
+  created_at: string
+  deadline?: string
+  notes?: string
+  [k: string]: unknown
+}
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
@@ -33,23 +45,30 @@ const S = {
   sectionTitle: { fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 },
 }
 
-const TYPE_COLOR  = { erasure: 'var(--danger)', portability: 'var(--accent)', rectification: 'var(--warning)', restriction: 'var(--purple)' }
-const STATUS_COLOR= { pending: 'var(--warning)', completed: 'var(--success)', rejected: 'var(--danger)' }
+const TYPE_COLOR: Record<string, string>  = { erasure: 'var(--danger)', portability: 'var(--accent)', rectification: 'var(--warning)', restriction: 'var(--purple)' }
+const STATUS_COLOR: Record<string, string>= { pending: 'var(--warning)', completed: 'var(--success)', rejected: 'var(--danger)' }
 
-function fmt(iso) {
+function fmt(iso?: string): string {
   if (!iso) return '—'
   try { return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }
   catch { return iso }
 }
 
-function isOverdue(dsr) {
+function isOverdue(dsr: DsrItem): boolean {
   if (dsr.status !== 'pending') return false
   const dl = dsr.deadline ? new Date(dsr.deadline) : new Date(new Date(dsr.created_at).getTime() + 30 * 864e5)
   return Date.now() > dl.getTime()
 }
 
 // ── KPI card ──────────────────────────────────────────────────────────────────
-function StatCard({ icon, label, value, color = 'var(--accent)' }) {
+interface StatCardProps {
+  icon: React.ReactNode
+  label: string
+  value?: number | string | null
+  color?: string
+}
+
+function StatCard({ icon, label, value, color = 'var(--accent)' }: StatCardProps) {
   return (
     <div style={{ ...S.innerCard, display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', flex: 1, minWidth: 130 }}>
       <div style={{ width: 36, height: 36, borderRadius: 10, background: `color-mix(in srgb, ${color} 13%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>
@@ -64,12 +83,18 @@ function StatCard({ icon, label, value, color = 'var(--accent)' }) {
 }
 
 // ── Tab DSR ───────────────────────────────────────────────────────────────────
+interface DsrForm {
+  user_id: string
+  request_type: string
+  notes: string
+}
+
 function DsrTab() {
   const t  = useAppT()
   const qc = useQueryClient()
-  const [form, setForm]         = useState({ user_id: '', request_type: 'erasure', notes: '' })
-  const [statusFilter, setFilter] = useState('')
-  const [expandedId, setExpanded] = useState(null)
+  const [form, setForm]         = useState<DsrForm>({ user_id: '', request_type: 'erasure', notes: '' })
+  const [statusFilter, setFilter] = useState<string>('')
+  const [expandedId, setExpanded] = useState<string | number | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['bi-gdpr-dsr', statusFilter],
@@ -211,8 +236,8 @@ function DsrTab() {
 function ConsentTab() {
   const t  = useAppT()
   const qc = useQueryClient()
-  const [form, setForm]         = useState({ user_id: '', purpose: 'analytics', channel: 'web' })
-  const [histUserId, setHistUser] = useState(null)
+  const [form, setForm]         = useState<{ user_id: string; purpose: string; channel: string }>({ user_id: '', purpose: 'analytics', channel: 'web' })
+  const [histUserId, setHistUser] = useState<string | null>(null)
 
   const { data: consentsData, isLoading } = useQuery({
     queryKey: ['bi-gdpr-consents'],
@@ -325,7 +350,7 @@ function ConsentTab() {
 function MasksTab() {
   const t  = useAppT()
   const qc = useQueryClient()
-  const [form, setForm] = useState({ entity: 'user', field: 'email', mask_type: 'hash' })
+  const [form, setForm] = useState<{ entity: string; field: string; mask_type: string }>({ entity: 'user', field: 'email', mask_type: 'hash' })
 
   const { data: masksData } = useQuery({
     queryKey: ['bi-gdpr-masks'],
@@ -337,7 +362,7 @@ function MasksTab() {
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-gdpr-masks'] }),
   })
 
-  const MASK_COLOR = { hash: 'var(--accent)', redact: 'var(--danger)', partial: 'var(--warning)', suppress: 'var(--purple)', pseudonymize: 'var(--info)' }
+  const MASK_COLOR: Record<string, string> = { hash: 'var(--accent)', redact: 'var(--danger)', partial: 'var(--warning)', suppress: 'var(--purple)', pseudonymize: 'var(--info)' }
 
   return (
     <div>
@@ -430,7 +455,7 @@ function StatsTab() {
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function BiGdprPanel() {
   const t   = useAppT()
-  const [tab, setTab] = useState('dsr')
+  const [tab, setTab] = useState<string>('dsr')
 
   const TAB_NAV = [
     { id: 'dsr',     label: 'DSR' },

@@ -6,7 +6,7 @@
  *   POST /bi/etl/connectors/{id}/sync                -> { task_id, connector_id, status, queue }
  *   GET  /bi/etl/connectors/{id}/log                 -> sync history
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biEtlApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -14,7 +14,31 @@ import { RefreshCw, CheckCircle, AlertCircle, Clock, ChevronDown, ChevronUp, Dat
 import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 
-const STATUS_META = {
+// TODO type: biEtlApi connector payload — needs shared type
+interface Connector {
+  connector_id: string
+  enabled?: boolean
+  status?: string
+  last_sync_at?: string | null
+  last_records?: number | null
+}
+
+interface ConnectorLogEntry {
+  id?: string | number
+  timestamp?: string
+  status?: string
+  records?: number
+  message?: string
+  [k: string]: unknown
+}
+
+interface StatusMetaEntry {
+  label: string
+  color: string
+  Icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>
+}
+
+const STATUS_META: Record<string, StatusMetaEntry> = {
   connected:    { label: 'Conectado',    color: 'var(--success)', Icon: CheckCircle },
   disconnected: { label: 'Desconectado', color: 'var(--text-3)',  Icon: AlertCircle },
   error:        { label: 'Error',        color: 'var(--danger)',  Icon: AlertCircle },
@@ -22,7 +46,7 @@ const STATUS_META = {
   queued:       { label: 'En cola',      color: 'var(--accent)',  Icon: Clock },
 }
 
-const CONNECTOR_LABEL = {
+const CONNECTOR_LABEL: Record<string, string> = {
   azure_devops:  'Azure DevOps',
   jira:          'Jira',
   github:        'GitHub',
@@ -38,7 +62,7 @@ const CONNECTOR_LABEL = {
   s3:            'AWS S3',
 }
 
-const fieldLabel = {
+const fieldLabel: React.CSSProperties = {
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   color: 'var(--text-3)',
@@ -46,7 +70,7 @@ const fieldLabel = {
   letterSpacing: '0.06em',
   marginBottom: 6,
 }
-const chip = (color) => ({
+const chip = (color: string): React.CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   textTransform: 'uppercase',
@@ -59,7 +83,17 @@ const chip = (color) => ({
   whiteSpace: 'nowrap',
 })
 
-function ConnectorCard({ connector, onSync, syncing, expanded, onToggleLog, log, logLoading }) {
+interface ConnectorCardProps {
+  connector: Connector
+  onSync: (id: string) => void
+  syncing: boolean
+  expanded: boolean
+  onToggleLog: () => void
+  log?: ConnectorLogEntry[] | null
+  logLoading: boolean
+}
+
+function ConnectorCard({ connector, onSync, syncing, expanded, onToggleLog, log, logLoading }: ConnectorCardProps) {
   const meta = STATUS_META[connector.status] || STATUS_META.disconnected
   const Icon = meta.Icon
   const label = CONNECTOR_LABEL[connector.connector_id] || connector.connector_id
@@ -170,22 +204,22 @@ export default function BiEtlPanel() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [syncingIds, setSyncingIds] = useState(new Set())
-  const [expandedId, setExpandedId] = useState(null)
+  const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set())
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<{ connectors?: Connector[] }>({
     queryKey: ['bi-etl-connectors'],
     queryFn: () => biEtlApi.listConnectors().then(r => r.data),
     refetchInterval: 30_000,
   })
 
-  const { data: logData, isLoading: logLoading } = useQuery({
+  const { data: logData, isLoading: logLoading } = useQuery<{ items?: ConnectorLogEntry[] } | ConnectorLogEntry[]>({
     queryKey: ['bi-etl-connector-log', expandedId],
     queryFn: () => biEtlApi.getLog(expandedId).then(r => r.data),
     enabled: !!expandedId,
   })
 
-  const syncMutation = useMutation({
+  const syncMutation = useMutation<{ queue?: string }, { response?: { data?: { detail?: string } } }, string>({
     mutationFn: (connectorId) =>
       biEtlApi.triggerSync(connectorId, { extra_config: {} }).then(r => r.data),
     onMutate: (id) => setSyncingIds(s => new Set([...s, id])),

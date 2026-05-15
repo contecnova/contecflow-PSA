@@ -7,26 +7,42 @@
  *   POST /sd/alert-clusters/merge              { ticket_ids, auto_rca } -> { ok, problem_id, problem_number, linked_tickets }
  *   POST /sd/alert-clusters/run-scan           -> stats summary
  */
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { alertClustersApi } from '../../services/api'
 import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 
-const PRIORITY_LABELS = {
+// TODO type: alertClustersApi payload — needs shared type
+interface AlertCluster {
+  cluster_id: string | number
+  size: number
+  ticket_ids?: Array<string | number>
+  ticket_numbers?: string[]
+  ci_id?: string
+  category?: string
+  priority?: string
+  correlation_score?: number
+  suggested_action?: string
+  root_ci_ids?: string[]
+  earliest_at?: string
+  latest_at?: string
+}
+
+const PRIORITY_LABELS: Record<string, string> = {
   p1_critical: 'P1 Crítico',
   p2_high: 'P2 Alto',
   p3_medium: 'P3 Medio',
   p4_low: 'P4 Bajo',
 }
 
-const ACTION_META = {
+const ACTION_META: Record<string, { label: string; color: string }> = {
   create_problem: { label: 'Crear problema', color: 'var(--danger)' },
   review:         { label: 'Revisar',          color: 'var(--warning)' },
   monitor:        { label: 'Monitorizar',      color: 'var(--text-3)' },
 }
 
-const fieldLabel = {
+const fieldLabel: React.CSSProperties = {
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   color: 'var(--text-3)',
@@ -34,7 +50,7 @@ const fieldLabel = {
   letterSpacing: '0.06em',
   marginBottom: 6,
 }
-const chip = (color) => ({
+const chip = (color: string): React.CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   textTransform: 'uppercase',
@@ -47,7 +63,7 @@ const chip = (color) => ({
   whiteSpace: 'nowrap',
 })
 
-function StatCard({ label, value, accent }) {
+function StatCard({ label, value, accent }: { label: string; value?: number | string | null; accent: string }) {
   return (
     <div style={{
       flex: '1 1 140px',
@@ -67,7 +83,15 @@ function StatCard({ label, value, accent }) {
   )
 }
 
-function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }) {
+interface ClusterCardProps {
+  cluster: AlertCluster
+  onMerge: (ids: Array<string | number>) => void
+  merging: boolean
+  expanded: boolean
+  onToggle: () => void
+}
+
+function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterCardProps) {
   const sizeColor = cluster.size >= 10 ? 'var(--danger)' : cluster.size >= 5 ? 'var(--warning)' : 'var(--success)'
   const score = Math.round((cluster.correlation_score ?? 0) * 100)
   const action = ACTION_META[cluster.suggested_action] || ACTION_META.monitor
@@ -159,7 +183,7 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }) {
 export default function AlertCorrelationPanel() {
   const toast = useToast()
   const qc = useQueryClient()
-  const [expanded, setExpanded] = useState({})
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   const { data: clustersData, isLoading: clustersLoading } = useQuery({
     queryKey: ['sd-alert-clusters'],
