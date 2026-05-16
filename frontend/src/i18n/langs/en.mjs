@@ -1480,6 +1480,7 @@ const en = {
     no_department: 'No department',
     no_billing: 'Unspecified',
     no_phases: 'No phases defined for this project',
+    phases: 'Phases',
     empty: 'No projects to display',
 
   },
@@ -1650,6 +1651,8 @@ const en = {
     created_ok: 'Project "{project_name}" ({project_code}) created successfully',
     use_template: 'Use template',
     preview: 'Preview',
+    view_detail: 'View detail',
+    create_from_template: 'Create project from template',
     hide_detail: 'Hide detail',
     create_project_from: 'Create project from',
     project_name_label: 'Project name',
@@ -1659,6 +1662,12 @@ const en = {
     start_date_label: 'Start date',
     cancel: 'Cancel',
     create_project: 'Create project',
+    weeks_abbr: 'wk',
+    deliverables: 'Deliverables',
+    phase: 'Phase',
+    predefined_risks: 'Predefined risks',
+    creation_error: 'Project creation error',
+    project_name_required: 'Project name is required',
   },
 
   calendar: {

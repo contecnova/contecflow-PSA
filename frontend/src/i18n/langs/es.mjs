@@ -1698,6 +1698,7 @@ const es = {
     no_department: 'Sin departamento',
     no_billing: 'Sin especificar',
     no_phases: 'No hay fases definidas en este proyecto',
+    phases: 'Fases',
     empty: 'No hay proyectos para mostrar',
 
   },
@@ -3019,6 +3020,12 @@ const es = {
     start_date_label: 'Fecha de inicio',
     cancel: 'Cancelar',
     create_project: 'Crear proyecto',
+    weeks_abbr: 'sem',
+    deliverables: 'Entregables',
+    phase: 'Fase',
+    predefined_risks: 'Riesgos predefinidos',
+    creation_error: 'Error al crear el proyecto',
+    project_name_required: 'El nombre del proyecto es obligatorio',
   },
 
   dashboard: {

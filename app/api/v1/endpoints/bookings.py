@@ -68,7 +68,10 @@ def list_bookings(
     end_date: Optional[str] = None,
     booking_type: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    # ResourceSchedulerPage loads the full planner in one request (~hundreds of
+    # bookings spanning weeks). Cap raised to 1000; the service ignores
+    # page_size today so this is a metadata-only knob.
+    page_size: int = Query(50, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
