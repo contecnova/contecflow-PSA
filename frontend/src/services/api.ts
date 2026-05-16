@@ -24,6 +24,26 @@ api.interceptors.request.use((config) => {
 // which would invalidate the rotating refresh token for all but the first caller.
 let _refreshPromise = null
 
+// APIListResponse compatibility — audit #67 migrated many list endpoints to
+// `{ items: T[], meta: { total, page, page_size, has_more } }`. Consumers that
+// iterate `response.data` directly would crash with "X is not iterable". This
+// interceptor detects the exact APIListResponse shape and unwraps it to the
+// items array, exposing the meta on `response.meta` for callers that need
+// pagination. Endpoints that return bare arrays or single objects are unchanged.
+api.interceptors.response.use((res) => {
+  const body = res?.data
+  if (
+    body && typeof body === 'object' && !Array.isArray(body) &&
+    Array.isArray(body.items) &&
+    body.meta && typeof body.meta === 'object' &&
+    Object.keys(body).length === 2
+  ) {
+    res.meta = body.meta
+    res.data = body.items
+  }
+  return res
+})
+
 // Auto-refresh on 401 — cookies are sent automatically; no localStorage needed
 api.interceptors.response.use(
   (res) => res,
