@@ -76,6 +76,14 @@ export function ClientAuthProvider({ children }) {
   const [idleMinutes, setIdleMinutes] = useState(30)
   useEffect(() => {
     let mounted = true
+    // Only probe /portal/auth/me when localStorage has a hint that a portal
+    // session existed in this browser. First-time visitors of /portal go
+    // straight to the login screen without a noisy 401 in the console.
+    const hasPortalHint = !!localStorage.getItem('client_user')
+    if (!hasPortalHint) {
+      setIsReady(true)
+      return () => { mounted = false }
+    }
     CLIENT_API.get('/portal/auth/me')
       .then((res) => {
         if (!mounted) return
