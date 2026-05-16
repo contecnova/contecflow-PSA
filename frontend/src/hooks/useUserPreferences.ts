@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useCallback, useRef } from 'react'
 // TODO type: services/api still JS.
 import api from '../services/api'
+import { useAuth } from '../context/AuthContext'
 
 export type ThemeMode = 'freight' | 'dark' | 'light' | 'high-contrast' | 'midnight' | 'slate' | 'system' | string
 export type UIDensity = 'compact' | 'normal' | 'comfortable' | string
@@ -40,12 +41,14 @@ const DEFAULTS: UserPreferences = {
 
 export function useUserPreferences(): UseUserPreferencesResult {
   const qc = useQueryClient()
+  const { user } = useAuth()
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { data: prefs = DEFAULTS, isLoading } = useQuery<UserPreferences>({
     queryKey: ['user-preferences'],
     queryFn: () => api.get('/users/me/preferences').then((r: { data: UserPreferences }) => r.data).catch(() => DEFAULTS),
     staleTime: 5 * 60 * 1000,
+    enabled: !!user?.id,
   })
 
   const { mutate: saveMutation } = useMutation({

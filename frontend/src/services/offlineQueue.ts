@@ -6,7 +6,11 @@
  * to /api/v1/imputations in order and removed from the queue.
  */
 
-const DB_NAME   = 'contecflow_offline';
+// IMPORTANT: a separate DB from biOfflineDb / offlineSync (Dexie).
+// They share the 'contecflow_offline' name and bump versions over time,
+// which would force this raw-IDB consumer into an unrecoverable VersionError
+// once Dexie's version surpasses ours.
+const DB_NAME   = 'contecflow_offline_queue';
 const DB_VERSION = 1;
 const STORE     = 'imputations_queue';
 
