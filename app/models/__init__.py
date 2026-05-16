@@ -150,6 +150,16 @@ from app.models.service_desk_ai_governance import (  # noqa: F401
 from app.models.bi_collaboration import (  # noqa: F401
     DashboardComment, DashboardVersion, DashboardShare, DashboardNotification,
 )
+from app.models.cab import (  # noqa: F401
+    CABVote, MaintenanceWindow, ChangeRequestWindow,
+    WebhookTrigger, WebhookTriggerLog,
+    EmailTemplate, EmailLog,
+    GDPRRequest, IntegrationConfig, CommitLink,
+    CalendarEvent, RevenueRecognitionRule, RevenueRecognitionEntry,
+    DashboardWidget, OnboardingState, ProjectRiskScore,
+)
+from app.models.automations import AutomationRule, AutomationExecution  # noqa: F401
+from app.models.expenses import Expense  # noqa: F401
 from app.models.collaboration import (  # noqa: F401
     ConversationKind, ChannelType, TeamRole, ChannelRole,
     MessageType, MessageStatus, ReactionEmoji,
