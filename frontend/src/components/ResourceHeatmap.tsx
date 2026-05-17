@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ResourceHeatmap — Visual weekly load heatmap per team member
  * Shows hard/soft bookings, utilization %, and overload warnings
@@ -11,6 +10,58 @@ import { Button, Modal, Spinner, EmptyState } from './ui'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { useAppT } from '../i18n/AppLangContext'
+
+interface ProjectItem {
+  id: string | number
+  code?: string
+  name?: string
+}
+
+interface UserItem {
+  id: string | number
+  full_name?: string
+  role?: string
+}
+
+interface BookingPrefill {
+  user_id?: string | number
+  week?: string
+}
+
+interface BookingItem {
+  id: string | number
+  user_name?: string
+  booking_type?: 'hard' | 'soft'
+  project_name?: string
+  start_date?: string
+  end_date?: string
+  hours_per_day?: number
+  total_hours?: number
+}
+
+interface HeatmapWeek {
+  status: 'overloaded' | 'high' | 'ok' | 'free'
+  hard_hours: number
+  soft_hours: number
+  capacity: number
+  available: number
+  utilization_pct: number
+  week_label: string
+  week: string
+}
+
+interface HeatmapUser {
+  user_id: string | number
+  user_name: string
+  role?: string
+  avg_utilization: number
+  weeks: HeatmapWeek[]
+}
+
+interface HeatmapData {
+  users?: HeatmapUser[]
+  week_labels?: string[]
+}
 
 const STATUS_COLORS = {
   overloaded: { bg: 'var(--danger-border)', border: 'rgba(248,113,113,0.50)', text: 'var(--danger)', label: 'Sobrecargado' },
@@ -64,7 +115,7 @@ const bookingSchema = z.object({
   }
 })
 
-function BookingModal({ onClose, prefill }) {
+function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: BookingPrefill | null }) {
   const t = useAppT()
   const qc = useQueryClient()
   const [form, setForm] = useState({
@@ -78,17 +129,17 @@ function BookingModal({ onClose, prefill }) {
   })
   const validation = useFormValidation(bookingSchema)
 
-  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []) })
-  const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
-  const projects = Array.isArray(projRaw) ? projRaw : []
-  const users = Array.isArray(usersRaw) ? usersRaw : []
+  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => r.data?.items ?? r.data ?? []) })
+  const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list({}).then(r => r.data) })
+  const projects = projRaw as ProjectItem[]
+  const users = usersRaw as UserItem[]
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => api.post('/bookings', d),
-    onSuccess: () => { qc.invalidateQueries(['heatmap']); qc.invalidateQueries(['bookings']); validation.setErrors({}); onClose() },
+    mutationFn: (d: unknown) => api.post('/bookings', d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['heatmap'] }); qc.invalidateQueries({ queryKey: ['bookings'] }); validation.setErrors({}); onClose() },
   })
 
-  const setField = (key) => (e) => {
+  const setField = (key: 'user_id' | 'project_id' | 'booking_type' | 'start_date' | 'end_date' | 'hours_per_day' | 'note') => (e: { target: { value: string } }) => {
     const value = key === 'hours_per_day' ? +e.target.value : e.target.value
     setForm(current => ({ ...current, [key]: value }))
     validation.clearFieldError(key)
@@ -157,26 +208,27 @@ export default function ResourceHeatmap() {
   const qc = useQueryClient()
   const [weeks, setWeeks] = useState(8)
   const [showBooking, setShowBooking] = useState(false)
-  const [bookingPrefill, setBookingPrefill] = useState(null)
+  const [bookingPrefill, setBookingPrefill] = useState<BookingPrefill | null>(null)
   const [filterStatus, setFilterStatus] = useState('')
   const [showBookingsPanel, setShowBookingsPanel] = useState(false)
 
-  const { data: heatmapData, isLoading } = useQuery({
+  const { data: heatmapData } = useQuery<HeatmapData>({
     queryKey: ['heatmap', weeks],
     queryFn: () => api.get('/bookings/heatmap', { params: { weeks } }).then(r => r.data),
     refetchInterval: 60000,
   })
+  const isLoading = !heatmapData
 
   const { data: bookingsRaw = [] } = useQuery({
     queryKey: ['bookings'],
     queryFn: () => api.get('/bookings').then(r => r.data?.items ?? r.data ?? []),
     enabled: showBookingsPanel,
   })
-  const bookings = Array.isArray(bookingsRaw) ? bookingsRaw : []
+  const bookings = bookingsRaw as BookingItem[]
 
   const { mutate: deleteBooking } = useMutation({
-    mutationFn: id => api.delete(`/bookings/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['heatmap']); qc.invalidateQueries(['bookings']) },
+    mutationFn: (id: string | number) => api.delete(`/bookings/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['heatmap'] }); qc.invalidateQueries({ queryKey: ['bookings'] }) },
   })
 
   const users = heatmapData?.users || []

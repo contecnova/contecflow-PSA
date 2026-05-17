@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useState } from 'react'
+import { CSSProperties, useState } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalClientsApi, clientsApi } from '../../services/api'
@@ -7,31 +6,97 @@ import { Button, EmptyState, Modal } from '../../components/ui'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
-const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+type PortalUsersTabProps = {
+  cid: string | number
+  clientName?: string
+}
 
-export function PortalUsersTab({ cid, clientName }) {
+type ProjectItem = {
+  id: string
+  code: string
+  name: string
+}
+
+type ClientDetail = {
+  projects?: ProjectItem[]
+}
+
+type PortalUser = {
+  id: string
+  full_name: string
+  email: string
+  job_title?: string | null
+  phone?: string | null
+  project_ids?: string[]
+  project_id?: string | null
+  is_active: boolean
+  can_approve_deliverables?: boolean
+  can_request_changes?: boolean
+  can_view_budget?: boolean
+  can_view_team?: boolean
+  last_login?: string | null
+}
+
+type ResetTarget = {
+  id: string
+  email: string
+}
+
+type Credentials = {
+  email: string
+  password: string
+}
+
+type PortalForm = {
+  full_name: string
+  email: string
+  job_title: string
+  phone: string
+  project_ids: string[]
+  password: string
+  confirm_password: string
+  can_approve_deliverables: boolean
+  can_request_changes: boolean
+  can_view_budget: boolean
+  can_view_team: boolean
+}
+
+type PortalEditForm = Omit<PortalForm, 'password' | 'confirm_password'>
+
+const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+
+const emptyForm = (): PortalForm => ({
+  full_name: '',
+  email: '',
+  job_title: '',
+  phone: '',
+  project_ids: [],
+  password: '',
+  confirm_password: '',
+  can_approve_deliverables: true,
+  can_request_changes: true,
+  can_view_budget: false,
+  can_view_team: false,
+})
+
+export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
   const toast = useToast()
   const qc = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
-  const [showReset, setShowReset] = useState(null)
+  const [showReset, setShowReset] = useState<ResetTarget | null>(null)
   const [newPassword, setNewPassword] = useState('')
-  const [createdCreds, setCreatedCreds] = useState(null)
-  const [editUser, setEditUser] = useState(null)
-  const [editForm, setEditForm] = useState({})
-  const [form, setForm] = useState({
-    full_name: '', email: '', job_title: '', phone: '',
-    project_ids: [], password: '', confirm_password: '',
-    can_approve_deliverables: true, can_request_changes: true,
-    can_view_budget: false, can_view_team: false,
-  })
+  const [createdCreds, setCreatedCreds] = useState<Credentials | null>(null)
+  const [editUser, setEditUser] = useState<PortalUser | null>(null)
+  const [editForm, setEditForm] = useState<PortalEditForm | null>(null)
+  const [form, setForm] = useState<PortalForm>(emptyForm)
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<PortalUser[]>({
     queryKey: ['portal-clients-org', cid],
     queryFn: () => portalClientsApi.list({ client_org_id: cid }).then(r => r.data),
   })
-  const { data: clientDetail } = useQuery({
+  const { data: clientDetail } = useQuery<ClientDetail>({
     queryKey: ['client-detail-projects', cid],
     queryFn: () => clientsApi.get(cid).then(r => r.data),
   })
@@ -39,39 +104,40 @@ export function PortalUsersTab({ cid, clientName }) {
   const projectLabelById = new Map(projects.map(p => [p.id, `${p.code} — ${p.name}`]))
 
   const { mutate: add, isPending } = useMutation({
-    mutationFn: d => portalClientsApi.create(d).then(r => r.data),
+    mutationFn: (d: PortalForm & { client_org_id: string | number; project_ids?: string[] }) => portalClientsApi.create(d).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries(['portal-clients-org', cid])
+      qc.invalidateQueries({ queryKey: ['portal-clients-org', cid] })
       setShowAdd(false)
       setCreatedCreds({ email: form.email, password: form.password })
-      setForm({ full_name: '', email: '', job_title: '', phone: '', project_ids: [], password: '', confirm_password: '', can_approve_deliverables: true, can_request_changes: true, can_view_budget: false, can_view_team: false })
+      setForm(emptyForm())
     },
-    onError: e => toast.error(extractErr(e, 'Error al crear usuario')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al crear usuario')),
   })
 
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ id, active }) => portalClientsApi.update(id, { is_active: active }),
-    onSuccess: () => qc.invalidateQueries(['portal-clients-org', cid]),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => portalClientsApi.update(id, { is_active: active }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-clients-org', cid] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const { mutate: resetPwd, isPending: resetting } = useMutation({
-    mutationFn: ({ id, password }) => portalClientsApi.update(id, { password }),
-    onSuccess: () => { qc.invalidateQueries(['portal-clients-org', cid]); setShowReset(null); setNewPassword('') },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: ({ id, password }: { id: string; password: string }) => portalClientsApi.update(id, { password }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-clients-org', cid] }); setShowReset(null); setNewPassword('') },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: updateUser, isPending: updating } = useMutation({
-    mutationFn: ({ id, data }) => portalClientsApi.update(id, data).then(r => r.data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<PortalEditForm> }) => portalClientsApi.update(id, data).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries(['portal-clients-org', cid])
+      qc.invalidateQueries({ queryKey: ['portal-clients-org', cid] })
       setEditUser(null)
+      setEditForm(null)
       toast.success('Usuario actualizado correctamente')
     },
-    onError: e => toast.error(extractErr(e, 'Error al actualizar usuario')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar usuario')),
   })
 
-  const openEdit = (u) => {
+  const openEdit = (u: PortalUser) => {
     setEditUser(u)
     setEditForm({
       full_name: u.full_name || '',
@@ -112,7 +178,7 @@ export function PortalUsersTab({ cid, clientName }) {
       {users.length === 0
         ? <EmptyState icon="🔐" title="Sin usuarios de portal" description="Crea el primer acceso del cliente al portal" />
         : users.map(u => {
-          const assignedProjects = (u.project_ids || []).map(pid => projectLabelById.get(pid)).filter(Boolean)
+          const assignedProjects = (u.project_ids || []).map(pid => projectLabelById.get(pid)).filter((label): label is string => Boolean(label))
           return (
           <div key={u.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, opacity: u.is_active ? 1 : 0.5 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -218,6 +284,8 @@ export function PortalUsersTab({ cid, clientName }) {
 
       {editUser && (
         <Modal open title={`✏️ Editar: ${editUser.full_name}`} onClose={() => setEditUser(null)} width={560}>
+          {editForm && (
+            <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
               <label style={lbl}>Nombre completo *</label>
@@ -257,7 +325,7 @@ export function PortalUsersTab({ cid, clientName }) {
                 { key: 'can_request_changes',      label: '↩ Puede solicitar cambios',   desc: 'Enviar solicitudes de cambio' },
                 { key: 'can_view_budget',           label: 'Puede ver presupuesto',    desc: 'Ver consumo vs presupuesto' },
                 { key: 'can_view_team',             label: 'Puede ver equipo',          desc: 'Ver miembros del equipo asignado' },
-              ].map(p => (
+              ].map((p: { key: keyof Pick<PortalEditForm, 'can_approve_deliverables' | 'can_request_changes' | 'can_view_budget' | 'can_view_team'>; label: string; desc: string }) => (
                 <label key={p.key} style={{
                   display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer',
                   background: editForm[p.key] ? 'var(--accent-muted)' : 'transparent',
@@ -300,6 +368,8 @@ export function PortalUsersTab({ cid, clientName }) {
               {updating ? '⟳ Guardando...' : '💾 Guardar cambios'}
             </Button>
           </div>
+            </>
+          )}
         </Modal>
       )}
 

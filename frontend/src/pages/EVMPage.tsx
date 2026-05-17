@@ -1,10 +1,10 @@
-// @ts-nocheck
 /**
  * EVMPage — Earned Value Management
  * Vista de cartera con CPI, SPI, EAC, VAC, TCPI para todos los proyectos activos.
  * Drill-down por proyecto con métricas completas y gauge visual.
  */
 import React, { useState } from 'react';
+import type { ComponentType } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { projectsApi } from '../services/api';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, DollarSign, Target, BarChart2, ChevronRight } from 'lucide-react';
@@ -12,17 +12,49 @@ import PageHeader from '../components/layout/PageHeader';
 import PageShell from '../components/layout/PageShell'
 import { useAppT } from '../i18n/AppLangContext';
 
+type IdType = string | number
+type HealthKey = 'green' | 'yellow' | 'red' | 'grey'
+
+interface EvmData {
+  project_id?: IdType
+  project_name?: string
+  start_date?: string
+  planned_end?: string
+  done_tasks?: number
+  total_tasks?: number
+  health?: HealthKey
+  pct_complete?: number
+  pct_time_elapsed?: number
+  bac?: number
+  pv?: number
+  ev?: number
+  ac?: number
+  cpi?: number
+  spi?: number
+  tcpi?: number
+  cv?: number
+  sv?: number
+  eac?: number
+  etc?: number
+  vac?: number
+}
+
 // ── helpers ─────────────────────────────────────────────────────────────────
-const fmt = (n, dec = 2) => n == null ? '—' : Number(n).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
-const fmtEur = (n) => n == null ? '—' : `${fmt(n, 0)} €`;
-const fmtPct = (n) => n == null ? '—' : `${fmt(n, 1)} %`;
-const fmtIdx = (n) => n == null ? '—' : fmt(n, 3);
+const fmt = (n: number | null | undefined, dec = 2) => n == null ? '—' : Number(n).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+const fmtEur = (n: number | null | undefined) => n == null ? '—' : `${fmt(n, 0)} €`;
+const fmtPct = (n: number | null | undefined) => n == null ? '—' : `${fmt(n, 1)} %`;
+const fmtIdx = (n: number | null | undefined) => n == null ? '—' : fmt(n, 3);
 
-const HEALTH_COLOR = { green: 'var(--success)', yellow: 'var(--warning)', red: 'var(--danger)', grey: 'var(--text-3)' };
-const HEALTH_LABEL = { green: 'En control', yellow: 'Atención', red: 'En riesgo', grey: 'Sin datos' };
-const HEALTH_ICON  = { green: CheckCircle, yellow: AlertTriangle, red: AlertTriangle, grey: Clock };
+const HEALTH_COLOR: Record<HealthKey, string> = { green: 'var(--success)', yellow: 'var(--warning)', red: 'var(--danger)', grey: 'var(--text-3)' };
+const HEALTH_LABEL: Record<HealthKey, string> = { green: 'En control', yellow: 'Atención', red: 'En riesgo', grey: 'Sin datos' };
+const HEALTH_ICON: Record<HealthKey, ComponentType<{ size?: number; color?: string }>>  = {
+  green: CheckCircle as unknown as ComponentType<{ size?: number; color?: string }>,
+  yellow: AlertTriangle as unknown as ComponentType<{ size?: number; color?: string }>,
+  red: AlertTriangle as unknown as ComponentType<{ size?: number; color?: string }>,
+  grey: Clock as unknown as ComponentType<{ size?: number; color?: string }>,
+};
 
-function IndexBadge({ label, value, good, format = fmtIdx }) {
+function IndexBadge({ label, value, good, format = fmtIdx }: { label: string; value?: number | null; good?: number; format?: (n: number | null | undefined) => string }) {
   const color = value == null ? 'var(--text-3)' : value >= (good || 0.9) ? 'var(--success)' : value >= 0.8 ? 'var(--warning)' : 'var(--danger)';
   return (
     <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '12px 16px', minWidth: 120 }}>
@@ -32,7 +64,7 @@ function IndexBadge({ label, value, good, format = fmtIdx }) {
   );
 }
 
-function VarianceBadge({ label, value }) {
+function VarianceBadge({ label, value }: { label: string; value?: number | null }) {
   const pos = value == null ? null : value >= 0;
   const color = pos == null ? 'var(--text-3)' : pos ? 'var(--success)' : 'var(--danger)';
   const Icon  = pos == null ? null : pos ? TrendingUp : TrendingDown;
@@ -47,12 +79,12 @@ function VarianceBadge({ label, value }) {
   );
 }
 
-function ProgressBar({ pct, color = 'var(--accent)', label }) {
+function ProgressBar({ pct, color = 'var(--accent)', label }: { pct?: number | null; color?: string; label?: string }) {
   return (
     <div>
       {label && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>}
       <div style={{ background: 'var(--surface-3)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
-        <div style={{ width: `${Math.min(pct, 100)}%`, background: color, height: '100%', transition: 'width 0.5s' }} />
+        <div style={{ width: `${Math.min(pct ?? 0, 100)}%`, background: color, height: '100%', transition: 'width 0.5s' }} />
       </div>
       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{fmtPct(pct)}</div>
     </div>
@@ -60,12 +92,13 @@ function ProgressBar({ pct, color = 'var(--accent)', label }) {
 }
 
 // ── Detail panel ─────────────────────────────────────────────────────────────
-function EVMDetail({ projectId, onClose }) {
-  const { data, isLoading, isError } = useQuery({
+function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: () => void }) {
+  const { data: dataRaw, isLoading, isError } = useQuery({
     queryKey: ['evm', projectId],
     queryFn: () => projectsApi.evm(projectId).then(r => r.data),
     enabled: !!projectId,
   });
+  const data = (dataRaw ?? null) as EvmData | null
 
   if (!projectId) return null;
 
@@ -93,8 +126,8 @@ function EVMDetail({ projectId, onClose }) {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8,
               color: HEALTH_COLOR[data.health], fontWeight: 600, fontSize: "var(--text-md)" }}>
-              {React.createElement(HEALTH_ICON[data.health], { size: 16 })}
-              {HEALTH_LABEL[data.health]}
+              {React.createElement(HEALTH_ICON[data.health || 'grey'], { size: 16 })}
+              {HEALTH_LABEL[data.health || 'grey']}
             </div>
           </div>
 
@@ -162,13 +195,14 @@ function EVMDetail({ projectId, onClose }) {
 // ── Portfolio table ───────────────────────────────────────────────────────────
 export default function EVMPage(): JSX.Element {
   const t = useAppT();
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState<IdType | null>(null);
 
-  const { data: portfolio = [], isLoading } = useQuery({
+  const { data: portfolioRaw = [], isLoading } = useQuery({
     queryKey: ['evm-portfolio'],
     queryFn: () => projectsApi.evmPortfolio().then(r => r.data),
     staleTime: 60000,
   });
+  const portfolio = portfolioRaw as EvmData[]
 
   return (
     <PageShell>
@@ -186,7 +220,7 @@ export default function EVMPage(): JSX.Element {
         const avgSpi  = withSpi.length ? withSpi.reduce((s, p) => s + p.spi, 0) / withSpi.length : null;
         const totalBac = portfolio.reduce((s, p) => s + (p.bac || 0), 0);
         const totalAc  = portfolio.reduce((s, p) => s + (p.ac || 0), 0);
-        const reds     = portfolio.filter(p => p.health === 'red').length;
+        const reds     = portfolio.filter((p) => p.health === 'red').length;
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
             {[
@@ -225,8 +259,9 @@ export default function EVMPage(): JSX.Element {
             </thead>
             <tbody>
               {portfolio.map((p, i) => {
-                const hc = HEALTH_COLOR[p.health];
-                const HIcon = HEALTH_ICON[p.health];
+                const health = p.health || 'grey'
+                const hc = HEALTH_COLOR[health];
+                const HIcon = HEALTH_ICON[health];
                 return (
                   <tr key={p.project_id}
                     onClick={() => setSelected(p.project_id)}
@@ -241,9 +276,9 @@ export default function EVMPage(): JSX.Element {
                     <td style={{ padding: '12px 14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{ width: 60, background: 'var(--surface-4)', borderRadius: 3, height: 6 }}>
-                          <div style={{ width: `${p.pct_complete}%`, background: hc, height: '100%', borderRadius: 3 }} />
+                          <div style={{ width: `${p.pct_complete ?? 0}%`, background: hc, height: '100%', borderRadius: 3 }} />
                         </div>
-                        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{p.pct_complete}%</span>
+                        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{p.pct_complete ?? 0}%</span>
                       </div>
                     </td>
                     <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtEur(p.bac)}</td>

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * NPSPage — Customer NPS & Health trend dashboard
  *
@@ -20,20 +19,51 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Star } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import type { CSSProperties } from 'react'
 
-const fs = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+interface ClientItem {
+  id: string | number
+  name?: string
+  contact_email?: string
+}
+
+interface LeaderboardItem {
+  client_id: string | number
+  client_name?: string
+  health_score: number
+}
+
+interface NpsTrendPoint {
+  month: string
+  nps: number
+}
+
+interface NpsSummary {
+  nps?: number
+  promoters?: number
+  passives?: number
+  detractors?: number
+  trend?: NpsTrendPoint[]
+}
+
+interface HealthSnapshot {
+  snapshot_at: string
+  health_score: number
+}
+
+const fs: CSSProperties = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-const HEALTH_COLOR = (score) => score >= 75 ? 'var(--success)' : score >= 50 ? 'var(--orange)' : 'var(--danger)'
+const HEALTH_COLOR = (score: number) => score >= 75 ? 'var(--success)' : score >= 50 ? 'var(--orange)' : 'var(--danger)'
 
-function HealthBadge({ score }) {
+function HealthBadge({ score }: { score: number }) {
   const c = HEALTH_COLOR(score)
   return (
     <span style={{ fontWeight: 800, fontSize: "var(--text-md-em)", color: c }}>{Math.round(score)}</span>
   )
 }
 
-function NpsTrendChart({ trend }) {
+function NpsTrendChart({ trend }: { trend?: NpsTrendPoint[] }) {
   const t = useAppT();
   if (!trend || trend.length === 0) {
     return <div style={{ textAlign: 'center', padding: 24, color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('nps.no_trend')}</div>;
@@ -53,7 +83,7 @@ function NpsTrendChart({ trend }) {
   )
 }
 
-function HealthChart({ data }) {
+function HealthChart({ data }: { data?: HealthSnapshot[] }) {
   const t = useAppT();
   if (!data || data.length === 0) {
     return <div style={{ textAlign: 'center', padding: 24, color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('nps.no_health_snapshots')}</div>;
@@ -83,7 +113,7 @@ function HealthChart({ data }) {
   )
 }
 
-function NPSGauge({ nps }) {
+function NPSGauge({ nps }: { nps?: number | null }) {
   const t = useAppT();
   if (nps === null || nps === undefined) return <div style={{ color: 'var(--surface-5)', fontSize: "var(--text-base)", textAlign: 'center', padding: 12 }}>{t('nps.no_data')}</div>;
   const color = nps >= 50 ? 'var(--success)' : nps >= 0 ? 'var(--orange)' : 'var(--danger)'
@@ -97,7 +127,7 @@ function NPSGauge({ nps }) {
 
 export default function NPSPage() {
   const t = useAppT()
-  const [clientId,    setClientId]    = useState(null)
+  const [clientId,    setClientId]    = useState<string | number | null>(null)
   const [npsDays,     setNpsDays]     = useState(90)
   const [scoreInput,  setScoreInput]  = useState(9)
   const [comment,     setComment]     = useState('')
@@ -105,32 +135,39 @@ export default function NPSPage() {
   const [submitting,  setSubmitting]  = useState(false)
   const qc = useQueryClient()
 
-  const { data: leaderboard = [] } = useQuery({
+  const { data: leaderboardRaw = [] } = useQuery({
     queryKey: ['health-leaderboard'],
     queryFn: () => npsApi.leaderboard().then(r => r.data),
     refetchInterval: 60000,
   })
+  const leaderboard = leaderboardRaw as LeaderboardItem[]
 
-  const { data: clients = [] } = useQuery({
+  const { data: clientsRaw = [] } = useQuery({
     queryKey: ['clients-list-nps'],
-    queryFn: () => clientsApi.list().then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
+    queryFn: () => clientsApi.list({ page_size: 300 }).then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
   })
+  const clients = clientsRaw as ClientItem[]
 
-  const { data: summary } = useQuery({
+  const { data: summaryRaw } = useQuery({
     queryKey: ['nps-summary', clientId, npsDays],
     queryFn: () => npsApi.summary(clientId, npsDays).then(r => r.data),
     enabled: !!clientId,
   })
+  const summary = (summaryRaw ?? null) as NpsSummary | null
 
-  const { data: health = [] } = useQuery({
+  const { data: healthRaw = [] } = useQuery({
     queryKey: ['health-history', clientId],
     queryFn: () => npsApi.health(clientId, 30).then(r => r.data),
     enabled: !!clientId,
   })
+  const health = healthRaw as HealthSnapshot[]
 
-  const { mutate: computeHealth, isLoading: computing } = useMutation({
+  const { mutate: computeHealth, isPending: computing } = useMutation({
     mutationFn: () => npsApi.healthCompute(clientId),
-    onSuccess: () => qc.invalidateQueries(['health-history', clientId, 'health-leaderboard']),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['health-history', clientId] })
+      qc.invalidateQueries({ queryKey: ['health-leaderboard'] })
+    },
   })
 
   const submitNPS = async () => {
@@ -141,13 +178,13 @@ export default function NPSPage() {
         score: Number(scoreInput), comment, respondent, source: 'manual',
       })
       setComment(''); setRespondent(''); setScoreInput(9)
-      qc.invalidateQueries(['nps-summary', clientId, npsDays])
+      qc.invalidateQueries({ queryKey: ['nps-summary', clientId, npsDays] })
     } finally {
       setSubmitting(false)
     }
   }
 
-  const selectedClient = clients.find(c => c.id === clientId)
+  const selectedClient = clients.find((c) => c.id === clientId)
   const latestHealth = health[0]?.health_score
 
   return (
@@ -227,7 +264,7 @@ export default function NPSPage() {
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{t('nps.nps')}</div>
                 <select value={npsDays} onChange={e => setNpsDays(Number(e.target.value))}
                   style={{ ...fs, width: 120 }}>
-                  {[30, 60, 90, 180, 365].map(d => <option key={d} value={d}>{t('nps.last_days').replace('{d}', d)}</option>)}
+                  {[30, 60, 90, 180, 365].map(d => <option key={d} value={d}>{t('nps.last_days').replace('{d}', String(d))}</option>)}
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 16, alignItems: 'center' }}>

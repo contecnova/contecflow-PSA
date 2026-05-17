@@ -1,8 +1,7 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
-import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, risksApi } from '../services/api'
 import { Card, Button, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs } from '../components/ui'
@@ -13,9 +12,77 @@ import { fmtCurrency, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 
+type RiskLevel = 'critical' | 'high' | 'medium' | 'low' | string
+type RiskStatus = 'identified' | 'analyzing' | 'mitigating' | 'monitoring' | 'closed' | 'materialized' | string
+type RiskProbability = 'very_low' | 'low' | 'medium' | 'high' | 'very_high' | string
+type RiskImpact = 'negligible' | 'minor' | 'moderate' | 'major' | 'critical' | string
+
+type ProjectItem = { id: string | number; code?: string; name: string }
+type UserItem = { id: string | number; full_name?: string }
+
+type RiskItem = {
+  id: string | number
+  code?: string
+  project_id: string | number
+  project_name?: string
+  title: string
+  description?: string
+  category?: string
+  category_label?: string
+  probability: RiskProbability
+  probability_label?: string
+  impact: RiskImpact
+  impact_label?: string
+  status: RiskStatus
+  status_label?: string
+  response_type?: string
+  owner_id?: string | number
+  owner_name?: string
+  review_date?: string
+  cost_impact_min?: number | string
+  cost_impact_max?: number | string
+  schedule_impact_days?: number | string
+  mitigation_plan?: string
+  contingency_plan?: string
+  notes?: string
+  risk_level?: RiskLevel
+}
+
+type RiskSummary = {
+  total?: number
+  open?: number
+  critical_count?: number
+  high_count?: number
+}
+
+type RisksResponse = {
+  risks: RiskItem[]
+  summary: RiskSummary
+}
+
+type RiskFormState = {
+  title: string
+  description: string
+  category: string
+  probability: RiskProbability
+  impact: RiskImpact
+  status: RiskStatus
+  mitigation_plan: string
+  contingency_plan: string
+  response_type: string
+  owner_id: string
+  review_date: string
+  cost_impact_min: number | string
+  cost_impact_max: number | string
+  schedule_impact_days: number | string
+  notes: string
+}
+
+type SortKey = 'risk_level' | 'title' | 'status' | 'project_name'
+
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
 const PROB_OPTIONS = [
@@ -61,10 +128,10 @@ const LEVEL_CFG = {
   low:      { color: 'var(--success)', bg: 'var(--success-bg)', label: 'Bajo' },
 }
 
-function RiskMatrix({ risks }) {
+function RiskMatrix({ risks }: { risks: RiskItem[] }) {
   const probs = ['very_low', 'low', 'medium', 'high', 'very_high']
   const impacts = ['negligible', 'minor', 'moderate', 'major', 'critical']
-  const t = useAppT()
+  const t = useAppT() as (key: string) => string
   const probLabels = {
     very_low: t('risks.options.prob_very_low_short'),
     low: t('risks.options.prob_low_short'),
@@ -80,7 +147,7 @@ function RiskMatrix({ risks }) {
     critical: t('risks.options.impact_critical_short'),
   }
 
-  const getColor = (p, i) => {
+  const getColor = (p: string, i: string) => {
     const ps = probs.indexOf(p)
     const is = impacts.indexOf(i)
     const score = (ps + 1) * (is + 1)
@@ -90,7 +157,7 @@ function RiskMatrix({ risks }) {
     return 'var(--success)'
   }
 
-  const cellRisks = (p, i) => risks.filter(r => r.probability === p && r.impact === i)
+  const cellRisks = (p: string, i: string) => risks.filter((r) => r.probability === p && r.impact === i)
 
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -132,13 +199,13 @@ function RiskMatrix({ risks }) {
   )
 }
 
-function RiskFormModal({ risk, projectId, onClose }) {
+function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; projectId: string | number; onClose: () => void }) {
+  const t = useAppT() as (key: string) => string
   const qc = useQueryClient()
   const toast = useToast()
-  const { _invalidate } = useInvalidate()
   const isEdit = !!risk?.id
-  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
-  const [form, setForm] = useState({
+  const { data: users = [] } = useQuery<UserItem[]>({ queryKey: ['users'], queryFn: () => usersApi.list({}).then(r => r.data as UserItem[]) })
+  const [form, setForm] = useState<RiskFormState>({
     title: risk?.title || '',
     description: risk?.description || '',
     category: risk?.category || 'technical',
@@ -148,22 +215,22 @@ function RiskFormModal({ risk, projectId, onClose }) {
     mitigation_plan: risk?.mitigation_plan || '',
     contingency_plan: risk?.contingency_plan || '',
     response_type: risk?.response_type || 'mitigate',
-    owner_id: risk?.owner_id || '',
+    owner_id: risk?.owner_id != null ? String(risk.owner_id) : '',
     review_date: risk?.review_date || '',
     cost_impact_min: risk?.cost_impact_min || '',
     cost_impact_max: risk?.cost_impact_max || '',
     schedule_impact_days: risk?.schedule_impact_days || '',
     notes: risk?.notes || '',
   })
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const set = <K extends keyof RiskFormState>(k: K) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value as RiskFormState[K] }))
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => isEdit
+    mutationFn: (data: RiskFormState) => isEdit && risk
       ? risksApi.update(projectId, risk.id, data)
       : risksApi.create(projectId, data),
-    onSuccess: () => { qc.invalidateQueries(['risks', projectId]); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['risks', projectId] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -208,7 +275,7 @@ function RiskFormModal({ risk, projectId, onClose }) {
           <label style={ls}>{t('risks.form.owner')}</label>
           <select value={form.owner_id} onChange={set('owner_id')} style={fs}>
             <option value="">{t('risks.form.unassigned')}</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            {users.map(u => <option key={u.id} value={String(u.id)}>{u.full_name}</option>)}
           </select>
         </div>
         <div>
@@ -251,38 +318,38 @@ function RiskFormModal({ risk, projectId, onClose }) {
 }
 
 export default function RisksPage() {
-  const t = useAppT()
+  const t = useAppT() as (key: string) => string
   const toast = useToast()
   const [selectedProject, setSelectedProject] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [tab, setTab] = useState('register')
+  const [editing, setEditing] = useState<RiskItem | null>(null)
+  const [tab, setTab] = useState<'register' | 'matrix'>('register')
   const [riskLevelFilter, setRiskLevelFilter] = useState('')
-  const [riskSortBy, setRiskSortBy] = useState('risk_level')
-  const [view, setView] = useState('list')
+  const [riskSortBy, setRiskSortBy] = useState<SortKey>('risk_level')
+  const [view, setView] = useState<'list' | 'cards'>('list')
   const qc = useQueryClient()
 
-  const { data: projects = [] } = useQuery({ queryKey: ['projects', { status: 'active' }], queryFn: () => projectsApi.list({ status: 'active' }).then(r => r.data?.items ?? r.data ?? []) })
+  const { data: projects = [] } = useQuery<ProjectItem[]>({ queryKey: ['projects', { status: 'active' }], queryFn: () => projectsApi.list({ status: 'active' }).then(r => (r.data?.items ?? r.data ?? []) as ProjectItem[]) })
 
-  const { data: risksData, isLoading } = useQuery({
+  const { data: risksData, isLoading } = useQuery<RisksResponse>({
     queryKey: ['risks', selectedProject],
     queryFn: () => selectedProject
-      ? risksApi.list(selectedProject).then(r => r.data)
+      ? risksApi.list(selectedProject, {}).then(r => r.data as RisksResponse)
       : risksApi.portfolioAll().then(r => {
-          const items = r.data?.items ?? r.data ?? []
+          const items = (r.data?.items ?? r.data ?? []) as RiskItem[]
           return { risks: items, summary: { total: items.length } }
         }),
   })
 
   const { mutate: deleteRisk } = useMutation({
-    mutationFn: ({ projectId, riskId }) => risksApi.delete(projectId, riskId),
-    onSuccess: () => qc.invalidateQueries(['risks', selectedProject]),
+    mutationFn: ({ projectId, riskId }: { projectId: string | number; riskId: string | number }) => risksApi.delete(projectId, riskId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['risks', selectedProject] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const risks = risksData?.risks || []
-  const summary = risksData?.summary || {}
-  const filteredRisks = riskLevelFilter ? risks.filter(r => r.risk_level === riskLevelFilter) : risks
+  const risks: RiskItem[] = risksData?.risks || []
+  const summary: RiskSummary = risksData?.summary || {}
+  const filteredRisks: RiskItem[] = riskLevelFilter ? risks.filter(r => r.risk_level === riskLevelFilter) : risks
   const { sortedData: sortedRisks } = useSort(filteredRisks, riskSortBy)
 
   return (
@@ -296,7 +363,7 @@ export default function RisksPage() {
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer', minWidth: 200 }}>
               <option value="">{t('risks.all_projects')}</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+              {projects.map(p => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
             </select>
             {selectedProject && <Button onClick={() => setShowCreate(true)} icon="＋">{t('risks.new_risk')}</Button>}
           </div>
@@ -324,7 +391,7 @@ export default function RisksPage() {
           { id: 'matrix',   label: t('risks.tabs.matrix') },
         ]}
         active={tab}
-        onChange={setTab}
+        onChange={(id: string) => setTab(id as 'register' | 'matrix')}
         variant="pill"
         size="sm"
         ariaLabel={t('risks.title')}
@@ -349,7 +416,7 @@ export default function RisksPage() {
               <option value="medium">🟡 {t('risks.options.level_medium')}</option>
               <option value="low">🟢 {t('risks.options.level_low')}</option>
             </select>
-            <select value={riskSortBy} onChange={e => setRiskSortBy(e.target.value)}
+            <select value={riskSortBy} onChange={e => setRiskSortBy(e.target.value as SortKey)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="risk_level">{t('risks.sort.level')}</option>
               <option value="title">{t('risks.sort.title')}</option>
@@ -357,12 +424,12 @@ export default function RisksPage() {
               <option value="project_name">{t('risks.sort.project')}</option>
             </select>
             <div style={{ marginLeft: 'auto' }}>
-              <ViewToggle view={view} onChange={setView} />
+              <ViewToggle view={view} onChange={(v: string) => setView(v as 'list' | 'cards')} />
             </div>
           </div>
           {view === 'list' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {sortedRisks.map(r => {
+          {sortedRisks.map((r: RiskItem) => {
             const lvl = LEVEL_CFG[r.risk_level] || LEVEL_CFG.low
             return (
               <div key={r.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${lvl.color}30`, borderRadius: 12 }}>
@@ -379,7 +446,7 @@ export default function RisksPage() {
                         <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: lvl.bg, color: lvl.color, border: `1px solid ${lvl.color}40` }}>{lvl.label}</span>
                         <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{r.status_label}</span>
                         <button onClick={() => setEditing(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
-                        <button onClick={() => { openConfirmGlobal({ message: t('risks.delete_confirm'), onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id, danger: true }) }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                        <button onClick={() => { openConfirmGlobal({ message: t('risks.delete_confirm'), onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id }), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: r.mitigation_plan ? 8 : 0 }}>
@@ -387,7 +454,7 @@ export default function RisksPage() {
                       <span>Impacto: <span style={{ color: 'var(--text-1)' }}>{r.impact_label}</span></span>
                       {r.category_label && <span>Tipo: <span style={{ color: 'var(--text-1)' }}>{r.category_label}</span></span>}
                       {r.owner_name && <span>Responsable: <span style={{ color: 'var(--text-1)' }}>{r.owner_name}</span></span>}
-                      {r.cost_impact_max && <span>Impacto €: <span style={{ color: 'var(--warning)' }}>hasta {fmtCurrency(r.cost_impact_max)}</span></span>}
+                      {r.cost_impact_max && <span>Impacto €: <span style={{ color: 'var(--warning)' }}>hasta {fmtCurrency(Number(r.cost_impact_max))}</span></span>}
                       {r.schedule_impact_days && <span>Plazo: <span style={{ color: 'var(--warning)' }}>+{r.schedule_impact_days}d</span></span>}
                     </div>
                     {r.mitigation_plan && (
@@ -403,7 +470,7 @@ export default function RisksPage() {
           </div>
           ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
-            {sortedRisks.map(r => {
+            {sortedRisks.map((r: RiskItem) => {
               const lvl = LEVEL_CFG[r.risk_level] || LEVEL_CFG.low
               return (
                 <div key={r.id} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${lvl.color}30`, borderRadius: 12 }}>
@@ -414,7 +481,7 @@ export default function RisksPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button onClick={() => setEditing(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 5, padding: '2px 7px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
-                      <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este riesgo?', onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id, danger: true }) }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 5, padding: '2px 7px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                      <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este riesgo?', onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id }), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 5, padding: '2px 7px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                     </div>
                   </div>
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>{r.title}</div>

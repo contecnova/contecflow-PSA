@@ -1,8 +1,8 @@
-// @ts-nocheck
 import { CHART_COLORS_EXTENDED, COLOR } from '../constants/theme'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -13,23 +13,57 @@ import PageShell from '../components/layout/PageShell'
 import { Layers } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+type EpicStatus = 'open' | 'in_progress' | 'done' | 'cancelled'
+type EpicPriority = 'low' | 'medium' | 'high' | 'critical'
+
+interface ProjectItem {
+  id: string | number
+  name?: string
+}
+
+interface EpicItem {
+  id: string | number
+  title: string
+  description?: string
+  color?: string
+  status?: EpicStatus
+  priority?: EpicPriority
+  start_date?: string
+  end_date?: string
+  sort_order?: number
+  task_count?: number
+  done_tasks?: number
+  progress?: number
+}
+
+interface EpicFormState {
+  title: string
+  description: string
+  color: string
+  status: EpicStatus
+  priority: EpicPriority
+  start_date: string
+  end_date: string
+  sort_order: number
+}
+
+const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const COLORS = CHART_COLORS_EXTENDED
 
-const daysBetween = (a, b) => {
+const daysBetween = (a?: string, b?: string) => {
   if(!a||!b) return 0
-  return Math.max(0, Math.round((new Date(b)-new Date(a))/(1000*60*60*24)))
+  return Math.max(0, Math.round((new Date(b).getTime()-new Date(a).getTime())/(1000*60*60*24)))
 }
 
-function EpicForm({ projectId, epic, onClose }) {
+function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: EpicItem | null; onClose: () => void }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!epic?.id
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<EpicFormState>({
     title:       epic?.title       || '',
     description: epic?.description || '',
     color:       epic?.color       || COLOR.purple,
@@ -39,7 +73,7 @@ function EpicForm({ projectId, epic, onClose }) {
     end_date:    epic?.end_date    || '',
     sort_order:  epic?.sort_order  || 0,
   })
-  const set = k => v => setForm(f=>({...f,[k]:v}))
+  const set = <K extends keyof EpicFormState>(k: K) => (v: EpicFormState[K]) => setForm((f) => ({ ...f, [k]: v }))
 
   const STATUS_CFG = {
     open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'rgba(120,138,170,0.09)' },
@@ -55,11 +89,11 @@ function EpicForm({ projectId, epic, onClose }) {
   }
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit
+    mutationFn: (d: EpicFormState) => isEdit
       ? epicsApi.update(epic.id, d).then(r=>r.data)
       : epicsApi.createForProject(projectId, d).then(r=>r.data),
-    onSuccess: () => { qc.invalidateQueries(['epics',projectId]); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['epics',projectId] }); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
   })
 
   return (
@@ -69,12 +103,12 @@ function EpicForm({ projectId, epic, onClose }) {
         <div><label style={ls}>{t('common.description')}</label><textarea style={{...is,height:70,resize:'vertical'}} value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
           <div><label style={ls}>{t('common.status')}</label>
-            <select style={is} value={form.status} onChange={e=>set('status')(e.target.value)}>
+            <select style={is} value={form.status} onChange={e=>set('status')(e.target.value as EpicStatus)}>
               {Object.entries(STATUS_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
           <div><label style={ls}>{t('common.priority')}</label>
-            <select style={is} value={form.priority} onChange={e=>set('priority')(e.target.value)}>
+            <select style={is} value={form.priority} onChange={e=>set('priority')(e.target.value as EpicPriority)}>
               {Object.entries(PRIORITY_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
@@ -104,22 +138,22 @@ function EpicForm({ projectId, epic, onClose }) {
   )
 }
 
-function RoadmapView({ epics, t }) {
+function RoadmapView({ epics, t }: { epics: EpicItem[]; t: (key: string, params?: Record<string, string | number>) => string }) {
   if(!epics.length) return <EmptyState icon="🗺" title={t('epics.no_epics')} description={t('epics.no_epics_desc')}/>
 
-  const datesWithValues = epics.flatMap(e=>[e.start_date,e.end_date].filter(Boolean))
+  const datesWithValues = epics.flatMap((e) => [e.start_date, e.end_date].filter((v): v is string => Boolean(v)))
   if(!datesWithValues.length) return <div style={{textAlign:'center',padding:40,color:'var(--text-2)',fontSize: "var(--text-base)"}}>{t('epics.no_epics_desc')}</div>
 
-  const minDate = new Date(Math.min(...datesWithValues.map(d=>new Date(d))))
-  const maxDate = new Date(Math.max(...datesWithValues.map(d=>new Date(d))))
+  const minDate = new Date(Math.min(...datesWithValues.map((d) => new Date(d).getTime())))
+  const maxDate = new Date(Math.max(...datesWithValues.map((d) => new Date(d).getTime())))
   const totalDays = Math.max(daysBetween(minDate.toISOString().split('T')[0], maxDate.toISOString().split('T')[0]), 1)
 
-  const pct = (d) => {
+  const pct = (d?: string) => {
     if(!d) return 0
     const diff = daysBetween(minDate.toISOString().split('T')[0], d)
     return Math.min(100, Math.max(0, (diff/totalDays)*100))
   }
-  const width = (sd, ed) => {
+  const width = (sd?: string, ed?: string) => {
     if(!sd||!ed) return 10
     return Math.max(2, pct(ed)-pct(sd))
   }
@@ -145,7 +179,6 @@ function RoadmapView({ epics, t }) {
         {epics.map(epic=>{
           const left  = epic.start_date ? pct(epic.start_date) : 0
           const w     = epic.start_date && epic.end_date ? width(epic.start_date, epic.end_date) : 20
-          const _st    = STATUS_CFG[epic.status]||STATUS_CFG.open
           return (
             <div key={epic.id} style={{display:'flex',alignItems:'center',marginBottom:8,gap:0}}>
               <div style={{width:160,flexShrink:0,fontSize: "var(--text-sm)",fontWeight:500,paddingRight:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'var(--text-1)'}}>
@@ -173,10 +206,10 @@ export default function EpicsPage(): JSX.Element {
   const toast = useToast()
   const qc = useQueryClient()
   const [project,   setProject]   = useState('')
-  const [view,      setView]      = useState('list')   // list | roadmap
+  const [view,      setView]      = useState<'list' | 'roadmap'>('list')
   const [showForm,  setShowForm]  = useState(false)
-  const [editEpic,  setEditEpic]  = useState(null)
-  const [_detailEpic,setDetailEpic]= useState(null)
+  const [editEpic,  setEditEpic]  = useState<EpicItem | null>(null)
+  const [_detailEpic,setDetailEpic]= useState<EpicItem | null>(null)
 
   const STATUS_CFG = {
     open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'rgba(120,138,170,0.09)' },
@@ -191,22 +224,25 @@ export default function EpicsPage(): JSX.Element {
     critical: { label: t('epics.priority_critical'), color:'var(--danger)' },
   }
 
-  const { data:projects=[] } = useQuery({queryKey:['projects'],queryFn:()=>projectsApi.list().then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
-  const { data:epics=[],isLoading } = useQuery({
+  const { data:projectsRaw=[] } = useQuery({queryKey:['projects'],queryFn:()=>projectsApi.list({}).then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
+  const projects = projectsRaw as ProjectItem[]
+  const { data:epicsRaw=[],isLoading } = useQuery({
     queryKey:['epics',project],
     queryFn:()=>epicsApi.list(project).then(r=>r.data).catch(()=>[]),
     enabled:!!project,
   })
-  const { data:roadmap } = useQuery({
+  const epics = epicsRaw as EpicItem[]
+  const { data:roadmapRaw } = useQuery({
     queryKey:['roadmap',project],
     queryFn:()=>epicsApi.roadmap(project).then(r=>r.data).catch(()=>null),
     enabled:!!project&&view==='roadmap',
   })
+  const roadmap = (roadmapRaw ?? null) as { epics?: EpicItem[] } | null
 
   const { mutate:deleteEpic } = useMutation({
-    mutationFn: id=>epicsApi.delete(id),
-    onSuccess:()=>qc.invalidateQueries(['epics',project]),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string | number) => epicsApi.delete(id),
+    onSuccess:()=>qc.invalidateQueries({ queryKey: ['epics',project] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const roadmapEpics = roadmap?.epics || epics

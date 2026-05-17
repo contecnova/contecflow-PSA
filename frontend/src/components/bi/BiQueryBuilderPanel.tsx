@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * BiQueryBuilderPanel.jsx — Self-service visual query builder (no-SQL).
  *
@@ -25,12 +24,14 @@ const btn = (accent: boolean): React.CSSProperties => ({ padding: '7px 16px', bo
 // TODO type: biQueryBuilderApi schema/payload — needs shared type
 interface DatasetField {
   name: string
+  label?: string
   type?: string
   [k: string]: unknown
 }
 
 interface DatasetMeta {
   name: string
+  label?: string
   fields: DatasetField[]
   [k: string]: unknown
 }
@@ -54,13 +55,28 @@ interface AggregationEntry {
 interface SavedQuery {
   id: string | number
   name: string
+  dataset?: string
+  fields?: string[]
+  filters?: Array<{ field?: string; operator?: string; value?: string | null }>
+  group_by?: string[]
+  aggregations?: AggregationEntry[]
+  sort_by?: string
+  sort_dir?: string
+  limit?: number
   [k: string]: unknown
 }
 
 interface QueryResult {
   columns?: string[]
   rows?: Array<Record<string, unknown>>
+  row_count?: number
+  dataset?: string
+  truncated?: boolean
   [k: string]: unknown
+}
+
+const errorMessage = (e: unknown, fallback: string): string => {
+  return (e as { message?: string })?.message || fallback
 }
 
 const OPERATORS = ['=', '!=', '>', '>=', '<', '<=', 'contains', 'starts_with', 'is_null', 'is_not_null']
@@ -76,7 +92,7 @@ export default function BiQueryBuilderPanel() {
   // ── Schema ────────────────────────────────────────────────────────────────
   const { data: schema } = useQuery<Schema>({
     queryKey: ['bi-qb-schema'],
-    queryFn: biQueryBuilderApi.getSchema,
+    queryFn: () => biQueryBuilderApi.getSchema({}).then((r) => r.data as Schema),
     staleTime: 60_000,
   })
 
@@ -85,7 +101,7 @@ export default function BiQueryBuilderPanel() {
   // ── Saved queries ─────────────────────────────────────────────────────────
   const { data: savedData } = useQuery<{ items?: SavedQuery[] }>({
     queryKey: ['bi-qb-queries'],
-    queryFn: biQueryBuilderApi.listQueries,
+    queryFn: () => biQueryBuilderApi.listQueries().then((r) => r.data as { items?: SavedQuery[] }),
   })
   const savedQueries: SavedQuery[] = savedData?.items ?? []
 
@@ -105,25 +121,25 @@ export default function BiQueryBuilderPanel() {
 
   // ── Mutations ─────────────────────────────────────────────────────────────
   const saveMut = useMutation({
-    mutationFn: biQueryBuilderApi.saveQuery,
-    onSuccess: () => { qc.invalidateQueries(['bi-qb-queries']); setQueryName('') },
+    mutationFn: (payload: Record<string, unknown>) => biQueryBuilderApi.saveQuery(payload).then((r) => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['bi-qb-queries'] }); setQueryName('') },
   })
 
-  const previewMut = useMutation<QueryResult, { message?: string }, unknown>({
-    mutationFn: biQueryBuilderApi.previewQuery,
+  const previewMut = useMutation<QueryResult, unknown, Record<string, unknown>>({
+    mutationFn: (payload) => biQueryBuilderApi.previewQuery(payload).then((r) => r.data as QueryResult),
     onSuccess: (data) => { setResults(data); setTab('results') },
-    onError: (e) => setExecError(e?.message ?? 'Error ejecutando preview'),
+    onError: (e) => setExecError(errorMessage(e, 'Error ejecutando preview')),
   })
 
-  const execSavedMut = useMutation({
-    mutationFn: (id) => biQueryBuilderApi.executeQuery(id),
+  const execSavedMut = useMutation<QueryResult, unknown, string | number>({
+    mutationFn: (id) => biQueryBuilderApi.executeQuery(id).then((r) => r.data as QueryResult),
     onSuccess: (data) => { setResults(data); setTab('results') },
-    onError: (e) => setExecError(e.message ?? 'Error ejecutando query'),
+    onError: (e) => setExecError(errorMessage(e, 'Error ejecutando query')),
   })
 
   const deleteMut = useMutation({
-    mutationFn: (id) => biQueryBuilderApi.deleteQuery(id),
-    onSuccess: () => qc.invalidateQueries(['bi-qb-queries']),
+    mutationFn: (id: string | number) => biQueryBuilderApi.deleteQuery(id).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-qb-queries'] }),
   })
 
   function buildPayload() {
@@ -159,7 +175,7 @@ export default function BiQueryBuilderPanel() {
     saveMut.mutate(body)
   }
 
-  function loadSavedQuery(q) {
+  function loadSavedQuery(q: SavedQuery) {
     setDataset(q.dataset || '')
     setSelectedFields(q.fields || [])
     setFilters((q.filters || []).map((f) => ({
@@ -176,11 +192,11 @@ export default function BiQueryBuilderPanel() {
     setTab('builder')
   }
 
-  function toggleField(f) {
+  function toggleField(f: string) {
     setSelectedFields(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f])
   }
 
-  function toggleGroupBy(f) {
+  function toggleGroupBy(f: string) {
     setGroupBy(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f])
   }
 
@@ -188,7 +204,7 @@ export default function BiQueryBuilderPanel() {
     setAggregations(prev => [...prev, { field: availableFields[0]?.name ?? '', func: 'count', alias: '' }])
   }
 
-  function updateAgg(i, key, val) {
+  function updateAgg(i: number, key: keyof AggregationEntry, val: string) {
     setAggregations(prev => prev.map((a, idx) => idx === i ? { ...a, [key]: val } : a))
   }
 
@@ -196,11 +212,11 @@ export default function BiQueryBuilderPanel() {
     setFilters(prev => [...prev, { field: '', operator: '=', value: '' }])
   }
 
-  function updateFilter(i, key, val) {
+  function updateFilter(i: number, key: keyof FilterEntry, val: string) {
     setFilters(prev => prev.map((f, idx) => idx === i ? { ...f, [key]: val } : f))
   }
 
-  function removeFilter(i) {
+  function removeFilter(i: number) {
     setFilters(prev => prev.filter((_, idx) => idx !== i))
   }
 

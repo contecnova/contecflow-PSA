@@ -1,5 +1,5 @@
-// @ts-nocheck
-import { useEffect } from 'react'
+import type { ComponentType } from 'react'
+import { CSSProperties, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { tasksApi, analyticsApi, approvalsApi, expensesApi, absencesApi } from '../services/api'
@@ -14,6 +14,32 @@ import {
   dateRange,
 } from '../components/dashboard/DashKit'
 import { useAppT } from '../i18n/AppLangContext'
+
+type TaskStatResponse = { open: number; overdue: number; done: number }
+type HourRow = { label?: string; value?: number }
+type ApprovalItem = { id: string | number }
+type ExpenseItem = { id: string | number }
+type AbsenceItem = { status?: string }
+type DashboardTrendRow = {
+  label: string
+  hours: number
+  delta: number
+  deltaPct: number | null
+  hasBaseline: boolean
+  hasStableBaseline: boolean
+  color: string
+}
+type ActivityRow = { label: string; count: number; color: string }
+type HeroProps = { navigate: (path: string) => void; userName?: string | null; t: (key: string) => string }
+type ActivityFooterProps = { pendingAbsences: number; t: (key: string) => string }
+type TrendRowProps = { row: DashboardTrendRow; max: number; t: (key: string) => string }
+
+const DASH_ICON = (icon: unknown) => icon as ComponentType<{ size?: number; strokeWidth?: number }>
+
+const heroCardStyle: CSSProperties = {
+  gap: 'var(--space-4)',
+  background: 'linear-gradient(135deg, var(--surface-2) 0%, var(--surface-3) 100%)',
+}
 
 // ── Date helpers ────────────────────────────────────────────────────────────
 function startOfWeekIso() {
@@ -51,7 +77,7 @@ const formatTrendPct = (deltaPct, baseline) =>
 // ── Hero banner ─────────────────────────────────────────────────────────────
 // Saludo + acciones rápidas. Sustituye "¿qué hacemos hoy?" por una versión
 // más sobria con una CTA destacada y atajos secundarios.
-function Hero({ navigate, userName, t }) {
+function Hero({ navigate, userName, t }: HeroProps) {
   const now = new Date()
   const day = new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(now)
   const date = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long' }).format(now)
@@ -66,10 +92,7 @@ function Hero({ navigate, userName, t }) {
   ]
 
   return (
-    <div className="ds-card" style={{
-      gap: 'var(--space-4)',
-      background: 'linear-gradient(135deg, var(--surface-2) 0%, var(--surface-3) 100%)',
-    }}>
+    <div className="ds-card" style={heroCardStyle}>
       <div className="ds-row-between" style={{ alignItems: 'flex-end', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
         <div className="ds-stack-sm" style={{ minWidth: 0 }}>
           <div className="ds-eyebrow" style={{ textTransform: 'capitalize', letterSpacing: '0.06em' }}>
@@ -126,14 +149,14 @@ function Hero({ navigate, userName, t }) {
 }
 
 // ── Main page ───────────────────────────────────────────────────────────────
-export default function WorkDashboardPage() {
-  const t = useAppT()
+export default function WorkDashboardPage(): JSX.Element {
+  const t = useAppT() as (key: string) => string
   const navigate = useNavigate()
   const toast = useToast()
   const { user } = useAuth()
   const userId = user?.id
 
-  const { data: taskStats, isLoading: lt, isError: taskStatsError } = useQuery({
+  const { data: taskStats, isLoading: lt, isError: taskStatsError } = useQuery<TaskStatResponse>({
     queryKey: ['work-dash-task-stats', userId],
     queryFn: async () => {
       const [openRes, overdueRes, doneRes] = await Promise.all([
@@ -143,8 +166,8 @@ export default function WorkDashboardPage() {
       ])
       const openItems = Array.isArray(openRes?.data) ? openRes.data : (openRes?.data?.items ?? [])
       const overdueItems = Array.isArray(overdueRes?.data) ? overdueRes.data : (overdueRes?.data?.items ?? [])
-      const openTaskIds = new Set(openItems.map(t => t.id).filter(Boolean))
-      overdueItems.forEach(t => { if (t?.id) openTaskIds.add(t.id) })
+      const openTaskIds = new Set<string | number>(openItems.map((task: { id?: string | number }) => task.id).filter(Boolean) as Array<string | number>)
+      overdueItems.forEach((task: { id?: string | number }) => { if (task?.id) openTaskIds.add(task.id) })
       return {
         open: openTaskIds.size,
         overdue: totalCountFrom(overdueRes),
@@ -154,21 +177,29 @@ export default function WorkDashboardPage() {
     enabled: !!userId, staleTime: 60_000, retry: 1,
   })
 
-  const { data: myWeekHours = 0 } = useQuery({
+  const { data: myWeekHours = 0 } = useQuery<number>({
     queryKey: ['work-dash-my-week', userId],
-    queryFn: () => analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfWeekIso(), date_to: new Date().toISOString().slice(0, 10) })
-      .then(r => (r.data?.rows || []).reduce((s, x) => s + (x.value || 0), 0)).catch(() => 0),
+    queryFn: async (): Promise<number> => {
+      const r = await analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfWeekIso(), date_to: new Date().toISOString().slice(0, 10) })
+      return ((r.data?.rows as Array<{ value?: number }> | undefined) || []).reduce((s: number, x) => s + (x.value || 0), 0)
+    },
     enabled: !!userId, staleTime: 60_000,
   })
 
-  const { data: myMonthHours = null } = useQuery({
+  const { data: myMonthHours = null } = useQuery<number | null>({
     queryKey: ['work-dash-my-month', userId],
-    queryFn: () => analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfMonthIso(), date_to: new Date().toISOString().slice(0, 10) })
-      .then(r => (r.data?.rows || []).reduce((s, x) => s + (x.value || 0), 0)).catch(() => null),
+    queryFn: async (): Promise<number | null> => {
+      try {
+        const r = await analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfMonthIso(), date_to: new Date().toISOString().slice(0, 10) })
+        return ((r.data?.rows as Array<{ value?: number }> | undefined) || []).reduce((s: number, x) => s + (x.value || 0), 0)
+      } catch {
+        return null
+      }
+    },
     enabled: !!userId, staleTime: 60_000,
   })
 
-  const { data: approvals = [], isLoading: la } = useQuery({
+  const { data: approvals = [], isLoading: la } = useQuery<ApprovalItem[]>({
     queryKey: ['work-dash-approvals'],
     queryFn: () => approvalsApi.pendingMyAction().then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
@@ -176,7 +207,7 @@ export default function WorkDashboardPage() {
     staleTime: 60_000,
   })
 
-  const { data: expenses = [], isLoading: le } = useQuery({
+  const { data: expenses = [], isLoading: le } = useQuery<ExpenseItem[]>({
     queryKey: ['work-dash-expenses'],
     queryFn: () => expensesApi.my({ status: 'pending' }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
@@ -184,16 +215,22 @@ export default function WorkDashboardPage() {
     staleTime: 60_000,
   })
 
-  const { data: hoursData = [] } = useQuery({
+  const { data: hoursData = [] } = useQuery<HourRow[]>({
     queryKey: ['work-dash-hours-trend', userId],
-    queryFn: () => analyticsApi.query('hours_by_month', { ...dateRange(180), ...(userId ? { user_id: userId } : {}) })
-      .then(r => r.data?.rows || []).catch(() => []),
+    queryFn: async (): Promise<HourRow[]> => {
+      try {
+        const r = await analyticsApi.query('hours_by_month', { ...dateRange(180), ...(userId ? { user_id: userId } : {}) })
+        return (r.data?.rows as HourRow[] | undefined) || []
+      } catch {
+        return []
+      }
+    },
     enabled: !!userId, staleTime: 60_000,
   })
 
-  const { data: absences = [], isLoading: lab } = useQuery({
+  const { data: absences = [], isLoading: lab } = useQuery<AbsenceItem[]>({
     queryKey: ['work-dash-absences'],
-    queryFn: () => absencesApi.my().then(r => {
+    queryFn: () => absencesApi.my({}).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
     staleTime: 60_000,
@@ -206,12 +243,12 @@ export default function WorkDashboardPage() {
   const tasksOpen    = taskStats?.open ?? 0
   const tasksOverdue = taskStats?.overdue ?? 0
   const tasksDone    = taskStats?.done ?? 0
-  const hoursWeek    = myWeekHours || 0
+  const hoursWeek    = (myWeekHours ?? 0) as number
   const pendingApprv = approvals.length
   const pendingExp   = expenses.length
-  const pendingAbsences = absences.filter(a => a.status === 'pending').length
+  const pendingAbsences = absences.filter((absence: AbsenceItem) => absence.status === 'pending').length
 
-  const hoursTarget  = user?.weekly_capacity_hours ?? 40
+  const hoursTarget  = (user?.weekly_capacity_hours ?? 40) as number
   const hoursWeekPct = Math.min(Math.round((hoursWeek / Math.max(hoursTarget, 1)) * 100), 100)
   const hoursColor   = hoursWeekPct >= 80 ? COLOR.success : hoursWeekPct >= 50 ? COLOR.warning : COLOR.danger
   const taskCompletionBase = tasksOpen + tasksDone
@@ -221,14 +258,14 @@ export default function WorkDashboardPage() {
   const prev  = hoursData[hoursData.length - 2]?.value || 0
   const totalHoursMonth = myMonthHours !== null ? myMonthHours : last
 
-  const hoursTrendRows = hoursData.slice(-6).map((row, index, rows) => {
+  const hoursTrendRows: DashboardTrendRow[] = hoursData.slice(-6).map((row, index, rows) => {
     const previousValue = index > 0 ? (rows[index - 1]?.value || 0) : null
     const currentValue = row.value || 0
     const delta = previousValue == null ? 0 : currentValue - previousValue
     const hasStableBaseline = previousValue != null && previousValue >= TREND_MIN_BASELINE_HOURS
     const deltaPct = hasStableBaseline ? Math.round((delta / previousValue) * 100) : null
     return {
-      label: row.label || `${t('work_dashboard.month_label')} ${index + 1}`,
+      label: row.label ? String(row.label) : `${t('work_dashboard.month_label')} ${index + 1}`,
       hours: currentValue, delta, deltaPct,
       hasBaseline: previousValue != null, hasStableBaseline,
       color: previousValue == null ? COLOR.accent
@@ -239,7 +276,7 @@ export default function WorkDashboardPage() {
   })
   const maxTrendHours = Math.max(...hoursTrendRows.map(row => row.hours || 0), 1)
 
-  const activityRows = [
+  const activityRows: ActivityRow[] = [
     { label: t('work_dashboard.row_open_tasks'),         count: tasksOpen,    color: COLOR.accent },
     { label: t('work_dashboard.row_overdue_tasks'),      count: tasksOverdue, color: COLOR.danger },
     { label: t('work_dashboard.row_pending_approvals'),  count: pendingApprv, color: COLOR.warning },
@@ -258,45 +295,45 @@ export default function WorkDashboardPage() {
       showPeriodSuffix={false}
     >
       <div className="ds-page">
-        <Hero navigate={navigate} userName={user?.full_name || user?.name} t={t} />
+        <Hero navigate={navigate} userName={String(user?.full_name || user?.name || '')} t={t} />
 
         {/* KPI row */}
         <div className="ds-grid-stats">
           {isLoading ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : <>
             <KpiCard
-              icon={<KpiIcon icon={CheckCircle2} />} label={t('work_dashboard.kpi_open_tasks')}
+              icon={<KpiIcon icon={DASH_ICON(CheckCircle2)} />} label={t('work_dashboard.kpi_open_tasks')}
               value={tasksOpen}
               color={tasksOpen > 10 ? COLOR.warning : 'var(--text-1)'}
               accentBar={COLOR.accent}
               action={{ label: t('work_dashboard.action_view_tasks'), to: '/tasks?view=list&mine=1&status=open' }} />
             <KpiCard
-              icon={<KpiIcon icon={AlertTriangle} />} label={t('work_dashboard.kpi_overdue_tasks')}
+              icon={<KpiIcon icon={DASH_ICON(AlertTriangle)} />} label={t('work_dashboard.kpi_overdue_tasks')}
               value={tasksOverdue}
               color={tasksOverdue > 0 ? COLOR.danger : COLOR.success}
               accentBar={tasksOverdue > 0 ? COLOR.danger : COLOR.success}
               sub={tasksOverdue > 0 ? t('work_dashboard.needs_attention') : t('work_dashboard.all_up_to_date')}
               action={tasksOverdue > 0 ? { label: t('work_dashboard.action_review_overdue'), to: '/tasks?view=list&mine=1&status=open&overdue=1' } : undefined} />
             <KpiCard
-              icon={<KpiIcon icon={Clock} />} label={t('work_dashboard.kpi_hours_week')}
+              icon={<KpiIcon icon={DASH_ICON(Clock)} />} label={t('work_dashboard.kpi_hours_week')}
               value={hoursWeek.toFixed(1)}
               color={hoursColor} accentBar={hoursColor}
               sub={weekDateRangeLabel() ? `${weekDateRangeLabel()} · ${t('work_dashboard.target_short')}: ${hoursTarget}h` : `${t('work_dashboard.target_word')}: ${hoursTarget}h`}
               action={{ label: t('work_dashboard.shortcut_log_hours'), to: '/imputar' }} />
             <KpiCard
-              icon={<KpiIcon icon={Calendar} />} label={t('work_dashboard.kpi_hours_month')}
+              icon={<KpiIcon icon={DASH_ICON(Calendar)} />} label={t('work_dashboard.kpi_hours_month')}
               value={totalHoursMonth.toFixed(1)}
               color={COLOR.accent} accentBar={COLOR.accent}
               sub={prev > 0 ? `${t('work_dashboard.previous_month')}: ${prev.toFixed(1)}h` : undefined}
               action={{ label: t('work_dashboard.action_view_timesheets'), to: '/timesheets' }} />
             <KpiCard
-              icon={<KpiIcon icon={Bell} />} label={t('work_dashboard.kpi_approvals')}
+              icon={<KpiIcon icon={DASH_ICON(Bell)} />} label={t('work_dashboard.kpi_approvals')}
               value={pendingApprv}
               color={pendingApprv > 0 ? COLOR.warning : COLOR.success}
               accentBar={pendingApprv > 0 ? COLOR.warning : COLOR.success}
               sub={pendingApprv > 0 ? t('work_dashboard.pending_my_action') : t('work_dashboard.no_pending')}
               action={pendingApprv > 0 ? { label: t('work_dashboard.action_review'), to: '/approvals' } : undefined} />
             <KpiCard
-              icon={<KpiIcon icon={Wallet} />} label={t('work_dashboard.kpi_pending_expenses')}
+              icon={<KpiIcon icon={DASH_ICON(Wallet)} />} label={t('work_dashboard.kpi_pending_expenses')}
               value={pendingExp}
               color={pendingExp > 0 ? COLOR.purple : COLOR.success}
               accentBar={COLOR.purple}
@@ -351,7 +388,7 @@ export default function WorkDashboardPage() {
 }
 
 // ── Activity footer (if absences pending, hint a quick CTA) ──────────────────
-function ActivityFooter({ pendingAbsences, t }) {
+function ActivityFooter({ pendingAbsences, t }: ActivityFooterProps) {
   if (pendingAbsences === 0) return null
   return (
     <div style={{
@@ -370,7 +407,7 @@ function ActivityFooter({ pendingAbsences, t }) {
 }
 
 // ── Trend row — fila individual del breakdown mensual ───────────────────────
-function TrendRow({ row, max, t }) {
+function TrendRow({ row, max, t }: TrendRowProps) {
   const TrendIcon = row.delta > 0 ? ArrowUpRight : row.delta < 0 ? ArrowDownRight : Minus
   return (
     <div>

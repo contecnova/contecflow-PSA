@@ -1,8 +1,7 @@
-// @ts-nocheck
 /**
  * OrganizationsPage — Gestión multi-tenant de organizaciones
  */
-import { useState } from 'react'
+import { CSSProperties, useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -18,13 +17,13 @@ import { useOrgSettings } from '../hooks/useOrgSettings'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 
-const fs = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
-const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
+const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
+const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
 const PLAN_COLORS = { starter:'var(--text-2)', pro:'var(--accent)', enterprise:'var(--success)' }
 
-const PLAN_VALUES = ['starter', 'pro', 'enterprise']
+const PLAN_VALUES = ['starter', 'pro', 'enterprise'] as const
 
 const organizationCreateSchema = z.object({
   name: z.string().trim().min(1, 'El nombre es obligatorio').max(120, 'Máximo 120 caracteres'),
@@ -91,7 +90,7 @@ export default function OrganizationsPage() {
   const { data: detail } = useQuery({ queryKey:['org-detail', selected], queryFn:() => organizationsApi.get(selected).then(r=>r.data), enabled:!!selected })
   const removingUser = detail?.users?.find(u => u.id === removingUserId) || null
   // Todos los usuarios activos
-  const { data: allUsers = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list().then(r=>r.data) })
+  const { data: allUsers = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list({}).then(r=>r.data) })
   // Mutación para asignar usuario
   const { mutate: assignUser, isPending: isAssigning } = useMutation({
     mutationFn: ({ orgId, userId }) => organizationsApi.assignUser(orgId, { user_id: userId }),

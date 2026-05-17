@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties, ChangeEvent } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -11,12 +11,51 @@ import PageShell from '../components/layout/PageShell'
 import { Video } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const card = {
+interface MeetingAction {
+  id: string | number
+  description?: string
+  assignee_name?: string
+  due_date_text?: string
+  priority?: string
+  is_created?: boolean
+}
+
+interface MeetingItem {
+  id: string | number
+  title?: string
+  platform?: string
+  meeting_date?: string
+  created_at?: string
+  status?: string
+  actions_count?: number
+  created_actions?: number
+}
+
+interface MeetingDetail extends MeetingItem {
+  summary?: string
+  duration_minutes?: number
+  decisions?: string[]
+  actions?: MeetingAction[]
+}
+
+interface ProcessFormState {
+  title: string
+  transcript: string
+  platform: string
+  participants: string
+  duration_minutes: string
+}
+
+interface CreateTasksResponse {
+  tasks_created?: number
+}
+
+const card: CSSProperties = {
   background: 'var(--surface-2)',
   border: '1px solid var(--surface-4)',
   borderRadius: 'var(--radius-lg)',
 }
-const fs = {
+const fs: CSSProperties = {
   width: '100%',
   background: 'var(--surface-1)',
   border: '1px solid var(--surface-4)',
@@ -28,7 +67,7 @@ const fs = {
   fontFamily: 'var(--font-sans)',
   boxSizing: 'border-box',
 }
-const ls = {
+const ls: CSSProperties = {
   fontSize: '11px',
   fontWeight: 700,
   color: 'var(--text-2)',
@@ -58,17 +97,17 @@ Pedro: Siguiente punto: el equipo necesita formación en las nuevas herramientas
 Luis: Sin problema, esta semana lo organizo.
 Pedro: Resumiendo: Carlos revisa infraestructura de Alpha antes del viernes, Ana actualiza el contrato de Beta antes del 30, y Luis organiza la formación. Cerramos.`
 
-function ProcessModal({ onClose }) {
+function ProcessModal({ onClose }: { onClose: () => void }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
-  const [form, setForm] = useState({ title: '', transcript: '', platform: 'teams', participants: '', duration_minutes: '' })
-  const s = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const [form, setForm] = useState<ProcessFormState>({ title: '', transcript: '', platform: 'teams', participants: '', duration_minutes: '' })
+  const s = (k: keyof ProcessFormState) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
   const { mutate: process, isPending } = useMutation({
-    mutationFn: d => meetingsAIApi.process(d).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['ai-meetings']); onClose() },
-    onError: e => toast.error(extractErr(e, t('meetings_ai.error_process'))),
+    mutationFn: (d: ProcessFormState) => meetingsAIApi.process(d).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-meetings'] }); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, t('meetings_ai.error_process'))),
   })
 
   return (
@@ -125,24 +164,26 @@ export default function MeetingsAIPage() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showProcess, setShowProcess] = useState(false)
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected] = useState<string | number | null>(null)
 
-  const { data: meetings = [], isLoading } = useQuery({
+  const { data: meetingsRaw = [], isLoading } = useQuery({
     queryKey: ['ai-meetings'],
     queryFn: () => meetingsAIApi.list().then(r => r.data),
   })
-  const { data: detail } = useQuery({
+  const meetings = meetingsRaw as MeetingItem[]
+  const { data: detailRaw } = useQuery({
     queryKey: ['ai-meeting', selected],
     queryFn: () => meetingsAIApi.get(selected).then(r => r.data),
     enabled: !!selected,
   })
+  const detail = (detailRaw ?? null) as MeetingDetail | null
   const { mutate: createTasks, isPending: creating } = useMutation({
-    mutationFn: id => meetingsAIApi.createTasks(id).then(r => r.data),
-    onSuccess: data => { qc.invalidateQueries(['ai-meeting', selected]); toast.success(`✅ ${data.tasks_created} tareas creadas en Contecflow`) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string | number) => meetingsAIApi.createTasks(id).then(r => r.data),
+    onSuccess: (data: CreateTasksResponse) => { qc.invalidateQueries({ queryKey: ['ai-meeting', selected] }); toast.success(`✅ ${data.tasks_created || 0} tareas creadas en Contecflow`) },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const platCfg = p => PLATFORMS.find(x => x.id === p) || PLATFORMS[PLATFORMS.length - 1]
+  const platCfg = (p?: string) => PLATFORMS.find((x) => x.id === p) || PLATFORMS[PLATFORMS.length - 1]
 
   return (
     <PageShell>

@@ -1,5 +1,5 @@
-// @ts-nocheck
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Settings2, CheckCircle, XCircle, RefreshCw, ArrowDownToLine,
@@ -13,6 +13,44 @@ import PageShell from '../components/layout/PageShell'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 
+interface JiraConfig {
+  jira_url?: string
+  jira_email?: string
+  jira_project_key?: string
+  token_hint?: string
+}
+
+interface JiraIssue {
+  key: string
+  summary?: string
+  status?: string
+  priority?: string
+}
+
+interface JiraLinkedTask {
+  id: string | number
+  title?: string
+  jira_issue_key?: string
+  status?: string
+  jira_synced_at?: string
+}
+
+interface JiraSyncResult {
+  created?: number
+  updated?: number
+}
+
+interface JiraPushResult {
+  pushed?: number
+}
+
+interface JiraFormState {
+  jira_url: string
+  jira_email: string
+  jira_api_token: string
+  jira_project_key: string
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 const PRIORITY_COLORS = {
   blocker:  'var(--danger)',
@@ -22,12 +60,12 @@ const PRIORITY_COLORS = {
   low:      'var(--success)',
 }
 
-const _fs = {
+const _fs: CSSProperties = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
   borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
-const _ls = {
+const _ls: CSSProperties = {
   fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)',
   textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5,
 }
@@ -61,39 +99,41 @@ export default function JiraIntegrationPage(): JSX.Element {
   const qc = useQueryClient()
   const toast = useToast()
 
-  const [form, setForm]             = useState({ jira_url: '', jira_email: '', jira_api_token: '', jira_project_key: '' })
-  const [showToken, setShowToken]   = useState(false)
-  const [connStatus, setConnStatus] = useState(null)   // null | true | false
+  const [form, setForm] = useState<JiraFormState>({ jira_url: '', jira_email: '', jira_api_token: '', jira_project_key: '' })
+  const [showToken, setShowToken] = useState(false)
+  const [connStatus, setConnStatus] = useState<boolean | null>(null)
 
   // ── queries ────────────────────────────────────────────────────────────────
-  const { data: config, isLoading: loadingConfig } = useQuery({
+  const { data: config, isLoading: loadingConfig } = useQuery<JiraConfig>({
     queryKey: ['jira-config'],
     queryFn:  () => jiraApi.config().then(r => r.data),
-    onSuccess: (d) => {
-      setForm(prev => ({
-        ...prev,
-        jira_url:         d.jira_url         || '',
-        jira_email:       d.jira_email        || '',
-        jira_project_key: d.jira_project_key  || '',
-      }))
-    },
   })
 
-  const { data: issues, isLoading: loadingIssues } = useQuery({
+  useEffect(() => {
+    if (!config) return
+    setForm((prev) => ({
+      ...prev,
+      jira_url: config.jira_url || '',
+      jira_email: config.jira_email || '',
+      jira_project_key: config.jira_project_key || '',
+    }))
+  }, [config])
+
+  const { data: issues, isLoading: loadingIssues } = useQuery<JiraIssue[]>({
     queryKey: ['jira-issues'],
     queryFn:  () => jiraApi.issues().then(r => r.data),
     enabled:  connStatus === true,
   })
 
-  const { data: linked, isLoading: loadingLinked } = useQuery({
+  const { data: linked, isLoading: loadingLinked } = useQuery<JiraLinkedTask[]>({
     queryKey: ['jira-linked'],
     queryFn:  () => jiraApi.linked().then(r => r.data),
   })
 
   // ── mutations ──────────────────────────────────────────────────────────────
   const saveConfig = useMutation({
-    mutationFn: (payload) => jiraApi.saveConfig(payload).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['jira-config']); toast.success(t('jira_integration.config_saved')) },
+    mutationFn: (payload: JiraFormState) => jiraApi.saveConfig(payload).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['jira-config'] }); toast.success(t('jira_integration.config_saved')) },
     onError: (e) => toast.error(extractErr(e, t('jira_integration.save_error'))),
   })
 
@@ -101,16 +141,16 @@ export default function JiraIntegrationPage(): JSX.Element {
     mutationFn: () => jiraApi.test().then(r => r.data),
     onSuccess: (d) => {
       setConnStatus(d.ok)
-      if (d.ok) { toast.success(`${t('jira_integration.connected_as')} ${d.display_name}`); qc.invalidateQueries(['jira-issues']) }
+      if (d.ok) { toast.success(`${t('jira_integration.connected_as')} ${d.display_name}`); qc.invalidateQueries({ queryKey: ['jira-issues'] }) }
       else toast.error(d.error || t('jira_integration.connection_error'))
     },
     onError: () => { setConnStatus(false); toast.error(t('jira_integration.connection_error')) },
   })
 
   const syncPull = useMutation({
-    mutationFn: (payload) => jiraApi.sync(payload).then(r => r.data),
+    mutationFn: (payload: Record<string, never>) => jiraApi.sync(payload).then(r => r.data as JiraSyncResult),
     onSuccess: (d) => {
-      qc.invalidateQueries(['jira-linked'])
+      qc.invalidateQueries({ queryKey: ['jira-linked'] })
       toast.success(`${t('jira_integration.sync_complete')} ${d.created} ${t('jira_integration.created')}, ${d.updated} ${t('jira_integration.updated')}`)
     },
     onError: (e) => toast.error(extractErr(e, t('jira_integration.sync_error'))),
@@ -119,14 +159,14 @@ export default function JiraIntegrationPage(): JSX.Element {
   const pushToJira = useMutation({
     mutationFn: () => jiraApi.push().then(r => r.data),
     onSuccess: (d) => {
-      qc.invalidateQueries(['jira-linked'])
+      qc.invalidateQueries({ queryKey: ['jira-linked'] })
       toast.success(`${t('jira_integration.push_complete')} ${d.pushed} ${t('jira_integration.tasks_pushed')}`)
     },
     onError: (e) => toast.error(extractErr(e, t('jira_integration.push_error'))),
   })
 
   // ── handlers ───────────────────────────────────────────────────────────────
-  const handleSave = (e) => {
+  const handleSave = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!form.jira_url || !form.jira_email || !form.jira_project_key) {
       toast.error(t('jira_integration.required_fields_error'))
@@ -138,10 +178,10 @@ export default function JiraIntegrationPage(): JSX.Element {
   }
 
   // Normaliza ambas formas: array crudo vs {issues, total} / {tasks, count}
-  const issueList   = Array.isArray(issues) ? issues : (issues?.issues || issues?.items || [])
-  const linkedList  = Array.isArray(linked) ? linked : (linked?.tasks  || linked?.items  || [])
-  const issueCount  = (Array.isArray(issues) ? issues.length : issues?.total) ?? issueList.length
-  const linkedCount = (Array.isArray(linked) ? linked.length : linked?.count) ?? linkedList.length
+  const issueList = Array.isArray(issues) ? issues : []
+  const linkedList = Array.isArray(linked) ? linked : []
+  const issueCount = issueList.length
+  const linkedCount = linkedList.length
 
   // ── render ─────────────────────────────────────────────────────────────────
   return (
@@ -326,7 +366,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                         </td>
                         <td style={{ padding: '8px 10px' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_COLORS[issue.priority?.toLowerCase()] || 'var(--surface-5)', flexShrink: 0 }} />
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_COLORS[issue.priority?.toLowerCase() as keyof typeof PRIORITY_COLORS] || 'var(--surface-5)', flexShrink: 0 }} />
                             {issue.priority}
                           </span>
                         </td>
@@ -356,7 +396,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                     </tr>
                   </thead>
                   <tbody>
-                    {linkedList.map(row => (
+                    {linkedList.map((row) => (
                       <tr key={row.id} style={{ borderBottom: '1px solid var(--surface-3)' }}>
                         <td style={{ padding: '8px 10px', color: 'var(--text-1)' }}>{row.title}</td>
                         <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: "var(--text-sm)" }}>{row.jira_issue_key}</td>

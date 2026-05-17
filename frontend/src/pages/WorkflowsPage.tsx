@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useState } from 'react'
+import { CSSProperties, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -13,18 +12,67 @@ import { Workflow } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { CHART_COLORS_EXTENDED } from '../constants/theme'
 
-const panelStyle = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }
-const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const labelStyle = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+type ProjectRole = 'admin' | 'pm' | 'team_lead' | 'employee' | 'hr'
 
-const ROLES = ['admin', 'pm', 'team_lead', 'employee', 'hr']
+type ProjectItem = {
+  id: string | number
+  name: string
+}
+
+type WorkflowTransition = {
+  id: string | number
+  to_state_id: string | number
+  label?: string
+  required_role?: string
+  requires_comment?: boolean
+}
+
+type WorkflowState = {
+  id: string | number
+  name: string
+  value: string
+  color: string
+  icon?: string
+  is_initial?: boolean
+  is_final?: boolean
+  sort_order?: number
+  transitions_from?: WorkflowTransition[]
+}
+
+type WorkflowData = {
+  states?: WorkflowState[]
+}
+
+type StateFormData = {
+  name: string
+  value: string
+  color: string
+  icon: string
+  is_initial: boolean
+  is_final: boolean
+  sort_order: number
+}
+
+type TransitionFormData = {
+  from_state_id: string
+  to_state_id: string
+  label: string
+  required_role: string
+  requires_comment: boolean
+}
+
+const panelStyle: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }
+const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+
+const ROLES: ProjectRole[] = ['admin', 'pm', 'team_lead', 'employee', 'hr']
 const COLORS = CHART_COLORS_EXTENDED
 
-function StateForm({ projectId, state, onClose }) {
+function StateForm({ projectId, state, onClose }: { projectId: string; state: WorkflowState | null; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!state?.id
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<StateFormData>({
     name:       state?.name      || '',
     value:      state?.value     || '',
     color:      state?.color     || '#7a8aaa',
@@ -33,14 +81,14 @@ function StateForm({ projectId, state, onClose }) {
     is_final:   state?.is_final  || false,
     sort_order: state?.sort_order || 0,
   })
-  const set = k => v => setForm(f => ({ ...f, [k]: v }))
+  const set = <K extends keyof StateFormData>(k: K) => (v: StateFormData[K]) => setForm(f => ({ ...f, [k]: v }))
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit
+    mutationFn: (d: StateFormData) => isEdit && state
       ? projectWorkflowsApi.updateState(projectId, state.id, d).then(r => r.data)
       : projectWorkflowsApi.createState(projectId, d).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['workflow', projectId]); onClose() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['workflow', projectId] }); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -98,22 +146,22 @@ function StateForm({ projectId, state, onClose }) {
   )
 }
 
-function TransitionForm({ projectId, states, onClose }) {
+function TransitionForm({ projectId, states, onClose }: { projectId: string; states: WorkflowState[]; onClose: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<TransitionFormData>({
     from_state_id: '',
     to_state_id: '',
     label: '',
     required_role: '',
     requires_comment: false,
   })
-  const set = k => v => setForm(f => ({ ...f, [k]: v }))
+  const set = <K extends keyof TransitionFormData>(k: K) => (v: TransitionFormData[K]) => setForm(f => ({ ...f, [k]: v }))
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => projectWorkflowsApi.createTransition(projectId, d).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['workflow', projectId]); onClose() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (d: TransitionFormData) => projectWorkflowsApi.createTransition(projectId, d).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['workflow', projectId] }); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -124,15 +172,15 @@ function TransitionForm({ projectId, states, onClose }) {
             <label style={labelStyle}>Desde</label>
             <select style={inputStyle} value={form.from_state_id} onChange={e => set('from_state_id')(e.target.value)}>
               <option value="">Selecciona estado...</option>
-              {states.map(s => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
+              {states.map(s => <option key={s.id} value={String(s.id)}>{s.icon} {s.name}</option>)}
             </select>
           </div>
           <div>
             <label style={labelStyle}>Hasta</label>
             <select style={inputStyle} value={form.to_state_id} onChange={e => set('to_state_id')(e.target.value)}>
               <option value="">Selecciona estado...</option>
-              {states.filter(s => s.id !== form.from_state_id).map(s => (
-                <option key={s.id} value={s.id}>{s.icon} {s.name}</option>
+              {states.filter(s => String(s.id) !== form.from_state_id).map(s => (
+                <option key={s.id} value={String(s.id)}>{s.icon} {s.name}</option>
               ))}
             </select>
           </div>
@@ -170,14 +218,14 @@ export default function WorkflowsPage() {
   const [selectedProject, setSelectedProject] = useState('')
   const [showStateForm, setShowStateForm] = useState(false)
   const [showTransitionForm, setShowTransitionForm] = useState(false)
-  const [editingState, setEditingState] = useState(null)
+  const [editingState, setEditingState] = useState<WorkflowState | null>(null)
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
 
-  const { data: workflow, isLoading } = useQuery({
+  const { data: workflow, isLoading } = useQuery<WorkflowData | null>({
     queryKey: ['workflow', selectedProject],
     queryFn: () => projectWorkflowsApi.get(selectedProject).then(r => r.data).catch(() => null),
     enabled: !!selectedProject,
@@ -187,34 +235,34 @@ export default function WorkflowsPage() {
 
   const { mutate: initWorkflow, isPending: isIniting } = useMutation({
     mutationFn: () => projectWorkflowsApi.init(selectedProject).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries(['workflow', selectedProject]),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['workflow', selectedProject] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: deleteState } = useMutation({
-    mutationFn: sid => projectWorkflowsApi.deleteState(selectedProject, sid),
-    onSuccess: () => qc.invalidateQueries(['workflow', selectedProject]),
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    mutationFn: (sid: string | number) => projectWorkflowsApi.deleteState(selectedProject, sid),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['workflow', selectedProject] }),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
   const { mutate: deleteTransition } = useMutation({
-    mutationFn: tid => projectWorkflowsApi.deleteTransition(selectedProject, tid),
-    onSuccess: () => qc.invalidateQueries(['workflow', selectedProject]),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (tid: string | number) => projectWorkflowsApi.deleteTransition(selectedProject, tid),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['workflow', selectedProject] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: resetWorkflow, isPending: isResetting } = useMutation({
     mutationFn: () => projectWorkflowsApi.resetWorkflow(selectedProject).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries(['workflow', selectedProject])
-      qc.invalidateQueries(['project-workflow', selectedProject])
+      qc.invalidateQueries({ queryKey: ['workflow', selectedProject] })
+      qc.invalidateQueries({ queryKey: ['project-workflow', selectedProject] })
       toast.success('Workflow restablecido al Scrum estándar')
     },
-    onError: e => toast.error(extractErr(e, 'Error al restablecer')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al restablecer')),
   })
 
-  const _selectedProj = projects.find(p => p.id === selectedProject)
-  const totalTransitions = states.reduce((sum, s) => sum + (s.transitions_from?.length || 0), 0)
+  const _selectedProj = projects.find(p => String(p.id) === selectedProject)
+  const totalTransitions = states.reduce((sum: number, s: WorkflowState) => sum + (s.transitions_from?.length || 0), 0)
 
   return (
     <PageShell>
@@ -247,7 +295,7 @@ export default function WorkflowsPage() {
         <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
           style={{ ...inputStyle, width: 360 }}>
           <option value="">Selecciona un proyecto...</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
         </select>
       </div>
 
@@ -330,7 +378,7 @@ export default function WorkflowsPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {states.flatMap(s =>
                 (s.transitions_from || []).map(tr => {
-                  const toState = states.find(ss => ss.id === tr.to_state_id)
+                  const toState = states.find(ss => String(ss.id) === String(tr.to_state_id))
                   return (
                     <div key={tr.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
@@ -362,7 +410,7 @@ export default function WorkflowsPage() {
           <div style={{ ...panelStyle, gridColumn: '1 / -1' }}>
             <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>Diagrama del workflow</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
-              {states.sort((a, b) => a.sort_order - b.sort_order).map((s, i) => (
+              {[...states].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map((s, i) => (
                 <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ textAlign: 'center', minWidth: 100 }}>
                     <div style={{ width: 64, height: 64, borderRadius: '50%', background: s.color + '25', border: `2px solid ${s.color}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px', fontSize: "var(--text-xl)" }}>

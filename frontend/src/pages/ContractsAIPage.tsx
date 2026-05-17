@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ContractsAIPage — H22 (Item H22 cerrado).
  *
@@ -11,14 +10,57 @@
  * agrupadas por tipo, badges de riesgo, citas verbatim del contrato).
  */
 import { useState, useMemo } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { contractsAIApi, projectsApi } from '../services/api'
 import { useToast } from '../context/ToastContext'
-import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
 import { Button, Card, Spinner, EmptyState } from '../components/ui'
 import { FileText, Upload } from 'lucide-react'
+import { extractErr } from '../utils/helpers'
+
+type RiskLevel = 'high' | 'medium' | 'low' | string
+
+type ProjectItem = {
+  id: string | number
+  code?: string
+  name: string
+}
+
+type ContractItem = {
+  id: string | number
+  filename?: string
+  client_name?: string
+  created_at?: string
+  clauses_count?: number
+  at_risk_clauses?: number
+  risk_level?: RiskLevel
+  status?: 'analyzing' | 'failed' | 'done' | string
+}
+
+type ContractClause = {
+  id: string | number
+  clause_type?: string
+  title?: string
+  description?: string
+  is_at_risk?: boolean
+  risk_reason?: string
+  impact_amount?: number | null
+  due_date?: string
+  original_text?: string
+}
+
+type ContractDetail = {
+  id: string | number
+  filename?: string
+  client_name?: string
+  created_at?: string
+  risk_level?: RiskLevel
+  scope_summary?: string
+  total_value?: number | null
+  scope_creep_alerts?: number
+  clauses?: ContractClause[]
+}
 
 const CLAUSE_TYPE_LABEL = {
   payment:       'Pagos',
@@ -49,17 +91,17 @@ const RISK_COLOR = {
 }
 
 
-function ContractDetailPanel({ contractId, onClose }) {
-  const { data, isLoading } = useQuery({
+function ContractDetailPanel({ contractId, onClose }: { contractId: string | number | null; onClose: () => void }) {
+  const { data, isLoading } = useQuery<ContractDetail | null>({
     queryKey: ['contracts-ai', contractId],
-    queryFn:  () => contractsAIApi.get(contractId).then(r => r.data),
+    queryFn:  () => contractsAIApi.get(contractId).then(r => r.data as ContractDetail),
     enabled:  !!contractId,
   })
 
   // Agrupar cláusulas por tipo
-  const groups = useMemo(() => {
+  const groups = useMemo<Record<string, ContractClause[]>>(() => {
     if (!data?.clauses) return {}
-    const out = {}
+    const out: Record<string, ContractClause[]> = {}
     for (const cl of data.clauses) {
       const key = cl.clause_type || 'other'
       if (!out[key]) out[key] = []
@@ -141,7 +183,7 @@ function ContractDetailPanel({ contractId, onClose }) {
                 <h4 style={{ margin: '0 0 8px 0', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
                   {CLAUSE_TYPE_ICON[type] || '📄'} {CLAUSE_TYPE_LABEL[type] || type} ({list.length})
                 </h4>
-                {list.map(cl => (
+                {list.map((cl) => (
                   <Card key={cl.id} style={{
                     marginBottom: 8,
                     borderColor: cl.is_at_risk ? 'var(--danger)' : 'var(--surface-4)',
@@ -199,30 +241,28 @@ function ContractDetailPanel({ contractId, onClose }) {
 
 
 export default function ContractsAIPage(): JSX.Element {
-  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const navigate = useNavigate()
-  const [params, setParams] = useSearchParams()
+  const [params] = useSearchParams()
   const initialProjectId = params.get('project_id') || ''
 
-  const [mode, setMode] = useState('text')         // 'text' | 'pdf'
+  const [mode, setMode] = useState<'text' | 'pdf'>('text')
   const [text, setText] = useState('')
-  const [pdfFile, setPdfFile] = useState(null)
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
   const [projectId, setProjectId] = useState(initialProjectId)
   const [clientName, setClientName] = useState('')
-  const [openContractId, setOpenContractId] = useState(null)
+  const [openContractId, setOpenContractId] = useState<string | number | null>(null)
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects'],
-    queryFn:  () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []),
+    queryFn:  () => projectsApi.list({}).then(r => (r.data?.items ?? r.data ?? []) as ProjectItem[]),
   })
 
-  const { data: contracts = [], isLoading } = useQuery({
+  const { data: contracts = [], isLoading } = useQuery<ContractItem[]>({
     queryKey: ['contracts-ai', { project_id: initialProjectId }],
     queryFn:  () => contractsAIApi.list(
       initialProjectId ? { project_id: initialProjectId } : {}
-    ).then(r => r.data),
+    ).then(r => r.data as ContractItem[]),
   })
 
   const { mutate: analyzeText, isPending: isAnalyzingText } = useMutation({
@@ -237,7 +277,7 @@ export default function ContractsAIPage(): JSX.Element {
       setText('')
       qc.invalidateQueries({ queryKey: ['contracts-ai'] })
     },
-    onError: e => toast.error(e?.response?.data?.detail || 'Error al analizar contrato'),
+    onError: e => toast.error(extractErr(e, 'Error al analizar contrato')),
   })
 
   const { mutate: analyzePdf, isPending: isAnalyzingPdf } = useMutation({
@@ -253,7 +293,7 @@ export default function ContractsAIPage(): JSX.Element {
       setPdfFile(null)
       qc.invalidateQueries({ queryKey: ['contracts-ai'] })
     },
-    onError: e => toast.error(e?.response?.data?.detail || 'Error al analizar PDF'),
+    onError: e => toast.error(extractErr(e, 'Error al analizar PDF')),
   })
 
   const isAnalyzing = isAnalyzingText || isAnalyzingPdf
@@ -274,10 +314,10 @@ export default function ContractsAIPage(): JSX.Element {
           {[
             { id: 'text', label: 'Pegar texto', icon: <FileText size={14} /> },
             { id: 'pdf',  label: 'Subir PDF',   icon: <Upload size={14} /> },
-          ].map(opt => (
+          ].map((opt) => (
             <button
               key={opt.id}
-              onClick={() => setMode(opt.id)}
+              onClick={() => setMode(opt.id as "text" | "pdf")}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '10px 18px', border: 'none', cursor: 'pointer',
@@ -307,7 +347,7 @@ export default function ContractsAIPage(): JSX.Element {
               }}
             >
               <option value="">— Sin proyecto (ad-hoc) —</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+              {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
             </select>
           </div>
           <div style={{ flex: 1 }}>
@@ -388,7 +428,7 @@ export default function ContractsAIPage(): JSX.Element {
         <EmptyState icon="📄" title="Aún no hay contratos analizados" description="Pega texto o sube un PDF arriba para empezar." />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {contracts.map(c => (
+          {contracts.map((c) => (
             <Card key={c.id}
               onClick={() => setOpenContractId(c.id)}
               style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}

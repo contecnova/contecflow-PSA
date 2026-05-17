@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState, useMemo, useId, useEffect } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -12,7 +12,82 @@ import { sdCatalogApi, usersApi, clientsApi, ticketsApi, sdDynamicFormsApi } fro
 import { z } from 'zod'
 import { PBadge, PRIORITY_LABEL, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
 
-function getCreateTicketSchema(t) {
+type TicketType = 'incident' | 'service_request' | 'change' | 'problem' | 'question'
+type TicketPriority = 'p1_critical' | 'p2_high' | 'p3_medium' | 'p4_low'
+type TicketUrgency = 'critical' | 'high' | 'medium' | 'low'
+type TicketImpact = 'enterprise' | 'department' | 'user' | 'minimal'
+
+type CreateTicketForm = {
+  ticket_type: TicketType
+  title: string
+  description: string
+  priority: TicketPriority
+  urgency: TicketUrgency
+  impact: TicketImpact
+  assigned_to_user_id?: string
+  client_id?: string
+  service_item_id?: string
+}
+
+type ModalProps = {
+  onClose: () => void
+  onCreated?: (data: unknown) => void
+}
+
+type CatalogService = { id: string | number; name: string }
+type CatalogGroup = { name?: string; services?: CatalogService[] }
+type UserItem = { id: string | number; full_name?: string }
+type ClientItem = { id: string | number; name?: string }
+
+type DynamicVisibilityWhen = {
+  field?: string
+  equals?: unknown
+  in?: unknown[]
+}
+
+type DynamicField = {
+  id: string
+  label?: string
+  required?: boolean
+  type?: string
+  options?: string[]
+  visible_when?: DynamicVisibilityWhen
+  data_source?: string
+  data_attribute?: string
+}
+
+type DynamicRoutingHint = {
+  when?: DynamicVisibilityWhen
+  set?: Record<string, unknown>
+}
+
+type DynamicFormsConfig = {
+  fields?: DynamicField[]
+  routing_hints?: DynamicRoutingHint[]
+}
+
+type DynamicHistoryItem = { snapshot_id: string; created_at?: string; reason?: string }
+type DynamicHistory = { items: DynamicHistoryItem[] }
+
+type ContextOption = { [k: string]: unknown; name?: string; code?: string }
+type ContextOptions = { clients: ContextOption[]; services: ContextOption[]; cis: ContextOption[] }
+
+type GeneratedField = { id?: string; label?: string; type?: string }
+
+type CreateTicketPayload = {
+  ticket_type: TicketType
+  title: string
+  description: string
+  priority: TicketPriority
+  urgency: TicketUrgency
+  impact: TicketImpact
+  dynamic_fields: Record<string, unknown>
+  assigned_to_user_id?: string
+  client_id?: string
+  service_item_id?: string
+}
+
+function getCreateTicketSchema(t: (key: string) => string) {
   return z.object({
     ticket_type: z.enum(['incident', 'service_request', 'change', 'problem', 'question']),
     title: z.string().trim().min(1, t('service_desk.zod_title_required')),
@@ -26,75 +101,75 @@ function getCreateTicketSchema(t) {
   })
 }
 
-export default function CreateTicketModal({ onClose, onCreated }) {
-  const t = useAppT()
+export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
+  const t = useAppT() as (key: string) => string
   const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<CreateTicketForm>({
     ticket_type: 'incident', title: '', description: '',
     priority: 'p3_medium', urgency: 'medium', impact: 'user',
     assigned_to_user_id: '', client_id: '', service_item_id: '',
   })
 
-  const { data: catalog = [] } = useQuery({
+  const { data: catalog = [] } = useQuery<CatalogGroup[]>({
     queryKey: ['sd-catalog'],
-    queryFn: () => sdCatalogApi.list().then(r => r.data),
+    queryFn: () => sdCatalogApi.list().then(r => r.data as CatalogGroup[]),
   })
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<UserItem[]>({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data),
+    queryFn: () => usersApi.list({}).then(r => r.data as UserItem[]),
   })
-  const { data: clients = [] } = useQuery({
+  const { data: clients = [] } = useQuery<ClientItem[]>({
     queryKey: ['clients'],
-    queryFn: () => clientsApi.list().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => clientsApi.list({}).then(r => (r.data?.items ?? r.data ?? []) as ClientItem[]),
   })
-  const { data: dynamicFormRules } = useQuery({
+  const { data: dynamicFormRules } = useQuery<DynamicFormsConfig>({
     queryKey: ['sd-dynamic-forms'],
-    queryFn: () => sdDynamicFormsApi.get().then(r => r.data),
+    queryFn: () => sdDynamicFormsApi.get().then(r => r.data as DynamicFormsConfig),
   })
-  const { data: dynamicHistory = { items: [] } } = useQuery({
+  const { data: dynamicHistory = { items: [] } } = useQuery<DynamicHistory>({
     queryKey: ['sd-dynamic-forms-history'],
-    queryFn: () => sdDynamicFormsApi.history().then(r => r.data),
+    queryFn: () => sdDynamicFormsApi.history().then(r => r.data as DynamicHistory),
   })
-  const { data: contextOptions = { clients: [], services: [], cis: [] } } = useQuery({
+  const { data: contextOptions = { clients: [], services: [], cis: [] } } = useQuery<ContextOptions>({
     queryKey: ['sd-dynamic-forms-context', form.client_id, form.service_item_id],
     queryFn: () => sdDynamicFormsApi.contextOptions({
       client_id: form.client_id || undefined,
       service_item_id: form.service_item_id || undefined,
       limit: 60,
-    }).then(r => r.data),
+    }).then(r => r.data as ContextOptions),
   })
-  const [dynamicValues, setDynamicValues] = useState({})
+  const [dynamicValues, setDynamicValues] = useState<Record<string, unknown>>({})
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardStep, setWizardStep] = useState(1)
   const [csvText, setCsvText] = useState('')
-  const [generatedFields, setGeneratedFields] = useState([])
+  const [generatedFields, setGeneratedFields] = useState<GeneratedField[]>([])
   const validation = useFormValidation(getCreateTicketSchema(t))
 
-  const suggestedPrio = useMemo(() => {
-    const matrix = {
+  const suggestedPrio = useMemo<TicketPriority>(() => {
+    const matrix: Record<string, TicketPriority> = {
       critical_enterprise: 'p1_critical', critical_department: 'p1_critical', critical_user: 'p2_high',
       high_enterprise: 'p1_critical', high_department: 'p2_high', high_user: 'p2_high',
       medium_enterprise: 'p2_high', medium_department: 'p3_medium', medium_user: 'p3_medium',
       low_enterprise: 'p3_medium', low_department: 'p4_low', low_user: 'p4_low',
     }
-    return matrix[`${form.urgency}_${form.impact}`] || 'p3_medium'
+    return matrix[`${form.urgency}_${form.impact}`] ?? 'p3_medium'
   }, [form.urgency, form.impact])
 
-  const set = k => e => {
+  const set = <K extends keyof CreateTicketForm>(k: K) => (e: { target: { value: string } }) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
 
-  const visibleDynamicFields = useMemo(() => {
+  const visibleDynamicFields = useMemo<DynamicField[]>(() => {
     const fields = dynamicFormRules?.fields || []
     const source = { ...form, ...dynamicValues }
-    return fields.filter(f => {
+    return fields.filter((f) => {
       const cond = f?.visible_when
       if (!cond || !cond.field) return true
-      const current = source[cond.field]
+      const current = source[cond.field as keyof typeof source]
       if (Object.prototype.hasOwnProperty.call(cond, 'equals')) return current === cond.equals
       if (Array.isArray(cond.in)) return cond.in.includes(current)
       return true
@@ -103,9 +178,9 @@ export default function CreateTicketModal({ onClose, onCreated }) {
 
   useEffect(() => {
     const visibleIds = new Set(visibleDynamicFields.map(f => f.id))
-    setDynamicValues(prev => {
+    setDynamicValues((prev) => {
       let changed = false
-      const next = {}
+      const next: Record<string, unknown> = {}
       for (const [k, v] of Object.entries(prev)) {
         if (visibleIds.has(k)) next[k] = v
         else changed = true
@@ -114,12 +189,12 @@ export default function CreateTicketModal({ onClose, onCreated }) {
     })
   }, [visibleDynamicFields])
 
-  const routingHint = useMemo(() => {
+  const routingHint = useMemo<Record<string, unknown> | null>(() => {
     const hints = dynamicFormRules?.routing_hints || []
     for (const h of hints) {
       const w = h?.when || {}
       if (!w.field) continue
-      const current = form[w.field]
+      const current = form[w.field as keyof CreateTicketForm]
       if ((Object.prototype.hasOwnProperty.call(w, 'equals') && current === w.equals) ||
           (Array.isArray(w.in) && w.in.includes(current))) {
         return h?.set || null
@@ -128,12 +203,12 @@ export default function CreateTicketModal({ onClose, onCreated }) {
     return null
   }, [dynamicFormRules, form])
 
-  const buildPayload = raw => {
+  const buildPayload = (raw: z.infer<ReturnType<typeof getCreateTicketSchema>>): CreateTicketPayload => {
     const dynamicPayload = Object.fromEntries(
       Object.entries(dynamicValues).filter(([, v]) => (v ?? '').toString().trim() !== '')
     )
 
-    const payload = {
+    const payload: CreateTicketPayload = {
       ticket_type: raw.ticket_type,
       title: raw.title?.trim(),
       description: raw.description?.trim(),
@@ -149,12 +224,13 @@ export default function CreateTicketModal({ onClose, onCreated }) {
   }
 
   const { mutate, isPending } = useMutation({
-    mutationFn: data => ticketsApi.create(data),
-    onSuccess: res => {
+    mutationFn: (data: CreateTicketPayload) => ticketsApi.create(data),
+    onSuccess: (res: { data?: unknown; number?: string }) => {
       validation.setErrors({})
       qc.invalidateQueries({ queryKey: ['sd-tickets'] })
-      toast.success(`${t('service_desk.ticket_created_success')} ${res.data?.number || ''}`)
-      onCreated?.(res.data)
+      const number = (res as any)?.data?.number || (res as any)?.number || ''
+      toast.success(`${t('service_desk.ticket_created_success')} ${number}`)
+      onCreated?.((res as any)?.data)
       onClose()
     },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
@@ -162,7 +238,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
 
   const previewImport = useMutation({
     mutationFn: () => sdDynamicFormsApi.importPreview({ csv_text: csvText, mapping: {} }),
-    onSuccess: (res) => {
+    onSuccess: (res: { data?: { generated_fields?: GeneratedField[] } }) => {
       setGeneratedFields(res?.data?.generated_fields || [])
       setWizardStep(2)
     },
@@ -184,7 +260,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
   })
 
   const rollbackConfig = useMutation({
-    mutationFn: (snapshotId) => sdDynamicFormsApi.rollback(snapshotId),
+    mutationFn: (snapshotId: string) => sdDynamicFormsApi.rollback(snapshotId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-dynamic-forms'] })
       qc.invalidateQueries({ queryKey: ['sd-dynamic-forms-history'] })
@@ -193,22 +269,22 @@ export default function CreateTicketModal({ onClose, onCreated }) {
     onError: (e) => toast.error(extractErr(e, 'No se pudo restaurar configuración')),
   })
 
-  const IS = INPUT_STYLE
-  const LS = LABEL_STYLE
+  const IS = INPUT_STYLE as CSSProperties
+  const LS = LABEL_STYLE as CSSProperties
 
-  const contextSuggestionsForField = (f) => {
+  const contextSuggestionsForField = (f: DynamicField): string[] => {
     const source = f?.data_source || (f?.type || '').replace('context_', '')
     if (source === 'ci') {
       const attr = (f?.data_attribute || 'name').toLowerCase()
-      return (contextOptions.cis || []).map(ci => String(ci[attr] || ci.name || ci.code || ''))
+      return (contextOptions.cis || []).map((ci) => String(ci[attr] || ci.name || ci.code || ''))
     }
     if (source === 'service') {
       const attr = (f?.data_attribute || 'name').toLowerCase()
-      return (contextOptions.services || []).map(s => String(s[attr] || s.name || ''))
+      return (contextOptions.services || []).map((s) => String(s[attr] || s.name || ''))
     }
     if (source === 'client') {
       const attr = (f?.data_attribute || 'name').toLowerCase()
-      return (contextOptions.clients || []).map(c => String(c[attr] || c.name || ''))
+      return (contextOptions.clients || []).map((c) => String(c[attr] || c.name || ''))
     }
     return []
   }
@@ -236,7 +312,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
           <select id={`${idPrefix}-service-item`} value={form.service_item_id} onChange={set('service_item_id')} style={IS}>
             <option value="">{t('service_desk.ticket_no_service')}</option>
             {catalog.flatMap(cat => cat.services?.map(s => (
-              <option key={s.id} value={s.id}>{cat.name} → {s.name}</option>
+              <option key={s.id} value={String(s.id)}>{cat.name} → {s.name}</option>
             )) || [])}
           </select>
         </div>
@@ -251,6 +327,8 @@ export default function CreateTicketModal({ onClose, onCreated }) {
           <AIInlineEditor
             inputId={`${idPrefix}-description`}
             ariaLabel={t('common.description')}
+            placeholder={t('common.description')}
+            disabled={isPending}
             value={form.description}
             onChange={val => set('description')({ target: { value: val } })}
             rows={4}
@@ -304,7 +382,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
             {f.type === 'select' ? (
               <select
                 id={`${idPrefix}-${f.id}`}
-                value={dynamicValues[f.id] || ''}
+                value={String(dynamicValues[f.id] ?? '')}
                 onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 style={IS}
               >
@@ -314,7 +392,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
             ) : f.type === 'textarea' ? (
               <textarea
                 id={`${idPrefix}-${f.id}`}
-                value={dynamicValues[f.id] || ''}
+                value={String(dynamicValues[f.id] ?? '')}
                 onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 style={{ ...IS, resize: 'vertical', minHeight: 88 }}
               />
@@ -324,7 +402,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
                   id={`${idPrefix}-${f.id}`}
                   type="text"
                   list={`${idPrefix}-${f.id}-options`}
-                  value={dynamicValues[f.id] || ''}
+                  value={String(dynamicValues[f.id] ?? '')}
                   onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                   style={IS}
                 />
@@ -336,7 +414,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
               <input
                 id={`${idPrefix}-${f.id}`}
                 type={f.type === 'date' ? 'date' : 'text'}
-                value={dynamicValues[f.id] || ''}
+                  value={String(dynamicValues[f.id] ?? '')}
                 onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 style={IS}
               />
@@ -348,15 +426,15 @@ export default function CreateTicketModal({ onClose, onCreated }) {
           <label htmlFor={`${idPrefix}-assigned-to`} style={LS}>{t('common.assigned_to')}</label>
           <select id={`${idPrefix}-assigned-to`} value={form.assigned_to_user_id} onChange={set('assigned_to_user_id')} style={IS}>
             <option value="">{t('service_desk.ticket_auto_routing')}</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            {users.map(u => <option key={u.id} value={String(u.id)}>{u.full_name}</option>)}
           </select>
         </div>
         <div>
           <label htmlFor={`${idPrefix}-client`} style={LS}>{t('service_desk.detail_requester')}</label>
           <select id={`${idPrefix}-client`} value={form.client_id} onChange={set('client_id')} style={IS}>
             <option value="">{t('service_desk.ticket_no_client')}</option>
-            {(Array.isArray(clients) ? clients : clients?.items || []).map(c =>
-              <option key={c.id} value={c.id}>{c.name}</option>)}
+            {clients.map(c =>
+              <option key={c.id} value={String(c.id)}>{c.name}</option>)}
           </select>
         </div>
 

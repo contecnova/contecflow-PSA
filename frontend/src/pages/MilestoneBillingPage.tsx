@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -11,11 +11,35 @@ import { Flag } from 'lucide-react'
 import { Button, Modal, EmptyState, Tabs } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
-const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+type BillingStatus = 'pending' | 'completed' | 'pending_approval' | 'approved' | 'rejected' | 'invoiced'
+
+interface ProjectItem {
+  id: string | number
+  code?: string
+  name?: string
+}
+
+interface MilestoneItem {
+  id: string | number
+  name?: string
+  title?: string
+  code?: string
+  billing_status?: BillingStatus
+  due_date?: string
+  billing_amount?: number
+  billing_pct?: number
+  rejection_reason?: string
+  invoice_id?: string | number
+  amount?: number
+  currency?: string
+  project_name?: string
+}
+
+const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
 // ── Colores y labels por estado ───────────────────────────────────────────────
-const STATUS = {
+const STATUS: Record<BillingStatus, { label: string; color: string; bg: string; icon: string }> = {
   pending:          { label: 'Pendiente',          color: 'var(--text-2)', bg: 'var(--surface-4)',   icon: '○' },
   completed:        { label: 'Completado',          color: 'var(--accent)', bg: 'var(--accent-muted)', icon: '✓' },
   pending_approval: { label: 'Esperando aprobación',color: 'var(--warning)', bg: 'var(--warning-bg)', icon: '⏳' },
@@ -25,8 +49,8 @@ const STATUS = {
 }
 
 // ── Badge de estado ───────────────────────────────────────────────────────────
-function StatusBadge({ status }) {
-  const s = STATUS[status] || STATUS.pending
+function StatusBadge({ status }: { status?: BillingStatus }) {
+  const s = status ? (STATUS[status] || STATUS.pending) : STATUS.pending
   return (
     <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: s.bg, color: s.color, fontWeight: 700, whiteSpace: 'nowrap' }}>
       {s.icon} {s.label}
@@ -35,7 +59,7 @@ function StatusBadge({ status }) {
 }
 
 // ── Modal de rechazo ──────────────────────────────────────────────────────────
-function RejectModal({ milestone, onClose, onReject }) {
+function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneItem; onClose: () => void; onReject: (reason: string) => void }) {
   const t = useAppT()
   const [reason, setReason] = useState('')
   const milestoneLabel = milestone?.name || milestone?.title || milestone?.code || milestone?.id
@@ -72,16 +96,16 @@ function RejectModal({ milestone, onClose, onReject }) {
 }
 
 // ── Milestone card ────────────────────────────────────────────────────────────
-function MilestoneCard({ m, projectName, onRefresh }) {
+function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projectName: string; onRefresh: () => void | Promise<unknown> }) {
   const toast = useToast()
   const _qc = useQueryClient()
   const [showReject, setShowReject] = useState(false)
-  const [loading, setLoading] = useState(null)
+  const [loading, setLoading] = useState<'complete' | 'uncomplete' | 'request' | 'approve' | 'reject' | 'invoice' | null>(null)
 
-  const act = async (action, payload) => {
+  const act = async (action: 'complete' | 'uncomplete' | 'request' | 'approve' | 'reject' | 'invoice', payload?: string) => {
     setLoading(action)
     try {
-      let res
+      let res: { data?: { message?: string } } | undefined
       if (action === 'complete')        res = await milestonesApi.complete(m.id)
       if (action === 'uncomplete')      res = await milestonesApi.uncomplete(m.id)
       if (action === 'request')         res = await milestonesApi.requestApproval(m.id)
@@ -90,15 +114,16 @@ function MilestoneCard({ m, projectName, onRefresh }) {
       if (action === 'invoice')         res = await milestonesApi.generateInvoice(m.id)
       toast.success(res?.data?.message || 'Acción completada')
       onRefresh()
-    } catch (e) {
-      toast.error(e?.response?.data?.detail || 'Error')
+    } catch (e: unknown) {
+      toast.error(extractErr(e, 'Error'))
     } finally {
       setLoading(null)
       setShowReject(false)
     }
   }
 
-  const s = STATUS[m.billing_status] || STATUS.pending
+  const status = m.billing_status || 'pending'
+  const s = STATUS[status] || STATUS.pending
 
   return (
     <div style={{
@@ -192,7 +217,7 @@ function MilestoneCard({ m, projectName, onRefresh }) {
 }
 
 // ── Formulario de nuevo milestone ─────────────────────────────────────────────
-function NewMilestoneModal({ projectId, onClose, onSave }) {
+function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; onClose: () => void; onSave: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState({ name: '', description: '', due_date: '', billing_amount: '', billing_pct: '' })
@@ -241,36 +266,37 @@ function NewMilestoneModal({ projectId, onClose, onSave }) {
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
-export default function MilestoneBillingPage() {
+export default function MilestoneBillingPage(): JSX.Element {
   const _t = useAppT()
   const _toast = useToast()
   const _qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState('')
   const [showNew, setShowNew]   = useState(false)
-  const [tab, setTab]           = useState('project')   // project | dashboard
+  const [tab, setTab] = useState<'project' | 'dashboard'>('project')
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(unwrapList),
+    queryFn: () => projectsApi.list({}).then(unwrapList),
   })
 
-  const { data: milestones = [], refetch } = useQuery({
+  const { data: milestones = [], refetch } = useQuery<MilestoneItem[]>({
     queryKey: ['milestones', selectedProject],
     queryFn: () => milestonesApi.list(selectedProject).then(r => r.data?.items ?? r.data ?? []),
     enabled: !!selectedProject,
   })
 
-  const { data: dashboard = [], refetch: refetchDash } = useQuery({
+  const { data: dashboard = [], refetch: refetchDash } = useQuery<MilestoneItem[]>({
     queryKey: ['milestones-dashboard'],
     queryFn: () => milestonesApi.dashboard().then(r => r.data?.items ?? r.data ?? []),
     enabled: tab === 'dashboard',
   })
 
-  const projectName = projects.find(p => p.id === selectedProject)?.name || ''
+  const projectName = projects.find(p => String(p.id) === String(selectedProject))?.name || ''
 
   // Agrupados por estado
-  const byStatus = milestones.reduce((acc, m) => {
-    acc[m.billing_status] = [...(acc[m.billing_status] || []), m]
+  const byStatus = milestones.reduce<Record<string, MilestoneItem[]>>((acc, m) => {
+    const key = m.billing_status || 'pending'
+    acc[key] = [...(acc[key] || []), m]
     return acc
   }, {})
 

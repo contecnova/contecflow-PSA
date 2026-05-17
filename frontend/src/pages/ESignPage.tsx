@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * ESignPage — Electronic signature management dashboard
  * Lists all envelopes, allows creating signature requests on documents.
  */
 
-import { useState } from 'react'
+import { CSSProperties, ChangeEvent, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { documentsApi } from '../services/api'
@@ -14,7 +13,74 @@ import { PenLine } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
-const STATUS_COLORS = {
+type EnvelopeStatus = 'draft' | 'sent' | 'delivered' | 'completed' | 'declined' | 'voided' | 'error'
+
+type StatusColor = {
+  color: string
+  bg: string
+  key: string
+}
+
+type Signer = {
+  id: number
+  name: string
+  email: string
+  routing_order: number
+  signed?: boolean
+  signed_at?: string | null
+}
+
+type Envelope = {
+  id: number
+  subject?: string
+  message?: string
+  provider: 'manual' | 'docusign' | 'adobe_sign' | string
+  status: EnvelopeStatus | string
+  signers?: Signer[]
+  sent_at?: string | null
+  expires_at?: string | null
+  signing_url?: string | null
+}
+
+type ESignStats = {
+  total: number
+  completed: number
+  pending: number
+  declined: number
+  providers?: {
+    docusign_configured?: boolean
+    adobe_configured?: boolean
+  }
+}
+
+type DocumentItem = {
+  id: number
+  name: string
+}
+
+type CreateSigner = {
+  name: string
+  email: string
+  routing_order: number
+}
+
+type CreateEnvelopeForm = {
+  document_id: string
+  subject: string
+  message: string
+  provider: 'manual' | 'docusign' | 'adobe_sign'
+  expires_days: number
+}
+
+type ApiError = {
+  response?: {
+    data?: {
+      detail?: string | Array<{ msg?: string }>
+    }
+  }
+}
+
+const STATUS_COLORS: Record<EnvelopeStatus, StatusColor> = {
   draft:     { color: 'var(--text-2)',   bg: 'var(--surface-2)',  key: 'esign.status_draft' },
   sent:      { color: 'var(--info)',     bg: 'var(--info-bg)',    key: 'esign.status_sent' },
   delivered: { color: 'var(--info)',     bg: 'var(--info-bg)',    key: 'esign.status_delivered' },
@@ -24,9 +90,13 @@ const STATUS_COLORS = {
   error:     { color: 'var(--warning)',  bg: 'var(--warning-bg)', key: 'esign.status_error' },
 }
 
-function StatusPill({ status }) {
+function isEnvelopeStatus(value: string): value is EnvelopeStatus {
+  return value in STATUS_COLORS
+}
+
+function StatusPill({ status }: { status: string }) {
   const t = useAppT()
-  const s = STATUS_COLORS[status] || STATUS_COLORS.draft
+  const s = isEnvelopeStatus(status) ? STATUS_COLORS[status] : STATUS_COLORS.draft
   return (
     <span style={{
       background: s.bg, color: s.color,
@@ -36,7 +106,7 @@ function StatusPill({ status }) {
   )
 }
 
-const fs = {
+const fs: CSSProperties = {
   width: '100%',
   background: 'var(--surface-3)',
   border: '1px solid var(--surface-4)',
@@ -48,7 +118,7 @@ const fs = {
   fontFamily: 'var(--font-sans)',
   boxSizing: 'border-box',
 }
-const ls = {
+const ls: CSSProperties = {
   fontSize: '11px',
   fontWeight: 700,
   color: 'var(--text-2)',
@@ -58,27 +128,30 @@ const ls = {
   marginBottom: 'var(--space-1)',
 }
 
-function CreateEnvelopeModal({ onClose, onCreated }) {
+function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCreated: (envelope: Envelope) => void }) {
   const t = useAppT()
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<CreateEnvelopeForm>({
     document_id: '',
     subject: '',
     message: '',
     provider: 'manual',
     expires_days: 7,
   })
-  const [signers, setSigners] = useState([{ name: '', email: '', routing_order: 1 }])
+  const [signers, setSigners] = useState<CreateSigner[]>([{ name: '', email: '', routing_order: 1 }])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
-  const setSigner = (i, k, v) => setSigners(s => s.map((x, idx) => idx === i ? { ...x, [k]: v } : x))
+  const setField = <K extends keyof CreateEnvelopeForm>(k: K) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const value = k === 'expires_days' ? Number(e.target.value) : e.target.value
+    setForm(f => ({ ...f, [k]: value as CreateEnvelopeForm[K] }))
+  }
+  const setSigner = <K extends keyof CreateSigner>(i: number, k: K, v: CreateSigner[K]) => setSigners(s => s.map((x, idx) => idx === i ? { ...x, [k]: v } : x))
   const addSigner = () => setSigners(s => [...s, { name: '', email: '', routing_order: s.length + 1 }])
   const removeSigner = (i) => setSigners(s => s.filter((_, idx) => idx !== i))
 
-  const { data: documents = [] } = useQuery({
+  const { data: documents = [] } = useQuery<DocumentItem[]>({
     queryKey: ['documents-list'],
-    queryFn: () => documentsApi.list().then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
+    queryFn: () => documentsApi.list({}).then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
   })
 
   const submit = async () => {
@@ -92,8 +165,9 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
       const res = await api.post('/esign', { ...form, document_id: Number(form.document_id), expires_days: Number(form.expires_days), signers })
       onCreated(res.data)
       onClose()
-    } catch (e) {
-      const raw = e?.response?.data?.detail
+    } catch (e: unknown) {
+      const err = e as ApiError
+      const raw = err?.response?.data?.detail
       setError(Array.isArray(raw) ? raw.map(e => e.msg).join(', ') : (raw || t('esign.error_create')))
     } finally {
       setSaving(false)
@@ -105,23 +179,23 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <label style={ls}>{t('esign.document')}</label>
-          <select value={form.document_id} onChange={set('document_id')} style={fs}>
+          <select value={form.document_id} onChange={setField('document_id')} style={fs}>
             <option value="">{t('esign.select_document')}</option>
             {documents.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
         <div>
           <label style={ls}>{t('esign.subject')}</label>
-          <input value={form.subject} onChange={set('subject')} style={fs} placeholder={t('esign.subject_ph')} />
+          <input value={form.subject} onChange={setField('subject')} style={fs} placeholder={t('esign.subject_ph')} />
         </div>
         <div>
           <label style={ls}>{t('esign.message')}</label>
-          <textarea value={form.message} onChange={set('message')} style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t('esign.message_ph')} />
+          <textarea value={form.message} onChange={setField('message')} style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t('esign.message_ph')} />
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div style={{ flex: 1 }}>
             <label style={ls}>{t('esign.provider')}</label>
-            <select value={form.provider} onChange={set('provider')} style={fs}>
+            <select value={form.provider} onChange={setField('provider')} style={fs}>
               <option value="manual">{t('esign.provider_manual')}</option>
               <option value="docusign">DocuSign</option>
               <option value="adobe_sign">Adobe Sign</option>
@@ -129,7 +203,7 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
           </div>
           <div style={{ width: 120 }}>
             <label style={ls}>{t('esign.valid_days')}</label>
-            <input type="number" value={form.expires_days} onChange={set('expires_days')} style={fs} min={1} max={30} />
+            <input type="number" value={form.expires_days} onChange={setField('expires_days')} style={fs} min={1} max={30} />
           </div>
         </div>
 
@@ -138,7 +212,7 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
             <label style={ls}>{t('esign.signers')}</label>
             <button onClick={addSigner} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>+ {t('esign.add_signer')}</button>
           </div>
-          {signers.map((s, i) => (
+          {signers.map((s, i: number) => (
             <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
               <input value={s.name} onChange={e => setSigner(i, 'name', e.target.value)}
                 placeholder={t('esign.signer_name_ph')} style={{ ...fs, flex: 1 }} />
@@ -164,36 +238,39 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
   )
 }
 
-const cell = { padding: '10px 14px', fontSize: "var(--text-base)", color: 'var(--text-1)', borderBottom: '1px solid var(--surface-4)' }
-const th   = { ...cell, fontWeight: 700, fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', background: 'var(--surface-2)' }
+const cell: CSSProperties = { padding: '10px 14px', fontSize: "var(--text-base)", color: 'var(--text-1)', borderBottom: '1px solid var(--surface-4)' }
+const th: CSSProperties = { ...cell, fontWeight: 700, fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', background: 'var(--surface-2)' }
 
 export default function ESignPage(): JSX.Element {
   const t = useAppT()
   const [creating, setCreating]   = useState(false)
-  const [detail, setDetail]       = useState(null)
+  const [detail, setDetail]       = useState<Envelope | null>(null)
   const qc = useQueryClient()
 
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<ESignStats>({
     queryKey: ['esign-stats'],
     queryFn: () => api.get('/esign/summary/stats').then(r => r.data),
   })
 
-  const { data: envelopes = [], isLoading } = useQuery({
+  const { data: envelopes = [], isLoading } = useQuery<Envelope[]>({
     queryKey: ['esign-envelopes'],
     queryFn: () => api.get('/esign').then(r => r.data?.items ?? r.data ?? []),
   })
 
   const { mutate: voidEnv } = useMutation({
-    mutationFn: (id) => api.delete(`/esign/${id}`),
-    onSuccess: () => qc.invalidateQueries(['esign-envelopes', 'esign-stats']),
+    mutationFn: (id: number) => api.delete(`/esign/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['esign-envelopes'] })
+      qc.invalidateQueries({ queryKey: ['esign-stats'] })
+    },
   })
 
   const { mutate: markSigned } = useMutation({
-    mutationFn: ({ envelopeId, signerId }) => api.patch(`/esign/${envelopeId}/signers/${signerId}/signed`),
-    onSuccess: () => { qc.invalidateQueries(['esign-envelopes']); setDetail(null) },
+    mutationFn: ({ envelopeId, signerId }: { envelopeId: number; signerId: number }) => api.patch(`/esign/${envelopeId}/signers/${signerId}/signed`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['esign-envelopes'] }); setDetail(null) },
   })
 
-  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
   const docusignOk = stats?.providers?.docusign_configured
   const adobeOk    = stats?.providers?.adobe_configured
@@ -204,7 +281,7 @@ export default function ESignPage(): JSX.Element {
         icon={<PenLine size={18} />}
         title={t('esign.title')}
         subtitle={t('esign.subtitle')}
-        action={<Button onClick={() => setCreating(true)}>✍ Nueva solicitud</Button>}
+        actions={<Button onClick={() => setCreating(true)}>✍ Nueva solicitud</Button>}
       />
 
       {/* Provider status */}
@@ -270,7 +347,7 @@ export default function ESignPage(): JSX.Element {
                   </td>
                   <td style={cell}>
                     <span style={{ fontSize: "var(--text-sm)" }}>
-                      {env.signers?.filter(s => s.signed).length || 0}/{env.signers?.length || 0} firmados
+                      {env.signers?.filter((s: Signer) => s.signed).length || 0}/{env.signers?.length || 0} firmados
                     </span>
                   </td>
                   <td style={cell}><StatusPill status={env.status} /></td>
@@ -298,7 +375,10 @@ export default function ESignPage(): JSX.Element {
       {creating && (
         <CreateEnvelopeModal
           onClose={() => setCreating(false)}
-          onCreated={() => qc.invalidateQueries(['esign-envelopes', 'esign-stats'])}
+          onCreated={() => {
+            qc.invalidateQueries({ queryKey: ['esign-envelopes'] })
+            qc.invalidateQueries({ queryKey: ['esign-stats'] })
+          }}
         />
       )}
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * RiskScoresPage — Predicción de riesgo por proyecto
  * Motor basado en señales observables: schedule, budget, scope, recursos
@@ -16,14 +15,95 @@ import { AlertOctagon, Brain } from 'lucide-react'
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 
-const LEVEL_CFG = {
+type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
+
+type RiskCardConfig = {
+  color: string
+  bg: string
+  border?: string
+  label: string
+  icon?: string
+}
+
+type MlPortfolioRiskProject = {
+  project_id: string | number
+  project_name?: string
+  risk_level?: RiskLevel
+  recommendation?: string
+  cpi?: number | null
+  spi?: number | null
+}
+
+type MlPortfolioRiskData = {
+  total_projects?: number
+  risk_counts?: Partial<Record<RiskLevel, number>>
+  at_risk_projects?: MlPortfolioRiskProject[]
+}
+
+type MlModel = {
+  id?: string | number
+  version?: string | number
+  is_active?: boolean
+  samples_used?: number
+  trained_at?: string
+  accuracy?: number
+}
+
+type MlPredictionLog = {
+  id?: string | number
+  project_id?: string | number
+  project_name?: string
+  risk_level?: RiskLevel
+  predicted_at?: string
+}
+
+type RiskProject = {
+  project_id: string | number
+  project_name?: string
+  project_code?: string
+  level?: RiskLevel
+  overall_score?: number
+  schedule_risk?: number
+  budget_risk?: number
+  scope_risk?: number
+  resource_risk?: number
+  recommendation?: string
+  delay_probability_pct?: number
+  predicted_delay_weeks?: number
+  computed_at?: string
+}
+
+type RiskSummary = Partial<Record<RiskLevel, number>>
+
+type RiskScoresResponse = {
+  projects?: RiskProject[]
+  summary?: RiskSummary
+}
+
+type RiskDetail = {
+  project_name?: string
+  schedule_risk?: number
+  budget_risk?: number
+  scope_risk?: number
+  resource_risk?: number
+  recommendation?: string
+  delay_probability_pct?: number
+  predicted_delay_weeks?: number
+}
+
+type RadarDatum = {
+  subject: string
+  A: number
+}
+
+const LEVEL_CFG: Record<RiskLevel, RiskCardConfig> = {
   low:      { color:'var(--success)', bg:'var(--success-bg)', border:'rgba(52,211,153,0.25)', label:'Bajo', icon:'🟢' },
   medium:   { color:'var(--warning)', bg:'var(--warning-bg)', border:'rgba(251,191,36,0.25)', label:'Medio', icon:'🟡' },
   high:     { color:'var(--danger)',  bg:'var(--danger-bg)',  border:'rgba(239,68,68,0.25)',  label:'Alto', icon:'🔴' },
   critical: { color:'var(--danger)',  bg:'var(--danger-bg)',  border:'rgba(239,68,68,0.25)',  label:'Crítico', icon:'🚨' },
 }
 
-function ScoreBar({ value, label, _color }) {
+function ScoreBar({ value, label, _color }: { value: number; label: string; _color?: string }) {
   return (
     <div style={{ marginBottom:10 }}>
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4, fontSize: "var(--text-sm)" }}>
@@ -37,7 +117,7 @@ function ScoreBar({ value, label, _color }) {
   )
 }
 
-const ML_RISK_CFG = {
+const ML_RISK_CFG: Record<RiskLevel, RiskCardConfig> = {
   low:      { color: 'var(--success)', label: 'Bajo',     bg: 'var(--success-bg)' },
   medium:   { color: 'var(--warning)', label: 'Moderado', bg: 'rgba(250,199,117,0.15)' },
   high:     { color: '#F87171',        label: 'Alto',     bg: 'rgba(248,113,113,0.12)' },
@@ -48,23 +128,23 @@ function MLPredictionsTab() {
   const toast = useToast()
   const qc = useQueryClient()
 
-  const { data: portfolio, isLoading: lPortfolio } = useQuery({
+  const { data: portfolio, isLoading: lPortfolio } = useQuery<MlPortfolioRiskData>({
     queryKey: ['ml-portfolio-risk'],
-    queryFn: () => predictionsApi.portfolioRisk().then(r => r.data),
+    queryFn: () => predictionsApi.portfolioRisk().then(r => r.data as MlPortfolioRiskData),
     retry: 1,
   })
-  const { data: models = [], isLoading: lModels } = useQuery({
+  const { data: models = [], isLoading: lModels } = useQuery<MlModel[]>({
     queryKey: ['ml-models'],
-    queryFn: () => predictionsApi.models().then(r => r.data).catch(() => []),
+    queryFn: () => predictionsApi.models().then(r => r.data as MlModel[]).catch(() => []),
   })
-  const { data: logs = [], isLoading: lLogs } = useQuery({
+  const { data: logs = [], isLoading: lLogs } = useQuery<MlPredictionLog[]>({
     queryKey: ['ml-logs'],
-    queryFn: () => predictionsApi.logs({ limit: 30 }).then(r => r.data).catch(() => []),
+    queryFn: () => predictionsApi.logs({ limit: 30 }).then(r => r.data as MlPredictionLog[]).catch(() => []),
   })
   const { mutate: train, isPending: training } = useMutation({
     mutationFn: () => predictionsApi.train(),
     onSuccess: (res) => {
-      qc.invalidateQueries(['ml-models'])
+      qc.invalidateQueries({ queryKey: ['ml-models'] })
       const d = res.data || {}
       // Backend devuelve {status, samples, accuracy_roc_auc, reason?} no {message, samples_used}
       if (d.status === 'skipped') {
@@ -78,7 +158,7 @@ function MLPredictionsTab() {
 
   // Backend devuelve {total_projects, risk_counts:{critical,high,medium,low}, at_risk_projects}
   // Antes la UI buscaba portfolio.projects / portfolio.summary que NO existen → 0 en todos los KPIs.
-  const projects = portfolio?.at_risk_projects || []
+  const projects: MlPortfolioRiskProject[] = portfolio?.at_risk_projects || []
   const summary  = {
     total: portfolio?.total_projects || 0,
     critical: portfolio?.risk_counts?.critical || 0,
@@ -115,8 +195,9 @@ function MLPredictionsTab() {
             <EmptyState icon="🤖" title="Sin predicciones ML" description="Entrena el modelo primero para ver predicciones de riesgo" />
           ) : (
             <div style={{ maxHeight: 480, overflowY: 'auto' }}>
-              {projects.map(p => {
-                const cfg = ML_RISK_CFG[p.risk_level] || ML_RISK_CFG.low
+              {projects.map((p) => {
+                const level = p.risk_level || 'low'
+                const cfg = ML_RISK_CFG[level]
                 return (
                   <div key={p.project_id} style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', gap: 14 }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
@@ -184,7 +265,8 @@ function MLPredictionsTab() {
               {lLogs ? <div style={{ padding: 16 }}><Spinner /></div> : logs.length === 0 ? (
                 <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Sin predicciones registradas</div>
               ) : logs.map((l, i) => {
-                const cfg = ML_RISK_CFG[l.risk_level] || ML_RISK_CFG.low
+                const level = l.risk_level || 'low'
+                const cfg = ML_RISK_CFG[level]
                 return (
                   <div key={l.id || i} style={{ padding: '8px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)" }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -204,34 +286,34 @@ function MLPredictionsTab() {
 }
 
 export default function RiskScoresPage() {
-  const t = useAppT()
+  const t = useAppT() as (key: string) => string
   const qc = useQueryClient()
   const toast = useToast()
-  const [tab, setTab] = useState('rules')
-  const [selected, setSelected] = useState(null)
-  const [filterLevel, setFilterLevel] = useState('all')
+  const [tab, setTab] = useState<'rules' | 'ml'>('rules')
+  const [selected, setSelected] = useState<string | number | null>(null)
+  const [filterLevel, setFilterLevel] = useState<RiskLevel | 'all'>('all')
 
-  const { data: response, isLoading, isFetching } = useQuery({
+  const { data: response, isLoading, isFetching } = useQuery<RiskScoresResponse>({
     queryKey: ['risk-scores'],
-    queryFn: () => api.get('/risk-scores').then(r => r.data),
+    queryFn: () => api.get('/risk-scores').then(r => r.data as RiskScoresResponse),
   })
-  const { data: detail } = useQuery({
+  const { data: detail } = useQuery<RiskDetail>({
     queryKey: ['risk-detail', selected],
-    queryFn: () => api.get(`/risk-scores/${selected}`).then(r => r.data),
+    queryFn: () => api.get(`/risk-scores/${selected}`).then(r => r.data as RiskDetail),
     enabled: !!selected,
   })
   const { mutate: refresh, isPending:refreshing } = useMutation({
     mutationFn: () => api.get('/risk-scores?refresh=true').then(r=>r.data),
-    onSuccess: () => qc.invalidateQueries(['risk-scores']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['risk-scores'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const projects = response?.projects || []
-  const summary = response?.summary || {}
+  const projects: RiskProject[] = response?.projects || []
+  const summary: RiskSummary = response?.summary || {}
 
-  const filtered = filterLevel === 'all' ? projects : projects.filter(p => p.level === filterLevel)
+  const filtered: RiskProject[] = filterLevel === 'all' ? projects : projects.filter((p) => p.level === filterLevel)
 
-  const radarData = detail ? [
+  const radarData: RadarDatum[] = detail ? [
     { subject:'Cronograma', A: Math.round(detail.schedule_risk || 0) },
     { subject:'Presupuesto', A: Math.round(detail.budget_risk || 0) },
     { subject:'Alcance', A: Math.round(detail.scope_risk || 0) },
@@ -251,7 +333,7 @@ export default function RiskScoresPage() {
 
       {/* Tab nav */}
       <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--surface-4)', paddingBottom:0 }}>
-        {[['rules','🛡️ Riesgo basado en señales'],['ml','🤖 Predicciones ML']].map(([id,label]) => (
+        {([['rules','🛡️ Riesgo basado en señales'],['ml','🤖 Predicciones ML']] as Array<['rules' | 'ml', string]>).map(([id,label]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ padding:'8px 18px', fontSize: "var(--text-base)", fontWeight: tab===id ? 700 : 400,
               color: tab===id ? 'var(--accent)' : 'var(--text-2)', background:'transparent',
@@ -272,11 +354,11 @@ export default function RiskScoresPage() {
           { level:'high',     label:'Alto',    count: summary.high || 0 },
           { level:'medium',   label:'Medio',   count: summary.medium || 0 },
           { level:'low',      label:'Bajo',    count: summary.low || 0 },
-        ].map(s => {
+        ].map((s) => {
           const cfg = LEVEL_CFG[s.level]
           return (
             <button key={s.level} type="button"
-              onClick={() => setFilterLevel(filterLevel === s.level ? 'all' : s.level)}
+              onClick={() => setFilterLevel(filterLevel === s.level ? 'all' : (s.level as RiskLevel))}
               style={{ background:cfg.bg, border:`.5px solid ${cfg.border}`, borderRadius:10, padding:'16px 18px', cursor:'pointer', opacity: filterLevel !== 'all' && filterLevel !== s.level ? 0.5 : 1, textAlign:'left', fontFamily:'inherit' }}>
               <div style={{ fontSize: "var(--text-2xl)", marginBottom:4 }}>{cfg.icon}</div>
               <div style={{ fontSize: "var(--text-2xl-em)", fontWeight:500, color:cfg.color }}>{s.count}</div>
@@ -306,8 +388,9 @@ export default function RiskScoresPage() {
             <EmptyState icon="🛡" title="Sin datos de riesgo" description="Los proyectos con calculos de riesgo apareceran aqui" />
           ) : (
             <div data-export-table="risk-scores-list" style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {filtered.map(p => {
-                const cfg = LEVEL_CFG[p.level] || LEVEL_CFG.low
+              {filtered.map((p) => {
+                const level = p.level || 'low'
+                const cfg = LEVEL_CFG[level]
                 const isSelected = selected === p.project_id
                 return (
                   <button key={p.project_id} type="button"
@@ -333,7 +416,7 @@ export default function RiskScoresPage() {
                             { label:'Presupuesto', val: p.budget_risk },
                             { label:'Alcance', val: p.scope_risk },
                             { label:'Recursos', val: p.resource_risk },
-                          ].map(item => (
+                          ].map((item) => (
                             <div key={item.label}>
                               <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginBottom:2 }}>{item.label}</div>
                               <div style={{ height:4, background:'var(--surface-2)', borderRadius:2, overflow:'hidden' }}>
@@ -378,7 +461,7 @@ export default function RiskScoresPage() {
                 <PolarGrid stroke="var(--surface-4)" />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: "var(--text-xs)", fill:'var(--text-2)' }} />
                 <Radar name={detail.project_name} dataKey="A" stroke="#3266AD" fill="#3266AD" fillOpacity={0.25} />
-                <Tooltip formatter={v => [`${Math.round(v)}%`, 'Riesgo']} />
+                <Tooltip formatter={(v: unknown) => [`${Math.round(Number(v) || 0)}%`, 'Riesgo']} />
               </RadarChart>
             </ResponsiveContainer>
 

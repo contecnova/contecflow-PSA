@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * OnboardingWizard — Interactive step-by-step setup guide for new admins
  * Features:
@@ -137,12 +136,12 @@ export default function OnboardingWizard() {
 
   const { mutate: completeStep } = useMutation({
     mutationFn: (step_id: string) => onboardingApi.completeStep({ step_id }),
-    onSuccess: () => qc.invalidateQueries(['onboarding']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding'] }),
   })
 
   const { mutate: dismiss } = useMutation({
     mutationFn: () => onboardingApi.dismiss(),
-    onSuccess: () => qc.invalidateQueries(['onboarding']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding'] }),
   })
 
   // Auto-verify all steps on mount and after each navigation

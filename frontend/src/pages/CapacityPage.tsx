@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * CapacityPage — Planificador visual de recursos con drag-and-drop
  *
@@ -6,10 +5,10 @@
  * Permite arrastrar bloques de horas de un usuario/semana a otro.
  */
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
-import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, capacityApi, unwrapList } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
@@ -21,8 +20,47 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+type UserItem = {
+  id: string | number
+  full_name: string
+  department?: string | null
+  weekly_capacity_hours?: number | null
+  is_active?: boolean
+}
+
+type ProjectItem = {
+  id: string | number
+  name: string
+  code?: string
+  status?: string
+}
+
+type CapacityPlan = {
+  id: string | number
+  user_id: string | number
+  week_start: string
+  project_id?: string | number | null
+  project_name?: string
+  planned_hours?: number
+}
+
+type AssignPrefill = {
+  user_id?: string | number
+  project_id?: string | number
+  week_start?: string
+  hours?: number
+}
+
+type AssignForm = {
+  user_id: string
+  project_id: string
+  week_start: string
+  planned_hours: number
+  notes: string
+}
+
+const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 const assignPlanSchema = z.object({
   user_id: z.string().trim().min(1, 'La persona es obligatoria'),
@@ -32,55 +70,54 @@ const assignPlanSchema = z.object({
   notes: z.string().optional(),
 })
 
-const LOAD_COLOR = (pct) => pct > 100 ? 'var(--danger)' : pct > 85 ? 'var(--warning)' : pct > 60 ? 'var(--accent)' : 'var(--success)'
+const LOAD_COLOR = (pct: number) => pct > 100 ? 'var(--danger)' : pct > 85 ? 'var(--warning)' : pct > 60 ? 'var(--accent)' : 'var(--success)'
 
-function monday(d) {
+function monday(d: Date | string) {
   const dt = new Date(d)
   const day = dt.getDay()
   dt.setDate(dt.getDate() - (day === 0 ? 6 : day - 1))
   return dt.toISOString().slice(0, 10)
 }
 
-function addWeeks(dateStr, n) {
+function addWeeks(dateStr: string, n: number) {
   const d = new Date(dateStr)
   d.setDate(d.getDate() + n * 7)
   return d.toISOString().slice(0, 10)
 }
 
-function weekLabel(dateStr) {
+function weekLabel(dateStr: string) {
   const d = new Date(dateStr)
   return `${d.getDate()}/${d.getMonth() + 1}`
 }
 
 // ── Modal de nueva asignación ─────────────────────────────────────────────────
-function AssignModal({ prefill, onClose }) {
+function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onClose: () => void }) {
   const toast = useToast()
-  const { _invalidate } = useInvalidate()
   const qc = useQueryClient()
-  const [form, setForm] = useState({
-    user_id:       prefill?.user_id  || '',
-    project_id:    prefill?.project_id || '',
+  const [form, setForm] = useState<AssignForm>({
+    user_id:       prefill?.user_id ? String(prefill.user_id) : '',
+    project_id:    prefill?.project_id ? String(prefill.project_id) : '',
     week_start:    prefill?.week_start || monday(new Date()),
     planned_hours: prefill?.hours || 8,
     notes:         '',
   })
   const validation = useFormValidation(assignPlanSchema)
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<UserItem[]>({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => unwrapList(r).filter(u => u.is_active)),
+    queryFn: () => usersApi.list({}).then(r => (unwrapList(r) as UserItem[]).filter((u) => u.is_active)),
   })
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => unwrapList(r).filter(p => p.status === 'active')),
+    queryFn: () => projectsApi.list({}).then(r => (unwrapList(r) as ProjectItem[]).filter((p) => p.status === 'active')),
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => capacityApi.createPlan(d),
+    mutationFn: (d: z.infer<typeof assignPlanSchema>) => capacityApi.createPlan(d),
     onSuccess: () => {
-      qc.invalidateQueries(['capacity-board'])
-      qc.invalidateQueries(['forecast-heatmap'])
-      qc.invalidateQueries(['forecast-summary'])
+      qc.invalidateQueries({ queryKey: ['capacity-board'] })
+      qc.invalidateQueries({ queryKey: ['forecast-heatmap'] })
+      qc.invalidateQueries({ queryKey: ['forecast-summary'] })
       toast.success('Asignación creada')
       validation.setErrors({})
       onClose()
@@ -88,9 +125,9 @@ function AssignModal({ prefill, onClose }) {
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
 
-  const setField = (key) => (e) => {
+  const setField = (key: keyof AssignForm) => (e: { target: { value: string } }) => {
     const value = key === 'planned_hours' ? +e.target.value : e.target.value
-    setForm(current => ({ ...current, [key]: value }))
+    setForm(current => ({ ...current, [key]: value as never }))
     validation.clearFieldError(key)
   }
 
@@ -153,7 +190,14 @@ function AssignModal({ prefill, onClose }) {
 }
 
 // ── Celda de capacidad con drag & drop ────────────────────────────────────────
-function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
+function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
+  userId: string | number
+  weekStart: string
+  plans: CapacityPlan[]
+  capacity: number
+  onDrop: (planId: string | number, userId: string | number, weekStart: string) => void
+  onAdd: (prefill: AssignPrefill) => void
+}) {
   const toast = useToast()
   const [dragOver, setDragOver] = useState(false)
   const qc = useQueryClient()
@@ -163,8 +207,8 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
   const color     = LOAD_COLOR(loadPct)
 
   const { mutate: deletePlan } = useMutation({
-    mutationFn: id => capacityApi.deletePlan(id),
-    onSuccess: () => { qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); toast.success('Asignación eliminada') },
+    mutationFn: (id: string | number) => capacityApi.deletePlan(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); toast.success('Asignación eliminada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -250,46 +294,46 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
 }
 
 export default function CapacityPage(): JSX.Element {
-  const _t = useAppT()
+  const _t = useAppT() as (key: string) => string
   const toast = useToast()
   const qc = useQueryClient()
   const [weeksAhead, setWeeksAhead] = useState(8)
   const [showAssign, setShowAssign] = useState(false)
-  const [assignPrefill, setAssignPrefill] = useState(null)
+  const [assignPrefill, setAssignPrefill] = useState<AssignPrefill | null>(null)
   const [deptFilter, setDeptFilter]       = useState('')
 
   const weekStarts = Array.from({ length: weeksAhead }, (_, i) =>
     addWeeks(monday(new Date()), i)
   )
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<UserItem[]>({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => unwrapList(r).filter(u => u.is_active)),
+    queryFn: () => usersApi.list({}).then(r => (unwrapList(r) as UserItem[]).filter((u) => u.is_active)),
   })
 
-  const { data: board = [], isLoading } = useQuery({
+  const { data: board = [], isLoading } = useQuery<CapacityPlan[]>({
     queryKey: ['capacity-board', weeksAhead],
     queryFn: () => capacityApi.board({
       week_from: weekStarts[0],
       week_to:   weekStarts[weekStarts.length - 1],
-    }).then(r => r.data),
+    }).then(r => r.data as CapacityPlan[]),
     staleTime: 30000,
   })
 
   const { mutate: movePlan } = useMutation({
-    mutationFn: ({ id, user_id, week_start }) =>
+    mutationFn: ({ id, user_id, week_start }: { id: string | number; user_id: string | number; week_start: string }) =>
       capacityApi.updatePlan(id, { user_id, week_start }),
     onSuccess: () => {
-      qc.invalidateQueries(['capacity-board'])
-      qc.invalidateQueries(['forecast-heatmap'])
-      qc.invalidateQueries(['forecast-summary'])
+      qc.invalidateQueries({ queryKey: ['capacity-board'] })
+      qc.invalidateQueries({ queryKey: ['forecast-heatmap'] })
+      qc.invalidateQueries({ queryKey: ['forecast-summary'] })
       toast.success('Asignación movida')
     },
     onError: e => toast.error(extractErr(e, 'Error al mover')),
   })
 
   // Construir mapa de planes: { userId_weekStart: [plans] }
-  const planMap = {}
+  const planMap: Record<string, CapacityPlan[]> = {}
   for (const plan of board) {
     const key = `${plan.user_id}_${plan.week_start}`
     if (!planMap[key]) planMap[key] = []
@@ -300,7 +344,7 @@ export default function CapacityPage(): JSX.Element {
     ? users.filter(u => (u.department || '').toLowerCase().includes(deptFilter.toLowerCase()))
     : users
 
-  const departments = [...new Set(users.map(u => u.department).filter(Boolean))]
+  const departments: string[] = [...new Set(users.map((u) => u.department).filter((v): v is string => Boolean(v)))]
 
   // Calcular KPIs de capacidad
   const totalAssignments = board.length

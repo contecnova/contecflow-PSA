@@ -207,6 +207,135 @@ Se implementaron los fixes de seguridad/rendimiento definidos en `ACCIONES_INMED
       - Ajustes de tipos aplicados: modelos locales para resultados y formularios, mutaciones/query invalidation tipadas en formato React Query actual, y narrowing explícito para payloads heterogéneos.
     - Validación estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en los 3 ficheros anteriores.
     - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `118` (`services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `components: 19`, `pages: 98`, `features: 1`, `utils: 0`, `constants: 0`).
+    - Wave adicional (Change/RACI/EVM/Portal AI chat) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/service-desk/ChangeManagementTab.tsx`
+      - `frontend/src/pages/RACIPage.tsx`
+      - `frontend/src/pages/EVMPage.tsx`
+      - `frontend/src/pages/portal-client/PortalAIChatWidget.tsx`
+      - Ajustes de tipos aplicados: contratos locales para entidades/métricas/asignaciones, handlers y mutaciones tipadas, compatibilidad con firmas actuales de React Query y normalización segura de valores opcionales/heterogéneos en UI.
+    - Validación estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en los 4 ficheros anteriores.
+    - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `114` (`services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `components: 19`, `pages: 94`, `features: 1`, `utils: 0`, `constants: 0`).
+    - Wave adicional (mentions/developer portal/custom fields) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/MentionsPage.tsx`
+      - `frontend/src/pages/DeveloperPortalPage.tsx`
+      - `frontend/src/pages/CustomFieldsPage.tsx`
+      - Ajustes de tipos aplicados: modelos locales para menciones/comentarios/apps OAuth/campos personalizados, mutaciones e invalidaciones adaptadas al contrato actual de React Query, y eliminación de referencias implícitas a datos no tipados en render/export.
+    - Validación estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en los 3 ficheros anteriores.
+    - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `111` (`services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `components: 19`, `pages: 91`, `features: 1`, `utils: 0`, `constants: 0`).
+    - Wave adicional (issue types/meetings AI/invoices/project permissions) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/IssueTypesPage.tsx`
+      - `frontend/src/pages/MeetingsAIPage.tsx`
+      - `frontend/src/pages/InvoicesPage.tsx`
+      - `frontend/src/pages/ProjectPermissionsPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para tipos de issue/reuniones IA/facturas/permisos, estados y mutaciones tipadas, normalización de IDs/valores opcionales en UI y alineación de llamadas API (`projectsApi.list({})`, invalidaciones React Query con `queryKey`).
+    - Validación estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en los 4 ficheros anteriores.
+    - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `107` (`services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `components: 19`, `pages: 87`, `features: 1`, `utils: 0`, `constants: 0`).
+    - Wave adicional (formacion/certificaciones) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/TrainingPage.tsx`
+      - Ajustes de tipos aplicados: modelos locales para cursos, certificaciones, inscripciones y usuarios; modales tipados; consultas y mutaciones alineadas con `trainingApi` y `usersApi`; normalizacion de tabs y estados para estricto.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `TrainingPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `91` (`components: 15`, `pages: 75`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (integracion Jira) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/JiraIntegrationPage.tsx`
+      - Ajustes de tipos aplicados: configuracion Jira, issues y tareas enlazadas tipadas localmente; sincronizacion de config via `useEffect`; invalidaciones de React Query en formato objeto; estilos compartidos tipados con `CSSProperties`.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `JiraIntegrationPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `90` (`components: 15`, `pages: 74`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (milestones facturables) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/MilestoneBillingPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para proyecto/hito/estados de facturacion, callbacks tipados en modales y tarjetas, agrupacion por estado con record tipado y alineacion de listado de proyectos a `projectsApi.list({})`.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `MilestoneBillingPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `89` (`components: 15`, `pages: 73`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (portal users + e-sign) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/clients/PortalUsersTab.tsx`
+      - `frontend/src/pages/ESignPage.tsx`
+      - Ajustes de tipos aplicados: tipado de props/estados/formularios y entidades de API (usuarios de portal, sobres y firmantes), invalidaciones React Query en formato objeto, normalizacion de firmas API (`documentsApi.list({})`) y alineacion de `PageHeader` con prop `actions`.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en ambos ficheros.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `87` (`components: 15`, `pages: 71`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (training header + firmas API) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/TrainingPage.tsx`
+      - Ajustes de tipos aplicados: limpieza de imports duplicados en cabecera, tipado explícito `CSSProperties` para estilos reutilizados y alineación de firmas API a `trainingApi.courses({})`, `trainingApi.certs({})`, `trainingApi.enrollments({})`.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `TrainingPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `86` (`components: 15`, `pages: 70`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (organizations multi-tenant) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/OrganizationsPage.tsx`
+      - Ajustes de tipos aplicados: tipado `CSSProperties` para estilos base, tuple literal en `z.enum` para planes (`PLAN_VALUES as const`) y corrección de firmas API (`organizationsApi.list()`, `usersApi.list({})`).
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `OrganizationsPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `85` (`components: 15`, `pages: 69`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (portal cliente encuestas) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/portal-client/PortalSurveys.tsx`
+      - Ajustes de tipos aplicados: contratos locales para encuestas/formulario (`SurveyItem`, `SurveyForm`), helpers tipados (`RatingRow`, `NpsScale`, `Pill`), invalidaciones React Query con `queryKey` y alineación de props requeridas de componentes `PortalUI` en modo estricto.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `PortalSurveys.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `84` (`components: 15`, `pages: 68`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (rate cards) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/RateCardsPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para tablas/entradas (`RateTable`, `RateEntry`), formularios tipados (`EntryFormState`, `RateTableCreateForm`), estilos base con `CSSProperties` y normalización de invalidaciones React Query a `queryKey`.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `RateCardsPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `83` (`components: 15`, `pages: 67`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (bandeja de notificaciones) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/NotificationsPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para notificaciones/alertas (`NotificationItem`, `AlertItem`), respuesta paginada tipada, filtros `FilterType`, refs de websocket tipadas y normalización de parsing para `VITE_API_URL`.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `NotificationsPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `82` (`components: 15`, `pages: 66`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (dependencias de tareas) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/DependenciesPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para tareas/dependencias (`TaskItem`, `DependencyItem`, `EdgeItem`), estado de formulario tipado (`DepFormState`), estilos base `CSSProperties`, coerción segura de IDs y invalidaciones React Query con `queryKey`.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `DependenciesPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `81` (`components: 15`, `pages: 65`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (workflows de proyecto) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/WorkflowsPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para estados y transiciones (`WorkflowState`, `WorkflowTransition`), formularios tipados (`StateFormData`, `TransitionFormData`), estilos base `CSSProperties`, normalización de IDs string/number y invalidaciones React Query con `queryKey`.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `WorkflowsPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `80` (`components: 15`, `pages: 64`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (UAT) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/UATPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para casos/estadísticas UAT (`UATCase`, `UATStats`, `UATListResponse`), formularios tipados (`UATFormData`), normalización de IDs en selects y tipado de estilos base con `CSSProperties`.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `UATPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `79` (`components: 15`, `pages: 63`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (work dashboard) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/WorkDashboardPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para métricas/respuestas (`TaskStatResponse`, `HourRow`, `ApprovalItem`, `ExpenseItem`, `AbsenceItem`), tipado de helpers y componentes (`Hero`, `ActivityFooter`, `TrendRow`), coerción explícita de capacidad horaria/nombre de usuario y compatibilidad de iconos Lucide con `KpiIcon`.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `WorkDashboardPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `78` (`components: 15`, `pages: 62`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (portfolio) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/PortfolioPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para carteras/proyectos/dashboard (`PortfolioItem`, `PortfolioDashboardData`, `DashboardProject`), formularios tipados (`PortfolioFormData`) y normalización de IDs/props en modales y tabla expandible.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `PortfolioPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `77` (`components: 15`, `pages: 61`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (data governance) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/DataGovernancePage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para auditoria/linaje/campos/comentarios/vistas/bookmarks (`AuditEvent`, `LineageEdge`, `FieldSensitivity`, `CommentItem`, `SharedView`, `BookmarkItem`), respuestas tipadas de React Query (`ItemsResponse<T>`) y tipado estricto de estados union para filtros/orden/sensibilidad.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `DataGovernancePage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `76` (`components: 15`, `pages: 60`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (risk scores) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/RiskScoresPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para riesgo por reglas y prediccion ML (`RiskProject`, `RiskDetail`, `MlPortfolioRiskData`, `MlModel`, `MlPredictionLog`), tipado de unions de estado (`tab`, `filterLevel`, `selected`) y normalizacion de callbacks de React Query v5 con `invalidateQueries({ queryKey })`.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `RiskScoresPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `75` (`components: 15`, `pages: 59`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (chat admin) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/ChatAdminPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para cumplimiento/auditoria/integraciones/webhooks/eDiscovery (`RetentionPolicy`, `LegalHoldCase`, `IntegrationItem`, `WebhookItem`, `AuditEventItem`, `AuditVerifyResult`, `EdiscoveryExportResult`), tipado de formularios por tab y normalizacion de `invalidateQueries({ queryKey })` en React Query v5.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `ChatAdminPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `74` (`components: 15`, `pages: 58`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (capacity) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/CapacityPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para tablero/celdas DnD y asignaciones (`CapacityPlan`, `AssignForm`, `AssignPrefill`, `UserItem`, `ProjectItem`), tipado estricto de props en `CapCell`/`AssignModal`, y migracion de invalidaciones a estilo React Query v5 con `queryKey` en objeto.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `CapacityPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `73` (`components: 15`, `pages: 57`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (contracts AI) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/ContractsAIPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para historial/detalle/clausulas (`ContractItem`, `ContractDetail`, `ContractClause`, `ProjectItem`), tipado de estados union (`mode`) y de cargadores de archivo (`File | null`), ademas de hardening en manejo de errores con `extractErr`.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `ContractsAIPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `72` (`components: 15`, `pages: 56`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (service desk create ticket modal) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/service-desk/CreateTicketModal.tsx`
+      - Ajustes de tipos aplicados: contratos locales para formulario de ticket (`CreateTicketForm`, `CreateTicketPayload`) y campos dinamicos (`DynamicField`, `DynamicFormsConfig`, `ContextOptions`, `GeneratedField`), tipado estricto de props de modal y coercion segura en valores controlados de inputs/selects.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `CreateTicketModal.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `71` (`components: 15`, `pages: 55`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
+    - Wave adicional (risks page) con retirada real de `@ts-nocheck`:
+      - `frontend/src/pages/RisksPage.tsx`
+      - Ajustes de tipos aplicados: contratos locales para registro/resumen de riesgos (`RiskItem`, `RisksResponse`, `RiskSummary`, `RiskFormState`), tipado de unions de estado (`tab`, `view`, `riskSortBy`) y normalizacion de callbacks de componentes UI (`Tabs`, `ViewToggle`) con coercion de tipos.
+      - Validacion estricta por lote ejecutada: `./node_modules/.bin/tsc --noEmit --pretty false --noCheck false` sin errores en `RisksPage.tsx`.
+      - Estado de deuda restante tras esta wave (frontend): `@ts-nocheck` total `70` (`components: 15`, `pages: 54`, `features: 1`, `services: 0`, `hooks: 0`, `context: 0`, `i18n: 0`, `utils: 0`, `constants: 0`).
 
 - **Hardening de configuración scheduler (2026-05-16)**
   - `.env.example` documenta explícitamente modo seguro de scheduler para evitar ejecución dual accidental:
@@ -316,6 +445,294 @@ Auditoría exhaustiva de seguridad, arquitectura, funcionalidad, usabilidad y di
 - [Remediation Checklist](./REVISION_COMPLETA_2026-05-16.md#8-checklist-de-remediación)
 
 ---
+
+## Frontend TypeScript debt wave - Visual Query Builder Widget (2026-05-17)
+
+### Cambios aplicados
+- `frontend/src/components/bi/VisualQueryBuilderWidget.tsx`
+  - Retirada de `@ts-nocheck`.
+  - Tipado local del esquema del builder (`entities`, `operators`, `groups`), templates y respuesta de preview.
+  - Normalización de templates (soporte array y `{ items }`) para evitar accesos inseguros.
+  - Tipado explícito de helpers y handlers (`removeFilter`, `patchFilter`, `toggleColumn`, `loadTemplate`).
+  - Narrowing/casts en `Object.entries` para eliminar inferencias `unknown` en entidades y operadores.
+
+### Validacion
+- Chequeo estricto ejecutado:
+  - `cd frontend && npx tsc --noEmit --pretty false --noCheck false --project tsconfig.json | grep "src/components/bi/VisualQueryBuilderWidget.tsx" || echo clean`
+  - Resultado final: `clean`.
+
+### Estado de deuda restante
+- Conteo actualizado en frontend (`src/**/*.ts,src/**/*.tsx`):
+  - `@ts-nocheck` total: `63`.
+
+---
+
+## Frontend TypeScript debt wave - Auto Resolution Panel (2026-05-17)
+
+### Cambios aplicados
+- `frontend/src/components/servicedesk/AutoResolutionPanel.tsx`
+  - Retirada de `@ts-nocheck`.
+  - Tipado local para configuración, estadísticas, buckets, runtime y job history del motor de auto-resolución.
+  - Normalización de errores con helper tipado (`errMsg`) para evitar accesos inseguros sobre `unknown`.
+  - Tipado explícito de resultados de React Query (`getConfig`, `getStats`) y estado de draft de configuración.
+
+### Validacion
+- Chequeo estricto ejecutado:
+  - `cd frontend && npx tsc --noEmit --pretty false --noCheck false --project tsconfig.json | grep "src/components/servicedesk/AutoResolutionPanel.tsx" || echo clean`
+  - Resultado final: `clean`.
+
+### Estado de deuda restante
+- Conteo actualizado en frontend (`src/**/*.ts,src/**/*.tsx`):
+  - `@ts-nocheck` total: `64`.
+
+---
+
+## Frontend TypeScript debt wave - Changes Page (2026-05-17)
+
+### Cambios aplicados
+- `frontend/src/pages/ChangesPage.tsx`
+  - Retirada de `@ts-nocheck`.
+  - Tipado local para solicitudes de cambio, resumen, proyectos, ventanas de mantenimiento y filtros.
+  - Tipado explícito de modales y badges (`CRFormModal`, `ReviewCRModal`, `StatusBadge`, `CABBoard`).
+  - Alineación de invalidaciones React Query a formato v5 con `queryKey` objeto.
+  - Tipado de handlers de tabs y formularios (`ChangeEvent`, unions para pestañas) y estilos `CSSProperties`.
+
+### Validacion
+- Chequeo estricto ejecutado:
+  - `cd frontend && npx tsc --noEmit --pretty false --noCheck false --project tsconfig.json | grep "src/pages/ChangesPage.tsx" || echo clean`
+  - Resultado final: `clean`.
+
+---
+
+## Frontend TypeScript debt wave - BI Project Detail Page (2026-05-17)
+
+### Cambios aplicados
+- `frontend/src/pages/BIProjectDetailPage.tsx`
+  - Retirada de `@ts-nocheck`.
+  - Tipado local de filtros, filas analíticas, opciones de usuario y series de gráficos.
+  - Tipado de utilidades de exportación (`toCsv`, `downloadCsv`, `printNodeInNewWindow`) y estado de selección.
+  - Tipado explícito de resultados de `useQuery` para evitar inferencias `unknown`.
+  - Compatibilidad de target TS: reemplazo de `replaceAll` por `replace(/.../g)`.
+
+### Validacion
+- Chequeo estricto ejecutado:
+  - `cd frontend && npx tsc --noEmit --pretty false --noCheck false --project tsconfig.json | grep "src/pages/BIProjectDetailPage.tsx" || echo clean`
+  - Resultado final: `clean`.
+
+### Estado de deuda restante
+- Conteo actualizado en frontend (`src/**/*.ts,src/**/*.tsx`):
+  - `@ts-nocheck` total: `65`.
+
+---
+
+## Frontend TypeScript debt wave - OKRs Page (2026-05-16)
+
+### Cambios aplicados
+- `frontend/src/pages/OKRsPage.tsx`
+  - Retirada de `@ts-nocheck`.
+  - Modelos locales tipados para objetivos y KRs (`Objective`, `KeyResult`) y selects auxiliares (`UserPick`, `ProjectPick`, `DepartmentPick`).
+  - Tipado explícito de props en componentes internos (`ProgressRing`, `KRRow`, `ObjectiveCard`, `ObjModal`, `KRModal`).
+  - Alineación de estados y handlers (`period`, edición, add KR) para evitar `implicit any` y errores de asignación.
+  - Tipado de queries/mutations con normalización segura de payloads para creación/edición de objetivos y KRs.
+
+### Validacion
+- Chequeo estricto ejecutado:
+  - `cd frontend && npx tsc --noEmit --pretty false --noCheck false --project tsconfig.json | grep "src/pages/OKRsPage.tsx" || echo clean`
+  - Resultado final: `clean`.
+
+### Estado de deuda restante
+- Conteo actualizado en frontend (`src/**/*.ts,src/**/*.tsx`):
+  - `@ts-nocheck` total: `67`.
+
+---
+
+## Frontend TypeScript debt wave - ITSM Knowledge Tab (2026-05-16)
+
+### Cambios aplicados
+- `frontend/src/pages/service-desk/ITSMKnowledgeTab.tsx`
+  - Retirada de `@ts-nocheck`.
+  - Tipado local de dominio para problemas/KEDB/articulos KB/tickets enlazados.
+  - Tipado explicito de props en subcomponentes (`PBadge`, `KELinkedTickets`, `KEDBModal`, `ProblemModal`, `KBArticleModal`, `ITSMKnowledgeTab`).
+  - Formularios y handlers tipados con `ChangeEvent` para evitar `implicit any`.
+  - Tipado de estilos inline con `CSSProperties`.
+  - Tipado de `useQuery`/`useMutation` con normalizacion de payloads de API.
+
+### Validacion
+- Chequeo estricto ejecutado:
+  - `cd frontend && npx tsc --noEmit --pretty false --noCheck false --project tsconfig.json | grep "src/pages/service-desk/ITSMKnowledgeTab.tsx" || echo clean`
+  - Resultado final: `clean`.
+
+### Estado de deuda restante
+- Conteo actualizado en frontend (`src/**/*.ts,src/**/*.tsx`):
+  - `@ts-nocheck` total: `68`.
+
+---
+
+## Frontend TypeScript debt wave - Timesheets (2026-05-16)
+
+### Cambios aplicados
+- `frontend/src/pages/TimesheetsPage.tsx`
+  - Retirada de `@ts-nocheck`.
+  - Tipado explicito de entidades de dominio (`TimesheetItem`, `TimesheetLine`) y estado de UI (tabs, ordenacion, seleccion de week/review).
+  - Alineacion de invalidaciones React Query al formato v5 con objeto `queryKey`.
+  - Ajuste de handlers/callbacks para firmas estrictas (`onKeyboardActivate`, `toggleTeamSort`, `Tabs.onChange`).
+  - Narrowing seguro para payloads heterogeneos y colecciones (`byDay`, `Object.entries`, filtros por fecha/estado).
+  - Correccion de parseo JSX en cabecera de tabla ordenable y limpieza de llamadas API para firma real (`timesheetsApi.my()`).
+
+### Validacion
+- Chequeo estricto ejecutado:
+  - `cd frontend && npx tsc --noEmit --pretty false --noCheck false --project tsconfig.json | grep "src/pages/TimesheetsPage.tsx" || echo clean`
+  - Resultado final: `clean`.
+
+### Estado de deuda restante
+- Conteo actualizado en frontend (`src/**/*.ts,src/**/*.tsx`):
+  - `@ts-nocheck` total: `69`.
+
+---
+
+## Wave TypeScript Strict - Lote Git/Finance Dashboard (2026-05-17)
+
+Se completó un lote adicional de eliminación real de supresiones TypeScript en frontend, retirando `@ts-nocheck` y dejando validación estricta limpia en:
+
+- `frontend/src/pages/GitPage.tsx`
+- `frontend/src/pages/FinanceDashboardPage.tsx`
+
+### Ajustes aplicados
+
+- Tipado explícito de contratos locales para PRs, deployments, métricas financieras y entidades de soporte (pipeline, clientes, facturas, tipos de cambio, resumen de costes).
+- Alineación de firmas API del repositorio:
+  - `currencyApi.rates({})`
+  - `userCostsApi.summary(undefined)`
+  - mantenimiento del patrón de invalidación React Query con `queryKey`.
+- Compatibilidad tipada con `DashKit.KpiIcon` mediante adaptación de tipos de iconos lucide.
+- Corrección de prop de cabecera en Git (`actions` en lugar de `action`) para respetar contrato de componente.
+
+### Validación
+
+Comando ejecutado:
+
+```bash
+cd frontend
+./node_modules/.bin/tsc --noEmit --pretty false --noCheck false --project tsconfig.json
+```
+
+Resultado del lote objetivo: sin diagnósticos TS en los 2 ficheros migrados.
+
+### Estado de deuda restante (`@ts-nocheck`)
+
+- Total frontend/src: `94`
+- `pages`: `76`
+- `components`: `17`
+- `features`: `1`
+
+
+## Wave TypeScript Strict - Lote DocumentViewer/M365/EpicGantt (2026-05-17)
+
+Se completó otro lote de eliminación real de supresiones TypeScript en frontend, retirando `@ts-nocheck` y dejando validación estricta limpia en:
+
+- `frontend/src/components/DocumentViewer.tsx`
+- `frontend/src/pages/M365Page.tsx`
+- `frontend/src/pages/EpicGanttPage.tsx`
+
+### Ajustes aplicados
+
+- Tipado explícito de contratos locales para documentos/versiones, estado de integración M365, eventos de calendario y dependencias de épicas.
+- Endurecimiento de estados React y handlers de formularios/eventos (`ChangeEvent`, unions de tabs y tipos de dependencia).
+- Alineación de React Query a invalidaciones con `queryKey` en formato objeto.
+- Alineación de firmas API del repositorio (`projectsApi.list({})`) y narrowing seguro de errores HTTP (`unknown` -> shape tipada).
+- Correcciones de estilos compartidos usando `CSSProperties` para compatibilidad total en estricto.
+
+### Validación
+
+Comando ejecutado:
+
+```bash
+cd frontend
+./node_modules/.bin/tsc --noEmit --pretty false --noCheck false --project tsconfig.json
+```
+
+Resultado del lote objetivo: sin diagnósticos TS en los 3 ficheros migrados.
+
+### Estado de deuda restante (`@ts-nocheck`)
+
+- Total frontend/src: `96`
+- `pages`: `78`
+- `components`: `17`
+- `features`: `1`
+
+
+## Wave TypeScript Strict - Lote CMDB3D/Changelog/SLA Calendars/Epics (2026-05-17)
+
+Se completó otro lote de eliminación real de supresiones TypeScript en frontend, retirando `@ts-nocheck` y dejando validación estricta limpia en:
+
+- `frontend/src/components/servicedesk/Cmdb3dGraph.tsx`
+- `frontend/src/pages/ChangelogPage.tsx`
+- `frontend/src/pages/SLACalendarsPage.tsx`
+- `frontend/src/pages/EpicsPage.tsx`
+
+### Ajustes aplicados
+
+- Tipado explícito de modelos locales para nodos/enlaces CMDB, blast radius, entradas de changelog, calendarios SLA/festivos y épicas.
+- Normalización de estados y payloads de formularios (`EntryType`, `EpicStatus`, `EpicPriority`) para evitar widening de `string`.
+- Alineación de React Query al contrato actual con invalidaciones en formato `invalidateQueries({ queryKey: [...] })`.
+- Alineación de firmas API del repositorio (`projectsApi.list({})` y payloads tipados en mutaciones).
+- Corrección de estilos compartidos con `CSSProperties` para compatibilidad en modo estricto.
+
+### Validación
+
+Comando ejecutado:
+
+```bash
+cd frontend
+./node_modules/.bin/tsc --noEmit --pretty false --noCheck false --project tsconfig.json
+```
+
+Resultado del lote objetivo: sin diagnósticos TS en los 4 ficheros migrados.
+
+### Estado de deuda restante (`@ts-nocheck`)
+
+- Total frontend/src: `99`
+- `pages`: `80`
+- `components`: `18`
+- `features`: `1`
+
+
+## Wave TypeScript Strict - Lote DataPlatform/Deliverables/NPS/SprintPlanning (2026-05-17)
+
+Se completó un nuevo lote de eliminación real de supresiones TypeScript en frontend, retirando `@ts-nocheck` y dejando validación estricta limpia en estos 4 archivos:
+
+- `frontend/src/pages/DataPlatformPage.tsx`
+- `frontend/src/pages/DeliverablesPage.tsx`
+- `frontend/src/pages/NPSPage.tsx`
+- `frontend/src/pages/SprintPlanningPage.tsx`
+
+### Ajustes aplicados
+
+- Tipado explícito de modelos locales para respuestas heterogéneas de APIs (catálogos, snapshots, deliverables, NPS/health, sprint plans y resultados de estimación).
+- Endurecimiento de estado React (`useState`) y callbacks para IDs `string | number`, estados union y payloads de mutación.
+- Alineación de React Query al contrato actual (`invalidateQueries({ queryKey: [...] })`).
+- Compatibilidad de firmas API del proyecto:
+  - listados con params explícitos (`projectsApi.list({})`, `clientsApi.list({ page_size: ... })`, `usersApi.list({ page_size: ... })`, `sprintsApi.list(projectId, {})`).
+- Correcciones de tipado de estilos (`CSSProperties`) y conversiones seguras (`String(...)`, `replace` con string) para evitar propagación de `unknown`/incompatibilidades de unión literal.
+
+### Validación
+
+Comando ejecutado:
+
+```bash
+cd frontend
+./node_modules/.bin/tsc --noEmit --pretty false --noCheck false --project tsconfig.json
+```
+
+Resultado del lote objetivo: sin diagnósticos TS en los 4 ficheros migrados.
+
+### Estado de deuda restante (`@ts-nocheck`)
+
+- Total frontend/src: `103`
+- `pages`: `83`
+- `components`: `19`
+- `features`: `1`
+
 
 ## Fix Frontend: 404 en /api/v1/templates (2026-05-13)
 

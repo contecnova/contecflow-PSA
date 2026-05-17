@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -12,6 +12,38 @@ import PageShell from '../components/layout/PageShell'
 import { ShieldCheck } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
+type IdType = string | number
+
+interface ProjectItem {
+  id: IdType
+  name?: string
+}
+
+interface UserItem {
+  id: IdType
+  full_name?: string
+  role?: string
+  job_title?: string
+}
+
+interface PermissionItem {
+  id: IdType
+  user_id: IdType
+  level: string
+  can_see_financials?: boolean
+  can_see_rates?: boolean
+  can_export?: boolean
+  user?: UserItem
+}
+
+interface PermissionFormState {
+  user_id: string
+  level: string
+  can_see_financials: boolean
+  can_see_rates: boolean
+  can_export: boolean
+}
+
 const LEVELS = [
   { value: 'none',    label: 'Sin acceso',  color: 'var(--danger)', desc: 'Bloqueado explícitamente — no puede ver el proyecto' },
   { value: 'viewer',  label: 'Visor',       color: 'var(--text-2)', desc: 'Solo lectura — ve tareas y avance, sin datos financieros' },
@@ -20,30 +52,30 @@ const LEVELS = [
   { value: 'owner',   label: 'Propietario', color: 'var(--success)', desc: 'Control total incluyendo eliminar' },
 ]
 
-const panelStyle = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }
-const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const labelStyle = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const panelStyle: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }
+const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-function PermissionForm({ projectId, users, perm, onClose }) {
+function PermissionForm({ projectId, users, perm, onClose }: { projectId: string; users: UserItem[]; perm: PermissionItem | null; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!perm?.id
-  const [form, setForm] = useState({
-    user_id:            perm?.user_id            || '',
+  const [form, setForm] = useState<PermissionFormState>({
+    user_id:            perm?.user_id ? String(perm.user_id) : '',
     level:              perm?.level              || 'member',
     can_see_financials: perm?.can_see_financials || false,
     can_see_rates:      perm?.can_see_rates      || false,
     can_export:         perm?.can_export         ?? true,
   })
-  const set = k => v => setForm(f => ({ ...f, [k]: v }))
+  const set = <K extends keyof PermissionFormState>(k: K) => (v: PermissionFormState[K]) => setForm((f) => ({ ...f, [k]: v }))
   const _selectedLevel = LEVELS.find(l => l.value === form.level)
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit
+    mutationFn: (d: PermissionFormState) => isEdit
       ? permissionsApi.update(projectId, perm.id, d).then(r => r.data)
       : permissionsApi.create(projectId, d).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['permissions', projectId]); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['permissions', projectId] }); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
   })
 
   return (
@@ -60,7 +92,7 @@ function PermissionForm({ projectId, users, perm, onClose }) {
         )}
         {isEdit && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8 }}>
-            <Avatar name={perm.user?.full_name} size={36} />
+            <Avatar name={perm.user?.full_name} size={36} url={undefined} />
             <div>
               <div style={{ fontWeight: 500 }}>{perm.user?.full_name}</div>
               <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{perm.user?.job_title || perm.user?.role}</div>
@@ -120,33 +152,36 @@ export default function ProjectPermissionsPage() {
   const _t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [selectedProject, setSelectedProject] = useState('')
+  const [selectedProject, setSelectedProject] = useState<string>('')
   const [showForm, setShowForm] = useState(false)
-  const [editingPerm, setEditingPerm] = useState(null)
+  const [editingPerm, setEditingPerm] = useState<PermissionItem | null>(null)
 
-  const { data: projects = [] } = useQuery({
+  const { data: projectsRaw = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
+  const projects = projectsRaw as ProjectItem[]
 
-  const { data: allUsers = [] } = useQuery({
+  const { data: allUsersRaw = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => usersApi.list({ page_size: 500 }).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
+  const allUsers = allUsersRaw as UserItem[]
 
-  const { data: perms = [], isLoading } = useQuery({
+  const { data: permsRaw = [], isLoading } = useQuery({
     queryKey: ['permissions', selectedProject],
     queryFn: () => permissionsApi.list(selectedProject).then(r => r.data).catch(() => []),
     enabled: !!selectedProject,
   })
+  const perms = permsRaw as PermissionItem[]
 
   const { mutate: revoke } = useMutation({
-    mutationFn: pid => permissionsApi.delete(selectedProject, pid),
-    onSuccess: () => qc.invalidateQueries(['permissions', selectedProject]),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (pid: IdType) => permissionsApi.delete(selectedProject, pid),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['permissions', selectedProject] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const selectedProj = projects.find(p => p.id === selectedProject)
+  const selectedProj = projects.find((p) => String(p.id) === selectedProject)
   const assignedUserIds = new Set(perms.map(p => p.user_id))
   const availableUsers = allUsers.filter(u => !assignedUserIds.has(u.id))
 
@@ -228,7 +263,7 @@ export default function ProjectPermissionsPage() {
                     <tr key={perm.id} style={{ borderBottom: '1px solid var(--surface-4)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.03)' }}>
                       <td style={{ padding: '10px 12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <Avatar name={perm.user?.full_name} size={30} />
+                          <Avatar name={perm.user?.full_name} size={30} url={undefined} />
                           <div>
                             <div style={{ fontWeight: 500 }}>{perm.user?.full_name || perm.user_id}</div>
                             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{perm.user?.job_title || perm.user?.role}</div>

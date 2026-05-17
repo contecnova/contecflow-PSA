@@ -1,9 +1,9 @@
-// @ts-nocheck
 /**
  * PortfolioPage — Gestión de carteras de proyectos
  * Vista RAG (Red/Amber/Green) de salud + EVM consolidado + hitos cruzados.
  */
 import React, { useState } from 'react';
+import type { ComponentType, CSSProperties, MouseEvent } from 'react';
 import PageShell from '../components/layout/PageShell'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,20 +15,79 @@ import {
   DollarSign, BarChart2, Calendar
 } from 'lucide-react';
 
-// ── utils ──────────────────────────────────────────────────────────────────────
-const _fmt  = n => n == null ? '—' : Number(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtE = n => n == null ? '—' : `${Number(n).toLocaleString('es-ES', { maximumFractionDigits: 0 })} €`;
-const fmtI = n => n == null ? '—' : Number(n).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+type PortfolioStatus = 'planning' | 'active' | 'archived' | string
+type RagLevel = 'green' | 'yellow' | 'red' | 'grey' | string
 
-const RAG = {
-  green:  { color: 'var(--success)', label: 'En control',  Icon: CheckCircle },
-  yellow: { color: 'var(--warning)', label: 'Atención',    Icon: AlertTriangle },
-  red:    { color: 'var(--danger)',  label: 'En riesgo',   Icon: AlertTriangle },
-  grey:   { color: 'var(--text-2)', label: 'Sin datos',   Icon: Clock },
+type PortfolioItem = {
+  id: string | number
+  name: string
+  description?: string
+  status: PortfolioStatus
+  budget_total?: number | null
+  project_count?: number
+  start_date?: string
+  end_date?: string
+}
+
+type PortfolioFormData = {
+  name: string
+  description: string
+  status: PortfolioStatus
+  budget_total: string | number | null
+  start_date?: string
+  end_date?: string
+}
+
+type ProjectItem = {
+  id: string | number
+  name: string
+  status?: string
+}
+
+type MilestoneItem = {
+  id: string | number
+  title: string
+  due_date?: string
+  is_completed?: boolean
+}
+
+type DashboardProject = {
+  project_id: string | number
+  project_name: string
+  rag: RagLevel
+  pct_complete: number
+  cpi?: number | null
+  spi?: number | null
+  bac?: number | null
+  ac?: number | null
+  milestones: MilestoneItem[]
+}
+
+type PortfolioDashboardData = {
+  portfolio_name: string
+  project_count: number
+  status: PortfolioStatus
+  budget_envelope?: number | null
+  budget_spent?: number | null
+  budget_pct: number
+  health_counts: { red: number; yellow: number; green: number }
+  projects: DashboardProject[]
+}
+
+// ── utils ──────────────────────────────────────────────────────────────────────
+const _fmt  = (n: number | string | null | undefined) => n == null ? '—' : Number(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtE = (n: number | string | null | undefined) => n == null ? '—' : `${Number(n).toLocaleString('es-ES', { maximumFractionDigits: 0 })} €`;
+const fmtI = (n: number | string | null | undefined) => n == null ? '—' : Number(n).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+
+const RAG: Record<string, { color: string; label: string; Icon: ComponentType<any> }> = {
+  green:  { color: 'var(--success)', label: 'En control',  Icon: CheckCircle as ComponentType<any> },
+  yellow: { color: 'var(--warning)', label: 'Atención',    Icon: AlertTriangle as ComponentType<any> },
+  red:    { color: 'var(--danger)',  label: 'En riesgo',   Icon: AlertTriangle as ComponentType<any> },
+  grey:   { color: 'var(--text-2)', label: 'Sin datos',   Icon: Clock as ComponentType<any> },
 };
 
 // ── RAG pill ───────────────────────────────────────────────────────────────────
-function RagPill({ rag }) {
+function RagPill({ rag }: { rag: RagLevel }) {
   const r = RAG[rag] || RAG.grey;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -41,11 +100,20 @@ function RagPill({ rag }) {
 }
 
 // ── Create/edit portfolio modal ────────────────────────────────────────────────
-function PortfolioModal({ initial, onClose, onSave }) {
-  const [form, setForm] = useState(initial || { name: '', description: '', status: 'active', budget_total: '' });
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
-  const fs = { width: '100%', padding: '9px 13px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)', fontSize: "var(--text-base)", boxSizing: 'border-box' };
-  const ls = { display: 'block', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 5 };
+function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem | null; onClose: () => void; onSave: (data: PortfolioFormData) => void }) {
+  const [form, setForm] = useState<PortfolioFormData>(initial
+    ? {
+      name: initial.name,
+      description: initial.description || '',
+      status: initial.status || 'active',
+      budget_total: initial.budget_total ?? '',
+      start_date: initial.start_date || '',
+      end_date: initial.end_date || '',
+    }
+    : { name: '', description: '', status: 'active', budget_total: '', start_date: '', end_date: '' })
+  const set = <K extends keyof PortfolioFormData>(k: K) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value as PortfolioFormData[K] }));
+  const fs: CSSProperties = { width: '100%', padding: '9px 13px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)', fontSize: "var(--text-base)", boxSizing: 'border-box' };
+  const ls: CSSProperties = { display: 'block', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 5 };
 
   return (
     <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={onClose}>
@@ -81,17 +149,17 @@ function PortfolioModal({ initial, onClose, onSave }) {
 }
 
 // ── Add project to portfolio modal ─────────────────────────────────────────────
-function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }) {
+function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portfolioId: string | number; existingIds: Array<string | number>; onClose: () => void; onAdded: () => void }) {
   const [search, setSearch] = useState('');
   const qc = useQueryClient();
 
-  const { data: allProjects = [] } = useQuery({
+  const { data: allProjects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects-for-portfolio'],
-    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
+    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
   });
 
   const { mutate: addProject } = useMutation({
-    mutationFn: pid => portfolioApi.addProject(portfolioId, pid),
+    mutationFn: (pid: string | number) => portfolioApi.addProject(portfolioId, pid),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portfolio-dashboard', portfolioId] }); onAdded(); },
   });
 
@@ -126,12 +194,12 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }) {
 }
 
 // ── Portfolio dashboard ────────────────────────────────────────────────────────
-function PortfolioDashboard({ portfolioId, onClose }) {
+function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | number; onClose: () => void }) {
   const qc = useQueryClient();
   const [showAddProject, setShowAddProject] = useState(false);
-  const [expandedId, setExpandedId] = useState(null);
+  const [expandedId, setExpandedId] = useState<string | number | null>(null);
 
-  const { data: dash, isLoading } = useQuery({
+  const { data: dash, isLoading } = useQuery<PortfolioDashboardData>({
     queryKey: ['portfolio-dashboard', portfolioId],
     queryFn: () => portfolioApi.dashboard(portfolioId).then(r => r.data),
     enabled: !!portfolioId,
@@ -139,7 +207,7 @@ function PortfolioDashboard({ portfolioId, onClose }) {
   });
 
   const { mutate: removeProject } = useMutation({
-    mutationFn: pid => portfolioApi.removeProject(portfolioId, pid),
+    mutationFn: (pid: string | number) => portfolioApi.removeProject(portfolioId, pid),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portfolio-dashboard', portfolioId] }),
   });
 
@@ -285,29 +353,29 @@ function PortfolioDashboard({ portfolioId, onClose }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PortfolioPage() {
-  const t = useAppT()
+  const t = useAppT() as (key: string) => string
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [selectedId, setSelectedId] = useState(null);
+  const [editing, setEditing] = useState<PortfolioItem | null>(null);
+  const [selectedId, setSelectedId] = useState<string | number | null>(null);
 
-  const { data: portfolios = [], isLoading } = useQuery({
+  const { data: portfolios = [], isLoading } = useQuery<PortfolioItem[]>({
     queryKey: ['portfolios'],
     queryFn: () => portfolioApi.list().then(r => r.data?.items ?? r.data ?? []),
   });
 
   const { mutate: createPortfolio } = useMutation({
-    mutationFn: data => portfolioApi.create({ ...data, budget_total: data.budget_total ? Number(data.budget_total) : null }),
+    mutationFn: (data: PortfolioFormData) => portfolioApi.create({ ...data, budget_total: data.budget_total ? Number(data.budget_total) : null }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portfolios'] }); setShowCreate(false); },
   });
 
   const { mutate: updatePortfolio } = useMutation({
-    mutationFn: ({ id, data }) => portfolioApi.update(id, { ...data, budget_total: data.budget_total ? Number(data.budget_total) : null }),
+    mutationFn: ({ id, data }: { id: string | number; data: PortfolioFormData }) => portfolioApi.update(id, { ...data, budget_total: data.budget_total ? Number(data.budget_total) : null }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portfolios'] }); setEditing(null); },
   });
 
   const { mutate: deletePortfolio } = useMutation({
-    mutationFn: id => portfolioApi.delete(id),
+    mutationFn: (id: string | number) => portfolioApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portfolios'] }),
   });
 

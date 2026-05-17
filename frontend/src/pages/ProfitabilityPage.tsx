@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -14,6 +13,71 @@ import { useAuth } from '../context/AuthContext'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 
+interface MilestoneItem {
+  id: string | number
+  name: string
+  is_completed?: boolean
+  is_billed?: boolean
+  due_date?: string
+  billing_amount?: number
+  billing_pct?: number
+  completed_date?: string | null
+  billed_at?: string | null
+  [key: string]: unknown
+}
+
+interface ProfitabilityProjectItem {
+  project_id?: string | number
+  project_name?: string
+  project_code?: string
+  client_name?: string
+  department?: string
+  billing_revenue?: number
+  internal_cost?: number
+  gross_margin?: number
+  margin_pct?: number
+  total_hours?: number
+}
+
+interface ProfitabilityPortfolio {
+  total_revenue?: number
+  total_cost?: number
+  total_margin?: number
+  margin_pct?: number
+  project_count?: number
+}
+
+interface ProfitabilitySummaryResponse {
+  projects?: ProfitabilityProjectItem[]
+  portfolio?: ProfitabilityPortfolio
+}
+
+interface ProjectDetailData {
+  project_code: string
+  project_name: string
+  margin_pct: number
+  billing_revenue: number
+  internal_cost: number
+  gross_margin: number
+  eac?: number
+  etc?: number
+  vac?: number
+  margin_at_completion?: number
+  cpi?: number
+  spi?: number
+  cv?: number
+  sv?: number
+  risk_flag?: 'critical' | 'warning' | 'ok'
+  total_hours?: number
+  billable_hours?: number
+  budget_hours?: number
+  avg_cost_rate?: number
+  billing_rate?: number
+  by_person?: Array<{ user_id: string | number; user_name?: string; hours: number; cost: number }>
+  by_week?: Array<{ week: string; hours: number }>
+  milestones?: MilestoneItem[]
+}
+
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
@@ -25,7 +89,7 @@ const _BILLING_TYPES = [
   { value: 'hourly_bag', label: 'Bolsa de horas' },
 ]
 
-function MarginBar({ margin_pct }) {
+function MarginBar({ margin_pct }: { margin_pct: number }) {
   const color = margin_pct < 0 ? 'var(--danger)' : margin_pct < 15 ? 'var(--warning)' : margin_pct < 30 ? 'var(--accent)' : 'var(--success)'
   const w = Math.min(Math.abs(margin_pct), 100)
   return (
@@ -35,18 +99,18 @@ function MarginBar({ margin_pct }) {
   )
 }
 
-function MilestoneRow({ m, projectId, onUpdate }) {
+function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId: string | number; onUpdate?: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const { mutate: update } = useMutation({
-    mutationFn: (data) => profitabilityApi.updateMilestone(projectId, m.id, data),
-    onSuccess: () => { qc.invalidateQueries(['profitability-detail', projectId]); if (onUpdate) onUpdate() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (data: Partial<MilestoneItem>) => profitabilityApi.updateMilestone(projectId, m.id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['profitability-detail', projectId] }); if (onUpdate) onUpdate() },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: () => profitabilityApi.deleteMilestone(projectId, m.id),
-    onSuccess: () => qc.invalidateQueries(['profitability-detail', projectId]),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['profitability-detail', projectId] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -73,7 +137,7 @@ function MilestoneRow({ m, projectId, onUpdate }) {
   )
 }
 
-function ProjectDetail({ projectId, onClose }) {
+function ProjectDetail({ projectId, onClose }: { projectId: string | number; onClose: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [showAddMilestone, setShowAddMilestone] = useState(false)
@@ -81,15 +145,15 @@ function ProjectDetail({ projectId, onClose }) {
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<ProjectDetailData>({
     queryKey: ['profitability-detail', projectId],
     queryFn: () => profitabilityApi.get(projectId).then(r => r.data),
   })
 
   const { mutate: addMilestone } = useMutation({
-    mutationFn: (d) => profitabilityApi.createMilestone(projectId, d),
-    onSuccess: () => { qc.invalidateQueries(['profitability-detail', projectId]); setShowAddMilestone(false); setMsForm({ name: '', due_date: '', billing_amount: '', billing_pct: '', sort_order: 0 }) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (d: { name: string; due_date: string; billing_amount: string; billing_pct: string; sort_order: number }) => profitabilityApi.createMilestone(projectId, d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['profitability-detail', projectId] }); setShowAddMilestone(false); setMsForm({ name: '', due_date: '', billing_amount: '', billing_pct: '', sort_order: 0 }) },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   if (isLoading) return <Modal open title="Cargando rentabilidad" onClose={onClose}><Spinner /></Modal>
@@ -256,10 +320,10 @@ function ProjectDetail({ projectId, onClose }) {
 export default function ProfitabilityPage() {
   const t = useAppT()
   const { _hasRole } = useAuth()
-  const [selectedProject, setSelectedProject] = useState(null)
+  const [selectedProject, setSelectedProject] = useState<string | number | null>(null)
   const [statusFilter, setStatusFilter] = useState('active')
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<ProfitabilitySummaryResponse>({
     queryKey: ['profitability-summary', statusFilter],
     queryFn: () => profitabilityApi.summary({ status: statusFilter }).then(r => r.data),
   })

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * NotificationsPage — Bandeja de entrada de notificaciones
  * Lista cronológica, marcar como leído, filtrar por tipo, WebSocket badge en tiempo real
@@ -13,8 +12,44 @@ import { Bell } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { DEFAULT_PAGE_SIZE } from '../constants/timings'
+import { useAppT } from '../i18n/AppLangContext'
 
-const ALERT_TYPE_CFG = {
+type NotificationType = string
+
+type NotificationItem = {
+  id: string | number
+  _alertId?: string | number
+  _isAlert?: boolean
+  type?: NotificationType
+  title?: string
+  body?: string
+  is_read?: boolean
+  created_at?: string
+}
+
+type AlertItem = {
+  id: string | number
+  alert_type?: string
+  title?: string
+  description?: string
+  is_read?: boolean
+  created_at?: string | Date | { toISOString?: () => string }
+}
+
+type NotificationsResponse = {
+  notifications: NotificationItem[]
+  unread_count: number
+}
+
+type FilterType = 'all' | 'unread' | 'read'
+
+type TypeCfg = {
+  icon: string
+  color: string
+  label: string
+}
+
+const ALERT_TYPE_CFG: Record<string, TypeCfg> = {
   budget_overrun:     { icon:'💰', color:'var(--danger)',  label:'Presupuesto excedido' },
   overdue_tasks:      { icon:'⏰', color:'var(--danger)',  label:'Tareas vencidas' },
   capacity_risk:      { icon:'⚡', color:'var(--warning)', label:'Riesgo de capacidad' },
@@ -25,9 +60,8 @@ const ALERT_TYPE_CFG = {
   high_utilization:   { icon:'🔥', color:'var(--warning)', label:'Utilización alta' },
   stalled_project:    { icon:'🛑', color:'var(--warning)', label:'Proyecto parado' },
 }
-import { useAppT } from '../i18n/AppLangContext'
 
-const TYPE_CFG_NOTIF = {
+const TYPE_CFG_NOTIF: Record<string, TypeCfg> = {
   task_assigned:       { icon:'▦',  color:'var(--success)',  label:'Tarea asignada' },
   task_mentioned:      { icon:'@',  color:'var(--accent)',   label:'Mención' },
   task_due_soon:       { icon:'⏰', color:'var(--warning)',  label:'Vence pronto' },
@@ -47,10 +81,10 @@ const TYPE_CFG_NOTIF = {
   contract_expiring:   { icon:'📄', color:'var(--warning)',  label:'Contrato por vencer' },
 }
 
-function NotifItem({ notif, onMarkRead }) {
+function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead: (id: string | number) => void }) {
   const baseCfg = notif._isAlert
-    ? (ALERT_TYPE_CFG[notif.type] || { icon:'🔔', color:'var(--danger)', label:'Alerta' })
-    : (TYPE_CFG_NOTIF[notif.type] || { icon:'🔔', color:'var(--text-2)', label:'Notificación' })
+    ? (ALERT_TYPE_CFG[notif.type || ''] || { icon:'🔔', color:'var(--danger)', label:'Alerta' })
+    : (TYPE_CFG_NOTIF[notif.type || ''] || { icon:'🔔', color:'var(--text-2)', label:'Notificación' })
   const cfg = baseCfg
   const isUnread = !notif.is_read
 
@@ -127,8 +161,8 @@ function NotifItem({ notif, onMarkRead }) {
   )
 }
 
-function GroupedNotifList({ notifications, onMarkRead }) {
-  const groups = notifications.reduce((acc, n) => {
+function GroupedNotifList({ notifications, onMarkRead }: { notifications: NotificationItem[]; onMarkRead: (id: string | number) => void }) {
+  const groups = notifications.reduce((acc: Record<string, NotificationItem[]>, n) => {
     const key = (n._isAlert ? 'alert_' : '') + (n.type || 'other')
     if (!acc[key]) acc[key] = []
     acc[key].push(n)
@@ -176,16 +210,16 @@ export default function NotificationsPage() {
   const toast = useToast()
   const toastRef = useRef(toast)
   const qc = useQueryClient()
-  const [filter, setFilter] = useState('all')
-  const wsRef = useRef(null)
-  const lastWsNotifRef = useRef({ count: null, firstId: null })
+  const [filter, setFilter] = useState<FilterType>('all')
+  const wsRef = useRef<WebSocket | null>(null)
+  const lastWsNotifRef = useRef<{ count: number | null; firstId: string | number | null }>({ count: null, firstId: null })
   const [wsConnected, setWsConnected] = useState(false)
 
   useEffect(() => {
     toastRef.current = toast
   }, [toast])
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<NotificationsResponse>({
     queryKey: ['notifications-page', filter],
     queryFn: () => api.get('/enterprise/notifications', {
       params: { page_size: DEFAULT_PAGE_SIZE, ...(filter !== 'all' && { is_read: filter === 'read' }) }
@@ -193,7 +227,7 @@ export default function NotificationsPage() {
     refetchInterval: 60000,
   })
 
-  const { data: alertsRaw = [], isLoading: alertsLoading } = useQuery({
+  const { data: alertsRaw = [], isLoading: alertsLoading } = useQuery<AlertItem[]>({
     queryKey: ['alerts-count'],
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
     refetchInterval: 60000,
@@ -201,7 +235,7 @@ export default function NotificationsPage() {
   })
 
   // Normalize alerts to notification shape for unified display
-  const alertsAsNotifs = alertsRaw.map(a => ({
+  const alertsAsNotifs: NotificationItem[] = alertsRaw.map((a: AlertItem) => ({
     id: 'alert_' + a.id,
     _alertId: a.id,
     _isAlert: true,
@@ -216,10 +250,10 @@ export default function NotificationsPage() {
   const allNotifications = [...notifications, ...alertsAsNotifs]
     .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
 
-  const unreadCount = (data?.unread_count || 0) + alertsRaw.filter(a => !a.is_read).length
+  const unreadCount = (data?.unread_count || 0) + alertsRaw.filter((a: AlertItem) => !a.is_read).length
 
   const { mutate: markRead } = useMutation({
-    mutationFn: id => api.post(`/enterprise/notifications/${id}/read`),
+    mutationFn: (id: string | number) => api.post(`/enterprise/notifications/${id}/read`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications-page'] }),
   })
   const { mutate: markAll } = useMutation({
@@ -227,7 +261,7 @@ export default function NotificationsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications-page'] }); qc.invalidateQueries({ queryKey: ['alerts-count'] }); toast.success('Todas marcadas como leídas') },
   })
 
-  const handleMarkRead = (id) => {
+  const handleMarkRead = (id: string | number) => {
     if (String(id).startsWith('alert_')) {
       const alertId = String(id).replace('alert_', '')
       alertsApi.read(alertId).then(() => qc.invalidateQueries({ queryKey: ['alerts-count'] }))
@@ -241,8 +275,8 @@ export default function NotificationsPage() {
     if (!user) return
     let cancelled = false
     let shouldCloseOnOpen = false
-    let ws = null
-    let ping = null
+    let ws: WebSocket | null = null
+    let ping: ReturnType<typeof setInterval> | null = null
     api.get('/ws/ticket').then(r => {
       if (cancelled) return
       const ticket = r.data?.ticket
@@ -252,7 +286,7 @@ export default function NotificationsPage() {
       const apiBaseUrl = import.meta.env.VITE_API_URL
       if (apiBaseUrl) {
         try {
-          const apiUrl = new URL(apiBaseUrl, window.location.origin)
+          const apiUrl = new URL(String(apiBaseUrl), window.location.origin)
           wsProto = apiUrl.protocol === 'https:' ? 'wss' : 'ws'
           wsHost = apiUrl.host
         } catch {
@@ -275,16 +309,16 @@ export default function NotificationsPage() {
       ws.onerror = () => {
         if (!cancelled) setWsConnected(false)
       }
-      ws.onmessage = (ev) => {
+      ws.onmessage = (ev: MessageEvent<string>) => {
         try {
-          const msg = JSON.parse(ev.data)
+          const msg = JSON.parse(ev.data) as { type?: string; items?: Array<{ id?: string | number }>; count?: number }
           if (msg.type === 'notifications') {
             const firstId = msg.items?.[0]?.id || null
             const changed =
               lastWsNotifRef.current.count !== msg.count ||
               lastWsNotifRef.current.firstId !== firstId
             if (!changed) return
-            lastWsNotifRef.current = { count: msg.count, firstId }
+            lastWsNotifRef.current = { count: msg.count ?? null, firstId }
 
             if (!(msg.count > 0 || firstId)) return
             qc.invalidateQueries({ queryKey: ['notifications-page'] })
@@ -316,7 +350,7 @@ export default function NotificationsPage() {
     { id:'all',    label:'Todas' },
     { id:'unread', label:`Sin leer${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
     { id:'read',   label:'Leídas' },
-  ]
+  ] as Array<{ id: FilterType; label: string }>
 
   const filtered = filter === 'unread'
     ? allNotifications.filter(n => !n.is_read)

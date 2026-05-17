@@ -1,6 +1,6 @@
-// @ts-nocheck
 import { useAppT } from "../../hooks/useAppT";
 import { useId, useState } from 'react'
+import type { ChangeEvent, CSSProperties } from 'react'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import RcaWizardModal from '../../components/servicedesk/RcaWizardModal'
@@ -11,6 +11,45 @@ import { useToast } from '../../context/ToastContext'
 import { sdKbApi, problemsApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
+
+type Priority = 'p1_critical' | 'p2_high' | 'p3_medium' | 'p4_low' | string
+type ProblemStatus = 'open' | 'investigating' | 'known_error' | 'resolved' | 'closed' | string
+type KbStatus = 'draft' | 'published' | 'archived' | string
+
+type ProblemRecord = {
+  id: string | number
+  number?: string
+  title: string
+  description?: string
+  root_cause?: string
+  workaround?: string
+  fix_description?: string
+  priority?: Priority
+  status?: ProblemStatus
+  related_tickets?: Array<unknown>
+  affected_tickets?: number
+  ci?: string
+}
+
+type KbArticle = {
+  id: string | number
+  title: string
+  summary?: string
+  body?: string
+  tags?: string
+  status?: KbStatus
+  is_public?: boolean
+  helpful_count?: number
+  view_count?: number
+}
+
+type LinkedTicket = {
+  id: string | number
+  title?: string
+  status?: string
+}
+
+type InputStyles = CSSProperties
 
 const PRIORITY_COLOR = {
   p1_critical: COLOR.danger,
@@ -26,7 +65,7 @@ const PRIORITY_LABEL = {
   p4_low: 'P4 Bajo',
 }
 
-function PBadge({ v }) {
+function PBadge({ v }: { v?: Priority }) {
   const color = PRIORITY_COLOR[v] || COLOR.text2
   return (
     <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color, padding: '2px 7px', borderRadius: 4, border: `1px solid ${color}30`, background: `${color}12`, whiteSpace: 'nowrap' }}>
@@ -35,10 +74,10 @@ function PBadge({ v }) {
   )
 }
 
-function KELinkedTickets({ kedbId }) {
-  const { data: tickets, isLoading } = useQuery({
+function KELinkedTickets({ kedbId }: { kedbId: string | number }) {
+  const { data: tickets, isLoading } = useQuery<LinkedTicket[]>({
     queryKey: ['sd-ke-tickets', kedbId],
-    queryFn: () => sdKbApi.knownErrorTickets(kedbId).then(r => r.data).catch(() => []),
+    queryFn: () => sdKbApi.knownErrorTickets(kedbId).then(r => r.data as LinkedTicket[]).catch(() => []),
     staleTime: 30000,
   })
   if (isLoading) return <div style={{ padding: '8px 0' }}><Spinner /></div>
@@ -51,7 +90,7 @@ function KELinkedTickets({ kedbId }) {
     <div style={{ marginTop: 10, borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
       <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 8 }}>Tickets vinculados</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {tickets.map(tk => (
+        {tickets.map((tk) => (
           <div key={tk.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-4)', borderRadius: 6, padding: '6px 10px' }}>
             <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)' }}>#{tk.id}</span>
             <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', flex: 1 }}>{tk.title}</span>
@@ -68,21 +107,21 @@ function KnownErrors() {
   const qc = useQueryClient()
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [expandedKE, setExpandedKE] = useState(null)
+  const [editing, setEditing] = useState<ProblemRecord | null>(null)
+  const [expandedKE, setExpandedKE] = useState<string | number | null>(null)
 
-  const { data: kedb = [], isLoading } = useQuery({
+  const { data: kedb = [], isLoading } = useQuery<ProblemRecord[]>({
     queryKey: ['sd-kedb'],
-    queryFn: () => sdKbApi.knownErrors().then(r => r.data),
+    queryFn: () => sdKbApi.knownErrors().then(r => r.data as ProblemRecord[]),
   })
   const { mutate: updateProblem } = useMutation({
-    mutationFn: ({ id, ...data }) => problemsApi.update(id, data),
+    mutationFn: ({ id, ...data }: { id: string | number } & Partial<ProblemRecord>) => problemsApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-kedb'] }); setEditing(null); toast.success('Error conocido actualizado') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
+  const IS: InputStyles = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   return (
     <div>
@@ -95,7 +134,7 @@ function KnownErrors() {
       {isLoading ? <Spinner /> :
        kedb.length === 0 ? <EmptyState icon="📚" title="Sin errores conocidos" description="Crea el primer error conocido para documentar workaround y causa raíz." /> :
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {kedb.map(ke => (
+        {kedb.map((ke) => (
           <div key={ke.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
               <div style={{ flex: 1 }}>
@@ -146,7 +185,7 @@ function KnownErrors() {
         <KEDBModal
           item={editing}
           onClose={() => { setShowNew(false); setEditing(null) }}
-          onSaved={(data) => {
+          onSaved={(data: Partial<ProblemRecord>) => {
             if (editing) {
               updateProblem({ id: editing.id, ...data })
             } else {
@@ -164,7 +203,15 @@ function KnownErrors() {
   )
 }
 
-function KEDBModal({ item, onClose, onSaved, IS, LS }) {
+type KEDBModalProps = {
+  item: ProblemRecord | null
+  onClose: () => void
+  onSaved: (data: Partial<ProblemRecord>) => void
+  IS: InputStyles
+  LS: CSSProperties
+}
+
+function KEDBModal({ item, onClose, onSaved, IS, LS }: KEDBModalProps) {
   const idPrefix = useId()
   const isEdit = !!item
   const [form, setForm] = useState({
@@ -176,7 +223,8 @@ function KEDBModal({ item, onClose, onSaved, IS, LS }) {
     priority: item?.priority || 'p3_medium',
     status: item?.status || 'known_error',
   })
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }))
 
   return (
     <Modal open title={isEdit ? 'Editar error conocido' : 'Nuevo error conocido (KEDB)'} onClose={onClose} size="lg">
@@ -204,30 +252,30 @@ function Problems() {
   const qc = useQueryClient()
   const toast = useToast()
   const [showModal, setShowModal] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [rcaWizardProblem, setRcaWizardProblem] = useState(null)
+  const [editing, setEditing] = useState<ProblemRecord | null>(null)
+  const [rcaWizardProblem, setRcaWizardProblem] = useState<ProblemRecord | null>(null)
 
-  const { data: problems = [], isLoading } = useQuery({
+  const { data: problems = [], isLoading } = useQuery<ProblemRecord[]>({
     queryKey: ['sd-problems'],
-    queryFn: () => problemsApi.list().then(r => r.data),
+    queryFn: () => problemsApi.list().then(r => r.data as ProblemRecord[]),
   })
   const { mutate: createProblem, isPending: creating } = useMutation({
-    mutationFn: data => problemsApi.create(data),
+    mutationFn: (data: Partial<ProblemRecord>) => problemsApi.create(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-problems'] }); setShowModal(false); toast.success('Problema creado') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: updateProblem, isPending: updating } = useMutation({
-    mutationFn: ({ id, ...data }) => problemsApi.update(id, data),
+    mutationFn: ({ id, ...data }: { id: string | number } & Partial<ProblemRecord>) => problemsApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-problems'] }); setEditing(null); toast.success('Problema actualizado') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteProblem } = useMutation({
-    mutationFn: id => problemsApi.delete(id),
+    mutationFn: (id: string | number) => problemsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-problems'] }); toast.success('Problema eliminado') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: promoteToKE, variables: promotingId } = useMutation({
-    mutationFn: id => problemsApi.promoteKnownError(id),
+    mutationFn: (id: string | number) => problemsApi.promoteKnownError(id),
     onSuccess: () => {
       toast.success('Problema promovido a Error Conocido (KEDB)')
       qc.invalidateQueries({ queryKey: ['sd-problems'] })
@@ -236,8 +284,8 @@ function Problems() {
     onError: e => toast.error(extractErr(e, 'Error al promover')),
   })
 
-  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
+  const IS: InputStyles = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   const statusColors = {
     open: COLOR.danger,
@@ -260,7 +308,7 @@ function Problems() {
        problems.length === 0
         ? <EmptyState icon="🔍" title="Sin problemas registrados" description="Crea el primer problema para investigar incidentes recurrentes." />
         : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {problems.map(p => {
+            {problems.map((p) => {
               const sc = statusColors[p.status] || COLOR.text2
               return (
                 <div key={p.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px' }}>
@@ -317,7 +365,7 @@ function Problems() {
         <ProblemModal
           item={editing}
           onClose={() => { setShowModal(false); setEditing(null) }}
-          onSaved={data => editing
+          onSaved={(data: Partial<ProblemRecord>) => editing
             ? updateProblem({ id: editing.id, ...data })
             : createProblem(data)
           }
@@ -336,7 +384,16 @@ function Problems() {
   )
 }
 
-function ProblemModal({ item, onClose, onSaved, isPending, IS, LS }) {
+type ProblemModalProps = {
+  item: ProblemRecord | null
+  onClose: () => void
+  onSaved: (data: Partial<ProblemRecord>) => void
+  isPending: boolean
+  IS: InputStyles
+  LS: CSSProperties
+}
+
+function ProblemModal({ item, onClose, onSaved, isPending, IS, LS }: ProblemModalProps) {
   const idPrefix = useId()
   const isEdit = !!item
   const [form, setForm] = useState({
@@ -348,7 +405,8 @@ function ProblemModal({ item, onClose, onSaved, isPending, IS, LS }) {
     priority: item?.priority || 'p3_medium',
     status: item?.status || 'open',
   })
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }))
   return (
     <Modal open title={isEdit ? `Editar - ${item.number}` : 'Nuevo problema'} onClose={onClose} size="lg">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -376,27 +434,27 @@ function KB() {
   const toast = useToast()
   const [search, setSearch] = useState('')
   const [showNew, setShowNew] = useState(false)
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState<KbArticle | null>(null)
 
-  const { data: articles = [], isLoading } = useQuery({
+  const { data: articles = [], isLoading } = useQuery<KbArticle[]>({
     queryKey: ['sd-kb', search],
-    queryFn: () => sdKbApi.list({ search: search || undefined }).then(r => r.data),
+    queryFn: () => sdKbApi.list({ search: search || undefined }).then(r => r.data as KbArticle[]),
     staleTime: 30000,
   })
   const { mutate: deleteArticle } = useMutation({
-    mutationFn: id => sdKbApi.delete(id),
+    mutationFn: (id: string | number) => sdKbApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-kb'] }); toast.success('Articulo eliminado') },
     onError: () => toast.error('Error al eliminar'),
   })
   const { mutate: toggleStatus } = useMutation({
-    mutationFn: ({ id, status }) => sdKbApi.update(id, { status }),
+    mutationFn: ({ id, status }: { id: string | number; status: KbStatus }) => sdKbApi.update(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sd-kb'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const IS = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+  const IS: InputStyles = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 
-  const STATUS_COLOR = { published: COLOR.success, draft: COLOR.warning, archived: COLOR.text2 }
+  const STATUS_COLOR: Record<string, string> = { published: COLOR.success, draft: COLOR.warning, archived: COLOR.text2 }
 
   return (
     <div>
@@ -407,7 +465,7 @@ function KB() {
       {isLoading ? <Spinner /> :
       articles.length === 0 ? <EmptyState icon="📖" title="Sin artículos" description="Crea el primer artículo de conocimiento." /> :
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px,1fr))', gap: 14 }}>
-        {articles.map(a => (
+        {articles.map((a) => (
           <div key={a.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-1)', flex: 1, marginRight: 8 }}>{a.title}</div>
@@ -435,7 +493,13 @@ function KB() {
   )
 }
 
-function KBArticleModal({ article, onClose, onSaved }) {
+type KBArticleModalProps = {
+  article: KbArticle | null
+  onClose: () => void
+  onSaved: () => void
+}
+
+function KBArticleModal({ article, onClose, onSaved }: KBArticleModalProps) {
   const idPrefix = useId()
   const toast = useToast()
   const isEdit = !!article
@@ -448,13 +512,14 @@ function KBArticleModal({ article, onClose, onSaved }) {
     is_public: article?.is_public ?? true,
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: data => isEdit ? sdKbApi.update(article.id, data) : sdKbApi.create(data),
+    mutationFn: (data: typeof form) => isEdit && article ? sdKbApi.update(article.id, data) : sdKbApi.create(data),
     onSuccess: () => { toast.success(isEdit ? 'Articulo actualizado' : 'Articulo creado'); onSaved() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
-  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
+  const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value }))
+  const IS: InputStyles = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   return (
     <Modal open title={isEdit ? 'Editar articulo KB' : 'Nuevo articulo KB'} onClose={onClose} size="lg">
@@ -476,7 +541,7 @@ function KBArticleModal({ article, onClose, onSaved }) {
   )
 }
 
-export default function ITSMKnowledgeTab({ mode }) {
+export default function ITSMKnowledgeTab({ mode }: { mode: 'problems' | 'kedb' | 'kb' | string }) {
   if (mode === 'problems') return <Problems />
   if (mode === 'kedb') return <KnownErrors />
   return <KB />

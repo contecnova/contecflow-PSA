@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * M365Page — Microsoft 365 deep integration
  * - Calendar sync: pull events, push milestones
@@ -13,13 +12,42 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { LayoutGrid } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import type { CSSProperties } from 'react'
 
-const fs = { width: '100%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+interface M365Status {
+  graph_configured?: boolean
+  teams_webhook_configured?: boolean
+  required_env_vars?: Record<string, boolean>
+}
+
+interface CalendarEvent {
+  subject?: string
+  start?: { dateTime?: string }
+  end?: { dateTime?: string }
+}
+
+interface CalendarPullResult {
+  pulled?: number
+  events?: CalendarEvent[]
+  error?: string
+}
+
+interface MilestonePushResult {
+  created?: number
+  errors?: unknown[]
+  error?: string
+}
+
+interface ApiErrorLike {
+  response?: { data?: { detail?: string } }
+}
+
+const fs: CSSProperties = { width: '100%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 const _TABS = ['calendar', 'teams', 'config']
 
-function StatusBadge({ ok, label }) {
+function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -37,11 +65,11 @@ function StatusBadge({ ok, label }) {
 function CalendarTab() {
   const [upn,  setUpn]  = useState('')
   const [days, setDays] = useState(14)
-  const [synced, setSynced] = useState(null)
+  const [synced, setSynced] = useState<CalendarPullResult | null>(null)
   const [syncLoading, setSyncLoading] = useState(false)
   const [msUpn, setMsUpn]   = useState('')
   const [msDays, setMsDays] = useState(30)
-  const [msResult, setMsResult] = useState(null)
+  const [msResult, setMsResult] = useState<MilestonePushResult | null>(null)
   const [msLoading, setMsLoading] = useState(false)
 
   const pullCalendar = async () => {
@@ -49,8 +77,8 @@ function CalendarTab() {
     try {
       const res = await m365Api.syncCalendar(upn, days)
       setSynced(res.data)
-    } catch (e) {
-      setSynced({ error: e?.response?.data?.detail || 'Error al conectar con Microsoft Graph' })
+    } catch (e: unknown) {
+      setSynced({ error: (e as ApiErrorLike)?.response?.data?.detail || 'Error al conectar con Microsoft Graph' })
     } finally {
       setSyncLoading(false)
     }
@@ -61,8 +89,8 @@ function CalendarTab() {
     try {
       const res = await m365Api.syncMilestones({ user_upn: msUpn, days_ahead: msDays })
       setMsResult(res.data)
-    } catch (e) {
-      setMsResult({ error: e?.response?.data?.detail || 'Error al sincronizar milestones' })
+    } catch (e: unknown) {
+      setMsResult({ error: (e as ApiErrorLike)?.response?.data?.detail || 'Error al sincronizar milestones' })
     } finally {
       setMsLoading(false)
     }
@@ -142,7 +170,7 @@ function TeamsTab() {
   const [text,    setText]    = useState('')
   const [color,   setColor]   = useState(TEAMS_BRAND_PRESETS[0])
   const [sending, setSending] = useState(false)
-  const [result,  setResult]  = useState(null)
+  const [result,  setResult]  = useState<{ ok?: boolean; error?: string } | null>(null)
 
   const sendNotif = async () => {
     setSending(true)
@@ -150,8 +178,8 @@ function TeamsTab() {
     try {
       await m365Api.teamsNotify({ title, text, color })
       setResult({ ok: true })
-    } catch (e) {
-      setResult({ error: e?.response?.data?.detail || 'Error enviando a Teams' })
+    } catch (e: unknown) {
+      setResult({ error: (e as ApiErrorLike)?.response?.data?.detail || 'Error enviando a Teams' })
     } finally {
       setSending(false)
     }
@@ -205,7 +233,7 @@ function TeamsTab() {
   )
 }
 
-function ConfigTab({ status }) {
+function ConfigTab({ status }: { status?: M365Status | null }) {
   const envVars = [
     { key: 'AZURE_TENANT_ID',     label: 'Tenant ID de Azure AD',   ok: status?.required_env_vars?.AZURE_TENANT_ID },
     { key: 'AZURE_CLIENT_ID',     label: 'Client ID (App ID)',       ok: status?.required_env_vars?.AZURE_CLIENT_ID },
@@ -286,9 +314,9 @@ function ConfigTab({ status }) {
 
 export default function M365Page() {
   const _t = useAppT()
-  const [activeTab, setTab] = useState('calendar')
+  const [activeTab, setTab] = useState<'calendar' | 'teams' | 'config'>('calendar')
 
-  const { data: status } = useQuery({
+  const { data: status } = useQuery<M365Status>({
     queryKey: ['m365-status'],
     queryFn: () => m365Api.status().then(r => r.data),
     refetchInterval: 30000,
@@ -318,12 +346,12 @@ export default function M365Page() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {[['calendar', '📅 Calendario'], ['teams', '💬 Teams'], ['config', '⚙ Configuración']].map(([t, label]) => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            background: activeTab === t ? 'var(--accent-glow)' : 'none',
-            border: `1px solid ${activeTab === t ? 'var(--info)' : 'var(--surface-5)'}`,
+        {[['calendar', '📅 Calendario'], ['teams', '💬 Teams'], ['config', '⚙ Configuración']].map(([tabId, label]) => (
+          <button key={tabId} onClick={() => setTab(tabId as 'calendar' | 'teams' | 'config')} style={{
+            background: activeTab === tabId ? 'var(--accent-glow)' : 'none',
+            border: `1px solid ${activeTab === tabId ? 'var(--info)' : 'var(--surface-5)'}`,
             borderRadius: 8, padding: '6px 16px',
-            color: activeTab === t ? 'var(--info)' : 'var(--text-2)',
+            color: activeTab === tabId ? 'var(--info)' : 'var(--text-2)',
             cursor: 'pointer', fontSize: "var(--text-base)", fontFamily: 'inherit',
           }}>
             {label}

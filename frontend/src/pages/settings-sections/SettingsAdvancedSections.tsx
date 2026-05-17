@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -1012,7 +1012,11 @@ function IntegrationProviderEditor({ provider, label }) {
   const items = data?.items || []
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <form
+      onSubmit={(e) => e.preventDefault()}
+      autoComplete="off"
+      style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14 }}>
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
           {label}. Valores cifrados en reposo. Resuelven: org → global → .env.
@@ -1052,7 +1056,7 @@ function IntegrationProviderEditor({ provider, label }) {
           const current = draft[it.key] ?? ''
           const dirty = it.is_secret ? (current !== '') : (String(it.value ?? '') !== String(current))
           return (
-            <React.Fragment key={it.key}>
+            <Fragment key={it.key}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontWeight: 600, color: 'var(--text-1)', fontSize: 'var(--text-sm)' }}>{it.label}</span>
                 <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-2xs)', fontFamily: 'ui-monospace, monospace' }}>
@@ -1094,11 +1098,11 @@ function IntegrationProviderEditor({ provider, label }) {
                   fontSize: 'var(--text-sm)', fontFamily: 'inherit',
                 }}
               >Borrar</button>
-            </React.Fragment>
+            </Fragment>
           )
         })}
       </div>
-    </div>
+    </form>
   )
 }
 

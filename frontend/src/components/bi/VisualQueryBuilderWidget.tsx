@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { biIntelligenceApi } from '../../services/api'
@@ -13,12 +12,19 @@ interface ColumnDef {
 
 interface EntityDef {
   columns?: Record<string, ColumnDef>
+  group?: string
+  label?: string
+  [k: string]: unknown
+}
+
+interface OperatorDef {
+  label?: string
   [k: string]: unknown
 }
 
 interface BuilderSchema {
   entities?: Record<string, EntityDef>
-  operators?: Record<string, string[]>
+  operators?: Record<string, OperatorDef>
   groups?: Record<string, string[]>
 }
 
@@ -31,7 +37,20 @@ interface FilterEntry {
 interface QueryTemplate {
   id: string | number
   name: string
+  query?: {
+    entity?: string
+    columns?: unknown[]
+    filters?: Array<{ column?: string; operator?: string; value?: unknown }>
+    sort?: { column?: string; direction?: string }
+  }
   [k: string]: unknown
+}
+
+interface PreviewResponse {
+  rows?: Array<Record<string, unknown>>
+  columns?: string[]
+  count?: number
+  truncated?: boolean
 }
 
 const EMPTY_FILTER: FilterEntry = { column: '', operator: 'eq', value: '' }
@@ -91,7 +110,7 @@ export default function VisualQueryBuilderWidget() {
   })
 
   const previewMutation = useMutation({
-    mutationFn: (payload: Record<string, unknown>) => biIntelligenceApi.queryBuilderPreview(payload).then((r) => r.data),
+    mutationFn: (payload: Record<string, unknown>) => biIntelligenceApi.queryBuilderPreview(payload).then((r) => r.data as PreviewResponse),
   })
 
   const templatesQuery = useQuery<{ items?: QueryTemplate[] } | QueryTemplate[]>({
@@ -115,6 +134,11 @@ export default function VisualQueryBuilderWidget() {
   const entities = useMemo(() => schemaQuery.data?.entities || {}, [schemaQuery.data])
   const operators = useMemo(() => schemaQuery.data?.operators || {}, [schemaQuery.data])
   const groups = useMemo(() => schemaQuery.data?.groups || {}, [schemaQuery.data])
+  const templateItems = useMemo<QueryTemplate[]>(() => {
+    const data = templatesQuery.data
+    if (!data) return []
+    return Array.isArray(data) ? data : (data.items || [])
+  }, [templatesQuery.data])
 
   const entityDef = entity ? entities[entity] : null
   const allColumns = useMemo(() => Object.keys(entityDef?.columns || {}), [entityDef])
@@ -122,8 +146,8 @@ export default function VisualQueryBuilderWidget() {
   const validOperators = useMemo(() => new Set(Object.keys(operators || {})), [operators])
 
   const groupedEntities = useMemo(() => {
-    const acc = {}
-    Object.entries(entities).forEach(([key, cfg]) => {
+    const acc: Record<string, Array<{ key: string; label: string }>> = {}
+    ;(Object.entries(entities) as Array<[string, EntityDef]>).forEach(([key, cfg]) => {
       const g = cfg.group || 'other'
       if (!acc[g]) acc[g] = []
       acc[g].push({ key, label: cfg.label || key })
@@ -138,12 +162,12 @@ export default function VisualQueryBuilderWidget() {
   }, [groups, groupedEntities])
 
   const addFilter = () => setFilters((prev) => [...prev, { ...EMPTY_FILTER }])
-  const removeFilter = (i) => setFilters((prev) => prev.filter((_, idx) => idx !== i))
-  const patchFilter = (i, patch) => {
+  const removeFilter = (i: number) => setFilters((prev) => prev.filter((_, idx) => idx !== i))
+  const patchFilter = (i: number, patch: Partial<FilterEntry>) => {
     setFilters((prev) => prev.map((f, idx) => (idx === i ? { ...f, ...patch } : f)))
   }
 
-  const toggleColumn = (col) => {
+  const toggleColumn = (col: string) => {
     setSelectedColumns((prev) => (prev.includes(col) ? prev.filter((x) => x !== col) : [...prev, col]))
   }
 
@@ -192,15 +216,15 @@ export default function VisualQueryBuilderWidget() {
     })
   }
 
-  const loadTemplate = (item) => {
+  const loadTemplate = (item: QueryTemplate) => {
     const q = item?.query || {}
     setEntity(q.entity || 'projects')
     const templateColumns = Array.isArray(q.columns) ? q.columns.filter((c) => typeof c === 'string') : []
     setSelectedColumns(templateColumns)
-    const templateFilters = Array.isArray(q.filters)
+    const templateFilters: FilterEntry[] = Array.isArray(q.filters)
       ? q.filters
         .filter((f) => f && typeof f.column === 'string' && typeof f.operator === 'string')
-        .map((f) => ({ column: f.column, operator: f.operator, value: f.value ?? '' }))
+        .map((f) => ({ column: String(f.column), operator: String(f.operator), value: f.value == null ? '' : String(f.value) }))
       : []
     setFilters(templateFilters)
     setSortColumn(q.sort?.column || '')
@@ -254,11 +278,11 @@ export default function VisualQueryBuilderWidget() {
               </button>
             </div>
 
-            {!!templatesQuery.data?.items?.length && (
+            {!!templateItems.length && (
               <div style={{ border: '1px solid var(--surface-4)', borderRadius: 8, padding: 8, maxHeight: 120, overflowY: 'auto' }}>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>{t('visual_query_builder.saved_templates')}</div>
                 <div style={{ display: 'grid', gap: 4 }}>
-                  {templatesQuery.data.items.map((item) => (
+                  {templateItems.map((item) => (
                     <div key={item.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <button
                         type="button"
@@ -310,7 +334,7 @@ export default function VisualQueryBuilderWidget() {
                     {allColumns.map((c) => <option key={c} value={c}>{entityDef.columns[c]?.label || c}</option>)}
                   </select>
                   <select value={f.operator} onChange={(e) => patchFilter(i, { operator: e.target.value })} style={{ background: 'var(--surface-1)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 8px', fontSize: "var(--text-sm)" }}>
-                    {Object.entries(operators).map(([k, op]) => <option key={k} value={k}>{op?.label || k}</option>)}
+                    {(Object.entries(operators) as Array<[string, OperatorDef]>).map(([k, op]) => <option key={k} value={k}>{op?.label || k}</option>)}
                   </select>
                   <input
                     value={f.value}

@@ -1,12 +1,11 @@
-// @ts-nocheck
 /**
  * InvoicesPage — Facturación: crear, gestionar y hacer seguimiento de facturas
  */
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
-import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, invoicesApi, accountingApi, clientsApi, unwrapList } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, Toolbar } from '../components/ui'
@@ -15,57 +14,138 @@ import PageShell from '../components/layout/PageShell'
 import { CreditCard, Download } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
+interface InvoiceLine {
+  description: string
+  quantity: number
+  unit_price: number
+  amount: number
+}
+
+interface InvoiceItem {
+  id: string | number
+  number?: string
+  project_code?: string
+  client_name?: string
+  po_reference?: string
+  issue_date?: string
+  due_date?: string
+  total?: number
+  status?: string
+}
+
+interface ProjectItem {
+  id: string | number
+  code?: string
+  name?: string
+  client_id?: string | number
+}
+
+interface ClientItem {
+  id: string | number
+  name?: string
+}
+
+interface SyncStatus {
+  last_sync_at?: string
+  pending_count?: number
+}
+
+interface InvoiceSummary {
+  total_invoiced?: number
+  total_paid?: number
+  total_pending?: number
+  overdue_amount?: number
+  overdue_count?: number
+}
+
+interface PreviewData {
+  client_name?: string
+  lines: InvoiceLine[]
+  imputation_count?: number
+  subtotal?: number
+  total?: number
+}
+
+interface InvoiceCreateForm {
+  project_id: string
+  client_id: string
+  client_name: string
+  client_vat: string
+  client_email: string
+  issue_date: string
+  due_date: string
+  tax_rate: number
+  notes: string
+  period_from: string
+  period_to: string
+  po_reference: string
+  lines: InvoiceLine[]
+}
+
+type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
+
 const _PALETTE = ['var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--purple)','var(--warning)']
-const fs = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
-const card = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12 }
+const fs: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const card: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12 }
 
 // ── Invoices Tab ──────────────────────────────────────────────────────────────
 function InvoicesTab() {
   const t = useAppT()
+  const toast = useToast()
   const qc = useQueryClient()
 
   // ── Sync contable ────────────────────────────────────────────────────────
   const [syncProvider, setSyncProvider] = useState('xero')
-  const { data: syncStatus } = useQuery({
+  const { data: syncStatusRaw } = useQuery({
     queryKey: ['accounting-sync-status'],
     queryFn: () => accountingApi.syncStatus().then(r => r.data).catch(() => null),
     staleTime: 60_000,
   })
+  const syncStatus = (syncStatusRaw ?? null) as SyncStatus | null
   const { mutate: syncBulk, isPending: syncing } = useMutation({
     mutationFn: () => accountingApi.pushBulk({ provider: syncProvider, limit: 100 }),
-    onSuccess: (res) => toast.success(t('invoices.sync_success', { count: res.data.synced, provider: syncProvider })),
-    onError: (e) => toast.error(e?.response?.data?.detail || t('invoices.sync_error')),
+    onSuccess: (res: { data?: { synced?: number } }) => toast.success(t('invoices.sync_success', { count: res.data?.synced || 0, provider: syncProvider })),
+    onError: (e: unknown) => toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('invoices.sync_error')),
   })
-  const toast = useToast()
-  const { _invalidate } = useInvalidate()
   const [showCreate, setShowCreate] = useState(false)
   const [selectedProject, setSelectedProject] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [previewData, setPreviewData] = useState(null)
-  const [pdfLoadingId, setPdfLoadingId] = useState(null)
-  const [form, setForm] = useState({ project_id:'', client_id:'', client_name:'', client_vat:'', client_email:'', issue_date:new Date().toISOString().slice(0,10), due_date:'', tax_rate:21, notes:'', period_from:'', period_to:'', lines:[] })
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null)
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | number | null>(null)
+  const [form, setForm] = useState<InvoiceCreateForm>({ project_id:'', client_id:'', client_name:'', client_vat:'', client_email:'', issue_date:new Date().toISOString().slice(0,10), due_date:'', tax_rate:21, notes:'', period_from:'', period_to:'', po_reference:'', lines:[] })
 
-  const { data: invoices = [], isLoading } = useQuery({
+  const { data: invoicesRaw = [], isLoading } = useQuery({
     queryKey: ['invoices', selectedProject, statusFilter],
     queryFn: () => invoicesApi.list({ project_id: selectedProject || undefined, status: statusFilter || undefined }).then(r => r.data),
   })
-  const { data: summary } = useQuery({ queryKey: ['invoice-summary'], queryFn: () => invoicesApi.summary().then(r => r.data) })
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(unwrapList) })
-  const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list({ page_size: 200 }).then(unwrapList) })
+  const invoices = invoicesRaw as InvoiceItem[]
+  const { data: summaryRaw } = useQuery({ queryKey: ['invoice-summary'], queryFn: () => invoicesApi.summary().then(r => r.data) })
+  const summary = (summaryRaw ?? null) as InvoiceSummary | null
+  const { data: projectsRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(unwrapList) })
+  const projects = projectsRaw as ProjectItem[]
+  const { data: clientsRaw = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list({ page_size: 200 }).then(unwrapList) })
+  const clients = clientsRaw as ClientItem[]
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => invoicesApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['invoices']); qc.invalidateQueries(['invoice-summary']); qc.invalidateQueries(['clients']); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['client-invoices']); setShowCreate(false) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (d: InvoiceCreateForm) => invoicesApi.create(d),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoice-summary'] })
+      qc.invalidateQueries({ queryKey: ['clients'] })
+      qc.invalidateQueries({ queryKey: ['client-detail'] })
+      qc.invalidateQueries({ queryKey: ['client-invoices'] })
+      setShowCreate(false)
+    },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status }) => invoicesApi.updateStatus(id, status),
-    onSuccess: () => { qc.invalidateQueries(['invoices']); qc.invalidateQueries(['invoice-summary']) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: ({ id, status }: { id: string | number; status: InvoiceStatus }) => invoicesApi.updateStatus(id, status),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); qc.invalidateQueries({ queryKey: ['invoice-summary'] }) },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const downloadPdf = async (inv) => {
+  const downloadPdf = async (inv: InvoiceItem) => {
     setPdfLoadingId(inv.id)
     toast.info(t('invoices.pdf_generating', { number: inv.number }))
     try {
@@ -73,7 +153,7 @@ function InvoicesTab() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
       const a = document.createElement('a')
       a.href = url
-      a.download = `factura_${inv.number.replace(/\//g, '-')}.pdf`
+      a.download = `factura_${String(inv.number || 'sin_numero').replace(/\//g, '-')}.pdf`
       document.body.appendChild(a); a.click()
       document.body.removeChild(a); URL.revokeObjectURL(url)
       toast.success(t('invoices.pdf_generated', { number: inv.number }))
@@ -84,22 +164,23 @@ function InvoicesTab() {
     }
   }
   const { mutate: generatePreview } = useMutation({
-    mutationFn: d => invoicesApi.fromTimesheets(d).then(r => r.data),
-    onSuccess: data => {
+    mutationFn: (d: { project_id: string; date_from: string; date_to: string; tax_rate: number }) => invoicesApi.fromTimesheets(d).then(r => r.data),
+    onSuccess: (data: PreviewData) => {
       setPreviewData(data)
-      setForm(f => ({ ...f, client_name: data.client_name || f.client_name, lines: data.lines }))
+      setForm(f => ({ ...f, client_name: data.client_name || f.client_name, lines: data.lines || [] }))
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const STATUS_CFG = {
+  const STATUS_CFG: Record<InvoiceStatus, { label: string; color: string }> = {
     draft: { label: t('invoices.status_draft'), color: 'var(--text-2)' },
     sent: { label: t('invoices.status_sent'), color: 'var(--accent)' },
     paid: { label: t('invoices.status_paid'), color: 'var(--success)' },
     overdue: { label: t('invoices.status_overdue'), color: 'var(--danger)' },
     cancelled: { label: t('invoices.status_cancelled'), color: 'var(--text-3)' }
   }
-  const { sort: invSort, setSort: setInvSort, sortedData: sortedInvoices } = useSort(invoices, 'number')
+  const { sort: invSort, setSort: setInvSort, sortedData: sortedInvoicesRaw } = useSort(invoices as unknown as Record<string, unknown>[], 'number')
+  const sortedInvoices = sortedInvoicesRaw as unknown as InvoiceItem[]
 
   return (
     <div>
@@ -155,7 +236,7 @@ function InvoicesTab() {
                 {syncStatus.last_sync_at
                   ? `Última sync: ${new Date(syncStatus.last_sync_at).toLocaleDateString('es-ES')}`
                   : 'Sin sincronizar'}
-                {syncStatus.pending_count > 0 && (
+                    {(syncStatus.pending_count || 0) > 0 && (
                   <span style={{ marginLeft: 6, color: 'var(--warning)', fontWeight: 600 }}>({syncStatus.pending_count} pendientes)</span>
                 )}
               </span>
@@ -180,8 +261,8 @@ function InvoicesTab() {
             <span>{t('invoices.actions')}</span>
             <span>{t('invoices.pdf')}</span>
           </div>
-          {sortedInvoices.map(inv => {
-            const cfg = STATUS_CFG[inv.status] || {label:inv.status,color:'var(--text-2)'}
+          {sortedInvoices.map((inv) => {
+            const cfg = STATUS_CFG[(inv.status as InvoiceStatus) || 'draft'] || {label:inv.status || '—',color:'var(--text-2)'}
             const isOverdue = inv.status === 'sent' && inv.due_date && new Date(inv.due_date) < new Date()
             return (
               <div key={inv.id} style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'12px 18px',borderBottom:'1px solid var(--surface-4)20',alignItems:'center'}}>
@@ -220,7 +301,7 @@ function InvoicesTab() {
                     const proj = projects.find(p => p.id === e.target.value)
                     const client = proj?.client_id ? clients.find(c => c.id === proj.client_id) : null
                     setForm(f => ({...f, project_id: e.target.value,
-                      client_id: proj?.client_id || f.client_id,
+                      client_id: proj?.client_id ? String(proj.client_id) : f.client_id,
                       client_name: client ? client.name : f.client_name
                     }))
                   }} style={fs}>

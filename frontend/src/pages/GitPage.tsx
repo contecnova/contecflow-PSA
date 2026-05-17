@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * GitPage — bidirectional Git integration dashboard
  * Shows all PRs and deployments across repositories, with task linkage.
@@ -12,6 +11,34 @@ import PageShell from '../components/layout/PageShell'
 import { GitBranch } from 'lucide-react'
 import { Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+
+type PrStatus = 'open' | 'draft' | 'merged' | 'closed'
+type DeployStatus = 'pending' | 'running' | 'success' | 'failure' | 'cancelled'
+
+interface PullRequestItem {
+  id: string | number
+  status?: PrStatus
+  repo_full_name?: string
+  pr_number?: number
+  pr_url?: string
+  pr_title?: string
+  source_branch?: string
+  author_login?: string
+  task_id?: string | number
+  merged_at?: string
+  created_at?: string
+}
+
+interface DeploymentItem {
+  id: string | number
+  status?: DeployStatus
+  repo_full_name?: string
+  sha?: string
+  environment?: string
+  task_id?: string | number
+  deployed_at?: string
+  created_at?: string
+}
 
 const STATUS_PR = {
   open:   { key: 'git_integration.status_open',   color: 'var(--success)', bg: 'var(--success-bg)' },
@@ -28,7 +55,7 @@ const STATUS_DEPLOY = {
   cancelled: { key: 'git_integration.status_cancelled',color: 'var(--text-2)', bg: 'var(--surface-2)' },
 }
 
-function PRStatusPill({ status }) {
+function PRStatusPill({ status }: { status?: PrStatus }) {
   const t = useAppT()
   const s = STATUS_PR[status] || STATUS_PR.open
   return (
@@ -40,7 +67,7 @@ function PRStatusPill({ status }) {
   )
 }
 
-function DeployPill({ status }) {
+function DeployPill({ status }: { status?: DeployStatus }) {
   const t = useAppT()
   const s = STATUS_DEPLOY[status] || STATUS_DEPLOY.pending
   return (
@@ -57,23 +84,25 @@ const th   = { ...cell, fontWeight: 700, fontSize: "var(--text-xs)", color: 'var
 
 export default function GitPage(): JSX.Element {
   const t = useAppT()
-  const [tab, setTab] = useState('prs')
+  const [tab, setTab] = useState<'prs' | 'deps' | 'config'>('prs')
 
-  const { data: prs = [], isLoading: loadPR } = useQuery({
+  const { data: prsRaw = [], isLoading: loadPR } = useQuery({
     queryKey: ['git-prs'],
     queryFn: () => gitApi.pullRequests().then(r => r.data?.items ?? r.data ?? []),
   })
+  const prs = prsRaw as PullRequestItem[]
 
-  const { data: deploys = [], isLoading: loadDep } = useQuery({
+  const { data: deploysRaw = [], isLoading: loadDep } = useQuery({
     queryKey: ['git-deploys'],
     queryFn: () => gitApi.deployments().then(r => r.data?.items ?? r.data ?? []),
   })
+  const deploys = deploysRaw as DeploymentItem[]
 
-  const fmtDate = (d) => d ? new Date(d).toLocaleString('es-ES', {
+  const fmtDate = (d?: string) => d ? new Date(d).toLocaleString('es-ES', {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
   }) : '—'
 
-  const tabStyle = (active) => ({
+  const tabStyle = (active: boolean) => ({
     padding: '8px 18px',
     borderRadius: 8,
     border: 'none',
@@ -98,7 +127,7 @@ export default function GitPage(): JSX.Element {
         icon={<GitBranch size={18} />}
         title={t('git_integration.title')}
         subtitle={t('git_integration.subtitle')}
-        action={
+        actions={
           <a
             href="/api/v1/git/webhooks/github"
             target="_blank"
@@ -293,7 +322,7 @@ export default function GitPage(): JSX.Element {
   )
 }
 
-function ConfigSection({ title, icon, webhookPath, envVar, events, steps }) {
+function ConfigSection({ title, icon, webhookPath, envVar, events, steps }: { title: string; icon: string; webhookPath: string; envVar: string; events: string[]; steps: string[] }) {
   const t = useAppT()
   const [copied, setCopied] = useState(false)
   const url = `${window.location.origin}${webhookPath}`

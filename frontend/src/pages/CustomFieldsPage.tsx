@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties, ChangeEvent } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -10,7 +10,39 @@ import PageShell from '../components/layout/PageShell'
 import { SlidersHorizontal } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const FIELD_TYPES = [
+interface FieldTypeDef {
+  value: string
+  label: string
+  icon: string
+}
+
+interface ProjectItem {
+  id: string | number
+  name?: string
+}
+
+interface CustomField {
+  id: string | number
+  name: string
+  field_key: string
+  field_type: string
+  options?: string[]
+  is_required?: boolean
+  show_in_list?: boolean
+  sort_order?: number
+}
+
+interface FieldFormState {
+  name: string
+  field_key: string
+  field_type: string
+  options: string[]
+  is_required: boolean
+  show_in_list: boolean
+  sort_order: number
+}
+
+const FIELD_TYPES: FieldTypeDef[] = [
   { value: 'text',    label: 'Texto',            icon: '📝' },
   { value: 'number',  label: 'Número',           icon: '🔢' },
   { value: 'date',    label: 'Fecha',            icon: '📅' },
@@ -20,15 +52,15 @@ const FIELD_TYPES = [
   { value: 'user',    label: 'Usuario',          icon: '👤' },
 ]
 
-const panelStyle = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }
-const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const labelStyle = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const panelStyle: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }
+const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-function FieldForm({ field, projectId, onClose }) {
+function FieldForm({ field, projectId, onClose }: { field: CustomField | null; projectId: string; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!field?.id
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FieldFormState>({
     name:         field?.name         || '',
     field_key:    field?.field_key    || '',
     field_type:   field?.field_type   || 'text',
@@ -40,15 +72,15 @@ function FieldForm({ field, projectId, onClose }) {
   const [optionInput, setOptionInput] = useState('')
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit
+    mutationFn: (d: FieldFormState) => isEdit
       ? customFieldsApi.update(projectId, field.id, d).then(r => r.data)
       : customFieldsApi.create(projectId, d).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['custom-fields', projectId]); onClose() },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al guardar el campo'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['custom-fields', projectId] }); onClose() },
+    onError: (e: unknown) => toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al guardar el campo'),
   })
 
-  const set = k => v => setForm(f => ({ ...f, [k]: v }))
-  const autoKey = name => name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+  const set = <K extends keyof FieldFormState>(k: K) => (v: FieldFormState[K]) => setForm(f => ({ ...f, [k]: v }))
+  const autoKey = (name: string) => name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
 
   const addOption = () => {
     if (optionInput.trim() && !form.options.includes(optionInput.trim())) {
@@ -94,7 +126,7 @@ function FieldForm({ field, projectId, onClose }) {
           <div>
             <label style={labelStyle}>Opciones del selector</label>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-              {form.options.map(o => (
+              {form.options.map((o) => (
                 <span key={o} style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent-border-strong)', borderRadius: 20, padding: '3px 10px', fontSize: "var(--text-sm)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 6 }}>
                   {o}
                   <button onClick={() => set('options')(form.options.filter(x => x !== o))}
@@ -144,28 +176,30 @@ export default function CustomFieldsPage(): JSX.Element {
   const _t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [selectedProject, setSelectedProject] = useState('')
+  const [selectedProject, setSelectedProject] = useState<string>('')
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState<CustomField | null>(null)
 
-  const { data: projects = [] } = useQuery({
+  const { data: projectsRaw = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
+  const projects = projectsRaw as ProjectItem[]
 
-  const { data: fields = [], isLoading } = useQuery({
+  const { data: fieldsRaw = [], isLoading } = useQuery({
     queryKey: ['custom-fields', selectedProject],
     queryFn: () => customFieldsApi.list(selectedProject).then(r => r.data).catch(() => []),
     enabled: !!selectedProject,
   })
+  const fields = fieldsRaw as CustomField[]
 
   const { mutate: deleteField } = useMutation({
-    mutationFn: fid => customFieldsApi.delete(selectedProject, fid),
-    onSuccess: () => qc.invalidateQueries(['custom-fields', selectedProject]),
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al eliminar el campo'),
+    mutationFn: (fid: string | number) => customFieldsApi.delete(selectedProject, fid),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields', selectedProject] }),
+    onError: (e: unknown) => toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al eliminar el campo'),
   })
 
-  const selectedProj = projects.find(p => p.id === selectedProject)
+  const selectedProj = projects.find((p) => String(p.id) === selectedProject)
 
   return (
     <PageShell>

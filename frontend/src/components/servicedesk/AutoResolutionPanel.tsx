@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * AutoResolutionPanel — AI auto-resolution dashboard for ITSM
  *
@@ -13,6 +12,61 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { autoResolutionApi, ticketsApi } from '../../services/api'
 import { Card, Button, Spinner, Modal, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
+
+type AutoResolutionConfig = {
+  threshold_auto?: number
+  threshold_suggest?: number
+  auto_close_hours_after_resolution?: number
+  validation_window_hours?: number
+  default_job_limit?: number
+}
+
+type AutoResolutionBucket = {
+  bucket: string
+  total: number
+  success: number
+  failed: number
+  success_rate?: number | null
+}
+
+type RuntimeStats = {
+  processed?: number
+  auto_resolved?: number
+  failed?: number
+}
+
+type RuntimeInfo = {
+  running?: boolean
+  status?: string
+  started_at?: string | null
+  completed_at?: string | null
+  duration_ms?: number | null
+  stats?: RuntimeStats
+  error?: string | null
+}
+
+type JobHistoryItem = {
+  status?: string
+  started_at?: string | null
+  duration_ms?: number | null
+  stats?: RuntimeStats
+  error?: string | null
+}
+
+type AutoResolutionStats = {
+  total_auto_resolved?: number
+  pct_of_all_tickets?: number
+  feedback_total_validated?: number
+  overall_success_rate?: number
+  per_bucket?: AutoResolutionBucket[]
+  runtime?: RuntimeInfo | null
+  job_history?: JobHistoryItem[]
+}
+
+const errMsg = (e: unknown, fallback: string): string => {
+  const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+  return detail || fallback
+}
 
 const card: React.CSSProperties = { padding: '20px 22px' }
 
@@ -67,7 +121,7 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
       onClose()
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al registrar feedback'),
+    onError: (e) => toast.error(errMsg(e, 'Error al registrar feedback')),
   })
 
   return (
@@ -162,11 +216,11 @@ export default function AutoResolutionPanel() {
   const qc = useQueryClient()
   const [feedbackTicketId, setFeedbackTicketId] = useState<string | number | null>(null)
   // TODO type: auto-resolution config payload — needs shared type
-  const [cfgDraft, setCfgDraft] = useState<Record<string, unknown> | null>(null)
+  const [cfgDraft, setCfgDraft] = useState<AutoResolutionConfig | null>(null)
 
-  const { data: config, isLoading: configLoading } = useQuery({
+  const { data: config, isLoading: configLoading } = useQuery<AutoResolutionConfig>({
     queryKey: ['sd-auto-resolution-config'],
-    queryFn: () => autoResolutionApi.getConfig().then(r => r.data),
+    queryFn: () => autoResolutionApi.getConfig().then(r => r.data as AutoResolutionConfig),
   })
 
   useEffect(() => {
@@ -175,9 +229,9 @@ export default function AutoResolutionPanel() {
     }
   }, [config])
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<AutoResolutionStats>({
     queryKey: ['sd-auto-resolution-stats'],
-    queryFn: () => autoResolutionApi.getStats().then(r => r.data),
+    queryFn: () => autoResolutionApi.getStats().then(r => r.data as AutoResolutionStats),
     refetchInterval: 30_000,
   })
 
@@ -196,7 +250,7 @@ export default function AutoResolutionPanel() {
       }
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al ejecutar el job'),
+    onError: (e) => toast.error(errMsg(e, 'Error al ejecutar el job')),
   })
 
   const { mutate: runCloseJob, isPending: runningClose } = useMutation({
@@ -208,7 +262,7 @@ export default function AutoResolutionPanel() {
       )
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al ejecutar el job de cierre'),
+    onError: (e) => toast.error(errMsg(e, 'Error al ejecutar el job de cierre')),
   })
 
   const { mutate: saveConfig, isPending: savingConfig } = useMutation({
@@ -223,7 +277,7 @@ export default function AutoResolutionPanel() {
       toast.success('Configuración de auto-resolución guardada')
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-config'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al guardar configuración'),
+    onError: (e) => toast.error(errMsg(e, 'Error al guardar configuración')),
   })
 
   const successRate = stats?.overall_success_rate
@@ -374,7 +428,7 @@ export default function AutoResolutionPanel() {
               <div style={{ marginTop: 18 }}>
                 <div style={fieldLabel}>Top buckets (categoría · prioridad)</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {topBuckets.map(b => {
+                  {topBuckets.map((b) => {
                     const rate = b.success_rate
                     const color = rate == null ? 'var(--text-3)'
                       : rate >= 85 ? 'var(--success)'
@@ -523,7 +577,7 @@ export default function AutoResolutionPanel() {
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginBottom: 14 }}>
           Registra si la resolución automática fue correcta para un ticket — ajusta el bucket de confianza.
         </div>
-        <FeedbackLookup onOpen={id => setFeedbackTicketId(id)} />
+        <FeedbackLookup onOpen={(id) => setFeedbackTicketId(id)} />
       </Card>
 
       {feedbackTicketId && (

@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -12,9 +12,39 @@ import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+type DepType = 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'relates_to'
+
+interface ProjectItem {
+  id: string | number
+  name?: string
+}
+
+interface EpicItem {
+  id: string | number
+  title: string
+  color?: string
+  start_date?: string
+  end_date?: string
+  progress?: number
+}
+
+interface EpicDependency {
+  id: string | number
+  epic_id: string | number
+  depends_on_id: string | number
+  dep_type: DepType
+  lag_days: number
+  epic_title?: string
+  depends_on_title?: string
+}
+
+interface RoadmapData {
+  epics?: EpicItem[]
+}
+
+const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const DEP_TYPES = [
   { value:'finish_to_start',  label:'Fin → Inicio',    color:'var(--danger)', symbol:'FS', desc:'B no empieza hasta que A termine' },
@@ -23,30 +53,30 @@ const DEP_TYPES = [
   { value:'relates_to',       label:'Relacionada',     color:'var(--text-2)', symbol:'RE', desc:'Sin bloqueo, solo vinculadas' },
 ]
 
-function daysBetween(a, b) {
+function daysBetween(a?: string, b?: string) {
   if (!a || !b) return 0
-  return Math.max(0, Math.round((new Date(b) - new Date(a)) / 86400000))
+  return Math.max(0, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000))
 }
 
-function GanttWithDeps({ epics, deps }) {
-  const dates = epics.flatMap(e => [e.start_date, e.end_date].filter(Boolean))
+function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependency[] }) {
+  const dates = epics.flatMap((e) => [e.start_date, e.end_date].filter((v): v is string => Boolean(v)))
   if (!dates.length) return (
     <div style={{textAlign:'center', padding:40, color:'var(--text-2)', fontSize: "var(--text-base)"}}>
       Asigna fechas de inicio y fin a las épicas para ver el roadmap visual con dependencias.
     </div>
   )
 
-  const minDate   = new Date(Math.min(...dates.map(d => new Date(d))))
-  const maxDate   = new Date(Math.max(...dates.map(d => new Date(d))))
+  const minDate   = new Date(Math.min(...dates.map((d) => new Date(d).getTime())))
+  const maxDate   = new Date(Math.max(...dates.map((d) => new Date(d).getTime())))
   const totalDays = Math.max(daysBetween(minDate.toISOString().slice(0,10), maxDate.toISOString().slice(0,10)), 1)
   const epicMap   = Object.fromEntries(epics.map(e => [e.id, e]))
 
-  const pct = d => {
+  const pct = (d?: string) => {
     if (!d) return 0
     const diff = daysBetween(minDate.toISOString().slice(0,10), d)
     return Math.min(100, Math.max(0, (diff / totalDays) * 100))
   }
-  const barW = (sd, ed) => Math.max(2, pct(ed) - pct(sd))
+  const barW = (sd?: string, ed?: string) => Math.max(2, pct(ed) - pct(sd))
 
   // Cabecera meses
   const months = []
@@ -136,17 +166,17 @@ function GanttWithDeps({ epics, deps }) {
   )
 }
 
-function EpicDepForm({ projectId, epics, onClose }) {
+function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: EpicItem[]; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [form, setForm] = useState({ epic_id:'', depends_on_id:'', dep_type:'finish_to_start', lag_days:0 })
-  const set = k => v => setForm(f => ({...f, [k]: v}))
+  const set = (k: 'epic_id' | 'depends_on_id' | 'dep_type' | 'lag_days') => (v: string | number) => setForm((f) => ({...f, [k]: v}))
   const _selType = DEP_TYPES.find(d => d.value === form.dep_type)
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => epicDependenciesApi.create(form).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['epic-deps', projectId]); qc.invalidateQueries(['epic-gantt', projectId]); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error al crear dependencia')),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['epic-deps', projectId] }); qc.invalidateQueries({ queryKey: ['epic-gantt', projectId] }); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al crear dependencia')),
   })
 
   return (
@@ -216,25 +246,28 @@ export default function EpicGanttPage(): JSX.Element {
   const [project,  setProject]  = useState('')
   const [showForm, setShowForm] = useState(false)
 
-  const { data: projects = [] } = useQuery({
+  const { data: projectsRaw = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
-  const { data: roadmap, isLoading: lRoadmap } = useQuery({
+  const projects = projectsRaw as ProjectItem[]
+  const { data: roadmapRaw, isLoading: lRoadmap } = useQuery({
     queryKey: ['epic-gantt', project],
     queryFn: () => epicsApi.roadmapByProject(project).then(r => r.data).catch(() => null),
     enabled: !!project,
   })
-  const { data: epicDeps = [], isLoading: lDeps } = useQuery({
+  const roadmap = (roadmapRaw ?? null) as RoadmapData | null
+  const { data: epicDepsRaw = [], isLoading: lDeps } = useQuery({
     queryKey: ['epic-deps', project],
     queryFn: () => epicDependenciesApi.get(project).then(r => r.data).catch(() => []),
     enabled: !!project,
   })
+  const epicDeps = epicDepsRaw as EpicDependency[]
 
   const { mutate: deleteDep } = useMutation({
-    mutationFn: id => epicDependenciesApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries(['epic-deps', project]); qc.invalidateQueries(['epic-gantt', project]) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string | number) => epicDependenciesApi.delete(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['epic-deps', project] }); qc.invalidateQueries({ queryKey: ['epic-gantt', project] }) },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const epics = roadmap?.epics || []

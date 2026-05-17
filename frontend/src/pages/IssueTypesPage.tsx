@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type { CSSProperties } from 'react'
 import { CHART_COLORS_EXTENDED } from '../constants/theme'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
@@ -12,9 +12,42 @@ import PageShell from '../components/layout/PageShell'
 import { Tag } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+interface ProjectItem {
+  id: string | number
+  name?: string
+}
+
+interface CustomFieldItem {
+  field_key: string
+  name: string
+}
+
+interface IssueTypeItem {
+  id: string | number
+  name: string
+  value: string
+  icon?: string
+  color: string
+  description?: string
+  is_subtask?: boolean
+  sort_order?: number
+  field_keys?: string[]
+}
+
+interface IssueTypeFormState {
+  name: string
+  value: string
+  icon: string
+  color: string
+  description: string
+  is_subtask: boolean
+  sort_order: number
+  field_keys: string[]
+}
+
+const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const COLORS = CHART_COLORS_EXTENDED
 
@@ -22,13 +55,13 @@ const _DEP_TYPE_LABELS = {
   blocks:'Bloquea',blocked_by:'Bloqueada por',relates_to:'Relacionada',duplicates:'Duplica',cloned_from:'Clonada de'
 }
 
-function IssueTypeForm({ projectId, type, customFields, onClose }) {
+function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: string; type: IssueTypeItem | null; customFields: CustomFieldItem[]; onClose: () => void }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!type?.id
-  const autoValue = n => n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')
-  const [form, setForm] = useState({
+  const autoValue = (n: string) => n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')
+  const [form, setForm] = useState<IssueTypeFormState>({
     name:       type?.name        || '',
     value:      type?.value       || autoValue(type?.name || ''),
     icon:       type?.icon        || '',
@@ -38,21 +71,21 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
     sort_order: type?.sort_order  || 0,
     field_keys: type?.field_keys  || [],
   })
-  const set = k => v => setForm(f => ({...f, [k]: v}))
+  const set = <K extends keyof IssueTypeFormState>(k: K) => (v: IssueTypeFormState[K]) => setForm((f) => ({...f, [k]: v}))
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit
+    mutationFn: (d: IssueTypeFormState) => isEdit
       ? issueTypesApi.update(projectId, type.id, d).then(r => r.data)
       : issueTypesApi.create(projectId, d).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries(['issue-types', projectId])
+      qc.invalidateQueries({ queryKey: ['issue-types', projectId] })
       toast.success(isEdit ? t('issue_types.saved_ok') : t('issue_types.created_ok'))
       onClose()
     },
-    onError: e => toast.error(extractErr(e, t('issue_types.error_save'))),
+    onError: (e: unknown) => toast.error(extractErr(e, t('issue_types.error_save'))),
   })
 
-  const toggleField = (key) => {
+  const toggleField = (key: string) => {
     set('field_keys')(form.field_keys.includes(key)
       ? form.field_keys.filter(k => k !== key)
       : [...form.field_keys, key])
@@ -133,40 +166,43 @@ export default function IssueTypesPage(): JSX.Element {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [project, setProject] = useState('')
+  const [project, setProject] = useState<string>('')
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState<IssueTypeItem | null>(null)
 
-  const { data: projects = [] } = useQuery({
+  const { data: projectsRaw = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
-  const { data: types = [], isLoading } = useQuery({
+  const projects = projectsRaw as ProjectItem[]
+  const { data: typesRaw = [], isLoading } = useQuery({
     queryKey: ['issue-types', project],
     queryFn: () => issueTypesApi.list(project).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
     enabled: !!project,
   })
-  const { data: customFields = [] } = useQuery({
+  const types = typesRaw as IssueTypeItem[]
+  const { data: customFieldsRaw = [] } = useQuery({
     queryKey: ['custom-fields', project],
     queryFn: () => customFieldsApi.list(project).then(r => r.data).catch(() => []),
     enabled: !!project,
   })
+  const customFields = customFieldsRaw as CustomFieldItem[]
 
   const { mutate: initTypes, isPending: initing } = useMutation({
     mutationFn: () => issueTypesApi.init(project).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries(['issue-types', project])
+      qc.invalidateQueries({ queryKey: ['issue-types', project] })
       toast.success(t('issue_types.init_ok'))
     },
-    onError: e => toast.error(extractErr(e, t('issue_types.error_init'))),
+    onError: (e: unknown) => toast.error(extractErr(e, t('issue_types.error_init'))),
   })
   const { mutate: deleteType } = useMutation({
-    mutationFn: id => issueTypesApi.delete(project, id),
+    mutationFn: (id: string | number) => issueTypesApi.delete(project, id),
     onSuccess: () => {
-      qc.invalidateQueries(['issue-types', project])
+      qc.invalidateQueries({ queryKey: ['issue-types', project] })
       toast.success(t('issue_types.deleted_ok'))
     },
-    onError: e => toast.error(extractErr(e, t('issue_types.error_delete'))),
+    onError: (e: unknown) => toast.error(extractErr(e, t('issue_types.error_delete'))),
   })
 
   return (
@@ -220,7 +256,7 @@ export default function IssueTypesPage(): JSX.Element {
           {/* Tabla detallada */}
           <div style={ps}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
-              <div style={{fontSize: "var(--text-md)", fontWeight:600}}>{t('issue_types.types_count').replace('{n}', types.length)}</div>
+              <div style={{fontSize: "var(--text-md)", fontWeight:600}}>{t('issue_types.types_count').replace('{n}', String(types.length))}</div>
               <Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('issue_types.new_type')}</Button>
             </div>
             <table style={{width:'100%', borderCollapse:'collapse', fontSize: "var(--text-base)"}}>

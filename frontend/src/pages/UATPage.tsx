@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * UATPage — Gestión de casos UAT (User Acceptance Testing)
  * Define criterios de aceptación por proyecto/tarea y registra su ejecución.
@@ -14,8 +13,64 @@ import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
 import { ClipboardCheck } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import type { CSSProperties, ChangeEvent } from 'react'
 
-const STATUS_META = {
+type UATStatus = 'pending' | 'passed' | 'failed' | 'blocked' | 'skipped'
+type UATPriority = 'critical' | 'high' | 'medium' | 'low'
+
+type UATCase = {
+  id: string | number
+  title: string
+  description?: string
+  expected_result?: string
+  actual_result?: string
+  status: UATStatus
+  priority: UATPriority
+  task_id?: string | number | ''
+  task_title?: string
+  notes?: string
+}
+
+type UATStats = {
+  total: number
+  pending: number
+  passed: number
+  failed: number
+  blocked: number
+}
+
+type UATListResponse = {
+  cases: UATCase[]
+  stats: UATStats
+}
+
+type UATFormData = {
+  title: string
+  description: string
+  expected_result: string
+  actual_result: string
+  status: UATStatus
+  priority: UATPriority
+  task_id: string
+  notes: string
+}
+
+type ProjectItem = {
+  id: string | number
+  name: string
+}
+
+type TaskItem = {
+  id: string | number
+  title?: string
+}
+
+type ExportReport = {
+  text: string
+  cases_count: number
+}
+
+const STATUS_META: Record<UATStatus, { label: string; color: string; bg: string; icon: string }> = {
   pending:  { label: 'Pendiente', color: 'var(--text-2)',  bg: 'var(--surface-3)',     icon: '⏳' },
   passed:   { label: 'Pasado',    color: 'var(--success)', bg: 'rgba(74,222,128,0.12)', icon: '✅' },
   failed:   { label: 'Fallido',   color: 'var(--danger)',  bg: 'rgba(248,113,113,0.12)', icon: '❌' },
@@ -23,36 +78,36 @@ const STATUS_META = {
   skipped:  { label: 'Omitido',   color: 'var(--text-3)',  bg: 'rgba(122,138,170,0.1)', icon: '⏭' },
 }
 
-const PRIORITY_META = {
+const PRIORITY_META: Record<UATPriority, { label: string; color: string }> = {
   critical: { label: 'Crítica',  color: 'var(--danger)' },
   high:     { label: 'Alta',     color: 'var(--warning)' },
   medium:   { label: 'Media',    color: 'var(--accent)' },
   low:      { label: 'Baja',     color: 'var(--text-2)' },
 }
 
-const fs = {
+const fs: CSSProperties = {
   background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
   padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none',
   fontFamily: 'inherit', width: '100%',
 }
-const ls = {
+const ls: CSSProperties = {
   fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
   letterSpacing: '0.07em', display: 'block', marginBottom: 5,
 }
 
-function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }) {
+function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: boolean; onClose: () => void; onSave: (data: UATFormData) => void; initial?: UATCase | null; tasks?: TaskItem[] }) {
   const idPrefix = useId()
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<UATFormData>({
     title: initial?.title || '',
     description: initial?.description || '',
     expected_result: initial?.expected_result || '',
     actual_result: initial?.actual_result || '',
     status: initial?.status || 'pending',
     priority: initial?.priority || 'medium',
-    task_id: initial?.task_id || '',
+    task_id: initial?.task_id != null ? String(initial.task_id) : '',
     notes: initial?.notes || '',
   })
-  const s = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const s = <K extends keyof UATFormData>(k: K) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value as UATFormData[K] }))
   const isEdit = !!initial?.id
 
   return (
@@ -85,7 +140,7 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }) {
             <select id={`${idPrefix}-task-id`} value={form.task_id} onChange={s('task_id')} style={fs}>
               <option value="">— Sin tarea —</option>
               {tasks.map(t => (
-                <option key={t.id} value={t.id}>{t.title}</option>
+                <option key={t.id} value={String(t.id)}>{t.title}</option>
               ))}
             </select>
           </div>
@@ -130,7 +185,7 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }) {
   )
 }
 
-function ExportModal({ open, onClose, report }) {
+function ExportModal({ open, onClose, report }: { open: boolean; onClose: () => void; report: ExportReport }) {
   const [copied, setCopied] = useState(false)
   const handleCopy = () => {
     navigator.clipboard.writeText(report?.text || '').then(() => {
@@ -166,47 +221,54 @@ export default function UATPage() {
   const [selectedProject, setSelectedProject] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [editCase, setEditCase] = useState(null)
-  const [exportReport, setExportReport] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [editCase, setEditCase] = useState<UATCase | null>(null)
+  const [exportReport, setExportReport] = useState<ExportReport | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<UATCase | null>(null)
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => projectsApi.list({}).then(r => r.data?.items ?? r.data ?? []),
   })
 
-  const { data: tasksData = [] } = useQuery({
+  const { data: tasksData = [] } = useQuery<TaskItem[]>({
     queryKey: ['tasks', selectedProject],
     queryFn: () => tasksApi.list({ project_id: selectedProject }).then(r => r.data),
     enabled: !!selectedProject,
-    select: d => (Array.isArray(d) ? d : d?.items || d?.tasks || []),
+    select: (d: unknown) => {
+      if (Array.isArray(d)) return d as TaskItem[]
+      if (d && typeof d === 'object') {
+        const maybe = d as { items?: TaskItem[]; tasks?: TaskItem[] }
+        return maybe.items || maybe.tasks || []
+      }
+      return []
+    },
   })
 
-  const { data: uatData, isLoading } = useQuery({
+  const { data: uatData, isLoading } = useQuery<UATListResponse>({
     queryKey: ['uat-cases', selectedProject, statusFilter],
     queryFn: () => uatApi.list(selectedProject, { status: statusFilter || undefined }).then(r => r.data),
     enabled: !!selectedProject,
   })
 
   const cases = uatData?.cases || []
-  const stats = uatData?.stats || {}
+  const stats = uatData?.stats || { total: 0, pending: 0, passed: 0, failed: 0, blocked: 0 }
 
   const { mutate: createCase } = useMutation({
-    mutationFn: data => uatApi.create(selectedProject, data),
-    onSuccess: () => { qc.invalidateQueries(['uat-cases']); setShowCreate(false); toast.success('Caso UAT creado') },
-    onError: e => toast.error(extractErr(e, 'Error al crear caso')),
+    mutationFn: (data: UATFormData) => uatApi.create(selectedProject, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['uat-cases'] }); setShowCreate(false); toast.success('Caso UAT creado') },
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al crear caso')),
   })
 
   const { mutate: updateCase } = useMutation({
-    mutationFn: ({ id, data }) => uatApi.update(selectedProject, id, data),
-    onSuccess: () => { qc.invalidateQueries(['uat-cases']); setEditCase(null); toast.success('Caso actualizado') },
-    onError: e => toast.error(extractErr(e, 'Error al actualizar')),
+    mutationFn: ({ id, data }: { id: string | number; data: UATFormData | UATCase }) => uatApi.update(selectedProject, id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['uat-cases'] }); setEditCase(null); toast.success('Caso actualizado') },
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar')),
   })
 
   const { mutate: deleteCase } = useMutation({
-    mutationFn: id => uatApi.remove(selectedProject, id),
-    onSuccess: () => { qc.invalidateQueries(['uat-cases']); toast.success('Caso eliminado') },
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    mutationFn: (id: string | number) => uatApi.remove(selectedProject, id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['uat-cases'] }); toast.success('Caso eliminado') },
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
   const handleExport = async () => {
@@ -218,7 +280,7 @@ export default function UATPage() {
     }
   }
 
-  const quickStatus = (caseItem, newStatus) => {
+  const quickStatus = (caseItem: UATCase, newStatus: UATStatus) => {
     updateCase({ id: caseItem.id, data: { ...caseItem, status: newStatus } })
   }
 
@@ -249,7 +311,7 @@ export default function UATPage() {
           style={{ ...fs, width: 280 }}
         >
           <option value="">— Selecciona un proyecto —</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
         </select>
 
         {selectedProject && (

@@ -1,8 +1,7 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
-import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { timesheetsApi, imputationsApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
@@ -14,6 +13,36 @@ import { fmtHours, fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 
+type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected' | string
+
+type TimesheetItem = {
+  id: string | number
+  week_start: string
+  week_end?: string
+  user_name?: string
+  status: TimesheetStatus
+  total_hours?: number
+  billable_hours?: number
+  total_cost?: number
+  review_notes?: string
+}
+
+type TimesheetLine = {
+  id: string | number
+  date: string
+  hours: number
+  project_name?: string
+  description?: string
+  is_billable?: boolean
+  is_approved?: boolean
+}
+
+type TeamSortKey = 'user_name' | 'week_start' | 'total_hours' | 'billable_hours' | 'total_cost' | 'status'
+
+type RoleAuth = {
+  hasRole: (...roles: string[]) => boolean
+}
+
 const STATUS_CFG = {
   draft:     { label: 'Borrador',  color: 'var(--text-2)', bg: 'rgba(120,138,170,0.09)', border: 'rgba(122,138,170,0.19)' },
   submitted: { label: 'Enviado',   color: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)' },
@@ -21,14 +50,14 @@ const STATUS_CFG = {
   rejected:  { label: 'Rechazado', color: 'var(--danger)', bg: 'var(--danger-bg)', border: 'var(--danger-border)' },
 }
 
-function onKeyboardActivate(event, action) {
+function onKeyboardActivate(event: { key: string; preventDefault: () => void }, action: () => void) {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     action()
   }
 }
 
-function StatusBadge({ status }) {
+function StatusBadge({ status }: { status: TimesheetStatus }) {
   const cfg = STATUS_CFG[status] || STATUS_CFG.draft
   return (
     <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -37,42 +66,47 @@ function StatusBadge({ status }) {
   )
 }
 
-function WeekLines({ weekStart, onClose }) {
+function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
-  const [editingId, setEditingId] = useState(null)
+  const [editingId, setEditingId] = useState<string | number | null>(null)
   const [editForm, setEditForm] = useState({ hours: 0, description: '' })
 
-  const { data: lines = [], isLoading } = useQuery({
+  const { data: lines = [], isLoading } = useQuery<TimesheetLine[]>({
     queryKey: ['timesheet-lines', weekStart],
-    queryFn: () => timesheetsApi.weekLines(weekStart).then(r => r.data),
+    queryFn: () => timesheetsApi.weekLines(weekStart).then(r => r.data as TimesheetLine[]),
   })
 
   const { mutate: updateLine, isPending: updating } = useMutation({
-    mutationFn: ({ id, data }) => imputationsApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string | number; data: { hours: number; description: string } }) => imputationsApi.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['timesheet-lines', weekStart] })
-      qc.invalidateQueries(['timesheets-mine'])
-      qc.invalidateQueries(['timesheets-pending'])
-      qc.invalidateQueries(['timesheets-team'])
+      qc.invalidateQueries({ queryKey: ['timesheets-mine'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-pending'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-team'] })
       setEditingId(null)
     },
-    onError: e => toast.error(e?.response?.data?.detail || 'Error al actualizar'),
+    onError: e => toast.error(extractErr(e, 'Error al actualizar')),
   })
 
   const { mutate: deleteLine } = useMutation({
-    mutationFn: (id) => imputationsApi.delete(id),
+    mutationFn: (id: string | number) => imputationsApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['timesheet-lines', weekStart] })
-      qc.invalidateQueries(['timesheets-mine'])
-      qc.invalidateQueries(['timesheets-pending'])
-      qc.invalidateQueries(['timesheets-team'])
+      qc.invalidateQueries({ queryKey: ['timesheets-mine'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-pending'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-team'] })
     },
-    onError: e => toast.error(e?.response?.data?.detail || 'Error al eliminar'),
+    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
-  const byDay = lines.reduce((a, l) => { const d = l.date; if (!a[d]) a[d] = []; a[d].push(l); return a }, {})
-  const IS = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 6,
+  const byDay: Record<string, TimesheetLine[]> = (lines as TimesheetLine[]).reduce((a, l) => {
+    const d = l.date
+    if (!a[d]) a[d] = []
+    a[d].push(l)
+    return a
+  }, {} as Record<string, TimesheetLine[]>)
+  const IS: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 6,
     padding: '5px 9px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
 
   return (
@@ -81,7 +115,7 @@ function WeekLines({ weekStart, onClose }) {
         <EmptyState icon="⏱️" title="Sin imputaciones" description="No hay lineas registradas para esta semana" />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {Object.entries(byDay).sort().map(([day, dayLines]) => (
+          {(Object.entries(byDay) as Array<[string, TimesheetLine[]]>).sort().map(([day, dayLines]) => (
             <div key={day}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
                 letterSpacing: '0.06em', marginBottom: 6, paddingBottom: 4,
@@ -163,14 +197,13 @@ function WeekLines({ weekStart, onClose }) {
   )
 }
 
-function ReviewModal({ timesheet, onClose }) {
+function ReviewModal({ timesheet, onClose }: { timesheet: TimesheetItem; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
-  const { _invalidate } = useInvalidate()
   const [notes, setNotes] = useState('')
   const { mutate: review, isPending } = useMutation({
-    mutationFn: ({ approved }) => timesheetsApi.review(timesheet.id, { approved, notes }),
-    onSuccess: () => { qc.invalidateQueries(['timesheets-pending']); qc.invalidateQueries(['timesheets-team']); qc.invalidateQueries(['timesheets-mine']); onClose() },
+    mutationFn: ({ approved }: { approved: boolean }) => timesheetsApi.review(timesheet.id, { approved, notes }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['timesheets-pending'] }); qc.invalidateQueries({ queryKey: ['timesheets-team'] }); qc.invalidateQueries({ queryKey: ['timesheets-mine'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (
@@ -202,15 +235,15 @@ function ReviewModal({ timesheet, onClose }) {
 }
 
 export default function TimesheetsPage() {
-  const t = useAppT()
+  const t = useAppT() as (key: string) => string
   const toast = useToast()
-  const { _user, hasRole } = useAuth()
+  const { hasRole } = useAuth() as RoleAuth
   const qc = useQueryClient()
-  const [tab, setTab] = useState(hasRole('admin', 'pm', 'hr') ? 'team' : 'mine')
-  const [viewLines, setViewLines] = useState(null)
-  const [reviewing, setReviewing] = useState(null)
-  const [teamSortKey, setTeamSortKey] = useState('week_start')
-  const [teamSortDir, setTeamSortDir] = useState('desc')
+  const [tab, setTab] = useState<'mine' | 'pending' | 'team'>(hasRole('admin', 'pm', 'hr') ? 'team' : 'mine')
+  const [viewLines, setViewLines] = useState<string | null>(null)
+  const [reviewing, setReviewing] = useState<TimesheetItem | null>(null)
+  const [teamSortKey, setTeamSortKey] = useState<TeamSortKey>('week_start')
+  const [teamSortDir, setTeamSortDir] = useState<'asc' | 'desc'>('desc')
   const [mineStatusFilter, setMineStatusFilter] = useState('')
   const [mineFrom, setMineFrom] = useState('')
   const [mineTo, setMineTo] = useState('')
@@ -222,49 +255,49 @@ export default function TimesheetsPage() {
   const [teamFrom, setTeamFrom] = useState('')
   const [teamTo, setTeamTo] = useState('')
 
-  const toggleTeamSort = (key) => {
+  const toggleTeamSort = (key: TeamSortKey) => {
     if (teamSortKey === key) setTeamSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setTeamSortKey(key); setTeamSortDir('asc') }
   }
-  const teamSortIcon = (key) => teamSortKey === key ? (teamSortDir === 'asc' ? ' ↑' : ' ↓') : ''
+  const teamSortIcon = (key: TeamSortKey) => teamSortKey === key ? (teamSortDir === 'asc' ? ' ↑' : ' ↓') : ''
 
-  const { data: mySheets = [], isLoading: loadingMine } = useQuery({
+  const { data: mySheets = [], isLoading: loadingMine } = useQuery<TimesheetItem[]>({
     queryKey: ['timesheets-mine'],
-    queryFn: () => timesheetsApi.my().then(r => r.data),
+    queryFn: () => timesheetsApi.my().then(r => r.data as TimesheetItem[]),
   })
 
-  const { data: pending = [], isLoading: loadingPending } = useQuery({
+  const { data: pending = [], isLoading: loadingPending } = useQuery<TimesheetItem[]>({
     queryKey: ['timesheets-pending'],
-    queryFn: () => timesheetsApi.pending().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => timesheetsApi.pending().then(r => (r.data?.items ?? r.data ?? []) as TimesheetItem[]),
     enabled: hasRole('admin', 'pm', 'hr'),
   })
 
-  const { data: teamSheets = [], isLoading: loadingTeam } = useQuery({
+  const { data: teamSheets = [], isLoading: loadingTeam } = useQuery<TimesheetItem[]>({
     queryKey: ['timesheets-team'],
-    queryFn: () => timesheetsApi.team().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => timesheetsApi.team().then(r => (r.data?.items ?? r.data ?? []) as TimesheetItem[]),
     enabled: hasRole('admin', 'pm', 'hr'),
   })
 
   const { mutate: submit, isPending: submitting } = useMutation({
-    mutationFn: (weekStart) => timesheetsApi.submit(weekStart),
-    onSuccess: () => { qc.invalidateQueries(['timesheets-mine']); qc.invalidateQueries(['timesheets-pending']); qc.invalidateQueries(['dash-hours-week']); },
+    mutationFn: (weekStart: string) => timesheetsApi.submit(weekStart),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['timesheets-mine'] }); qc.invalidateQueries({ queryKey: ['timesheets-pending'] }); qc.invalidateQueries({ queryKey: ['dash-hours-week'] }); },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const dateInRange = (value, from, to) => {
+  const dateInRange = (value?: string, from?: string, to?: string) => {
     if (!value) return true
     if (from && value < from) return false
     if (to && value > to) return false
     return true
   }
 
-  const filteredMine = mySheets.filter(ts => {
+  const filteredMine = mySheets.filter((ts) => {
     if (mineStatusFilter && ts.status !== mineStatusFilter) return false
     if (!dateInRange(ts.week_start, mineFrom, mineTo)) return false
     return true
   })
 
-  const filteredPending = pending.filter(ts => {
+  const filteredPending = pending.filter((ts) => {
     if (pendingSearch) {
       const q = pendingSearch.toLowerCase()
       const haystack = `${ts.user_name || ''} ${ts.week_start || ''}`.toLowerCase()
@@ -274,7 +307,7 @@ export default function TimesheetsPage() {
     return true
   })
 
-  const filteredTeam = teamSheets.filter(ts => {
+  const filteredTeam = teamSheets.filter((ts) => {
     if (teamSearch) {
       const q = teamSearch.toLowerCase()
       const haystack = `${ts.user_name || ''} ${ts.week_start || ''}`.toLowerCase()
@@ -300,7 +333,7 @@ export default function TimesheetsPage() {
       <Tabs
         items={tabs}
         active={tab}
-        onChange={setTab}
+        onChange={(id: string) => setTab(id as 'mine' | 'pending' | 'team')}
         style={{ marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }}
       />
 
@@ -313,10 +346,10 @@ export default function TimesheetsPage() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <select value={mineStatusFilter} onChange={e => setMineStatusFilter(e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
                   <option value="">Estado: todos</option>
-                  <option value="draft">Borrador</option>
-                  <option value="submitted">Enviado</option>
-                  <option value="approved">Aprobado</option>
-                  <option value="rejected">Rechazado</option>
+                    <option value="draft">Borrador</option>
+                    <option value="submitted">Enviado</option>
+                    <option value="approved">Aprobado</option>
+                    <option value="rejected">Rechazado</option>
                 </select>
                 <input type="date" value={mineFrom} onChange={e => setMineFrom(e.target.value)} aria-label="Semana desde" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
                 <span style={{ color: 'var(--text-3)' }}>—</span>
@@ -428,7 +461,7 @@ export default function TimesheetsPage() {
               ) : (
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                {[['user_name','Persona'],['week_start','Semana'],['total_hours','Total'],['billable_hours','Fact.'],['total_cost','Coste'],['status','Estado']].map(([key, label]) => (
+                {([['user_name','Persona'],['week_start','Semana'],['total_hours','Total'],['billable_hours','Fact.'],['total_cost','Coste'],['status','Estado']] as Array<[TeamSortKey, string]>).map(([key, label]) => (
                   <button key={key} type="button" onClick={() => toggleTeamSort(key)}
                     onKeyDown={e => onKeyboardActivate(e, () => toggleTeamSort(key))}
                     style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: 0,

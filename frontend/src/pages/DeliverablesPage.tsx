@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -12,6 +12,54 @@ import { fmtDate, extractErr} from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+
+interface ProjectItem {
+  id: string | number
+  code?: string
+  name?: string
+}
+
+interface UserItem {
+  id: string | number
+  full_name?: string
+}
+
+interface DeliverableItem {
+  id: string | number
+  project_id?: string | number
+  code?: string
+  name?: string
+  format?: string
+  status?: string
+  overdue?: boolean
+  description?: string
+  planned_date?: string
+  delivered_date?: string
+  accepted_date?: string
+  owner_name?: string
+  owner_id?: string | number
+  client_contact?: string
+  rejection_reason?: string
+  acceptance_criteria?: string
+  sort_order?: number
+  project_code?: string
+}
+
+interface DeliverablesData {
+  deliverables?: DeliverableItem[]
+  summary?: { total?: number; accepted?: number; delivered?: number; overdue?: number; completion_pct?: number }
+}
+
+interface DeliverableFormState {
+  name: string
+  description: string
+  format: string
+  planned_date: string
+  owner_id: string
+  client_contact: string
+  acceptance_criteria: string
+  sort_order: number
+}
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -27,7 +75,7 @@ const STATUS_CFG = {
   rejected:    { label: 'Rechazado',   color: 'var(--danger)', icon: '❌' },
 }
 
-function StatusDropdown({ del, onUpdate }) {
+function StatusDropdown({ del, onUpdate }: { del: DeliverableItem; onUpdate: (status: string) => void }) {
   const [open, setOpen] = useState(false)
   const cfg = STATUS_CFG[del.status] || STATUS_CFG.planned
   return (
@@ -53,29 +101,30 @@ function StatusDropdown({ del, onUpdate }) {
   )
 }
 
-function DeliverableFormModal({ del, projectId, onClose }) {
+function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableItem | null; projectId: string; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!del?.id
-  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
-  const [form, setForm] = useState({
+  const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list({ page_size: 500 }).then(r => r.data) })
+  const users = usersRaw as UserItem[]
+  const [form, setForm] = useState<DeliverableFormState>({
     name: del?.name || '',
     description: del?.description || '',
     format: del?.format || '',
     planned_date: del?.planned_date || '',
-    owner_id: del?.owner_id || '',
+    owner_id: del?.owner_id != null ? String(del.owner_id) : '',
     client_contact: del?.client_contact || '',
     acceptance_criteria: del?.acceptance_criteria || '',
     sort_order: del?.sort_order || 0,
   })
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const set = <K extends keyof DeliverableFormState>(k: K) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value as DeliverableFormState[K] }))
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => isEdit ? deliverablesApi.updateInProject(projectId, del.id, data) : deliverablesApi.createForProject(projectId, data),
-    onSuccess: () => { qc.invalidateQueries(['deliverables', projectId]); qc.invalidateQueries(['deliverables-overview']); onClose() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (data: DeliverableFormState) => isEdit ? deliverablesApi.updateInProject(projectId, del.id, data) : deliverablesApi.createForProject(projectId, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['deliverables', projectId] }); qc.invalidateQueries({ queryKey: ['deliverables-overview'] }); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -130,47 +179,51 @@ export default function DeliverablesPage(): JSX.Element {
   const qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [tab, setTab] = useState('project')
+  const [editing, setEditing] = useState<DeliverableItem | null>(null)
+  const [tab, setTab] = useState<'project' | 'overview'>('project')
 
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
+  const { data: projectsRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => r.data) })
+  const projects = projectsRaw as ProjectItem[]
 
-  const { data: delivData, isLoading } = useQuery({
+  const { data: delivDataRaw, isLoading } = useQuery({
     queryKey: ['deliverables', selectedProject],
     queryFn: () => deliverablesApi.listByProject(selectedProject).then(r => r.data),
     enabled: !!selectedProject,
   })
+  const delivData = (delivDataRaw ?? null) as DeliverablesData | null
 
-  const { data: overview = [] } = useQuery({
+  const { data: overviewRaw = [] } = useQuery({
     queryKey: ['deliverables-overview'],
     queryFn: () => deliverablesApi.overviewAll().then(r => r.data?.items ?? r.data ?? []),
     enabled: tab === 'overview',
   })
+  const overview = overviewRaw as DeliverableItem[]
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status }) => deliverablesApi.updateStatus(selectedProject, id, status),
-    onSuccess: () => { qc.invalidateQueries(['deliverables', selectedProject]); qc.invalidateQueries(['deliverables-overview']); qc.invalidateQueries(['deliverables-uat']); },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: ({ id, status }: { id: string | number; status: string }) => deliverablesApi.updateStatus(selectedProject, id, status),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['deliverables', selectedProject] }); qc.invalidateQueries({ queryKey: ['deliverables-overview'] }); qc.invalidateQueries({ queryKey: ['deliverables-uat'] }); },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: accept } = useMutation({
-    mutationFn: (id) => deliverablesApi.accept(selectedProject, id),
-    onSuccess: () => { qc.invalidateQueries(['deliverables', selectedProject]); qc.invalidateQueries(['deliverables-overview']); qc.invalidateQueries(['deliverables-uat']); },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string | number) => deliverablesApi.accept(selectedProject, id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['deliverables', selectedProject] }); qc.invalidateQueries({ queryKey: ['deliverables-overview'] }); qc.invalidateQueries({ queryKey: ['deliverables-uat'] }); },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: reject } = useMutation({
-    mutationFn: ({ id, reason }) => deliverablesApi.reject(selectedProject, id, reason),
-    onSuccess: () => { qc.invalidateQueries(['deliverables', selectedProject]); qc.invalidateQueries(['deliverables-overview']); qc.invalidateQueries(['deliverables-uat']); },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: ({ id, reason }: { id: string | number; reason: string }) => deliverablesApi.reject(selectedProject, id, reason),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['deliverables', selectedProject] }); qc.invalidateQueries({ queryKey: ['deliverables-overview'] }); qc.invalidateQueries({ queryKey: ['deliverables-uat'] }); },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
-    mutationFn: (id) => deliverablesApi.deleteFromProject(selectedProject, id),
-    onSuccess: () => { qc.invalidateQueries(['deliverables', selectedProject]); qc.invalidateQueries(['deliverables-overview']); qc.invalidateQueries(['deliverables-uat']); },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string | number) => deliverablesApi.deleteFromProject(selectedProject, id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['deliverables', selectedProject] }); qc.invalidateQueries({ queryKey: ['deliverables-overview'] }); qc.invalidateQueries({ queryKey: ['deliverables-uat'] }); },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const deliverables = delivData?.deliverables || []
   const summary = delivData?.summary || {}
-  const { sort: ovSort, setSort: setOvSort, sortedData: sortedOverview } = useSort(overview, 'name')
+  const { sort: ovSort, setSort: setOvSort, sortedData: sortedOverviewRaw } = useSort(overview as unknown as Record<string, unknown>[], 'name')
+  const sortedOverview = sortedOverviewRaw as unknown as DeliverableItem[]
 
   return (
     <PageShell>
@@ -182,7 +235,7 @@ export default function DeliverablesPage(): JSX.Element {
           { id: 'overview', label: '🌐 Vista global' },
         ]}
         active={tab}
-        onChange={setTab}
+        onChange={(id) => setTab(id as 'project' | 'overview')}
         style={{ marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }}
       />
 
@@ -299,7 +352,7 @@ export default function DeliverablesPage(): JSX.Element {
       )}
 
       {showCreate && selectedProject && <DeliverableFormModal projectId={selectedProject} onClose={() => setShowCreate(false)} />}
-      {editing && <DeliverableFormModal del={editing} projectId={editing.project_id || selectedProject} onClose={() => setEditing(null)} />}
+      {editing && <DeliverableFormModal del={editing} projectId={String(editing.project_id || selectedProject)} onClose={() => setEditing(null)} />}
     </PageShell>
   )
 }

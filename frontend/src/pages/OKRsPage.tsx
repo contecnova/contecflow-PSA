@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * OKRsPage — Objectives & Key Results
  * Vista árbol: Objectives con Key Results expandibles, progreso en tiempo real, check-ins
@@ -15,6 +14,40 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { LARGE_PAGE_SIZE } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
 
+type PeriodOpt = 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'H1' | 'H2' | 'annual' | ''
+type OkrStatus = 'draft' | 'active' | 'completed' | 'cancelled' | string
+type KrType = 'percentage' | 'number' | 'boolean' | 'currency' | string
+
+type UserPick = { id: string | number; full_name?: string; username?: string }
+type ProjectPick = { id: string | number; code?: string; name?: string }
+type DepartmentPick = { id?: string | number; name?: string } | string
+
+type KeyResult = {
+  id: string | number
+  title: string
+  kr_type?: KrType
+  current_value?: number
+  target_value?: number
+  unit?: string
+  owner_name?: string
+  progress?: number
+}
+
+type Objective = {
+  id: string | number
+  title: string
+  description?: string
+  period?: string
+  year?: number
+  status?: OkrStatus
+  owner_id?: string | number | null
+  owner_name?: string
+  project_id?: string | number | null
+  team_id?: string | number | null
+  progress?: number
+  key_results?: KeyResult[]
+}
+
 const PERIOD_OPTS = ['Q1','Q2','Q3','Q4','H1','H2','annual']
 const KR_TYPE_CFG = {
   percentage: { icon:'%', label:'Porcentaje', unit:'%' },
@@ -29,7 +62,7 @@ const STATUS_CFG = {
   cancelled: { color:'var(--danger)',   label:'Cancelado' },
 }
 
-function ProgressRing({ pct, size=44, stroke=4, color='var(--accent)' }) {
+function ProgressRing({ pct, size=44, stroke=4, color='var(--accent)' }: { pct: number; size?: number; stroke?: number; color?: string }) {
   const r = (size - stroke) / 2
   const circ = 2 * Math.PI * r
   const dash = (pct / 100) * circ
@@ -51,16 +84,16 @@ function ProgressRing({ pct, size=44, stroke=4, color='var(--accent)' }) {
   )
 }
 
-function KRRow({ kr, _onCheckin, onDelete }) {
+function KRRow({ kr, _onCheckin, onDelete }: { kr: KeyResult; _onCheckin?: () => void; onDelete: (id: string | number) => void }) {
   const [showCheckin, setShowCheckin] = useState(false)
-  const [checkinVal, setCheckinVal] = useState(kr.current_value ?? 0)
+  const [checkinVal, setCheckinVal] = useState<string | number>(kr.current_value ?? 0)
   const [checkinNote, setCheckinNote] = useState('')
   const toast = useToast()
   const qc = useQueryClient()
   const typeCfg = KR_TYPE_CFG[kr.kr_type] || KR_TYPE_CFG.percentage
 
   const { mutate: submitCheckin, isPending } = useMutation({
-    mutationFn: () => okrsApi.checkin(kr.id, { value: parseFloat(checkinVal), note: checkinNote }),
+    mutationFn: () => okrsApi.checkin(kr.id, { value: parseFloat(String(checkinVal)), note: checkinNote }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['okrs'] })
       setShowCheckin(false)
@@ -123,7 +156,13 @@ function KRRow({ kr, _onCheckin, onDelete }) {
   )
 }
 
-function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }) {
+function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
+  obj: Objective
+  onEdit: (obj: Objective) => void
+  onAddKR: (obj: Objective) => void
+  onDeleteObj: (id: string | number) => void
+  onDeleteKR: (id: string | number) => void
+}) {
   const [expanded, setExpanded] = useState(true)
   const statusCfg = STATUS_CFG[obj.status] || STATUS_CFG.draft
   const pct = obj.progress ?? 0
@@ -176,7 +215,7 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }) {
 
       {expanded && obj.key_results?.length > 0 && (
         <div style={{ marginTop:10 }}>
-          {obj.key_results.map(kr => (
+          {obj.key_results.map((kr) => (
             <KRRow key={kr.id} kr={kr} onDelete={onDeleteKR} />
           ))}
         </div>
@@ -191,7 +230,7 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }) {
   )
 }
 
-function ObjModal({ obj, onClose }) {
+function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
   const isEdit = !!obj?.id
@@ -204,21 +243,21 @@ function ObjModal({ obj, onClose }) {
     team_id: obj?.team_id || '',
   })
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<UserPick[]>({
     queryKey: ['okr-users-pick'],
-    queryFn: () => usersApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => usersApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => (Array.isArray(r.data) ? r.data : (r.data?.items || [])) as UserPick[]),
   })
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectPick[]>({
     queryKey: ['okr-projects-pick'],
-    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => (Array.isArray(r.data) ? r.data : (r.data?.items || [])) as ProjectPick[]),
   })
-  const { data: departments = [] } = useQuery({
+  const { data: departments = [] } = useQuery<DepartmentPick[]>({
     queryKey: ['okr-departments-pick'],
     queryFn: async () => {
       try {
         const { settingsApi } = await import('../services/settingsApi')
         const r = await settingsApi.getDepartments()
-        return Array.isArray(r.data) ? r.data : []
+        return (Array.isArray(r.data) ? r.data : []) as DepartmentPick[]
       } catch { return [] }
     },
   })
@@ -228,8 +267,8 @@ function ObjModal({ obj, onClose }) {
       // Limpiamos cadenas vacías → null para que el backend no falle al castear UUIDs.
       const payload = Object.fromEntries(
         Object.entries(form).map(([k, v]) => [k, v === '' ? null : v])
-      )
-      return isEdit ? okrsApi.update(obj.id, payload) : okrsApi.create(payload)
+      ) as Record<string, unknown>
+      return isEdit && obj ? okrsApi.update(obj.id, payload) : okrsApi.create(payload)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['okrs'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
@@ -257,7 +296,7 @@ function ObjModal({ obj, onClose }) {
             <select value={form.owner_id} onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}
               className="ds-input">
               <option value="">— Sin asignar —</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
+              {users.map((u) => <option key={u.id} value={String(u.id)}>{u.full_name || u.username}</option>)}
             </select>
             <div className="ds-field__hint">Persona que rinde cuentas del objetivo</div>
           </div>
@@ -266,7 +305,10 @@ function ObjModal({ obj, onClose }) {
             <select value={form.team_id} onChange={e => setForm(f => ({ ...f, team_id: e.target.value }))}
               className="ds-input">
               <option value="">— Compañía —</option>
-              {departments.map(d => <option key={d.id || d.name} value={d.id || d.name}>{d.name || d}</option>)}
+              {departments.map((d) => {
+                const dep = typeof d === 'string' ? { id: d, name: d } : d
+                return <option key={String(dep.id || dep.name || '')} value={String(dep.id || dep.name || '')}>{dep.name || String(dep.id || '')}</option>
+              })}
             </select>
             <div className="ds-field__hint">Vacío = OKR de empresa</div>
           </div>
@@ -277,7 +319,7 @@ function ObjModal({ obj, onClose }) {
           <select value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}
             className="ds-input">
             <option value="">— Ninguno —</option>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} · ` : ''}{p.name}</option>)}
+            {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code ? `${p.code} · ` : ''}{p.name}</option>)}
           </select>
           <div className="ds-field__hint">Si lo vinculas, los KRs pueden sincronizar progreso desde las tareas del proyecto.</div>
         </div>
@@ -315,7 +357,7 @@ function ObjModal({ obj, onClose }) {
   )
 }
 
-function KRModal({ objective, onClose }) {
+function KRModal({ objective, onClose }: { objective: Objective; onClose: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [form, setForm] = useState({
@@ -324,16 +366,16 @@ function KRModal({ objective, onClose }) {
     owner_id: '', due_date: '', notes: '',
   })
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<UserPick[]>({
     queryKey: ['okr-users-pick'],
-    queryFn: () => usersApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => usersApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => (Array.isArray(r.data) ? r.data : (r.data?.items || [])) as UserPick[]),
   })
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => {
       const payload = Object.fromEntries(
         Object.entries(form).map(([k, v]) => [k, v === '' ? null : v])
-      )
+      ) as Record<string, unknown>
       // El KR siempre vive bajo un objective: aseguramos el id por si la limpieza lo borrara
       payload.objective_id = objective.id
       return okrsApi.createKR(payload)
@@ -378,7 +420,7 @@ function KRModal({ objective, onClose }) {
             <select value={form.owner_id} onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}
               className="ds-input">
               <option value="">— Hereda del objetivo —</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
+              {users.map((u) => <option key={u.id} value={String(u.id)}>{u.full_name || u.username}</option>)}
             </select>
           </div>
           <div className="ds-field">
@@ -406,28 +448,28 @@ function KRModal({ objective, onClose }) {
 }
 
 export default function OKRsPage() {
-  const t = useAppT()
+  const t = useAppT() as (key: string) => string
   const toast = useToast()
   const qc = useQueryClient()
   const [year, setYear] = useState(new Date().getFullYear())
-  const [period, setPeriod] = useState('')
+  const [period, setPeriod] = useState<PeriodOpt>('')
   const [showObjModal, setShowObjModal] = useState(false)
-  const [editingObj, setEditingObj] = useState(null)
-  const [addKRFor, setAddKRFor] = useState(null)
+  const [editingObj, setEditingObj] = useState<Objective | null>(null)
+  const [addKRFor, setAddKRFor] = useState<Objective | null>(null)
 
-  const { data: objectives = [], isLoading } = useQuery({
+  const { data: objectives = [], isLoading } = useQuery<Objective[]>({
     queryKey: ['okrs', year, period],
-    queryFn: () => okrsApi.list({ year, ...(period && { period }) }).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => okrsApi.list({ year, ...(period && { period }) }).then(r => (r.data?.items ?? r.data ?? []) as Objective[]),
   })
 
   const { mutate: deleteObj } = useMutation({
-    mutationFn: id => okrsApi.delete(id),
+    mutationFn: (id: string | number) => okrsApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['okrs'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: deleteKR } = useMutation({
-    mutationFn: id => okrsApi.deleteKR(id),
+    mutationFn: (id: string | number) => okrsApi.deleteKR(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['okrs'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -436,7 +478,7 @@ export default function OKRsPage() {
   const avgProgress = totalObjs > 0
     ? Math.round(objectives.reduce((s, o) => s + (o.progress || 0), 0) / totalObjs)
     : 0
-  const onTrack = objectives.filter(o => (o.progress || 0) >= 60).length
+  const onTrack = objectives.filter((o) => (o.progress || 0) >= 60).length
 
   return (
     <Page
@@ -445,7 +487,7 @@ export default function OKRsPage() {
       subtitle={t('okrs.subtitle')}
       actions={
         <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-          <select value={period} onChange={e => setPeriod(e.target.value)}
+          <select value={period} onChange={e => setPeriod(e.target.value as PeriodOpt)}
             className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
             <option value="">Todos los periodos</option>
             {PERIOD_OPTS.map(p => <option key={p} value={p}>{p}</option>)}
@@ -480,12 +522,12 @@ export default function OKRsPage() {
           description="Crea tu primer OKR para alinear al equipo. Un OKR define un objetivo cualitativo y 3-5 resultados clave medibles." />
       ) : (
         <div data-export-table="okrs-list" style={{ display:'flex', flexDirection:'column', gap:12 }}>
-          {objectives.map(obj => (
+          {objectives.map((obj) => (
             <ObjectiveCard key={obj.id} obj={obj}
-              onEdit={o => { setEditingObj(o); setShowObjModal(true) }}
+              onEdit={(o) => { setEditingObj(o); setShowObjModal(true) }}
               onAddKR={setAddKRFor}
-              onDeleteObj={id => { openConfirmGlobal({ message: '¿Eliminar este objetivo y todos sus KRs?', onConfirm: () => deleteObj(id), danger: true }) }}
-              onDeleteKR={id => { openConfirmGlobal({ message: '¿Eliminar este KR?', onConfirm: () => deleteKR(id), danger: true }) }}
+              onDeleteObj={(id) => { openConfirmGlobal({ message: '¿Eliminar este objetivo y todos sus KRs?', onConfirm: () => deleteObj(id), danger: true }) }}
+              onDeleteKR={(id) => { openConfirmGlobal({ message: '¿Eliminar este KR?', onConfirm: () => deleteKR(id), danger: true }) }}
             />
           ))}
         </div>

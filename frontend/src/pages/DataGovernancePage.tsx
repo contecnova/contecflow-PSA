@@ -1,11 +1,11 @@
-// @ts-nocheck
 /**
  * DataGovernancePage — Gobernanza de datos.
  * GDPR/DSR, auditoría de accesos, linaje, clasificación de campos,
  * vistas compartidas, comentarios y bookmarks de dashboards.
  * Antes vivía en /bi tab "govern".
  */
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
@@ -22,17 +22,78 @@ import BiGdprPanel from '../components/bi/BiGdprPanel'
 import BiGovernancePanel from '../components/bi/BiGovernancePanel'
 import BiDashboardCollabPanel from '../components/bi/BiDashboardCollabPanel'
 
-const S = {
-  card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' },
-  cardPad:     { padding: '20px 24px' },
-  input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' },
-  btnPrimary:  { padding: '7px 16px', borderRadius: 8, background: COLOR.accent, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' },
-  btnSecondary:{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' },
-  btnAccentOutline: (c = COLOR.accent) => ({ padding: '7px 14px', borderRadius: 8, border: `1px solid ${c}`, background: `${c}18`, color: c, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }),
+type ItemsResponse<T> = {
+  items: T[]
 }
 
-const getLocale = (lang) => (lang === 'en' ? 'en-US' : 'es-ES')
-function toFiniteNumber(value, fallback = 0) {
+type GovernanceOverview = {
+  scheduled_reports?: number | { active?: number }
+  anomalies_detected?: number
+  checks_run?: number
+}
+
+type GovernanceRunResult = Record<string, unknown> | null
+
+type AuditEvent = {
+  user_id?: string
+  resource?: string
+  action?: string
+  accessed_at?: string
+}
+
+type LineageEdge = {
+  source_table?: string
+  target_table?: string
+  source?: string
+  target?: string
+}
+
+type FieldSensitivity = {
+  dataset_id?: string
+  field_name?: string
+  sensitivity?: string
+}
+
+type CommentItem = {
+  id: string | number
+  message?: string
+  created_by_name?: string
+  created_at?: string
+  resolved?: boolean
+}
+
+type SharedView = {
+  id: string | number
+  name?: string
+  dashboard_key?: string
+  created_by_name?: string
+  created_at?: string
+  active?: boolean
+}
+
+type BookmarkItem = {
+  id: string | number
+  name?: string
+  period_days?: number
+  active_tab?: string
+  description?: string
+  shared?: boolean
+}
+
+type SharedViewsSort = 'date_desc' | 'date_asc' | 'author_asc' | 'name_asc'
+type FieldSensitivityLevel = 'low' | 'medium' | 'high' | 'critical' | 'pii'
+
+const S = {
+  card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' } as CSSProperties,
+  cardPad:     { padding: '20px 24px' } as CSSProperties,
+  input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' } as CSSProperties,
+  btnPrimary:  { padding: '7px 16px', borderRadius: 8, background: COLOR.accent, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
+  btnSecondary:{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' } as CSSProperties,
+  btnAccentOutline: (c: string = COLOR.accent): CSSProperties => ({ padding: '7px 14px', borderRadius: 8, border: `1px solid ${c}`, background: `${c}18`, color: c, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }),
+}
+
+const getLocale = (lang: string) => (lang === 'en' ? 'en-US' : 'es-ES')
+function toFiniteNumber(value: unknown, fallback = 0) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : fallback
   if (typeof value === 'string') {
     const n = Number(value.trim())
@@ -41,7 +102,7 @@ function toFiniteNumber(value, fallback = 0) {
   return fallback
 }
 
-function SectionHeading({ title, description }) {
+function SectionHeading({ title, description }: { title: string; description?: string }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <h2 style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, color: 'var(--text-1)', margin: '0 0 4px' }}>{title}</h2>
@@ -60,7 +121,7 @@ export default function DataGovernancePage(): JSX.Element {
   const [commentText, setCommentText] = useState('')
   const [sharedViewName, setSharedViewName] = useState('')
   const [sharedViewsSearch, setSharedViewsSearch] = useState('')
-  const [sharedViewsSort, setSharedViewsSort] = useState('date_desc')
+  const [sharedViewsSort, setSharedViewsSort] = useState<SharedViewsSort>('date_desc')
   const [showInactiveSharedViews, setShowInactiveSharedViews] = useState(false)
   const [sharedViewsTick, setSharedViewsTick] = useState(0)
   const [govRunTick, setGovRunTick] = useState(0)
@@ -73,61 +134,59 @@ export default function DataGovernancePage(): JSX.Element {
   const [newLineageSource, setNewLineageSource] = useState('')
   const [newLineageTarget, setNewLineageTarget] = useState('')
   const [newFieldName, setNewFieldName] = useState('')
-  const [newFieldSensitivity, setNewFieldSensitivity] = useState('low')
+  const [newFieldSensitivity, setNewFieldSensitivity] = useState<FieldSensitivityLevel>('low')
   const [newFieldDataset, setNewFieldDataset] = useState('')
 
   // Collaboration queries
-  const { data: commentsData, refetch: refetchComments } = useQuery({
+  const { data: commentsData, refetch: refetchComments } = useQuery<ItemsResponse<CommentItem>>({
     queryKey: ['data-gov-comments', commentWidget],
-    queryFn: () => biCollaborationApi.listComments({ dashboard_key: 'executive', widget_id: commentWidget }).then(r => r.data).catch(() => ({ items: [] })),
+    queryFn: () => biCollaborationApi.listComments({ dashboard_key: 'executive', widget_id: commentWidget }).then(r => r.data as ItemsResponse<CommentItem>).catch(() => ({ items: [] })),
     staleTime: 15_000,
   })
-  const { data: sharedViewsData, refetch: refetchSharedViews } = useQuery({
+  const { data: sharedViewsData, refetch: refetchSharedViews } = useQuery<ItemsResponse<SharedView>>({
     queryKey: ['data-gov-shared-views', sharedViewsTick, showInactiveSharedViews],
-    queryFn: () => biCollaborationApi.listSharedViews({ include_inactive: showInactiveSharedViews }).then(r => r.data).catch(() => ({ items: [] })),
+    queryFn: () => biCollaborationApi.listSharedViews({ include_inactive: showInactiveSharedViews }).then(r => r.data as ItemsResponse<SharedView>).catch(() => ({ items: [] })),
     staleTime: 15_000,
   })
-  const { data: governance } = useQuery({
+  const { data: governance } = useQuery<GovernanceOverview | null>({
     queryKey: ['data-gov-overview'],
-    queryFn: () => biCollaborationApi.governanceOverview().then(r => r.data).catch(() => null),
+    queryFn: () => biCollaborationApi.governanceOverview().then(r => r.data as GovernanceOverview).catch(() => null),
     staleTime: 30_000,
   })
-  const { data: governanceRules, refetch: refetchRules } = useQuery({
+  const { refetch: refetchRules } = useQuery<unknown>({
     queryKey: ['data-gov-rules'],
     queryFn: () => biCollaborationApi.governanceRules().then(r => r.data).catch(() => null),
     staleTime: 30_000,
   })
-  const { data: governanceRun, refetch: refetchGovRun } = useQuery({
+  const { data: governanceRun, refetch: refetchGovRun } = useQuery<GovernanceRunResult>({
     queryKey: ['data-gov-run', govRunTick],
-    queryFn: () => biCollaborationApi.lastGovernanceRun().then(r => r.data?.result || null).catch(() => null),
+    queryFn: () => biCollaborationApi.lastGovernanceRun().then(r => (r.data?.result || null) as GovernanceRunResult).catch(() => null),
     staleTime: 10_000,
   })
 
   // Governance audit queries
-  const { data: govAuditData } = useQuery({
+  const { data: govAuditData } = useQuery<ItemsResponse<AuditEvent>>({
     queryKey: ['data-gov-audit', govAuditTick, govAuditUserFilter],
     queryFn: () => biGovernanceAuditApi.getAccessHistory(
       govAuditUserFilter.trim() ? { user_id: govAuditUserFilter.trim(), limit: 50 } : { limit: 50 }
-    ).then(r => r.data).catch(() => ({ items: [] })),
+    ).then(r => r.data as ItemsResponse<AuditEvent>).catch(() => ({ items: [] })),
     staleTime: 15_000,
   })
-  const { data: govLineageData, refetch: refetchGovLineage } = useQuery({
+  const { data: govLineageData, refetch: refetchGovLineage } = useQuery<ItemsResponse<LineageEdge>>({
     queryKey: ['data-gov-lineage', govAuditTick],
-    queryFn: () => biGovernanceAuditApi.listLineage().then(r => r.data).catch(() => ({ items: [] })),
+    queryFn: () => biGovernanceAuditApi.listLineage({}).then(r => r.data as ItemsResponse<LineageEdge>).catch(() => ({ items: [] })),
     staleTime: 15_000,
   })
-  const { data: govFieldData, refetch: refetchGovFields } = useQuery({
+  const { data: govFieldData, refetch: refetchGovFields } = useQuery<ItemsResponse<FieldSensitivity>>({
     queryKey: ['data-gov-fields', govAuditTick],
-    queryFn: () => biGovernanceAuditApi.listFieldSensitivity().then(r => r.data).catch(() => ({ items: [] })),
+    queryFn: () => biGovernanceAuditApi.listFieldSensitivity({}).then(r => r.data as ItemsResponse<FieldSensitivity>).catch(() => ({ items: [] })),
     staleTime: 15_000,
   })
-  const { data: bookmarks } = useQuery({
+  const { data: bookmarks } = useQuery<ItemsResponse<BookmarkItem>>({
     queryKey: ['data-gov-bookmarks', bookmarksTick],
-    queryFn: () => biBookmarksApi.list().then(r => r.data).catch(() => ({ items: [] })),
+    queryFn: () => biBookmarksApi.list().then(r => r.data as ItemsResponse<BookmarkItem>).catch(() => ({ items: [] })),
     staleTime: 30_000,
   })
-
-  useEffect(() => { void governanceRules /* keep ref alive */ }, [governanceRules])
 
   const comments = commentsData?.items || []
   const sharedViews = sharedViewsData?.items || []
@@ -156,7 +215,7 @@ export default function DataGovernancePage(): JSX.Element {
       await refetchComments()
     } catch (_) { /* ignore */ }
   }
-  async function handleResolveComment(id) {
+  async function handleResolveComment(id: string | number) {
     try { await biCollaborationApi.resolveComment(id); await refetchComments() } catch (_) { /* ignore */ }
   }
   async function handleCreateSharedView() {
@@ -169,7 +228,7 @@ export default function DataGovernancePage(): JSX.Element {
       await refetchSharedViews()
     } catch (_) { /* ignore */ }
   }
-  async function handleToggleSharedView(view) {
+  async function handleToggleSharedView(view: SharedView) {
     try { await biCollaborationApi.patchSharedView(view.id, { active: !view.active }); setSharedViewsTick(x => x + 1); await refetchSharedViews() } catch (_) { /* ignore */ }
   }
   async function handleRunGovernance() {
@@ -291,8 +350,8 @@ export default function DataGovernancePage(): JSX.Element {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                   <input value={newFieldDataset} onChange={e => setNewFieldDataset(e.target.value)} placeholder="Dataset ID" style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
                   <input value={newFieldName} onChange={e => setNewFieldName(e.target.value)} placeholder="Campo (ej. email)" style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
-                  <select value={newFieldSensitivity} onChange={e => setNewFieldSensitivity(e.target.value)} style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }}>
-                    {['low', 'medium', 'high', 'critical', 'pii'].map(s => <option key={s} value={s}>{s}</option>)}
+                  <select value={newFieldSensitivity} onChange={e => setNewFieldSensitivity(e.target.value as FieldSensitivityLevel)} style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }}>
+                    {(['low', 'medium', 'high', 'critical', 'pii'] as FieldSensitivityLevel[]).map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                   <button onClick={handleUpsertFieldSensitivity} style={{ ...S.btnAccentOutline(COLOR.warning), padding: '6px 14px', fontSize: 'var(--text-xs)' }}>Clasificar</button>
                 </div>
@@ -338,7 +397,7 @@ export default function DataGovernancePage(): JSX.Element {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <input value={sharedViewsSearch} onChange={e => setSharedViewsSearch(e.target.value)} placeholder="Buscar vista..."
                   style={{ ...S.input, flex: 1, minWidth: 160 }} />
-                <select value={sharedViewsSort} onChange={e => setSharedViewsSort(e.target.value)} style={{ ...S.input, width: 'auto' }}>
+                <select value={sharedViewsSort} onChange={e => setSharedViewsSort(e.target.value as SharedViewsSort)} style={{ ...S.input, width: 'auto' }}>
                   <option value="date_desc">Más recientes</option>
                   <option value="date_asc">Más antiguas</option>
                   <option value="author_asc">Autor (A-Z)</option>
@@ -396,7 +455,7 @@ export default function DataGovernancePage(): JSX.Element {
                       <div key={c.id} style={{ padding: '8px 10px', background: 'var(--surface-3)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{c.message}</div>
-                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 2 }}>{c.created_by_name || '—'} · {c.created_at ? new Date(c.created_at).toLocaleString(getLocale(lang)) : ''}</div>
+                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 2 }}>{c.created_by_name || '—'} · {c.created_at ? new Date(c.created_at).toLocaleString(getLocale(String(lang))) : ''}</div>
                         </div>
                         {!c.resolved && (
                           <button onClick={() => handleResolveComment(c.id)}

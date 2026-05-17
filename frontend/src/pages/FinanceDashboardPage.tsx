@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { currencyApi, userCostsApi, unwrapList } from '../services/api'
@@ -6,6 +5,7 @@ import {
   DollarSign, TrendingUp, TrendingDown, CheckCircle2, Building2, Target, FileText,
   Calculator, AlertTriangle, Ruler, X, Plus,
 } from 'lucide-react'
+import type { ComponentType } from 'react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
@@ -14,63 +14,118 @@ import {
   dateRange, fmtCur, typePalette,
 } from '../components/dashboard/DashKit'
 
+interface ClientItem { status?: string }
+interface PipelineItem { status?: string; stage?: string; value?: number; amount?: number }
+interface InvoiceItem { status?: string; total?: number; amount?: number }
+interface ProjectProfitItem {
+  project_id?: string | number
+  id?: string | number
+  project_name?: string
+  name?: string
+  client_name?: string
+  revenue_actual?: number
+  budget_amount?: number
+  cost_actual?: number
+}
+interface CurrencyRate {
+  id: string | number
+  from_currency: string
+  to_currency: string
+  rate: number
+  effective_date?: string
+}
+interface CostSummary {
+  avg_cost_per_hour: number
+  users_with_cost: number
+  total_users: number
+  users_missing_cost: number
+}
+interface ProfitSummary {
+  total_revenue?: number
+  total_cost?: number
+}
+interface RateFormState {
+  from_currency: string
+  to_currency: string
+  rate: string
+}
+
+type KpiIconCompat = ComponentType<{ size?: number; strokeWidth?: number }>
+
+const ICON_TRENDING_UP = TrendingUp as unknown as KpiIconCompat
+const ICON_TRENDING_DOWN = TrendingDown as unknown as KpiIconCompat
+const ICON_CHECK_CIRCLE = CheckCircle2 as unknown as KpiIconCompat
+const ICON_BUILDING = Building2 as unknown as KpiIconCompat
+const ICON_TARGET = Target as unknown as KpiIconCompat
+const ICON_FILE_TEXT = FileText as unknown as KpiIconCompat
+const ICON_CALCULATOR = Calculator as unknown as KpiIconCompat
+const ICON_ALERT = AlertTriangle as unknown as KpiIconCompat
+const ICON_RULER = Ruler as unknown as KpiIconCompat
+
 export default function FinanceDashboardPage(): JSX.Element {
   const [days, setDays] = useState<number>(90)
   const { lang } = useAppLang()
   const toast = useToast()
   const params = dateRange(days)
 
-  const { data: profitSummary, isLoading: lp, isError: profitError } = useQuery({
+  const { data: profitSummaryRaw, isLoading: lp, isError: profitError } = useQuery({
     queryKey: ['fin-dash-profit', days],
     queryFn: () => api.get('/profitability/summary', { params: { ...params, period: 'custom' } }).then(r => r.data),
     staleTime: 60_000,
     retry: 1,
   })
+  const profitSummary = (profitSummaryRaw ?? null) as ProfitSummary | null
 
-  const { data: clients = [], isLoading: lc } = useQuery({
+  const { data: clientsRaw = [], isLoading: lc } = useQuery({
     queryKey: ['fin-dash-clients'],
     queryFn: () => api.get('/clients', { params: { page_size: 200 } }).then(unwrapList).catch(() => []),
     staleTime: 60_000,
   })
+  const clients = clientsRaw as ClientItem[]
 
-  const { data: pipeline = [] } = useQuery({
+  const { data: pipelineRaw = [] } = useQuery({
     queryKey: ['fin-dash-pipeline'],
     queryFn: () => api.get('/pipeline', { params: { page_size: 100 } }).then(unwrapList).catch(() => []),
     staleTime: 60_000,
   })
+  const pipeline = pipelineRaw as PipelineItem[]
 
-  const { data: invoicesData } = useQuery({
+  const { data: invoicesDataRaw } = useQuery({
     queryKey: ['fin-dash-invoices'],
     queryFn: () => api.get('/invoices', { params: { page_size: 200 } }).then(unwrapList).catch(() => []),
     staleTime: 60_000,
   })
+  const invoicesData = (invoicesDataRaw ?? []) as InvoiceItem[]
 
-  const { data: topProjects = [] } = useQuery({
+  const { data: topProjectsRaw = [] } = useQuery({
     queryKey: ['fin-dash-top-proj', days],
     queryFn: () => api.get('/profitability/projects', { params }).then(r => r.data).catch(() => []),
     staleTime: 60_000,
   })
+  const topProjects = topProjectsRaw as ProjectProfitItem[]
 
   const qc = useQueryClient()
   const [showRateForm, setShowRateForm] = useState(false)
-  const [rateForm, setRateForm] = useState({ from_currency: 'EUR', to_currency: 'USD', rate: '' })
-  const { data: rates = [] } = useQuery({
+  const [rateForm, setRateForm] = useState<RateFormState>({ from_currency: 'EUR', to_currency: 'USD', rate: '' })
+  const { data: ratesRaw = [] } = useQuery({
     queryKey: ['currency-rates'],
-    queryFn: () => currencyApi.rates().then(r => r.data).catch(() => []),
+    queryFn: () => currencyApi.rates({}).then(r => r.data).catch(() => []),
     staleTime: 300_000,
   })
+  const rates = ratesRaw as CurrencyRate[]
 
   // True cost-per-hour summary (admin/hr only — endpoint returns 403 otherwise)
-  const { data: costSummary } = useQuery({
+  const { data: costSummaryRaw } = useQuery({
     queryKey: ['fin-dash-cost-summary'],
-    queryFn: () => userCostsApi.summary().then(r => r.data).catch(() => null),
+    queryFn: () => userCostsApi.summary(undefined).then(r => r.data).catch(() => null),
     staleTime: 5 * 60_000,
     retry: false,
   })
+  const costSummary = (costSummaryRaw ?? null) as CostSummary | null
   const { mutate: upsertRate, isPending: savingRate } = useMutation({
-    mutationFn: d => currencyApi.upsert(d),
-    onSuccess: () => { qc.invalidateQueries(['currency-rates']); setShowRateForm(false); setRateForm({ from_currency:'EUR', to_currency:'USD', rate:'' }) },
-    onError: e => toast.error(extractErr(e, 'Error al guardar tipo de cambio')),
+    mutationFn: (d: { from_currency: string; to_currency: string; rate: number }) => currencyApi.upsert(d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['currency-rates'] }); setShowRateForm(false); setRateForm({ from_currency:'EUR', to_currency:'USD', rate:'' }) },
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar tipo de cambio')),
   })
 
   useEffect(() => {
@@ -83,7 +138,7 @@ export default function FinanceDashboardPage(): JSX.Element {
   const marginPct = revenue > 0 ? Math.round((margin / revenue) * 100) : null
   const marginColor = marginPct == null ? COLOR.accent : marginPct >= 30 ? COLOR.success : marginPct >= 15 ? COLOR.warning : COLOR.danger
 
-  const invoices        = Array.isArray(invoicesData) ? invoicesData : []
+  const invoices = Array.isArray(invoicesData) ? invoicesData : []
   const pendingInvoices = invoices.filter(i => i.status === 'sent' || i.status === 'overdue')
   const overdueInvoices = invoices.filter(i => i.status === 'overdue')
   const pendingAmount   = pendingInvoices.reduce((s, i) => s + (i.total || i.amount || 0), 0)
@@ -93,7 +148,7 @@ export default function FinanceDashboardPage(): JSX.Element {
   const pipelineValue    = pipeline.reduce((s, o) => s + (o.value || o.amount || 0), 0)
   const openOpportunities = pipeline.filter(o => o.status !== 'closed_won' && o.status !== 'closed_lost').length
 
-  const revenueByClient = topProjects.reduce((acc, p) => {
+  const revenueByClient = topProjects.reduce<Record<string, number>>((acc, p) => {
     const name = p.client_name || 'Sin cliente'
     const rev = p.revenue_actual ?? p.budget_amount ?? 0
     if (rev > 0) acc[name] = (acc[name] || 0) + rev
@@ -105,7 +160,7 @@ export default function FinanceDashboardPage(): JSX.Element {
     .map(([name, revenue]) => ({ name, revenue }))
   const maxRevenue = clientRows[0]?.revenue || 1
 
-  const pipelineByStage = pipeline.reduce((acc, o) => {
+  const pipelineByStage = pipeline.reduce<Record<string, { count: number; value: number }>>((acc, o) => {
     const stage = o.stage || o.status || 'Sin etapa'
     if (!acc[stage]) acc[stage] = { count: 0, value: 0 }
     acc[stage].count += 1
@@ -128,25 +183,25 @@ export default function FinanceDashboardPage(): JSX.Element {
         {/* KPI row */}
         <div className="ds-grid-stats">
           {(lp || lc) ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : <>
-            <KpiCard icon={<KpiIcon icon={TrendingUp} />} label="Ingresos"
+            <KpiCard icon={<KpiIcon icon={ICON_TRENDING_UP} />} label="Ingresos"
               value={fmtCur(revenue, lang)}
               color={COLOR.accent} accentBar={COLOR.accent} />
-            <KpiCard icon={<KpiIcon icon={TrendingDown} />} label="Costes"
+            <KpiCard icon={<KpiIcon icon={ICON_TRENDING_DOWN} />} label="Costes"
               value={fmtCur(costs, lang)}
               color={COLOR.warning} accentBar={COLOR.warning} />
-            <KpiCard icon={<KpiIcon icon={CheckCircle2} />} label="Margen bruto"
+            <KpiCard icon={<KpiIcon icon={ICON_CHECK_CIRCLE} />} label="Margen bruto"
               value={fmtCur(margin, lang)}
               color={margin >= 0 ? COLOR.success : COLOR.danger}
               accentBar={margin >= 0 ? COLOR.success : COLOR.danger}
               sub={marginPct != null ? `${marginPct}% de margen` : undefined} />
-            <KpiCard icon={<KpiIcon icon={Building2} />} label="Clientes activos"
+            <KpiCard icon={<KpiIcon icon={ICON_BUILDING} />} label="Clientes activos"
               value={activeClients} color={COLOR.accent} accentBar={COLOR.accent}
               sub={`${clients.length} total`} />
-            <KpiCard icon={<KpiIcon icon={Target} />} label="Pipeline"
+            <KpiCard icon={<KpiIcon icon={ICON_TARGET} />} label="Pipeline"
               value={fmtCur(pipelineValue, lang)}
               color={COLOR.purple} accentBar={COLOR.purple}
               sub={`${openOpportunities} oportunidades abiertas`} />
-            <KpiCard icon={<KpiIcon icon={FileText} />} label="Facturas pendientes"
+            <KpiCard icon={<KpiIcon icon={ICON_FILE_TEXT} />} label="Facturas pendientes"
               value={fmtCur(pendingAmount, lang)}
               color={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
               accentBar={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
@@ -157,17 +212,17 @@ export default function FinanceDashboardPage(): JSX.Element {
         {/* Cost-structure KPIs (admin/hr only) */}
         {costSummary && (
           <div className="ds-grid-stats">
-            <KpiCard icon={<KpiIcon icon={Calculator} />} label="Coste/hora medio"
+            <KpiCard icon={<KpiIcon icon={ICON_CALCULATOR} />} label="Coste/hora medio"
               value={fmtCur(costSummary.avg_cost_per_hour, lang)}
               color={COLOR.accent} accentBar={COLOR.accent}
               sub={`${costSummary.users_with_cost} de ${costSummary.total_users} personas`} />
-            <KpiCard icon={<KpiIcon icon={AlertTriangle} />} label="Sin estructura de coste"
+            <KpiCard icon={<KpiIcon icon={ICON_ALERT} />} label="Sin estructura de coste"
               value={costSummary.users_missing_cost}
               color={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
               accentBar={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
               sub={costSummary.users_missing_cost > 0 ? 'Margen real incompleto' : 'Margen real fiable'} />
             {revenue > 0 && costSummary.avg_cost_per_hour > 0 && (
-              <KpiCard icon={<KpiIcon icon={Ruler} />} label="Margen real estimado"
+              <KpiCard icon={<KpiIcon icon={ICON_RULER} />} label="Margen real estimado"
                 value={`${Math.round(((revenue - costs) / revenue) * 100)}%`}
                 color={COLOR.purple} accentBar={COLOR.purple}
                 sub="Snapshots actualizados con coste real al imputar" />
@@ -306,7 +361,7 @@ export default function FinanceDashboardPage(): JSX.Element {
       >
         {showRateForm && (
           <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
-            {[['from_currency', 'De', 'EUR'], ['to_currency', 'A', 'USD']].map(([k, l, ph]) => (
+            {([['from_currency', 'De', 'EUR'], ['to_currency', 'A', 'USD']] as const).map(([k, l, ph]) => (
               <div key={k} style={{ flex: '0 0 90px' }}>
                 <div className="ds-eyebrow" style={{ marginBottom: 4 }}>{l}</div>
                 <input maxLength={3} value={rateForm[k]} onChange={e => setRateForm(f => ({ ...f, [k]: e.target.value.toUpperCase() }))}

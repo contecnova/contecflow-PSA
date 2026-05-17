@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -20,16 +20,44 @@ import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
+type Translator = (key: string, params?: Record<string, unknown>) => string
+
+type FilterState = {
+  projectId?: string | number
+  dateFrom?: string
+  dateTo?: string
+}
+
+type ApiFilters = {
+  project_id?: string | number
+  date_from?: string
+  date_to?: string
+  user_id?: string | number
+}
+
+type AnalyticsRow = {
+  label?: string
+  full_label?: string
+  value?: number | string
+  revenue?: number | string
+  cost?: number | string
+}
+
+type UserFilterOption = { id: string | number; label?: string }
+type FilterOptions = { users?: UserFilterOption[] }
+
+type MemberRow = AnalyticsRow & { userId?: string | number }
+
 const WEEKS_WINDOW_STORAGE_KEY = 'bi_project_detail_weeks_window_v1'
 
-const panelStyle = {
+const panelStyle: CSSProperties = {
   background: 'var(--surface-2)',
   border: '1px solid var(--surface-4)',
   borderRadius: 12,
   padding: 16,
 }
 
-function loadStoredWeeksWindow() {
+function loadStoredWeeksWindow(): number {
   try {
     const raw = window.localStorage.getItem(WEEKS_WINDOW_STORAGE_KEY)
     const value = Number(raw)
@@ -40,7 +68,7 @@ function loadStoredWeeksWindow() {
   }
 }
 
-function toApiFilters(filters = {}) {
+function toApiFilters(filters: FilterState = {}): ApiFilters {
   return {
     project_id: filters.projectId || undefined,
     date_from: filters.dateFrom || undefined,
@@ -48,27 +76,27 @@ function toApiFilters(filters = {}) {
   }
 }
 
-function toIsoDate(d) {
+function toIsoDate(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
 
-function buildRangeForWeeks(weeks) {
+function buildRangeForWeeks(weeks: number): { date_from: string; date_to: string } {
   const end = new Date()
   const start = new Date(end)
   start.setDate(end.getDate() - (weeks * 7 - 1))
   return { date_from: toIsoDate(start), date_to: toIsoDate(end) }
 }
 
-function toCsv(rows) {
+function toCsv(rows: Array<Record<string, unknown>>): string {
   if (!rows || !rows.length) return ''
   const keys = Array.from(rows.reduce((acc, row) => {
     Object.keys(row || {}).forEach((k) => acc.add(k))
     return acc
-  }, new Set()))
-  const esc = (v) => {
+  }, new Set<string>()))
+  const esc = (v: unknown) => {
     if (v == null) return ''
     const s = String(v)
-    if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replaceAll('"', '""')}"`
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`
     return s
   }
   const head = keys.join(',')
@@ -76,7 +104,7 @@ function toCsv(rows) {
   return `${head}\n${body}`
 }
 
-function downloadCsv(content, filename) {
+function downloadCsv(content: string, filename: string): void {
   if (!content) return
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
@@ -89,7 +117,7 @@ function downloadCsv(content, filename) {
   URL.revokeObjectURL(url)
 }
 
-function printNodeInNewWindow(node, title) {
+function printNodeInNewWindow(node: HTMLElement | null, title: string): void {
   if (!node) return
   const w = window.open('', '_blank', 'width=1280,height=900')
   if (!w) return
@@ -113,12 +141,12 @@ function printNodeInNewWindow(node, title) {
 }
 
 export default function BIProjectDetailPage(): JSX.Element {
-  const t = useAppT()
+  const t = useAppT() as Translator
   const navigate = useNavigate()
   const { projectId } = useParams<{ projectId: string }>()
   // TODO type: location.state shape depends on calling pages (Batch F/G2)
   const location = useLocation() as { state?: { projectName?: string; fromFilters?: Record<string, unknown> } }
-  const [selectedUserId, setSelectedUserId] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState<string | number>('')
   const [weeksWindow, setWeeksWindow] = useState(loadStoredWeeksWindow)
 
   const projectName = location.state?.projectName || `Proyecto ${projectId}`
@@ -128,44 +156,44 @@ export default function BIProjectDetailPage(): JSX.Element {
     return { ...base, ...buildRangeForWeeks(weeksWindow) }
   }, [location.state, projectId, weeksWindow])
 
-  const { data: hoursRows = [], isLoading: hoursLoading } = useQuery({
+  const { data: hoursRows = [], isLoading: hoursLoading } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-hours-week', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => (r.data?.rows || []) as AnalyticsRow[]).catch(() => []),
   })
 
-  const { data: costRows = [], isLoading: costLoading } = useQuery({
+  const { data: costRows = [], isLoading: costLoading } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-cost-month', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('cost_by_month', apiFilters).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('cost_by_month', apiFilters).then(r => (r.data?.rows || []) as AnalyticsRow[]).catch(() => []),
   })
 
-  const { data: marginRows = [], isLoading: marginLoading } = useQuery({
+  const { data: marginRows = [], isLoading: marginLoading } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-margin', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('margin_by_project', apiFilters).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('margin_by_project', apiFilters).then(r => (r.data?.rows || []) as AnalyticsRow[]).catch(() => []),
   })
 
-  const { data: membersRows = [], isLoading: membersLoading } = useQuery({
+  const { data: membersRows = [], isLoading: membersLoading } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-members', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('hours_by_person', apiFilters).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_person', apiFilters).then(r => (r.data?.rows || []) as AnalyticsRow[]).catch(() => []),
   })
 
-  const { data: filterOptions = {} } = useQuery({
+  const { data: filterOptions = {} as FilterOptions } = useQuery<FilterOptions>({
     queryKey: ['bi-filter-options-detail'],
-    queryFn: () => analyticsApi.filterOptions().then(r => r.data).catch(() => ({})),
+    queryFn: () => analyticsApi.filterOptions().then(r => r.data as FilterOptions).catch(() => ({} as FilterOptions)),
   })
 
   const marginCard = marginRows?.[0]
   const marginPct = marginCard?.margin ?? 0
 
-  const usersByLabel = useMemo(() => {
-    const out = {}
-    ;(filterOptions.users || []).forEach((u) => {
+  const usersByLabel = useMemo<Record<string, string | number>>(() => {
+    const out: Record<string, string | number> = {}
+    ;(filterOptions.users || []).forEach((u: UserFilterOption) => {
       out[String(u.label || '').trim().toLowerCase()] = u.id
     })
     return out
   }, [filterOptions.users])
 
-  const membersWithUserId = useMemo(() => (
-    (membersRows || []).map((r) => ({
+  const membersWithUserId = useMemo<MemberRow[]>(() => (
+    (membersRows || []).map((r: AnalyticsRow) => ({
       ...r,
       userId: usersByLabel[String(r.label || '').trim().toLowerCase()] || '',
     }))
@@ -177,33 +205,33 @@ export default function BIProjectDetailPage(): JSX.Element {
     if (first?.userId) setSelectedUserId(first.userId)
   }, [membersWithUserId, selectedUserId])
 
-  const weeklyByPersonParams = useMemo(() => ({
+  const weeklyByPersonParams = useMemo<ApiFilters>(() => ({
     ...apiFilters,
     user_id: selectedUserId || undefined,
   }), [apiFilters, selectedUserId])
 
-  const { data: weeklyByPersonRows = [], isLoading: weeklyByPersonLoading } = useQuery({
+  const { data: weeklyByPersonRows = [], isLoading: weeklyByPersonLoading } = useQuery<AnalyticsRow[]>({
     enabled: Boolean(selectedUserId),
     queryKey: ['bi-project-hours-week-person', projectId, weeklyByPersonParams],
-    queryFn: () => analyticsApi.query('hours_by_week', weeklyByPersonParams).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_week', weeklyByPersonParams).then(r => (r.data?.rows || []) as AnalyticsRow[]).catch(() => []),
   })
 
-  const { data: weeklyTeamRows = [], isLoading: weeklyTeamLoading } = useQuery({
+  const { data: weeklyTeamRows = [], isLoading: weeklyTeamLoading } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-hours-week-team', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => (r.data?.rows || []) as AnalyticsRow[]).catch(() => []),
   })
 
-  const hoursChart = (hoursRows || []).map(r => ({
+  const hoursChart = (hoursRows || []).map((r) => ({
     label: r.label || r.full_label || '',
     value: Number(r.value || 0),
   }))
 
-  const costChart = (costRows || []).map(r => ({
+  const costChart = (costRows || []).map((r) => ({
     label: r.label || '',
     value: Number(r.value || 0),
   }))
 
-  const detailBars = marginRows.slice(0, 8).map(r => ({
+  const detailBars = marginRows.slice(0, 8).map((r) => ({
     label: r.label || 'Proyecto',
     revenue: Number(r.revenue || 0),
     cost: Number(r.cost || 0),
@@ -211,13 +239,13 @@ export default function BIProjectDetailPage(): JSX.Element {
 
   const teamCount = Math.max(1, membersWithUserId.filter((m) => m.userId).length)
   const compareChart = useMemo(() => {
-    const teamMap = {}
-    const personMap = {}
-    ;(weeklyTeamRows || []).forEach((r) => {
+    const teamMap: Record<string, number> = {}
+    const personMap: Record<string, number> = {}
+    ;(weeklyTeamRows || []).forEach((r: AnalyticsRow) => {
       const k = r.label || r.full_label || ''
       teamMap[k] = Number(r.value || 0)
     })
-    ;(weeklyByPersonRows || []).forEach((r) => {
+    ;(weeklyByPersonRows || []).forEach((r: AnalyticsRow) => {
       const k = r.label || r.full_label || ''
       personMap[k] = Number(r.value || 0)
     })

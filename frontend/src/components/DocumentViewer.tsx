@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * DocumentViewer  Visor de documentos rediseV3ado. 
  * Vista previa inline, historial de versiones, flujo de aprobación, resumen IA.
@@ -13,15 +12,50 @@ import {
   Upload, Download, CheckCircle, XCircle, History,
   ChevronDown, ChevronUp, Eye, Sparkles, Loader, ExternalLink
 } from 'lucide-react';
+import type { CSSProperties, ChangeEvent } from 'react';
 
-function fmtBytes(b) {
+type DocCategory = 'contract' | 'deliverable' | 'proposal' | 'sop' | 'legal' | 'requirements' | 'report' | 'presentation' | 'other'
+
+interface DocumentVersion {
+  id: string | number
+  version_num?: number
+  file_name?: string
+  file_mime_type?: string
+  file_size?: number
+  created_at?: string
+  uploader_name?: string
+  change_note?: string
+  download_url?: string
+  s3_url?: string
+}
+
+interface DocumentDetail {
+  id: string | number
+  title?: string
+  description?: string
+  category?: DocCategory
+  approval_status?: string
+  requires_approval?: boolean
+  tags?: string[]
+  created_by_name?: string
+  created_at?: string
+  approved_by_name?: string
+  approved_at?: string
+  versions?: DocumentVersion[]
+}
+
+interface TeamsErrorLike {
+  response?: { data?: { detail?: string } }
+}
+
+function fmtBytes(b?: number) {
   if (!b) return '';
   if (b < 1024) return `${b} B`;
   if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`;
   return `${(b / 1048576).toFixed(1)} MB`;
 }
 
-function fmtDate(d) {
+function fmtDate(d?: string) {
   if (!d) return '';
   return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
 }
@@ -37,7 +71,7 @@ const FILE_COLORS = {
   other:       { c: 'var(--text-3)',  bg: 'color-mix(in srgb, var(--text-3) 9%, transparent)',  l: 'FILE' },
 };
 
-function detectType(mime, name) {
+function detectType(mime?: string, name?: string): keyof typeof FILE_COLORS {
   const ext = (name || '').split('.').pop()?.toLowerCase();
   if (mime?.startsWith('image/')) return 'image';
   if (mime === 'application/pdf' || ext === 'pdf') return 'pdf';
@@ -49,7 +83,7 @@ function detectType(mime, name) {
   return 'other';
 }
 
-function FileIcon({ mime, name, size = 36 }) {
+function FileIcon({ mime, name, size = 36 }: { mime?: string; name?: string; size?: number }) {
   const ft = FILE_COLORS[detectType(mime, name)];
   return (
     <div style={{
@@ -76,26 +110,26 @@ const CAT_STYLE = {
   other:        { c: 'var(--text-3)',  bg: 'color-mix(in srgb, var(--text-3) 8%, transparent)' },
 };
 
-const DocumentViewer = ({ documentId }) => {
+const DocumentViewer = ({ documentId }: { documentId: string | number }) => {
   const toast = useToast();
   const t = useAppT();
   const qc = useQueryClient();
-  const fileRef = useRef();
-  const [previewVer, setPreviewVer] = useState(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [previewVer, setPreviewVer] = useState<DocumentVersion | null>(null);
   const [showVersions, setShowVersions] = useState(true);
   const [showUploadForm, setShowUploadForm] = useState(false);
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState<File | null>(null);
   const [changeNote, setChangeNote] = useState('');
 
-  const { data: doc, isLoading } = useQuery({
+  const { data: doc, isLoading } = useQuery<DocumentDetail | null>({
     queryKey: ['document', documentId],
     queryFn: async () => {
       const res = await documentsApi.get(documentId);
-      const d = res.data;
+      const d = res.data as DocumentDetail;
       if (d.versions) d.versions = d.versions.map(v => ({ ...v, download_url: v.download_url || v.s3_url }));
       return d;
     },
-    onSuccess: d => { if (d.versions?.length && !previewVer) setPreviewVer(d.versions[0]); },
+    onSuccess: (d) => { if (d?.versions?.length && !previewVer) setPreviewVer(d.versions[0]); },
   });
 
   const uploadMutation = useMutation({
@@ -110,22 +144,22 @@ const DocumentViewer = ({ documentId }) => {
       qc.invalidateQueries({ queryKey: ['document', documentId] });
       setFile(null); setChangeNote(''); setShowUploadForm(false);
     },
-    onError: e => toast.error(e.response?.data?.detail || t('common.error')),
+    onError: (e: unknown) => toast.error((e as TeamsErrorLike).response?.data?.detail || t('common.error')),
   });
 
   const approveMutation = useMutation({
-    mutationFn: status => documentsApi.approve(documentId, { status }),
-    onSuccess: (_, s) => {
+    mutationFn: (status: string) => documentsApi.approve(documentId, { status }),
+    onSuccess: (_, s: string) => {
       toast.success(s === 'approved' ? t('document_viewer.approve_success') : t('document_viewer.reject_success'));
       qc.invalidateQueries({ queryKey: ['document', documentId] });
     },
-    onError: e => toast.error(e.response?.data?.detail || t('common.error')),
+    onError: (e: unknown) => toast.error((e as TeamsErrorLike).response?.data?.detail || t('common.error')),
   });
 
   const summaryMutation = useMutation({
     mutationFn: () => documentsApi.aiSummary(documentId),
     onSuccess: () => { toast.success(t('document_viewer.ai_summary_success')); qc.invalidateQueries({ queryKey: ['document', documentId] }); },
-    onError: e => toast.error(e.response?.data?.detail || t('document_viewer.ai_error')),
+    onError: (e: unknown) => toast.error((e as TeamsErrorLike).response?.data?.detail || t('document_viewer.ai_error')),
   });
 
   if (isLoading) return (
@@ -139,8 +173,8 @@ const DocumentViewer = ({ documentId }) => {
 
   const activeVer = previewVer || doc.versions?.[0] || null;
   const versions = doc.versions || [];
-  const catS = CAT_STYLE[doc.category] || CAT_STYLE.other;
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
+  const catS = CAT_STYLE[doc.category || 'other'] || CAT_STYLE.other;
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
 
   return (
     <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 18, color: 'var(--text-1)' }}>
@@ -171,8 +205,8 @@ const DocumentViewer = ({ documentId }) => {
                {t('document_viewer.pending_approval')}
               </span>
             )}
-            {doc.tags?.map(t => (
-              <span key={t} style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 10, backgroundColor: 'var(--surface-3)', color: 'var(--text-3)' }}>#{t}</span>
+            {doc.tags?.map((tag) => (
+              <span key={tag} style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 10, backgroundColor: 'var(--surface-3)', color: 'var(--text-3)' }}>#{tag}</span>
             ))}
           </div>
         </div>
@@ -290,7 +324,7 @@ const DocumentViewer = ({ documentId }) => {
                     style={{ border: `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}`, borderRadius: 8, padding: '10px 14px', textAlign: 'center', cursor: 'pointer' }}>
                     {file ? <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
                       : <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}><Upload size={12} style={{ display: 'inline', marginRight: 4 }} />{t('document_viewer.click_select_file')}</span>}
-                    <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0])} />
+                    <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={(e: ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] || null)} />
                   </button>
                   <input placeholder={t('document_viewer.change_note_placeholder')} value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} />
                   <div style={{ display: 'flex', gap: 8 }}>

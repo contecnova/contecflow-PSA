@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
@@ -10,9 +9,46 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ListTodo } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import type { CSSProperties } from 'react'
+
+interface ProjectItem {
+  id: string | number
+  name?: string
+}
+
+type PlanStatus = 'draft' | 'accepted' | 'rejected'
+
+interface SprintPlanTask {
+  task_id: string | number
+  title: string
+  priority?: 'critical' | 'high' | 'medium' | 'low'
+  story_points: number
+  unestimated?: boolean
+}
+
+interface SprintPlanResult {
+  id: string | number
+  name: string
+  status: PlanStatus
+  task_count: number
+  total_points: number
+  team_capacity: number
+  utilization_pct?: number
+  ai_reasoning?: string
+  unestimated_count?: number
+  created_at?: string
+  tasks: SprintPlanTask[]
+}
+
+interface SemanticEstimate {
+  total_base_hours: number
+  risk_premium_pct: number
+  recommended_hours: number
+  fit_in_sprint: boolean
+}
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const STATUS_CFG = {
@@ -22,14 +58,14 @@ const STATUS_CFG = {
 }
 const PRIORITY_COLORS = {critical:'var(--danger)',high:'var(--warning)',medium:'var(--warning)',low:'var(--text-2)'}
 
-function GenerateModal({ projectId, onClose }) {
+function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () => void }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [form, setForm] = useState({ name: '', team_capacity: 40, sprint_id: '' })
-  const set = k => v => setForm(f => ({...f, [k]: v}))
-  const [result, setResult] = useState(null)
-  const [semEstimate, setSemEstimate] = useState(null)
+  const set = (k: 'name' | 'team_capacity' | 'sprint_id') => (v: string | number) => setForm((f) => ({ ...f, [k]: v }))
+  const [result, setResult] = useState<SprintPlanResult | null>(null)
+  const [semEstimate, setSemEstimate] = useState<SemanticEstimate | null>(null)
   const [estimating, setEstimating] = useState(false)
 
   const estimateBacklog = async () => {
@@ -41,19 +77,22 @@ function GenerateModal({ projectId, onClose }) {
       const tasks = Array.isArray(tasksRes.data) ? tasksRes.data : (tasksRes.data?.items ?? [])
       if (!tasks.length) { toast.info(t('sprint_planning.no_todo_tasks')); return }
       const res = await semanticApi.estimateSprint({
-        tasks: tasks.map(t => ({ id: t.id, title: t.title, description: t.description || '', story_points: t.story_points })),
+        tasks: tasks.map((task: { id: string | number; title: string; description?: string; story_points?: number }) => ({ id: task.id, title: task.title, description: task.description || '', story_points: task.story_points })),
         team_capacity_hours: form.team_capacity * 2, // aprox 2h por story point
       })
-      setSemEstimate(res.data)
-      const unest = tasks.filter(tk => !tk.story_points).length
+      setSemEstimate(res.data as SemanticEstimate)
+      const unest = tasks.filter((tk: { story_points?: number }) => !tk.story_points).length
       if (unest > 0) toast.info(`${unest} ${t('sprint_planning.unestimated_toast_suffix')}`)
-    } catch (e) { toast.error(e?.response?.data?.detail || t('sprint_planning.error_estimate')) }
+    } catch (e: unknown) {
+      const message = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('sprint_planning.error_estimate')
+      toast.error(message)
+    }
     finally { setEstimating(false) }
   }
 
   const { data: sprints = [] } = useQuery({
     queryKey: ['sprints', projectId],
-    queryFn: () => sprintsApi.list(projectId).then(r => {
+    queryFn: () => sprintsApi.list(projectId, {}).then(r => {
       const d = r.data
       if (Array.isArray(d?.items)) return d.items
       if (Array.isArray(d)) return d
@@ -68,8 +107,8 @@ function GenerateModal({ projectId, onClose }) {
       project_id: projectId,
       sprint_id: form.sprint_id || null,
     }).then(r => r.data),
-    onSuccess: data => { setResult(data); qc.invalidateQueries(['sprint-plans', projectId]) },
-    onError: e => toast.error(extractErr(e, t('sprint_planning.error_generate'))),
+    onSuccess: (data) => { setResult(data as SprintPlanResult); qc.invalidateQueries({ queryKey: ['sprint-plans', projectId] }) },
+    onError: (e: unknown) => toast.error(extractErr(e, t('sprint_planning.error_generate'))),
   })
 
   const utilizationPct = result?.utilization_pct || 0
@@ -94,7 +133,7 @@ function GenerateModal({ projectId, onClose }) {
                 <label style={ls}>{t('sprint_planning.sprint_optional')}</label>
                 <select style={is} value={form.sprint_id} onChange={e => set('sprint_id')(e.target.value)}>
                   <option value="">{t('sprint_planning.no_specific_sprint')}</option>
-                  {sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {(sprints as Array<{ id: string | number; name: string }>).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             </div>
@@ -185,28 +224,30 @@ export default function SprintPlanningPage() {
   const qc = useQueryClient()
   const [project, setProject] = useState('')
   const [showGenerate, setShowGenerate] = useState(false)
-  const [expandPlan, setExpandPlan] = useState(null)
+  const [expandPlan, setExpandPlan] = useState<string | number | null>(null)
 
-  const { data: projects = [] } = useQuery({
+  const { data: projectsRaw = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data)?r.data:[]).catch(()=>[]),
+    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data)?r.data:[]).catch(()=>[]),
   })
-  const { data: plans = [], isLoading } = useQuery({
+  const projects = projectsRaw as ProjectItem[]
+  const { data: plansRaw = [], isLoading } = useQuery({
     queryKey: ['sprint-plans', project],
     queryFn: () => sprintPlansApi.get(project).then(r => r.data).catch(()=>[]),
     enabled: !!project,
   })
+  const plans = plansRaw as SprintPlanResult[]
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({id, status}) => sprintPlansApi.updateStatus(id, status).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries(['sprint-plans', project]),
-    onError: e => toast.error(extractErr(e, t('sprint_planning.error_delete'))),
+    mutationFn: ({id, status}: { id: string | number; status: PlanStatus }) => sprintPlansApi.updateStatus(id, status).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sprint-plans', project] }),
+    onError: (e: unknown) => toast.error(extractErr(e, t('sprint_planning.error_delete'))),
   })
 
   const { mutate: deletePlan } = useMutation({
-    mutationFn: id => sprintPlansApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries(['sprint-plans', project]); setExpandPlan(null) },
-    onError: e => toast.error(extractErr(e, t('sprint_planning.error_delete'))),
+    mutationFn: (id: string | number) => sprintPlansApi.delete(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sprint-plans', project] }); setExpandPlan(null) },
+    onError: (e: unknown) => toast.error(extractErr(e, t('sprint_planning.error_delete'))),
   })
 
   return (

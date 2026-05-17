@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * DataPlatformPage — Plataforma de datos: ETL, conectores, embed SDK,
  * streaming en tiempo real, snapshots versionados y linaje de plataforma.
@@ -16,13 +15,76 @@ import { biIntelligenceApi, biPlatformApi } from '../services/api'
 import BiEtlPanel from '../components/bi/BiEtlPanel'
 import BiO365Panel from '../components/bi/BiO365Panel'
 
+interface ConnectorCfg {
+  enabled?: boolean
+  last_sync_at?: string
+}
+
+interface ConnectorsResponse {
+  items?: Record<string, ConnectorCfg>
+}
+
+interface ReportPresetItem {
+  id: string
+  name: string
+}
+
+interface ReportPresetsResponse {
+  items?: ReportPresetItem[]
+}
+
+interface PlatformManifest {
+  name?: string
+  version?: string
+  features?: string[]
+}
+
+interface CatalogConnectorCfg {
+  enabled?: boolean
+}
+
+interface CatalogResponse {
+  items?: Record<string, CatalogConnectorCfg>
+}
+
+interface CustomConnectorItem {
+  id: string | number
+  name?: string
+  endpoint?: string
+}
+
+interface CustomConnectorsResponse {
+  items?: CustomConnectorItem[]
+}
+
+interface LineageResponse {
+  edges?: unknown[]
+}
+
+interface SnapshotItem {
+  id: string | number
+}
+
+interface SnapshotsResponse {
+  items?: SnapshotItem[]
+}
+
+interface SnapshotDiff {
+  change_count?: number
+}
+
+interface StreamFrame {
+  type?: string
+  timestamp?: string
+}
+
 const S = {
   card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' },
   cardPad:     { padding: '20px 24px' },
   sectionTitle:{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.09em', margin: 0 },
   input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' },
   btnSecondary:{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' },
-  btnAccentOutline: (c = COLOR.accent) => ({ padding: '7px 14px', borderRadius: 8, border: `1px solid ${c}`, background: `${c}18`, color: c, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }),
+  btnAccentOutline: (c: string = COLOR.accent) => ({ padding: '7px 14px', borderRadius: 8, border: `1px solid ${c}`, background: `${c}18`, color: c, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }),
 }
 
 const getLocale = (lang) => (lang === 'en' ? 'en-US' : 'es-ES')
@@ -43,25 +105,27 @@ export default function DataPlatformPage(): JSX.Element {
   const [phase2Tick, setPhase2Tick] = useState(0)
   const [presetId, setPresetId] = useState('ops_delivery_mix')
   const [streamLive, setStreamLive] = useState(false)
-  const [streamSnapshot, setStreamSnapshot] = useState(null)
+  const [streamSnapshot, setStreamSnapshot] = useState<StreamFrame | null>(null)
 
   const [phase3Tick, setPhase3Tick] = useState(0)
   const [embedToken, setEmbedToken] = useState('')
   const [customConnectorName, setCustomConnectorName] = useState('')
   const [customConnectorEndpoint, setCustomConnectorEndpoint] = useState('')
   const [datasetKey, setDatasetKey] = useState('olap.fact_projects')
-  const [snapshotDiff, setSnapshotDiff] = useState(null)
+  const [snapshotDiff, setSnapshotDiff] = useState<SnapshotDiff | null>(null)
 
-  const { data: connectorsData, refetch: refetchConnectors } = useQuery({
+  const { data: connectorsDataRaw, refetch: refetchConnectors } = useQuery({
     queryKey: ['data-platform-connectors', phase2Tick],
     queryFn: () => biIntelligenceApi.listConnectors().then(r => r.data).catch(() => ({ items: {} })),
     staleTime: 15_000,
   })
-  const { data: reportPresets } = useQuery({
+  const connectorsData = (connectorsDataRaw ?? { items: {} }) as ConnectorsResponse
+  const { data: reportPresetsRaw } = useQuery({
     queryKey: ['data-platform-report-presets'],
     queryFn: () => biIntelligenceApi.reportPresets().then(r => r.data).catch(() => ({ items: [] })),
     staleTime: 60_000,
   })
+  const reportPresets = (reportPresetsRaw ?? { items: [] }) as ReportPresetsResponse
   const { data: previewData, refetch: refetchPreview } = useQuery({
     queryKey: ['data-platform-preview', presetId, phase2Tick],
     queryFn: () => biIntelligenceApi.previewPreset({ preset_id: presetId, limit: 20 }).then(r => r.data).catch(() => null),
@@ -72,31 +136,36 @@ export default function DataPlatformPage(): JSX.Element {
     queryFn: () => biIntelligenceApi.deliveryOverview().then(r => r.data).catch(() => null),
     staleTime: 20_000,
   })
-  const { data: phase3Manifest } = useQuery({
+  const { data: phase3ManifestRaw } = useQuery({
     queryKey: ['data-platform-manifest'],
     queryFn: () => biPlatformApi.sdkManifest().then(r => r.data).catch(() => null),
     staleTime: 60_000,
   })
-  const { data: phase3Catalog, refetch: refetchPhase3Catalog } = useQuery({
+  const phase3Manifest = (phase3ManifestRaw ?? null) as PlatformManifest | null
+  const { data: phase3CatalogRaw, refetch: refetchPhase3Catalog } = useQuery({
     queryKey: ['data-platform-catalog', phase3Tick],
     queryFn: () => biPlatformApi.connectorCatalog().then(r => r.data).catch(() => ({ count: 0, items: {} })),
     staleTime: 20_000,
   })
-  const { data: phase3Custom, refetch: refetchPhase3Custom } = useQuery({
+  const phase3Catalog = (phase3CatalogRaw ?? { items: {} }) as CatalogResponse
+  const { data: phase3CustomRaw, refetch: refetchPhase3Custom } = useQuery({
     queryKey: ['data-platform-custom', phase3Tick],
     queryFn: () => biPlatformApi.listCustomConnectors().then(r => r.data).catch(() => ({ items: [] })),
     staleTime: 20_000,
   })
-  const { data: phase3Lineage, refetch: refetchPhase3Lineage } = useQuery({
+  const phase3Custom = (phase3CustomRaw ?? { items: [] }) as CustomConnectorsResponse
+  const { data: phase3LineageRaw, refetch: refetchPhase3Lineage } = useQuery({
     queryKey: ['data-platform-lineage', phase3Tick],
     queryFn: () => biPlatformApi.lineage().then(r => r.data).catch(() => ({ edges: [], audit: [] })),
     staleTime: 20_000,
   })
-  const { data: phase3Snapshots, refetch: refetchPhase3Snapshots } = useQuery({
+  const phase3Lineage = (phase3LineageRaw ?? { edges: [] }) as LineageResponse
+  const { data: phase3SnapshotsRaw, refetch: refetchPhase3Snapshots } = useQuery({
     queryKey: ['data-platform-snapshots', datasetKey, phase3Tick],
     queryFn: () => biPlatformApi.listSnapshots(datasetKey).then(r => r.data).catch(() => ({ items: [] })),
     staleTime: 20_000,
   })
+  const phase3Snapshots = (phase3SnapshotsRaw ?? { items: [] }) as SnapshotsResponse
 
   // WebSocket realtime stream
   useEffect(() => {
@@ -112,7 +181,7 @@ export default function DataPlatformPage(): JSX.Element {
         ws = new WebSocket(`${proto}//${window.location.host}/api/v1/bi/intelligence/realtime/stream?token=${encodeURIComponent(token)}`)
         ws.onmessage = (ev) => {
           try {
-            const data = JSON.parse(ev.data)
+            const data = JSON.parse(ev.data) as StreamFrame
             if (data?.type === 'bi_intelligence_snapshot') setStreamSnapshot(data)
           } catch (_e) { /* ignore malformed frames */ }
         }
@@ -129,16 +198,16 @@ export default function DataPlatformPage(): JSX.Element {
   const phase3LineageEdges = phase3Lineage?.edges || []
   const phase3SnapshotItems = phase3Snapshots?.items || []
 
-  async function handleToggleConnector(name, enabled) {
+  async function handleToggleConnector(name: string, enabled: boolean) {
     try { await biIntelligenceApi.patchConnector(name, { enabled }); setPhase2Tick(x => x + 1); await refetchConnectors() } catch (_) { /* ignore */ }
   }
-  async function handleSyncConnector(name) {
+  async function handleSyncConnector(name: string) {
     try { await biIntelligenceApi.syncConnector(name); setPhase2Tick(x => x + 1); await refetchConnectors() } catch (_) { /* ignore */ }
   }
   async function handleIssueEmbedToken() {
     try { const res = await biPlatformApi.embedToken({ dashboard_key: 'executive', expires_minutes: 60 }); setEmbedToken(res?.data?.token || '') } catch (_) { /* ignore */ }
   }
-  async function handleToggleCatalogConnector(name, enabled) {
+  async function handleToggleCatalogConnector(name: string, enabled: boolean) {
     try { await biPlatformApi.patchCatalogConnector(name, { enabled }); setPhase3Tick(x => x + 1); await refetchPhase3Catalog() } catch (_) { /* ignore */ }
   }
   async function handleCreateCustomConnector() {
@@ -151,7 +220,7 @@ export default function DataPlatformPage(): JSX.Element {
       setPhase3Tick(x => x + 1); await refetchPhase3Custom()
     } catch (_) { /* ignore */ }
   }
-  async function handleTestCustomConnector(id) {
+  async function handleTestCustomConnector(id: string | number) {
     try { await biPlatformApi.testCustomConnector(id); setPhase3Tick(x => x + 1); await refetchPhase3Custom() } catch (_) { /* ignore */ }
   }
   async function handleCreateSnapshot() {

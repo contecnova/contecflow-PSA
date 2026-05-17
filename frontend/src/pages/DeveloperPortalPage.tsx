@@ -1,8 +1,8 @@
-// @ts-nocheck
 /**
  * DeveloperPortalPage — Manage OAuth2 applications
  */
 import { useState } from 'react'
+import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { developerAppsApi } from '../services/api'
 import { Button, Modal, EmptyState, Spinner } from '../components/ui'
@@ -14,46 +14,71 @@ import { useAppT } from '../i18n/AppLangContext'
 import { extractErr } from '../utils/helpers'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 
-const FS = {
+interface DeveloperApp {
+  id: string | number
+  name: string
+  description?: string
+  homepage_url?: string
+  redirect_uris?: string[]
+  scopes?: string[]
+  is_active?: boolean
+  client_id?: string
+  client_secret?: string
+}
+
+interface AppFormState {
+  name: string
+  description: string
+  homepage_url: string
+  redirect_uris: string
+  scopes: string[]
+}
+
+interface RotatedSecret {
+  client_id?: string
+  client_secret?: string
+}
+
+const FS: CSSProperties = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
   borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
-const LS = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-const MONO = { fontFamily: 'var(--font-mono)', background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px', fontSize: "var(--text-sm)", color: 'var(--text-1)', border: '1px solid var(--surface-4)', wordBreak: 'break-all', display: 'block' }
+const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const MONO: CSSProperties = { fontFamily: 'var(--font-mono)', background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px', fontSize: "var(--text-sm)", color: 'var(--text-1)', border: '1px solid var(--surface-4)', wordBreak: 'break-all', display: 'block' }
 
 const AVAILABLE_SCOPES = ['read', 'write', 'projects', 'tasks', 'timesheets', 'billing', 'admin']
 
-function AppModal({ app, onClose }) {
+function AppModal({ app, onClose }: { app?: DeveloperApp | null; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const t = useAppT()
   const isEdit = !!app
 
-  const [f, setF] = useState({
+  const [f, setF] = useState<AppFormState>({
     name: app?.name || '',
     description: app?.description || '',
     homepage_url: app?.homepage_url || '',
     redirect_uris: app?.redirect_uris?.join('\n') || '',
     scopes: app?.scopes || ['read'],
   })
-  const [newSecret, setNewSecret] = useState(null)
+  const [newSecret, setNewSecret] = useState<RotatedSecret | null>(null)
 
-  const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
-  const toggleScope = (s) => setF(p => ({
+  const set = (k: keyof AppFormState) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF((p) => ({ ...p, [k]: e.target.value }))
+  const toggleScope = (s: string) => setF(p => ({
     ...p,
     scopes: p.scopes.includes(s) ? p.scopes.filter(x => x !== s) : [...p.scopes, s],
   }))
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => {
+    mutationFn: (data: AppFormState) => {
       const payload = { ...data, redirect_uris: data.redirect_uris.split('\n').map(u => u.trim()).filter(Boolean) }
       return isEdit
         ? developerAppsApi.update(app.id, payload).then(r => r.data)
         : developerAppsApi.create(payload).then(r => r.data)
     },
-    onSuccess: (saved) => {
-      qc.invalidateQueries(['developer-apps'])
+    onSuccess: (saved: DeveloperApp) => {
+      qc.invalidateQueries({ queryKey: ['developer-apps'] })
       toast.success(isEdit ? t('developer.app_updated') : t('developer.app_created'))
       if (saved.client_secret) {
         setNewSecret({ client_id: saved.client_id, client_secret: saved.client_secret })
@@ -61,7 +86,7 @@ function AppModal({ app, onClose }) {
         onClose()
       }
     },
-    onError: e => toast.error(extractErr(e, t('developer.app_saved_error'))),
+    onError: (e: unknown) => toast.error(extractErr(e, t('developer.app_saved_error'))),
   })
 
   if (newSecret) return (
@@ -129,16 +154,20 @@ function AppModal({ app, onClose }) {
   )
 }
 
-function AppDetail({ app, onClose, onRotated }) {
+function AppDetail({ app, onClose, onRotated }: { app: DeveloperApp; onClose: () => void; onRotated: (data: RotatedSecret) => void }) {
   const toast = useToast()
   const t = useAppT()
   const { mutate: rotate, isPending: rotating } = useMutation({
     mutationFn: () => developerAppsApi.rotateSecret(app.id).then(r => r.data),
-    onSuccess: (data) => onRotated(data),
-    onError: e => toast.error(extractErr(e, t('developer.secret_rotated_error'))),
+    onSuccess: (data: RotatedSecret) => onRotated(data),
+    onError: (e: unknown) => toast.error(extractErr(e, t('developer.secret_rotated_error'))),
   })
 
-  const copy = (text) => { navigator.clipboard.writeText(text); toast.success(t('developer.copied')) }
+  const copy = (text?: string) => {
+    if (!text) return
+    navigator.clipboard.writeText(text)
+    toast.success(t('developer.copied'))
+  }
 
   return (
     <Modal open title={t('developer.credentials_modal_title', { name: app.name })} onClose={onClose} width={540}>
@@ -191,19 +220,20 @@ export default function DeveloperPortalPage(): JSX.Element {
   const t = useAppT()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [viewCreds, setViewCreds] = useState(null)
-  const [rotatedSecret, setRotatedSecret] = useState(null)
+  const [editing, setEditing] = useState<DeveloperApp | null>(null)
+  const [viewCreds, setViewCreds] = useState<DeveloperApp | null>(null)
+  const [rotatedSecret, setRotatedSecret] = useState<RotatedSecret | null>(null)
 
-  const { data: apps = [], isLoading } = useQuery({
+  const { data: appsRaw = [], isLoading } = useQuery({
     queryKey: ['developer-apps'],
     queryFn: () => developerAppsApi.list().then(r => r.data),
   })
+  const apps = appsRaw as DeveloperApp[]
 
   const { mutate: deleteApp } = useMutation({
-    mutationFn: (id) => developerAppsApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries(['developer-apps']); toast.success(t('developer.app_deleted')) },
-    onError: e => toast.error(extractErr(e, t('developer.app_delete_error'))),
+    mutationFn: (id: string | number) => developerAppsApi.delete(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['developer-apps'] }); toast.success(t('developer.app_deleted')) },
+    onError: (e: unknown) => toast.error(extractErr(e, t('developer.app_delete_error'))),
   })
 
   return (

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ChangelogPage — Release notes y changelog por proyecto
  * Genera automáticamente entradas desde tareas completadas o permite añadirlas manualmente.
@@ -16,8 +15,55 @@ import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { openConfirmGlobal } from '../context/ConfirmContext'
+import type { CSSProperties } from 'react'
 
-function getTypeMeta(t) {
+type EntryType = 'feature' | 'bugfix' | 'improvement' | 'milestone' | 'breaking'
+
+interface ProjectItem {
+  id: string | number
+  code?: string
+  name?: string
+}
+
+interface AuthorInfo {
+  full_name?: string
+}
+
+interface ChangelogEntry {
+  id: string | number
+  version_tag?: string
+  entry_date?: string
+  entry_type?: EntryType
+  is_auto_generated?: boolean
+  title?: string
+  description?: string
+  author?: AuthorInfo | null
+}
+
+interface ChangelogResponse {
+  entries?: ChangelogEntry[]
+}
+
+interface GenerateResult {
+  generated: number
+  period_weeks?: number
+  message?: string
+}
+
+interface ManualEntryPayload {
+  version_tag?: string
+  entry_date: string
+  entry_type: EntryType
+  title: string
+  description?: string
+}
+
+interface GeneratePayload {
+  weeks: number
+  version_tag?: string
+}
+
+function getTypeMeta(t: (key: string, params?: Record<string, string | number>) => string) {
   return {
     feature:     { label: t('changelog.type_feature'),      color: 'var(--accent)',   bg: 'rgba(79,142,247,0.12)',  icon: '✨' },
     bugfix:      { label: t('changelog.type_bugfix'),       color: 'var(--danger)',   bg: 'rgba(248,113,113,0.12)', icon: '🐛' },
@@ -27,12 +73,12 @@ function getTypeMeta(t) {
   }
 }
 
-const inputStyle = {
+const inputStyle: CSSProperties = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
   borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
-const lbStyle = {
+const lbStyle: CSSProperties = {
   fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
   display: 'block', marginBottom: 5,
 }
@@ -50,7 +96,7 @@ const generateSchema = z.object({
   version_tag: z.string().optional(),
 })
 
-function EntryCard({ entry, onDelete }) {
+function EntryCard({ entry, onDelete }: { entry: ChangelogEntry; onDelete: (id: string | number) => void }) {
   const t = useAppT()
   const typeMeta = getTypeMeta(t)
   const meta = typeMeta[entry.entry_type] || typeMeta.feature
@@ -92,18 +138,18 @@ function EntryCard({ entry, onDelete }) {
   )
 }
 
-function ManualEntryModal({ projectId, onClose, onSaved }) {
+function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; onClose: () => void; onSaved: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const typeMeta = getTypeMeta(t)
   const today = new Date().toISOString().split('T')[0]
-  const [form, setForm] = useState({ version_tag: '', entry_date: today, entry_type: 'feature', title: '', description: '' })
+  const [form, setForm] = useState<ManualEntryPayload>({ version_tag: '', entry_date: today, entry_type: 'feature', title: '', description: '' })
   const validation = useFormValidation(manualEntrySchema)
 
   const { mutate: save, isPending } = useMutation({
-    mutationFn: (data) => api.post(`/projects/${projectId}/changelog`, data),
+    mutationFn: (data: ManualEntryPayload) => api.post(`/projects/${projectId}/changelog`, data),
     onSuccess: () => { validation.setErrors({}); onSaved(); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
   })
 
   const submit = () => {
@@ -126,7 +172,7 @@ function ManualEntryModal({ projectId, onClose, onSaved }) {
         </div>
         <div>
           <label style={lbStyle}>{t('changelog.type')}</label>
-          <select value={form.entry_type} onChange={e => { setForm(f => ({ ...f, entry_type: e.target.value })); validation.clearFieldError('entry_type') }} style={validation.inputStyle(inputStyle, 'entry_type')}>
+          <select value={form.entry_type} onChange={e => { setForm((f) => ({ ...f, entry_type: e.target.value as EntryType })); validation.clearFieldError('entry_type') }} style={validation.inputStyle(inputStyle, 'entry_type')}>
             {Object.entries(typeMeta).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
         </div>
@@ -148,19 +194,19 @@ function ManualEntryModal({ projectId, onClose, onSaved }) {
   )
 }
 
-function GenerateModal({ projectId, onClose, onSaved }) {
+function GenerateModal({ projectId, onClose, onSaved }: { projectId: string; onClose: () => void; onSaved: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const [weeks, setWeeks] = useState(2)
   const [versionTag, setVersionTag] = useState('')
   const validation = useFormValidation(generateSchema)
 
-  const [genResult, setGenResult] = useState(null)
+  const [genResult, setGenResult] = useState<GenerateResult | null>(null)
 
   const { mutate: generate, isPending } = useMutation({
-    mutationFn: ({ weeks: validWeeks, version_tag }) => api.post(`/projects/${projectId}/changelog/generate`, { weeks: validWeeks, version_tag: version_tag || null }),
-    onSuccess: (res) => { setGenResult(res.data); onSaved() },
-    onError: e => toast.error(extractErr(e, 'Error al generar')),
+    mutationFn: ({ weeks: validWeeks, version_tag }: GeneratePayload) => api.post(`/projects/${projectId}/changelog/generate`, { weeks: validWeeks, version_tag: version_tag || null }),
+    onSuccess: (res) => { setGenResult(res.data as GenerateResult); onSaved() },
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al generar')),
   })
 
   const submitGenerate = () => {
@@ -177,7 +223,7 @@ function GenerateModal({ projectId, onClose, onSaved }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div>
           <label style={lbStyle}>{t('changelog.period_weeks')}</label>
-          <input type="number" value={weeks} onChange={e => { setWeeks(e.target.value); validation.clearFieldError('weeks') }} min={1} max={52} style={validation.inputStyle(inputStyle, 'weeks')} />
+          <input type="number" value={weeks} onChange={e => { setWeeks(Number(e.target.value)); validation.clearFieldError('weeks') }} min={1} max={52} style={validation.inputStyle(inputStyle, 'weeks')} />
           {validation.errors.weeks && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.weeks}</p>}
         </div>
         <div>
@@ -209,31 +255,32 @@ export default function ChangelogPage(): JSX.Element {
   const toast = useToast()
   const qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState('')
-  const [typeFilter, setTypeFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | EntryType>('all')
   const [showManual, setShowManual] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
 
   const { data: projRaw = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data),
+    queryFn: () => projectsApi.list({}).then(r => r.data),
   })
-  const projects = Array.isArray(projRaw) ? projRaw : []
+  const projects = (Array.isArray(projRaw) ? projRaw : []) as ProjectItem[]
 
-  const { data: changelog, isLoading } = useQuery({
+  const { data: changelogRaw, isLoading } = useQuery({
     queryKey: ['changelog', selectedProject, typeFilter],
     queryFn: () => api.get(`/projects/${selectedProject}/changelog`, {
       params: typeFilter !== 'all' ? { entry_type: typeFilter } : undefined,
     }).then(r => r.data),
     enabled: !!selectedProject,
   })
+  const changelog = (changelogRaw ?? null) as ChangelogResponse | null
 
   const { mutate: deleteEntry } = useMutation({
-    mutationFn: (id) => api.delete(`/projects/${selectedProject}/changelog/${id}`),
-    onSuccess: () => qc.invalidateQueries(['changelog', selectedProject]),
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    mutationFn: (id: string | number) => api.delete(`/projects/${selectedProject}/changelog/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['changelog', selectedProject] }),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
-  const invalidate = () => qc.invalidateQueries(['changelog', selectedProject])
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['changelog', selectedProject] })
   const entries = changelog?.entries || []
 
   return (
@@ -272,7 +319,7 @@ export default function ChangelogPage(): JSX.Element {
           {Object.entries(typeMeta).map(([k, v]) => {
             const count = entries.filter(e => e.entry_type === k).length
             return count > 0 ? (
-              <button key={k} onClick={() => setTypeFilter(k)}
+              <button key={k} onClick={() => setTypeFilter(k as EntryType)}
                 style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${typeFilter === k ? v.color + '60' : 'var(--surface-4)'}`, background: typeFilter === k ? v.bg : 'var(--surface-2)', color: typeFilter === k ? v.color : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {v.icon} {v.label} ({count})
               </button>

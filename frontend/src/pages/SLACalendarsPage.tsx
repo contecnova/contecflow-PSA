@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -13,22 +13,47 @@ import { CalendarClock } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 
-const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+interface SlaCalendar {
+  id: string | number
+  name: string
+  timezone: string
+  work_start: string
+  work_end: string
+  work_days: string
+  holiday_count?: number
+}
+
+interface HolidayItem {
+  id: string | number
+  holiday_date: string
+  name?: string | null
+}
+
+interface CheckDateResult {
+  date: string
+  day_of_week: string
+  is_business_day: boolean
+  is_weekend?: boolean
+  is_holiday?: boolean
+  holiday_name?: string | null
+}
+
+const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const TIMEZONES = ['Europe/Madrid','Europe/London','America/New_York','America/Chicago',
                    'America/Los_Angeles','America/Sao_Paulo','Asia/Tokyo','Asia/Singapore',
                    'Australia/Sydney','UTC']
 const DAYS_MAP  = {1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:'Sábado',7:'Domingo'}
 
-function CalendarForm({ cal, onClose }) {
+function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () => void }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const { timezone: defaultTimezone } = useOrgSettings()
   const isEdit = !!cal?.id
-  const parseDays = s => new Set((s||'1,2,3,4,5').split(',').map(Number))
+  const parseDays = (s?: string) => new Set((s||'1,2,3,4,5').split(',').map(Number))
   const [form, setForm] = useState({
     name:      cal?.name       || '',
     timezone:  cal?.timezone   || defaultTimezone,
@@ -36,8 +61,8 @@ function CalendarForm({ cal, onClose }) {
     work_end:  cal?.work_end   || '18:00',
     work_days: parseDays(cal?.work_days),
   })
-  const set = k => v => setForm(f => ({...f, [k]: v}))
-  const toggleDay = d => {
+  const set = (k: 'name' | 'timezone' | 'work_start' | 'work_end' | 'work_days') => (v: string | Set<number>) => setForm((f) => ({ ...f, [k]: v }))
+  const toggleDay = (d: number) => {
     const s = new Set(form.work_days)
     if (s.has(d)) { if(s.size>1) s.delete(d) } else s.add(d)
     set('work_days')(s)
@@ -50,8 +75,8 @@ function CalendarForm({ cal, onClose }) {
         ? slaCalendarsApi.update(cal.id, d).then(r=>r.data)
         : slaCalendarsApi.create(d).then(r=>r.data)
     },
-    onSuccess: () => { qc.invalidateQueries(['sla-calendars']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sla-calendars'] }); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
   })
 
   return (
@@ -108,43 +133,45 @@ function CalendarForm({ cal, onClose }) {
   )
 }
 
-function HolidaysModal({ cal, onClose }) {
+function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [date, setDate] = useState('')
   const [name, setName] = useState('')
   const [checkDate, setCheckDate] = useState('')
-  const [checkResult, setCheckResult] = useState(null)
-  const [editingId, setEditingId] = useState(null)
+  const [checkResult, setCheckResult] = useState<CheckDateResult | null>(null)
+  const [editingId, setEditingId] = useState<string | number | null>(null)
   const [editForm, setEditForm] = useState({ holiday_date: '', name: '' })
 
-  const { data: holidays = [] } = useQuery({
+  const { data: holidaysRaw = [] } = useQuery({
     queryKey: ['holidays', cal.id],
     queryFn: () => slaCalendarsApi.holidays(cal.id).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
   })
+  const holidays = holidaysRaw as HolidayItem[]
 
   const { mutate: addH, isPending } = useMutation({
     mutationFn: () => slaCalendarsApi.createHoliday(cal.id, {holiday_date:date, name:name||null}).then(r=>r.data),
-    onSuccess: () => { qc.invalidateQueries(['holidays', cal.id]); setDate(''); setName('') },
-    onError: e => toast.error(extractErr(e, 'Error al añadir')),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['holidays', cal.id] }); setDate(''); setName('') },
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al añadir')),
   })
   const { mutate: updateH } = useMutation({
-    mutationFn: id => slaCalendarsApi.updateHoliday(cal.id, id, { holiday_date: editForm.holiday_date, name: editForm.name || null }),
-    onSuccess: () => { qc.invalidateQueries(['holidays', cal.id]); setEditingId(null) },
-    onError: e => toast.error(extractErr(e, 'Error al editar')),
+    mutationFn: (id: string | number) => slaCalendarsApi.updateHoliday(cal.id, id, { holiday_date: editForm.holiday_date, name: editForm.name || null }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['holidays', cal.id] }); setEditingId(null) },
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al editar')),
   })
   const { mutate: delH } = useMutation({
-    mutationFn: id => slaCalendarsApi.deleteHoliday(cal.id, id),
-    onSuccess: () => qc.invalidateQueries(['holidays', cal.id]),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string | number) => slaCalendarsApi.deleteHoliday(cal.id, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['holidays', cal.id] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const checkBusinessDay = async () => {
     try {
       const r = await slaCalendarsApi.checkDate(cal.id, checkDate)
-      setCheckResult(r.data)
-    } catch(e) {
-      toast.error(e?.response?.data?.detail || 'Error al verificar')
+      setCheckResult(r.data as CheckDateResult)
+    } catch(e: unknown) {
+      const message = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al verificar'
+      toast.error(message)
     }
   }
 
@@ -237,21 +264,22 @@ export default function SLACalendarsPage() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [holidaysCal, setHolidaysCal] = useState(null)
+  const [editing, setEditing] = useState<SlaCalendar | null>(null)
+  const [holidaysCal, setHolidaysCal] = useState<SlaCalendar | null>(null)
 
-  const { data: calendars = [], isLoading } = useQuery({
+  const { data: calendarsRaw = [], isLoading } = useQuery({
     queryKey: ['sla-calendars'],
     queryFn: () => slaCalendarsApi.list().then(r => r.data?.items ?? r.data ?? []).catch(() => []),
   })
+  const calendars = calendarsRaw as SlaCalendar[]
 
   const { mutate: deleteCal } = useMutation({
-    mutationFn: id => slaCalendarsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries(['sla-calendars']),
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    mutationFn: (id: string | number) => slaCalendarsApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sla-calendars'] }),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
-  const formatDays = days => days.split(',').map(d => DAYS_MAP[+d]?.slice(0,3)||d).join(', ')
+  const formatDays = (days: string) => days.split(',').map((d) => DAYS_MAP[+d as keyof typeof DAYS_MAP]?.slice(0,3)||d).join(', ')
 
   return (
     <PageShell>

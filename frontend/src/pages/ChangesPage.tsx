@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useId, useState } from 'react'
+import type { ChangeEvent, CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -14,6 +14,64 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
+
+type ImpactLevel = 'low' | 'medium' | 'high' | 'critical' | string
+type ChangeStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'implemented' | string
+type MainTab = 'changes' | 'cab'
+type ChangesTab = 'project' | 'pending'
+
+type ProjectPick = {
+  id: string | number
+  code?: string
+  name?: string
+}
+
+type ChangeRequest = {
+  id: string | number
+  code?: string
+  project_id: string | number
+  project_code?: string
+  project_name?: string
+  title: string
+  description?: string
+  justification?: string
+  impact?: ImpactLevel
+  cost_impact?: number
+  schedule_impact_days?: number
+  scope_impact?: string
+  requester_name?: string
+  requester?: string
+  owner_name?: string
+  status?: ChangeStatus
+  resolution_notes?: string
+  votes?: { approve?: number; reject?: number; total?: number }
+  my_vote?: string
+}
+
+type ChangesSummary = {
+  total?: number
+  pending?: number
+  approved?: number
+  total_cost_impact?: number
+  total_schedule_impact?: number
+}
+
+type ChangesData = {
+  change_requests?: ChangeRequest[]
+  summary?: ChangesSummary
+}
+
+type MaintenanceWindow = {
+  id: string | number
+  name?: string
+  start_dt?: string
+  end_dt?: string
+  environment?: string
+}
+
+type RoleAuth = {
+  hasRole: (...roles: string[]) => boolean
+}
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
@@ -65,13 +123,13 @@ const reviewSchema = z.object({
   }
 })
 
-function StatusBadge({ status }) {
+function StatusBadge({ status }: { status?: ChangeStatus }) {
   const cfg = STATUS_CFG[status] || STATUS_CFG.draft
   return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{cfg.label}</span>
 }
 
-function CRFormModal({ cr, projectId, onClose }) {
-  const t = useAppT()
+function CRFormModal({ cr, projectId, onClose }: { cr?: ChangeRequest | null; projectId: string | number; onClose: () => void }) {
+  const t = useAppT() as (key: string) => string
   const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
@@ -86,18 +144,18 @@ function CRFormModal({ cr, projectId, onClose }) {
     scope_impact: cr?.scope_impact || '',
   })
   const validation = useFormValidation(crSchema)
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const set = (k) => (e) => {
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => isEdit
+    mutationFn: (data: Record<string, unknown>) => isEdit && cr
       ? projectChangesApi.update(projectId, cr.id, data)
       : projectChangesApi.create(projectId, data),
-    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['changes', projectId]); qc.invalidateQueries(['all-pending-crs']); onClose() },
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['changes', projectId] }); qc.invalidateQueries({ queryKey: ['all-pending-crs'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -158,21 +216,21 @@ function CRFormModal({ cr, projectId, onClose }) {
   )
 }
 
-function ReviewCRModal({ cr, projectId, onClose }) {
-  const t = useAppT()
+function ReviewCRModal({ cr, projectId, onClose }: { cr: ChangeRequest; projectId: string | number; onClose: () => void }) {
+  const t = useAppT() as (key: string) => string
   const idPrefix = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const [notes, setNotes] = useState('')
   const validation = useFormValidation(reviewSchema)
   const { mutate, isPending } = useMutation({
-    mutationFn: ({ approved, resolution_notes }) => projectChangesApi.review(projectId, cr.id, { approved, resolution_notes }),
-    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['changes', projectId]); qc.invalidateQueries(['all-pending-crs']); onClose() },
+    mutationFn: ({ approved, resolution_notes }: { approved: boolean; resolution_notes?: string }) => projectChangesApi.review(projectId, cr.id, { approved, resolution_notes }),
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['changes', projectId] }); qc.invalidateQueries({ queryKey: ['all-pending-crs'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const impact = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
 
-  const submitReview = (approved) => {
+  const submitReview = (approved: boolean) => {
     const result = validation.validateForm({ approved, resolution_notes: notes })
     if (!result.success) return
     mutate(result.data)
@@ -214,25 +272,25 @@ function ReviewCRModal({ cr, projectId, onClose }) {
 
 // ── CAB Board Tab ─────────────────────────────────────────────────────────────
 function CABBoard() {
-  const t = useAppT()
+  const t = useAppT() as (key: string) => string
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: pendingCRs = [], isLoading } = useQuery({
+  const { data: pendingCRs = [], isLoading } = useQuery<ChangeRequest[]>({
     queryKey: ['cab-pending'],
-    queryFn: () => cabApi.changes().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => cabApi.changes().then(r => (r.data?.items ?? r.data ?? []) as ChangeRequest[]),
   })
-  const { data: windows = [] } = useQuery({
+  const { data: windows = [] } = useQuery<MaintenanceWindow[]>({
     queryKey: ['maintenance-windows'],
-    queryFn: () => cabApi.windows().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => cabApi.windows().then(r => (r.data?.items ?? r.data ?? []) as MaintenanceWindow[]),
   })
   const { mutate: vote, isPending: _saving } = useMutation({
-    mutationFn: ({ id, vote, comment }) => cabApi.vote(id, { vote, comment }),
-    onSuccess: () => { qc.invalidateQueries(['cab-pending']); qc.invalidateQueries(['changes']); qc.invalidateQueries(['all-pending-crs']); },
+    mutationFn: ({ id, vote, comment }: { id: string | number; vote: 'approve' | 'reject' | 'abstain'; comment?: string }) => cabApi.vote(id, { vote, comment }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cab-pending'] }); qc.invalidateQueries({ queryKey: ['changes'] }); qc.invalidateQueries({ queryKey: ['all-pending-crs'] }); },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: close } = useMutation({
-    mutationFn: ({ id, decision }) => cabApi.close(id, { decision }),
-    onSuccess: () => { qc.invalidateQueries(['cab-pending']); qc.invalidateQueries(['changes']); qc.invalidateQueries(['all-pending-crs']); },
+    mutationFn: ({ id, decision }: { id: string | number; decision: 'approved' | 'rejected' }) => cabApi.close(id, { decision }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cab-pending'] }); qc.invalidateQueries({ queryKey: ['changes'] }); qc.invalidateQueries({ queryKey: ['all-pending-crs'] }); },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -242,7 +300,7 @@ function CABBoard() {
     high:{ label:'Alto', color:'var(--warning)' },
     critical:{ label:'Crítico', color:'var(--danger)' },
   }
-  const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
+  const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
   return (
     <div>
@@ -252,7 +310,7 @@ function CABBoard() {
           {isLoading ? <div style={{ color:'var(--text-2)', fontSize: "var(--text-base)" }}>{t('common.loading')}</div> :
             pendingCRs.length === 0 ? (
               <div style={{ ...card, padding:32, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>Sin CRs pendientes de votación</div>
-            ) : pendingCRs.map(cr => {
+            ) : pendingCRs.map((cr) => {
               const ic = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
               return (
                 <div key={cr.id} style={{ ...card, padding:'16px 20px', marginBottom:12 }}>
@@ -296,7 +354,7 @@ function CABBoard() {
           <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:14 }}>Ventanas de mantenimiento</div>
           {windows.length === 0 ? (
             <div style={{ ...card, padding:24, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>Sin ventanas programadas</div>
-          ) : windows.slice(0,5).map(w => (
+          ) : windows.slice(0,5).map((w) => (
             <div key={w.id} style={{ ...card, padding:'12px 14px', marginBottom:10 }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:4 }}>{w.name}</div>
               <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>{w.start_dt} → {w.end_dt}</div>
@@ -311,45 +369,45 @@ function CABBoard() {
 
 
 export default function ChangesPage(): JSX.Element {
-  const t = useAppT()
+  const t = useAppT() as (key: string) => string
   const toast = useToast()
-  const [mainTab, setMainTab] = useState('changes')
+  const [mainTab, setMainTab] = useState<MainTab>('changes')
 
-  const { hasRole } = useAuth()
+  const { hasRole } = useAuth() as RoleAuth
   const qc = useQueryClient()
-  const [selectedProject, setSelectedProject] = useState('')
+  const [selectedProject, setSelectedProject] = useState<string | number>('')
   const [showCreate, setShowCreate] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [reviewing, setReviewing] = useState(null)
-  const [tab, setTab] = useState('project')
+  const [editing, setEditing] = useState<ChangeRequest | null>(null)
+  const [reviewing, setReviewing] = useState<ChangeRequest | null>(null)
+  const [tab, setTab] = useState<ChangesTab>('project')
 
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []) })
+  const { data: projects = [] } = useQuery<ProjectPick[]>({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => (r.data?.items ?? r.data ?? []) as ProjectPick[]) })
 
-  const { data: changesData, isLoading } = useQuery({
+  const { data: changesData, isLoading } = useQuery<ChangesData>({
     queryKey: ['changes', selectedProject],
-    queryFn: () => projectChangesApi.list(selectedProject).then(r => r.data),
+    queryFn: () => projectChangesApi.list(selectedProject).then(r => r.data as ChangesData),
     enabled: !!selectedProject,
   })
 
-  const { data: allPending = [] } = useQuery({
+  const { data: allPending = [] } = useQuery<ChangeRequest[]>({
     queryKey: ['all-pending-crs'],
-    queryFn: () => projectChangesApi.allPending().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => projectChangesApi.allPending().then(r => (r.data?.items ?? r.data ?? []) as ChangeRequest[]),
     enabled: hasRole('admin', 'pm') && tab === 'pending',
   })
 
   const { mutate: submit, isPending: saving } = useMutation({
-    mutationFn: (cr) => projectChangesApi.submit(cr.project_id, cr.id),
-    onSuccess: () => qc.invalidateQueries(['changes', selectedProject]),
+    mutationFn: (cr: ChangeRequest) => projectChangesApi.submit(cr.project_id, cr.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['changes', selectedProject] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: implement } = useMutation({
-    mutationFn: (cr) => projectChangesApi.implement(cr.project_id, cr.id),
-    onSuccess: () => qc.invalidateQueries(['changes', selectedProject]),
+    mutationFn: (cr: ChangeRequest) => projectChangesApi.implement(cr.project_id, cr.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['changes', selectedProject] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
-    mutationFn: (cr) => projectChangesApi.delete(cr.project_id, cr.id),
-    onSuccess: () => qc.invalidateQueries(['changes', selectedProject]),
+    mutationFn: (cr: ChangeRequest) => projectChangesApi.delete(cr.project_id, cr.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['changes', selectedProject] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -372,7 +430,7 @@ export default function ChangesPage(): JSX.Element {
           { id: 'cab',     label: '📋 CAB & Ventanas' },
         ]}
         active={mainTab}
-        onChange={setMainTab}
+        onChange={(id: string) => setMainTab(id as MainTab)}
         style={{ marginBottom: 24 }}
       />
       {mainTab === 'cab' && <CABBoard />}
@@ -384,7 +442,7 @@ export default function ChangesPage(): JSX.Element {
           ...(hasRole('admin', 'pm') ? [{ id: 'pending', label: '⏳ Pendientes', count: allPending.length }] : []),
         ]}
         active={tab}
-        onChange={setTab}
+        onChange={(id: string) => setTab(id as ChangesTab)}
         style={{ marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }}
       />
       {tab === 'project' && (
@@ -393,7 +451,7 @@ export default function ChangesPage(): JSX.Element {
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
               style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">Seleccionar proyecto...</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+              {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
             </select>
             {selectedProject && <Button onClick={() => setShowCreate(true)} icon="＋">Nueva CR</Button>}
           </div>
@@ -421,7 +479,7 @@ export default function ChangesPage(): JSX.Element {
             <EmptyState icon="✅" title="Sin solicitudes de cambio" description="Este proyecto no tiene CRs registradas" />
           ) : (
             <div data-export-table="changes-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {crs.map(cr => {
+              {crs.map((cr) => {
                 const impact = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
                 return (
                   <div key={cr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${STATUS_CFG[cr.status]?.color + '30' || 'var(--surface-4)'}`, borderRadius: 12 }}>
@@ -470,7 +528,7 @@ export default function ChangesPage(): JSX.Element {
           <EmptyState icon="✅" title="Sin pendientes" description="No hay solicitudes de cambio pendientes de revision" />
         ) : (
           <div data-export-table="changes-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {allPending.map(cr => {
+            {allPending.map((cr) => {
               const impact = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
               return (
                 <div key={cr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>

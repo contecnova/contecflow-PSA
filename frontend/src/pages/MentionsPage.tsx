@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -12,19 +12,38 @@ import PageShell from '../components/layout/PageShell'
 import { AtSign } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+interface MentionItem {
+  id: string | number
+  entity_type: string
+  entity_id?: string
+  is_read?: boolean
+  created_at?: string
+  context_text?: string
+}
+
+interface CommentItem {
+  id: string | number
+  content: string
+  is_resolved?: boolean
+  created_by_email?: string
+  created_by_name?: string
+  replies?: CommentItem[]
+  entry_id?: string | number
+}
+
+const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const ENTITY_ICONS = { task:'📌', ticket:'🎫', wiki_comment:'💬', wiki_page:'📄', comment:'💬' }
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const TASK_CODE_RE = /^TSK-\d{4,}$/i
 const TICKET_NUMBER_RE = /^(INC|REQ|QST|PRB|CHG)-\d{4,}$/i
 
-function MentionCard({ mention, onRead }) {
+function MentionCard({ mention, onRead }: { mention: MentionItem; onRead: (id: string | number) => void }) {
   const t = useAppT()
   const icon = ENTITY_ICONS[mention.entity_type] || '🔔'
-  const timeAgo = (iso) => {
+  const timeAgo = (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime()
     const m = Math.floor(diff/60000), h = Math.floor(diff/3600000), d = Math.floor(diff/86400000)
     if(d>0) return t('mentions.time_days', { count: d })
@@ -66,34 +85,35 @@ function ThreadedCommentSection({ entityType, entityId, title }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [newContent, setNewContent] = useState('')
-  const [replyTo,    setReplyTo]    = useState(null)
+  const [replyTo,    setReplyTo]    = useState<string | number | null>(null)
   const [replyContent,setReplyContent]=useState('')
 
-  const { data:comments=[], isLoading } = useQuery({
+  const { data:commentsRaw=[], isLoading } = useQuery({
     queryKey:['comments',entityType,entityId],
     queryFn:()=>mentionsApi.comments(entityType, entityId).then(r=>r.data).catch(()=>[]),
     enabled:!!entityId,
   })
+  const comments = commentsRaw as CommentItem[]
 
   const { mutate:addComment, isPending:adding } = useMutation({
-    mutationFn: d=>mentionsApi.createComment(entityType, entityId, d).then(r=>r.data),
-    onSuccess: ()=>{ qc.invalidateQueries(['comments',entityType,entityId]); setNewContent(''); setReplyTo(null); setReplyContent('') },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (d: { content: string; parent_id: string | number | null }) => mentionsApi.createComment(entityType, entityId, d).then(r=>r.data),
+    onSuccess: ()=>{ qc.invalidateQueries({ queryKey: ['comments',entityType,entityId] }); setNewContent(''); setReplyTo(null); setReplyContent('') },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate:resolveComment } = useMutation({
-    mutationFn: id=>mentionsApi.resolveComment(id),
-    onSuccess: ()=>qc.invalidateQueries(['comments',entityType,entityId]),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string | number)=>mentionsApi.resolveComment(id),
+    onSuccess: ()=>qc.invalidateQueries({ queryKey: ['comments',entityType,entityId] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate:deleteComment } = useMutation({
-    mutationFn: id=>mentionsApi.deleteComment(id),
-    onSuccess: ()=>qc.invalidateQueries(['comments',entityType,entityId]),
+    mutationFn: (id: string | number)=>mentionsApi.deleteComment(id),
+    onSuccess: ()=>qc.invalidateQueries({ queryKey: ['comments',entityType,entityId] }),
     onError: _e=>toast.info(t('mentions.cannot_delete_with_replies')),
   })
 
-  const CommentNode = ({ comment, depth=0 }) => (
+  const CommentNode = ({ comment, depth=0 }: { comment: CommentItem; depth?: number }) => (
     <div style={{marginLeft:depth*20,marginBottom:8}}>
       <div style={{padding:'12px 14px',background:comment.is_resolved?'rgba(255,255,255,0.03)':'var(--surface-1)',borderRadius:8,border:`1px solid ${comment.is_resolved?'var(--surface-4)':'var(--surface-4)'}`,opacity:comment.is_resolved?0.6:1}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
@@ -122,7 +142,7 @@ function ThreadedCommentSection({ entityType, entityId, title }) {
           </div>
         )}
       </div>
-      {(comment.replies||[]).map(r=><CommentNode key={r.id} comment={r} depth={depth+1}/>)}
+      {(comment.replies||[]).map((r) => <CommentNode key={r.id} comment={r} depth={depth+1}/>)}
     </div>
   )
 
@@ -134,7 +154,7 @@ function ThreadedCommentSection({ entityType, entityId, title }) {
       {isLoading?<Spinner/>:(
         comments.length===0
           ?<div style={{fontSize: "var(--text-sm)",color:'var(--text-3)',marginBottom:12}}>{t('mentions.no_comments')}</div>
-          :comments.map(c=><CommentNode key={c.id} comment={c}/>)
+            :comments.map((c) => <CommentNode key={c.id} comment={c}/>)
       )}
       <div style={{marginTop:12}}>
         <textarea value={newContent} onChange={e=>setNewContent(e.target.value)}
@@ -152,26 +172,27 @@ export default function MentionsPage() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [tab,        setTab]        = useState('mentions')
+  const [tab,        setTab]        = useState<'mentions' | 'comments'>('mentions')
   const [onlyUnread, setOnlyUnread] = useState(true)
   const [demoEntity, setDemoEntity] = useState('')
   const [demoType,   setDemoType]   = useState('task')
 
-  const { data:mentions=[], isLoading } = useQuery({
+  const { data:mentionsRaw=[], isLoading } = useQuery({
     queryKey:['mentions',onlyUnread],
     queryFn:()=>mentionsApi.mentions(onlyUnread).then(r=>r.data).catch(()=>[]),
   })
+  const mentions = mentionsRaw as MentionItem[]
 
   const { mutate:markRead } = useMutation({
-    mutationFn: id=>mentionsApi.markMentionRead(id),
-    onSuccess: ()=>qc.invalidateQueries(['mentions']),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string | number)=>mentionsApi.markMentionRead(id),
+    onSuccess: ()=>qc.invalidateQueries({ queryKey: ['mentions'] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate:markAll } = useMutation({
     mutationFn: ()=>mentionsApi.markAllMentionsRead(),
-    onSuccess: ()=>qc.invalidateQueries(['mentions']),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onSuccess: ()=>qc.invalidateQueries({ queryKey: ['mentions'] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const normalizedEntityId = demoEntity.trim()
@@ -180,7 +201,7 @@ export default function MentionsPage() {
     demoType === 'task'
       ? (UUID_RE.test(normalizedEntityId) || TASK_CODE_RE.test(normalizedEntityId))
       : (UUID_RE.test(normalizedEntityId) || TICKET_NUMBER_RE.test(normalizedEntityId))
-  const unreadCount = mentions.filter(m=>!m.is_read).length
+  const unreadCount = mentions.filter((m) => !m.is_read).length
 
   return (
     <PageShell>
@@ -188,17 +209,17 @@ export default function MentionsPage() {
         icon={<AtSign size={18} />}
         title={t('mentions.title')}
         subtitle={t('mentions.subtitle')}
-        showListExport={tab === 'mentions' ? mentions.length > 0 : Boolean(normalizedEntityId && comments.length > 0)}
+        showListExport={tab === 'mentions' ? mentions.length > 0 : Boolean(normalizedEntityId && hasValidEntityId)}
         exportTargetSelector={tab === 'mentions' ? '[data-export-table="mentions-list"]' : '[data-export-table="mention-comments-list"]'}
         exportFilePrefix={tab === 'mentions' ? 'mentions' : 'thread_comments'}
       />
 
       {/* Tabs */}
       <div style={{display:'flex',gap:6,marginBottom:20}}>
-        {[
+        {([
           ['mentions', t('mentions.tab_mentions')],
           ['comments', t('mentions.tab_comments')],
-        ].map(([tabKey, label])=>(
+        ] as const).map(([tabKey, label])=>(
           <button key={tabKey} onClick={()=>setTab(tabKey)}
             style={{padding:'7px 16px',borderRadius:8,border:'1px solid var(--surface-4)',background:tab===tabKey?'var(--accent-muted)':'transparent',color:tab===tabKey?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>
             {label}
@@ -224,7 +245,7 @@ export default function MentionsPage() {
 
           {isLoading?<Spinner/>:mentions.length===0
             ?<EmptyState icon="🔔" title={onlyUnread?t('mentions.no_new_mentions'):t('mentions.no_mentions')} description={onlyUnread?t('mentions.no_unread_mentions_desc'):t('mentions.no_mentions_desc')}/>
-            :mentions.map(m=><MentionCard key={m.id} mention={m} onRead={id=>markRead(id)}/>)
+            :mentions.map((m) => <MentionCard key={m.id} mention={m} onRead={(id)=>markRead(id)}/>)
           }
         </div>
       )}

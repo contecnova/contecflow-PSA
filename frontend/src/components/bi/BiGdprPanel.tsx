@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * BiGdprPanel.jsx — GDPR Compliance panel end-to-end.
  *
@@ -11,6 +10,7 @@
  *   Estadísticas   — KPI dashboard: pending DSRs, SLA overdue, consent totals, type breakdown.
  */
 import React, { useState, useMemo } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biGdprApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -28,22 +28,75 @@ interface DsrItem {
   created_at: string
   deadline?: string
   notes?: string
+  subject_id?: string 
+  resolved_at?: string 
+
   [k: string]: unknown
+}
+
+interface DsrListResponse {
+  items?: DsrItem[]
+}
+
+interface ConsentItem {
+  user_id: string
+  consented: boolean
+  purpose?: string
+  channel?: string
+  updated_at?: string
+}
+
+interface ConsentListResponse {
+  items?: ConsentItem[]
+}
+
+interface ConsentHistoryEntry {
+  action?: string
+  purpose?: string
+  channel?: string
+  timestamp?: string
+}
+
+interface ConsentHistoryResponse {
+  history?: ConsentHistoryEntry[]
+}
+
+interface MaskItem {
+  dataset?: string
+  entity?: string
+  field?: string
+  mask_type?: string
+  updated_at?: string
+}
+
+interface MaskListResponse {
+  items?: MaskItem[]
+}
+
+interface GdprStats {
+  pending?: number
+  overdue?: number
+  completed?: number
+  consented?: number
+  revoked?: number
+  total_dsrs?: number
+  overdue_ids?: Array<string | number>
+  by_type?: Record<string, number>
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
-  card:     { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' },
-  innerCard:{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' },
-  input:    { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  select:   { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%' },
-  btn:      { padding: '7px 16px', borderRadius: 8, background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
-  btnRed:   { padding: '6px 12px', borderRadius: 8, background: 'var(--danger)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' },
-  btnGreen: { padding: '6px 12px', borderRadius: 8, background: 'var(--success)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' },
-  btnGhost: { padding: '6px 12px', borderRadius: 8, background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' },
-  row:      { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 },
-  badge:    (color) => ({ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: `color-mix(in srgb, ${color} 13%, transparent)`, color }),
-  sectionTitle: { fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 },
+  card:     { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' } as CSSProperties,
+  innerCard:{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' } as CSSProperties,
+  input:    { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' } as CSSProperties,
+  select:   { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%' } as CSSProperties,
+  btn:      { padding: '7px 16px', borderRadius: 8, background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
+  btnRed:   { padding: '6px 12px', borderRadius: 8, background: 'var(--danger)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
+  btnGreen: { padding: '6px 12px', borderRadius: 8, background: 'var(--success)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
+  btnGhost: { padding: '6px 12px', borderRadius: 8, background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' } as CSSProperties,
+  row:      { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 } as CSSProperties,
+  badge:    (color: string): CSSProperties => ({ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: `color-mix(in srgb, ${color} 13%, transparent)`, color }),
+  sectionTitle: { fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } as CSSProperties,
 }
 
 const TYPE_COLOR: Record<string, string>  = { erasure: 'var(--danger)', portability: 'var(--accent)', rectification: 'var(--warning)', restriction: 'var(--purple)' }
@@ -97,13 +150,13 @@ function DsrTab() {
   const [statusFilter, setFilter] = useState<string>('')
   const [expandedId, setExpanded] = useState<string | number | null>(null)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<DsrListResponse>({
     queryKey: ['bi-gdpr-dsr', statusFilter],
-    queryFn:  () => biGdprApi.listDsr(statusFilter ? { status: statusFilter } : {}).then(r => r.data),
+    queryFn:  () => biGdprApi.listDsr(statusFilter ? { status: statusFilter } : {}).then(r => r.data as DsrListResponse),
   })
 
   const createMut = useMutation({
-    mutationFn: (p) => biGdprApi.createDsr(p).then(r => r.data),
+    mutationFn: (p: DsrForm) => biGdprApi.createDsr(p).then(r => r.data),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: ['bi-gdpr-dsr'] })
       qc.invalidateQueries({ queryKey: ['bi-gdpr-stats'] })
@@ -111,15 +164,15 @@ function DsrTab() {
     },
   })
   const resolveMut = useMutation({
-    mutationFn: (id) => biGdprApi.resolveDsr(id, { resolution_notes: 'Resolved manually' }).then(r => r.data),
+    mutationFn: (id: string | number) => biGdprApi.resolveDsr(id, { resolution_notes: 'Resolved manually' }).then(r => r.data),
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ['bi-gdpr-dsr'] }); qc.invalidateQueries({ queryKey: ['bi-gdpr-stats'] }) },
   })
   const erasureMut = useMutation({
-    mutationFn: (id) => biGdprApi.executeDsrErasure(id).then(r => r.data),
+    mutationFn: (id: string | number) => biGdprApi.executeDsrErasure(id).then(r => r.data),
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ['bi-gdpr-dsr'] }); qc.invalidateQueries({ queryKey: ['bi-gdpr-stats'] }) },
   })
   const portMut = useMutation({
-    mutationFn: (id) => biGdprApi.executeDsrPortability(id).then(r => r.data),
+    mutationFn: (id: string | number) => biGdprApi.executeDsrPortability(id).then(r => r.data as { export?: unknown; dsr_id?: string | number }),
     onSuccess:  (data) => {
       qc.invalidateQueries({ queryKey: ['bi-gdpr-dsr'] })
       const blob = new Blob([JSON.stringify(data.export, null, 2)], { type: 'application/json' })
@@ -130,7 +183,7 @@ function DsrTab() {
     },
   })
 
-  const dsrs = data?.items ?? []
+  const dsrs: DsrItem[] = data?.items ?? []
 
   return (
     <div>
@@ -166,7 +219,7 @@ function DsrTab() {
         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', padding: '20px 0', textAlign: 'center' }}>Cargando…</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {dsrs.map(dsr => {
+          {dsrs.map((dsr) => {
             const overdue  = isOverdue(dsr)
             const expanded = expandedId === dsr.id
             return (
@@ -240,28 +293,28 @@ function ConsentTab() {
   const [form, setForm]         = useState<{ user_id: string; purpose: string; channel: string }>({ user_id: '', purpose: 'analytics', channel: 'web' })
   const [histUserId, setHistUser] = useState<string | null>(null)
 
-  const { data: consentsData, isLoading } = useQuery({
+  const { data: consentsData, isLoading } = useQuery<ConsentListResponse>({
     queryKey: ['bi-gdpr-consents'],
-    queryFn:  () => biGdprApi.listConsents().then(r => r.data),
+    queryFn:  () => biGdprApi.listConsents().then(r => r.data as ConsentListResponse),
   })
 
-  const { data: historyData } = useQuery({
+  const { data: historyData } = useQuery<ConsentHistoryResponse>({
     queryKey: ['bi-gdpr-consent-history', histUserId],
-    queryFn:  () => biGdprApi.getConsentHistory(histUserId).then(r => r.data),
+    queryFn:  () => biGdprApi.getConsentHistory(histUserId).then(r => r.data as ConsentHistoryResponse),
     enabled:  !!histUserId,
   })
 
   const toggleMut = useMutation({
-    mutationFn: ({ userId, consented }) => biGdprApi.recordConsent({ user_id: userId, granted: consented, purpose: 'analytics', channel: 'web' }).then(r => r.data),
+    mutationFn: ({ userId, consented }: { userId: string; consented: boolean }) => biGdprApi.recordConsent({ user_id: userId, granted: consented, purpose: 'analytics', channel: 'web' }).then(r => r.data),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-gdpr-consents'] }),
   })
 
   const addMut = useMutation({
-    mutationFn: (p) => biGdprApi.recordConsent({ user_id: p.user_id, granted: true, purpose: p.purpose, channel: p.channel }).then(r => r.data),
+    mutationFn: (p: { user_id: string; purpose: string; channel: string }) => biGdprApi.recordConsent({ user_id: p.user_id, granted: true, purpose: p.purpose, channel: p.channel }).then(r => r.data),
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ['bi-gdpr-consents'] }); setForm({ user_id: '', purpose: 'analytics', channel: 'web' }) },
   })
 
-  const consents = consentsData?.items ?? []
+  const consents: ConsentItem[] = consentsData?.items ?? []
 
   return (
     <div>
@@ -331,7 +384,7 @@ function ConsentTab() {
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Sin historial</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {historyData.history.map((h, idx) => (
+              {(historyData.history || []).map((h, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: 12, fontSize: "var(--text-xs)", color: 'var(--text-2)', padding: '4px 0', borderBottom: '1px solid var(--surface-4)' }}>
                   <span style={{ color: h.action === 'granted' ? 'var(--success)' : 'var(--danger)', fontWeight: 700, width: 60 }}>{h.action}</span>
                   <span>{h.purpose}</span>
@@ -353,13 +406,13 @@ function MasksTab() {
   const qc = useQueryClient()
   const [form, setForm] = useState<{ entity: string; field: string; mask_type: string }>({ entity: 'user', field: 'email', mask_type: 'hash' })
 
-  const { data: masksData } = useQuery({
+  const { data: masksData } = useQuery<MaskListResponse>({
     queryKey: ['bi-gdpr-masks'],
-    queryFn:  () => biGdprApi.getFieldMasks().then(r => r.data),
+    queryFn:  () => biGdprApi.getFieldMasks().then(r => r.data as MaskListResponse),
   })
 
   const addMut = useMutation({
-    mutationFn: (p) => biGdprApi.setFieldMask(p).then(r => r.data),
+    mutationFn: (p: { entity: string; field: string; mask_type: string }) => biGdprApi.setFieldMask(p).then(r => r.data),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-gdpr-masks'] }),
   })
 
@@ -398,15 +451,15 @@ function MasksTab() {
 
 // ── Tab Stats ─────────────────────────────────────────────────────────────────
 function StatsTab() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<GdprStats>({
     queryKey: ['bi-gdpr-stats'],
-    queryFn:  () => biGdprApi.getStats().then(r => r.data),
+    queryFn:  () => biGdprApi.getStats().then(r => r.data as GdprStats),
     refetchInterval: 60_000,
   })
 
   const byType = useMemo(() => {
     if (!data?.by_type) return []
-    return Object.entries(data.by_type).map(([type, count]) => ({ type, count }))
+    return Object.entries(data.by_type).map(([type, count]) => ({ type, count: Number(count || 0) }))
   }, [data])
 
   if (isLoading) return <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', padding: '20px 0', textAlign: 'center' }}>Cargando estadísticas…</div>

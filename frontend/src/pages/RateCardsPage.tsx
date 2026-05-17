@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useState } from 'react'
+import { CSSProperties, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -14,9 +13,49 @@ import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 
-const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
-const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+type AppliesTo = 'role' | 'department' | 'client'
+
+type RateEntry = {
+  id: string | number
+  label: string
+  billing_rate?: number | null
+  cost_rate?: number | null
+  escalation_pct?: number | null
+  valid_from?: string | null
+  valid_to?: string | null
+  notes?: string | null
+}
+
+type RateTable = {
+  id: string | number
+  name: string
+  description?: string
+  applies_to: AppliesTo
+  is_default?: boolean
+  entry_count?: number
+  entries?: RateEntry[]
+}
+
+type EntryFormState = {
+  label: string
+  billing_rate: string
+  cost_rate: string
+  escalation_pct: string
+  valid_from: string
+  valid_to: string
+  notes: string
+}
+
+type RateTableCreateForm = {
+  name: string
+  description: string
+  applies_to: AppliesTo
+  is_default: boolean
+}
+
+const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
 const optionalPositive = z.union([z.literal(''), z.coerce.number().nonnegative('Debe ser ≥ 0')]).optional()
 const optionalDate = z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida')]).optional()
@@ -42,37 +81,32 @@ const rateTableSchema = z.object({
 })
 
 // ── Formulario de entrada ─────────────────────────────────────────────────────
-function EntryForm({ tableId, entry, onClose }) {
+function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entry?: RateEntry | null; onClose: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const isEdit = !!entry?.id
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<EntryFormState>({
     label:          entry?.label          || '',
-    billing_rate:   entry?.billing_rate   || '',
-    cost_rate:      entry?.cost_rate      || '',
-    escalation_pct: entry?.escalation_pct || 0,
+    billing_rate:   String(entry?.billing_rate ?? ''),
+    cost_rate:      String(entry?.cost_rate ?? ''),
+    escalation_pct: String(entry?.escalation_pct ?? 0),
     valid_from:     entry?.valid_from     || '',
     valid_to:       entry?.valid_to       || '',
     notes:          entry?.notes          || '',
   })
   const validation = useFormValidation(rateEntrySchema)
 
-  const setField = (key) => (e) => {
-    setForm(f => ({ ...f, [key]: e.target.value }))
-    validation.clearFieldError(key)
-  }
-
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit
+    mutationFn: (d: Record<string, unknown>) => isEdit && entry
       ? rateCardsApi.updateEntry(tableId, entry.id, d)
       : rateCardsApi.addEntry(tableId, d),
     onSuccess: () => {
-      qc.invalidateQueries(['rate-card', tableId])
+      qc.invalidateQueries({ queryKey: ['rate-card', tableId] })
       toast.success(isEdit ? 'Entrada actualizada' : 'Entrada añadida')
       onClose()
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const save = () => {
@@ -119,10 +153,10 @@ function EntryForm({ tableId, entry, onClose }) {
         </div>
       </div>
 
-      {form.billing_rate && form.cost_rate && (
+      {Number(form.billing_rate) > 0 && Number(form.cost_rate) > 0 && (
         <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: "var(--text-sm)", color: 'var(--success)' }}>
-          💰 Margen: <strong>{Math.round((1 - form.cost_rate / form.billing_rate) * 100)}%</strong>
-          {form.escalation_pct > 0 && ` · Tarifa en 1 año: ${Math.round(form.billing_rate * (1 + form.escalation_pct/100))}€/h`}
+          💰 Margen: <strong>{Math.round((1 - Number(form.cost_rate) / Number(form.billing_rate)) * 100)}%</strong>
+          {Number(form.escalation_pct) > 0 && ` · Tarifa en 1 año: ${Math.round(Number(form.billing_rate) * (1 + Number(form.escalation_pct)/100))}€/h`}
         </div>
       )}
 
@@ -137,41 +171,42 @@ function EntryForm({ tableId, entry, onClose }) {
 }
 
 // ── Detalle de tabla ──────────────────────────────────────────────────────────
-function RateTableDetail({ tableId, onBack }) {
+function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showEntry, setShowEntry]   = useState(false)
-  const [editEntry, setEditEntry]   = useState(null)
+  const [editEntry, setEditEntry]   = useState<RateEntry | null>(null)
   const [showDupe, setShowDupe]     = useState(false)
   const [dupeEsc, setDupeEsc]       = useState(3)
 
-  const { data: table, isLoading } = useQuery({
+  const { data: table, isLoading } = useQuery<RateTable>({
     queryKey: ['rate-card', tableId],
     queryFn: () => rateCardsApi.get(tableId).then(r => r.data),
   })
 
   const { mutate: deleteEntry } = useMutation({
-    mutationFn: eid => rateCardsApi.deleteEntry(tableId, eid),
-    onSuccess: () => { qc.invalidateQueries(['rate-card', tableId]); toast.success('Entrada eliminada') },
+    mutationFn: (eid: string | number) => rateCardsApi.deleteEntry(tableId, eid),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rate-card', tableId] }); toast.success('Entrada eliminada') },
 
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const { mutate: duplicate, isPending: duping } = useMutation({
     mutationFn: () => rateCardsApi.duplicate(tableId, { escalation_pct: dupeEsc }),
-    onSuccess: () => { qc.invalidateQueries(['rate-cards']); toast.success('Tabla duplicada con escalado'); setShowDupe(false); onBack() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rate-cards'] }); toast.success('Tabla duplicada con escalado'); setShowDupe(false); onBack() },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>{t('common.loading')}</div>
   if (!table) return null
 
   const entries = table.entries || []
-  const avgMargin = entries.filter(e => e.billing_rate && e.cost_rate).length > 0
-    ? Math.round(entries.filter(e => e.billing_rate && e.cost_rate)
-        .reduce((s, e) => s + (1 - e.cost_rate / e.billing_rate), 0)
-        / entries.filter(e => e.billing_rate && e.cost_rate).length * 100)
+  const marginEntries = entries.filter((e: RateEntry) => e.billing_rate && e.cost_rate)
+  const avgMargin = marginEntries.length > 0
+    ? Math.round(marginEntries
+        .reduce((s: number, e: RateEntry) => s + (1 - Number(e.cost_rate) / Number(e.billing_rate)), 0)
+        / marginEntries.length * 100)
     : null
 
   return (
@@ -210,7 +245,7 @@ function RateTableDetail({ tableId, onBack }) {
             <tbody>
               {entries.map((e, i) => {
                 const margin = e.billing_rate && e.cost_rate
-                  ? Math.round((1 - e.cost_rate / e.billing_rate) * 100) : null
+                  ? Math.round((1 - Number(e.cost_rate) / Number(e.billing_rate)) * 100) : null
                 return (
                   <tr key={e.id} style={{ borderBottom: '1px solid var(--surface-1)', background: i % 2 === 0 ? 'transparent' : 'rgba(8,14,26,0.03)' }}>
                     <td style={{ padding: '10px 16px', fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{e.label}</td>
@@ -275,32 +310,32 @@ export default function RateCardsPage() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [selected, setSelected]   = useState(null)
+  const [selected, setSelected]   = useState<string | number | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm]           = useState({ name: '', description: '', applies_to: 'role', is_default: false })
+  const [form, setForm]           = useState<RateTableCreateForm>({ name: '', description: '', applies_to: 'role', is_default: false })
 
-  const { data: tables = [], isLoading } = useQuery({
+  const { data: tables = [], isLoading } = useQuery<RateTable[]>({
     queryKey: ['rate-cards'],
     queryFn: () => rateCardsApi.list().then(r => r.data?.items ?? r.data ?? []),
   })
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: rateCardsApi.create,
-    onSuccess: (res) => {
-      qc.invalidateQueries(['rate-cards'])
+    onSuccess: (res: { data?: { id?: string | number } }) => {
+      qc.invalidateQueries({ queryKey: ['rate-cards'] })
       setShowCreate(false)
       setForm({ name: '', description: '', applies_to: 'role', is_default: false })
-      setSelected(res.data.id)
+      if (res?.data?.id != null) setSelected(res.data.id)
       toast.success('Tabla de tarifas creada')
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: del } = useMutation({
     mutationFn: rateCardsApi.delete,
-    onSuccess: () => { qc.invalidateQueries(['rate-cards']); toast.success('Tabla eliminada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rate-cards'] }); toast.success('Tabla eliminada') },
 
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   if (selected) return <RateTableDetail tableId={selected} onBack={() => setSelected(null)} />
@@ -368,7 +403,7 @@ export default function RateCardsPage() {
             </div>
             <div>
               <label style={lbl}>Aplicar a</label>
-              <select value={form.applies_to} onChange={e => setForm(f=>({...f,applies_to:e.target.value}))} style={inp}>
+              <select value={form.applies_to} onChange={e => setForm(f=>({...f,applies_to:e.target.value as AppliesTo}))} style={inp}>
                 <option value="role">Por Rol / Perfil</option>
                 <option value="department">Por Departamento</option>
                 <option value="client">Por Cliente</option>

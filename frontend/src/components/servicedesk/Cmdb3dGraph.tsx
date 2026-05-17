@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Cmdb3dGraph.jsx — CMDB dependency graph (D3 force-directed) + blast radius lookup.
  * Connects to /api/v1/sd/cmdb/3d-graph and /api/v1/sd/cmdb/blast-radius/*.
@@ -11,15 +10,17 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { Card, Button, Spinner } from '../ui'
 
 // TODO type: cmdb3dApi payloads — needs shared types
-interface CiNode {
+interface CiNode extends d3.SimulationNodeDatum {
   id: string
   label?: string
+  name?: string
   layer?: number
+  z?: number
   type?: string
   [k: string]: unknown
 }
 
-interface CiEdge {
+interface CiEdge extends d3.SimulationLinkDatum<CiNode> {
   source: string | CiNode
   target: string | CiNode
   type?: string
@@ -33,6 +34,10 @@ interface GraphData {
 
 interface BlastResult {
   error?: string
+  ci_name?: string
+  ci_id?: string
+  impacted_cis?: Array<string | { id: string; name?: string; impact_depth?: number }>
+  impacted_count?: number
   affected_cis?: string[]
   affected_count?: number
   [k: string]: unknown
@@ -163,10 +168,14 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
       .text(d => (d.name ?? d.label ?? d.id ?? '').slice(0, 18))
 
     simulation.on('tick', () => {
+      const getX = (nodeLike: string | CiNode) => (typeof nodeLike === 'object' ? (nodeLike.x ?? 0) : 0)
+      const getY = (nodeLike: string | CiNode) => (typeof nodeLike === 'object' ? (nodeLike.y ?? 0) : 0)
       link
-        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
-      nodeG.attr('transform', d => `translate(${d.x},${d.y})`)
+        .attr('x1', d => getX(d.source))
+        .attr('y1', d => getY(d.source))
+        .attr('x2', d => getX(d.target))
+        .attr('y2', d => getY(d.target))
+      nodeG.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`)
     })
   }, [])
 

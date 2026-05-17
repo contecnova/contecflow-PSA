@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * PortalAIChatWidget — Item I26 (UI del Client Portal AI Chat).
  *
@@ -17,6 +16,18 @@ import { MessageCircle, X, Send, Sparkles } from 'lucide-react'
 
 const SESSION_KEY = 'portal_ai_session_id'
 
+type ChatRole = 'user' | 'assistant'
+
+interface ChatMessage {
+  role: ChatRole
+  content: string
+}
+
+interface ChatPostResponse {
+  session_id?: string
+  response?: string
+}
+
 const SUGGESTIONS = [
   '¿Cómo va el proyecto?',
   '¿Cuántas tareas quedan pendientes?',
@@ -27,14 +38,14 @@ const SUGGESTIONS = [
 
 export default function PortalAIChatWidget() {
   const [open, setOpen] = useState(false)
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
-  const [error, setError] = useState(null)
-  const [sessionId, setSessionId] = useState(() => {
+  const [error, setError] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(() => {
     try { return localStorage.getItem(SESSION_KEY) || null } catch { return null }
   })
-  const scrollRef = useRef(null)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
 
   // Carga histórico al abrir si tenemos session_id
   useEffect(() => {
@@ -43,7 +54,7 @@ export default function PortalAIChatWidget() {
     CLIENT_API.get(`/portal/ai-chat/${sessionId}/messages`)
       .then(res => {
         if (cancelled) return
-        const arr = Array.isArray(res?.data) ? res.data : []
+        const arr = (Array.isArray(res?.data) ? res.data : []) as ChatMessage[]
         setMessages(arr)
       })
       .catch(() => {
@@ -63,7 +74,7 @@ export default function PortalAIChatWidget() {
     }
   }, [messages, sending])
 
-  async function handleSend(text) {
+  async function handleSend(text?: string) {
     const msg = (text ?? input).trim()
     if (!msg || sending) return
     setError(null)
@@ -76,15 +87,18 @@ export default function PortalAIChatWidget() {
         message: msg,
         session_id: sessionId || undefined,
       })
-      const data = res?.data || {}
+      const data = (res?.data || {}) as ChatPostResponse
       if (data.session_id && data.session_id !== sessionId) {
         setSessionId(data.session_id)
         try { localStorage.setItem(SESSION_KEY, data.session_id) } catch { /* noop */ }
       }
       setMessages(prev => [...prev, { role: 'assistant', content: data.response || '...' }])
-    } catch (e) {
-      const detail = e?.response?.data?.detail || e?.message || 'Error de conexión'
-      setError(detail)
+    } catch (e: unknown) {
+      const detail =
+        (e as { response?: { data?: { detail?: unknown } }; message?: unknown })?.response?.data?.detail ||
+        (e as { message?: unknown })?.message ||
+        'Error de conexión'
+      setError(String(detail))
       // Quitar el mensaje user que añadimos optimísticamente si no se procesó
       setMessages(prev => prev.slice(0, -1))
     } finally {

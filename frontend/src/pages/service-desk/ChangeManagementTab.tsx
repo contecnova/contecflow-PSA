@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useId, useState } from 'react'
+import type { ChangeEvent, CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { extractErr } from '../../utils/helpers'
@@ -8,6 +8,69 @@ import { useToast } from '../../context/ToastContext'
 import { changesApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
+
+type ChangeId = string | number
+type ChangeRisk = 'low' | 'medium' | 'high' | 'critical' | string
+type ChangeStatus =
+  | 'draft'
+  | 'submitted'
+  | 'cab_review'
+  | 'approved'
+  | 'scheduled'
+  | 'in_progress'
+  | 'implemented'
+  | 'post_review'
+  | 'closed_success'
+  | 'closed_failed'
+  | 'cancelled'
+  | string
+
+interface ChangeItem {
+  id: ChangeId
+  number?: string
+  title?: string
+  status?: ChangeStatus
+  risk?: ChangeRisk
+  change_type?: string
+  owner?: string
+  requester?: string
+  planned_start?: string
+  planned_end?: string
+  actual_start?: string
+  actual_end?: string
+  approved_at?: string
+  downtime_minutes?: number
+  description?: string
+  business_justification?: string
+  implementation_plan?: string
+  rollback_plan?: string
+  test_plan?: string
+  impact_description?: string
+  priority?: string
+}
+
+interface ChangeFormData {
+  title: string
+  description: string
+  change_type: string
+  risk: string
+  priority: string
+  business_justification: string
+  implementation_plan: string
+  rollback_plan: string
+  test_plan: string
+  impact_description?: string
+  planned_start: string
+  planned_end: string
+  downtime_minutes?: number
+}
+
+interface StatusAction {
+  label: string
+  color: string
+  next?: ChangeStatus
+  action?: 'approve' | 'reject'
+}
 
 const CHANGE_STATUS_COLOR = {
   draft: COLOR.text2,
@@ -23,29 +86,41 @@ const CHANGE_STATUS_COLOR = {
   cancelled: COLOR.text3,
 }
 
-function fmtDate(d) {
+function fmtDate(d?: string | null) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-function ChangeDetailPanel({ change, onClose, onEdit, onAction, statusActions }) {
+function ChangeDetailPanel({
+  change,
+  onClose,
+  onEdit,
+  onAction,
+  statusActions,
+}: {
+  change: ChangeItem
+  onClose: () => void
+  onEdit: () => void
+  onAction: (change: ChangeItem, action: StatusAction) => void
+  statusActions: Record<string, StatusAction[]>
+}) {
   const { data: detail, isLoading } = useQuery({
     queryKey: ['sd-change-detail', change.id],
     queryFn: () => changesApi.get(change.id).then(r => r.data),
   })
 
-  const c = detail || change
+  const c = (detail || change) as ChangeItem
   const sc = CHANGE_STATUS_COLOR[c.status] || COLOR.text2
   const rc = c.risk === 'critical' ? COLOR.danger : c.risk === 'high' ? 'var(--orange)' : c.risk === 'medium' ? COLOR.warning : COLOR.success
 
-  const Section = ({ title, content: text }) => text ? (
+  const Section = ({ title, content: text }: { title: string; content?: string }) => text ? (
     <div style={{ marginBottom: 16 }}>
       <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{title}</div>
       <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.6, whiteSpace: 'pre-wrap', background: 'var(--surface-1)', borderRadius: 8, padding: '10px 14px' }}>{text}</div>
     </div>
   ) : null
 
-  const actions = statusActions[c.status] || []
+  const actions = statusActions[c.status || ''] || []
 
   return (
     <div style={{
@@ -105,10 +180,10 @@ function ChangeDetailPanel({ change, onClose, onEdit, onAction, statusActions })
   )
 }
 
-function ChangeEditModal({ change, onClose, onSaved }) {
+function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onClose: () => void; onSaved: () => void }) {
   const idPrefix = useId()
   const toast = useToast()
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<ChangeFormData>({
     title: change.title || '',
     description: change.description || '',
     change_type: change.change_type || 'normal',
@@ -124,13 +199,17 @@ function ChangeEditModal({ change, onClose, onSaved }) {
     downtime_minutes: change.downtime_minutes || 0,
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: data => changesApi.update(change.id, data),
+    mutationFn: (data: ChangeFormData) => changesApi.update(change.id, data),
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
   })
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
+  const set = (k: keyof ChangeFormData) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const rawValue = e.target.value
+    const nextValue = k === 'downtime_minutes' ? Number(rawValue) : rawValue
+    setForm((f) => ({ ...f, [k]: nextValue }))
+  }
+  const IS: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   return (
     <Modal open title={`Editar ${change.number}`} onClose={onClose} size="lg">
@@ -153,20 +232,24 @@ function ChangeEditModal({ change, onClose, onSaved }) {
   )
 }
 
-function NewChangeModal({ onClose, onSaved }) {
+function NewChangeModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const idPrefix = useId()
   const toast = useToast()
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<ChangeFormData>({
     title: '', description: '', change_type: 'normal', risk: 'medium', priority: 'p3_medium', business_justification: '', implementation_plan: '', rollback_plan: '', test_plan: '', planned_start: '', planned_end: '',
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: data => changesApi.create(data),
+    mutationFn: (data: ChangeFormData) => changesApi.create(data),
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
+  const set = (k: keyof ChangeFormData) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const rawValue = e.target.value
+    const nextValue = k === 'downtime_minutes' ? Number(rawValue) : rawValue
+    setForm((f) => ({ ...f, [k]: nextValue }))
+  }
+  const IS: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   return (
     <Modal open title="Nuevo Change Request" onClose={onClose} size="lg">
@@ -190,26 +273,28 @@ export default function ChangeManagementTab() {
   const qc = useQueryClient()
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [detail, setDetail] = useState(null)
+  const [editing, setEditing] = useState<ChangeItem | null>(null)
+  const [detail, setDetail] = useState<ChangeItem | null>(null)
   const [filterStatus, setFilterStatus] = useState('')
 
-  const { data: changes = [], isLoading } = useQuery({
+  const { data: changesRaw = [], isLoading } = useQuery({
     queryKey: ['sd-changes', filterStatus],
     queryFn: () => changesApi.list({ status: filterStatus || undefined }).then(r => r.data),
   })
+  const changes = changesRaw as ChangeItem[]
 
   const { mutate: approve } = useMutation({
-    mutationFn: ({ id, approved }) => changesApi.approve(id, { approved }),
+    mutationFn: ({ id, approved }: { id: ChangeId; approved: boolean }) => changesApi.approve(id, { approved }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-changes'] }); toast.success('Change actualizado') },
-    onError: e => toast.error(extractErr(e, 'Error al actualizar')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar')),
   })
 
-  const { sort: changeSort, setSort: setChangeSort, sortedData: sortedChanges } = useSort(changes, 'number')
+  const { sort: changeSort, setSort: setChangeSort, sortedData: sortedChangesRaw } = useSort(changes as unknown as Record<string, unknown>[], 'number')
+  const sortedChanges = sortedChangesRaw as unknown as ChangeItem[]
 
-  const IS = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
+  const IS: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
 
-  const STATUS_ACTIONS = {
+  const STATUS_ACTIONS: Record<string, StatusAction[]> = {
     draft: [{ label: 'Enviar a revisión', next: 'submitted', color: COLOR.accent }],
     submitted: [{ label: 'Enviar a CAB', next: 'cab_review', color: COLOR.warning }],
     cab_review: [{ label: 'Aprobar', action: 'approve', color: COLOR.success }, { label: 'Rechazar', action: 'reject', color: COLOR.danger }],
@@ -219,12 +304,12 @@ export default function ChangeManagementTab() {
     implemented: [{ label: 'Cerrar éxito', next: 'closed_success', color: COLOR.success }, { label: 'Cerrar fallo', next: 'closed_failed', color: COLOR.danger }],
   }
 
-  const handleAction = (c, action) => {
+  const handleAction = (c: ChangeItem, action: StatusAction) => {
     if (action.action === 'approve') { approve({ id: c.id, approved: true }); return }
     if (action.action === 'reject') { approve({ id: c.id, approved: false }); return }
     changesApi.update(c.id, { status: action.next })
       .then(() => { qc.invalidateQueries({ queryKey: ['sd-changes'] }); toast.success('Estado actualizado') })
-      .catch(e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)))
+        .catch((e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)))
   }
 
   return (
