@@ -1,6 +1,7 @@
 import { CHART } from '../constants/theme'
 import { extractErr } from '../utils/helpers'
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -11,9 +12,24 @@ import PageShell from '../components/layout/PageShell'
 import { TrendingUp } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+interface ProjectItem {
+  id: string | number
+  name?: string
+}
+
+interface CfdDataRow {
+  date: string
+  [status: string]: string | number | undefined
+}
+
+interface CfdPayload {
+  data?: CfdDataRow[]
+  statuses?: string[]
+}
+
+const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const STATUS_COLORS = {
   todo:        'var(--text-2)',
@@ -23,7 +39,7 @@ const STATUS_COLORS = {
   blocked:     'var(--danger)',
 }
 
-const getColor = (status, idx) => {
+const getColor = (status: string, idx: number) => {
   if(STATUS_COLORS[status]) return STATUS_COLORS[status]
   const fallbacks = ['var(--purple)','var(--warning)','var(--accent)',CHART.pink,CHART.lime]
   return fallbacks[idx % fallbacks.length]
@@ -36,8 +52,8 @@ export default function CumulativeFlowPage(): JSX.Element {
   const [project, setProject] = useState('')
   const [days,    setDays]    = useState(30)
 
-  const { data:projects=[] } = useQuery({queryKey:['projects'],queryFn:()=>projectsApi.list().then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
-  const { data:cfd,isLoading } = useQuery({
+  const { data:projects=[] } = useQuery<ProjectItem[]>({queryKey:['projects'],queryFn:()=>projectsApi.list({}).then(r=>Array.isArray(r.data)?(r.data as ProjectItem[]):[]).catch(()=>[])})
+  const { data:cfd,isLoading } = useQuery<CfdPayload | null>({
     queryKey:['cfd',project,days],
     queryFn:()=>epicsApi.cfd({ project_id: project, days }).then(r=>r.data).catch(()=>null),
     enabled:!!project,
@@ -45,19 +61,19 @@ export default function CumulativeFlowPage(): JSX.Element {
 
   const { mutate:snapshot, isPending:snapping } = useMutation({
     mutationFn: ()=>epicsApi.cfdSnapshot(project).then(r=>r.data),
-    onSuccess: ()=>{ qc.invalidateQueries(['cfd',project,days]); toast.info(t('cumulative_flow.snapshot_created')) },
-    onError: e => toast.error(extractErr(e, t('cumulative_flow.snapshot_create_error'))),
+    onSuccess: ()=>{ qc.invalidateQueries({ queryKey: ['cfd',project,days] }); toast.info(t('cumulative_flow.snapshot_created')) },
+    onError: (e: unknown) => toast.error(extractErr(e, t('cumulative_flow.snapshot_create_error'))),
   })
 
-  const data    = cfd?.data      || []
-  const statuses= cfd?.statuses  || []
+  const data: CfdDataRow[] = cfd?.data || []
+  const statuses: string[] = cfd?.statuses || []
 
   // Calcular insights
   const lastDay  = data[data.length-1]
   const firstDay = data[0]
-  const totalLast  = lastDay  ? statuses.reduce((s,st)=>s+(lastDay[st]||0),0)  : 0
-  const _totalFirst = firstDay ? statuses.reduce((s,st)=>s+(firstDay[st]||0),0) : 0
-  const doneLast   = lastDay?.done || 0
+  const totalLast  = lastDay  ? statuses.reduce((s,st)=>s+Number(lastDay[st]||0),0)  : 0
+  const _totalFirst = firstDay ? statuses.reduce((s,st)=>s+Number(firstDay[st]||0),0) : 0
+  const doneLast   = Number(lastDay?.done || 0)
 
   return (
     <PageShell>
@@ -177,7 +193,7 @@ export default function CumulativeFlowPage(): JSX.Element {
                 </thead>
                 <tbody>
                   {[...data].reverse().slice(0,14).map((row,i)=>{
-                    const total = statuses.reduce((s,st)=>s+(row[st]||0),0)
+                    const total = statuses.reduce((s,st)=>s+Number(row[st]||0),0)
                     return (
                       <tr key={row.date} style={{borderBottom:'1px solid var(--surface-4)',background:i%2===0?'transparent':'rgba(255,255,255,0.03)'}}>
                         <td style={{padding:'7px 12px',color:'var(--text-1)'}}>{row.date}</td>

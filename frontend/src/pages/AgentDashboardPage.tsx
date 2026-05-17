@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactElement } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -8,6 +9,31 @@ import { Button, Spinner } from '../components/ui'
 import { Page } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { BarChart2, Camera, User } from 'lucide-react'
+
+interface UserItem {
+  id: string | number
+  full_name?: string
+  username?: string
+}
+
+interface AgentTrendPoint {
+  date: string
+  resolved?: number
+  sla_ok?: number
+  sla_fail?: number
+  csat?: number | null
+}
+
+interface AgentDashboardData {
+  trend?: AgentTrendPoint[]
+  kpis?: {
+    total_resolved?: number
+    avg_resolution_hours?: number
+    sla_compliance_pct?: number
+    avg_csat?: number
+  }
+  current?: { open_tickets?: number }
+}
 
 const TOOLTIP_STYLE = {
   background: 'var(--surface-2)',
@@ -26,11 +52,11 @@ export default function AgentDashboardPage(): JSX.Element {
   const [_inputId, _setInputId] = useState('')
   const [days, setDays] = useState(30)
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<UserItem[]>({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => usersApi.list({}).then(r => Array.isArray(r.data) ? (r.data as UserItem[]) : []).catch(() => []),
   })
-  const { data: dash, isLoading } = useQuery({
+  const { data: dash, isLoading } = useQuery<AgentDashboardData | null>({
     queryKey: ['agent-dash', agentId, days],
     queryFn: () => cmdbApi.agentDashboard(agentId, days).then(r => r.data).catch(() => null),
     enabled: !!agentId,
@@ -38,14 +64,14 @@ export default function AgentDashboardPage(): JSX.Element {
 
   const { mutate: snapshot, isPending: snapping } = useMutation({
     mutationFn: () => cmdbApi.agentSnapshot(agentId).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['agent-dash', agentId, days]); toast.info(t('agent_dashboard.snapshot_created')) },
-    onError: e => toast.error(extractErr(e, t('agent_dashboard.snapshot_create_error'))),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['agent-dash', agentId, days] }); toast.info(t('agent_dashboard.snapshot_created')) },
+    onError: (e: unknown) => toast.error(extractErr(e, t('agent_dashboard.snapshot_create_error'))),
   })
 
   const trend = dash?.trend || []
   const kpis  = dash?.kpis || {}
 
-  const ChartCard = ({ title, height, children }) => (
+  const ChartCard = ({ title, height, children }: { title?: string; height?: number; children: ReactElement }) => (
     <div className="ds-card">
       {title && <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-1)' }}>{title}</div>}
       <ResponsiveContainer width="100%" height={height || 200}>{children}</ResponsiveContainer>
@@ -155,9 +181,9 @@ export default function AgentDashboardPage(): JSX.Element {
 
           {/* CSAT + helper */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)' }}>
-            {trend.some(d => d.csat !== null) ? (
+            {trend.some((d) => d.csat != null) ? (
               <ChartCard title={t('agent_dashboard.chart_daily_csat')} height={180}>
-                <LineChart data={trend.filter(d => d.csat !== null)} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                <LineChart data={trend.filter((d) => d.csat != null)} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                   <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} tickFormatter={d => d.slice(5)} />
                   <YAxis domain={[0, 5]} tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />

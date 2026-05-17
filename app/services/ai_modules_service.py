@@ -36,8 +36,28 @@ _log = logging.getLogger(__name__)
 # AI CALL HELPERS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def api_key() -> Optional[str]:
+def api_key(db=None, org_id: Optional[str] = None) -> Optional[str]:
+    if db is not None:
+        try:
+            from app.services.integration_credentials_service import get_credential
+            ui_key = get_credential(db, "ai_providers", "anthropic_api_key", org_id=org_id)
+            if ui_key:
+                return ui_key
+        except Exception:
+            pass
     return settings.ANTHROPIC_API_KEY or None
+
+
+def _default_model(db=None, org_id: Optional[str] = None) -> str:
+    if db is not None:
+        try:
+            from app.services.settings_service import get_runtime_str
+            ui_val = get_runtime_str(db, "CONTECFLOW_AI_MODEL", org_id)
+            if ui_val:
+                return ui_val
+        except Exception:
+            pass
+    return settings.CONTECFLOW_AI_MODEL
 
 
 def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_tokens=1000):
@@ -47,11 +67,11 @@ def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_t
                        user_id=user_id, max_tokens=max_tokens)
     except Exception:
         _log.warning("Unified AI call failed for module=%s user=%s; falling back to direct Claude", module, user_id, exc_info=True)
-        resp = call_claude(messages, system=system, max_tokens=max_tokens)
+        resp = call_claude(messages, system=system, max_tokens=max_tokens, db=db)
         return extract_text(resp)
 
 
-def call_claude(messages, system=None, model=None, tools=None, max_tokens=1000):
+def call_claude(messages, system=None, model=None, tools=None, max_tokens=1000, db=None, org_id: Optional[str] = None):
     """Llamada síncrona a Anthropic API usando httpx.
 
     Migrado de urllib.request → httpx (#66): httpx aporta retries
@@ -59,15 +79,16 @@ def call_claude(messages, system=None, model=None, tools=None, max_tokens=1000):
     soporte nativo HTTP/2 y mejor manejo de errores.
     """
     import httpx
-    body = {"model": model or settings.CONTECFLOW_AI_MODEL, "max_tokens": max_tokens, "messages": messages}
+    body = {"model": model or _default_model(db=db, org_id=org_id), "max_tokens": max_tokens, "messages": messages}
     if system: body["system"] = system
     if tools:  body["tools"] = tools
     headers = {
         "Content-Type": "application/json",
-        "x-api-key": api_key(),
+        "x-api-key": api_key(db=db, org_id=org_id),
         "anthropic-version": "2023-06-01",
     }
-    timeout = getattr(settings, "OUTBOUND_AI_TIMEOUT_SECONDS", 30.0)
+    from app.services.settings_service import outbound_ai_timeout
+    timeout = outbound_ai_timeout(db)
     with httpx.Client(timeout=httpx.Timeout(timeout, connect=10.0)) as client:
         response = client.post(settings.ANTHROPIC_API_URL, json=body, headers=headers)
         response.raise_for_status()
@@ -439,12 +460,22 @@ def _oracle_project_delay(db: Session, projects: list, now: datetime) -> list:
 
 def _oracle_sla_breach(db: Session, open_tickets: list, now: datetime) -> list:
     """Sección 2 de Oracle: detección de riesgo de incumplimiento SLA por ticket."""
-    from app.core.config import settings as _s  # noqa: PLC0415
+    from app.core.config import settings as _env  # noqa: PLC0415
+    from app.services.settings_service import get_runtime_namespace
+    _s = get_runtime_namespace(db, {
+        "SLA_PREDICTION_HOURS_CRITICAL": "int",
+        "SLA_PREDICTION_HOURS_HIGH": "int",
+        "SLA_PREDICTION_HOURS_MEDIUM": "int",
+        "SLA_PREDICTION_HOURS_LOW": "int",
+        "SLA_PREDICTION_WARNING_PCT": "float",
+        "SLA_PREDICTION_SEVERITY_CRITICAL_H": "float",
+        "SLA_PREDICTION_SEVERITY_HIGH_H": "float",
+    })
     _sla_hours = {
-        "critical": _s.SLA_PREDICTION_HOURS_CRITICAL,
-        "high":     _s.SLA_PREDICTION_HOURS_HIGH,
-        "medium":   _s.SLA_PREDICTION_HOURS_MEDIUM,
-        "low":      _s.SLA_PREDICTION_HOURS_LOW,
+        "critical": _s.SLA_PREDICTION_HOURS_CRITICAL or _env.SLA_PREDICTION_HOURS_CRITICAL,
+        "high":     _s.SLA_PREDICTION_HOURS_HIGH or _env.SLA_PREDICTION_HOURS_HIGH,
+        "medium":   _s.SLA_PREDICTION_HOURS_MEDIUM or _env.SLA_PREDICTION_HOURS_MEDIUM,
+        "low":      _s.SLA_PREDICTION_HOURS_LOW or _env.SLA_PREDICTION_HOURS_LOW,
     }
 
     generated: list = []
@@ -453,15 +484,18 @@ def _oracle_sla_breach(db: Session, open_tickets: list, now: datetime) -> list:
             continue
         created_aware = t.created_at.replace(tzinfo=timezone.utc) if t.created_at.tzinfo is None else t.created_at
         age_hours = (now - created_aware).total_seconds() / 3600
-        sla_limit = _sla_hours.get(t.priority or "medium", _s.SLA_PREDICTION_HOURS_MEDIUM)
-        if age_hours < sla_limit * _s.SLA_PREDICTION_WARNING_PCT:
+        sla_limit = _sla_hours.get(t.priority or "medium", _sla_hours["medium"])
+        warn_pct = _s.SLA_PREDICTION_WARNING_PCT or _env.SLA_PREDICTION_WARNING_PCT
+        if age_hours < sla_limit * warn_pct:
             continue
 
-        remaining  = sla_limit - age_hours
+        remaining   = sla_limit - age_hours
         probability = min(round(age_hours / sla_limit, 2), 0.99)
-        severity   = ("critical" if remaining < _s.SLA_PREDICTION_SEVERITY_CRITICAL_H
-                      else "high" if remaining < _s.SLA_PREDICTION_SEVERITY_HIGH_H
-                      else "medium")
+        crit_h      = _s.SLA_PREDICTION_SEVERITY_CRITICAL_H or _env.SLA_PREDICTION_SEVERITY_CRITICAL_H
+        high_h      = _s.SLA_PREDICTION_SEVERITY_HIGH_H or _env.SLA_PREDICTION_SEVERITY_HIGH_H
+        severity    = ("critical" if remaining < crit_h
+                       else "high" if remaining < high_h
+                       else "medium")
         existing   = db.query(AIPrediction).filter(
             AIPrediction.entity_id == t.id,
             AIPrediction.prediction_type == "sla_breach",

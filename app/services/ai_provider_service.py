@@ -838,7 +838,8 @@ def call_ai(
 
     if error_msg is None and result.get("cost_usd", 0) > 0:
         try:
-            threshold   = settings.AI_COST_ALERT_USD_PER_DAY
+            from app.services.settings_service import get_runtime_float
+            threshold   = get_runtime_float(db, "AI_COST_ALERT_USD_PER_DAY") or settings.AI_COST_ALERT_USD_PER_DAY
             today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
             today_cost  = db.query(func.sum(AIUsageLog.cost_usd)).filter(
                 AIUsageLog.created_at >= today_start,

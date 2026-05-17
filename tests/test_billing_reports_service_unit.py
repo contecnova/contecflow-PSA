@@ -8,17 +8,22 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, timedelta, timezone
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi import HTTPException
+from sqlalchemy.exc import OperationalError
 
 from app.services.billing_reports_service import (
     business_minutes_between,
+    create_invoice,
     get_invoice_summary,
     next_invoice_number,
     run_system_report,
     serialize_workflow,
     serialize_scheduled_report,
+    update_invoice_status,
     validate_import_csv,
 )
 
@@ -212,6 +217,89 @@ class TestRunSystemReport:
     def test_resource_skills_matrix_routes_to_skills(self, mock_fn):
         run_system_report(self._db(), "resource_skills_matrix", {}, None, None)
         mock_fn.assert_called_once()
+
+
+class _PgSerializationFailure(Exception):
+    pgcode = "40001"
+
+
+def _serialization_error() -> OperationalError:
+    return OperationalError("COMMIT", {}, _PgSerializationFailure())
+
+
+class TestInvoiceSerializationConflicts:
+    def test_create_invoice_maps_serialization_failure_to_409(self):
+        db = MagicMock()
+        db.commit.side_effect = _serialization_error()
+        current_user = SimpleNamespace(id="u-1", organization_id="org-1", is_superadmin=False)
+        payload = SimpleNamespace(
+            project_id=None,
+            contract_id=None,
+            client_name="Client",
+            client_address="Addr",
+            client_vat="ES123",
+            client_email="c@test.com",
+            issue_date=date.today(),
+            due_date=date.today() + timedelta(days=15),
+            tax_rate=21,
+            currency="EUR",
+            notes="n",
+            po_reference="PO-1",
+            period_from=date.today() - timedelta(days=7),
+            period_to=date.today(),
+            lines=[
+                {
+                    "description": "Consulting",
+                    "quantity": 1,
+                    "unit": "h",
+                    "unit_price": 100,
+                    "discount_pct": 0,
+                    "amount": 100,
+                    "source_type": "manual",
+                    "source_ids": [],
+                }
+            ],
+        )
+
+        with (
+            patch("app.services.billing_reports_service.next_invoice_number", return_value="INV-2026-0001"),
+            patch("app.services.billing_reports_service.audit_log"),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                create_invoice(payload, current_user, db)
+
+        assert exc_info.value.status_code == 409
+        assert "Concurrent financial update detected" in str(exc_info.value.detail)
+        db.rollback.assert_called_once()
+
+    def test_update_invoice_status_maps_serialization_failure_to_409(self):
+        db = MagicMock()
+        db.info = {"organization_id": "org-1", "is_superadmin": False}
+        db.commit.side_effect = _serialization_error()
+
+        inv = SimpleNamespace(
+            id="inv-1",
+            number="INV-2026-0001",
+            status="draft",
+            paid_date=None,
+        )
+        query = MagicMock()
+        query.filter.return_value = query
+        query.first.return_value = inv
+
+        current_user = SimpleNamespace(id="u-1", organization_id="org-1", is_superadmin=False)
+
+        with (
+            patch("app.services.billing_reports_service._scope_invoice_query", return_value=query),
+            patch("app.services.billing_reports_service.audit_log"),
+            patch("app.services.billing_reports_service.is_postgres", return_value=False),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                update_invoice_status("inv-1", {"status": "sent"}, current_user, db)
+
+        assert exc_info.value.status_code == 409
+        assert "Concurrent financial update detected" in str(exc_info.value.detail)
+        db.rollback.assert_called_once()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

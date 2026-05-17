@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Search, AlertTriangle, Inbox } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -7,8 +8,25 @@ import { ticketsApi } from '../../services/api'
 import { COLOR } from '../../constants/theme'
 import { PBadge, SBadge, fmtDate, PRIORITY_LABEL } from './sdUtils'
 
+interface TicketRow {
+  id: string | number
+  number?: string
+  title?: string
+  requester_name?: string
+  priority?: string
+  status?: string
+  ticket_type?: string
+  sla_resolution_due?: string
+  assigned_to?: { full_name?: string } | null
+}
+
+interface TicketListTabProps {
+  queueOnly?: boolean
+  onSelect: (ticket: TicketRow) => void
+}
+
 // ── Row ─────────────────────────────────────────────────────────────────────
-function TRow({ t: ticket, onClick }) {
+function TRow({ t: ticket, onClick }: { t: TicketRow; onClick: () => void }) {
   const tr = useAppT()
   const now = new Date()
   const due = ticket.sla_resolution_due ? new Date(ticket.sla_resolution_due) : null
@@ -17,7 +35,7 @@ function TRow({ t: ticket, onClick }) {
     <tr
       onClick={onClick}
       tabIndex={0}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+      onKeyDown={(e: ReactKeyboardEvent<HTMLTableRowElement>) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
       aria-label={`${ticket.number} ${ticket.title}`}
       style={{ cursor: 'pointer', borderBottom: '1px solid var(--surface-4)', transition: 'background 0.12s var(--easing)' }}
       onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-muted)'}
@@ -54,14 +72,14 @@ function TRow({ t: ticket, onClick }) {
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────
-export default function TicketListTab({ queueOnly, onSelect }) {
+export default function TicketListTab({ queueOnly = false, onSelect }: TicketListTabProps) {
   const t = useAppT()
   const [search, setSearch] = useState('')
   const [filterPrio, setFilterPrio] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterType, setFilterType] = useState('')
 
-  const { data: tickets = [], isLoading } = useQuery({
+  const { data: tickets = [], isLoading } = useQuery<TicketRow[]>({
     queryKey: ['sd-tickets', queueOnly, filterPrio, filterStatus, filterType],
     queryFn: () => {
       if (queueOnly) return ticketsApi.myQueue().then(r => r.data)
@@ -71,8 +89,14 @@ export default function TicketListTab({ queueOnly, onSelect }) {
         ticket_type: filterType || undefined,
         page_size: 100,
       }).then(r => {
-        const d = r.data
-        return Array.isArray(d) ? d : (d?.tickets || d?.items || [])
+        const d = r.data as unknown
+        if (Array.isArray(d)) return d as TicketRow[]
+        if (typeof d === 'object' && d !== null) {
+          const payload = d as { tickets?: unknown; items?: unknown }
+          if (Array.isArray(payload.tickets)) return payload.tickets as TicketRow[]
+          if (Array.isArray(payload.items)) return payload.items as TicketRow[]
+        }
+        return []
       })
     },
     staleTime: 15000,
@@ -83,7 +107,7 @@ export default function TicketListTab({ queueOnly, onSelect }) {
     const list = Array.isArray(tickets) ? tickets : []
     if (!search) return list
     const q = search.toLowerCase()
-    return list.filter(tk =>
+    return list.filter((tk) =>
       tk.title?.toLowerCase().includes(q) ||
       tk.number?.toLowerCase().includes(q) ||
       tk.requester_name?.toLowerCase().includes(q),
@@ -180,7 +204,7 @@ export default function TicketListTab({ queueOnly, onSelect }) {
   )
 }
 
-const th = {
+const th: CSSProperties = {
   padding: '10px 8px',
   whiteSpace: 'nowrap',
   textAlign: 'left',

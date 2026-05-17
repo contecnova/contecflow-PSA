@@ -26,7 +26,7 @@ export function useEpics(projectId: string | undefined): UseQueryResult<unknown>
 export function useAllEpics(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['epics'],
-    queryFn: () => epicsApi.list().then((r: { data: unknown }) => r.data),
+    queryFn: () => epicsApi.list(undefined).then((r: { data: unknown }) => r.data),
     staleTime: STALE,
   })
 }

@@ -51,6 +51,46 @@ Estos 3 endpoints sirven de referencia para futuras migraciones:
 | `GET /api/v1/deliverables/all/overview` | `app/api/v1/endpoints/deliverables.py`     | `List[dict]`           | `APIListResponse[dict]`    |
 | `GET /api/v1/sprints`              | `app/api/v1/endpoints/sprints.py`                | `List[dict]`           | `APIListResponse[dict]`    |
 
+### Wave P2 (2026-05-16)
+
+Migración adicional aplicada en dominio collaboration (portal/compliance/bots):
+
+| Endpoint | Archivo | Shape antigua | Shape nueva |
+|---|---|---|---|
+| `GET /api/v1/portal/collaboration/conversations` | `app/api/v1/endpoints/collaboration_portal.py` | `List[dict]` | `APIListResponse[dict]` |
+| `GET /api/v1/portal/collaboration/notifications` | `app/api/v1/endpoints/collaboration_portal.py` | `List[dict]` | `APIListResponse[dict]` |
+| `GET /api/v1/collaboration/slash/help` | `app/api/v1/endpoints/collaboration/bots.py` | `{commands:[...]}` | `APIListResponse[dict]` |
+| `GET /api/v1/collaboration/decisions` | `app/api/v1/endpoints/collaboration/compliance.py` | `List[dict]` | `APIListResponse[dict]` |
+
+Caller frontend actualizado para transición sin roturas:
+
+- `frontend/src/pages/portal-client/portalClientContext.tsx` ahora unifica `APIListResponse` con interceptor (similar a `frontend/src/services/api.ts`).
+
+Migración adicional aplicada en dominio BI Report Builder v2:
+
+| Endpoint | Archivo | Shape antigua | Shape nueva |
+|---|---|---|---|
+| `GET /api/v1/bi/reports/v2/presets` | `app/api/v1/endpoints/bi_report_builder_v2.py` | `{items,count}` | `APIListResponse[dict]` |
+| `GET /api/v1/bi/reports/v2/categories` | `app/api/v1/endpoints/bi_report_builder_v2.py` | `{items:[str]}` | `APIListResponse[{name}]` |
+| `GET /api/v1/bi/reports/v2/components` | `app/api/v1/endpoints/bi_report_builder_v2.py` | `{items:[...]}` | `APIListResponse[dict]` |
+| `GET /api/v1/bi/reports/v2/layouts` | `app/api/v1/endpoints/bi_report_builder_v2.py` | `{items:[...]}` | `APIListResponse[dict]` |
+| `GET /api/v1/bi/reports/v2/templates` | `app/api/v1/endpoints/bi_report_builder_v2.py` | `{items:[...]}` | `APIListResponse[dict]` |
+
+Single-object responses del mismo dominio se estandarizaron a `APIResponse[T]`.
+
+Wave adicional aplicada en dominios Projects/Tasks/Users:
+
+| Endpoint | Archivo | Shape antigua | Shape nueva |
+|---|---|---|---|
+| `GET /api/v1/projects/milestones` | `app/api/v1/endpoints/projects/__init__.py` | `List[dict]` | `APIListResponse[dict]` |
+| `GET /api/v1/tasks/dependencies` | `app/api/v1/endpoints/tasks.py` | `List[dict]` | `APIListResponse[dict]` |
+| `GET /api/v1/tasks/dependencies/{project_id}` | `app/api/v1/endpoints/tasks.py` | `List[dict]` | `APIListResponse[dict]` |
+| `GET /api/v1/users/org-chart` | `app/api/v1/endpoints/users.py` | `dict` | `APIResponse[dict]` |
+
+Caller frontend actualizado para el endpoint de users org-chart:
+
+- `frontend/src/pages/OrgChartPage.tsx` soporta ambos shapes durante transición (`r.data?.data ?? r.data`).
+
 ### Frontend callers actualizados
 
 - `frontend/src/components/layout/NotificationCenter.jsx` (alerts)

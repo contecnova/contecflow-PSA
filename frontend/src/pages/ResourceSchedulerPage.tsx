@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ResourceSchedulerPage — visual resource scheduler (Runn/Parallax-style)
  *

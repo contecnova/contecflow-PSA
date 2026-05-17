@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -11,6 +12,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import NullPool
 from app.core.config import settings
+from app.core.error_sanitizer import sanitize_http_detail
 
 # ── Logging rico ──────────────────────────────────────────────────────────────
 _log_level_name = (settings.LOG_LEVEL or "INFO").upper()
@@ -260,6 +262,15 @@ async def lifespan(_app: FastAPI):
         if settings.ENVIRONMENT == "production":
             raise
 
+    # Cross-worker settings cache invalidation (Redis pub/sub).
+    # No-op if REDIS_URL is unset.
+    try:
+        from app.core.settings_pubsub import start_subscriber as _start_settings_sub
+        if _start_settings_sub():
+            logger.info("📡 Settings pub/sub subscriber iniciado")
+    except Exception as _pse:
+        logger.warning("⚠️  Settings pub/sub no inicializado: %s", _pse)
+
     # Scheduler (optional): keep disabled when Celery beat is active in deployment.
     _scheduler = None
     _enable_apscheduler, _celery_beat_enabled = _scheduler_flags()
@@ -318,6 +329,11 @@ async def lifespan(_app: FastAPI):
                 misfire_grace_time=900,
                 coalesce=True,
             )
+            try:
+                from app.core.metrics import attach_apscheduler_metrics
+                attach_apscheduler_metrics(_scheduler)
+            except Exception as _metrics_exc:
+                logger.warning("APScheduler metrics hook not attached: %s", _metrics_exc)
             _scheduler.start()
             logger.info("   ✅ Scheduler activo (informes + rotación + alertas + recordatorios perf)")
             logger.info("✅ Modo scheduler: APScheduler")
@@ -354,6 +370,11 @@ async def lifespan(_app: FastAPI):
         pass
 
     logger.info("🛑 Apagando Contecflow PSA...")
+    try:
+        from app.core.settings_pubsub import stop_subscriber as _stop_settings_sub
+        _stop_settings_sub()
+    except Exception:
+        pass
     if _scheduler:
         try:
             if _scheduler.running:
@@ -410,6 +431,21 @@ app.add_middleware(ExceptionHandlerMiddleware)
 # Rate limiter state + 429 handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_sanitizer(_request: Request, exc: HTTPException):
+    safe_detail = sanitize_http_detail(exc.status_code, exc.detail)
+    if safe_detail != exc.detail:
+        logger.warning("Sanitized HTTPException detail (status=%s)", exc.status_code)
+    return JSONResponse(status_code=exc.status_code, content={"detail": safe_detail})
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_sanitizer(_request: Request, exc: RequestValidationError):
+    # Keep standard validation structure; sanitize only if it unexpectedly contains a string payload.
+    safe_detail = sanitize_http_detail(422, exc.errors())
+    return JSONResponse(status_code=422, content={"detail": safe_detail})
 
 app.add_middleware(
     CORSMiddleware,
@@ -505,6 +541,12 @@ async def security_headers_middleware(request: Request, call_next):
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(api_v2_router, prefix=settings.API_V2_STR)
+
+# ── Prometheus metrics (opt-in via METRICS_ENABLED) ────────────────────────
+# Registers RED HTTP metrics + exposes /metrics. Must run after routers are
+# included so the instrumentator can introspect templated paths.
+from app.core.metrics import setup_metrics
+setup_metrics(app)
 
 
 @app.get("/status", response_class=HTMLResponse)
@@ -692,8 +734,8 @@ async def request_logger(request: Request, call_next):
     method = request.method
     status = response.status_code
 
-    # Ignorar rutas de health y assets estáticos
-    if path in ("/health", "/favicon.ico") or path.startswith("/static"):
+    # Ignorar rutas de health, métricas y assets estáticos
+    if path in ("/health", "/ready", "/metrics", "/favicon.ico") or path.startswith("/static"):
         return response
 
     # Color según status

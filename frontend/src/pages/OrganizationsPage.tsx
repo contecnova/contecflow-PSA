@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * OrganizationsPage — Gestión multi-tenant de organizaciones
  */

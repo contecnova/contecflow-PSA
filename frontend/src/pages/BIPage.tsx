@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { analyticsApi, dashboardApi } from '../services/api'
 import { cacheBiKpis, getCachedBiKpis, cacheBiProjects, getCachedBiProjects, purgeExpiredBiCache } from '../services/biOfflineDb'
@@ -11,7 +12,25 @@ import NarrativeCard from '../components/bi/NarrativeCard'
 import AskDataWidget from '../components/bi/AskDataWidget'
 import useMediaQuery from '../hooks/useMediaQuery'
 
-function dateRange(days) {
+interface BiKpis {
+  projects_total?: number
+  revenue_total?: number
+  cost_total?: number
+  projects_active?: number
+}
+
+interface BiProjectHealth {
+  id?: string | number
+  project_id?: string | number
+  code?: string
+  name?: string
+  project_name?: string
+  client_name?: string
+  status?: string
+  budget_amount?: number
+}
+
+function dateRange(days: number) {
   const to = new Date()
   const from = new Date(to)
   from.setDate(from.getDate() - Number(days || 30))
@@ -21,22 +40,22 @@ function dateRange(days) {
   }
 }
 
-function getLocale(lang) {
+function getLocale(lang: string) {
   return String(lang || 'es').toLowerCase().startsWith('en') ? 'en-US' : 'es-ES'
 }
 
-function fmtCur(v, lang = 'es') {
+function fmtCur(v: unknown, lang = 'es') {
   if (v == null || Number.isNaN(Number(v))) return '—'
   const locale = getLocale(lang)
   return new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Number(v))
 }
 
-function fmtPct(v) {
+function fmtPct(v: unknown) {
   if (v == null || Number.isNaN(Number(v))) return '—'
   return `${Number(v).toFixed(1)}%`
 }
 
-function PeriodButton({ active, label, onClick }) {
+function PeriodButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -59,7 +78,7 @@ function PeriodButton({ active, label, onClick }) {
   )
 }
 
-function KpiCard({ label, value, note }) {
+function KpiCard({ label, value, note }: { label: string; value: ReactNode; note?: string }) {
   return (
     <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 14 }}>
       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>{label}</div>
@@ -88,7 +107,7 @@ export default function BIPage(): JSX.Element {
   // Purge stale Dexie cache on first mount
   useEffect(() => { purgeExpiredBiCache() }, [])
 
-  const { data: kpis, isLoading: loadingKpis } = useQuery({
+  const { data: kpis, isLoading: loadingKpis } = useQuery<BiKpis | null>({
     queryKey: ['bi-kpis', params],
     queryFn: async () => {
       try {
@@ -102,7 +121,7 @@ export default function BIPage(): JSX.Element {
     staleTime: 10_000,
   })
 
-  const { data: projectsHealth = [], isLoading: loadingHealth } = useQuery({
+  const { data: projectsHealth = [], isLoading: loadingHealth } = useQuery<BiProjectHealth[]>({
     queryKey: ['bi-projects-health', params],
     queryFn: async () => {
       try {

@@ -18,6 +18,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.enterprise import Webhook
+from app.services.traffic_control_service import consume_quota
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,23 @@ def fire_webhook(
             continue
 
         if event not in subscribed_events and "*" not in subscribed_events:
+            continue
+
+        quota = consume_quota(
+            db,
+            scope="integrations.webhook.outbound",
+            tenant_id=hook.organization_id,
+            subject=hook.id,
+            limit=120,
+            window_seconds=60,
+        )
+        if not quota["allowed"]:
+            logger.warning(
+                "Webhook %s rate-limited for tenant=%s retry_after=%ss",
+                hook.id,
+                hook.organization_id,
+                quota["retry_after"],
+            )
             continue
 
         body = json.dumps(

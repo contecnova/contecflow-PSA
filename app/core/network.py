@@ -15,9 +15,47 @@ def _parse_ip(value: Optional[str]) -> Optional[str]:
         return None
 
 
+_PROXY_CACHE = {"expires_at": 0.0, "trust": None, "cidrs_raw": None}
+_PROXY_CACHE_TTL = 300.0  # 5 minutes — proxy settings change rarely; hot path
+
+
+def _effective_proxy_config() -> tuple[bool, str]:
+    """Return (TRUST_PROXY_HEADERS, TRUSTED_PROXY_CIDRS) with UI override applied.
+
+    Cached for 5 minutes so the request-path doesn't open a DB session every
+    time. Admin changes via Settings → Red / Proxy take effect within 5 min.
+    """
+    import time as _t
+    now = _t.time()
+    if _PROXY_CACHE["expires_at"] > now and _PROXY_CACHE["trust"] is not None:
+        return bool(_PROXY_CACHE["trust"]), str(_PROXY_CACHE["cidrs_raw"] or "")
+    trust = settings.TRUST_PROXY_HEADERS
+    cidrs_raw = settings.TRUSTED_PROXY_CIDRS or ""
+    try:
+        from app.db.session import SessionLocal
+        from app.services.settings_service import get_runtime_bool, get_runtime_str
+        db = SessionLocal()
+        try:
+            ui_trust = get_runtime_bool(db, "TRUST_PROXY_HEADERS")
+            ui_cidrs = get_runtime_str(db, "TRUSTED_PROXY_CIDRS")
+            if ui_trust is not None:
+                trust = ui_trust
+            if ui_cidrs:
+                cidrs_raw = ui_cidrs
+        finally:
+            db.close()
+    except Exception:
+        pass
+    _PROXY_CACHE["expires_at"] = now + _PROXY_CACHE_TTL
+    _PROXY_CACHE["trust"] = trust
+    _PROXY_CACHE["cidrs_raw"] = cidrs_raw
+    return bool(trust), cidrs_raw
+
+
 def _trusted_proxy_networks() -> list[ipaddress._BaseNetwork]:
+    _, cidrs_raw = _effective_proxy_config()
     cidrs = []
-    for raw in (settings.TRUSTED_PROXY_CIDRS or "").split(","):
+    for raw in cidrs_raw.split(","):
         item = raw.strip()
         if not item:
             continue
@@ -42,7 +80,8 @@ def extract_client_ip(request) -> str:
     if not direct_ip:
         return "unknown"
 
-    if not settings.TRUST_PROXY_HEADERS or not _is_trusted_proxy(direct_ip):
+    trust, _ = _effective_proxy_config()
+    if not trust or not _is_trusted_proxy(direct_ip):
         return direct_ip
 
     forwarded_for = request.headers.get("x-forwarded-for", "") if request else ""

@@ -128,6 +128,15 @@ class Settings(
     OTEL_SERVICE_NAME: str = Field(default="contecflow-api", env="OTEL_SERVICE_NAME")
     OTEL_EXPORTER_OTLP_ENDPOINT: str = Field(default="", env="OTEL_EXPORTER_OTLP_ENDPOINT")
     OTEL_EXPORTER_OTLP_HEADERS: str = Field(default="", env="OTEL_EXPORTER_OTLP_HEADERS")
+
+    # ── Prometheus metrics ──────────────────────────────────────────────────
+    # Exposes /metrics in Prometheus text format when METRICS_ENABLED=1.
+    # METRICS_AUTH_TOKEN: if set, /metrics requires `Authorization: Bearer <token>`.
+    # METRICS_MULTIPROC_DIR: set to a writable dir when running under multiple
+    # uvicorn/gunicorn workers so counters aggregate correctly across workers.
+    METRICS_ENABLED: bool = Field(default=False, env="METRICS_ENABLED")
+    METRICS_AUTH_TOKEN: Optional[str] = Field(default=None, env="METRICS_AUTH_TOKEN")
+    METRICS_MULTIPROC_DIR: Optional[str] = Field(default=None, env="PROMETHEUS_MULTIPROC_DIR")
     FRONTEND_URL: str = Field(default="http://localhost:5173", env="FRONTEND_URL")
     BACKEND_URL: str = Field(default="http://localhost:8000", env="BACKEND_URL")
 

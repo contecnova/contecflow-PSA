@@ -82,6 +82,33 @@ class TestMultiCurrency:
         assert r.status_code == 200
         data = r.json()
         assert abs(data["converted"] - 108.0) < 0.01
+        assert "rate_id" in data
+        assert data["rate_id"]
+
+    def test_convert_cross_currency_writes_immutable_conversion_log(self, client, admin_token, db):
+        _upsert_rate(client, admin_token, from_c="EUR", to_c="USD", rate=1.05)
+        r = client.get(
+            "/api/v1/currency/convert",
+            params={"amount": 200, "from_currency": "EUR", "to_currency": "USD"},
+            headers=auth(admin_token),
+        )
+        assert r.status_code == 200, r.text
+
+        from app.models.exchange_rates_log import CurrencyConversionLog
+
+        row = (
+            db.query(CurrencyConversionLog)
+            .filter(
+                CurrencyConversionLog.entity_type == "currency_conversion",
+                CurrencyConversionLog.from_currency == "EUR",
+                CurrencyConversionLog.to_currency == "USD",
+            )
+            .order_by(CurrencyConversionLog.created_at.desc())
+            .first()
+        )
+        assert row is not None
+        assert row.rate_used == pytest.approx(1.05)
+        assert row.converted_amount == pytest.approx(210.0)
 
     def test_convert_missing_rate_returns_404(self, client, admin_token, db):
         r = client.get("/api/v1/currency/convert",

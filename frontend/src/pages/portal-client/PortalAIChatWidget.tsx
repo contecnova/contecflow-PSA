@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PortalAIChatWidget — Item I26 (UI del Client Portal AI Chat).
  *

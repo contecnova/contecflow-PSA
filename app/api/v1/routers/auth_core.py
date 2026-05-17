@@ -290,7 +290,7 @@ def password_forgot(request: Request, payload: PasswordForgotRequest, db: Sessio
             try:
                 token = _issue_password_reset_token(user)
                 reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
-                _send_password_reset_email(user.email, reset_link)
+                _send_password_reset_email(user.email, reset_link, db=db, org_id=getattr(user, "organization_id", None))
                 audit_log(db, user, "PASSWORD_RESET_REQUEST", "users", user.id, user.full_name)
                 _svc.commit_db(db)
             except Exception as exc:
@@ -315,7 +315,7 @@ def password_reset(request: Request, payload: PasswordResetRequest, db: Session 
     if not user:
         raise HTTPException(401, "Token de restablecimiento inválido o expirado")
 
-    ok, reason = validate_password_policy(payload.new_password)
+    ok, reason = validate_password_policy(payload.new_password, db=db, org_id=getattr(user, "organization_id", None))
     if not ok:
         raise HTTPException(400, reason or "La contraseña no cumple la política de seguridad")
 
@@ -359,7 +359,7 @@ def change_password(
     if not current_pw or not new_pw:
         raise HTTPException(400, "current_password y new_password son obligatorios")
     
-    ok, err = validate_password_policy(new_pw)
+    ok, err = validate_password_policy(new_pw, db=db, org_id=getattr(current_user, "organization_id", None))
     if not ok:
         raise HTTPException(400, err)
     

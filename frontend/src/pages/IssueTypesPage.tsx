@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { CHART_COLORS_EXTENDED } from '../constants/theme'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'

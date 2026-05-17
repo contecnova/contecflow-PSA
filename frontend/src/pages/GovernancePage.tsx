@@ -24,38 +24,68 @@ const MODULE_CFG = {
   voice:                { icon: '🎤', labelKey: 'governance.voice_label',                 descKey: 'governance.voice_desc' },
 }
 
+interface GovConfigItem {
+  module: string
+  is_enabled: boolean
+}
+
+interface GovLogItem {
+  id: string | number
+  created_at?: string
+  module?: string
+  input_summary?: string
+  action_type?: string
+  tokens_used?: number
+}
+
+interface GovStatsItem {
+  calls?: number
+  tokens?: number
+}
+
+interface GovStats {
+  total_calls?: number
+  by_module?: Record<string, GovStatsItem>
+}
+
+interface ProviderItem {
+  name?: string
+  is_default?: boolean
+}
+
 export default function GovernancePage(): JSX.Element {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [tab, setTab] = useState('modules')
 
-  const { data: configs = [], isLoading: _loadingConfigs } = useQuery({
+  const { data: configs = [], isLoading: _loadingConfigs } = useQuery<GovConfigItem[]>({
     queryKey: ['gov-config'],
     queryFn: () => governanceApi.config().then(r => r.data),
   })
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<GovStats>({
     queryKey: ['gov-stats'],
     queryFn: () => governanceApi.stats().then(r => r.data),
   })
-  const { data: logs = [] } = useQuery({
+  const { data: logs = [] } = useQuery<GovLogItem[]>({
     queryKey: ['gov-logs'],
     queryFn: () => governanceApi.logs().then(r => r.data),
     enabled: tab === 'audit',
   })
-  const { data: providers = [] } = useQuery({
+  const { data: providers = [] } = useQuery<ProviderItem[]>({
     queryKey: ['ai-providers'],
     queryFn: () => aiProvidersApi.list().then(r => r.data),
   })
 
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ module, is_enabled }) => governanceApi.update(module, { is_enabled }),
-    onSuccess: () => qc.invalidateQueries(['gov-config']),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: ({ module, is_enabled }: { module: string; is_enabled: boolean }) => governanceApi.update(module, { is_enabled }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['gov-config'] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const chartData = stats?.by_module
-    ? Object.entries(stats.by_module).map(([k, v]) => ({
+  const moduleEntries = stats?.by_module ? (Object.entries(stats.by_module) as Array<[string, GovStatsItem]>) : []
+  const chartData = moduleEntries.length
+    ? moduleEntries.map(([k, v]) => ({
         name: MODULE_CFG[k] ? t(MODULE_CFG[k].labelKey) : k,
         calls: v.calls || 0,
         tokens: Math.round((v.tokens || 0) / 1000),

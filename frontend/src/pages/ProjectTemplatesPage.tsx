@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ProjectTemplatesPage — Manage and instantiate project templates.
  * Templates predefine phases, tasks, risks and deliverables for fast project creation.

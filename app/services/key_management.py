@@ -29,6 +29,8 @@ logger = logging.getLogger("contecflow.key_management")
 
 JWT_RING_KEY = "security.jwt_keyring"
 INTEGRATION_ROTATION_KEY = "security.integration_rotation"
+INTEGRATION_ROTATION_ALERT_KEY = "security.integration_rotation_alert_sent_at"
+SENSITIVE_APP_SETTING_KEYS = {"jira_api_token"}
 
 
 @dataclass
@@ -208,8 +210,12 @@ def get_jwt_verification_keys() -> dict[str, str]:
 
 
 def _rotate_jwt_keyring(db) -> bool:
+    from app.services.settings_service import get_runtime_int
+    rotation_days = get_runtime_int(db, "JWT_KEY_ROTATION_DAYS") or settings.JWT_KEY_ROTATION_DAYS
+    retention     = get_runtime_int(db, "JWT_KEY_RETENTION_COUNT") or settings.JWT_KEY_RETENTION_COUNT
+
     state = ensure_jwt_keyring(db)
-    due_at = state.last_rotated_at + timedelta(days=settings.JWT_KEY_ROTATION_DAYS)
+    due_at = state.last_rotated_at + timedelta(days=rotation_days)
     if _now() < due_at:
         return False
 
@@ -220,7 +226,7 @@ def _rotate_jwt_keyring(db) -> bool:
 
     # Prune oldest keys keeping retention and always preserving legacy fallback
     ordered = [k for k in sorted(state.keys.keys()) if k != "legacy-secret-key"]
-    while len(ordered) > settings.JWT_KEY_RETENTION_COUNT:
+    while len(ordered) > retention:
         drop = ordered.pop(0)
         state.keys.pop(drop, None)
 
@@ -279,18 +285,36 @@ def _rotate_integration_secrets(db) -> int:
                 h.secret = encrypt_value(h.secret)
                 changed += 1
 
+    settings_rows = db.query(AppSetting).filter(AppSetting.key.in_(list(SENSITIVE_APP_SETTING_KEYS))).all()
+    for row in settings_rows:
+        if row.value:
+            plain = decrypt_value(row.value)
+            if plain:
+                row.value = encrypt_value(plain)
+                changed += 1
+            elif not (row.value.startswith("v2:") or row.value.startswith("kmsv1:")):
+                row.value = encrypt_value(row.value)
+                changed += 1
+
     return changed
 
 
 def rotate_due_materials(db=None) -> dict:
-    if not settings.KEY_ROTATION_ENABLED:
-        return {"enabled": False, "jwt_rotated": False, "integration_reencrypted": 0}
-
     own_session = False
     if db is None:
         db = SessionLocal()
         own_session = True
     try:
+        from app.services.settings_service import get_runtime_bool, get_runtime_int
+        try:
+            enabled = get_runtime_bool(db, "KEY_ROTATION_ENABLED")
+            if enabled is None:
+                enabled = settings.KEY_ROTATION_ENABLED
+        except Exception:
+            enabled = settings.KEY_ROTATION_ENABLED
+        if not enabled:
+            return {"enabled": False, "jwt_rotated": False, "integration_reencrypted": 0}
+
         if not _settings_table_available(db):
             refresh_caches(db)
             return {"enabled": True, "jwt_rotated": False, "integration_reencrypted": 0}
@@ -305,7 +329,8 @@ def rotate_due_materials(db=None) -> dict:
             except Exception:
                 last_rot = None
 
-        due = (last_rot is None) or (_now() >= last_rot + timedelta(days=settings.INTEGRATION_SECRET_ROTATION_DAYS))
+        integration_rotation_days = get_runtime_int(db, "INTEGRATION_SECRET_ROTATION_DAYS") or settings.INTEGRATION_SECRET_ROTATION_DAYS
+        due = (last_rot is None) or (_now() >= last_rot + timedelta(days=integration_rotation_days))
         integration_reencrypted = 0
         if due:
             integration_reencrypted = _rotate_integration_secrets(db)
@@ -333,3 +358,64 @@ def run_scheduled_rotation() -> None:
         logger.info("Key rotation job result: %s", result)
     except Exception as exc:
         logger.error("Key rotation job failed: %s", exc, exc_info=True)
+
+
+def get_integration_rotation_status(db=None) -> dict:
+    """Return rotation status and emit a throttled alert when overdue."""
+    own_session = False
+    if db is None:
+        db = SessionLocal()
+        own_session = True
+    try:
+        now = _now()
+        row = _get_setting(db, INTEGRATION_ROTATION_KEY)
+        last_rotated_at = None
+        if row and row.value:
+            try:
+                last_rotated_at = _str_to_dt(row.value)
+            except Exception:
+                last_rotated_at = None
+
+        from app.services.settings_service import get_runtime_int
+        interval_days = int(get_runtime_int(db, "INTEGRATION_SECRET_ROTATION_DAYS") or settings.INTEGRATION_SECRET_ROTATION_DAYS or 30)
+        next_due_at = (last_rotated_at + timedelta(days=interval_days)) if last_rotated_at else None
+        is_overdue = bool(next_due_at and now > next_due_at)
+        days_until_due = None
+        if next_due_at:
+            days_until_due = int((next_due_at - now).total_seconds() // 86400)
+
+        if is_overdue:
+            alert_row = _get_setting(db, INTEGRATION_ROTATION_ALERT_KEY)
+            should_alert = True
+            if alert_row and alert_row.value:
+                try:
+                    last_alert = _str_to_dt(alert_row.value)
+                    should_alert = now >= last_alert + timedelta(hours=24)
+                except Exception:
+                    should_alert = True
+            if should_alert:
+                logger.warning(
+                    "Integration secret rotation overdue: last=%s due=%s",
+                    _dt_to_str(last_rotated_at) if last_rotated_at else "never",
+                    _dt_to_str(next_due_at) if next_due_at else "unknown",
+                )
+                if not alert_row:
+                    alert_row = AppSetting(
+                        key=INTEGRATION_ROTATION_ALERT_KEY,
+                        description="Last emission time for integration secret rotation overdue alert",
+                    )
+                    db.add(alert_row)
+                alert_row.value = _dt_to_str(now)
+                db.commit()
+
+        return {
+            "interval_days": interval_days,
+            "last_rotated_at": _dt_to_str(last_rotated_at) if last_rotated_at else None,
+            "next_due_at": _dt_to_str(next_due_at) if next_due_at else None,
+            "days_until_due": days_until_due,
+            "is_overdue": is_overdue,
+            "alert_level": "critical" if is_overdue else ("warning" if days_until_due is not None and days_until_due <= 7 else "ok"),
+        }
+    finally:
+        if own_session:
+            db.close()

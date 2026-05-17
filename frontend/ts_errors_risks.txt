@@ -1,0 +1,7 @@
+src/hooks/useRisks.ts(32,29): error TS2554: Expected 2 arguments, but got 0.
+src/hooks/useRisks.ts(40,29): error TS2554: Expected 2 arguments, but got 1.
+src/hooks/useRisks.ts(49,51): error TS2554: Expected 2 arguments, but got 1.
+src/hooks/useRisks.ts(57,71): error TS2554: Expected 3 arguments, but got 2.
+src/hooks/useRisks.ts(65,42): error TS2554: Expected 2 arguments, but got 1.
+src/main.tsx(26,8): error TS2882: Cannot find module or type declarations for side-effect import of './index.css'.
+src/pages/OrgChartPage.tsx(726,29): error TS2554: Expected 1 arguments, but got 0.

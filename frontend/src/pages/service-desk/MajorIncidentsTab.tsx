@@ -1,4 +1,5 @@
 import { useState, useId } from 'react'
+import type { ChangeEvent, CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -9,23 +10,41 @@ import { COLOR } from '../../constants/theme'
 import { majorIncidentsApi } from '../../services/api'
 import { fmtDate } from './sdUtils'
 
-function DeclareMIModal({ onClose, onSaved }) {
+interface MajorIncident {
+  id: string | number
+  number?: string
+  title?: string
+  severity?: string
+  status?: string
+  commander?: string
+  declared_at?: string
+  resolved_at?: string | null
+}
+
+interface DeclareMIForm {
+  title: string
+  severity: string
+  impact_statement: string
+}
+
+function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const idPrefix = useId()
-  const [form, setForm] = useState({ title: '', severity: 'P1', impact_statement: '' })
+  const [form, setForm] = useState<DeclareMIForm>({ title: '', severity: 'P1', impact_statement: '' })
   const { mutate, isPending } = useMutation({
-    mutationFn: data => majorIncidentsApi.create(data),
+    mutationFn: (data: DeclareMIForm) => majorIncidentsApi.create(data),
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const IS = {
+  const set = (k: keyof DeclareMIForm) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }))
+  const IS: CSSProperties = {
     width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
     borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)",
     outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
   }
-  const LS = {
+  const LS: CSSProperties = {
     fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block',
     marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em',
   }
@@ -70,7 +89,7 @@ export default function MajorIncidentsTab() {
   const toast = useToast()
   const [showDeclare, setShowDeclare] = useState(false)
 
-  const { data: mis = [], isLoading } = useQuery({
+  const { data: mis = [], isLoading } = useQuery<MajorIncident[]>({
     queryKey: ['sd-major-incidents'],
     queryFn: () => majorIncidentsApi.list().then(r => r.data),
     refetchInterval: 30000,
@@ -78,6 +97,7 @@ export default function MajorIncidentsTab() {
 
   const activeMis = mis.filter(m => m.status === 'active')
   const { sort: miSort, setSort: setMiSort, sortedData: sortedMis } = useSort(mis, 'declared_at', 'desc')
+  const sortedMajorIncidents = sortedMis as unknown as MajorIncident[]
 
   return (
     <div>
@@ -128,7 +148,7 @@ export default function MajorIncidentsTab() {
             </tr>
           </thead>
           <tbody>
-            {sortedMis.map(m => (
+            {sortedMajorIncidents.map((m) => (
               <tr key={m.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
                 <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: COLOR.danger, fontWeight: 700 }}>{m.number}</td>
                 <td style={{ padding: '10px 8px', fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{m.title}</td>
@@ -144,7 +164,7 @@ export default function MajorIncidentsTab() {
                   }}>{m.status}</span>
                 </td>
                 <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{m.commander || '—'}</td>
-                <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{fmtDate(m.declared_at)}</td>
+                <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{m.declared_at ? fmtDate(m.declared_at) : '—'}</td>
                 <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{m.resolved_at ? fmtDate(m.resolved_at) : '—'}</td>
               </tr>
             ))}

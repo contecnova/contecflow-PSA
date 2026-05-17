@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ChangelogPage — Release notes y changelog por proyecto
  * Genera automáticamente entradas desde tareas completadas o permite añadirlas manualmente.

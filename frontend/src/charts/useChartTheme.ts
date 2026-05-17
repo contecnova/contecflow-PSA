@@ -17,6 +17,9 @@ export interface ChartThemeTokens {
   danger: string
   warning: string
   info: string
+  textColor?: string
+  tooltipBg?: string
+  primary?: string
 }
 
 export interface ChartThemeState {
@@ -42,6 +45,9 @@ function resolveTokens(): ChartThemeTokens {
     danger:   get('--danger')    || '#e07070',
     warning:  get('--warning')   || '#d5a441',
     info:     get('--info')      || '#77b5ff',
+    textColor: get('--text-2')   || '#c3c7cf',
+    tooltipBg: get('--surface-2') || '#1f2228',
+    primary:   get('--accent')    || '#caa34c',
   }
 }
 

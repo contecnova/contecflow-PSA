@@ -20,14 +20,25 @@ from app.services.stt.base import STTError, STTProvider, STTResult
 class OpenAISTTProvider(STTProvider):
     name = "openai"
 
-    def __init__(self, model: Optional[str] = None, api_key: Optional[str] = None) -> None:
+    def __init__(self, model: Optional[str] = None, api_key: Optional[str] = None, db=None, org_id=None) -> None:
+        ui_model = None
+        ui_key = None
+        if db is not None:
+            try:
+                from app.services.settings_service import get_runtime_str
+                from app.services.integration_credentials_service import get_credential
+                ui_model = get_runtime_str(db, "OPENAI_STT_MODEL", org_id)
+                ui_key   = get_credential(db, "ai_providers", "openai_api_key", org_id=org_id)
+            except Exception:
+                pass
         self._model = (
             model
+            or ui_model
             or os.environ.get("OPENAI_STT_MODEL")
             or getattr(settings, "OPENAI_STT_MODEL", None)
             or "gpt-4o-mini-transcribe"
         )
-        self._api_key = api_key or settings.OPENAI_API_KEY or os.environ.get("OPENAI_API_KEY", "")
+        self._api_key = api_key or ui_key or settings.OPENAI_API_KEY or os.environ.get("OPENAI_API_KEY", "")
         self._base_url = settings.OPENAI_API_URL or "https://api.openai.com/v1"
 
     def is_available(self) -> bool:

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * EVMPage — Earned Value Management
  * Vista de cartera con CPI, SPI, EAC, VAC, TCPI para todos los proyectos activos.

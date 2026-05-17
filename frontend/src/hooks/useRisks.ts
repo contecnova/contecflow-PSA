@@ -16,6 +16,9 @@ export interface Risk {
 
 export type RiskListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
+export type CreateRiskArgs = { projectId: string; data: Partial<Risk> }
+export type UpdateRiskArgs = { projectId: string; id: string; data: Partial<Risk> }
+export type DeleteRiskArgs = { projectId: string; id: string }
 
 export function useRisks(projectId: string | undefined, params: RiskListParams = {}): UseQueryResult<unknown> {
   return useQuery({
@@ -29,40 +32,40 @@ export function useRisks(projectId: string | undefined, params: RiskListParams =
 export function useAllRisks(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['risks'],
-    queryFn: () => risksApi.list().then((r: { data: unknown }) => r.data),
+    queryFn: () => risksApi.portfolioAll().then((r: { data: unknown }) => r.data),
     staleTime: STALE,
   })
 }
 
-export function useRisk(id: string | undefined): UseQueryResult<unknown> {
+export function useRisk(projectId: string | undefined, id: string | undefined): UseQueryResult<unknown> {
   return useQuery({
-    queryKey: ['risk-detail', id],
-    queryFn: () => risksApi.get(id).then((r: { data: unknown }) => r.data),
-    enabled: !!id,
+    queryKey: ['risk-detail', projectId, id],
+    queryFn: () => risksApi.get(projectId as string, id as string).then((r: { data: unknown }) => r.data),
+    enabled: !!projectId && !!id,
     staleTime: STALE,
   })
 }
 
-export function useCreateRisk(): UseMutationResult<unknown, unknown, Partial<Risk>> {
+export function useCreateRisk(): UseMutationResult<unknown, unknown, CreateRiskArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: Partial<Risk>) => risksApi.create(data),
+    mutationFn: ({ projectId, data }: CreateRiskArgs) => risksApi.create(projectId, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['risks'] }),
   })
 }
 
-export function useUpdateRisk(): UseMutationResult<unknown, unknown, UpdateArgs<Partial<Risk>>> {
+export function useUpdateRisk(): UseMutationResult<unknown, unknown, UpdateRiskArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: UpdateArgs<Partial<Risk>>) => risksApi.update(id, data),
+    mutationFn: ({ projectId, id, data }: UpdateRiskArgs) => risksApi.update(projectId, id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['risks'] }),
   })
 }
 
-export function useDeleteRisk(): UseMutationResult<unknown, unknown, string> {
+export function useDeleteRisk(): UseMutationResult<unknown, unknown, DeleteRiskArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => risksApi.delete(id),
+    mutationFn: ({ projectId, id }: DeleteRiskArgs) => risksApi.delete(projectId, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['risks'] }),
   })
 }

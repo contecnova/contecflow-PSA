@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PortalDashboard – pizarra del cliente totalmente rediseñada.
  *

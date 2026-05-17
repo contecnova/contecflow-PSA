@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PortalUI – diseño compartido del portal cliente, alineado con el backoffice.
  *

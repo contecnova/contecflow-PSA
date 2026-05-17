@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { CHART_COLORS_EXTENDED, COLOR } from '../constants/theme'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'

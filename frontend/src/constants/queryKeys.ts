@@ -4,8 +4,6 @@
  * Convención: array de strings + parámetros, jerárquico.
  * Usar invalidateQueries con prefijo: queryClient.invalidateQueries(queryKeys.tasks.all())
  */
-import type { QueryClient } from '@tanstack/react-query'
-
 export type QueryKey = readonly unknown[]
 export type QueryFilters = Record<string, unknown> | undefined
 
@@ -94,7 +92,11 @@ export const queryKeys = {
 export type QueryKeysFactory = typeof queryKeys
 export type QueryKeysGroup = keyof QueryKeysFactory
 
+interface InvalidateCapable {
+  invalidateQueries: (args: { queryKey: QueryKey }) => unknown
+}
+
 // Opcional: helper para invalidaciones con queryClient
-export const invalidateAll = (queryClient: QueryClient, group: QueryKeysGroup) => {
+export const invalidateAll = (queryClient: InvalidateCapable, group: QueryKeysGroup) => {
   return queryClient.invalidateQueries({ queryKey: queryKeys[group].all() })
 }

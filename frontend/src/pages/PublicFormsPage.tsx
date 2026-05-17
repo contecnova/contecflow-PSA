@@ -2,6 +2,7 @@
  * PublicFormsPage — Manage public ticket intake forms
  */
 import { useState } from 'react'
+import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formsApi } from '../services/api'
 import { Button, Modal, EmptyState, Spinner } from '../components/ui'
@@ -13,20 +14,53 @@ import { extractErr } from '../utils/helpers'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useAppT } from '../i18n/AppLangContext'
 
-const FS = {
+interface PublicForm {
+  id: string | number
+  name: string
+  description?: string
+  form_type?: 'ticket' | 'task' | string
+  is_active?: boolean
+  default_priority?: string
+  default_category?: string
+  success_message?: string
+  token?: string
+  submission_count?: number
+}
+
+interface PublicFormPayload {
+  name: string
+  description: string
+  form_type: string
+  is_active: boolean
+  default_priority: string
+  default_category: string
+  success_message: string
+}
+
+interface FormSubmission {
+  id: string | number
+  submitted_at?: string
+  submitter_name?: string
+  submitter_email?: string
+  subject?: string
+  priority?: string
+  created_entity_id?: string | number
+}
+
+const FS: CSSProperties = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
   borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
-const LS = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-function FormModal({ form, onClose }) {
+function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const t = useAppT()
   const isEdit = !!form
 
-  const [f, setF] = useState({
+  const [f, setF] = useState<PublicFormPayload>({
     name: form?.name || '',
     description: form?.description || '',
     form_type: form?.form_type || 'ticket',
@@ -36,19 +70,21 @@ function FormModal({ form, onClose }) {
     success_message: form?.success_message || '',
   })
 
-  const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
-  const setCheck = k => e => setF(p => ({ ...p, [k]: e.target.checked }))
+  const set = (k: keyof PublicFormPayload) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setF(p => ({ ...p, [k]: e.target.value }))
+  const setCheck = (k: keyof PublicFormPayload) => (e: ChangeEvent<HTMLInputElement>) =>
+    setF(p => ({ ...p, [k]: e.target.checked }))
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => isEdit
+    mutationFn: (data: PublicFormPayload) => isEdit
       ? formsApi.update(form.id, data).then(r => r.data)
       : formsApi.create(data).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries(['public-forms'])
+      qc.invalidateQueries({ queryKey: ['public-forms'] })
       toast.success(isEdit ? t('public_forms.form_updated') : t('public_forms.form_created'))
       onClose()
     },
-    onError: e => toast.error(extractErr(e, t('public_forms.save_error'))),
+    onError: (e: unknown) => toast.error(extractErr(e, t('public_forms.save_error'))),
   })
 
   return (
@@ -104,9 +140,9 @@ function FormModal({ form, onClose }) {
   )
 }
 
-function SubmissionsModal({ form, onClose }) {
+function SubmissionsModal({ form, onClose }: { form: PublicForm; onClose: () => void }) {
   const t = useAppT()
-  const { data: subs = [], isLoading } = useQuery({
+  const { data: subs = [], isLoading } = useQuery<FormSubmission[]>({
     queryKey: ['form-submissions', form.id],
     queryFn: () => formsApi.submissions(form.id).then(r => r.data),
   })
@@ -134,7 +170,7 @@ function SubmissionsModal({ form, onClose }) {
                   <td style={{ padding: '8px 10px' }}>{s.submitter_name || s.submitter_email || '—'}</td>
                   <td style={{ padding: '8px 10px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.subject}</td>
                   <td style={{ padding: '8px 10px', textTransform: 'capitalize', color: 'var(--text-2)' }}>{s.priority}</td>
-                  <td style={{ padding: '8px 10px', color: 'var(--accent)', fontSize: "var(--text-sm)" }}>{s.created_entity_id ? `#${s.created_entity_id.slice(0, 8)}` : '—'}</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--accent)', fontSize: "var(--text-sm)" }}>{s.created_entity_id ? `#${String(s.created_entity_id).slice(0, 8)}` : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -150,23 +186,23 @@ export default function PublicFormsPage() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [viewSubs, setViewSubs] = useState(null)
+  const [editing, setEditing] = useState<PublicForm | null>(null)
+  const [viewSubs, setViewSubs] = useState<PublicForm | null>(null)
 
-  const { data: forms = [], isLoading } = useQuery({
+  const { data: forms = [], isLoading } = useQuery<PublicForm[]>({
     queryKey: ['public-forms'],
     queryFn: () => formsApi.list().then(r => r.data),
   })
 
   const { mutate: deleteForm } = useMutation({
-    mutationFn: (id) => formsApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries(['public-forms']); toast.success(t('public_forms.form_deleted')) },
-    onError: e => toast.error(extractErr(e, t('public_forms.delete_error'))),
+    mutationFn: (id: string | number) => formsApi.delete(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['public-forms'] }); toast.success(t('public_forms.form_deleted')) },
+    onError: (e: unknown) => toast.error(extractErr(e, t('public_forms.delete_error'))),
   })
 
-  const getPublicUrl = (token) => `${window.location.origin}/intake/${token}`
+  const getPublicUrl = (token?: string) => `${window.location.origin}/intake/${token ?? ''}`
 
-  const copyLink = (token) => {
+  const copyLink = (token?: string) => {
     const url = getPublicUrl(token)
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url).then(() => toast.success(t('public_forms.link_copied')))
@@ -232,7 +268,7 @@ export default function PublicFormsPage() {
                   {getPublicUrl(form.token)}
                 </div>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>
-                  {t('public_forms.submissions_received').replace('{n}', form.submission_count || 0)}
+                  {t('public_forms.submissions_received').replace('{n}', String(form.submission_count || 0))}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>

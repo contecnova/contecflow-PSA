@@ -16,93 +16,108 @@ const STORE     = 'imputations_queue';
 
 export const MAX_RETRY_ATTEMPTS = 3;
 
+interface QueueEntry extends Record<string, unknown> {
+  id?: number
+  queued_at: string
+  synced: boolean
+  retries: number
+}
+
+interface SyncResult {
+  synced: number
+  failed: number
+  abandoned: number
+}
+
+type ApiLike = { post: (url: string, payload: Record<string, unknown>) => Promise<unknown> }
+
 // ── Open DB ──────────────────────────────────────────────────────────────────
 
-function openDB() {
+function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
+    req.onupgradeneeded = () => {
+      const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) {
         const store = db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
         store.createIndex('queued_at', 'queued_at', { unique: false });
       }
     };
-    req.onsuccess  = (e) => resolve(e.target.result);
-    req.onerror    = (e) => reject(e.target.error);
+    req.onsuccess  = () => resolve(req.result);
+    req.onerror    = () => reject(req.error);
   });
 }
 
 // ── Queue an imputation for later sync ───────────────────────────────────────
 
-export async function queueImputation(payload) {
+export async function queueImputation(payload: Record<string, unknown>): Promise<number> {
   const db    = await openDB();
-  const entry = { ...payload, queued_at: new Date().toISOString(), synced: false, retries: 0 };
+  const entry: QueueEntry = { ...payload, queued_at: new Date().toISOString(), synced: false, retries: 0 };
   return new Promise((resolve, reject) => {
     const tx   = db.transaction(STORE, 'readwrite');
     const req  = tx.objectStore(STORE).add(entry);
-    req.onsuccess = () => resolve(req.result);   // returns generated id
-    req.onerror   = (e) => reject(e.target.error);
+    req.onsuccess = () => resolve(Number(req.result));   // returns generated id
+    req.onerror   = () => reject(req.error);
   });
 }
 
 // ── Count pending entries ─────────────────────────────────────────────────────
 
-export async function pendingCount() {
+export async function pendingCount(): Promise<number> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx  = db.transaction(STORE, 'readonly');
     const req = tx.objectStore(STORE).count();
     req.onsuccess = () => resolve(req.result);
-    req.onerror   = (e) => reject(e.target.error);
+    req.onerror   = () => reject(req.error);
   });
 }
 
 // ── Get all pending entries ───────────────────────────────────────────────────
 
-export async function getAllPending() {
+export async function getAllPending(): Promise<QueueEntry[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx  = db.transaction(STORE, 'readonly');
     const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror   = (e) => reject(e.target.error);
+    req.onsuccess = () => resolve((req.result as QueueEntry[]) || []);
+    req.onerror   = () => reject(req.error);
   });
 }
 
 // ── Delete a synced entry ─────────────────────────────────────────────────────
 
-async function deleteEntry(id) {
+async function deleteEntry(id: number) {
   const db = await openDB();
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     const tx  = db.transaction(STORE, 'readwrite');
     const req = tx.objectStore(STORE).delete(id);
-    req.onsuccess = () => resolve();
-    req.onerror   = (e) => reject(e.target.error);
+    req.onsuccess = () => resolve(undefined);
+    req.onerror   = () => reject(req.error);
   });
 }
 
 // ── Update retry count for an entry ──────────────────────────────────────────
 
-async function updateRetries(db, id, retries) {
-  return new Promise((resolve, reject) => {
+async function updateRetries(db: IDBDatabase, id: number, retries: number) {
+  return new Promise<void>((resolve, reject) => {
     const tx  = db.transaction(STORE, 'readwrite');
     const store = tx.objectStore(STORE);
     const getReq = store.get(id);
     getReq.onsuccess = () => {
-      const entry = getReq.result;
-      if (!entry) { resolve(); return; }
+      const entry = getReq.result as QueueEntry | undefined;
+      if (!entry) { resolve(undefined); return; }
       const putReq = store.put({ ...entry, retries });
-      putReq.onsuccess = () => resolve();
-      putReq.onerror   = (e) => reject(e.target.error);
+      putReq.onsuccess = () => resolve(undefined);
+      putReq.onerror   = () => reject(putReq.error);
     };
-    getReq.onerror = (e) => reject(e.target.error);
+    getReq.onerror = () => reject(getReq.error);
   });
 }
 
 // ── Sync all pending to the API ───────────────────────────────────────────────
 
-export async function syncPending(apiInstance) {
+export async function syncPending(apiInstance: ApiLike): Promise<SyncResult> {
   if (!navigator.onLine) return { synced: 0, failed: 0, abandoned: 0 };
 
   const db = await openDB();
@@ -115,17 +130,17 @@ export async function syncPending(apiInstance) {
 
     if (currentRetries >= MAX_RETRY_ATTEMPTS) {
       // Exceeded max retries — remove to avoid blocking the queue indefinitely
-      await deleteEntry(id);
+      await deleteEntry(Number(id));
       abandoned++;
       continue;
     }
 
     try {
-      await apiInstance.post('/imputations', payload);
-      await deleteEntry(id);
+      await apiInstance.post('/imputations', payload as Record<string, unknown>);
+      await deleteEntry(Number(id));
       synced++;
     } catch {
-      await updateRetries(db, id, currentRetries + 1);
+      await updateRetries(db, Number(id), currentRetries + 1);
       failed++;
     }
   }
@@ -138,7 +153,7 @@ export async function syncPending(apiInstance) {
 let _apiRef = null;
 let _onSyncCallback = null;
 
-export function initOfflineSync(apiInstance, onSync) {
+export function initOfflineSync(apiInstance: ApiLike, onSync?: (result: SyncResult) => void) {
   _apiRef = apiInstance;
   _onSyncCallback = onSync;
 

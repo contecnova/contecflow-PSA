@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'

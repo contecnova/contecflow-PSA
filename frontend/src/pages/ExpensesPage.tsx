@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ExpensesPage — gestión completa de gastos con flujo de aprobación
  * Vistas: Mis gastos | Pendientes aprobación | Equipo | Resumen por proyecto

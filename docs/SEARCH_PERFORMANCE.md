@@ -149,6 +149,48 @@ Does **not** help substring search — orthogonal to Options A/B.
 
 ---
 
+## Production measurement playbook (p95/p99)
+
+Use this sequence in a real PostgreSQL environment to prove impact before and
+after deploying `pg_trgm` indexes.
+
+1. Enable extension and telemetry prerequisites:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+```
+
+2. Capture baseline (before index deployment):
+
+```bash
+DATABASE_URL='postgresql+psycopg://<user>:<pass>@<host>/<db>' \
+  venv/bin/python scripts/pg_trgm_latency_report.py > reports/qa/pg_trgm_before.json
+```
+
+3. Deploy migration `083_pg_trgm_search_indexes` in maintenance window.
+
+4. Warm up representative traffic for 30-60 minutes.
+
+5. Capture post-deploy metrics:
+
+```bash
+DATABASE_URL='postgresql+psycopg://<user>:<pass>@<host>/<db>' \
+  venv/bin/python scripts/pg_trgm_latency_report.py > reports/qa/pg_trgm_after.json
+```
+
+6. Compare p95/p99 at APM level (Datadog/New Relic/Grafana) for:
+   - `GET /api/v1/users?q=...`
+   - `GET /api/v1/clients?q=...`
+   - command palette/global search endpoints
+
+Acceptance target for this P1:
+- No regression in error rate.
+- Search endpoints reduce p95 and p99 latency by at least 30% on production-like traffic.
+- `EXPLAIN (ANALYZE, BUFFERS)` shows index usage (`Bitmap Index Scan` / `Index Scan`) for representative `ILIKE '%term%'` queries.
+
+---
+
 ## Migration template (PostgreSQL-only, idempotent)
 
 ```python

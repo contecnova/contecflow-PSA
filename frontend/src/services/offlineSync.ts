@@ -30,7 +30,82 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
-let Dexie
+type ConflictStrategy = 'server-wins' | 'client-wins' | 'merge' | 'manual'
+type SyncEventType = 'optimistic_update' | 'conflict_detected' | 'conflict_resolved' | 'sync_start' | 'sync_progress' | 'sync_complete' | 'offline_data_cleared'
+
+interface SyncResult {
+  synced: number
+  failed: number
+  conflicts: number
+  total: number
+  details: Array<Record<string, unknown>>
+}
+
+type SyncEvent =
+  | { type: 'optimistic_update'; timestamp: number; opId: string }
+  | { type: 'conflict_detected'; timestamp: number; opId: string }
+  | { type: 'conflict_resolved'; timestamp: number; conflictId: number; resolution: 'local' | 'server' | 'merged' }
+  | { type: 'sync_start'; timestamp: number; total: number }
+  | { type: 'sync_progress'; timestamp: number; progress: number; synced: number }
+  | { type: 'sync_complete'; timestamp: number; result: SyncResult }
+  | { type: 'offline_data_cleared'; timestamp: number }
+
+interface QueuedOperationInput {
+  method: string
+  url: string
+  body?: Record<string, unknown>
+  headers?: Record<string, string>
+  priority?: 'critical' | 'normal' | 'low'
+  conflictStrategy?: ConflictStrategy
+  idempotencyKey?: string
+  onOptimisticUpdate?: (state: unknown) => void
+  rollbackFn?: () => void
+}
+
+interface PendingOperation {
+  id?: number
+  method: string
+  url: string
+  body?: Record<string, unknown>
+  headers?: Record<string, string>
+  ts: number
+  retries: number
+  priority: number
+  conflictStrategy: ConflictStrategy
+  idempotencyKey: string
+  onOptimisticUpdate?: string
+  rollbackFn?: string
+}
+
+interface ConflictEntry {
+  id?: number
+  opId: string
+  localValue: unknown
+  serverValue: unknown
+  strategy: ConflictStrategy
+  resolvedAt: number | null
+  resolution: 'local' | 'server' | 'merged' | null
+}
+
+interface ConflictResolutionInput {
+  conflictId: number
+  resolution: 'local' | 'server' | 'merged'
+  mergedValue?: unknown
+}
+
+type TableLike<T = Record<string, unknown>> = {
+  put: (value: Partial<T>) => Promise<unknown>
+  get: (key: unknown) => Promise<(T & Record<string, unknown>) | null>
+  count: () => Promise<number>
+  toArray: () => Promise<Array<T & Record<string, unknown>>>
+  delete: (key: unknown) => Promise<unknown>
+  clear: () => Promise<unknown>
+  reverse: () => { limit: (limit: number) => { toArray: () => Promise<Array<T & Record<string, unknown>>> } }
+  where: (field?: string) => { toArray: () => Promise<Array<T & Record<string, unknown>>>; delete: () => Promise<unknown> }
+  orderBy: (field: string) => { toArray: () => Promise<Array<T & Record<string, unknown>>> }
+}
+
+let Dexie: undefined | (new (name: string) => any)
 let _DEXIE_AVAILABLE = false
 
 try {
@@ -44,24 +119,50 @@ try {
 // Conflict Resolution & Sync Event Subscribers
 // ────────────────────────────────────────────────────────────────────────────
 
-const _syncSubscribers = new Set()
-let _globalConflictStrategy = 'server-wins'
+const _syncSubscribers = new Set<(event: SyncEvent) => void>()
+let _globalConflictStrategy: ConflictStrategy = 'server-wins'
 
 export const MAX_RETRY_ATTEMPTS = 3
 
-export function setSyncConflictStrategy(strategy) {
+export function setSyncConflictStrategy(strategy: ConflictStrategy) {
   _globalConflictStrategy = strategy // 'server-wins' | 'client-wins' | 'merge' | 'manual'
 }
 
-export function subscribeToSyncEvents(callback) {
+export function subscribeToSyncEvents(callback: (event: SyncEvent) => void) {
   _syncSubscribers.add(callback)
   return () => _syncSubscribers.delete(callback)
 }
 
-function _notifySyncEvent(event) {
+function _notifySyncEvent(event: SyncEvent) {
   _syncSubscribers.forEach(cb => {
     try { cb(event) } catch (e) { console.error('[offlineSync] subscriber error:', e) }
   })
+}
+
+function _isFetchResponse(value: unknown): value is Response {
+  return Boolean(value && typeof value === 'object' && 'ok' in value && 'status' in value)
+}
+
+function _getResponseStatus(value: unknown): number | undefined {
+  if (_isFetchResponse(value)) return value.status
+  if (value && typeof value === 'object' && 'status' in value && typeof (value as { status?: unknown }).status === 'number') {
+    return (value as { status: number }).status
+  }
+  if (value && typeof value === 'object' && 'response' in value) {
+    const response = (value as { response?: { status?: unknown } }).response
+    if (response && typeof response.status === 'number') return response.status
+  }
+  return undefined
+}
+
+async function _getConflictPayload(value: unknown) {
+  if (_isFetchResponse(value) && typeof value.json === 'function') {
+    return value.json()
+  }
+  if (value && typeof value === 'object' && 'response' in value) {
+    return (value as { response?: { data?: unknown } }).response?.data
+  }
+  return undefined
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -69,6 +170,8 @@ function _notifySyncEvent(event) {
 // ────────────────────────────────────────────────────────────────────────────
 
 class OfflineDb {
+  private _db: any
+
   constructor() {
     if (!_DEXIE_AVAILABLE) {
       this._db = null
@@ -91,17 +194,17 @@ class OfflineDb {
     })
   }
 
-  get cache() { return this._db?.cache ?? _noop_table() }
-  get pendingOps() { return this._db?.pendingOps ?? _noop_table() }
-  get conflictLog() { return this._db?.conflictLog ?? _noop_table() }
-  get syncHistory() { return this._db?.syncHistory ?? _noop_table() }
-  get optimisticUpdates() { return this._db?.optimisticUpdates ?? _noop_table() }
-  get userPrefs() { return this._db?.userPrefs ?? _noop_table() }
+  get cache(): TableLike { return this._db?.cache ?? _noop_table() }
+  get pendingOps(): TableLike<PendingOperation> { return this._db?.pendingOps ?? _noop_table<PendingOperation>() }
+  get conflictLog(): TableLike<ConflictEntry> { return this._db?.conflictLog ?? _noop_table<ConflictEntry>() }
+  get syncHistory(): TableLike { return this._db?.syncHistory ?? _noop_table() }
+  get optimisticUpdates(): TableLike { return this._db?.optimisticUpdates ?? _noop_table() }
+  get userPrefs(): TableLike { return this._db?.userPrefs ?? _noop_table() }
 
   get isAvailable() { return _DEXIE_AVAILABLE && this._db != null }
 }
 
-function _noop_table() {
+function _noop_table<T = Record<string, unknown>>(): TableLike<T> {
   return {
     put: async () => null,
     get: async () => null,
@@ -111,6 +214,7 @@ function _noop_table() {
     clear: async () => null,
     reverse: () => ({ limit: () => ({ toArray: async () => [] }) }),
     where: () => ({ toArray: async () => [], delete: async () => null }),
+    orderBy: () => ({ toArray: async () => [] }),
   }
 }
 
@@ -127,11 +231,11 @@ export const offlineDb = new OfflineDb()
  *   priority?: 'critical' | 'normal' | 'low',
  *   conflictStrategy?: 'server-wins' | 'client-wins' | 'merge' | 'manual',
  *   idempotencyKey?: string,
- *   onOptimisticUpdate?: (state: any) => void,
+ *   onOptimisticUpdate?: (state: unknown) => void,
  *   rollbackFn?: () => void
  * }} op
  */
-export async function queueOperation(op) {
+export async function queueOperation(op: QueuedOperationInput) {
   const priorityValue = {
     'critical': 0,
     'normal': 1,
@@ -167,10 +271,10 @@ export async function queueOperation(op) {
 /**
  * Persist API response to local cache.
  * @param {string} key
- * @param {any} data
+ * @param {unknown} data
  * @param {number} [ttlMs=5 * 60 * 1000] TTL in milliseconds
  */
-export async function cacheResponse(key, data, ttlMs = 5 * 60 * 1000) {
+export async function cacheResponse(key: string, data: unknown, ttlMs = 5 * 60 * 1000) {
   await offlineDb.cache.put({ 
     key, 
     data, 
@@ -183,8 +287,8 @@ export async function cacheResponse(key, data, ttlMs = 5 * 60 * 1000) {
  * Read cached API response. Returns null if expired or not found.
  * @param {string} key
  */
-export async function readCache(key) {
-  const entry = await offlineDb.cache.get(key)
+export async function readCache(key: string) {
+  const entry = await offlineDb.cache.get(key) as { expiresAt?: number; data?: unknown } | null
   if (!entry) return null
   if (entry.expiresAt && Date.now() > entry.expiresAt) {
     await offlineDb.cache.delete(key)
@@ -208,9 +312,9 @@ function _exponentialBackoff(retryCount) {
 
 /**
  * Log a conflict to the conflict resolution queue
- * @param {{opId: string, localValue: any, serverValue: any, strategy: string}} conflict
+ * @param {{opId: string, localValue: unknown, serverValue: unknown, strategy: ConflictStrategy}} conflict
  */
-async function _logConflict(conflict) {
+async function _logConflict(conflict: Omit<ConflictEntry, 'resolvedAt' | 'resolution'>) {
   await offlineDb.conflictLog.put({
     opId: conflict.opId,
     localValue: conflict.localValue,
@@ -229,9 +333,9 @@ async function _logConflict(conflict) {
 
 /**
  * Resolve a conflict using the specified strategy
- * @param {{conflictId: number, resolution: 'local' | 'server' | 'merged', mergedValue?: any}} resolution
+ * @param {{conflictId: number, resolution: 'local' | 'server' | 'merged', mergedValue?: unknown}} resolution
  */
-export async function resolveConflict(resolution) {
+export async function resolveConflict(resolution: ConflictResolutionInput) {
   await offlineDb.conflictLog.put({
     id: resolution.conflictId,
     resolvedAt: Date.now(),
@@ -249,7 +353,7 @@ export async function resolveConflict(resolution) {
 /**
  * Get pending conflicts awaiting manual resolution
  */
-export async function getPendingConflicts() {
+export async function getPendingConflicts(): Promise<ConflictEntry[]> {
   const all = await offlineDb.conflictLog.toArray()
   return all.filter((entry) => entry?.resolvedAt == null || entry?.resolvedAt === 0)
 }
@@ -257,7 +361,7 @@ export async function getPendingConflicts() {
 /**
  * Get conflict history with resolutions
  */
-export async function getConflictHistory(limit = 50) {
+export async function getConflictHistory(limit = 50): Promise<ConflictEntry[]> {
   return await offlineDb.conflictLog
     .reverse()
     .limit(limit)
@@ -277,12 +381,12 @@ export async function getConflictHistory(limit = 50) {
  * @param {function} apiFn — async function(op) => response (default: fetch)
  * @returns {{ synced: number, failed: number, conflicts: number, total: number, details: array }}
  */
-export async function syncPendingOps(apiFn) {
+export async function syncPendingOps(apiFn?: (op: PendingOperation) => Promise<unknown>): Promise<SyncResult> {
   if (!navigator.onLine) {
     return { synced: 0, failed: 0, conflicts: 0, total: 0, details: [] }
   }
   
-  const ops = await offlineDb.pendingOps
+  const ops: PendingOperation[] = await offlineDb.pendingOps
     .orderBy('priority')
     .toArray()
   
@@ -293,7 +397,7 @@ export async function syncPendingOps(apiFn) {
   let synced = 0
   let failed = 0
   let conflicts = 0
-  const details = []
+  const details: Array<Record<string, unknown>> = []
   const syncStartTime = Date.now()
   
   _notifySyncEvent({
@@ -318,7 +422,7 @@ export async function syncPendingOps(apiFn) {
         await new Promise(resolve => setTimeout(resolve, delay))
       }
       
-      let response
+      let response: unknown
       const opHeaders = {
         'Content-Type': 'application/json',
         'Idempotency-Key': op.idempotencyKey,
@@ -335,21 +439,21 @@ export async function syncPendingOps(apiFn) {
         })
         
         // Treat non-2xx as errors except 409
-        if (!response.ok && response.status !== 409) {
-          throw Object.assign(new Error(`HTTP ${response.status}`), { 
+        if (_isFetchResponse(response) && !response.ok && response.status !== 409) {
+          throw Object.assign(new Error(`HTTP ${response.status}`), {
             status: response.status,
             response,
           })
         }
       }
-      
-      const status = response?.status ?? (response?.response?.status)
+
+      const status = _getResponseStatus(response)
       
       if (status === 409) {
         // Conflict detected — apply strategy
         let serverData
         try {
-          serverData = response?.json ? await response.json() : response?.response?.data
+          serverData = await _getConflictPayload(response)
         } catch { /* ignore parse errors */ }
         
         await _logConflict({
@@ -382,7 +486,7 @@ export async function syncPendingOps(apiFn) {
           // Retry with force flag
           await offlineDb.pendingOps.put({
             ...op,
-            body: { ...op.body, _force: true },
+            body: { ...(op.body ?? {}), _force: true },
             retries: (op.retries ?? 0) + 1,
           })
           failed++
@@ -413,7 +517,8 @@ export async function syncPendingOps(apiFn) {
       })
       
     } catch (err) {
-      const httpStatus = err?.status ?? err?.response?.status
+      const httpStatus = (err as { status?: number; response?: { status?: number } })?.status
+        ?? (err as { response?: { status?: number } })?.response?.status
       
       if (httpStatus === 409) {
         // Already handled above
@@ -427,7 +532,7 @@ export async function syncPendingOps(apiFn) {
         details.push({
           opId: op.idempotencyKey,
           url: op.url,
-          error: err?.message,
+          error: (err as { message?: string })?.message,
           retries: MAX_RETRY_ATTEMPTS,
           result: 'max_retries_exceeded',
         })
@@ -441,7 +546,7 @@ export async function syncPendingOps(apiFn) {
         details.push({
           opId: op.idempotencyKey,
           url: op.url,
-          error: err?.message,
+          error: (err as { message?: string })?.message,
           retries: (op.retries ?? 0) + 1,
           result: 'will_retry',
         })
@@ -477,13 +582,16 @@ export async function syncPendingOps(apiFn) {
  * @param {object} options - { autoSyncInterval: number, onSyncResult: fn }
  * @returns {{ isOnline, pendingCount, syncInProgress, lastSyncResult, conflicts, history, resolveConflict }}
  */
-export function useOfflineSync(apiInstance, options = {}) {
+export function useOfflineSync(
+  apiInstance?: { request: (config: { method: string; url: string; data?: unknown; headers?: Record<string, string> }) => Promise<unknown> },
+  options: { autoSyncInterval?: number; onSyncResult?: (result: SyncResult) => void } = {}
+) {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
   const [pendingCount, setPendingCount] = useState(0)
   const [conflictCount, setConflictCount] = useState(0)
   const [syncInProgress, setSyncInProgress] = useState(false)
-  const [lastSyncResult, setLastSyncResult] = useState(null)
-  const [syncHistory, setSyncHistory] = useState([])
+  const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null)
+  const [syncHistory, setSyncHistory] = useState<Array<Record<string, unknown>>>([])
 
   const refreshCounts = useCallback(async () => {
     try {
@@ -524,7 +632,7 @@ export function useOfflineSync(apiInstance, options = {}) {
 
   // Sync event subscriber
   useEffect(() => {
-    const unsub = subscribeToSyncEvents((event) => {
+    const unsub = subscribeToSyncEvents((event: SyncEvent) => {
       if (event.type === 'sync_start') {
         setSyncInProgress(true)
       } else if (event.type === 'sync_complete') {
@@ -539,7 +647,9 @@ export function useOfflineSync(apiInstance, options = {}) {
         refreshCounts()
       }
     })
-    return () => unsub?.()
+    return () => {
+      unsub()
+    }
   }, [refreshCounts, refreshHistory, options])
 
   // Auto-sync on reconnect
@@ -548,7 +658,7 @@ export function useOfflineSync(apiInstance, options = {}) {
     
     setSyncInProgress(true)
     const apiFn = apiInstance
-      ? (op) => apiInstance.request({ 
+        ? (op: PendingOperation) => apiInstance.request({ 
           method: op.method, 
           url: op.url, 
           data: op.body,

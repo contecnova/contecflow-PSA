@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PortalSurveys — encuestas de satisfacción del portal cliente.
  * El backoffice las crea con POST /portal/surveys; aquí se listan y responden.

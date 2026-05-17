@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
+const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || '/api/v1'
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -38,7 +38,7 @@ api.interceptors.response.use((res) => {
     body.meta && typeof body.meta === 'object' &&
     Object.keys(body).length === 2
   ) {
-    res.meta = body.meta
+    ;(res as { meta?: unknown }).meta = body.meta
     res.data = body.items
   }
   return res
@@ -189,13 +189,14 @@ export default api
  *
  * Nunca devuelve null/undefined — siempre array (vacío si no hay match).
  */
-export function unwrapList(response, key) {
-  const data = response?.data ?? response
+export function unwrapList(response: unknown, key?: string): unknown[] {
+  const data = (response as { data?: unknown } | null | undefined)?.data ?? response
   if (Array.isArray(data)) return data
   if (data && typeof data === 'object') {
-    if (key && Array.isArray(data[key])) return data[key]
+    const obj = data as Record<string, unknown>
+    if (key && Array.isArray(obj[key])) return obj[key] as unknown[]
     for (const k of ['items', 'results', 'rows', 'data', 'list']) {
-      if (Array.isArray(data[k])) return data[k]
+      if (Array.isArray(obj[k])) return obj[k] as unknown[]
     }
   }
   return []
@@ -243,6 +244,7 @@ export const projectsApi = {
   get:               (id)       => api.get(`/projects/${id}`),
   create:            (data)     => api.post('/projects', data),
   update:            (id, data) => api.patch(`/projects/${id}`, data),
+  delete:            (id)       => api.delete(`/projects/${id}`),
   team:              (id)       => api.get(`/projects/${id}/team`),
   addPhase:          (id, data) => api.post(`/projects/${id}/phases`, data),
   members:           (id)       => api.get(`/projects/${id}/members`),
@@ -749,7 +751,7 @@ const getWithFallback = async (paths, config) => {
   throw lastErr
 }
 
-const postWithFallback = async (paths, data, config) => {
+const postWithFallback = async (paths, data, config = undefined) => {
   let lastErr
   for (const path of paths) {
     try {
@@ -1218,6 +1220,18 @@ export const settingsApi = {
   general:      ()      => api.get('/settings/general'),
   logLevel:     ()      => api.get('/settings/log-level'),
   setLogLevel:  (data)  => api.post('/settings/log-level', data),
+  // Runtime-flag groups (env → UI migration). See docs/CONFIG_MIGRATION_INVENTORY.md
+  runtimeGroup: (group) => api.get(`/settings/runtime/${group}`),
+  setRuntime:   (group, key, value) => api.put(`/settings/runtime/${group}/${key}`, { value: String(value) }),
+
+  // Integration credentials (Phase 2 — encrypted per-org provider creds)
+  integrations:        ()                     => api.get('/settings/integrations'),
+  integrationProvider: (provider)             => api.get(`/settings/integrations/${provider}`),
+  setIntegration:      (provider, key, value) => api.put(`/settings/integrations/${provider}/${key}`, { value: value == null ? '' : String(value) }),
+  testIntegration:     (provider)             => api.post(`/settings/integrations/${provider}/test`),
+
+  // Audit log (settings + credentials)
+  auditLog: (params = {}) => api.get('/settings/audit-log', { params }),
 }
 
 // ── Semantic ──────────────────────────────────────────────────────────────────

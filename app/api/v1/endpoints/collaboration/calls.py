@@ -16,9 +16,13 @@ from app.schemas.collaboration import CallStartIn, CallSummaryOut, CallTokenOut
 from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import _org, assert_conversation_access
 from app.services.collaboration.livekit import issue_access_token, url as lk_url
+from app.services.traffic_control_service import consume_quota
 from app.core.responses import APIListResponse
 
 router = APIRouter()
+
+CALL_START_USER_LIMIT_PER_MIN = 8
+CALL_JOIN_USER_LIMIT_PER_MIN = 20
 
 
 def _room_name(call_id: str) -> str:
@@ -29,6 +33,17 @@ def _room_name(call_id: str) -> str:
 def start_call(payload: CallStartIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     assert_conversation_access(db, current_user, payload.conversation_id)
     org = _org(current_user)
+    quota = consume_quota(
+        db,
+        scope="collab.call.start.user",
+        tenant_id=org,
+        subject=current_user.id,
+        limit=CALL_START_USER_LIMIT_PER_MIN,
+        window_seconds=60,
+    )
+    if not quota["allowed"]:
+        raise HTTPException(status_code=429, detail=f"Call start rate limit exceeded. Retry in {quota['retry_after']}s")
+
     call = CollaborationCall(
         organization_id=org,
         conversation_id=payload.conversation_id,
@@ -66,6 +81,17 @@ def start_call(payload: CallStartIn, current_user: User = Depends(get_current_us
 @router.post("/calls/{call_id}/join", response_model=CallTokenOut, summary="Unirse a llamada")
 def join_call(call_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org = _org(current_user)
+    quota = consume_quota(
+        db,
+        scope="collab.call.join.user",
+        tenant_id=org,
+        subject=current_user.id,
+        limit=CALL_JOIN_USER_LIMIT_PER_MIN,
+        window_seconds=60,
+    )
+    if not quota["allowed"]:
+        raise HTTPException(status_code=429, detail=f"Call join rate limit exceeded. Retry in {quota['retry_after']}s")
+
     call = db.query(CollaborationCall).filter(CollaborationCall.id == call_id, CollaborationCall.organization_id == org).first()
     if not call:
         raise HTTPException(404, "Llamada no encontrada")

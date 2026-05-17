@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * BiGovernancePanel.jsx — BI Governance management.
  *

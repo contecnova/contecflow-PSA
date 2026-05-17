@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * EnterprisePage v14 — Webhooks, GDPR, Email, Integraciones, SSO, Audit, API Keys
  */

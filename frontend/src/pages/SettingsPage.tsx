@@ -22,6 +22,8 @@ import {
   LogLevelSection,
   SystemStateSection,
   ESignSettingsSection,
+  RuntimeFlagsSection,
+  IntegrationCredentialsSection,
 } from './SettingsPageSections'
 
 const TAB_GROUPS = [
@@ -51,11 +53,13 @@ const TAB_GROUPS = [
   {
     label: 'Sistema',
     tabs: [
-      { id: 'roles',        label: 'Roles',          roles: ['admin'] },
-      { id: 'email-inbound',label: 'Email-to-ticket', roles: ['admin'] },
-      { id: 'esign',        label: 'E-firma',         roles: ['admin'] },
-      { id: 'log-level',    label: 'Nivel de log',   roles: ['admin'] },
-      { id: 'system-state', label: 'Estado sistema', roles: ['admin'] },
+      { id: 'roles',         label: 'Roles',           roles: ['admin'] },
+      { id: 'runtime-flags', label: 'Config. dinámica', roles: ['admin'] },
+      { id: 'integrations',  label: 'Credenciales',    roles: ['admin'] },
+      { id: 'email-inbound', label: 'Email-to-ticket', roles: ['admin'] },
+      { id: 'esign',         label: 'E-firma',         roles: ['admin'] },
+      { id: 'log-level',     label: 'Nivel de log',    roles: ['admin'] },
+      { id: 'system-state',  label: 'Estado sistema',  roles: ['admin'] },
     ],
   },
 ]
@@ -118,6 +122,8 @@ export default function SettingsPage() {
       {activeTab === 'log-level'     && <LogLevelSection />}
       {activeTab === 'system-state'  && <SystemStateSection />}
       {activeTab === 'esign'         && <ESignSettingsSection />}
+      {activeTab === 'runtime-flags' && <RuntimeFlagsSection />}
+      {activeTab === 'integrations'  && <IntegrationCredentialsSection />}
     </Page>
   )
 }

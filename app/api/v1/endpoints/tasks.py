@@ -283,7 +283,7 @@ def cascade_reschedule(
 
 # Compatibilidad: /tasks/dependencies → /task-dependencies/{project_id}
 
-@router.get("/dependencies", summary="Listar dependencias de tareas")
+@router.get("/dependencies", response_model=APIListResponse[dict], summary="Listar dependencias de tareas")
 def list_dependencies(
     project_id: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -291,18 +291,20 @@ def list_dependencies(
 ):
     if not project_id:
         # Si no se pasa project_id, devolver array vacío para evitar 404 en frontend
-        return []
-    return svc_list_task_dependencies(db, project_id)
+        return APIListResponse.ok(items=[], total=0)
+    items = svc_list_task_dependencies(db, project_id)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 # Compatibilidad: /tasks/dependencies/{project_id}
-@router.get("/dependencies/{project_id}", summary="Listar dependencias de tareas por proyecto (compatibilidad)")
+@router.get("/dependencies/{project_id}", response_model=APIListResponse[dict], summary="Listar dependencias de tareas por proyecto (compatibilidad)")
 def list_dependencies_by_project(
     project_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return svc_list_task_dependencies(db, project_id)
+    items = svc_list_task_dependencies(db, project_id)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/dependencies", summary="Crear dependencia entre tareas", status_code=201)

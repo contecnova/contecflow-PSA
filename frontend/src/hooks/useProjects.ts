@@ -35,7 +35,7 @@ export function useProjects(params: ProjectListParams = {}): UseQueryResult<Proj
 export function useAllProjects(): UseQueryResult<Project[]> {
   return useQuery<Project[]>({
     queryKey: queryKeys.projects.all(),
-    queryFn: () => projectsApi.list().then((r: { data?: { items?: Project[] } | Project[] | null }) => unwrapList<Project>(r)),
+    queryFn: () => projectsApi.list({}).then((r: { data?: { items?: Project[] } | Project[] | null }) => unwrapList<Project>(r)),
     staleTime: 2 * 60 * 1000,
   })
 }

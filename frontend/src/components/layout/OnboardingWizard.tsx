@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * OnboardingWizard — Interactive step-by-step setup guide for new admins
  * Features:

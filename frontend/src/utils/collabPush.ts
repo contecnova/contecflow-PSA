@@ -47,7 +47,7 @@ export async function registerCollabPush(): Promise<CollabPushResult> {
     // applicationServerKey expects BufferSource; Uint8Array satisfies it.
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(pub.public_key),
+      applicationServerKey: urlBase64ToUint8Array(pub.public_key) as BufferSource,
     })
   }
   await fetch('/api/v1/collaboration/push/subscribe', {

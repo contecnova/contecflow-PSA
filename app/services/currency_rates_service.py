@@ -3,8 +3,10 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.db.session import is_postgres
 from app.models.billing_reports import Invoice, InvoiceStatus
 from app.models.bookings import ExchangeRate
+from app.models.exchange_rates_log import CurrencyConversionLog
 from app.models.expenses import Expense
 import logging
 
@@ -32,18 +34,27 @@ def upsert_exchange_rate(
     effective_date: date,
     source: str = "manual",
 ) -> tuple:
-    """Returns (rate_obj, created: bool)."""
-    existing = db.query(ExchangeRate).filter(
+    """Returns (rate_obj, created: bool, previous_snapshot: dict|None)."""
+    existing_q = db.query(ExchangeRate).filter(
         ExchangeRate.from_currency == from_currency,
         ExchangeRate.to_currency == to_currency,
         ExchangeRate.effective_date == effective_date,
-    ).first()
+    )
+    if is_postgres():
+        existing_q = existing_q.with_for_update()
+    existing = existing_q.first()
     if existing:
+        previous = {
+            "id": existing.id,
+            "rate": existing.rate,
+            "source": existing.source,
+            "effective_date": str(existing.effective_date),
+        }
         existing.rate = rate
         existing.source = source
         db.commit()
         db.refresh(existing)
-        return existing, False
+        return existing, False, previous
     rate_obj = ExchangeRate(
         from_currency=from_currency,
         to_currency=to_currency,
@@ -54,7 +65,7 @@ def upsert_exchange_rate(
     db.add(rate_obj)
     db.commit()
     db.refresh(rate_obj)
-    return rate_obj, True
+    return rate_obj, True, None
 
 
 def get_rate(
@@ -104,6 +115,70 @@ def resolve_rate(db: Session, from_c: str, to_c: str, ref_date: date) -> float:
         return r.rate
     r2 = get_rate_inverse(db, from_c, to_c, ref_date)
     return (1.0 / r2.rate) if r2 and r2.rate else 1.0
+
+
+def resolve_rate_with_snapshot(db: Session, from_c: str, to_c: str, ref_date: date) -> dict:
+    """Resolve FX rate plus immutable snapshot metadata used for auditing."""
+    if from_c == to_c:
+        return {
+            "rate": 1.0,
+            "rate_id": None,
+            "rate_date": str(ref_date),
+            "source": "identity",
+        }
+
+    direct = get_rate(db, from_c, to_c, ref_date)
+    if direct:
+        return {
+            "rate": direct.rate,
+            "rate_id": direct.id,
+            "rate_date": str(direct.effective_date),
+            "source": direct.source,
+        }
+
+    inverse = get_rate_inverse(db, from_c, to_c, ref_date)
+    if inverse and inverse.rate:
+        return {
+            "rate": 1.0 / inverse.rate,
+            "rate_id": inverse.id,
+            "rate_date": str(inverse.effective_date),
+            "source": f"inverse:{inverse.source}",
+        }
+
+    return {
+        "rate": 1.0,
+        "rate_id": None,
+        "rate_date": str(ref_date),
+        "source": "fallback",
+    }
+
+
+def log_currency_conversion(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    entity_type: str,
+    entity_id: str,
+    from_currency: str,
+    to_currency: str,
+    original_amount: float,
+    converted_amount: float,
+    rate_used: float,
+    rate_date: date,
+) -> None:
+    db.add(
+        CurrencyConversionLog(
+            organization_id=organization_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            from_currency=from_currency,
+            to_currency=to_currency,
+            original_amount=original_amount,
+            converted_amount=converted_amount,
+            rate_used=rate_used,
+            rate_date=rate_date,
+        )
+    )
 
 
 def get_report_data(

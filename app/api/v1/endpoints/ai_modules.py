@@ -329,6 +329,8 @@ def transcribe_voice_audio(
             audio.filename or "audio.wav",
             audio.content_type or "audio/wav",
             language=None,
+            db=db,
+            org_id=getattr(current_user, "organization_id", None),
         )
         transcript = (result.text or "").strip()
     except _STTError as exc:

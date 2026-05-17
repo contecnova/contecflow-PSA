@@ -3,6 +3,10 @@ from tests.conftest import auth
 
 from app.models.advanced_config import NumberingSequence
 
+
+def _unwrap_items(payload):
+    return payload if isinstance(payload, list) else payload.get("items", [])
+
 def make_project(client, token):
     r = client.post("/api/v1/projects", json={"name":"P","code":"TSK","status":"active","billing_type":"time_material"}, headers=auth(token))
     return r.json()["id"]
@@ -99,7 +103,8 @@ def test_task_dependency_remove_is_soft_and_reactivable(client, pm_token, db):
 
     listed_after_delete = client.get(f"/api/v1/tasks/dependencies/{pid}", headers=auth(pm_token))
     assert listed_after_delete.status_code == 200
-    assert all(dep["id"] != dep_id for dep in listed_after_delete.json())
+    items = _unwrap_items(listed_after_delete.json())
+    assert all(dep["id"] != dep_id for dep in items)
 
     recreated = client.post(
         "/api/v1/tasks/dependencies",

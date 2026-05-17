@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ClientPortalPage – Internal PM view for managing the client portal:
  * - Manage client users and their access

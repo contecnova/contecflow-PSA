@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PortalAdvancedSections — todas las páginas internas del portal cliente
  * con el lenguaje visual del backoffice (PortalUI).

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import DynamicChart from '../../charts/DynamicChart'
+import type { ChartType } from '../../charts/DynamicChart'
 import useMediaQuery from '../../hooks/useMediaQuery'
 
 const CHART_TYPES = [
@@ -18,7 +19,7 @@ const CHART_TYPES = [
 ]
 
 export default function BiAdvancedViz({ style }: { style?: React.CSSProperties }) {
-  const [activeChart, setActiveChart] = useState<string>('sankey')
+  const [activeChart, setActiveChart] = useState<ChartType>('sankey')
   const isMobile = useMediaQuery('(max-width: 900px)')
 
   return (
@@ -29,7 +30,7 @@ export default function BiAdvancedViz({ style }: { style?: React.CSSProperties }
           {CHART_TYPES.map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => setActiveChart(key)}
+              onClick={() => setActiveChart(key as ChartType)}
               style={{
                 padding: '4px 12px',
                 borderRadius: 20,

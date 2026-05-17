@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_user
 from app.models.user import User, UserRole
-from app.models.billing_reports import Invoice, InvoiceLine
 from app.schemas.billing_reports import InvoiceCreate, InvoiceOut, InvoiceSummaryOut
 from app.services import billing_reports_service
 from app.services.psa_flows import build_invoice_preview_from_timesheets_flow
@@ -36,47 +35,7 @@ def create_invoice(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    number = billing_reports_service.next_invoice_number(db)
-    subtotal = sum(line.get("amount", 0) for line in payload.lines)
-    tax_amount = round(subtotal * payload.tax_rate / 100, 2)
-    total = round(subtotal + tax_amount, 2)
-    inv = Invoice(
-        number=number,
-        project_id=payload.project_id,
-        contract_id=payload.contract_id,
-        client_name=payload.client_name,
-        client_address=payload.client_address,
-        client_vat=payload.client_vat,
-        client_email=payload.client_email,
-        issue_date=payload.issue_date,
-        due_date=payload.due_date,
-        tax_rate=payload.tax_rate,
-        subtotal=subtotal,
-        tax_amount=tax_amount,
-        total=total,
-        currency=payload.currency,
-        notes=payload.notes,
-        po_reference=payload.po_reference,
-        period_from=payload.period_from,
-        period_to=payload.period_to,
-        created_by=current_user.id,
-    )
-    db.add(inv)
-    db.flush()
-    for i, line in enumerate(payload.lines):
-        db.add(InvoiceLine(
-            invoice_id=inv.id,
-            order=i,
-            description=line.get("description", ""),
-            quantity=line.get("quantity", 1),
-            unit=line.get("unit", "u"),
-            unit_price=line.get("unit_price", 0),
-            discount_pct=line.get("discount_pct", 0),
-            amount=line.get("amount", 0),
-        ))
-    db.commit()
-    db.refresh(inv)
-    return billing_reports_service.invoice_out(inv)
+    return billing_reports_service.create_invoice(payload, current_user, db)
 
 
 @router.get("", response_model=APIListResponse[InvoiceOut])

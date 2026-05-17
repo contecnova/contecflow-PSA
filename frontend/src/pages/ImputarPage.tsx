@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useMemo } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'

@@ -15,6 +15,19 @@ import { useAppT } from '../i18n/AppLangContext'
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const DAYS   = ['L','M','X','J','V','S','D']
 
+interface CalendarEvent {
+  date: string
+  type: keyof typeof EVENT_TYPES
+  title: string
+  id: string | number
+  status?: string
+}
+
+interface TaskItem { id: string | number; due_date?: string; title?: string; status?: string }
+interface MilestoneItem { id: string | number; due_date?: string; title?: string }
+interface SprintItem { id: string | number; start_date?: string; end_date?: string; name?: string }
+interface AbsenceItem { id: string | number; start_date?: string; user_name?: string; type?: string }
+
 const EVENT_TYPES = {
   task:      { color: 'var(--success)', icon: '▦', label: 'Tarea' },
   milestone: { color: 'var(--accent)', icon: '⬟', label: 'Hito' },
@@ -24,10 +37,10 @@ const EVENT_TYPES = {
   license:   { color: 'var(--warning)', icon: '🔑', label: 'Licencia' },
 }
 
-function getDaysInMonth(year, month) {
+function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate()
 }
-function getFirstDayOfMonth(year, month) {
+function getFirstDayOfMonth(year: number, month: number) {
   let d = new Date(year, month, 1).getDay()
   return d === 0 ? 6 : d - 1 // Lunes = 0
 }
@@ -45,38 +58,38 @@ export default function CalendarPage(): JSX.Element {
   const dateTo   = `${year}-${String(month+1).padStart(2,'0')}-${String(getDaysInMonth(year,month)).padStart(2,'0')}`
 
   // Tareas con fecha de vencimiento
-  const { data: tasks = [] } = useQuery({
+  const { data: tasks = [] } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-tasks', year, month],
     queryFn: () => tasksApi.list({ due_date_from: dateFrom, due_date_to: dateTo, limit: 100 })
-      .then(r => unwrapList(r).map(t => ({
+      .then(r => (unwrapList(r) as TaskItem[]).map(t => ({
         date: t.due_date, type: 'task', title: t.title, id: t.id, status: t.status,
       }))).catch(() => []),
   })
 
   // Milestones
-  const { data: milestones = [] } = useQuery({
+  const { data: milestones = [] } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-milestones', year, month],
     queryFn: () => projectsApi.milestones({ date_from: dateFrom, date_to: dateTo })
-      .then(r => unwrapList(r).map(m => ({
+      .then(r => (unwrapList(r) as MilestoneItem[]).map(m => ({
         date: m.due_date, type: 'milestone', title: m.title, id: m.id,
       }))).catch(() => []),
   })
 
   // Sprints
-  const { data: sprints = [] } = useQuery({
+  const { data: sprints = [] } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-sprints', year, month],
     queryFn: () => sprintsApi.list(undefined, { limit: 20 })
-      .then(r => unwrapList(r).flatMap(s => [
+      .then(r => (unwrapList(r) as SprintItem[]).flatMap(s => [
         s.start_date ? { date: s.start_date, type: 'sprint', title: `${s.name} (inicio)`, id: s.id + '_s' } : null,
         s.end_date   ? { date: s.end_date,   type: 'sprint', title: `${s.name} (fin)`,   id: s.id + '_e' } : null,
-      ].filter(Boolean))).catch(() => []),
+      ].filter(Boolean) as CalendarEvent[])).catch(() => []),
   })
 
   // Ausencias
-  const { data: absences = [] } = useQuery({
+  const { data: absences = [] } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-absences', year, month],
     queryFn: () => absencesApi.list({ date_from: dateFrom, date_to: dateTo, limit: 50 })
-      .then(r => unwrapList(r).map(a => ({
+      .then(r => (unwrapList(r) as AbsenceItem[]).map(a => ({
         date: a.start_date, type: 'absence', title: `${a.user_name || 'Equipo'}: ${a.type || 'Ausencia'}`, id: a.id,
       }))).catch(() => []),
   })
@@ -87,7 +100,7 @@ export default function CalendarPage(): JSX.Element {
     .filter(e => filter === 'all' || e.type === filter)
 
   // Agrupar por día
-  const eventsByDay = {}
+  const eventsByDay: Record<number, CalendarEvent[]> = {}
   allEvents.forEach(e => {
     const day = parseInt(e.date.split('-')[2])
     if (!eventsByDay[day]) eventsByDay[day] = []
@@ -126,11 +139,11 @@ export default function CalendarPage(): JSX.Element {
         <div style={{ display: 'flex', gap: 6 }}>
           {[['all', 'Todo'], ...Object.entries(EVENT_TYPES).map(([k, v]) => [k, v.label])].map(([k, label]) => (
             <button key={k} onClick={() => setFilter(k)}
-              style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${filter === k ? EVENT_TYPES[k]?.color || 'var(--accent)' : 'var(--surface-4)'}`,
-                background: filter === k ? (EVENT_TYPES[k]?.color || 'var(--accent)') + '15' : 'transparent',
-                color: filter === k ? (EVENT_TYPES[k]?.color || 'var(--accent)') : 'var(--text-2)',
+              style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${filter === k ? EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.color || 'var(--accent)' : 'var(--surface-4)'}`,
+                background: filter === k ? (EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.color || 'var(--accent)') + '15' : 'transparent',
+                color: filter === k ? (EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.color || 'var(--accent)') : 'var(--text-2)',
                 fontSize: "var(--text-xs)", fontWeight: filter === k ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
-              {k !== 'all' && EVENT_TYPES[k]?.icon + ' '}{label}
+              {k !== 'all' && EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.icon + ' '}{label}
             </button>
           ))}
         </div>
@@ -179,8 +192,8 @@ export default function CalendarPage(): JSX.Element {
                 ...(isToday ? { background: 'var(--accent)', color: '#000', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)" } : {})
               }}>{day}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {dayEvents.slice(0, 3).map(e => {
-                  const cfg = EVENT_TYPES[e.type] || {}
+                {dayEvents.slice(0, 3).map((e) => {
+                  const cfg = EVENT_TYPES[e.type]
                   return (
                     <div key={e.id} title={e.title}
                       style={{ fontSize: "var(--text-2xs)", padding: '2px 5px', borderRadius: 4, borderLeft: `2px solid ${cfg.color}`,

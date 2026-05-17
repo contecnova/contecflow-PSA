@@ -54,6 +54,15 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
+            if (id.includes('/src/pages/')) {
+              if (id.includes('/pages/service-desk/')) return 'route-service-desk'
+              if (id.includes('/pages/portal-client/') || id.includes('PortalClientePage') || id.includes('PortalPublicViewPage')) return 'route-portal'
+              if (id.includes('/pages/BI') || id.includes('DataExplorerPage') || id.includes('PredictionsPage') || id.includes('DataPlatformPage') || id.includes('DataGovernancePage')) return 'route-bi'
+              if (id.includes('AIHubPage') || id.includes('NexusAgentPage') || id.includes('OraclePage') || id.includes('MeetingsAIPage') || id.includes('ContractsAIPage') || id.includes('SemanticEnginePage')) return 'route-ai'
+              if (id.includes('ProjectsPage') || id.includes('TasksPage') || id.includes('GanttPage') || id.includes('Sprint') || id.includes('Kanban')) return 'route-delivery'
+              if (id.includes('ProfitabilityPage') || id.includes('RevenuePage') || id.includes('BudgetsPage') || id.includes('InvoicesPage') || id.includes('ExpensesPage')) return 'route-finance'
+              return 'route-misc'
+            }
             if (!id.includes('node_modules')) return
             if (id.includes('/react/') || id.includes('/react-dom/')) return 'vendor-react'
             if (id.includes('lucide-react')) return 'vendor-icons'

@@ -3,9 +3,10 @@
  * Fusiona SearchPage (NQL avanzado) y FullTextSearchPage
  */
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { projectsApi, tasksApi, clientsApi, ticketsApi, contractsApi } from '../services/api'
+import { epicsApi, projectsApi, tasksApi, clientsApi, ticketsApi, contractsApi } from '../services/api'
 import { Button, Spinner, EmptyState, DataTable } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -14,6 +15,35 @@ import { useToast } from '../context/ToastContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppT } from '../i18n/AppLangContext'
 
+type EntityTypeId = 'project' | 'task' | 'client' | 'ticket' | 'contract' | 'invoice'
+
+interface SearchEntityType {
+  id: EntityTypeId
+  label: string
+  icon: string
+  color: string
+}
+
+interface SearchItem {
+  id: string | number
+  name?: string
+  title?: string
+  code?: string
+  number?: string
+  status?: string
+  client_name?: string
+  project_name?: string
+}
+
+type GroupedResults = Partial<Record<EntityTypeId, SearchItem[]>>
+
+interface NqlResponse {
+  total?: number
+  entity?: string
+  execution_time_ms?: number
+  results?: Array<Record<string, unknown>>
+}
+
 const ENTITY_TYPES = [
   { id: 'project', label: 'Proyectos',   icon: '⬡',  color: 'var(--accent)' },
   { id: 'task',    label: 'Tareas',      icon: '▦',  color: 'var(--success)' },
@@ -21,26 +51,25 @@ const ENTITY_TYPES = [
   { id: 'ticket',  label: 'Tickets',     icon: '🎫', color: 'var(--purple)' },
   { id: 'contract',label: 'Contratos',   icon: '📄', color: 'var(--warning)' },
   { id: 'invoice', label: 'Facturas',    icon: '🧾', color: 'var(--accent)' },
-]
+] as const satisfies readonly SearchEntityType[]
 
-const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const inp   = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const inp: CSSProperties   = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 
 // ── Full-text search ──────────────────────────────────────────────────────────
 function FTSMode() {
   const [searchParams, setSearchParams] = useSearchParams()
   const q = searchParams.get('q') || ''
-  const entity = searchParams.get('entity') || 'all'
-  const setQ = (v) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set('q', v) : n.delete('q'); return n }, { replace: true })
-  const setEntity = (v) => setSearchParams(p => { const n = new URLSearchParams(p); v && v !== 'all' ? n.set('entity', v) : n.delete('entity'); return n }, { replace: true })
+  const entity = (searchParams.get('entity') || 'all') as EntityTypeId | 'all'
+  const setQ = (v: string) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set('q', v) : n.delete('q'); return n }, { replace: true })
+  const setEntity = (v: EntityTypeId | 'all') => setSearchParams(p => { const n = new URLSearchParams(p); v && v !== 'all' ? n.set('entity', v) : n.delete('entity'); return n }, { replace: true })
   const _toast = useToast()
   const nav = useNavigate()
 
-  const { data: results = {}, isFetching } = useQuery({
+  const { data: resultsRaw = {}, isFetching } = useQuery({
     queryKey: ['fts-unified', q, entity],
     queryFn: async () => {
       if (q.trim().length < 2) return {}
-      const _params = { q: q.trim(), limit: 8 }
       const ents = entity === 'all' ? ENTITY_TYPES.map(e => e.id) : [entity]
       const calls = await Promise.allSettled([
         ents.includes('project')  ? projectsApi.list({ search: q, limit: 8 }).then(r => ({ type: 'project', items: r.data?.items || r.data || [] })) : null,
@@ -49,13 +78,18 @@ function FTSMode() {
         ents.includes('ticket')   ? ticketsApi.list({ search: q, page_size: 8 }).then(r => ({ type: 'ticket',  items: r.data?.tickets || r.data?.items || (Array.isArray(r.data) ? r.data : []) })) : null,
         ents.includes('contract') ? contractsApi.list({ q, limit: 8 }).then(r => ({ type: 'contract', items: r.data?.items || r.data || [] })) : null,
       ].filter(Boolean))
-      const grouped = {}
-      calls.forEach(c => { if (c.status === 'fulfilled' && c.value) grouped[c.value.type] = c.value.items })
+      const grouped: GroupedResults = {}
+      calls.forEach(c => {
+        if (c.status === 'fulfilled' && c.value) {
+          grouped[c.value.type as EntityTypeId] = c.value.items as SearchItem[]
+        }
+      })
       return grouped
     },
     enabled: q.trim().length >= 2,
     staleTime: 5000,
   })
+  const results = resultsRaw as GroupedResults
 
   const totalResults = Object.values(results).flat().length
 
@@ -124,8 +158,8 @@ function FTSMode() {
                   onMouseEnter={e => e.currentTarget.style.borderColor = etype.color + '40'}
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
                   onClick={() => {
-                    const paths = { project: '/projects', task: '/tasks', client: '/clients', ticket: '/service-desk', contract: '/contracts', invoice: '/invoices' }
-                    nav(paths[etype.id] || '/')
+                    const paths: Record<EntityTypeId, string> = { project: '/projects', task: '/tasks', client: '/clients', ticket: '/service-desk', contract: '/contracts', invoice: '/invoices' }
+                    nav(paths[etype.id])
                   }}>
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
                     {item.name || item.title || item.code || item.number || '—'}
@@ -148,13 +182,13 @@ function FTSMode() {
 // ── NQL / Advanced search ─────────────────────────────────────────────────────
 function NQLMode() {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState(null)
+  const [results, setResults] = useState<NqlResponse | null>(null)
   const toast = useToast()
 
   const { mutate: runSearch, isPending } = useMutation({
-    mutationFn: d => api.post('/epics/nql/search', d).then(r => r.data),
-    onSuccess: data => setResults(data),
-    onError: e => toast.error(extractErr(e, 'Error en la búsqueda NQL')),
+    mutationFn: (d: { query: string }) => epicsApi.nqlSearch(d).then(r => r.data),
+    onSuccess: (data: NqlResponse) => setResults(data),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error en la búsqueda NQL')),
   })
 
   const EXAMPLES = [
@@ -219,7 +253,7 @@ function NQLMode() {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function SearchPage() {
   const _t = useAppT()
-  const [mode, setMode] = useState('fts')
+  const [mode, setMode] = useState<'fts' | 'nql'>('fts')
 
   return (
     <PageShell>
@@ -229,7 +263,7 @@ export default function SearchPage() {
         subtitle={_t('search.subtitle')}
         actions={
           <div style={{ display: 'flex', gap: 4, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 4 }}>
-            {[['fts', '🔍 Búsqueda rápida'], ['nql', '⚡ NQL avanzado']].map(([id, label]) => (
+            {([['fts', '🔍 Búsqueda rápida'], ['nql', '⚡ NQL avanzado']] as const).map(([id, label]) => (
               <button key={id} onClick={() => setMode(id)}
                 style={{ padding: '7px 16px', borderRadius: 7, border: 'none',
                   background: mode === id ? 'var(--accent)' : 'transparent',

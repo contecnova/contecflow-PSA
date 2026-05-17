@@ -222,7 +222,7 @@ def create_user_record(payload, current_user, db: Session):
         raise HTTPException(status_code=400, detail="Email ya registrado")
 
     if payload.password:
-        ok, err = validate_password_policy(payload.password)
+        ok, err = validate_password_policy(payload.password, db=db, org_id=getattr(current_user, "organization_id", None))
         if not ok:
             raise HTTPException(status_code=400, detail=err)
 

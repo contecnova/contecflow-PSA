@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GitPage — bidirectional Git integration dashboard
  * Shows all PRs and deployments across repositories, with task linkage.

@@ -33,7 +33,7 @@ export function useContracts(params: ContractListParams = {}): UseQueryResult<Co
 export function useAllContracts(): UseQueryResult<Contract[]> {
   return useQuery<Contract[]>({
     queryKey: ['contracts'],
-    queryFn: () => contractsApi.list().then((r: { data?: { items?: Contract[] } | Contract[] | null }) => unwrapList<Contract>(r)),
+    queryFn: () => contractsApi.list({}).then((r: { data?: { items?: Contract[] } | Contract[] | null }) => unwrapList<Contract>(r)),
     staleTime: STALE,
   })
 }

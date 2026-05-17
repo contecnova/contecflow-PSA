@@ -17,6 +17,42 @@ import {
   Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
 
+interface ProjectItem {
+  id: string | number
+  code?: string
+  name?: string
+}
+
+interface SprintItem {
+  id: string | number
+  name?: string
+  status?: string
+}
+
+interface BurnupPoint {
+  date: string
+  scope: number
+  completed: number
+}
+
+interface BurnupPayload {
+  burnup?: BurnupPoint[]
+  sprint?: { name?: string }
+  target?: number
+}
+
+interface VelocityPoint {
+  sprint?: string
+  planned?: number
+  completed?: number
+  velocity?: number
+}
+
+interface VelocityPayload {
+  sprints?: VelocityPoint[]
+  avg_velocity?: number
+}
+
 const sf = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20 }
 
 export default function SprintChartsPage() {
@@ -24,26 +60,26 @@ export default function SprintChartsPage() {
   const [projectId, setProjectId] = useState('')
   const [sprintId,  setSprintId]  = useState('')
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects-list'],
-    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
+    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
   })
 
-  const { data: sprintsData } = useQuery({
+  const { data: sprintsData } = useQuery<SprintItem[] | { sprints?: SprintItem[] }>({
     queryKey: ['project-sprints-list', projectId],
     queryFn: () => projectSprintsApi.list(projectId).then(r => r.data),
     enabled: !!projectId,
   })
 
-  const sprints = Array.isArray(sprintsData) ? sprintsData : sprintsData?.sprints || []
+  const sprints: SprintItem[] = Array.isArray(sprintsData) ? sprintsData : sprintsData?.sprints || []
 
-  const { data: burnupData, isLoading: loadBU } = useQuery({
+  const { data: burnupData, isLoading: loadBU } = useQuery<BurnupPayload>({
     queryKey: ['burnup', projectId, sprintId],
     queryFn: () => projectSprintsApi.burnup(projectId, sprintId).then(r => r.data),
     enabled: !!projectId && !!sprintId,
   })
 
-  const { data: velocityData, isLoading: loadVel } = useQuery({
+  const { data: velocityData, isLoading: loadVel } = useQuery<VelocityPayload>({
     queryKey: ['velocity', projectId],
     queryFn: () => projectSprintsApi.velocity(projectId).then(r => r.data),
     enabled: !!projectId,

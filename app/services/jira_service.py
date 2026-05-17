@@ -13,6 +13,9 @@ from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
 from app.models.task import Task
+from app.core.encryption import encrypt_value, decrypt_value
+
+_SENSITIVE_SETTING_KEYS = {"jira_api_token"}
 
 # ── Jira ↔ NexusPM status / priority maps ─────────────────────────────────────
 
@@ -53,7 +56,11 @@ def get_setting(db: Session, key: str, org_id: Optional[str] = None) -> Optional
     row = db.query(AppSetting).filter(
         AppSetting.key == key, AppSetting.organization_id.is_(None)
     ).first()
-    return row.value if row else None
+    value = row.value if row else None
+    if value and key in _SENSITIVE_SETTING_KEYS:
+        dec = decrypt_value(value)
+        return dec if dec is not None else value
+    return value
 
 
 def set_setting(db: Session, key: str, value: str, org_id: Optional[str] = None) -> None:
@@ -64,10 +71,11 @@ def set_setting(db: Session, key: str, value: str, org_id: Optional[str] = None)
     else:
         q = q.filter(AppSetting.organization_id.is_(None))
     row = q.first()
+    store_value = encrypt_value(value) if key in _SENSITIVE_SETTING_KEYS and value else value
     if row:
-        row.value = value
+        row.value = store_value
     else:
-        db.add(AppSetting(key=key, value=value, organization_id=org_id,
+        db.add(AppSetting(key=key, value=store_value, organization_id=org_id,
                           description=f"Jira integration: {key}"))
     db.flush()
 

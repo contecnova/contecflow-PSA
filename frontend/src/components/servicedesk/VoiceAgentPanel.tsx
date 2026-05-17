@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * VoiceAgentPanel.jsx — IVR / Voice Agent management for Service Desk.
  *

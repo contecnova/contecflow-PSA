@@ -190,22 +190,30 @@ export default function BiAnomalyPanel() {
 
         {churnResult && (
           <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px' }}>
+            {(() => {
+              const riskKey = churnResult.risk_level ?? 'low'
+              const factors = churnResult.top_factors ?? []
+              return (
+                <>
             <p style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 6 }}>
               {t('bi.churn.probability', 'Probabilidad de churn')}:{' '}
               <strong>{(churnResult.churn_probability * 100).toFixed(1)}%</strong>
             </p>
-            <p style={{ fontSize: "var(--text-base)", fontWeight: 700, color: RISK_COLORS[churnResult.risk_level] ?? 'var(--text-3)', marginBottom: churnResult.top_factors?.length ? 8 : 0 }}>
-              {t('bi.churn.risk', 'Riesgo')}: {churnResult.risk_level?.toUpperCase()}
+            <p style={{ fontSize: "var(--text-base)", fontWeight: 700, color: RISK_COLORS[riskKey] ?? 'var(--text-3)', marginBottom: factors.length ? 8 : 0 }}>
+              {t('bi.churn.risk', 'Riesgo')}: {(churnResult.risk_level ?? 'low').toUpperCase()}
             </p>
-            {churnResult.top_factors?.length > 0 && (
+            {factors.length > 0 && (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {churnResult.top_factors.slice(0, 3).map((f, i) => (
+                {factors.slice(0, 3).map((f, i) => (
                   <li key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', padding: '2px 0' }}>
                     → {typeof f === 'string' ? f : `${f.feature}: ${f.importance?.toFixed(2)}`}
                   </li>
                 ))}
               </ul>
             )}
+                </>
+              )
+            })()}
           </div>
         )}
       </div>

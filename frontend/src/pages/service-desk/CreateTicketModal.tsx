@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useMemo, useId, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'

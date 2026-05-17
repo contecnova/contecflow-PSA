@@ -16,7 +16,7 @@ import api from '../services/api'
 // TODO type: translations come from .mjs runtime with deep dynamic shape; keep loose
 type TranslationModule = Record<string, unknown>
 type Translations = Record<string, TranslationModule>
-type CustomTranslations = Record<string, TranslationModule>
+type LanguageCustomTranslations = Record<string, TranslationModule>
 
 interface AppLangContextValue {
   lang: string
@@ -24,8 +24,8 @@ interface AppLangContextValue {
   t: (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
   translations: Translations
   baseTranslations: Translations
-  setCustomTranslations: (data: CustomTranslations) => void
-  customTrans: CustomTranslations
+  setCustomTranslations: (data: LanguageCustomTranslations) => void
+  customTrans: LanguageCustomTranslations
   loading: boolean
   allTranslations: Record<string, Translations>
 }
@@ -37,13 +37,14 @@ export const STORAGE_KEY = 'contecflow_operator_lang'
 // Traducciones custom guardadas por el admin (sobreescriben las base)
 const CUSTOM_KEY = 'contecflow_custom_translations'
 
-function mergeCustom(base: Translations, custom: CustomTranslations | null | undefined): Translations {
+function mergeCustom(base: Translations, custom: TranslationModule | null | undefined): Translations {
   if (!custom || typeof custom !== 'object') return base
   const merged: Translations = { ...base }
   for (const mod of Object.keys(base)) {
+    const override = custom[mod]
     merged[mod] = {
       ...base[mod],
-      ...(custom[mod] || {}),
+      ...(override && typeof override === 'object' && !Array.isArray(override) ? override : {}),
     }
   }
   return merged
@@ -58,8 +59,8 @@ function mergeWithEnglishFallback(targetLang: string): Translations {
 }
 
 function isTestEnvironment(): boolean {
-  if (typeof process !== 'undefined' && process.env?.VITEST) return true
-  if (typeof import.meta !== 'undefined' && import.meta.env?.MODE === 'test') return true
+  if (import.meta.env?.VITEST) return true
+  if (import.meta.env?.MODE === 'test') return true
   return false
 }
 
@@ -76,7 +77,7 @@ export function AppLangProvider({ children }: { children?: ReactNode }) {
   const user = auth?.user ?? null
   const inTest = isTestEnvironment()
 
-  const [customTrans, setCustomTrans] = useState<CustomTranslations>(() => {
+  const [customTrans, setCustomTrans] = useState<LanguageCustomTranslations>(() => {
     try {
       const stored = localStorage.getItem(CUSTOM_KEY)
       return stored ? JSON.parse(stored) : {}
@@ -165,7 +166,7 @@ export function AppLangProvider({ children }: { children?: ReactNode }) {
     return () => window.removeEventListener('contecflow-lang-sync', handler as EventListener)
   }, [])
 
-  const setCustomTranslations = useCallback((data: CustomTranslations) => {
+  const setCustomTranslations = useCallback((data: LanguageCustomTranslations) => {
     setCustomTrans(data)
     localStorage.setItem(CUSTOM_KEY, JSON.stringify(data))
   }, [])

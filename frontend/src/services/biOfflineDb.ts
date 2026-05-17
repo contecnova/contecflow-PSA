@@ -9,7 +9,26 @@
  */
 import Dexie from 'dexie'
 
-const db = new Dexie('contecflow_bi_offline')
+interface BiSnapshotRow {
+  key: string
+  data: unknown
+  stored_at: string
+}
+
+type BiDexie = Dexie & {
+  kpi_snapshots: {
+    put: (row: BiSnapshotRow) => Promise<unknown>
+    get: (key: string) => Promise<BiSnapshotRow | undefined>
+    where: (index: string) => { below: (value: string) => { delete: () => Promise<unknown> } }
+  }
+  project_snapshots: {
+    put: (row: BiSnapshotRow) => Promise<unknown>
+    get: (key: string) => Promise<BiSnapshotRow | undefined>
+    where: (index: string) => { below: (value: string) => { delete: () => Promise<unknown> } }
+  }
+}
+
+const db = new Dexie('contecflow_bi_offline') as BiDexie
 
 db.version(1).stores({
   // key: composite string like "bi-kpis:30d:2026-04-28"
@@ -19,14 +38,14 @@ db.version(1).stores({
 
 const TTL_MS = 8 * 60 * 60 * 1000 // 8 hours
 
-function isExpired(storedAt) {
+function isExpired(storedAt?: string) {
   if (!storedAt) return true
   return Date.now() - new Date(storedAt).getTime() > TTL_MS
 }
 
 // ── KPI snapshots ─────────────────────────────────────────────────────────────
 
-export async function cacheBiKpis(periodKey, data) {
+export async function cacheBiKpis(periodKey: string, data: unknown) {
   try {
     await db.kpi_snapshots.put({ key: `kpis:${periodKey}`, data, stored_at: new Date().toISOString() })
   } catch {
@@ -34,7 +53,7 @@ export async function cacheBiKpis(periodKey, data) {
   }
 }
 
-export async function getCachedBiKpis(periodKey) {
+export async function getCachedBiKpis(periodKey: string) {
   try {
     const row = await db.kpi_snapshots.get(`kpis:${periodKey}`)
     if (!row || isExpired(row.stored_at)) return null
@@ -46,7 +65,7 @@ export async function getCachedBiKpis(periodKey) {
 
 // ── Project health snapshots ──────────────────────────────────────────────────
 
-export async function cacheBiProjects(periodKey, data) {
+export async function cacheBiProjects(periodKey: string, data: unknown) {
   try {
     await db.project_snapshots.put({ key: `projects:${periodKey}`, data, stored_at: new Date().toISOString() })
   } catch {
@@ -54,7 +73,7 @@ export async function cacheBiProjects(periodKey, data) {
   }
 }
 
-export async function getCachedBiProjects(periodKey) {
+export async function getCachedBiProjects(periodKey: string) {
   try {
     const row = await db.project_snapshots.get(`projects:${periodKey}`)
     if (!row || isExpired(row.stored_at)) return null

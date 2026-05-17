@@ -191,12 +191,15 @@ def upload_version(
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
 
     # Check file size (convert MB to bytes)
-    max_file_size_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    from app.services.settings_service import get_runtime_int
+    org_id = getattr(current_user, "organization_id", None)
+    _max_mb = get_runtime_int(db, "MAX_FILE_SIZE_MB", org_id) or settings.MAX_FILE_SIZE_MB
+    max_file_size_bytes = _max_mb * 1024 * 1024
     content = file.file.read(max_file_size_bytes + 1)
     if len(content) > max_file_size_bytes:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large (max {settings.MAX_FILE_SIZE_MB}MB)"
+            detail=f"File too large (max {_max_mb}MB)"
         )
     # content already holds the complete file bytes — no need to re-read
 
@@ -377,10 +380,12 @@ def create_and_upload(
 ):
     """Create a document record and upload the first file version in a single multipart request."""
     enforce_abac(db, current_user, "document", action="create")
-    max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    from app.services.settings_service import get_runtime_int
+    _max_mb = get_runtime_int(db, "MAX_FILE_SIZE_MB", getattr(current_user, "organization_id", None)) or settings.MAX_FILE_SIZE_MB
+    max_bytes = _max_mb * 1024 * 1024
     content = file.file.read(max_bytes + 1)
     if len(content) > max_bytes:
-        raise HTTPException(413, f"File exceeds maximum size of {settings.MAX_FILE_SIZE_MB} MB")
+        raise HTTPException(413, f"File exceeds maximum size of {_max_mb} MB")
 
     # P0-2: Validate MIME type and magic bytes
     _validate_upload(file.filename or "", file.content_type or "", content)

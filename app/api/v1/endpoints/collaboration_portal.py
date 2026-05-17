@@ -39,7 +39,8 @@ from app.services.collaboration._bus import (
     client_user_channel, conv_channel,
 )
 from app.services.collaboration._permissions import is_client_conversation_participant
-from app.core.responses import APIListResponse
+from app.services.traffic_control_service import consume_quota
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter()
 
@@ -63,7 +64,7 @@ def _client_conversation_ids(db: Session, client: ClientUser) -> set[str]:
     return direct_ids | member_ids
 
 
-@router.get("/conversations", summary="Mis conversaciones (cliente)")
+@router.get("/conversations", response_model=APIListResponse[dict], summary="Mis conversaciones (cliente)")
 def list_conversations(current_client: ClientUser = Depends(get_current_client), db: Session = Depends(get_db)):
     ids = _client_conversation_ids(db, current_client)
     out = []
@@ -84,7 +85,7 @@ def list_conversations(current_client: ClientUser = Depends(get_current_client),
             "id": conv.id, "kind": conv.kind, "title": title,
             "last_activity_at": conv.last_activity_at,
         })
-    return out
+    return APIListResponse.ok(items=out, total=len(out))
 
 
 @router.get("/conversations/{conversation_id}/messages", response_model=APIListResponse[MessageOut], summary="Mensajes (cliente)")
@@ -113,6 +114,17 @@ def send_message(payload: MessageCreate, current_client: ClientUser = Depends(ge
         raise HTTPException(400, "conversation_id requerido")
     if not is_client_conversation_participant(db, current_client, conv_id):
         raise HTTPException(403, "No tienes acceso a esta conversación")
+
+    quota = consume_quota(
+        db,
+        scope="collab.portal.message.client",
+        tenant_id=getattr(current_client, "organization_id", None),
+        subject=current_client.id,
+        limit=25,
+        window_seconds=60,
+    )
+    if not quota["allowed"]:
+        raise HTTPException(status_code=429, detail=f"Portal message rate limit exceeded. Retry in {quota['retry_after']}s")
 
     msg = CollaborationMessage(
         organization_id=getattr(current_client, "organization_id", None),
@@ -158,7 +170,7 @@ def send_message(payload: MessageCreate, current_client: ClientUser = Depends(ge
     return MessageOut(**_serialize_message(db, msg))
 
 
-@router.post("/messages/{message_id}/reactions", summary="Toggle reacción (cliente)")
+@router.post("/messages/{message_id}/reactions", response_model=APIResponse[dict], summary="Toggle reacción (cliente)")
 def toggle_reaction(message_id: str, payload: ReactionToggle, current_client: ClientUser = Depends(get_current_client), db: Session = Depends(get_db)):
     msg = db.query(CollaborationMessage).filter(CollaborationMessage.id == message_id).first()
     if not msg:
@@ -178,10 +190,10 @@ def toggle_reaction(message_id: str, payload: ReactionToggle, current_client: Cl
             client_user_id=current_client.id, emoji=payload.emoji,
         ))
     db.commit()
-    return {"toggled": True, "added": existing is None}
+    return APIResponse.ok(data={"toggled": True, "added": existing is None})
 
 
-@router.post("/conversations/{conversation_id}/read", summary="Marcar leído (cliente)")
+@router.post("/conversations/{conversation_id}/read", response_model=APIResponse[dict], summary="Marcar leído (cliente)")
 def mark_read(conversation_id: str, payload: ReadUpdate, current_client: ClientUser = Depends(get_current_client), db: Session = Depends(get_db)):
     if not is_client_conversation_participant(db, current_client, conversation_id):
         raise HTTPException(403, "No tienes acceso")
@@ -201,30 +213,31 @@ def mark_read(conversation_id: str, payload: ReadUpdate, current_client: ClientU
             last_message_id=payload.last_message_id,
         ))
     db.commit()
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
-@router.get("/notifications", summary="Notificaciones del cliente")
+@router.get("/notifications", response_model=APIListResponse[dict], summary="Notificaciones del cliente")
 def list_notifs(unread_only: bool = False, current_client: ClientUser = Depends(get_current_client), db: Session = Depends(get_db)):
     q = db.query(CollaborationNotification).filter(CollaborationNotification.client_user_id == current_client.id)
     if unread_only:
         q = q.filter(CollaborationNotification.is_read == False)
     rows = q.order_by(CollaborationNotification.created_at.desc()).limit(200).all()
-    return [{
+    items = [{
         "id": n.id, "kind": n.kind, "title": n.title, "body": n.body,
         "conversation_id": n.conversation_id, "message_id": n.message_id,
         "is_read": n.is_read, "created_at": n.created_at,
     } for n in rows]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.post("/notifications/mark-all-read", summary="Marcar todas leídas (cliente)")
+@router.post("/notifications/mark-all-read", response_model=APIResponse[dict], summary="Marcar todas leídas (cliente)")
 def mark_all_read(current_client: ClientUser = Depends(get_current_client), db: Session = Depends(get_db)):
     n = db.query(CollaborationNotification).filter(
         CollaborationNotification.client_user_id == current_client.id,
         CollaborationNotification.is_read == False,
     ).update({"is_read": True, "read_at": datetime.utcnow()})
     db.commit()
-    return {"marked": n}
+    return APIResponse.ok(data={"marked": n})
 
 
 @router.get("/search", response_model=SearchResponse, summary="Búsqueda en mis conversaciones")

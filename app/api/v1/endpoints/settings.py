@@ -1,9 +1,9 @@
 """
 settings — thin router delegating to app.services.settings_service
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import logging
 
 from app.db.session import get_db
@@ -40,16 +40,20 @@ def require_admin_or_pm(current_user: User = Depends(get_current_user)):
 # ── General settings ──────────────────────────────────────────────────────────
 
 @router.get("/org-defaults", summary="Defaults de organización (moneda, zona horaria, idioma, jornada)")
-def get_org_defaults(_: User = Depends(get_current_user)):
-    """Returns the system-level organisation defaults (read from env / config)."""
+def get_org_defaults(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Returns the effective organisation defaults: UI overrides → env fallback."""
+    g_str = _svc.get_runtime_str
+    g_int = _svc.get_runtime_int
+    g_float = _svc.get_runtime_float
+    org_id = getattr(current_user, "organization_id", None)
     return {
-        "currency": app_settings.DEFAULT_CURRENCY,
-        "timezone": app_settings.DEFAULT_TIMEZONE,
-        "language": app_settings.DEFAULT_LANGUAGE,
-        "working_hours_per_day": app_settings.DEFAULT_WORKING_HOURS_PER_DAY,
-        "weekly_capacity_hours": app_settings.DEFAULT_WEEKLY_CAPACITY_HOURS,
-        "vacation_days_per_year": app_settings.DEFAULT_VACATION_DAYS_PER_YEAR,
-        "tax_rate": app_settings.DEFAULT_TAX_RATE,
+        "currency": g_str(db, "DEFAULT_CURRENCY", org_id),
+        "timezone": g_str(db, "DEFAULT_TIMEZONE", org_id),
+        "language": g_str(db, "DEFAULT_LANGUAGE", org_id),
+        "working_hours_per_day": g_float(db, "DEFAULT_WORKING_HOURS_PER_DAY", org_id),
+        "weekly_capacity_hours": g_float(db, "DEFAULT_WEEKLY_CAPACITY_HOURS", org_id),
+        "vacation_days_per_year": g_int(db, "DEFAULT_VACATION_DAYS_PER_YEAR", org_id),
+        "tax_rate": g_float(db, "DEFAULT_TAX_RATE", org_id),
     }
 
 @router.get("/general", response_model=APIListResponse[SettingOut])
@@ -60,6 +64,95 @@ def get_general_settings(db: Session = Depends(get_db), current_user: User = Dep
 @router.patch("/general/{key}", response_model=SettingOut)
 def update_setting(key: str, payload: SettingUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     return _svc.update_setting(key, payload.value, current_user.organization_id, db)
+
+
+# ── Runtime-flag groups (Phase 1 of env → UI migration) ──────────────────────
+# These are typed, validated knobs grouped by domain (SLA, semantic, health,
+# etc.). Values resolve org-then-global, fall back to env. See
+# docs/CONFIG_MIGRATION_INVENTORY.md.
+
+@router.get("/runtime/{group}", summary="Effective values of a runtime-flag group (SLA, etc.)")
+def get_runtime_group(group: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    try:
+        return {"group": group, "items": _svc.get_runtime_group(db, group, current_user.organization_id)}
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.put("/runtime/{group}/{key}", summary="Update a runtime-flag value (admin)")
+def update_runtime_setting(group: str, key: str, payload: SettingUpdate, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    try:
+        from app.core.network import extract_client_ip
+        return _svc.set_runtime_value(
+            db, group, key, payload.value, current_user.organization_id,
+            actor_id=str(current_user.id),
+            actor_ip=extract_client_ip(request),
+            actor_ua=request.headers.get("user-agent"),
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+# ── Integration credentials (Phase 2 of env → UI migration) ──────────────────
+# Encrypted per-org provider credentials. Secret values are never echoed back —
+# only a "configured: true" flag. Setting an empty value resets to env.
+
+from app.services import integration_credentials_service as _creds
+
+
+@router.get("/integrations", summary="List integration providers with their fields")
+def list_integration_providers(_: User = Depends(require_admin)):
+    return {"providers": _creds.list_providers()}
+
+
+@router.get("/integrations/{provider}", summary="Describe a provider's configuration (no secrets echoed)")
+def describe_integration(provider: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    try:
+        return _creds.describe_provider(db, provider, current_user.organization_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/audit-log", summary="Read settings + integration credential audit trail (admin)")
+def read_audit_log(
+    scope: Optional[str] = None,
+    key: Optional[str] = None,
+    provider: Optional[str] = None,
+    actor_id: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    from app.services.settings_audit_service import query_audit_log, serialize
+    rows, total = query_audit_log(
+        db,
+        scope=scope, key=key, provider=provider, actor_id=actor_id,
+        organization_id=current_user.organization_id,
+        limit=limit, offset=offset,
+    )
+    return {"items": [serialize(r) for r in rows], "total": total, "limit": limit, "offset": offset}
+
+
+@router.post("/integrations/{provider}/test", summary="Probe an integration provider with its current credentials (admin)")
+def test_integration(provider: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    from app.services.integration_test_service import test_provider_connection
+    return test_provider_connection(db, provider, org_id=current_user.organization_id)
+
+
+@router.put("/integrations/{provider}/{key}", summary="Set or clear a provider's field (admin)")
+def update_integration(provider: str, key: str, payload: SettingUpdate, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    try:
+        from app.core.network import extract_client_ip
+        return _creds.set_credential(
+            db, provider, key, payload.value if payload.value != "" else None,
+            current_user.organization_id, updated_by=str(current_user.id),
+            actor_ip=extract_client_ip(request),
+            actor_ua=request.headers.get("user-agent"),
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
 
 # ── Project types ─────────────────────────────────────────────────────────────
 

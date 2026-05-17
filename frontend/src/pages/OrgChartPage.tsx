@@ -6,6 +6,7 @@
  * Pestaña 3 — Aprobaciones: quién aprueba gastos, ausencias e imputaciones
  */
 import { useState, useMemo } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -28,23 +29,63 @@ const ROLE_LABEL = {
   employee: 'Empleado', hr: 'RRHH', client: 'Cliente',
 }
 
+interface DepartmentOption {
+  id: string | number
+  name: string
+  is_active?: boolean
+}
+
+interface OrgUser {
+  id: string
+  full_name: string
+  email: string
+  role: string
+  job_title?: string | null
+  department?: string | null
+  manager_id?: string | null
+  children?: OrgUser[]
+}
+
+interface OrgChartData {
+  nodes: OrgUser[]
+  total: number
+}
+
+interface ApprovalChainData {
+  user_name: string
+  chain: OrgUser[]
+}
+
+function getRoleColor(role: string) {
+  return ROLE_COLOR[role as keyof typeof ROLE_COLOR] ?? '#7a8aaa'
+}
+
+function getRoleLabel(role: string) {
+  return ROLE_LABEL[role as keyof typeof ROLE_LABEL] ?? role
+}
+
 // ── Modal editar posición ─────────────────────────────────────────────────────
-function EditPositionModal({ user, allUsers, onClose, onSaved }) {
+function EditPositionModal({ user, allUsers, onClose, onSaved }: {
+  user: OrgUser
+  allUsers: OrgUser[]
+  onClose: () => void
+  onSaved: () => void
+}) {
   const toast = useToast()
   const [managerId, setManagerId]   = useState(user.manager_id || '')
   const [jobTitle, setJobTitle]     = useState(user.job_title || '')
   const [department, setDepartment] = useState(user.department || '')
   const [saving, setSaving]         = useState(false)
 
-  const { data: departments = [] } = useQuery({
+  const { data: departments = [] } = useQuery<DepartmentOption[]>({
     queryKey: ['departments-select'],
     queryFn: () => settingsApi.getDepartments().then(r => r.data),
   })
 
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
+  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
     borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block',
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block',
     marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
 
   const eligible = allUsers.filter(u => u.id !== user.id)
@@ -71,7 +112,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }) {
           border:'1px solid var(--surface-4)' }}>
           <div style={{ fontSize: "var(--text-md)", fontWeight:600 }}>{user.full_name}</div>
           <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', marginTop:2 }}>
-            {user.email} · <span style={{ color: ROLE_COLOR[user.role] }}>{ROLE_LABEL[user.role]}</span>
+            {user.email} · <span style={{ color: getRoleColor(user.role) }}>{getRoleLabel(user.role)}</span>
           </div>
         </div>
 
@@ -124,7 +165,12 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }) {
 }
 
 // ── Pestaña 1: Árbol jerárquico ───────────────────────────────────────────────
-function UserNode({ node, depth=0, onEdit, isAdmin }) {
+function UserNode({ node, depth = 0, onEdit, isAdmin }: {
+  node: OrgUser
+  depth?: number
+  onEdit: (user: OrgUser) => void
+  isAdmin: boolean
+}) {
   const [expanded, setExpanded] = useState(depth < 2)
   const hasChildren = node.children?.length > 0
   const indent = depth * 24
@@ -144,7 +190,7 @@ function UserNode({ node, depth=0, onEdit, isAdmin }) {
           : <span style={{ width:18, flexShrink:0, fontSize: "var(--text-2xs)", color:'var(--text-4)' }}>└─</span>
         }
         <div style={{ width:30, height:30, borderRadius:'50%', flexShrink:0,
-          background: ROLE_COLOR[node.role] || '#7a8aaa',
+          background: getRoleColor(node.role),
           display:'flex', alignItems:'center', justifyContent:'center',
           fontSize: "var(--text-sm)", fontWeight:700, color:'#fff' }}>
           {node.full_name?.charAt(0)?.toUpperCase()}
@@ -160,9 +206,9 @@ function UserNode({ node, depth=0, onEdit, isAdmin }) {
           </div>
         </div>
         <span style={{ fontSize: "var(--text-2xs)", padding:'2px 7px', borderRadius:4, fontWeight:600,
-          background:`${ROLE_COLOR[node.role]||'#7a8aaa'}20`,
-          color: ROLE_COLOR[node.role]||'#7a8aaa', flexShrink:0, whiteSpace:'nowrap' }}>
-          {ROLE_LABEL[node.role]||node.role}
+          background:`${getRoleColor(node.role)}20`,
+          color: getRoleColor(node.role), flexShrink:0, whiteSpace:'nowrap' }}>
+          {getRoleLabel(node.role)}
         </span>
         {hasChildren && (
           <span style={{ fontSize: "var(--text-2xs)", color:'var(--text-4)', flexShrink:0 }}>
@@ -185,14 +231,18 @@ function UserNode({ node, depth=0, onEdit, isAdmin }) {
   )
 }
 
-function ArbolTab({ nodes, allUsers, isAdmin, _onRefresh }) {
+function ArbolTab({ nodes, allUsers, isAdmin }: {
+  nodes: OrgUser[]
+  allUsers: OrgUser[]
+  isAdmin: boolean
+}) {
   const [search, setSearch] = useState('')
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState<OrgUser | null>(null)
   const qc = useQueryClient()
 
-  const flatUsers = useMemo(() => {
-    const flat = []
-    const walk = arr => arr.forEach(n => { flat.push(n); if (n.children) walk(n.children) })
+  const flatUsers = useMemo<OrgUser[]>(() => {
+    const flat: OrgUser[] = []
+    const walk = (arr: OrgUser[]) => arr.forEach(n => { flat.push(n); if (n.children) walk(n.children) })
     walk(nodes)
     return flat
   }, [nodes])
@@ -207,10 +257,10 @@ function ArbolTab({ nodes, allUsers, isAdmin, _onRefresh }) {
     ).slice(0,8)
   }, [flatUsers, search])
 
-  const deptCounts = useMemo(() => {
-    const counts = {}
+  const deptCounts = useMemo<Array<[string, number]>>(() => {
+    const counts: Record<string, number> = {}
     flatUsers.forEach(u => { if (u.department) counts[u.department] = (counts[u.department]||0)+1 })
-    return Object.entries(counts).sort((a,b) => b[1]-a[1])
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])
   }, [flatUsers])
 
   return (
@@ -263,7 +313,7 @@ function ArbolTab({ nodes, allUsers, isAdmin, _onRefresh }) {
             <div key={role} style={{ display:'flex', alignItems:'center', gap:8,
               padding:'4px 0', fontSize: "var(--text-sm)" }}>
               <div style={{ width:9, height:9, borderRadius:'50%', background:color }} />
-              <span style={{ color:'var(--text-1)' }}>{ROLE_LABEL[role]||role}</span>
+              <span style={{ color:'var(--text-1)' }}>{getRoleLabel(role)}</span>
             </div>
           ))}
         </div>
@@ -300,13 +350,13 @@ function ArbolTab({ nodes, allUsers, isAdmin, _onRefresh }) {
 }
 
 // ── Pestaña 2: Tabla de posiciones ────────────────────────────────────────────
-function PosicionesTab({ allUsers, isAdmin }) {
-  const [editing, setEditing]   = useState(null)
+function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: boolean }) {
+  const [editing, setEditing]   = useState<OrgUser | null>(null)
   const [filterDept, setFilterDept] = useState('')
   const [search, setSearch]     = useState('')
   const qc = useQueryClient()
 
-  const depts = [...new Set(allUsers.map(u => u.department).filter(Boolean))].sort()
+  const depts: string[] = [...new Set(allUsers.map(u => u.department).filter((value): value is string => Boolean(value)))].sort()
 
   const filtered = useMemo(() => {
     let list = allUsers
@@ -322,7 +372,7 @@ function PosicionesTab({ allUsers, isAdmin }) {
     return list.sort((a,b) => (a.department||'').localeCompare(b.department||'') || a.full_name.localeCompare(b.full_name))
   }, [allUsers, filterDept, search])
 
-  const IS = { background:'var(--surface-3)', border:'1px solid var(--surface-4)',
+  const IS: CSSProperties = { background:'var(--surface-3)', border:'1px solid var(--surface-4)',
     borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize: "var(--text-sm-h)",
     outline:'none', fontFamily:'inherit' }
 
@@ -384,21 +434,21 @@ function PosicionesTab({ allUsers, isAdmin }) {
                     <span style={{ fontSize: "var(--text-xs)", padding:'2px 7px', borderRadius:4, fontWeight:600,
                       background:`${ROLE_COLOR[u.role]||'#7a8aaa'}20`,
                       color: ROLE_COLOR[u.role]||'#7a8aaa' }}>
-                      {ROLE_LABEL[u.role]||u.role}
+                      {getRoleLabel(u.role)}
                     </span>
                   </td>
                   <td style={{ padding:'10px 14px' }}>
                     {managerUser ? (
                       <div style={{ display:'flex', alignItems:'center', gap:7 }}>
                         <div style={{ width:22, height:22, borderRadius:'50%',
-                          background: ROLE_COLOR[managerUser.role]||'#7a8aaa',
+                          background: getRoleColor(managerUser.role),
                           display:'flex', alignItems:'center', justifyContent:'center',
                           fontSize: "var(--text-2xs)", fontWeight:700, color:'#fff', flexShrink:0 }}>
                           {managerUser.full_name?.charAt(0)}
                         </div>
                         <div>
                           <div style={{ fontSize: "var(--text-sm)", fontWeight:600, color:'var(--text-1)' }}>{managerUser.full_name}</div>
-                          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{managerUser.job_title||ROLE_LABEL[managerUser.role]}</div>
+                          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{managerUser.job_title||getRoleLabel(managerUser.role)}</div>
                         </div>
                       </div>
                     ) : (
@@ -447,11 +497,11 @@ function PosicionesTab({ allUsers, isAdmin }) {
 }
 
 // ── Pestaña 3: Cadenas de aprobación ─────────────────────────────────────────
-function AprobacionesTab({ allUsers }) {
+function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
   const [selectedUserId, setSelectedUserId] = useState('')
   const [search, setSearch] = useState('')
 
-  const { data: chain } = useQuery({
+  const { data: chain } = useQuery<ApprovalChainData>({
     queryKey: ['approval-chain', selectedUserId],
     queryFn: () => (
       selectedUserId
@@ -535,7 +585,7 @@ function AprobacionesTab({ allUsers }) {
                 <div>
                   <div style={{ fontSize: "var(--text-md-em)", fontWeight:700, color:'var(--text-1)' }}>{chain.user_name}</div>
                   <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>
-                    {(selectedUser||{}).job_title || ''} {(selectedUser||{}).department ? `· ${(selectedUser||{}).department}` : ''}
+                    {selectedUser?.job_title || ''} {selectedUser?.department ? `· ${selectedUser.department}` : ''}
                   </div>
                 </div>
               </div>
@@ -605,7 +655,7 @@ function AprobacionesTab({ allUsers }) {
                             border: `1px solid ${idx===0 ? 'rgba(0,229,160,0.25)' : 'var(--surface-4)'}`,
                             borderRadius:10, display:'flex', alignItems:'center', gap:12 }}>
                             <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0,
-                              background: ROLE_COLOR[approver.role]||'#7a8aaa',
+                              background: getRoleColor(approver.role),
                               display:'flex', alignItems:'center', justifyContent:'center',
                               fontSize: "var(--text-md)", fontWeight:700, color:'#fff' }}>
                               {approver.full_name?.charAt(0)}
@@ -622,7 +672,7 @@ function AprobacionesTab({ allUsers }) {
                                 )}
                               </div>
                               <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>
-                                {approver.job_title || ROLE_LABEL[approver.role]}
+                                {approver.job_title || getRoleLabel(approver.role)}
                                 {approver.department ? ` · ${approver.department}` : ''}
                               </div>
                             </div>
@@ -660,24 +710,24 @@ function AprobacionesTab({ allUsers }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function OrgChartPage() {
-  const _t = useAppT()
+  const t = useAppT()
   const { hasRole } = useAuth()
   const [tab, setTab] = useState('arbol')
   const isAdmin = hasRole('admin')
 
-  const { data: chartData, isLoading: loadingChart } = useQuery({
+  const { data: chartData, isLoading: loadingChart } = useQuery<OrgChartData>({
     queryKey: ['org-chart'],
-    queryFn: () => usersApi.orgChart().then(r => r.data),
+    queryFn: () => usersApi.orgChart().then(r => r.data?.data ?? r.data),
     staleTime: 30000,
   })
 
-  const { data: allUsers = [] } = useQuery({
+  const { data: allUsers = [] } = useQuery<OrgUser[]>({
     queryKey: ['users'],
     queryFn: () => usersApi.list().then(r => r.data),
     staleTime: 30000,
   })
 
-  const nodes = chartData?.nodes || []
+  const nodes: OrgUser[] = chartData?.nodes || []
   const total = chartData?.total || 0
 
   const TABS = [
@@ -691,7 +741,7 @@ export default function OrgChartPage() {
       <PageHeader
         icon={<Network size={18} />}
         title="Organigrama"
-        subtitle={_t('org_chart.subtitle', { total })}
+        subtitle={t('org_chart.subtitle', { total })}
         showListExport={tab !== 'arbol'}
       />
 

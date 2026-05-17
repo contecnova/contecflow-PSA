@@ -25,7 +25,7 @@ export default [
     },
   },
   {
-    files: ['src/**/*.{js,jsx}'],
+    files: ['src/**/*.{js,jsx,ts,tsx}'],
     plugins: {
       'react-hooks': reactHooks,
       'jsx-a11y': jsxA11y,
@@ -184,7 +184,7 @@ export default [
     },
   },
   {
-    files: ['src/**/__tests__/**/*.{js,jsx}', 'src/**/*.test.{js,jsx}'],
+    files: ['src/**/__tests__/**/*.{js,jsx,ts,tsx}', 'src/**/*.test.{js,jsx,ts,tsx}'],
     languageOptions: {
       globals: {
         vi: 'readonly',

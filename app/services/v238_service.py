@@ -656,10 +656,13 @@ def run_analytics_cross_filter(payload: dict, db: Session) -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 
 def create_payment_link_record(invoice_id: str, db: Session) -> dict:
-    if not settings.STRIPE_SECRET_KEY:
+    from app.services.integration_credentials_service import get_credential
+    org_id = None  # Stripe creds resolved at org-NULL scope unless caller threads through
+    stripe_secret = get_credential(db, "stripe", "secret_key", org_id=org_id)
+    if not stripe_secret:
         raise HTTPException(
             status_code=503,
-            detail="Stripe is not configured (missing STRIPE_SECRET_KEY). Add it to your environment."
+            detail="Stripe no configurado. Edita en Settings → Sistema → Credenciales → Stripe, o define STRIPE_SECRET_KEY en .env."
         )
     inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not inv:
@@ -682,10 +685,11 @@ def create_payment_link_record(invoice_id: str, db: Session) -> dict:
     currency = (inv.currency or settings.DEFAULT_CURRENCY).lower()
 
     try:
-        with httpx.Client(timeout=10.0) as client:
+        from app.services.settings_service import outbound_http_timeout
+        with httpx.Client(timeout=outbound_http_timeout(db, default=10.0)) as client:
             price_resp = client.post(
                 "https://api.stripe.com/v1/prices",
-                auth=(settings.STRIPE_SECRET_KEY, ""),
+                auth=(stripe_secret, ""),
                 data={
                     "unit_amount": str(amount_cents),
                     "currency": currency,
@@ -698,7 +702,7 @@ def create_payment_link_record(invoice_id: str, db: Session) -> dict:
 
             link_resp = client.post(
                 "https://api.stripe.com/v1/payment_links",
-                auth=(settings.STRIPE_SECRET_KEY, ""),
+                auth=(stripe_secret, ""),
                 data={
                     "line_items[0][price]": price_id,
                     "line_items[0][quantity]": "1",
@@ -732,7 +736,8 @@ def create_payment_link_record(invoice_id: str, db: Session) -> dict:
 
 
 def handle_stripe_webhook(raw_body: bytes, stripe_signature: Optional[str], db: Session) -> dict:
-    webhook_secret = settings.STRIPE_WEBHOOK_SECRET
+    from app.services.integration_credentials_service import get_credential
+    webhook_secret = get_credential(db, "stripe", "webhook_secret")
 
     if webhook_secret and stripe_signature:
         try:

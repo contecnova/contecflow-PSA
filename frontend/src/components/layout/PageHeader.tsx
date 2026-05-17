@@ -25,10 +25,10 @@ function toCellText(node: Element | null): string {
 
 function escapeHtml(value: unknown): string {
   return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 
 function buildXlsFromMatrix(headers: string[], rows: string[][], sheetName: string): string {

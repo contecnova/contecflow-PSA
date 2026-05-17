@@ -20,6 +20,25 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _emit_ticket_created_metric(ticket: Ticket) -> None:
+    """Best-effort Prometheus counter increment; never raises into business flow."""
+    try:
+        from app.core.metrics import tickets_created_total
+
+        def _v(field):
+            value = getattr(ticket, field, None)
+            return getattr(value, "value", value) if value is not None else "unknown"
+
+        tickets_created_total.labels(
+            tenant_id=str(getattr(ticket, "organization_id", None) or "unknown"),
+            ticket_type=str(_v("ticket_type")),
+            priority=str(_v("priority")),
+            source=str(_v("source")),
+        ).inc()
+    except Exception:
+        pass
+
+
 def _semantic_assignee_if_enabled(db: Session, ticket: Ticket, candidate_user_ids: list[str]) -> str | None:
     """Return semantic suggestion when enabled by SemConfig; else None.
 
@@ -186,6 +205,7 @@ def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_i
     _auto_assign_ticket_on_create(db, ticket)
     db.flush()
     save_ticket_dynamic_fields(db, ticket.id, payload.dynamic_fields)
+    _emit_ticket_created_metric(ticket)
     return ticket
 
 
@@ -238,4 +258,5 @@ def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: Cli
     _auto_assign_ticket_on_create(db, ticket)
     db.flush()
     save_ticket_dynamic_fields(db, ticket.id, payload.dynamic_fields)
+    _emit_ticket_created_metric(ticket)
     return ticket

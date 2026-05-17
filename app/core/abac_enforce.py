@@ -86,10 +86,17 @@ def enforce_abac(
                 "ABAC denied %s user=%s resource=%s/%s policies=%s",
                 action, user.id, resource_type, resource_id, matched_policies,
             )
+            try:
+                from app.core.metrics import abac_denials_total
+                abac_denials_total.labels(
+                    resource_type=resource_type or "unknown",
+                    action=action or "unknown",
+                ).inc()
+            except Exception:
+                pass
             raise HTTPException(
                 status_code=403,
-                detail=f"Access denied by policy for {resource_type}"
-                       + (f"/{resource_id}" if resource_id else ""),
+                detail="Access denied",
             )
 
     # intentional: chained re-raise preserves context

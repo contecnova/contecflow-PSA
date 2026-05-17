@@ -21,6 +21,7 @@ from typing import Any, Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 
 from app.models.settings import AppSetting
 
@@ -218,7 +219,10 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
         # (i.e. an actual SD agent), with their current open-ticket count and
         # specialisations from the group memberships.
         try:
-            members_q = db.query(AgentGroupMember).join(User, AgentGroupMember.user_id == User.id)
+            members_q = db.query(AgentGroupMember).options(
+                joinedload(AgentGroupMember.user),
+                joinedload(AgentGroupMember.group),
+            ).join(User, AgentGroupMember.user_id == User.id)
             if org_id:
                 members_q = members_q.filter(User.organization_id == org_id)
             members = members_q.all()

@@ -10,8 +10,44 @@ import {
   dateRange, typePalette,
 } from '../components/dashboard/DashKit'
 import { useAppT } from '../i18n/AppLangContext'
+import type { ComponentType } from 'react'
 
-const okrCategory = (o) => {
+interface TeamUser {
+  status?: string
+  department?: string
+  role?: string
+  job_title?: string
+}
+
+interface UtilData {
+  avg_utilization_pct?: number
+}
+
+interface OkrItem {
+  status?: string
+  progress_pct?: number
+}
+
+interface PerfReview {
+  status?: string
+}
+
+interface TrainingItem {
+  status?: string
+}
+
+interface AbsenceItem {
+  start_date?: string
+  end_date?: string
+  status?: string
+}
+
+interface ChartRow {
+  label: string
+  count: number
+}
+
+const okrCategory = (o: OkrItem) => {
   if (o.status === 'cancelled') return 'cancelled'
   if (o.status === 'completed' || (o.progress_pct ?? 0) >= 100) return 'completed'
   if ((o.progress_pct ?? 0) > 0 || o.status === 'in_progress') return 'in_progress'
@@ -30,53 +66,60 @@ export default function TeamDashboardPage() {
     client_user: t('team_dashboard.role_client_user'),
   }
   const [days, setDays] = useState(30)
+  const iconCompat = <T,>(icon: T) => icon as unknown as ComponentType<{ size?: number; strokeWidth?: number }>
   const params = dateRange(days)
 
-  const { data: resources = [], isLoading: lr } = useQuery({
+  const { data: resourcesRaw = [], isLoading: lr } = useQuery({
     queryKey: ['team-dash-resources'],
     queryFn: () => usersApi.list({ page_size: 200 }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
     staleTime: 60_000,
   })
+  const resources = resourcesRaw as TeamUser[]
 
-  const { data: utilData } = useQuery({
+  const { data: utilDataRaw } = useQuery({
     queryKey: ['team-dash-util', days],
     queryFn: () => analyticsApi.utilization(params).then(r => r.data).catch(() => null),
     staleTime: 60_000,
   })
+  const utilData = (utilDataRaw ?? null) as UtilData | null
 
-  const { data: okrs = [] } = useQuery({
+  const { data: okrsRaw = [] } = useQuery({
     queryKey: ['team-dash-okrs'],
     queryFn: () => okrsApi.list({ page_size: 100 }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
     staleTime: 60_000,
   })
+  const okrs = okrsRaw as OkrItem[]
 
-  const { data: perfReviews = [] } = useQuery({
+  const { data: perfReviewsRaw = [] } = useQuery({
     queryKey: ['team-dash-perf'],
     queryFn: () => performanceApi.myReviews().then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
     staleTime: 60_000,
   })
+  const perfReviews = perfReviewsRaw as PerfReview[]
 
-  const { data: trainings = [] } = useQuery({
+  const { data: trainingsRaw = [] } = useQuery({
     queryKey: ['team-dash-training'],
-    queryFn: () => trainingApi.enrollments().then(r => {
+    queryFn: () => trainingApi.enrollments({ page_size: 100 }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
     staleTime: 60_000,
   })
+  const trainings = trainingsRaw as TrainingItem[]
 
-  const { data: absences = [] } = useQuery({
+  const { data: absencesRaw = [] } = useQuery({
     queryKey: ['team-dash-absences'],
     queryFn: () => absencesApi.list({ page_size: 100 }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
     staleTime: 60_000,
   })
+  const absences = absencesRaw as AbsenceItem[]
 
   if (lr) return (
     <div style={{ padding: 32, display: 'flex', justifyContent: 'center', minHeight: 300, alignItems: 'center' }}>
@@ -89,7 +132,7 @@ export default function TeamDashboardPage() {
   const utilColor  = utilPct == null ? COLOR.accent : utilPct >= 70 ? COLOR.success : utilPct >= 50 ? COLOR.warning : COLOR.danger
 
   const totalOkrs      = okrs.length
-  const okrBuckets     = okrs.reduce((acc, o) => {
+  const okrBuckets     = okrs.reduce<Record<string, number>>((acc, o) => {
     const cat = okrCategory(o)
     acc[cat] = (acc[cat] || 0) + 1
     return acc
@@ -110,23 +153,23 @@ export default function TeamDashboardPage() {
     return a.start_date <= today && a.end_date >= today && a.status === 'approved'
   }).length
 
-  const deptCounts = resources.reduce((acc, r) => {
+  const deptCounts = resources.reduce<Record<string, number>>((acc, r) => {
     const dept = r.department || t('team_dashboard.no_department')
     acc[dept] = (acc[dept] || 0) + 1; return acc
   }, {})
-  const deptRows = Object.entries(deptCounts)
+  const deptRows: ChartRow[] = Object.entries(deptCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
     .map(([dept, count]) => ({ label: dept, count }))
 
-  const roleCounts = resources.reduce((acc, r) => {
+  const roleCounts = resources.reduce<Record<string, number>>((acc, r) => {
     const role = r.role || r.job_title || t('team_dashboard.no_role')
     acc[role] = (acc[role] || 0) + 1; return acc
   }, {})
-  const roleRows = Object.entries(roleCounts)
+  const roleRows: ChartRow[] = Object.entries(roleCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
-    .map(([role, count]) => ({ label: ROLE_LABELS[role] || role, count }))
+    .map(([role, count]) => ({ label: ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role, count }))
 
   return (
     <DashPageShell
@@ -139,25 +182,25 @@ export default function TeamDashboardPage() {
       <div className="ds-page">
         {/* KPI row */}
         <div className="ds-grid-stats">
-          <KpiCard icon={<KpiIcon icon={Users} />} label={t('team_dashboard.kpi_team_size')}
+          <KpiCard icon={<KpiIcon icon={iconCompat(Users)} />} label={t('team_dashboard.kpi_team_size')}
             value={teamSize} color="var(--text-1)" accentBar={COLOR.accent} />
-          <KpiCard icon={<KpiIcon icon={Target} />} label={t('team_dashboard.kpi_active_okrs')}
+          <KpiCard icon={<KpiIcon icon={iconCompat(Target)} />} label={t('team_dashboard.kpi_active_okrs')}
             value={totalOkrs} color={COLOR.purple} accentBar={COLOR.purple}
             sub={completedOkrs > 0 ? `${completedOkrs} ${t('team_dashboard.completed_lower')}` : undefined} />
-          <KpiCard icon={<KpiIcon icon={Star} />} label={t('team_dashboard.kpi_pending_reviews')}
+          <KpiCard icon={<KpiIcon icon={iconCompat(Star)} />} label={t('team_dashboard.kpi_pending_reviews')}
             value={pendingReviews}
             color={pendingReviews > 0 ? COLOR.warning : COLOR.success}
             accentBar={pendingReviews > 0 ? COLOR.warning : COLOR.success}
             sub={completedReviews > 0 ? `${completedReviews} ${t('team_dashboard.completed_fem_plural')}` : undefined} />
-          <KpiCard icon={<KpiIcon icon={GraduationCap} />} label={t('team_dashboard.kpi_trainings')}
+          <KpiCard icon={<KpiIcon icon={iconCompat(GraduationCap)} />} label={t('team_dashboard.kpi_trainings')}
             value={trainingTotal}
             color={COLOR.accent} accentBar={COLOR.accent}
             sub={`${trainingCompleted} ${t('team_dashboard.completed_fem_plural')} · ${trainingInProgress} ${t('team_dashboard.in_progress_lower')}`} />
-          <KpiCard icon={<KpiIcon icon={Plane} />} label={t('team_dashboard.kpi_absences_today')}
+          <KpiCard icon={<KpiIcon icon={iconCompat(Plane)} />} label={t('team_dashboard.kpi_absences_today')}
             value={todayAbsences}
             color={todayAbsences > 0 ? COLOR.warning : COLOR.success}
             accentBar={todayAbsences > 0 ? COLOR.warning : COLOR.success} />
-          <KpiCard icon={<KpiIcon icon={Zap} />} label={t('team_dashboard.kpi_pending_absences')}
+          <KpiCard icon={<KpiIcon icon={iconCompat(Zap)} />} label={t('team_dashboard.kpi_pending_absences')}
             value={absences.filter(a => a.status === 'pending').length}
             color={COLOR.purple} accentBar={COLOR.purple} />
         </div>

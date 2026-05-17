@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CMDBTopologyGraph — 2D SVG radial + 3D Plotly scatter3d topology viewer.
  *

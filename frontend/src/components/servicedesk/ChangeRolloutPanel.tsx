@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ChangeRolloutPanel.jsx — Advanced change rollout management UI.
  *

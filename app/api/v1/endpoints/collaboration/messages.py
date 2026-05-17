@@ -19,9 +19,13 @@ from app.schemas.collaboration import (
 )
 from app.services.collaboration import messages as msg_svc
 from app.services.collaboration._permissions import _org, assert_conversation_access
+from app.services.traffic_control_service import consume_quota
 from app.core.responses import APIListResponse
 
 router = APIRouter()
+
+MSG_USER_LIMIT_PER_MIN = 40
+MSG_CONV_LIMIT_PER_MIN = 160
 
 
 @router.get("/conversations/{conversation_id}/messages", response_model=APIListResponse[MessageOut], summary="Listar mensajes")
@@ -47,6 +51,36 @@ def send_message(payload: MessageCreate, current_user: User = Depends(get_curren
     if payload.conversation_id:
         assert_conversation_access(db, current_user, payload.conversation_id)
         enforce_abac(db, current_user, "collaboration_message", resource_id=payload.conversation_id, action="send")
+
+    org = _org(current_user)
+    user_quota = consume_quota(
+        db,
+        scope="collab.message.user",
+        tenant_id=org,
+        subject=current_user.id,
+        limit=MSG_USER_LIMIT_PER_MIN,
+        window_seconds=60,
+    )
+    if not user_quota["allowed"]:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Message rate limit exceeded. Retry in {user_quota['retry_after']}s",
+        )
+
+    conv_subject = payload.conversation_id or payload.channel_id or payload.direct_id or payload.group_id or "unknown"
+    conv_quota = consume_quota(
+        db,
+        scope="collab.message.channel",
+        tenant_id=org,
+        subject=conv_subject,
+        limit=MSG_CONV_LIMIT_PER_MIN,
+        window_seconds=60,
+    )
+    if not conv_quota["allowed"]:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Channel traffic limit exceeded. Retry in {conv_quota['retry_after']}s",
+        )
     msg = msg_svc.send_message(
         db, current_user,
         body=payload.body,
@@ -141,7 +175,7 @@ def unsave_msg(message_id: str, current_user: User = Depends(get_current_user), 
     return {"ok": True}
 
 
-@router.get("/saved", summary="Mis mensajes guardados")
+@router.get("/saved", response_model=APIListResponse[dict], summary="Mis mensajes guardados")
 def list_saved(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = msg_svc.list_saved(db, current_user)
     out = []
@@ -153,7 +187,7 @@ def list_saved(current_user: User = Depends(get_current_user), db: Session = Dep
                 "preview": (m.body or "")[:200],
                 "conversation_id": m.conversation_id,
             })
-    return out
+    return APIListResponse.ok(items=out, total=len(out))
 
 
 # ── Mentions (mine) ──────────────────────────────────────────────────────────

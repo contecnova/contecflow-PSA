@@ -25,7 +25,7 @@ export function useVendors(params: VendorListParams = {}): UseQueryResult<unknow
 export function useAllVendors(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['alm-vendors'],
-    queryFn: () => vendorsApi.list().then((r: { data: unknown }) => r.data),
+    queryFn: () => vendorsApi.list({}).then((r: { data: unknown }) => r.data),
     staleTime: STALE,
   })
 }

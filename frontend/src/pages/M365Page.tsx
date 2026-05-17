@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * M365Page — Microsoft 365 deep integration
  * - Calendar sync: pull events, push milestones

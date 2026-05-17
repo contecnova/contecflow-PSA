@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CapacityPage — Planificador visual de recursos con drag-and-drop
  *

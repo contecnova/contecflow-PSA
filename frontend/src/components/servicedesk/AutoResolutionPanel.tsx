@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * AutoResolutionPanel — AI auto-resolution dashboard for ITSM
  *

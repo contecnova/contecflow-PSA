@@ -3,13 +3,44 @@
  * Import from here in all portal-client sub-pages.
  */
 import { createContext, useContext, useState, useEffect, useId } from 'react'
-import axios from 'axios'
+import type { CSSProperties } from 'react'
+import axios, { type AxiosResponse } from 'axios'
 import { PORTAL_TRANSLATIONS as T, PORTAL_LANGUAGES as LANGUAGES } from '../../i18n/portalTranslations'
 import { STATUS_CFG } from '../../constants/sharedStatus'
 import { useIdleTimeout } from '../../hooks/useIdleTimeout'
 
+type ApiListBody = {
+  items: unknown[]
+  meta: Record<string, unknown>
+}
+
+function isApiListBody(body: unknown): body is ApiListBody {
+  return Boolean(
+    body &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    Array.isArray((body as ApiListBody).items) &&
+    (body as ApiListBody).meta &&
+    typeof (body as ApiListBody).meta === 'object' &&
+    Object.keys(body as Record<string, unknown>).length === 2,
+  )
+}
+
 // ── API client ────────────────────────────────────────────────────────────────
 export const CLIENT_API = axios.create({ baseURL: '/api/v1', withCredentials: true, timeout: 30000 })
+
+// APIListResponse compatibility for portal client routes.
+CLIENT_API.interceptors.response.use((res: AxiosResponse<unknown>) => {
+  const body = res?.data
+  if (isApiListBody(body)) {
+    return {
+      ...res,
+      data: body.items,
+      meta: body.meta,
+    } as AxiosResponse<unknown[]> & { meta: Record<string, unknown> }
+  }
+  return res
+})
 
 // ── Language Context ──────────────────────────────────────────────────────────
 export const LangContext = createContext('es')
@@ -250,12 +281,12 @@ export function LoginScreen({ _changeLang, _currentLang }) {
     borderRadius: 'var(--radius-md, 8px)', padding: '11px 13px',
     color: 'var(--text-1)', fontSize: 'var(--text-base)', outline: 'none',
     fontFamily: 'inherit', transition: 'border-color 0.15s, box-shadow 0.15s',
-  }
+  } satisfies CSSProperties
   const labelStyle = {
     fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)',
     textTransform: 'uppercase', letterSpacing: '0.07em',
     display: 'block', marginBottom: 6,
-  }
+  } satisfies CSSProperties
 
   return (
     <div style={{

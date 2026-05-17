@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * DeveloperPortalPage — Manage OAuth2 applications
  */

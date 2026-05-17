@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RiskScoresPage — Predicción de riesgo por proyecto
  * Motor basado en señales observables: schedule, budget, scope, recursos

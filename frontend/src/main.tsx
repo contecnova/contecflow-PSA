@@ -18,6 +18,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import AppProviders from './AppProviders'
 import { useAppT } from './hooks/useAppT'
+import type { TranslationParams } from './hooks/useAppT'
 // TODO type: services/offlineQueue still JS
 import { initOfflineSync } from './services/offlineQueue'
 // TODO type: services/api still JS
@@ -25,9 +26,20 @@ import api from './services/api'
 import './index.css'
 
 // Initialize offline sync — auto-syncs queued imputations when the browser comes back online
-initOfflineSync(api, ({ synced, failed }: { synced: number; failed: number }) => {
-  if (synced > 0) console.warn(`[Contecflow] Offline sync: ${synced} imputations uploaded${failed ? `, ${failed} failed` : ''}`)
-})
+const _bootOfflineSync = () => {
+  initOfflineSync(api, ({ synced, failed }: { synced: number; failed: number }) => {
+    if (synced > 0) console.warn(`[Contecflow] Offline sync: ${synced} imputations uploaded${failed ? `, ${failed} failed` : ''}`)
+  })
+}
+
+if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+  ;(window as Window & { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => void }).requestIdleCallback(
+    _bootOfflineSync,
+    { timeout: 1500 },
+  )
+} else {
+  setTimeout(_bootOfflineSync, 0)
+}
 
 // ── Error Boundary — captura errores de render Y de lazy loading ──────────────
 interface RootErrorBoundaryProps {
@@ -118,7 +130,8 @@ class ErrorBoundary extends React.Component<RootErrorBoundaryProps, RootErrorBou
 
 function RootBoundary({ children }: { children?: ReactNode }) {
   const { t } = useAppT()
-  return <ErrorBoundary t={t}>{children}</ErrorBoundary>
+  const translate = (key: string, vars?: Record<string, unknown>) => t(key, vars as TranslationParams | undefined)
+  return <ErrorBoundary t={translate}>{children}</ErrorBoundary>
 }
 
 // ── QueryClient ───────────────────────────────────────────────────────────────

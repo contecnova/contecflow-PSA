@@ -3,38 +3,62 @@
  * Route: /intake/:token
  */
 import { useState } from 'react'
+import type { ChangeEvent, CSSProperties } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 import { useAppT } from '../i18n/AppLangContext'
 
-const BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/api\/v1\/?$/, '')
+const API_URL = import.meta.env.VITE_API_URL
+const BASE_URL = (typeof API_URL === 'string' ? API_URL : '').replace(/\/api\/v1\/?$/, '')
 
-const FS = {
+interface PublicFormResponse {
+  name?: string
+  description?: string
+  success_message?: string
+  default_priority?: string
+}
+
+interface IntakeFields {
+  subject: string
+  description: string
+  submitter_name: string
+  submitter_email: string
+  priority: string
+}
+
+function extractSubmitError(error: unknown): string {
+  if (typeof error !== 'object' || error == null) return ''
+  const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+  return detail ? String(detail) : ''
+}
+
+const FS: CSSProperties = {
   width: '100%', background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
   borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
-const LS = { fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 6 }
+const LS: CSSProperties = { fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 6 }
 
 export default function IntakeFormPage(): JSX.Element {
   const { token } = useParams<{ token: string }>()
   const t = useAppT()
 
-  const { data: form, isLoading, error } = useQuery({
+  const { data: form, isLoading, error } = useQuery<PublicFormResponse>({
     queryKey: ['public-form', token],
     queryFn: () => axios.get(`${BASE_URL}/api/v1/forms/public/${token}`).then(r => r.data),
     retry: false,
   })
 
-  const [fields, setFields] = useState({
+  const [fields, setFields] = useState<IntakeFields>({
     subject: '', description: '', submitter_name: '', submitter_email: '', priority: '',
   })
   const [submitted, setSubmitted] = useState(false)
-  const set = k => e => setFields(p => ({ ...p, [k]: e.target.value }))
+  const set = (k: keyof IntakeFields) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setFields((p) => ({ ...p, [k]: e.target.value }))
 
   const { mutate, isPending, isError, error: submitError } = useMutation({
-    mutationFn: (data) => axios.post(`${BASE_URL}/api/v1/forms/public/${token}/submit`, data).then(r => r.data),
+    mutationFn: (data: IntakeFields) => axios.post(`${BASE_URL}/api/v1/forms/public/${token}/submit`, data).then(r => r.data),
     onSuccess: () => setSubmitted(true),
   })
 
@@ -112,7 +136,7 @@ export default function IntakeFormPage(): JSX.Element {
 
           {isError && (
             <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '10px 14px', color: 'var(--danger)', fontSize: "var(--text-base)" }}>
-              {t('intake_form.error_send_label')} {submitError?.response?.data?.detail || t('intake_form.error_retry_label')}
+              {t('intake_form.error_send_label')} {extractSubmitError(submitError) || t('intake_form.error_retry_label')}
             </div>
           )}
 
@@ -135,13 +159,13 @@ export default function IntakeFormPage(): JSX.Element {
   )
 }
 
-const pageStyle = {
+const pageStyle: CSSProperties = {
   minHeight: '100vh', background: 'var(--surface-0)',
   display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
   padding: '40px 16px',
 }
 
-const cardStyle = {
+const cardStyle: CSSProperties = {
   background: 'var(--surface-1)', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.25)',
   border: '1px solid var(--surface-4)',
   padding: '36px 32px', width: '100%', maxWidth: 600,

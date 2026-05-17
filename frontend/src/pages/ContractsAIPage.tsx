@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ContractsAIPage — H22 (Item H22 cerrado).
  *

@@ -86,31 +86,70 @@ class LocalFileStorage:
 # ── S3 backend ─────────────────────────────────────────────────────────────────
 
 class S3Service:
-    """AWS S3 file storage service."""
+    """AWS S3 file storage service.
+
+    Initial config comes from env vars; if a Settings → Credenciales → AWS S3
+    entry is set, calling ``reload_from_db(db, org_id)`` rebuilds the boto3
+    client with those values. Call it from endpoints/services before the first
+    S3 op of the request lifecycle (cheap thanks to the 60s creds cache).
+    """
 
     def __init__(self):
         self.bucket = settings.AWS_S3_BUCKET
         self.region = settings.AWS_REGION
         self.url_expiration_hours = settings.S3_URL_EXPIRATION_HOURS
         self.client = None
+        self._access_key = settings.AWS_ACCESS_KEY
+        self._secret_key = settings.AWS_SECRET_KEY
 
         try:
             import boto3
             self.client = boto3.client(
                 "s3",
                 region_name=self.region,
-                aws_access_key_id=settings.AWS_ACCESS_KEY,
-                aws_secret_access_key=settings.AWS_SECRET_KEY,
+                aws_access_key_id=self._access_key,
+                aws_secret_access_key=self._secret_key,
             )
             logger.info(f"S3Service initialized: bucket={self.bucket}, region={self.region}")
         except Exception as e:
             logger.warning(f"S3 client could not be initialised: {e}")
 
+    def reload_from_db(self, db, org_id=None) -> None:
+        """Re-read credentials from `app_settings` + integration_credentials registry.
+
+        Falls back to env values when the DB row is absent. Safe to call on
+        every request — the underlying lookup is cached.
+        """
+        try:
+            from app.services.integration_credentials_service import get_provider_config
+            from app.services.settings_service import get_runtime_int
+            cfg = get_provider_config(db, "aws_s3", org_id=org_id)
+            new_bucket = cfg.get("bucket") or settings.AWS_S3_BUCKET
+            new_region = cfg.get("region") or settings.AWS_REGION
+            new_access = cfg.get("access_key") or settings.AWS_ACCESS_KEY
+            new_secret = cfg.get("secret_key") or settings.AWS_SECRET_KEY
+            self.url_expiration_hours = get_runtime_int(db, "S3_URL_EXPIRATION_HOURS", org_id) or settings.S3_URL_EXPIRATION_HOURS
+
+            if (new_bucket, new_region, new_access, new_secret) == (self.bucket, self.region, self._access_key, self._secret_key):
+                return  # no change, keep current client
+            self.bucket, self.region = new_bucket, new_region
+            self._access_key, self._secret_key = new_access, new_secret
+            import boto3
+            self.client = boto3.client(
+                "s3",
+                region_name=self.region,
+                aws_access_key_id=self._access_key,
+                aws_secret_access_key=self._secret_key,
+            )
+            logger.info("S3Service reloaded: bucket=%s, region=%s", self.bucket, self.region)
+        except Exception as exc:
+            logger.warning("S3Service reload failed: %s", exc)
+
     def is_available(self) -> bool:
         return (
             self.client is not None
-            and bool(settings.AWS_ACCESS_KEY)
-            and bool(settings.AWS_SECRET_KEY)
+            and bool(self._access_key)
+            and bool(self._secret_key)
         )
 
     def upload_file(

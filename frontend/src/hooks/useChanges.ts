@@ -28,7 +28,7 @@ export function useChanges(params: ChangeListParams = {}): UseQueryResult<unknow
 export function useAllChanges(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['sd-changes'],
-    queryFn: () => changesApi.list().then((r: { data: unknown }) => r.data),
+    queryFn: () => changesApi.list({}).then((r: { data: unknown }) => r.data),
     staleTime: STALE,
   })
 }

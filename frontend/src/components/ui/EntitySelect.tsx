@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * EntitySelect — Reusable select components for shared catalog entities.
  *

@@ -25,7 +25,7 @@ export function useSubcontractors(params: SubcontractorListParams = {}): UseQuer
 export function useAllSubcontractors(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['subcontractors'],
-    queryFn: () => subcontractorsApi.list().then((r: { data: unknown }) => r.data),
+    queryFn: () => subcontractorsApi.list({}).then((r: { data: unknown }) => r.data),
     staleTime: STALE,
   })
 }

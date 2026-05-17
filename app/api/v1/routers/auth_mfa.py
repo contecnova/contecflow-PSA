@@ -62,11 +62,13 @@ def mfa_setup(
         import io
         import base64
         import qrcode
+        from app.services.settings_service import get_runtime_str
+        _project_name = get_runtime_str(db, "PROJECT_NAME", getattr(current_user, "organization_id", None)) or settings.PROJECT_NAME
         secret = pyotp.random_base32()
         totp   = pyotp.TOTP(secret)
         uri    = totp.provisioning_uri(
             name=current_user.email,
-            issuer_name=settings.PROJECT_NAME,
+            issuer_name=_project_name,
         )
         qr_img = qrcode.make(uri)
         buf = io.BytesIO()
@@ -82,7 +84,7 @@ def mfa_setup(
             "secret":           secret,
             "provisioning_uri": uri,
             "qr_url":           qr_url,
-            "issuer":           settings.PROJECT_NAME,
+            "issuer":           _project_name,
             "email":            current_user.email,
         }
     except ImportError as ie:
@@ -260,9 +262,11 @@ def webauthn_register_start(
     exclude_credentials = [
         PublicKeyCredentialDescriptor(id=_b64url_decode(c.credential_id)) for c in existing
     ]
+    from app.services.settings_service import get_runtime_str
+    _rp_name = get_runtime_str(db, "WEBAUTHN_RP_NAME", getattr(current_user, "organization_id", None)) or settings.WEBAUTHN_RP_NAME
     options = generate_registration_options(
         rp_id=settings.WEBAUTHN_RP_ID,
-        rp_name=settings.WEBAUTHN_RP_NAME,
+        rp_name=_rp_name,
         user_id=current_user.id.encode(),
         user_name=current_user.email,
         user_display_name=current_user.full_name,

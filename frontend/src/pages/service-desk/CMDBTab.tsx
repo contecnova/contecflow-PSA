@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent, CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { extractErr } from '../../utils/helpers'
@@ -7,28 +8,66 @@ import { useToast } from '../../context/ToastContext'
 import { cmdbApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 
-function onKeyboardActivate(event, action) {
+interface CMDBItem {
+  id: string | number
+  name: string
+  code?: string
+  ci_type?: string
+  status?: string
+  environment?: string
+  criticality?: string
+  vendor?: string
+  version?: string
+  description?: string
+}
+
+interface CMDBRelation {
+  id: string | number
+  relation_type?: string
+  target_name?: string
+  source_name?: string
+  target_code?: string
+  source_code?: string
+}
+
+interface CMDBImpact {
+  affected?: CMDBItem[]
+}
+
+interface CMDBForm {
+  name: string
+  ci_type: string
+  status: string
+  description: string
+  environment: string
+  version: string
+  vendor: string
+  criticality: string
+  notes: string
+}
+
+function onKeyboardActivate(event: ReactKeyboardEvent<HTMLDivElement>, action: () => void) {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     action()
   }
 }
 
-function CMDBDetail({ ci, onClose }) {
+function CMDBDetail({ ci, onClose }: { ci: CMDBItem; onClose: () => void }) {
   const [tab, setTab] = useState('info')
-  const { data: relations = [] } = useQuery({
+  const { data: relations = [] } = useQuery<CMDBRelation[]>({
     queryKey: ['sd-cmdb-relations', ci.id],
     queryFn: () => cmdbApi.sdRelations(ci.id).then(r => r.data),
     enabled: tab === 'relations',
   })
-  const { data: impact } = useQuery({
+  const { data: impact } = useQuery<CMDBImpact>({
     queryKey: ['sd-cmdb-impact', ci.id],
     queryFn: () => cmdbApi.sdImpact(ci.id).then(r => r.data),
     enabled: tab === 'impact',
   })
 
   const STATUS_COLOR_CI = { operational: 'var(--success)', degraded: 'var(--orange)', maintenance: 'var(--warning)', retired: 'var(--text-3)' }
-  const tabStyle = a => ({ padding: '5px 14px', borderRadius: 7, border: 'none', cursor: 'pointer', background: a ? 'var(--accent-glow)' : 'transparent', color: a ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: a ? 700 : 400 })
+  const tabStyle = (a: boolean): CSSProperties => ({ padding: '5px 14px', borderRadius: 7, border: 'none', cursor: 'pointer', background: a ? 'var(--accent-glow)' : 'transparent', color: a ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: a ? 700 : 400 })
 
   return (
     <Modal open title={`CI: ${ci.name}`} onClose={onClose} width={600}>
@@ -83,32 +122,32 @@ export default function CMDBTab() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [showDetail, setShowDetail] = useState(null)
-  const [form, setForm] = useState({ name: '', ci_type: 'application', status: 'operational', description: '', environment: '', version: '', vendor: '', criticality: 'medium', notes: '' })
+  const [showDetail, setShowDetail] = useState<CMDBItem | null>(null)
+  const [form, setForm] = useState<CMDBForm>({ name: '', ci_type: 'application', status: 'operational', description: '', environment: '', version: '', vendor: '', criticality: 'medium', notes: '' })
 
-  const IS = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
+  const IS: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
 
-  const { data: cis = [], isLoading } = useQuery({
+  const { data: cis = [], isLoading } = useQuery<CMDBItem[]>({
     queryKey: ['sd-cmdb', typeFilter],
     queryFn: () => cmdbApi.sdList(typeFilter ? { ci_type: typeFilter } : {}).then(r => r.data),
   })
 
   const { mutate: create, isPending: creating } = useMutation({
-    mutationFn: d => cmdbApi.sdCreate(d),
+    mutationFn: (d: CMDBForm) => cmdbApi.sdCreate(d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-cmdb'] })
       setShowCreate(false)
       setForm({ name: '', ci_type: 'application', status: 'operational', description: '', environment: '', version: '', vendor: '', criticality: 'medium', notes: '' })
       toast.success('CI creado')
     },
-    onError: e => toast.error(extractErr(e, 'Error al crear CI')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al crear CI')),
   })
 
   const { mutate: update } = useMutation({
-    mutationFn: ({ id, ...d }) => cmdbApi.sdUpdate(id, d),
+    mutationFn: ({ id, ...d }: { id: string | number; [key: string]: unknown }) => cmdbApi.sdUpdate(id, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-cmdb'] }); toast.success('CI actualizado') },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const CI_TYPES = ['application', 'server', 'database', 'network', 'service', 'module', 'integration', 'other']

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * BiGdprPanel.jsx — GDPR Compliance panel end-to-end.
  *

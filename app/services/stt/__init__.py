@@ -37,7 +37,20 @@ _PROVIDER_REGISTRY = {
 }
 
 
-def _setting(name: str, default: str = "") -> str:
+def _setting(name: str, default: str = "", db=None, org_id=None) -> str:
+    """Resolve a setting with org → global runtime → env precedence.
+
+    Used by the STT factory so admins can switch provider / fallbacks via
+    Settings → Sistema → Config. dinámica → IA without redeploy.
+    """
+    if db is not None:
+        try:
+            from app.services.settings_service import get_runtime_str
+            v = get_runtime_str(db, name, org_id)
+            if v:
+                return v
+        except Exception:
+            pass
     return getattr(settings, name, None) or os.environ.get(name, default) or default
 
 
@@ -45,35 +58,39 @@ def list_known_providers() -> List[str]:
     return list(_PROVIDER_REGISTRY.keys())
 
 
-def get_stt_provider(name: Optional[str] = None) -> STTProvider:
+def get_stt_provider(name: Optional[str] = None, db=None, org_id=None) -> STTProvider:
     """Devuelve la instancia del provider solicitado. Sin argumento → usa
-    ``settings.STT_PROVIDER`` (default ``openai``).
-
-    Lanza ``ValueError`` si el name no es conocido. Lanza ``STTError`` si la
-    instancia no tiene credenciales (el factory delega esa decisión al caller
-    para que pueda intentar fallbacks).
+    ``STT_PROVIDER`` (runtime → env, default ``openai``).
     """
-    chosen = (name or _setting("STT_PROVIDER", "openai")).strip().lower()
+    chosen = (name or _setting("STT_PROVIDER", "openai", db=db, org_id=org_id)).strip().lower()
     cls = _PROVIDER_REGISTRY.get(chosen)
     if cls is None:
         raise ValueError(
             f"STT provider desconocido: '{chosen}'. "
             f"Opciones: {', '.join(_PROVIDER_REGISTRY.keys())}"
         )
-    return cls()
+    return cls(db=db, org_id=org_id) if _accepts_db(cls) else cls()
 
 
-def _ordered_providers() -> Iterable[STTProvider]:
-    """Genera providers en orden: primario seguido de fallbacks configurados.
+def _accepts_db(cls) -> bool:
+    """True if the provider __init__ accepts a ``db`` kwarg (post-migration)."""
+    import inspect
+    try:
+        return "db" in inspect.signature(cls.__init__).parameters
+    except (TypeError, ValueError):
+        return False
 
-    ``STT_FALLBACK_PROVIDERS`` formato CSV (ej. ``"azure,whisper_local"``).
-    Deduplicamos manteniendo orden; descartamos providers no disponibles para
-    no malgastar latencia (cada intento tiene timeout 60s).
+
+def _ordered_providers(db=None, org_id=None) -> Iterable[STTProvider]:
+    """Genera providers en orden: primario + fallbacks configurados.
+
+    ``STT_PROVIDER`` + ``STT_FALLBACK_PROVIDERS`` resuelven primero via
+    Settings → Config. dinámica → IA y luego al env.
     """
     seen = set()
-    primary = _setting("STT_PROVIDER", "openai").strip().lower()
+    primary = _setting("STT_PROVIDER", "openai", db=db, org_id=org_id).strip().lower()
     candidates = [primary]
-    fallback_csv = _setting("STT_FALLBACK_PROVIDERS", "")
+    fallback_csv = _setting("STT_FALLBACK_PROVIDERS", "", db=db, org_id=org_id)
     if fallback_csv:
         candidates.extend(p.strip().lower() for p in fallback_csv.split(",") if p.strip())
 
@@ -82,7 +99,8 @@ def _ordered_providers() -> Iterable[STTProvider]:
             continue
         seen.add(name)
         try:
-            provider = _PROVIDER_REGISTRY[name]()
+            cls = _PROVIDER_REGISTRY[name]
+            provider = cls(db=db, org_id=org_id) if _accepts_db(cls) else cls()
         except Exception as exc:
             logger.warning("STT provider '%s' falló al instanciar: %s", name, exc)
             continue
@@ -97,15 +115,17 @@ def transcribe_audio(
     filename: str,
     content_type: str,
     language: Optional[str] = None,
+    db=None,
+    org_id=None,
 ) -> STTResult:
     """Transcribe usando el provider primario; si falla, recorre los fallbacks.
 
-    Lanza ``STTError`` con el último error si todos fallan, o un STTError
-    sintético si ningún provider está disponible.
+    Cuando se llama con ``db`` (recomendado desde endpoints), el factory
+    resuelve provider/fallbacks/credenciales contra la BD; si no, usa env.
     """
     last_error: STTError | None = None
     attempted = 0
-    for provider in _ordered_providers():
+    for provider in _ordered_providers(db=db, org_id=org_id):
         attempted += 1
         try:
             return provider.transcribe(audio_bytes, filename, content_type, language=language)

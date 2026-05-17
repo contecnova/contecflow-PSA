@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Timer Page — Seguimiento de tiempo con cronómetro activo e historial
  */

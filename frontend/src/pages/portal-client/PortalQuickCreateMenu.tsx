@@ -8,16 +8,39 @@
  * Acciones navegan a secciones del portal (algunas con flag que abre modal).
  */
 import { useEffect, useRef } from 'react'
+import type { ComponentType } from 'react'
 import {
   X, Headphones, Lightbulb, MessageSquare, FileSignature,
   Receipt, FlaskConical, Sparkles,
 } from 'lucide-react'
 
-export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }) {
-  const panelRef = useRef(null)
+interface PortalQuickCreateBadges {
+  uat?: number
+  documents?: number
+  invoices?: number
+  surveys?: number
+}
+
+interface PortalQuickCreateMenuProps {
+  onClose: () => void
+  onAction: (target: string, params?: Record<string, unknown>) => void
+  badges?: PortalQuickCreateBadges
+}
+
+interface QuickAction {
+  id: string
+  icon: ComponentType<{ size?: number; color?: string }>
+  label: string
+  hint?: string
+  color: string
+  run: () => void
+}
+
+export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }: PortalQuickCreateMenuProps) {
+  const panelRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
@@ -59,7 +82,7 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
       hint: 'Encuestas', color: 'var(--purple, #7c3aed)',
       run: () => onAction('surveys'),
     },
-  ].filter(Boolean)
+  ].filter(Boolean) as QuickAction[]
 
   return (
     <>

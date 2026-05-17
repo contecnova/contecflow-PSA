@@ -27,7 +27,7 @@ export function useLicenses(params: LicenseListParams = {}): UseQueryResult<unkn
 export function useAllLicenses(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['alm-licenses'],
-    queryFn: () => licensesApi.list().then((r: { data: unknown }) => r.data),
+    queryFn: () => licensesApi.list({}).then((r: { data: unknown }) => r.data),
     staleTime: STALE,
   })
 }

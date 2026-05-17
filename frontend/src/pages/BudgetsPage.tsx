@@ -2,6 +2,7 @@
  * BudgetsPage — Presupuestos multi-período por departamento
  */
 import { useState } from 'react'
+import type { CSSProperties, ChangeEvent } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -17,11 +18,62 @@ import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 
-const fs = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
-const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
+interface DepartmentItem {
+  id: string | number
+  name: string
+  is_active?: boolean
+}
 
-const fmtEur = n => n == null ? '—' : new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n)
+interface BudgetEntry {
+  month: number
+  planned?: number
+  actual?: number
+  committed?: number
+  notes?: string
+  is_locked?: boolean
+}
+
+interface BudgetItem {
+  id: string | number
+  name: string
+  department?: string
+  is_approved?: boolean
+  planned_total?: number
+  actual_total?: number
+  deviation?: number
+  entries: BudgetEntry[]
+}
+
+interface BudgetSummaryMonth {
+  month: number
+  planned: number
+  actual: number
+}
+
+interface BudgetSummary {
+  total_planned?: number
+  total_actual?: number
+  deviation_pct?: number
+  by_month?: BudgetSummaryMonth[]
+}
+
+interface EntryEditState {
+  budget_id: string | number
+  month: number
+  entry: BudgetEntry
+}
+
+interface EntryFormState {
+  actual: number
+  committed: number
+  notes: string
+}
+
+const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
+const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
+
+const fmtEur = (n: number | null | undefined) => n == null ? '—' : new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n)
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 const budgetSchema = z.object({
@@ -43,44 +95,46 @@ export default function BudgetsPage(): JSX.Element {
   const qc = useQueryClient()
   const toast = useToast()
   const [year, setYear] = useState(new Date().getFullYear())
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected] = useState<string | number | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ name:'', year:new Date().getFullYear(), department:'', total_amount:0, currency:'EUR' })
-  const [editEntry, setEditEntry] = useState(null)
-  const [entryForm, setEntryForm] = useState({ actual:0, committed:0, notes:'' })
+  const [editEntry, setEditEntry] = useState<EntryEditState | null>(null)
+  const [entryForm, setEntryForm] = useState<EntryFormState>({ actual:0, committed:0, notes:'' })
   const createValidation = useFormValidation(budgetSchema)
   const entryValidation = useFormValidation(budgetEntrySchema)
 
-  const { data: budgets = [], isLoading } = useQuery({ queryKey:['budgets', year], queryFn:()=>budgetsApi.list(year).then(r=>r.data) })
-  const { data: summary } = useQuery({ queryKey:['budget-summary', year], queryFn:()=>budgetsApi.summary(year).then(r=>r.data) })
-  const { data: departments = [] } = useQuery({ queryKey:['departments-select'], queryFn:()=>settingsApi.getDepartments().then(r=>r.data) })
+  const { data: budgetsRaw = [], isLoading } = useQuery({ queryKey:['budgets', year], queryFn:()=>budgetsApi.list(year).then(r=>r.data) })
+  const { data: summaryRaw } = useQuery({ queryKey:['budget-summary', year], queryFn:()=>budgetsApi.summary(year).then(r=>r.data) })
+  const { data: departmentsRaw = [] } = useQuery({ queryKey:['departments-select'], queryFn:()=>settingsApi.getDepartments().then(r=>r.data) })
+  const budgets = budgetsRaw as BudgetItem[]
+  const summary = (summaryRaw ?? null) as BudgetSummary | null
+  const departments = departmentsRaw as DepartmentItem[]
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => budgetsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['budgets']); setShowCreate(false); createValidation.setErrors({}) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (d: z.infer<typeof budgetSchema>) => budgetsApi.create(d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['budgets'] }); setShowCreate(false); createValidation.setErrors({}) },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: updateEntry } = useMutation({
-    mutationFn: ({ id, month, data }) => budgetsApi.updateEntry(id, month, data),
-    onSuccess: () => { qc.invalidateQueries(['budgets']); setEditEntry(null); entryValidation.setErrors({}) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: ({ id, month, data }: { id: string | number; month: number; data: z.infer<typeof budgetEntrySchema> }) => budgetsApi.updateEntry(id, month, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['budgets'] }); setEditEntry(null); entryValidation.setErrors({}) },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: approve } = useMutation({
-    mutationFn: id => budgetsApi.approve(id),
-    onSuccess: () => qc.invalidateQueries(['budgets']),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string | number) => budgetsApi.approve(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['budgets'] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const _sel = selected ? budgets.find(b => b.id === selected) : null
-  const chartData = summary?.by_month?.map(m => ({ mes: MONTHS[m.month-1], Planificado: Math.round(m.planned), Real: Math.round(m.actual) })) || []
+  const chartData = summary?.by_month?.map((m) => ({ mes: MONTHS[m.month-1], Planificado: Math.round(m.planned), Real: Math.round(m.actual) })) || []
 
-  const setCreateField = (key) => (e) => {
+  const setCreateField = (key: 'name' | 'year' | 'department' | 'total_amount' | 'currency') => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const value = key === 'year' || key === 'total_amount' ? +e.target.value : e.target.value
     setForm(current => ({ ...current, [key]: value }))
     createValidation.clearFieldError(key)
   }
 
-  const setEntryField = (key) => (e) => {
+  const setEntryField = (key: 'actual' | 'committed' | 'notes') => (e: ChangeEvent<HTMLInputElement>) => {
     const value = key === 'actual' || key === 'committed' ? +e.target.value : e.target.value
     setEntryForm(current => ({ ...current, [key]: value }))
     entryValidation.clearFieldError(key)
@@ -134,7 +188,7 @@ export default function BudgetsPage(): JSX.Element {
             <BarChart data={chartData}>
               <XAxis dataKey="mes" tick={{fontSize: "var(--text-xs)"}} />
               <YAxis tickFormatter={v=>`${Math.round(v/1000)}k€`} tick={{fontSize: "var(--text-2xs)"}} />
-              <Tooltip formatter={v=>[fmtEur(v)]} />
+              <Tooltip formatter={(v) => [fmtEur(typeof v === 'number' ? v : Number(v))]} />
               <Bar dataKey="Planificado" fill="#85B7EB" radius={[3,3,0,0]} />
               <Bar dataKey="Real" fill="#34d399" radius={[3,3,0,0]} />
             </BarChart>
@@ -180,7 +234,7 @@ export default function BudgetsPage(): JSX.Element {
                       </tr>
                     </thead>
                     <tbody>
-                      {['planned','actual','committed'].map(field => (
+                      {(['planned','actual','committed'] as const).map((field) => (
                         <tr key={field} style={{ borderBottom:'.5px solid var(--surface-4)' }}>
                           <td style={{ padding:'6px 10px', fontWeight:500, textTransform:'capitalize', color:'var(--text-2)' }}>{field}</td>
                           {b.entries.map(e => {

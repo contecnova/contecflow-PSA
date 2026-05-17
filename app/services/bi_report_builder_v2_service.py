@@ -10,6 +10,8 @@ Advances the Phase-2 Report Builder with:
 from __future__ import annotations
 
 import json
+import time
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -19,6 +21,7 @@ from app.models.settings import AppSetting
 from app.services.report_builder_service import execute_report
 
 CUSTOM_PRESETS_KEY = "bi.report_builder_v2.custom_presets"
+EXECUTIONS_KEY = "bi.report_builder_v2.executions"
 
 # ── Default preset catalog ─────────────────────────────────────────────────────
 
@@ -341,21 +344,115 @@ def preview_preset(
     preset_id: str,
     limit: int = 50,
 ) -> dict[str, Any]:
-    preset = get_preset(db, organization_id=organization_id, preset_id=preset_id)
-    try:
-        result = execute_report(
-            db=db,
-            report_type=preset_id,
-            sort_column=preset.get("sort_by"),
-            sort_direction=preset.get("sort_direction", "desc"),
-            filters=preset.get("filters") or {},
-            limit=limit,
-        )
-        rows = result if isinstance(result, list) else (result.get("rows") if isinstance(result, dict) else [])
-    except Exception:
-        rows = []
+    executed = execute_preset_with_controls(
+        db,
+        organization_id=organization_id,
+        preset_id=preset_id,
+        limit=limit,
+        timeout_seconds=6,
+    )
+    return executed["result"]
 
-    return {
+
+def _get_executions(db: Session, organization_id: Optional[str]) -> dict[str, Any]:
+    data = _get_json(db, EXECUTIONS_KEY, organization_id, default={})
+    return data if isinstance(data, dict) else {}
+
+
+def _save_executions(db: Session, organization_id: Optional[str], executions: dict[str, Any]) -> None:
+    # Keep only newest 200 executions per org.
+    values = sorted(executions.values(), key=lambda x: x.get("updated_at", ""), reverse=True)[:200]
+    compact = {row["id"]: row for row in values if row.get("id")}
+    _set_json(
+        db,
+        EXECUTIONS_KEY,
+        organization_id,
+        compact,
+        description="BI controlled execution status and progress",
+    )
+
+
+def get_execution_status(db: Session, *, organization_id: Optional[str], execution_id: str) -> dict[str, Any]:
+    executions = _get_executions(db, organization_id)
+    row = executions.get(execution_id)
+    if not row:
+        raise ValueError("execution_not_found")
+    return row
+
+
+def execute_preset_with_controls(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    preset_id: str,
+    limit: int,
+    timeout_seconds: int = 8,
+) -> dict[str, Any]:
+    """Run a BI preset with progress checkpoints and graceful degradation.
+
+    Uses staged limits to avoid expensive single-pass requests and to preserve
+    partial data if execution crosses timeout budget.
+    """
+    preset = get_preset(db, organization_id=organization_id, preset_id=preset_id)
+    execution_id = str(uuid.uuid4())
+    started_at = _iso_now()
+
+    executions = _get_executions(db, organization_id)
+    executions[execution_id] = {
+        "id": execution_id,
+        "preset_id": preset_id,
+        "status": "running",
+        "progress": 0,
+        "degraded": False,
+        "started_at": started_at,
+        "updated_at": started_at,
+    }
+    _save_executions(db, organization_id, executions)
+
+    start_ts = time.monotonic()
+    staged_limits = []
+    for candidate in (min(limit, 500), min(limit, 1500), limit):
+        if candidate > 0 and candidate not in staged_limits:
+            staged_limits.append(candidate)
+
+    rows: list[dict[str, Any]] = []
+    error = None
+    completed_stage = 0
+
+    for idx, staged_limit in enumerate(staged_limits, start=1):
+        elapsed = time.monotonic() - start_ts
+        if elapsed > timeout_seconds:
+            break
+        try:
+            result = execute_report(
+                db=db,
+                report_type=preset_id,
+                sort_column=preset.get("sort_by"),
+                sort_direction=preset.get("sort_direction", "desc"),
+                filters=preset.get("filters") or {},
+                limit=staged_limit,
+            )
+            rows = result if isinstance(result, list) else (result.get("rows") if isinstance(result, dict) else [])
+            completed_stage = idx
+            executions = _get_executions(db, organization_id)
+            row = executions.get(execution_id, {})
+            row.update(
+                {
+                    "status": "running",
+                    "progress": int((idx / len(staged_limits)) * 100),
+                    "rows_preview": len(rows),
+                    "updated_at": _iso_now(),
+                }
+            )
+            executions[execution_id] = row
+            _save_executions(db, organization_id, executions)
+        except Exception as exc:
+            error = str(exc)
+            break
+
+    elapsed_ms = int((time.monotonic() - start_ts) * 1000)
+    degraded = bool(error) or (completed_stage < len(staged_limits))
+    out = {
         "preset_id": preset_id,
         "preset_name": preset.get("name"),
         "category": preset.get("category"),
@@ -363,6 +460,34 @@ def preview_preset(
         "rows": rows,
         "count": len(rows),
         "generated_at": _iso_now(),
+        "degraded": degraded,
+        "execution_ms": elapsed_ms,
+        "timeout_seconds": timeout_seconds,
+        "completed_stages": completed_stage,
+        "total_stages": len(staged_limits),
+    }
+
+    executions = _get_executions(db, organization_id)
+    current = executions.get(execution_id, {})
+    current.update(
+        {
+            "status": "failed" if error and not rows else "completed",
+            "progress": 100 if not error else current.get("progress", 0),
+            "degraded": degraded,
+            "rows": len(rows),
+            "error": error,
+            "updated_at": _iso_now(),
+            "finished_at": _iso_now(),
+            "execution_ms": elapsed_ms,
+        }
+    )
+    executions[execution_id] = current
+    _save_executions(db, organization_id, executions)
+
+    return {
+        "execution_id": execution_id,
+        "result": out,
+        "status": current,
     }
 
 

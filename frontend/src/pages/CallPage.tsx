@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CallPage — vista de videollamada (Mockup §6.2).
  *

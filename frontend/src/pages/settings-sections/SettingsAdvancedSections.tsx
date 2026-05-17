@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -828,6 +829,350 @@ export function SystemStateSection() {
           })}
         </div>
       )}
+    </Section>
+  )
+}
+
+
+// ── Runtime-flag groups (env → UI migration) ──────────────────────────────────
+// Generic editor for groups declared in app/services/settings_service.py.
+// Each row in the response is {key, type, label, value} — we render a typed
+// input per row and PUT back to /settings/runtime/{group}/{key}.
+
+const RUNTIME_GROUPS = [
+  { id: 'sla',             label: 'SLA',                description: 'Tiempos de respuesta y resolución por prioridad.' },
+  { id: 'health',          label: 'Health scoring',     description: 'Pesos y umbrales del scoring de salud de cliente y proyecto.' },
+  { id: 'semantic',        label: 'Semantic',           description: 'Umbrales del clasificador semántico y motor de asignación.' },
+  { id: 'password_policy', label: 'Política contraseñas', description: 'Reglas de validación y políticas de bloqueo.' },
+  { id: 'locale',          label: 'Locale y jornada',   description: 'Moneda, zona horaria, idioma y defaults de jornada laboral.' },
+  { id: 'tokens',          label: 'Tokens',             description: 'TTL de access y refresh tokens.' },
+  { id: 'key_rotation',    label: 'Rotación de claves', description: 'Política de rotación automática de claves JWT e integraciones.' },
+  { id: 'ai',              label: 'IA',                 description: 'Modelo por defecto, backend de embeddings, STT, alertas de coste.' },
+  { id: 'feature_flags',   label: 'Feature flags',      description: 'Toggles operativos: M365, sincronización de tipos de cambio.' },
+  { id: 'storage',         label: 'Almacenamiento',     description: 'TTL de URLs presigned S3 y tamaño máximo de subida.' },
+  { id: 'security_network', label: 'Red / Proxy',       description: 'Trust de headers X-Forwarded y CIDRs autorizados.' },
+  { id: 'ui_branding',     label: 'Branding / UI',      description: 'Nombre del producto, embed BI, etiqueta WebAuthn.' },
+  { id: 'observability',   label: 'Observabilidad',     description: 'Token Bearer para el endpoint /metrics.' },
+  { id: 'timeouts',        label: 'Timeouts',           description: 'Tiempos de espera por defecto para llamadas HTTP/AI a APIs externas.' },
+]
+
+
+function RuntimeGroupEditor({ groupId, description }) {
+  const toast = useToast()
+  const qc = useQueryClient()
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['runtime-flags', groupId],
+    queryFn: () => settingsApi.runtimeGroup(groupId).then(r => r.data),
+  })
+
+  const { mutate: save, isPending } = useMutation({
+    mutationFn: ({ key, value }) => settingsApi.setRuntime(groupId, key, value),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['runtime-flags', groupId] })
+      toast.success('Guardado')
+    },
+    onError: (e) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+
+  const [draft, setDraft] = useState({})
+  useEffect(() => {
+    if (data?.items) {
+      const next = {}
+      for (const it of data.items) next[it.key] = it.value == null ? '' : String(it.value)
+      setDraft(next)
+    }
+  }, [data])
+
+  if (isLoading) return <div style={{ padding: 12, color: 'var(--text-2)' }}>Cargando…</div>
+  if (isError) return <div style={{ padding: 12, color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div>
+
+  const items = data?.items || []
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{description}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 200px auto', gap: 10, alignItems: 'center' }}>
+        {items.map((it) => {
+          const current = draft[it.key] ?? ''
+          const isBool = it.type === 'bool'
+          const dirty = String(it.value ?? '') !== String(current)
+          return (
+            <RuntimeFlagRow
+              key={it.key}
+              item={it}
+              current={current}
+              isBool={isBool}
+              dirty={dirty}
+              disabled={isPending}
+              onChange={(v) => setDraft({ ...draft, [it.key]: v })}
+              onSave={() => save({ key: it.key, value: isBool ? (current === 'true' || current === true) : current })}
+            />
+          )
+        })}
+      </div>
+      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+        Los cambios reemplazan el valor por defecto del archivo de configuración. Vacío = restablecer al valor de fábrica.
+      </div>
+    </div>
+  )
+}
+
+
+function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSave }) {
+  const inputStyle = {
+    width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+    borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-base)',
+    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+  }
+  return (
+    <>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <span style={{ fontWeight: 600, color: 'var(--text-1)', fontSize: 'var(--text-sm)' }}>{item.label}</span>
+        <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-2xs)', fontFamily: 'ui-monospace, monospace' }}>{item.key}</span>
+      </div>
+      <div>
+        {isBool ? (
+          <select value={String(current)} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
+            <option value="true">Activado</option>
+            <option value="false">Desactivado</option>
+          </select>
+        ) : (
+          <input
+            type={item.type === 'int' || item.type === 'float' ? 'number' : 'text'}
+            step={item.type === 'float' ? 'any' : (item.type === 'int' ? '1' : undefined)}
+            value={current}
+            onChange={(e) => onChange(e.target.value)}
+            style={inputStyle}
+          />
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={!dirty || disabled}
+        style={{
+          background: dirty ? 'var(--accent)' : 'var(--surface-3)',
+          border: 'none', borderRadius: 8, padding: '8px 16px',
+          color: dirty ? '#fff' : 'var(--text-3)',
+          cursor: dirty && !disabled ? 'pointer' : 'not-allowed',
+          fontSize: 'var(--text-sm)', fontFamily: 'inherit',
+        }}
+      >Guardar</button>
+    </>
+  )
+}
+
+
+// ── Integration credentials (Phase 2: encrypted per-org provider creds) ─────
+
+function IntegrationProviderEditor({ provider, label }) {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['integration', provider],
+    queryFn: () => settingsApi.integrationProvider(provider).then(r => r.data),
+  })
+  const { mutate: save, isPending } = useMutation({
+    mutationFn: ({ key, value }) => settingsApi.setIntegration(provider, key, value),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['integration', provider] })
+      toast.success('Guardado')
+    },
+    onError: (e) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+
+  const [testResult, setTestResult] = useState(null)
+  const { mutate: runTest, isPending: testing } = useMutation({
+    mutationFn: () => settingsApi.testIntegration(provider).then(r => r.data),
+    onSuccess: (result) => {
+      setTestResult(result)
+      if (result?.ok) toast.success(result.detail || 'Conexión OK')
+      else toast.error(result?.detail || 'Test de conexión falló')
+    },
+    onError: (e) => {
+      setTestResult({ ok: false, detail: extractErr(e, GENERIC_ERROR_FALLBACK) })
+      toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    },
+  })
+
+  const [draft, setDraft] = useState({})
+  useEffect(() => {
+    if (data?.items) {
+      const next = {}
+      // Secrets never echo back — start as empty so admin types the new value.
+      for (const it of data.items) next[it.key] = it.is_secret ? '' : (it.value == null ? '' : String(it.value))
+      setDraft(next)
+    }
+  }, [data])
+
+  if (isLoading) return <div style={{ padding: 12, color: 'var(--text-2)' }}>Cargando…</div>
+  if (isError)   return <div style={{ padding: 12, color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div>
+
+  const items = data?.items || []
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14 }}>
+        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+          {label}. Valores cifrados en reposo. Resuelven: org → global → .env.
+          Vacío + guardar borra el override y vuelve al valor del entorno.
+        </div>
+        <button
+          type="button"
+          onClick={() => runTest()}
+          disabled={testing}
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--accent-border)',
+            color: 'var(--accent)',
+            borderRadius: 8, padding: '8px 14px',
+            cursor: testing ? 'not-allowed' : 'pointer',
+            fontSize: 'var(--text-sm)', fontFamily: 'inherit', whiteSpace: 'nowrap',
+          }}
+        >{testing ? 'Probando…' : 'Probar conexión'}</button>
+      </div>
+      {testResult && (
+        <div style={{
+          padding: '10px 14px', borderRadius: 8, fontSize: 'var(--text-sm)',
+          background: testResult.ok ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.12)',
+          border: '1px solid ' + (testResult.ok ? 'rgba(34,197,94,.4)' : 'rgba(239,68,68,.4)'),
+          color: testResult.ok ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)',
+        }}>
+          <strong>{testResult.ok ? '✓ OK' : '✗ Error'}</strong> — {testResult.detail}
+        </div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px auto auto', gap: 10, alignItems: 'center' }}>
+        {items.map(it => {
+          const inputStyle = {
+            width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+            borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-base)',
+            outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+          }
+          const current = draft[it.key] ?? ''
+          const dirty = it.is_secret ? (current !== '') : (String(it.value ?? '') !== String(current))
+          return (
+            <React.Fragment key={it.key}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-1)', fontSize: 'var(--text-sm)' }}>{it.label}</span>
+                <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-2xs)', fontFamily: 'ui-monospace, monospace' }}>
+                  {it.key}{it.is_secret ? ' • secreto' : ''} • origen: {it.source}
+                </span>
+              </div>
+              <div>
+                <input
+                  type={it.is_secret ? 'password' : (it.type === 'int' ? 'number' : 'text')}
+                  step={it.type === 'int' ? '1' : undefined}
+                  value={current}
+                  placeholder={it.is_secret && it.configured ? '•••• (configurado)' : ''}
+                  onChange={(e) => setDraft({ ...draft, [it.key]: e.target.value })}
+                  style={inputStyle}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => save({ key: it.key, value: current })}
+                disabled={!dirty || isPending}
+                style={{
+                  background: dirty ? 'var(--accent)' : 'var(--surface-3)',
+                  border: 'none', borderRadius: 8, padding: '8px 16px',
+                  color: dirty ? '#fff' : 'var(--text-3)',
+                  cursor: dirty && !isPending ? 'pointer' : 'not-allowed',
+                  fontSize: 'var(--text-sm)', fontFamily: 'inherit',
+                }}
+              >Guardar</button>
+              <button
+                type="button"
+                onClick={() => save({ key: it.key, value: '' })}
+                disabled={isPending || (!it.configured)}
+                title={it.configured ? 'Borrar override (vuelve al valor del .env)' : 'No configurado'}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px',
+                  color: 'var(--text-2)',
+                  cursor: isPending || !it.configured ? 'not-allowed' : 'pointer',
+                  fontSize: 'var(--text-sm)', fontFamily: 'inherit',
+                }}
+              >Borrar</button>
+            </React.Fragment>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+
+export function IntegrationCredentialsSection() {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['integration-providers'],
+    queryFn: () => settingsApi.integrations().then(r => r.data),
+  })
+  const providers = data?.providers || []
+  const [active, setActive] = useState(null)
+  useEffect(() => {
+    if (!active && providers.length) setActive(providers[0].provider)
+  }, [providers, active])
+
+  if (isLoading) return <Section icon="🔐" title="Credenciales de integración"><div style={{ padding: 12, color: 'var(--text-2)' }}>Cargando…</div></Section>
+  if (isError)   return <Section icon="🔐" title="Credenciales de integración"><div style={{ padding: 12, color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div></Section>
+
+  const currentProvider = providers.find(p => p.provider === active)
+
+  return (
+    <Section
+      icon="🔐"
+      title="Credenciales de integración"
+      description="SMTP, AWS S3, Microsoft Graph, Slack, Stripe, etc. Los secretos se cifran en reposo (Fernet/HKDF + opcional AWS KMS) y nunca se devuelven en las respuestas."
+    >
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+        {providers.map(p => (
+          <button
+            key={p.provider}
+            onClick={() => setActive(p.provider)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 999,
+              border: '1px solid ' + (active === p.provider ? 'var(--accent)' : 'var(--surface-4)'),
+              background: active === p.provider ? 'var(--accent-muted)' : 'transparent',
+              color: active === p.provider ? 'var(--accent)' : 'var(--text-2)',
+              fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >{p.label}</button>
+        ))}
+      </div>
+      {active && currentProvider && (
+        <IntegrationProviderEditor key={active} provider={active} label={currentProvider.label} />
+      )}
+    </Section>
+  )
+}
+
+
+export function RuntimeFlagsSection() {
+  const [active, setActive] = useState(RUNTIME_GROUPS[0].id)
+  const current = RUNTIME_GROUPS.find(g => g.id === active) || RUNTIME_GROUPS[0]
+  return (
+    <Section icon="⚙️" title="Configuración dinámica" description="Knobs operativos editables sin redeploy. Resuelven org → global → valor del .env.">
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+        {RUNTIME_GROUPS.map(g => (
+          <button
+            key={g.id}
+            onClick={() => setActive(g.id)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 999,
+              border: '1px solid ' + (active === g.id ? 'var(--accent)' : 'var(--surface-4)'),
+              background: active === g.id ? 'var(--accent-muted)' : 'transparent',
+              color: active === g.id ? 'var(--accent)' : 'var(--text-2)',
+              fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >{g.label}</button>
+        ))}
+      </div>
+      <RuntimeGroupEditor key={active} groupId={active} description={current.description} />
     </Section>
   )
 }

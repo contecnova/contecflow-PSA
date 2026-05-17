@@ -13,11 +13,15 @@ Value format: (resource_type, action)
 ABAC_ROUTE_REGISTRY: dict[str, tuple[str, str]] = {
     "/api/v1/projects":     ("project",     "read"),
     "/api/v1/tasks":        ("task",        "read"),
+    "/api/v1/users":        ("user",        "read"),
+    "/api/v1/sd":           ("service_desk", "read"),
     "/api/v1/imputations":  ("imputation",  "read"),
     "/api/v1/timesheets":   ("timesheet",   "read"),
     "/api/v1/clients":      ("client",      "read"),
     "/api/v1/contracts":    ("contract",    "read"),
+    "/api/v1/contracts-ai": ("contract",    "read"),
     "/api/v1/invoices":     ("invoice",     "read"),
+    "/api/v1/billing-reports": ("invoice",  "read"),
     "/api/v1/expenses":     ("expense",     "read"),
     "/api/v1/risks":        ("risk",        "read"),
 }

@@ -23,17 +23,33 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=rounds)).decode()
 
 
-def validate_password_policy(password: str) -> tuple[bool, Optional[str]]:
-    """Validate password against configured policy and return (ok, error_message)."""
-    if len(password) < settings.MIN_PASSWORD_LENGTH:
-        return False, f"La contraseña debe tener al menos {settings.MIN_PASSWORD_LENGTH} caracteres"
-    if settings.PASSWORD_REQUIRE_UPPERCASE and not re.search(r"[A-Z]", password):
+def validate_password_policy(password: str, db=None, org_id: Optional[str] = None) -> tuple[bool, Optional[str]]:
+    """Validate password against configured policy and return (ok, error_message).
+
+    When ``db`` is provided the policy resolves through the runtime-flags
+    service (UI overrides → env fallback). When called without ``db`` (legacy
+    callers) it falls back to the env values directly.
+    """
+    if db is not None:
+        from app.services.settings_service import get_runtime_namespace
+        _p = get_runtime_namespace(db, {
+            "MIN_PASSWORD_LENGTH": "int",
+            "PASSWORD_REQUIRE_UPPERCASE": "bool",
+            "PASSWORD_REQUIRE_LOWERCASE": "bool",
+            "PASSWORD_REQUIRE_DIGIT": "bool",
+            "PASSWORD_REQUIRE_SPECIAL": "bool",
+        }, org_id=org_id)
+    else:
+        _p = settings
+    if len(password) < _p.MIN_PASSWORD_LENGTH:
+        return False, f"La contraseña debe tener al menos {_p.MIN_PASSWORD_LENGTH} caracteres"
+    if _p.PASSWORD_REQUIRE_UPPERCASE and not re.search(r"[A-Z]", password):
         return False, "La contraseña debe incluir al menos una letra mayúscula"
-    if settings.PASSWORD_REQUIRE_LOWERCASE and not re.search(r"[a-z]", password):
+    if _p.PASSWORD_REQUIRE_LOWERCASE and not re.search(r"[a-z]", password):
         return False, "La contraseña debe incluir al menos una letra minúscula"
-    if settings.PASSWORD_REQUIRE_DIGIT and not re.search(r"\d", password):
+    if _p.PASSWORD_REQUIRE_DIGIT and not re.search(r"\d", password):
         return False, "La contraseña debe incluir al menos un número"
-    if settings.PASSWORD_REQUIRE_SPECIAL and not re.search(r"[^A-Za-z0-9]", password):
+    if _p.PASSWORD_REQUIRE_SPECIAL and not re.search(r"[^A-Za-z0-9]", password):
         return False, "La contraseña debe incluir al menos un carácter especial"
     return True, None
 
@@ -41,9 +57,26 @@ def validate_password_policy(password: str) -> tuple[bool, Optional[str]]:
 _JWT_RESERVED_CLAIMS = {"sub", "exp", "iat", "type", "jti"}
 
 
-def create_access_token(subject: str, extra: dict = None, expires_delta: timedelta = None) -> str:
-    default_minutes = min(settings.ACCESS_TOKEN_EXPIRE_MINUTES, settings.ACCESS_TOKEN_MAX_MINUTES)
-    delta = expires_delta if expires_delta is not None else timedelta(minutes=default_minutes)
+def _token_ttl_minutes(db=None, org_id: Optional[str] = None) -> int:
+    if db is not None:
+        from app.services.settings_service import get_runtime_int
+        expire = get_runtime_int(db, "ACCESS_TOKEN_EXPIRE_MINUTES", org_id) or settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        max_m  = get_runtime_int(db, "ACCESS_TOKEN_MAX_MINUTES",    org_id) or settings.ACCESS_TOKEN_MAX_MINUTES
+    else:
+        expire = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        max_m  = settings.ACCESS_TOKEN_MAX_MINUTES
+    return min(expire, max_m)
+
+
+def _refresh_ttl_days(db=None, org_id: Optional[str] = None) -> int:
+    if db is not None:
+        from app.services.settings_service import get_runtime_int
+        return get_runtime_int(db, "REFRESH_TOKEN_EXPIRE_DAYS", org_id) or settings.REFRESH_TOKEN_EXPIRE_DAYS
+    return settings.REFRESH_TOKEN_EXPIRE_DAYS
+
+
+def create_access_token(subject: str, extra: dict = None, expires_delta: timedelta = None, db=None, org_id: Optional[str] = None) -> str:
+    delta = expires_delta if expires_delta is not None else timedelta(minutes=_token_ttl_minutes(db, org_id))
     expire = datetime.now(timezone.utc) + delta
     safe_extra = {k: v for k, v in (extra or {}).items() if k not in _JWT_RESERVED_CLAIMS}
     payload = {"sub": subject, "exp": expire, "type": "access", **safe_extra}
@@ -66,9 +99,9 @@ def create_mfa_challenge_token(subject: str) -> str:
     return jwt.encode(payload, key, algorithm=ALGORITHM, headers={"kid": kid}), jti
 
 
-def create_refresh_token(subject: str) -> tuple[str, str]:
+def create_refresh_token(subject: str, db=None, org_id: Optional[str] = None) -> tuple[str, str]:
     """Returns (token, jti). The jti must be stored per-user for rotation validation."""
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(days=_refresh_ttl_days(db, org_id))
     jti = str(uuid.uuid4())
     kid, key = get_jwt_signing_key()
     token = jwt.encode(

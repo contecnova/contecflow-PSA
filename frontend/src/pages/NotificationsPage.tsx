@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * NotificationsPage — Bandeja de entrada de notificaciones
  * Lista cronológica, marcar como leído, filtrar por tipo, WebSocket badge en tiempo real

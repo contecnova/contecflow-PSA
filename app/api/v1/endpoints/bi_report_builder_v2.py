@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import bi_report_builder_v2_service as svc
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter()
 
@@ -27,6 +28,11 @@ class PresetCustomizeIn(BaseModel):
     sort_by: Optional[str] = Field(None, max_length=80)
     sort_direction: Optional[str] = Field(None, pattern="^(asc|desc)$")
     filters: Optional[dict[str, Any]] = None
+
+
+class ControlledExecutionIn(BaseModel):
+    limit: int = Field(1000, ge=1, le=10000)
+    timeout_seconds: int = Field(8, ge=2, le=60)
 
 
 @router.get("/bi/reports/v2/presets", summary="Catálogo completo de presets BI v2")
@@ -41,11 +47,11 @@ def list_presets(
         by_cat = svc.list_presets_by_category(db, organization_id=org_id)
         if category:
             by_cat = {k: v for k, v in by_cat.items() if k == category}
-        return {"categories": by_cat}
+        return APIResponse.ok(data={"categories": by_cat})
     presets = svc.list_presets(db, organization_id=org_id)
     if category:
         presets = [p for p in presets if p.get("category") == category]
-    return {"items": presets, "count": len(presets)}
+    return APIListResponse.ok(items=presets, total=len(presets))
 
 
 @router.get("/bi/reports/v2/presets/{preset_id}", summary="Detalle de preset BI v2")
@@ -56,7 +62,7 @@ def get_preset(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.get_preset(db, organization_id=org_id, preset_id=preset_id)
+        return APIResponse.ok(data=svc.get_preset(db, organization_id=org_id, preset_id=preset_id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -70,12 +76,13 @@ def customize_preset(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.customize_preset(
+        updated = svc.customize_preset(
             db,
             organization_id=org_id,
             preset_id=preset_id,
             payload=body.model_dump(exclude_none=True),
         )
+        return APIResponse.ok(data=updated)
     except ValueError as exc:
         code = 404 if "not_found" in str(exc) else 422
         raise HTTPException(status_code=code, detail=str(exc)) from exc
@@ -94,7 +101,7 @@ def reset_preset_customization(
     enforce_abac(db, current_user, "bi_report_preset", preset_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.reset_preset_customization(db, organization_id=org_id, preset_id=preset_id)
+        return APIResponse.ok(data=svc.reset_preset_customization(db, organization_id=org_id, preset_id=preset_id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -108,7 +115,7 @@ def preview_preset(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.preview_preset(db, organization_id=org_id, preset_id=preset_id, limit=limit)
+        return APIResponse.ok(data=svc.preview_preset(db, organization_id=org_id, preset_id=preset_id, limit=limit))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -122,12 +129,45 @@ def export_preset(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.export_preset_data(
+        return APIResponse.ok(data=svc.export_preset_data(
             db,
             organization_id=org_id,
             preset_id=preset_id,
             export_format=format,
-        )
+        ))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/bi/reports/v2/presets/{preset_id}/execute-controlled", summary="Ejecutar preset con control de timeout y degradación")
+def execute_preset_controlled(
+    preset_id: str,
+    body: ControlledExecutionIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        return APIResponse.ok(data=svc.execute_preset_with_controls(
+            db,
+            organization_id=org_id,
+            preset_id=preset_id,
+            limit=body.limit,
+            timeout_seconds=body.timeout_seconds,
+        ))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/bi/reports/v2/executions/{execution_id}", summary="Consultar progreso/resultado de ejecución controlada")
+def get_controlled_execution(
+    execution_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        return APIResponse.ok(data=svc.get_execution_status(db, organization_id=org_id, execution_id=execution_id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -137,7 +177,8 @@ def list_categories(
     current_user: User = Depends(get_current_user),
 ):
     categories = sorted(set(p["category"] for p in svc.BASE_PRESETS))
-    return {"items": categories}
+    items = [{"name": c} for c in categories]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 # ── BI Phase 2: Component library ─────────────────────────────────────────────
@@ -145,7 +186,8 @@ def list_categories(
 @router.get("/bi/reports/v2/components", summary="Biblioteca de componentes de dashboard (drag-and-drop)")
 def list_component_types(current_user: User = Depends(get_current_user)):
     _ = current_user
-    return {"items": svc.list_component_types()}
+    items = svc.list_component_types()
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 # ── BI Phase 2: Dashboard layout persistence ──────────────────────────────────
@@ -161,7 +203,8 @@ def list_dashboard_layouts(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return {"items": svc.list_dashboard_layouts(db, organization_id=org_id)}
+    items = svc.list_dashboard_layouts(db, organization_id=org_id)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/bi/reports/v2/layouts/{dashboard_key}", summary="Obtener layout de dashboard guardado")
@@ -171,7 +214,7 @@ def get_dashboard_layout(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.get_dashboard_layout(db, organization_id=org_id, dashboard_key=dashboard_key)
+    return APIResponse.ok(data=svc.get_dashboard_layout(db, organization_id=org_id, dashboard_key=dashboard_key))
 
 
 @router.put("/bi/reports/v2/layouts/{dashboard_key}", summary="Guardar layout de dashboard (drag-and-drop)")
@@ -182,13 +225,13 @@ def save_dashboard_layout(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.save_dashboard_layout(
+    return APIResponse.ok(data=svc.save_dashboard_layout(
         db,
         organization_id=org_id,
         dashboard_key=dashboard_key,
         components=body.components,
         grid_cols=body.grid_cols,
-    )
+    ))
 
 
 # ── BI Phase 2: Dashboard templates CRUD ─────────────────────────────────────
@@ -215,7 +258,8 @@ def list_templates(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return {"items": svc.list_templates(db, organization_id=org_id)}
+    items = svc.list_templates(db, organization_id=org_id)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/bi/reports/v2/templates/{template_id}", summary="Detalle de template de dashboard")
@@ -226,7 +270,7 @@ def get_template(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.get_template(db, organization_id=org_id, template_id=template_id)
+        return APIResponse.ok(data=svc.get_template(db, organization_id=org_id, template_id=template_id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -238,7 +282,7 @@ def create_template(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.create_template(
+    return APIResponse.ok(data=svc.create_template(
         db,
         organization_id=org_id,
         name=body.name,
@@ -246,7 +290,7 @@ def create_template(
         layout=body.layout,
         preset_id=body.preset_id,
         tags=body.tags,
-    )
+    ))
 
 
 @router.put("/bi/reports/v2/templates/{template_id}", summary="Actualizar template de dashboard")
@@ -258,12 +302,12 @@ def update_template(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.update_template(
+        return APIResponse.ok(data=svc.update_template(
             db,
             organization_id=org_id,
             template_id=template_id,
             payload=body.model_dump(exclude_none=True),
-        )
+        ))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -278,6 +322,6 @@ def delete_template(
     org_id = getattr(current_user, "organization_id", None)
     try:
         svc.delete_template(db, organization_id=org_id, template_id=template_id)
-        return {"ok": True, "template_id": template_id}
+        return APIResponse.ok(data={"ok": True, "template_id": template_id})
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

@@ -490,17 +490,24 @@ COOKIE_OPTS = {
 }
 
 
-def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str, db: Optional[Session] = None, org_id: Optional[str] = None) -> None:
+    if db is not None:
+        from app.services.settings_service import get_runtime_int
+        access_minutes = get_runtime_int(db, "ACCESS_TOKEN_EXPIRE_MINUTES", org_id) or settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        refresh_days   = get_runtime_int(db, "REFRESH_TOKEN_EXPIRE_DAYS",   org_id) or settings.REFRESH_TOKEN_EXPIRE_DAYS
+    else:
+        access_minutes = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        refresh_days   = settings.REFRESH_TOKEN_EXPIRE_DAYS
     response.set_cookie(
         "access_token",
         access_token,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        max_age=access_minutes * 60,
         **COOKIE_OPTS,
     )
     response.set_cookie(
         "refresh_token",
         refresh_token,
-        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        max_age=refresh_days * 86400,
         path="/api/v1/auth/refresh",
         **COOKIE_OPTS,
     )
@@ -592,7 +599,7 @@ def consume_password_reset_token(user_id: str, jti: Optional[str]) -> None:
             _password_reset_jti_fallback.pop(user_id, None)
 
 
-def send_password_reset_email(recipient: str, reset_link: str) -> None:
+def send_password_reset_email(recipient: str, reset_link: str, db: Optional[Session] = None, org_id: Optional[str] = None) -> None:
     subject = "Contecflow PSA - Restablecer contraseña"
     body = (
         "Has solicitado restablecer tu contraseña de Contecflow PSA.\n\n"
@@ -601,11 +608,20 @@ def send_password_reset_email(recipient: str, reset_link: str) -> None:
         "Si no solicitaste este cambio, ignora este correo."
     )
 
-    smtp_host = settings.SMTP_HOST
-    smtp_user = settings.SMTP_USER
-    smtp_port = settings.SMTP_PORT
-    smtp_pass = settings.SMTP_PASS
-    smtp_from = settings.SMTP_FROM or smtp_user
+    if db is not None:
+        from app.services.integration_credentials_service import get_provider_config
+        cfg = get_provider_config(db, "smtp", org_id=org_id)
+        smtp_host = cfg.get("host")
+        smtp_user = cfg.get("user")
+        smtp_port = cfg.get("port") or 587
+        smtp_pass = cfg.get("password")
+        smtp_from = cfg.get("from") or smtp_user
+    else:
+        smtp_host = settings.SMTP_HOST
+        smtp_user = settings.SMTP_USER
+        smtp_port = settings.SMTP_PORT
+        smtp_pass = settings.SMTP_PASS
+        smtp_from = settings.SMTP_FROM or smtp_user
 
     if smtp_host and smtp_user and smtp_from:
         msg = EmailMessage()

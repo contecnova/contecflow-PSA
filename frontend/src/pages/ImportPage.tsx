@@ -2,6 +2,7 @@
  * ImportPage — Importación masiva de datos desde CSV/Excel
  */
 import { useState, useRef, useEffect } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { importApi } from '../services/api'
 import { Button } from '../components/ui'
@@ -10,23 +11,65 @@ import PageShell from '../components/layout/PageShell'
 import { Upload } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const fs = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
-const card = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12 }
+interface ImportTemplate {
+  columns: string[]
+  example: Array<Array<string | number>>
+}
+
+interface ImportValidation {
+  valid?: boolean
+  warnings?: string[]
+  errors?: Array<{ row?: number; error?: string }>
+  preview?: Array<Record<string, unknown>>
+  total_rows?: number
+}
+
+interface ImportResult {
+  status?: string
+  total?: number
+  total_rows?: number
+  succeeded?: number
+  failed?: number
+  failed_rows?: number
+  errors?: Array<{ row?: number; error?: string }>
+  error?: string
+}
+
+interface ImportJob {
+  id: string | number
+  status?: string
+  entity_type?: string
+  filename?: string
+  started_at?: string
+  succeeded?: number
+  total_rows?: number
+  failed_rows?: number
+}
+
+interface ImportProjectDraft {
+  name: string
+  start_date: string
+  end_date: string
+  total_hours: number
+}
+
+const fs: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const card: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12 }
 
 // ── Import Tab ────────────────────────────────────────────────────────────────
 function ImportTab() {
   const t = useAppT()
   const [entityType, setEntityType] = useState('projects')
-  const [step, setStep] = useState('select') // select | validate | result
+  const [step, setStep] = useState<'select' | 'validate' | 'result'>('select')
   const [validating, setValidating] = useState(false)
   const [importing, setImporting] = useState(false)
-  const [validation, setValidation] = useState(null)
-  const [result, setResult] = useState(null)
-  const [opStage, setOpStage] = useState('idle') // idle | validating | importing | done | failed
-  const [opStartedAt, setOpStartedAt] = useState(null)
+  const [validation, setValidation] = useState<ImportValidation | null>(null)
+  const [result, setResult] = useState<ImportResult | null>(null)
+  const [opStage, setOpStage] = useState<'idle' | 'validating' | 'importing' | 'done' | 'failed'>('idle')
+  const [opStartedAt, setOpStartedAt] = useState<number | null>(null)
   const [opElapsed, setOpElapsed] = useState(0)
-  const fileRef = useRef(null)
+  const fileRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (!opStartedAt) {
@@ -39,16 +82,16 @@ function ImportTab() {
     return () => clearInterval(id)
   }, [opStartedAt])
 
-  const { data: template } = useQuery({
+  const { data: template } = useQuery<ImportTemplate>({
     queryKey: ['import-template', entityType],
     queryFn: () => importApi.template(entityType).then(r => r.data),
   })
-  const { data: jobs = [] } = useQuery({
+  const { data: jobs = [] } = useQuery<ImportJob[]>({
     queryKey: ['import-jobs'],
     queryFn: () => importApi.jobs().then(r => r.data),
   })
 
-  const validateFile = async (file) => {
+  const validateFile = async (file: File) => {
     setValidating(true)
     setOpStage('validating')
     setOpStartedAt(Date.now())
@@ -58,8 +101,10 @@ function ImportTab() {
       setValidation(resp.data); setStep('validate')
       setOpStage(resp.data?.valid ? 'done' : 'failed')
     } catch(e) {
-      const _raw = e.response?.data?.detail
-      const _msg = Array.isArray(_raw) ? _raw.map(d => d.msg).join(', ') : (_raw || 'Error al procesar el fichero')
+      const _raw = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      const _msg = Array.isArray(_raw)
+        ? _raw.map((d) => String((d as { msg?: unknown }).msg ?? '')).join(', ')
+        : String(_raw || 'Error al procesar el fichero')
       setValidation({ valid: false, errors: [{error: _msg}], warnings: [], preview: [], total_rows: 0 })
       setStep('validate')
       setOpStage('failed')
@@ -77,8 +122,13 @@ function ImportTab() {
       setResult(resp.data); setStep('result')
       setOpStage(resp.data?.status === 'failed' ? 'failed' : 'done')
     } catch(e) {
-      const _raw2 = e.response?.data?.detail
-      setResult({ status: 'failed', error: Array.isArray(_raw2) ? _raw2.map(d => d.msg).join(', ') : (_raw2 || 'Error en la importación') })
+      const _raw2 = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      setResult({
+        status: 'failed',
+        error: Array.isArray(_raw2)
+          ? _raw2.map((d) => String((d as { msg?: unknown }).msg ?? '')).join(', ')
+          : String(_raw2 || 'Error en la importación')
+      })
       setStep('result')
       setOpStage('failed')
     } finally { setImporting(false) }
@@ -177,7 +227,7 @@ function ImportTab() {
                   <div style={{fontWeight:700,marginBottom:6}}>{t('import_data.preview')}</div>
                   <div style={{overflowX:'auto'}}>
                     <table style={{borderCollapse:'collapse',fontSize: "var(--text-xs)"}}>
-                      <thead><tr>{Object.keys(validation.preview[0]).map(k => <th key={k} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)',textAlign:'left',color:'var(--text-3)',whiteSpace:'nowrap'}}>{k}</th>)}</tr></thead>
+                      <thead><tr>{Object.keys(validation.preview[0] || {}).map(k => <th key={k} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)',textAlign:'left',color:'var(--text-3)',whiteSpace:'nowrap'}}>{k}</th>)}</tr></thead>
                       <tbody>
                         {validation.preview.map((row,i) => <tr key={i}>{Object.values(row).map((v,j) => <td key={j} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)20',color:'var(--text-1)',whiteSpace:'nowrap'}}>{String(v).slice(0,30)}</td>)}</tr>)}
                       </tbody>
@@ -196,13 +246,13 @@ function ImportTab() {
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:12}}>
                 {[
-                  [t('import_data.total'), result.total, 'var(--text-2)'],
-                  [t('import_data.imported'), result.succeeded, 'var(--success)'],
-                  [t('import_data.errors'), result.failed, 'var(--danger)']
-                ].map(([l,v,c]) => (
-                  <div key={l} style={{textAlign:'center',background:'var(--surface-3)',borderRadius:8,padding:'12px'}}>
-                    <div style={{fontSize: "var(--text-2xl)",fontWeight:800,color:c}}>{v}</div>
-                    <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{l}</div>
+                  { label: t('import_data.total'), value: result.total ?? result.total_rows ?? 0, color: 'var(--text-2)' },
+                  { label: t('import_data.imported'), value: result.succeeded ?? 0, color: 'var(--success)' },
+                  { label: t('import_data.errors'), value: result.failed ?? result.failed_rows ?? 0, color: 'var(--danger)' }
+                ].map((item) => (
+                  <div key={item.label} style={{textAlign:'center',background:'var(--surface-3)',borderRadius:8,padding:'12px'}}>
+                    <div style={{fontSize: "var(--text-2xl)",fontWeight:800,color:item.color}}>{item.value}</div>
+                    <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{item.label}</div>
                   </div>
                 ))}
               </div>
@@ -225,7 +275,7 @@ function ImportTab() {
                   <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{j.filename} · {j.started_at}</div>
                 </div>
                 <span style={{fontSize: "var(--text-sm)",color:'var(--text-2)',textAlign:'right'}}>{j.succeeded}/{j.total_rows}</span>
-                <span style={{fontSize: "var(--text-xs)",color:'var(--danger)'}}>{j.failed_rows>0?`${j.failed_rows} ${t('import_data.err')}`:''}</span>
+                <span style={{fontSize: "var(--text-xs)",color:'var(--danger)'}}>{(j.failed_rows ?? 0)>0?`${j.failed_rows} ${t('import_data.err')}`:''}</span>
               </div>
             ))
           )}

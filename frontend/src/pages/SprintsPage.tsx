@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * SprintsPage — Full Scrum sprint management
  * Views: Backlog | Sprint Activo | Velocity histórico

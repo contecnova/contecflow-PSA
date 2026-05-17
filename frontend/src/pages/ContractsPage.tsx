@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'

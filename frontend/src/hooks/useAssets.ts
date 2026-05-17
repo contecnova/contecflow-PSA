@@ -26,7 +26,7 @@ export function useAssets(params: AssetListParams = {}): UseQueryResult<unknown>
 export function useAllAssets(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['alm-assets'],
-    queryFn: () => assetsApi.list().then((r: { data: unknown }) => r.data),
+    queryFn: () => assetsApi.list({}).then((r: { data: unknown }) => r.data),
     staleTime: STALE,
   })
 }

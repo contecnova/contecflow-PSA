@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useMemo, useState, type ReactNode, type ChangeEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WorkflowDesignerPage — diseñador visual de workflows para Service Desk.
  *

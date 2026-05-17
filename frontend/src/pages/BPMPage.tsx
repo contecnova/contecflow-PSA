@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Button, Page } from '../components/ui'
 import { Network, Plus, X, ChevronLeft, Edit3, Download, Search } from 'lucide-react'

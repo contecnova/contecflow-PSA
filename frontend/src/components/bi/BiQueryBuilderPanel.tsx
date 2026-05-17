@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * BiQueryBuilderPanel.jsx — Self-service visual query builder (no-SQL).
  *

@@ -102,7 +102,7 @@ export function useUserPreferences(): UseUserPreferencesResult {
   // Guardar con debounce (500ms) para no saturar el backend
   const save = useCallback((patch: Partial<UserPreferences>) => {
     // Actualizar caché inmediatamente (optimistic)
-    qc.setQueryData<UserPreferences>(['user-preferences'], (old) => ({ ...(old ?? DEFAULTS), ...patch }))
+    qc.setQueryData(['user-preferences'], (old: UserPreferences | undefined) => ({ ...(old ?? DEFAULTS), ...patch }))
     // Aplicar cambios CSS inmediatos
     if (patch.accent_color) {
       document.documentElement.style.setProperty('--accent', patch.accent_color)

@@ -7,6 +7,7 @@ import {
   FolderOpen, Hexagon, Activity, AlertOctagon, Zap, AlertTriangle, ListTodo,
   AlertCircle,
 } from 'lucide-react'
+import type { ComponentType } from 'react'
 import {
   COLOR, DashPageShell, KpiCard, KpiIcon, GaugeCard, BarRow, SectionCard, DashEmpty,
   dateRange, typePalette,
@@ -24,6 +25,28 @@ const STATUS_COLORS = {
   archived:  'var(--text-3)',
 }
 
+interface DashboardProjectHealth {
+  project_id: string | number
+  project_code?: string
+  project_name?: string
+  schedule_deviation_days?: number
+  budget_used_pct?: number
+  alerts_count?: number
+}
+
+interface ProjectItem {
+  status?: string
+}
+
+interface TypeRow {
+  label?: string
+  value?: number
+}
+
+interface RiskRow {
+  severity?: string
+}
+
 export default function ProjectsDashboardPage() {
   const t = useAppT()
   const STATUS_LABELS = {
@@ -37,22 +60,23 @@ export default function ProjectsDashboardPage() {
     archived:  t('projects_dashboard.status_archived'),
   }
   const [days, setDays] = useState(30)
+  const iconCompat = <T,>(icon: T) => icon as unknown as ComponentType<{ size?: number; strokeWidth?: number }>
   const params = dateRange(days)
 
-  const { data: health = [], isLoading: lh } = useQuery({
+  const { data: health = [], isLoading: lh } = useQuery<DashboardProjectHealth[]>({
     queryKey: ['proj-dash-health', days],
     queryFn: () => dashboardApi.projectsHealth(params).then(r => r.data).catch(() => []),
     staleTime: 60_000,
   })
 
-  const { data: allProjects = [] } = useAllProjects()
+  const { data: allProjects = [] } = useAllProjects() as { data: ProjectItem[] }
 
-  const { data: byTypeRaw, isLoading: lt } = useQuery({
+  const { data: byTypeRaw, isLoading: lt } = useQuery<TypeRow[]>({
     queryKey: ['proj-dash-type', days],
     queryFn: () => analyticsApi.query('projects_by_type', params).then(r => r.data?.rows || []).catch(() => []),
     staleTime: 60_000,
   })
-  const byType = byTypeRaw ?? []
+  const byType: TypeRow[] = byTypeRaw ?? []
 
   const { data: kpis } = useQuery({
     queryKey: ['proj-dash-kpis', days],
@@ -60,7 +84,7 @@ export default function ProjectsDashboardPage() {
     staleTime: 60_000,
   })
 
-  const { data: risks = [] } = useQuery({
+  const { data: risks = [] } = useQuery<RiskRow[]>({
     queryKey: ['proj-dash-risks'],
     queryFn: () => risksApi.portfolioAll().then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items ?? [])
@@ -76,8 +100,8 @@ export default function ProjectsDashboardPage() {
 
   const total = allProjects.length
   const active = allProjects.filter(p => p.status === 'active').length
-  const isCrit = p => (p.schedule_deviation_days || 0) > 0 || (p.budget_used_pct || 0) > 100
-  const isWarn = p => !isCrit(p) && ((p.budget_used_pct || 0) > 80 || (p.alerts_count || 0) > 0)
+  const isCrit = (p: DashboardProjectHealth) => (p.schedule_deviation_days || 0) > 0 || (p.budget_used_pct || 0) > 100
+  const isWarn = (p: DashboardProjectHealth) => !isCrit(p) && ((p.budget_used_pct || 0) > 80 || (p.alerts_count || 0) > 0)
   const crit = health.filter(isCrit).length
   const warn = health.filter(isWarn).length
   const ok = Math.max(health.length - crit - warn, 0)
@@ -89,9 +113,9 @@ export default function ProjectsDashboardPage() {
   const budgetPct = budgetTotal > 0 ? Math.round((budgetSpent / budgetTotal) * 100) : null
   const budgetColor = budgetPct == null ? COLOR.accent : budgetPct > 90 ? COLOR.danger : budgetPct > 70 ? COLOR.warning : COLOR.success
 
-  const highRisks = risks.filter(r => r.severity === 'high' || r.severity === 'critical').length
+  const highRisks = risks.filter((r) => r.severity === 'high' || r.severity === 'critical').length
 
-  const statusCounts = allProjects.reduce((acc, p) => {
+  const statusCounts = allProjects.reduce<Record<string, number>>((acc, p) => {
     acc[p.status] = (acc[p.status] || 0) + 1; return acc
   }, {})
   const statusRows = Object.entries(statusCounts)
@@ -115,26 +139,26 @@ export default function ProjectsDashboardPage() {
       <div className="ds-page">
         {/* KPI row */}
         <div className="ds-grid-stats">
-          <KpiCard icon={<KpiIcon icon={Hexagon} />} label={t('projects_dashboard.kpi_total')}
+          <KpiCard icon={<KpiIcon icon={iconCompat(Hexagon)} />} label={t('projects_dashboard.kpi_total')}
             value={total} color="var(--text-1)" accentBar={COLOR.accent} />
-          <KpiCard icon={<KpiIcon icon={Activity} />} label={t('projects_dashboard.kpi_active')}
+          <KpiCard icon={<KpiIcon icon={iconCompat(Activity)} />} label={t('projects_dashboard.kpi_active')}
             value={active} color={COLOR.accent} accentBar={COLOR.accent} />
-          <KpiCard icon={<KpiIcon icon={AlertOctagon} />} label={t('projects_dashboard.kpi_critical')}
+          <KpiCard icon={<KpiIcon icon={iconCompat(AlertOctagon)} />} label={t('projects_dashboard.kpi_critical')}
             value={crit}
             color={crit > 0 ? COLOR.danger : COLOR.success}
             accentBar={crit > 0 ? COLOR.danger : COLOR.success}
             sub={crit > 0 ? t('projects_dashboard.critical_sub_active') : t('projects_dashboard.critical_sub_none')} />
-          <KpiCard icon={<KpiIcon icon={Zap} />} label={t('projects_dashboard.kpi_at_risk')}
+          <KpiCard icon={<KpiIcon icon={iconCompat(Zap)} />} label={t('projects_dashboard.kpi_at_risk')}
             value={warn}
             color={warn > 0 ? COLOR.warning : COLOR.success}
             accentBar={warn > 0 ? COLOR.warning : COLOR.success}
             sub={t('projects_dashboard.at_risk_sub')} />
-          <KpiCard icon={<KpiIcon icon={AlertTriangle} />} label={t('projects_dashboard.kpi_open_risks')}
+          <KpiCard icon={<KpiIcon icon={iconCompat(AlertTriangle)} />} label={t('projects_dashboard.kpi_open_risks')}
             value={risks.length}
             color={highRisks > 0 ? COLOR.danger : risks.length > 0 ? COLOR.warning : COLOR.success}
             accentBar={COLOR.warning}
             sub={highRisks > 0 ? `${highRisks} ${t('projects_dashboard.high_severity_sub')}` : undefined} />
-          <KpiCard icon={<KpiIcon icon={ListTodo} />} label={t('projects_dashboard.kpi_overdue_tasks')}
+          <KpiCard icon={<KpiIcon icon={iconCompat(ListTodo)} />} label={t('projects_dashboard.kpi_overdue_tasks')}
             value={kpis?.tasks_overdue ?? 0}
             color={(kpis?.tasks_overdue ?? 0) > 0 ? COLOR.warning : COLOR.success}
             accentBar={COLOR.warning} />

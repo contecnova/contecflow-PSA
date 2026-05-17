@@ -93,6 +93,25 @@ SLA_HOURS: dict[str, tuple[float, float]] = {
 }
 
 
+def get_sla_hours(db: Optional[Session], org_id: Optional[str] = None) -> dict[str, tuple[float, float]]:
+    """Effective (response_h, resolution_h) per priority.
+
+    Resolution order: org override → global override → env default. Falls back
+    to the env-frozen `SLA_HOURS` constant when `db` is None (callsites that
+    don't have a session, like serializers).
+    """
+    if db is None:
+        return SLA_HOURS
+    from app.services import settings_service as _ss
+    g = _ss.get_runtime_float
+    return {
+        "p1_critical": (g(db, "SLA_P1_RESPONSE_HOURS", org_id), g(db, "SLA_P1_RESOLUTION_HOURS", org_id)),
+        "p2_high":     (g(db, "SLA_P2_RESPONSE_HOURS", org_id), g(db, "SLA_P2_RESOLUTION_HOURS", org_id)),
+        "p3_medium":   (g(db, "SLA_P3_RESPONSE_HOURS", org_id), g(db, "SLA_P3_RESOLUTION_HOURS", org_id)),
+        "p4_low":      (g(db, "SLA_P4_RESPONSE_HOURS", org_id), g(db, "SLA_P4_RESOLUTION_HOURS", org_id)),
+    }
+
+
 # ── Pure utilities ────────────────────────────────────────────────────────────
 
 def norm_enum(val) -> str:
@@ -218,7 +237,7 @@ def calculate_sla_due(
         }
         resp_h, res_h = pmap.get(priority, (8, 24))
     else:
-        resp_h, res_h = SLA_HOURS.get(priority, (8, 24))
+        resp_h, res_h = get_sla_hours(db).get(priority, (8, 24))
 
     holidays: set = set()
     if db is not None and policy is not None:

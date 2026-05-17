@@ -171,7 +171,7 @@ export function Avatar({ name = '', size = 34, url }) {
 }
 
 // ── Card ──────────────────────────────────────────────────────────────────────
-export function Card({ children, style = {}, accent, onClick }) {
+export function Card({ children, style = {}, accent = false, onClick = undefined }: any) {
   if (onClick) {
     const handleKeyDown = (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -255,7 +255,7 @@ export function KpiCard({ icon, label, value, sub, accent, danger, warning, tren
 }
 
 // ── Button ────────────────────────────────────────────────────────────────────
-export function Button({ children, onClick, variant = 'primary', size = 'md', disabled, loading, icon, style = {}, type }) {
+export function Button({ children, onClick, variant = 'primary', size = 'md', disabled = false, loading = false, icon = null, style = {}, type = 'button', title = undefined }: any) {
   const variants = {
     primary:   {
       background: 'var(--accent)',
@@ -296,7 +296,8 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
 
   return (
     <button
-      type={type || 'button'}
+      type={type}
+      title={title}
       onClick={isDisabled ? undefined : onClick}
       aria-disabled={isDisabled || undefined}
       aria-busy={loading || undefined}
@@ -360,7 +361,7 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
 }
 
 // ── Select ────────────────────────────────────────────────────────────────────
-export function Select({ label, value, onChange, options = [], style = {} }) {
+export function Select({ label, value, onChange, options = [] as Array<{ value: string; label: string }>, style = {} }: any) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
@@ -439,12 +440,12 @@ const EMPTY_ICONS = {
   ),
 }
 
-export function EmptyState({ icon, svgIcon, title, description, action, ctaLabel, onCta }) {
+export function EmptyState({ icon = null, svgIcon = null, title = '', description = '', action = null, ctaLabel = '', onCta = undefined }: any) {
   // svgIcon: explicit SVG node
   // icon: named key from EMPTY_ICONS dict, OR emoji/text string (backward-compat)
   const resolvedIcon = svgIcon
     ? svgIcon
-    : (EMPTY_ICONS[icon] || (
+    : ((icon ? EMPTY_ICONS[icon as keyof typeof EMPTY_ICONS] : undefined) || (
         icon
           ? <span style={{ fontSize: "var(--text-2xl-em)" }}>{icon}</span>
           : <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -472,8 +473,8 @@ export function EmptyState({ icon, svgIcon, title, description, action, ctaLabel
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-export function Modal({ open, onClose, title, children, width = 520, subtitle }) {
-  const dialogRef = React.useRef(null)
+export function Modal({ open, onClose, title, children, width = 520, subtitle }: any) {
+  const dialogRef = React.useRef<HTMLDivElement | null>(null)
   const onCloseRef = React.useRef(onClose)
   React.useEffect(() => { onCloseRef.current = onClose })
 
@@ -482,16 +483,16 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
     if (!open) return
     const el = dialogRef.current
     if (!el) return
-    const focusable = el.querySelectorAll(
+    const focusable = el.querySelectorAll<HTMLElement>(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     )
     const first = focusable[0]
     const last  = focusable[focusable.length - 1]
-    const prev  = document.activeElement
+    const prev  = document.activeElement as HTMLElement | null
 
     if (first) first.focus()
 
-    const trap = (e) => {
+    const trap = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return
       if (focusable.length === 0) { e.preventDefault(); return }
       if (e.shiftKey) {
@@ -500,7 +501,7 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
         if (document.activeElement === last)  { e.preventDefault(); first?.focus() }
       }
     }
-    const esc = (e) => { if (e.key === 'Escape') onCloseRef.current() }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
 
     el.addEventListener('keydown', trap)
     document.addEventListener('keydown', esc)
@@ -565,8 +566,8 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
 }
 
 // ── DataTable ─────────────────────────────────────────────────────────────────
-export function DataTable({ columns, data = [], loading, emptyIcon = '○', emptyTitle = 'Sin datos', pageSize = 15 }) {
-  const [sort, setSort] = React.useState({ col: null, dir: 'asc' })
+export function DataTable({ columns, data = [], loading, emptyIcon = '○', emptyTitle = 'Sin datos', pageSize = 15 }: any) {
+  const [sort, setSort] = React.useState<{ col: string | null; dir: 'asc' | 'desc' }>({ col: null, dir: 'asc' })
   const [page, setPage] = React.useState(0)
   const [filter, setFilter] = React.useState('')
 
@@ -575,7 +576,8 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
     : data
   const sorted = sort.col
     ? [...filtered].sort((a, b) => {
-        const cmp = String(a[sort.col] || '').localeCompare(String(b[sort.col] || ''), undefined, { numeric: true })
+        const sortCol = sort.col as string
+        const cmp = String((a as Record<string, unknown>)[sortCol] || '').localeCompare(String((b as Record<string, unknown>)[sortCol] || ''), undefined, { numeric: true })
         return sort.dir === 'asc' ? cmp : -cmp
       })
     : filtered
@@ -658,7 +660,7 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
 }
 
 // ── Table simple ──────────────────────────────────────────────────────────────
-export function Table({ columns, data, onRowClick }) {
+export function Table({ columns = [], data = [], onRowClick }: any) {
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>

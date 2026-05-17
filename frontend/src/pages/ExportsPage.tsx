@@ -9,25 +9,56 @@ import { downloadBlob } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 
+interface ProjectListItem {
+  id: number | string
+  name?: string
+  code?: string
+  status?: string
+}
+
+interface ImputExportForm {
+  date_from: string
+  date_to: string
+  include_costs: boolean
+  format: 'xlsx' | 'csv'
+}
+
+interface ProjectsExportForm {
+  include_costs: boolean
+}
+
+type LoadingState = Record<'imput' | 'proj', boolean>
+
+function extractErrorMessage(error: unknown): string {
+  if (typeof error !== 'object' || error == null) return 'Error al sincronizar con Jira'
+  const raw = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+  if (Array.isArray(raw)) {
+    return raw
+      .map((entry) => (typeof entry === 'object' && entry && 'msg' in entry ? String((entry as { msg: unknown }).msg) : String(entry)))
+      .join(', ')
+  }
+  return raw ? String(raw) : 'Error al sincronizar con Jira'
+}
+
 export default function ExportsPage(): JSX.Element {
   const t = useAppT()
   const { hasRole } = useAuth()
   const today = new Date().toISOString().split('T')[0]
   const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
 
-  const [imputForm, setImputForm] = useState({ date_from: firstDay, date_to: today, include_costs: false, format: 'xlsx' })
-  const [projForm,  setProjForm]  = useState({ include_costs: false })
+  const [imputForm, setImputForm] = useState<ImputExportForm>({ date_from: firstDay, date_to: today, include_costs: false, format: 'xlsx' })
+  const [projForm,  setProjForm]  = useState<ProjectsExportForm>({ include_costs: false })
   const [jiraProject, setJiraProject] = useState('')
-  const [loading, setLoading] = useState({})
+  const [loading, setLoading] = useState<LoadingState>({ imput: false, proj: false })
   const [jiraSyncing, setJiraSyncing] = useState(false)
   const [message, setMessage] = useState('')
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectListItem[]>({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(unwrapList),
+    queryFn: () => projectsApi.list({}).then((response) => unwrapList(response) as ProjectListItem[]),
   })
 
-  const setLoad = (k, v) => setLoading(l => ({ ...l, [k]: v }))
+  const setLoad = (k: keyof LoadingState, v: boolean) => setLoading((l) => ({ ...l, [k]: v }))
   const showMsg = (msg) => { setMessage(msg); setTimeout(() => setMessage(''), 3000) }
 
   const exportImputations = async () => {
@@ -57,8 +88,7 @@ export default function ExportsPage(): JSX.Element {
       await integrationsApi.jiraSync(jiraProject)
       showMsg('✅ Sincronización con Jira iniciada en segundo plano')
     } catch (e) {
-      const _raw = e.response?.data?.detail
-      showMsg(`❌ ${Array.isArray(_raw) ? _raw.map(d => d.msg).join(', ') : (_raw || 'Error al sincronizar con Jira')}`)
+      showMsg(`❌ ${extractErrorMessage(e)}`)
     } finally { setJiraSyncing(false) }
   }
 
@@ -99,7 +129,7 @@ export default function ExportsPage(): JSX.Element {
         </div>
         <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'center' }}>
           <div style={{ display: 'flex', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
-            {['xlsx', 'csv'].map(fmt => (
+            {(['xlsx', 'csv'] as const).map((fmt) => (
               <button key={fmt} onClick={() => setImputForm(f => ({ ...f, format: fmt }))}
                 style={{ padding: '8px 16px', background: imputForm.format === fmt ? 'var(--accent-muted)' : 'transparent', border: 'none', color: imputForm.format === fmt ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {fmt.toUpperCase()}

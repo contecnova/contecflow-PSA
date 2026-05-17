@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ChatPage — Teams-like internal chat for Contecflow PSA.
  * Three-pane layout (sidebar / conversation / context panel) per

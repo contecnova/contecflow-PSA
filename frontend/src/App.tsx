@@ -281,7 +281,8 @@ class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErrorBound
 function RouteScopedBoundary({ children }: { children?: ReactNode }) {
   const { pathname } = useLocation()
   const { t } = useAppT()
-  return <PageErrorBoundary resetKey={pathname} t={t}>{children}</PageErrorBoundary>
+  const legacyT = (key: string, vars?: Record<string, unknown>) => String(t(key as never, vars as never))
+  return <PageErrorBoundary resetKey={pathname} t={legacyT}>{children}</PageErrorBoundary>
 }
 
 interface ProtectedRouteProps {

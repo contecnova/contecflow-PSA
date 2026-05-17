@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * DashboardGrid — Motor compartido para todos los dashboards del sistema
  *

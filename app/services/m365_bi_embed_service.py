@@ -36,7 +36,20 @@ from app.services.bi_embed_service import create_embed_token
 
 logger = logging.getLogger(__name__)
 
-_FRONTEND_BASE = getattr(settings, "FRONTEND_EMBED_BASE_URL", settings.FRONTEND_URL or "")
+_FRONTEND_BASE_ENV = getattr(settings, "FRONTEND_EMBED_BASE_URL", settings.FRONTEND_URL or "")
+
+
+def _frontend_base(db=None, org_id=None) -> str:
+    """Resolve embed base URL: runtime override → env fallback."""
+    if db is not None:
+        try:
+            from app.services.settings_service import get_runtime_str
+            v = get_runtime_str(db, "FRONTEND_EMBED_BASE_URL", org_id)
+            if v:
+                return v
+        except Exception:
+            pass
+    return _FRONTEND_BASE_ENV
 
 
 # ── Dashboard snapshot ────────────────────────────────────────────────────────
@@ -98,11 +111,12 @@ def generate_teams_tab_config(
     """
     token_data = create_embed_token(db, org_id, user_id, dashboard_id, ["read"], ttl_minutes)
     embed_token = token_data["token"]
+    _base = _frontend_base(db, org_id)
     content_url = (
-        f"{_FRONTEND_BASE}/embed/bi?dashboard_id={dashboard_id}"
+        f"{_base}/embed/bi?dashboard_id={dashboard_id}"
         f"&token={embed_token}&org={org_id}"
     )
-    website_url = f"{_FRONTEND_BASE}/bi/dashboards/{dashboard_id}"
+    website_url = f"{_base}/bi/dashboards/{dashboard_id}"
     entity_id = f"contecflow-bi-{org_id}-{dashboard_id}"
 
     tab_config = {
@@ -230,7 +244,7 @@ def post_bi_card_to_teams_channel(
     Falls back to incoming webhook (TEAMS_WEBHOOK_URL) if Graph is not available.
     """
     snapshot = get_dashboard_snapshot(db, organization_id=org_id, dashboard_id=dashboard_id)
-    deep_link = f"{_FRONTEND_BASE}/bi/dashboards/{dashboard_id}"
+    deep_link = f"{_frontend_base(db, org_id)}/bi/dashboards/{dashboard_id}"
     card = _build_adaptive_card(snapshot, dashboard_id, deep_link)
 
     if m365_configured():
@@ -327,7 +341,7 @@ def get_sharepoint_webpart_config(
     """
     token_data = create_embed_token(db, org_id, user_id, dashboard_id, ["read"], ttl_minutes)
     embed_url = (
-        f"{_FRONTEND_BASE}/embed/bi?dashboard_id={dashboard_id}"
+        f"{_frontend_base(db, org_id)}/embed/bi?dashboard_id={dashboard_id}"
         f"&token={token_data['token']}&org={org_id}"
     )
     iframe_html = (

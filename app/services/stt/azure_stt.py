@@ -37,10 +37,22 @@ class AzureSTTProvider(STTProvider):
         api_key: Optional[str] = None,
         region: Optional[str] = None,
         language: Optional[str] = None,
+        db=None,
+        org_id=None,
     ) -> None:
-        self._api_key = api_key or _azure_setting("AZURE_SPEECH_KEY")
-        self._region = region or _azure_setting("AZURE_SPEECH_REGION", "westeurope")
-        self._default_language = language or _azure_setting("AZURE_STT_LANGUAGE", "es-ES")
+        ui_key = ui_region = ui_lang = None
+        if db is not None:
+            try:
+                from app.services.settings_service import get_runtime_str
+                from app.services.integration_credentials_service import get_credential
+                ui_key    = get_credential(db, "ai_providers", "azure_speech_key", org_id=org_id)
+                ui_region = get_runtime_str(db, "AZURE_SPEECH_REGION", org_id)
+                ui_lang   = get_runtime_str(db, "AZURE_STT_LANGUAGE", org_id)
+            except Exception:
+                pass
+        self._api_key = api_key or ui_key or _azure_setting("AZURE_SPEECH_KEY")
+        self._region = region or ui_region or _azure_setting("AZURE_SPEECH_REGION", "westeurope")
+        self._default_language = language or ui_lang or _azure_setting("AZURE_STT_LANGUAGE", "es-ES")
 
     def is_available(self) -> bool:
         return bool(self._api_key and self._region)

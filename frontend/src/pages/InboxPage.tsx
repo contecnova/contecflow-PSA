@@ -5,6 +5,7 @@
  * mismo destino con la pestaña correspondiente preseleccionada.
  */
 import { lazy, Suspense, useState, useEffect } from 'react'
+import type { ComponentType } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Inbox } from 'lucide-react'
 import PageHeader from '../components/layout/PageHeader'
@@ -16,6 +17,10 @@ import { useAppT } from '../i18n/AppLangContext'
 const NotificationsPage = lazy(() => import('./NotificationsPage'))
 const MentionsPage = lazy(() => import('./MentionsPage'))
 const ApprovalsPage = lazy(() => import('./ApprovalsPage'))
+
+const NotificationsEmbedded = NotificationsPage as ComponentType<{ embedded?: boolean }>
+const MentionsEmbedded = MentionsPage as ComponentType<{ embedded?: boolean }>
+const ApprovalsEmbedded = ApprovalsPage as ComponentType<{ embedded?: boolean }>
 
 const Loading = () => (
   <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
@@ -50,7 +55,7 @@ export default function InboxPage(): JSX.Element {
     { id: 'notifications', label: t('inbox.tab_notifications'), count: (alertCount + notifUnreadCount) || undefined },
     { id: 'mentions',      label: t('inbox.tab_mentions'),      count: mentionCount || undefined },
     { id: 'approvals',     label: t('inbox.tab_approvals'),     count: approvalCount || undefined },
-  ]
+  ] as const
 
   return (
     <PageShell>
@@ -61,16 +66,16 @@ export default function InboxPage(): JSX.Element {
       showListExport={false}
       />
       <Tabs
-        items={items}
+        items={items as unknown as { id: string; label: string; count?: number }[]}
         active={tab}
-        onChange={setTab}
+        onChange={(value) => setTab(value as InboxTab)}
         ariaLabel={t('inbox.title')}
         style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }}
       />
       <Suspense fallback={<Loading />}>
-        {tab === 'notifications' && <NotificationsPage embedded />}
-        {tab === 'mentions'      && <MentionsPage embedded />}
-        {tab === 'approvals'     && <ApprovalsPage embedded />}
+        {tab === 'notifications' && <NotificationsEmbedded embedded />}
+        {tab === 'mentions'      && <MentionsEmbedded embedded />}
+        {tab === 'approvals'     && <ApprovalsEmbedded embedded />}
       </Suspense>
     </PageShell>
   )

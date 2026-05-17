@@ -3,46 +3,93 @@
  * Import from here: `import { useTasks, useCreateTask } from '../hooks'`
  */
 
-export * from './useAbsences'
-export * from './useAlerts'
-export * from './useAnalytics'
-export * from './useApprovals'
-export * from './useAssets'
-export * from './useChanges'
-export * from './useClients'
-export * from './useContracts'
-export * from './useDashboard'
-export * from './useDeliverables'
-export * from './useEpics'
-export * from './useExpenses'
-export * from './useForecasts'
-export * from './useImputations'
-export * from './useLicenses'
-export * from './useMilestones'
-export * from './useOKRs'
-export * from './useProblems'
-export * from './useProjects'
-export * from './useRateCards'
-export * from './useRisks'
-export * from './useSprints'
-export * from './useSubcontractors'
-export * from './useTasks'
-export * from './useTickets'
-export * from './useTraining'
-export * from './useUsers'
-export * from './useVendors'
-
-// Pipeline / other multi-export hooks
-export * from './usePipeline'
+export {
+	useMyAbsences, usePendingAbsences, useTeamAbsences, useAbsenceCalendar, useVacationPolicies,
+	useCreateAbsence, useApproveAbsence, useRejectAbsence, useDeleteAbsence,
+} from './useAbsences'
+export { useAlerts, useReadAlert, useResolveAlert, useRunAlerts } from './useAlerts'
+export {
+	useAnalyticsQuery, useAnalyticsFilterOptions, useHoursWeek, useUtilization, useMetricBreaches,
+	useAnalyticsNarrative, useOlapKpis, useOlapPipelineFunnel, useOlapPortfolioHealth,
+	useOlapMarginEvolution, useOlapUtilization, useAnalyticsCatalogue,
+} from './useAnalytics'
+export {
+	useApprovalWorkflows, useApprovalWorkflow, useApprovalTemplates, useCreateApprovalWorkflow,
+	useUpdateApprovalWorkflow, useDeleteApprovalWorkflow, usePublishApprovalWorkflow,
+	useApprovalRequests, usePendingApprovalRequests, useApprovalStats, useCreateApprovalRequest,
+	useApproveRequest, useRejectRequest, useCancelApprovalRequest, useApprovalGroups,
+	useCreateApprovalGroup, useUpdateApprovalGroup, useDeleteApprovalGroup,
+} from './useApprovals'
+export { useAssets, useAllAssets, useAsset, useCreateAsset, useUpdateAsset, useDeleteAsset } from './useAssets'
+export { useChanges, useAllChanges, useChange, useCreateChange, useUpdateChange, useApproveChange, useDeleteChange } from './useChanges'
+export { useClients, useAllClients, useClient, useCreateClient, useUpdateClient, useDeleteClient } from './useClients'
+export { useContracts, useAllContracts, useContract, useCreateContract, useUpdateContract, useDeleteContract } from './useContracts'
+export { useKpis, useProjectsHealth, useResourceLoad, useProfitability, useTeamProductivity } from './useDashboard'
+export { useDeliverables, useDeliverableOverview, useCreateDeliverable, useUpdateDeliverable, useDeleteDeliverable } from './useDeliverables'
+export { useEpics, useAllEpics, useCreateEpic, useUpdateEpic, useDeleteEpic } from './useEpics'
+export {
+	useMyExpenses, useTeamExpenses, usePendingExpenses, useCreateExpense, useUpdateExpense,
+	useApproveExpense, useDeleteExpense, useRejectExpense, useReimburseExpense, useSubmitExpense,
+	useRecallExpense, useExpenseOCR,
+} from './useExpenses'
+export {
+	useForecastHeatmap, useForecastUserDetail, useForecastAvailability, useForecastSummary,
+	useBiForecastingMetrics, useBiForecast, useBiMultiForecast,
+} from './useForecasts'
+export {
+	useMyWeek, useImputations, useCreateImputation, useDeleteImputation, useUpdateImputation,
+	useApproveImputation, useRejectImputation, useTimerCurrent, useStartTimer, usePauseTimer,
+	useResumeTimer, useStopTimer, useCancelTimer,
+} from './useImputations'
+export { useLicenses, useAllLicenses, useLicense, useCreateLicense, useUpdateLicense, useAssignLicense, useDeleteLicense } from './useLicenses'
+export { useMilestones, useMilestoneDashboard, useCreateMilestone, useUpdateMilestone, useCompleteMilestone, useDeleteMilestone } from './useMilestones'
+export { useOKRs, useOKR, useCreateOKR, useUpdateOKR, useUpdateKeyResult, useDeleteOKR } from './useOKRs'
+export { useProblems, useAllProblems, useCreateProblem, useUpdateProblem, useDeleteProblem } from './useProblems'
+export {
+	useProjects, useAllProjects, useProject, useCreateProject, useUpdateProject, useDeleteProject,
+	useProjectTeam, useProjectMembers, useProjectEVM, useProjectEVMPortfolio,
+	useAddProjectMember, useRemoveProjectMember,
+} from './useProjects'
+export {
+	useRateCards, useRateCard, useEffectiveRate, useCreateRateCard, useUpdateRateCard,
+	useDeleteRateCard, useDuplicateRateCard, useAddRateCardEntry,
+	useUpdateRateCardEntry, useDeleteRateCardEntry,
+} from './useRateCards'
+export { useRisks, useAllRisks, useRisk, useCreateRisk, useUpdateRisk, useDeleteRisk } from './useRisks'
+export {
+	useSprints, useAllSprints, useSprint, useCreateSprint, useUpdateSprint, useDeleteSprint,
+	useStartSprint, useCompleteSprint, useSprintBurndown, useSprintVelocity,
+} from './useSprints'
+export { useSubcontractors, useAllSubcontractors, useCreateSubcontractor, useUpdateSubcontractor, useDeleteSubcontractor } from './useSubcontractors'
+export {
+	useTasks, useTask, useKanban, useTaskComments, useCreateTask, useUpdateTask,
+	useDeleteTask, useBulkUpdateTasks, useAddTaskComment, useTaskMovementLog,
+} from './useTasks'
+export {
+	useTickets, useTicket, useCreateTicket, useUpdateTicket, useCloseTicket, useCommentTicket,
+	useTicketMyQueue, useEscalateTicket, useTicketInternalComments,
+	useAddTicketInternalComment, useTicketTimelog, useAiSuggestTicket,
+} from './useTickets'
+export {
+	useTrainingCourses, useTrainingCerts, useTrainingEnrollments, useCreateCourse,
+	useUpdateCourse, useDeleteCourse, useCreateCert, useUpdateCert,
+	useDeleteCert, useEnroll,
+} from './useTraining'
+export { useUsers, useAllUsers, useUser, useCreateUser, useUpdateUser, useDeactivateUser } from './useUsers'
+export { useVendors, useAllVendors, useCreateVendor, useUpdateVendor, useDeleteVendor } from './useVendors'
+export {
+	usePipeline, useOpportunity, useCreateOpportunity, useUpdateOpportunity,
+	useDeleteOpportunity, useGenerateProposal, useMarkProposalSent, useConvertToProject,
+} from './usePipeline'
 
 // Utility / UI hooks (not query-related) — exported for convenience
 export { useInvalidate } from './useInvalidate'
 export { useFormValidation } from './useFormValidation'
-export { useCountUp } from './useCountUp'
+export { default as useCountUp } from './useCountUp'
 export { useIdleTimeout } from './useIdleTimeout'
-export { useMediaQuery } from './useMediaQuery'
+export { default as useMediaQuery } from './useMediaQuery'
 export { useNotificationBadges } from './useNotificationBadges'
-export { useOfflineSync } from './useOfflineSync'
+export { default as useOfflineSync } from './useOfflineSync'
 export { useOnlineStatus } from './useOnlineStatus'
 export { useOrgSettings } from './useOrgSettings'
 export { useSwipeGesture } from './useSwipeGesture'

@@ -27,6 +27,7 @@ from app.models.jira_integration import (
     JiraSyncStatus,
 )
 from app.models.service_desk import Ticket, TicketComment, TicketPriority, TicketStatus
+from app.core.metrics import track_external_call
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +64,10 @@ _JIRA_TO_TICKET_STATUS: dict[str, str] = {
 # ── HTTP client helpers ────────────────────────────────────────────────────────
 
 
-def _jira_client(config: JiraConfig) -> httpx.Client:
+def _jira_client(config: JiraConfig, db=None) -> httpx.Client:
     """Build an authenticated httpx client for Jira Cloud REST API."""
     import base64
+    from app.services.settings_service import outbound_http_timeout
     token_b64 = config.jira_api_token_enc  # service layer handles decrypt externally
     # Basic auth: email:token base64-encoded
     creds = base64.b64encode(f"{config.jira_email}:{token_b64}".encode()).decode()
@@ -76,7 +78,7 @@ def _jira_client(config: JiraConfig) -> httpx.Client:
             "Accept": "application/json",
             "Content-Type": "application/json",
         },
-        timeout=15.0,
+        timeout=outbound_http_timeout(db, default=15.0),
     )
 
 
@@ -182,7 +184,7 @@ def push_ticket_to_jira(db: Session, config: JiraConfig, ticket: Ticket) -> Jira
     body = _build_issue_body(config, ticket, field_maps)
 
     try:
-        with _jira_client(config) as client:
+        with _jira_client(config, db=db) as client, track_external_call("jira"):
             if existing_map and existing_map.jira_issue_key:
                 # UPDATE existing issue
                 resp = client.put(
@@ -267,7 +269,7 @@ def push_comment_to_jira(
     }
 
     try:
-        with _jira_client(config) as client:
+        with _jira_client(config, db=db) as client, track_external_call("jira"):
             resp = client.post(
                 f"/rest/api/3/issue/{sync_map.jira_issue_key}/comment",
                 content=json.dumps(body),
@@ -295,7 +297,7 @@ def pull_jira_issue(
 ) -> Optional[dict]:
     """Fetch a single Jira issue and return its fields dict."""
     try:
-        with _jira_client(config) as client:
+        with _jira_client(config, db=db) as client, track_external_call("jira"):
             resp = client.get(f"/rest/api/3/issue/{jira_issue_key}")
             resp.raise_for_status()
             return resp.json()

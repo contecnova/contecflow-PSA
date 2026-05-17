@@ -707,21 +707,25 @@ def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, cu
         if len(parts) > 1 and parts[1].isdigit():
             next_num = int(parts[1]) + 1
     code    = payload.get("code") or f"PRJ-{next_num:03d}"
+    from app.services.settings_service import get_runtime_str
+    _proj_type = get_runtime_str(db, "DEFAULT_PROJECT_TYPE") or settings.DEFAULT_PROJECT_TYPE
+    _bill_type = get_runtime_str(db, "DEFAULT_BILLING_TYPE") or settings.DEFAULT_BILLING_TYPE
+    _curr      = get_runtime_str(db, "DEFAULT_CURRENCY") or settings.DEFAULT_CURRENCY
     project = Project(
         code=code,
         name=payload.get("name") or opp.name,
         client_name=opp.client_name,
         client_id=getattr(opp, "client_id", None),
-        project_type=payload.get("project_type", settings.DEFAULT_PROJECT_TYPE),
+        project_type=payload.get("project_type", _proj_type),
         status=ProjectStatus.planning,
         start_date=date.fromisoformat(payload["start_date"]) if payload.get("start_date") else date.today(),
         end_date_planned=date.fromisoformat(payload["end_date"]) if payload.get("end_date") else None,
         budget_amount=opp.amount,
-        billing_type=payload.get("billing_type", settings.DEFAULT_BILLING_TYPE),
+        billing_type=payload.get("billing_type", _bill_type),
         is_billable=True,
         pm_id=payload.get("pm_id"),
         contract_amount=opp.amount,
-        currency=payload.get("currency", settings.DEFAULT_CURRENCY),
+        currency=payload.get("currency", _curr),
         description=opp.description,
         created_by=current_user.id,
     )

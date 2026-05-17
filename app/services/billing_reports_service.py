@@ -1,21 +1,10 @@
-# Obtener una factura por ID
-from __future__ import annotations
-def get_invoice_by_id(db: Session, invoice_id: str):
-    return db.query(Invoice).filter(Invoice.id == invoice_id).first()
-# Devuelve un query filtrable y el total para paginación de facturas
-def query_invoices(db: Session, project_id=None, status=None):
-    q = db.query(Invoice)
-    if project_id:
-        q = q.filter(Invoice.project_id == project_id)
-    if status:
-        q = q.filter(Invoice.status == status)
-    total = q.count()
-    return q.order_by(Invoice.issue_date.desc()), total
 """
 billing_reports_service — business logic extracted from billing_reports.py router.
 Covers: report runners, invoice helpers, SLA helpers, workflow/scheduled-report
 serializers, SmartMatch, template instantiation, bulk import helpers.
 """
+
+from __future__ import annotations
 
 import csv
 import enum
@@ -26,7 +15,8 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, text
+from sqlalchemy.exc import OperationalError
 
 from app.core.config import settings
 from app.models.user import User
@@ -52,8 +42,69 @@ from app.core.security import get_password_hash
 from app.models.billing_reports import InvoiceLine as _InvoiceLine
 from app.services.billing_reports.data_source_service import run_skills_report, run_pipeline_report
 from app.services.scheduled_reports import _get_next_run
+from app.db.session import is_postgres
 
 _logger = logging.getLogger(__name__)
+
+
+def _tenant_org_id(db: Session):
+    return db.info.get("organization_id")
+
+
+def _is_superadmin(db: Session) -> bool:
+    return bool(db.info.get("is_superadmin", False))
+
+
+def _query_project_for_org(db: Session, project_id: str):
+    q = db.query(Project).filter(Project.id == project_id)
+    org_id = _tenant_org_id(db)
+    if not _is_superadmin(db) and org_id is not None:
+        q = q.filter(Project.organization_id == org_id)
+    return q
+
+
+def _lock_project_for_update(db: Session, project_id: str):
+    q = _query_project_for_org(db, project_id)
+    if is_postgres():
+        q = q.with_for_update()
+    return q.first()
+
+
+def _set_serializable_if_postgres(db: Session) -> None:
+    # Transaction-level hardening for financial writes in PostgreSQL.
+    if is_postgres():
+        db.execute(text("SET LOCAL TRANSACTION ISOLATION LEVEL SERIALIZABLE"))
+
+
+def _is_serialization_failure(exc: OperationalError) -> bool:
+    code = getattr(getattr(exc, "orig", None), "pgcode", None)
+    return str(code) == "40001"
+
+
+def _scope_invoice_query(db: Session):
+    q = db.query(Invoice)
+    org_id = _tenant_org_id(db)
+    if _is_superadmin(db):
+        return q
+    if org_id is None:
+        return q.filter(Invoice.id == "__no_access__")
+    return q.filter(Invoice.organization_id == org_id)
+
+
+# Obtener una factura por ID
+def get_invoice_by_id(db: Session, invoice_id: str):
+    return _scope_invoice_query(db).filter(Invoice.id == invoice_id).first()
+
+
+# Devuelve un query filtrable y el total para paginación de facturas
+def query_invoices(db: Session, project_id=None, status=None):
+    q = _scope_invoice_query(db)
+    if project_id:
+        q = q.filter(Invoice.project_id == project_id)
+    if status:
+        q = q.filter(Invoice.status == status)
+    total = q.count()
+    return q.order_by(Invoice.issue_date.desc()), total
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -383,9 +434,12 @@ def business_minutes_between(start: datetime, end: datetime) -> int:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def create_invoice(payload, current_user: User, db: Session) -> dict:
+    _set_serializable_if_postgres(db)
     project = None
     if payload.project_id:
-        project = db.query(Project).filter(Project.id == payload.project_id).first()
+        project = _lock_project_for_update(db, payload.project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Proyecto no encontrado o no accesible")
 
     client_name = payload.client_name or (project.client_name if project else None) or "Sin cliente"
     subtotal = sum(l.get("amount", 0) for l in payload.lines)
@@ -394,6 +448,7 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
 
     inv = Invoice(
         number=next_invoice_number(db),
+        organization_id=(getattr(current_user, "organization_id", None) if not getattr(current_user, "is_superadmin", False) else getattr(project, "organization_id", None)),
         project_id=payload.project_id,
         contract_id=payload.contract_id,
         client_name=client_name,
@@ -441,7 +496,22 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
                 )
 
     audit_log(db, current_user, "CREATE", "invoices", inv.id, inv.number)
-    db.commit()
+    try:
+        db.commit()
+    except OperationalError as exc:
+        db.rollback()
+        if _is_serialization_failure(exc):
+            raise HTTPException(status_code=409, detail="Concurrent financial update detected. Please retry.")
+        raise
+    try:
+        from app.core.metrics import invoices_created_total
+        _status = getattr(inv, "status", None)
+        invoices_created_total.labels(
+            tenant_id=str(getattr(inv, "organization_id", None) or "unknown"),
+            status=str(getattr(_status, "value", _status) or "draft"),
+        ).inc()
+    except Exception:
+        pass
     inv = db.query(Invoice).options(
         joinedload(Invoice.project), joinedload(Invoice.lines)
     ).filter(Invoice.id == inv.id).first()
@@ -449,7 +519,11 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
 
 
 def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db: Session) -> dict:
-    inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    _set_serializable_if_postgres(db)
+    inv_q = _scope_invoice_query(db).filter(Invoice.id == invoice_id)
+    if is_postgres():
+        inv_q = inv_q.with_for_update()
+    inv = inv_q.first()
     if not inv:
         raise HTTPException(404)
     old_status = inv.status.value if isinstance(inv.status, enum.Enum) else str(inv.status)
@@ -478,12 +552,18 @@ def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db
         inv.paid_date = date.today()
     audit_log(db, current_user, "UPDATE", "invoices", inv.id, inv.number,
               old_values={"status": old_status}, new_values={"status": inv.status.value if isinstance(inv.status, enum.Enum) else str(inv.status)})
-    db.commit()
+    try:
+        db.commit()
+    except OperationalError as exc:
+        db.rollback()
+        if _is_serialization_failure(exc):
+            raise HTTPException(status_code=409, detail="Concurrent financial update detected. Please retry.")
+        raise
     return invoice_out(inv)
 
 
 def get_invoice_summary(db: Session) -> dict:
-    invoices = db.query(Invoice).all()
+    invoices = _scope_invoice_query(db).all()
     by_status: dict = {}
     for inv in invoices:
         s = inv.status
@@ -1085,18 +1165,21 @@ def instantiate_template(template_id: str, payload: dict, current_user: User, db
             next_num = int(parts[1]) + 1
     code = f"PRJ-{next_num:03d}"
 
+    from app.services.settings_service import get_runtime_str
+    _proj_type = get_runtime_str(db, "DEFAULT_PROJECT_TYPE") or settings.DEFAULT_PROJECT_TYPE
+    _bill_type = get_runtime_str(db, "DEFAULT_BILLING_TYPE") or settings.DEFAULT_BILLING_TYPE
     project = Project(
         code=payload.get("code", code),
         name=project_name,
         description=payload.get("description", tpl.description),
-        project_type=tpl.project_type or settings.DEFAULT_PROJECT_TYPE,
+        project_type=tpl.project_type or _proj_type,
         client_name=payload.get("client_name"),
         pm_id=payload.get("pm_id"),
         start_date=start,
         end_date_planned=start + timedelta(weeks=tpl.estimated_weeks or 12) if tpl.estimated_weeks else None,
         budget_hours=tpl.estimated_hours,
         budget_amount=payload.get("budget_amount"),
-        billing_type=payload.get("billing_type", settings.DEFAULT_BILLING_TYPE),
+        billing_type=payload.get("billing_type", _bill_type),
         is_billable=payload.get("is_billable", True),
         created_by=current_user.id,
     )
@@ -1264,18 +1347,21 @@ def execute_import_csv(entity_type: str, content: bytes, filename: str, current_
     errors = []
 
     if entity_type == "projects":
+        from app.services.settings_service import get_runtime_str
+        _proj_type = get_runtime_str(db, "DEFAULT_PROJECT_TYPE") or settings.DEFAULT_PROJECT_TYPE
+        _bill_type = get_runtime_str(db, "DEFAULT_BILLING_TYPE") or settings.DEFAULT_BILLING_TYPE
         for i, row in enumerate(rows, 1):
             try:
                 p = Project(
                     code=row.get("code") or f"IMP-{i:04d}",
                     name=row["name"],
                     client_name=row.get("client_name"),
-                    project_type=row.get("project_type", settings.DEFAULT_PROJECT_TYPE),
+                    project_type=row.get("project_type", _proj_type),
                     status=row.get("status", "planning"),
                     start_date=row.get("start_date") or None,
                     end_date_planned=row.get("end_date_planned") or None,
                     budget_amount=float(row["budget_amount"]) if row.get("budget_amount") else None,
-                    billing_type=row.get("billing_type", settings.DEFAULT_BILLING_TYPE),
+                    billing_type=row.get("billing_type", _bill_type),
                     created_by=current_user.id,
                 )
                 db.add(p)

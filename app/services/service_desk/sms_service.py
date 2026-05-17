@@ -56,8 +56,11 @@ def send_sms(to: str, body: str) -> bool:
         return False
 
     try:
+        from app.core.metrics import track_external_call
+
         client = TwilioClient(sid, token)
-        message = client.messages.create(body=body[:1600], from_=from_num, to=to)
+        with track_external_call("twilio"):
+            message = client.messages.create(body=body[:1600], from_=from_num, to=to)
         logger.info("SMS sent to %s — SID: %s", to, message.sid)
         return True
     except Exception as exc:  # noqa: BLE001

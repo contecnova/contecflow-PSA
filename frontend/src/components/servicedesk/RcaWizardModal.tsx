@@ -21,6 +21,7 @@ import { COLOR } from '../../constants/theme'
 // TODO type: problemsApi RCA wizard payloads — needs shared types
 interface WizardStepDef {
   prompt?: string
+  title?: string
   hint?: string
   answer?: string
   [k: string]: unknown
@@ -30,7 +31,13 @@ interface WizardState {
   steps?: WizardStepDef[]
   current_step?: number
   template?: string
+  status?: string
+  answers?: Record<string, string>
   [k: string]: unknown
+}
+
+interface WizardApiPayload {
+  wizard?: WizardState | null
 }
 
 const IS: React.CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -134,7 +141,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
           <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 8 }}>Respuestas anteriores</div>
           {Object.entries(state.answers).map(([idx, ans]) => (
             <div key={idx} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 4 }}>
-              <span style={{ fontWeight: 600 }}>P{Number(idx) + 1}:</span> {ans}
+              <span style={{ fontWeight: 600 }}>P{Number(idx) + 1}:</span> {String(ans)}
             </div>
           ))}
         </div>
@@ -200,20 +207,28 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWiz
   const qc = useQueryClient()
   const toast = useToast()
 
-  const { data: wizardState, isLoading, refetch } = useQuery({
+  const { data: wizardState, isLoading, refetch } = useQuery<WizardState | null>({
     queryKey: ['rca-wizard', problem.id],
-    queryFn: () => problemsApi.rcaWizardGet(problem.id).then(r => r.data).catch(() => ({ wizard: null })),
+    queryFn: async () => {
+      const response = await problemsApi.rcaWizardGet(problem.id)
+      const payload = response.data as WizardState | WizardApiPayload | null
+      if (!payload) return null
+      if (typeof payload === 'object' && 'wizard' in payload) {
+        return (payload as WizardApiPayload).wizard ?? null
+      }
+      return payload as WizardState
+    },
     staleTime: 0,
     retry: false,
   })
 
   const { mutate: startWizard, isPending: starting } = useMutation({
-    mutationFn: (template) => problemsApi.rcaWizardStart(problem.id, { template }),
+    mutationFn: (template: string) => problemsApi.rcaWizardStart(problem.id, { template }),
     onSuccess: () => refetch(),
     onError: () => toast.error('Error al iniciar el wizard'),
   })
 
-  const handleComplete = (result) => {
+  const handleComplete = (result: unknown) => {
     qc.invalidateQueries({ queryKey: ['sd-problems'] })
     onCompleted?.(result)
     onClose()

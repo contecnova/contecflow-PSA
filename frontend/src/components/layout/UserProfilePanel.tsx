@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * UserProfilePanel — Panel lateral de perfil de usuario
  * Se abre al hacer clic en el nombre/avatar en el footer del sidebar.

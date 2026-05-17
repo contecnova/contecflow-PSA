@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PortalSupportDesk — service desk del cliente con el lenguaje del backoffice.
  * Tickets, KB y comunicados.

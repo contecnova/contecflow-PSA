@@ -62,7 +62,7 @@ export default function BiO365Panel() {
 
   const { data: reportData } = useQuery({
     queryKey: ['bi-o365-report', selectedReport],
-    queryFn:  () => biO365Api.getReport(selectedReport).then(r => r.data),
+    queryFn:  () => biO365Api.getReport(selectedReport, {}).then(r => r.data),
     enabled:  tab === 'reports',
   })
 

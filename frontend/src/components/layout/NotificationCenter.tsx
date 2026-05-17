@@ -60,7 +60,8 @@ export default function NotificationCenter({ collapsed }: Props) {
           // Si no hay variable, usar el host actual pero adaptando protocolo y puerto
           const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
           // Si el backend está en otro puerto, usarlo
-          const apiUrl = import.meta.env.VITE_API_URL || '/api/v1'
+          const apiEnv = import.meta.env.VITE_API_URL
+          const apiUrl = typeof apiEnv === 'string' && apiEnv.length > 0 ? apiEnv : '/api/v1'
           try {
             const url = new URL(apiUrl, window.location.origin)
             wsBase = `${proto}://${url.hostname}:${url.port || (proto === 'wss' ? '443' : '80')}`

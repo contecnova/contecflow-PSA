@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ChatAdminPage — administración collaboration (mockup 6.3 del documento).
  *

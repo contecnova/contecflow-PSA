@@ -51,7 +51,8 @@ def sync_ecb_rates(db: Session, force: bool = False) -> dict:
         {"ok": True, "date": "YYYY-MM-DD", "upserted": N, "skipped": N, "source": "ecb"}
     """
     try:
-        with httpx.Client(timeout=15.0) as client:
+        from app.services.settings_service import outbound_http_timeout
+        with httpx.Client(timeout=outbound_http_timeout(db, default=15.0)) as client:
             resp = client.get(ECB_URL)
             resp.raise_for_status()
     except Exception as exc:
@@ -150,7 +151,8 @@ def sync_openexchangerates(db: Session, app_id: str,
     """
     url = f"https://openexchangerates.org/api/latest.json?app_id={app_id}&base={base}"
     try:
-        with httpx.Client(timeout=15.0) as client:
+        from app.services.settings_service import outbound_http_timeout
+        with httpx.Client(timeout=outbound_http_timeout(db, default=15.0)) as client:
             resp = client.get(url)
             resp.raise_for_status()
             data = resp.json()

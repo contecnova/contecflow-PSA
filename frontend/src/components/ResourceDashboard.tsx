@@ -5,11 +5,32 @@
 import _React, { useState, useEffect } from 'react';
 import { resourcesApi } from '../services/api';
 
+interface LoadScoringRow {
+  user_id: number;
+  user_name: string;
+  role: string;
+  load_pct: number;
+  capacity_hours: number;
+  available_hours: number;
+  status: 'overloaded' | 'at_capacity' | 'underutilized' | string;
+}
+
+interface TeamHealth {
+  avg_load_pct: number;
+  overloaded_count: number;
+  at_capacity_count: number;
+  total_users: number;
+}
+
+function toArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 const ResourceDashboard = () => {
-  const [loadScoring, setLoadScoring] = useState([]);
-  const [teamHealth, setTeamHealth] = useState(null);
+  const [loadScoring, setLoadScoring] = useState<LoadScoringRow[]>([]);
+  const [teamHealth, setTeamHealth] = useState<TeamHealth | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState('all'); // all, overloaded, at_capacity
+  const [filterStatus, setFilterStatus] = useState<'all' | 'overloaded' | 'at_capacity' | 'underutilized'>('all');
 
   useEffect(() => {
     fetchData();
@@ -19,11 +40,11 @@ const ResourceDashboard = () => {
     setLoading(true);
     try {
       const [loadRes, healthRes] = await Promise.all([
-        resourcesApi.loadScoring(),
-        resourcesApi.teamHealth(),
+        resourcesApi.loadScoring({}),
+        resourcesApi.teamHealth({}),
       ]);
-      setLoadScoring(loadRes.data);
-      setTeamHealth(healthRes.data);
+      setLoadScoring(toArray<LoadScoringRow>(loadRes.data));
+      setTeamHealth((healthRes.data ?? null) as TeamHealth | null);
     } catch {
       // silently handled — component shows empty state
     } finally {
@@ -31,7 +52,7 @@ const ResourceDashboard = () => {
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: LoadScoringRow['status']) => {
     switch (status) {
       case 'overloaded':
         return 'bg-red-100 text-red-800';
@@ -44,7 +65,7 @@ const ResourceDashboard = () => {
     }
   };
 
-  const getLoadColor = (load) => {
+  const getLoadColor = (load: number) => {
     if (load > 100) return 'text-red-600';
     if (load > 80) return 'text-yellow-600';
     return 'text-green-600';
@@ -97,7 +118,7 @@ const ResourceDashboard = () => {
           <h3 className="font-semibold">Resource Load Ranking</h3>
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={(e) => setFilterStatus(e.target.value as 'all' | 'overloaded' | 'at_capacity' | 'underutilized')}
             className="px-3 py-1 border rounded text-sm"
           >
             <option value="all">All Users</option>

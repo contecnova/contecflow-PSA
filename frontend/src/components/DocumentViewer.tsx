@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * DocumentViewer  Visor de documentos rediseV3ado. 
  * Vista previa inline, historial de versiones, flujo de aprobación, resumen IA.

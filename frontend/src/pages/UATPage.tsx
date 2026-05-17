@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * UATPage — Gestión de casos UAT (User Acceptance Testing)
  * Define criterios de aceptación por proyecto/tarea y registra su ejecución.

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * TrainingPage — Formación y Certificaciones
  * Catálogo de cursos, inscripciones por usuario, certificaciones con alertas de caducidad

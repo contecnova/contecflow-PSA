@@ -2,6 +2,7 @@
  * ScenariosPage — Scenario planning / What-if capacity
  */
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -15,41 +16,90 @@ import { GitBranch } from 'lucide-react'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 
-const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
-const fs = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
+interface ScenarioProject {
+  id?: string | number
+  name: string
+  start_date: string
+  end_date: string
+  total_hours: number
+  is_existing?: boolean
+}
+
+interface ScenarioSummary {
+  id: string | number
+  name?: string
+  project_count?: number
+  horizon_weeks?: number
+  status?: string
+  created_at?: string
+}
+
+interface ScenarioTimelinePoint {
+  week: string
+  utilization_pct: number
+  is_overloaded?: boolean
+}
+
+interface ScenarioResults {
+  feasible?: boolean
+  overloaded_weeks_count?: number
+  avg_utilization_pct?: number
+  total_demand_hours?: number
+  recommendation?: string
+  capacity_timeline?: ScenarioTimelinePoint[]
+}
+
+interface ScenarioDetail {
+  id: string | number
+  name?: string
+  description?: string
+  horizon_weeks?: number
+  projects?: ScenarioProject[]
+  results?: ScenarioResults
+}
+
+interface ScenarioForm {
+  name: string
+  description: string
+  horizon_weeks: number
+  projects: ScenarioProject[]
+}
+
+const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
+const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
 
 export default function ScenariosPage() {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected] = useState<string | number | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ name:'', description:'', horizon_weeks:12, projects:[] })
-  const [newProject, setNewProject] = useState({ name:'', start_date:'', end_date:'', total_hours:0 })
+  const [form, setForm] = useState<ScenarioForm>({ name:'', description:'', horizon_weeks:12, projects:[] })
+  const [newProject, setNewProject] = useState<ScenarioProject>({ name:'', start_date:'', end_date:'', total_hours:0 })
 
-  const { data: scenarios = [], isLoading } = useQuery({ queryKey:['scenarios'], queryFn:()=>scenariosApi.list().then(r=>r.data) })
-  const { data: detail } = useQuery({ queryKey:['scenario-detail', selected], queryFn:()=>scenariosApi.get(selected).then(r=>r.data), enabled:!!selected })
+  const { data: scenarios = [], isLoading } = useQuery<ScenarioSummary[]>({ queryKey:['scenarios'], queryFn:()=>scenariosApi.list().then(r=>r.data) })
+  const { data: detail } = useQuery<ScenarioDetail>({ queryKey:['scenario-detail', selected], queryFn:()=>scenariosApi.get(selected).then(r=>r.data), enabled:!!selected })
 
   const { mutate: create, isPending:creating } = useMutation({
-    mutationFn: d => scenariosApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['scenarios']); setShowCreate(false) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (d: ScenarioForm) => scenariosApi.create(d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['scenarios'] }); setShowCreate(false) },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: compute, isPending:computing } = useMutation({
-    mutationFn: id => scenariosApi.compute(id).then(r=>r.data),
-    onSuccess: () => qc.invalidateQueries(['scenario-detail', selected]),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string | number) => scenariosApi.compute(id).then(r=>r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['scenario-detail', selected] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => scenariosApi.delete(id),
-    onSuccess: () => { setSelected(null); qc.invalidateQueries(['scenarios']) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string | number) => scenariosApi.delete(id),
+    onSuccess: () => { setSelected(null); qc.invalidateQueries({ queryKey: ['scenarios'] }) },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const _RISK_CFG = { low:{ c:'var(--success)', b:'var(--success-bg)', l:'Viable' }, medium:{ c:'var(--warning)', b:'var(--warning-bg)', l:'Riesgo medio' }, high:{ c:'var(--danger)', b:'var(--danger-bg)', l:'Inviable' } }
 
-  const results = detail?.results
+  const results: ScenarioResults | undefined = detail?.results
 
   return (
     <PageShell>

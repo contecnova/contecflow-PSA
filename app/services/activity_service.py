@@ -263,10 +263,28 @@ def mark_mention_read_record(db: Session, mention_id: str, current_user: User) -
 # PROJECT HEALTH
 # ═══════════════════════════════════════════════════════════════════════════════
 
+_PROJECT_HEALTH_KEYS = {
+    "PROJECT_HEALTH_WEIGHT_SCHEDULE": "float",
+    "PROJECT_HEALTH_WEIGHT_BUDGET": "float",
+    "PROJECT_HEALTH_WEIGHT_QUALITY": "float",
+    "PROJECT_HEALTH_WEIGHT_VELOCITY": "float",
+    "PROJECT_HEALTH_WEIGHT_CLIENT": "float",
+    "PROJECT_HEALTH_TRAFFIC_GREEN": "float",
+    "PROJECT_HEALTH_TRAFFIC_YELLOW": "float",
+    "PROJECT_HEALTH_BUDGET_RATIO_GOOD": "float",
+    "PROJECT_HEALTH_BUDGET_RATIO_OK": "float",
+    "PROJECT_HEALTH_BUDGET_RATIO_WARN": "float",
+}
+
+
 def compute_health(db: Session, project_id: str) -> dict:
     """Compute composite health score (0-100) from live signals."""
+    from app.services.settings_service import get_runtime_namespace
 
     today = date.today()
+    _project_for_org = db.query(Project).filter(Project.id == project_id).first()
+    _org_id = getattr(_project_for_org, "organization_id", None) if _project_for_org else None
+    _s = get_runtime_namespace(db, _PROJECT_HEALTH_KEYS, org_id=_org_id)
 
     total_tasks = db.query(func.count(Task.id)).filter(Task.project_id == project_id).scalar() or 0
     overdue = db.query(func.count(Task.id)).filter(
@@ -285,7 +303,6 @@ def compute_health(db: Session, project_id: str) -> dict:
         project = db.query(Project).filter(Project.id == project_id).first()
         estimated_hours = getattr(project, "estimated_hours", None)
         if estimated_hours and estimated_hours > 0:
-            from app.core.config import settings as _s
             ratio = actual_cost_q / estimated_hours
             if ratio <= _s.PROJECT_HEALTH_BUDGET_RATIO_GOOD:
                 budget_score = 100.0
@@ -314,7 +331,6 @@ def compute_health(db: Session, project_id: str) -> dict:
         if latest_nps:
             client_score = min(100.0, latest_nps.health_score)
 
-    from app.core.config import settings as _s
     composite = round(
         schedule_score * _s.PROJECT_HEALTH_WEIGHT_SCHEDULE +
         budget_score   * _s.PROJECT_HEALTH_WEIGHT_BUDGET +

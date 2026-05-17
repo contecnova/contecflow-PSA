@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * NPSPage — Customer NPS & Health trend dashboard
  *

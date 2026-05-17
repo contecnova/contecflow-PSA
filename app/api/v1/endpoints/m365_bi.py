@@ -273,16 +273,18 @@ def export_word(
     summary="Estado de la integración M365 BI Embed",
 )
 def m365_bi_status(
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Devuelve qué capacidades están disponibles según la configuración actual."""
     from app.services.m365_service import m365_configured
     from app.core.config import settings as _s
+    from app.services.m365_bi_embed_service import _frontend_base
 
     graph_ok = m365_configured()
     webhook_ok = bool(_s.TEAMS_WEBHOOK_URL)
     sp_site = getattr(_s, "SHAREPOINT_SITE_ID", None)
-    frontend = getattr(_s, "FRONTEND_EMBED_BASE_URL", _s.FRONTEND_URL or "")
+    frontend = _frontend_base(db, getattr(current_user, "organization_id", None))
 
     return {
         "graph_configured": graph_ok,

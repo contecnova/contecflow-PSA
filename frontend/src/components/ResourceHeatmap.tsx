@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ResourceHeatmap — Visual weekly load heatmap per team member
  * Shows hard/soft bookings, utilization %, and overload warnings

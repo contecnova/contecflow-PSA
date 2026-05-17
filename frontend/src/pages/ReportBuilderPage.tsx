@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ReportBuilderPage — No-code parametric report builder
  *

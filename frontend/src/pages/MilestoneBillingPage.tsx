@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'

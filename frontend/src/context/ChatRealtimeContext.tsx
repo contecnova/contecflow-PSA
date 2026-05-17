@@ -63,8 +63,8 @@ export type WSEvent =
   | { type: 'message.unpinned'; conversation_id?: string; payload?: ChatMessage }
   | { type: 'reaction.added' | 'reaction.removed' | string; conversation_id?: string; payload?: unknown }
   | { type: 'read.updated'; conversation_id?: string; payload?: unknown }
-  | { type: 'notification.new'; payload?: unknown }
-  | { type: 'presence.updated'; payload?: Presence }
+  | { type: 'notification.new'; conversation_id?: string; payload?: unknown }
+  | { type: 'presence.updated'; conversation_id?: string; payload?: Presence }
   | { type: 'typing'; conversation_id?: string; user_id?: string; payload?: unknown }
   | { type: string; conversation_id?: string; user_id?: string; payload?: unknown }
 

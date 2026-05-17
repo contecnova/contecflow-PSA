@@ -2,6 +2,12 @@
 from tests.conftest import auth
 
 
+def _unwrap_data(payload):
+    if isinstance(payload, dict) and "data" in payload:
+        return payload["data"]
+    return payload
+
+
 def test_list_presets_returns_catalog(client, admin_token, db):
     """GET /bi/reports/v2/presets devuelve al menos 15 presets."""
     res = client.get("/api/v1/bi/reports/v2/presets", headers=auth(admin_token))
@@ -17,8 +23,9 @@ def test_list_presets_grouped_by_category(client, admin_token, db):
                      headers=auth(admin_token))
     assert res.status_code == 200
     data = res.json()
-    assert "categories" in data
-    cats = data["categories"]
+    body = _unwrap_data(data)
+    assert "categories" in body
+    cats = body["categories"]
     assert "finance" in cats
     assert "delivery" in cats
     assert "executive" in cats
@@ -30,8 +37,9 @@ def test_list_categories(client, admin_token, db):
     assert res.status_code == 200
     data = res.json()
     assert "items" in data
-    assert "finance" in data["items"]
-    assert "executive" in data["items"]
+    names = [x.get("name") if isinstance(x, dict) else x for x in data["items"]]
+    assert "finance" in names
+    assert "executive" in names
 
 
 def test_get_preset_detail(client, admin_token, db):
@@ -39,7 +47,7 @@ def test_get_preset_detail(client, admin_token, db):
     res = client.get("/api/v1/bi/reports/v2/presets/finance_revenue_by_client",
                      headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = _unwrap_data(res.json())
     assert data["id"] == "finance_revenue_by_client"
     assert "columns" in data
     assert "sort_by" in data
@@ -60,13 +68,14 @@ def test_customize_preset(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert customize_res.status_code == 200
-    assert customize_res.json()["name"] == "Revenue Personalizado"
-    assert customize_res.json()["sort_direction"] == "asc"
+    customized = _unwrap_data(customize_res.json())
+    assert customized["name"] == "Revenue Personalizado"
+    assert customized["sort_direction"] == "asc"
 
     # Get reflects customization
     get_res = client.get("/api/v1/bi/reports/v2/presets/finance_revenue_by_client",
                          headers=auth(admin_token))
-    assert get_res.json()["name"] == "Revenue Personalizado"
+    assert _unwrap_data(get_res.json())["name"] == "Revenue Personalizado"
 
     # Reset restores defaults
     reset_res = client.delete(
@@ -74,7 +83,7 @@ def test_customize_preset(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert reset_res.status_code == 200
-    assert reset_res.json()["name"] == "Revenue por cliente"
+    assert _unwrap_data(reset_res.json())["name"] == "Revenue por cliente"
 
 
 def test_preview_preset_returns_structure(client, admin_token, db):
@@ -83,7 +92,7 @@ def test_preview_preset_returns_structure(client, admin_token, db):
                      params={"limit": 5},
                      headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = _unwrap_data(res.json())
     assert "preset_id" in data
     assert "columns" in data
     assert "rows" in data
@@ -96,7 +105,7 @@ def test_export_preset_json(client, admin_token, db):
                      params={"format": "json"},
                      headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = _unwrap_data(res.json())
     assert "filename" in data
     assert data["export_format"] == "json"
     assert "rows" in data

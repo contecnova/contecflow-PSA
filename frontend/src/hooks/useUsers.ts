@@ -34,7 +34,7 @@ export function useUsers(params: UserListParams = {}): UseQueryResult<unknown> {
 export function useAllUsers(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then((r: { data: unknown }) => r.data),
+    queryFn: () => usersApi.list({}).then((r: { data: unknown }) => r.data),
     staleTime: 2 * 60 * 1000,
   })
 }

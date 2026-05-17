@@ -16,6 +16,36 @@ import GanttChart from '../components/GanttChart'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { Sparkles } from 'lucide-react'
 
+interface ProjectItem {
+  id: string | number
+  code?: string
+  name?: string
+}
+
+interface TaskItem {
+  id: string | number
+  title?: string
+  project_id?: string | number
+  created_at?: string
+  start_date?: string
+  due_date?: string
+  [key: string]: unknown
+}
+
+interface DateOverride {
+  start_date?: string
+  due_date?: string
+}
+
+interface AiSuggestion {
+  task_id?: string | number
+  [key: string]: unknown
+}
+
+interface DependencyItem {
+  [key: string]: unknown
+}
+
 export default function GanttPage(): JSX.Element {
   const t            = useAppT()
   const toast         = useToast()
@@ -28,27 +58,27 @@ export default function GanttPage(): JSX.Element {
   const [smartScheduleOpen, setSmartScheduleOpen] = useState(false)
 
   // ── data ────────────────────────────────────────────────────────────────────
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects'],
-    queryFn:  () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []),
+    queryFn:  () => projectsApi.list({}).then(r => r.data?.items ?? r.data ?? []),
   })
 
-  const { data: rawTasks = [], isLoading } = useQuery({
+  const { data: rawTasks = [], isLoading } = useQuery<TaskItem[]>({
     queryKey: ['gantt-tasks', projectId],
     queryFn:  () => {
       const params = { page_size: 300, ...(projectId ? { project_id: projectId } : {}) }
       return tasksApi.list(params)
-        .then(r => Array.isArray(r.data) ? r.data : (r.data?.items || []))
+          .then(r => Array.isArray(r.data) ? (r.data as TaskItem[]) : ((r.data?.items || []) as TaskItem[]))
     },
     staleTime: 15000,
   })
 
-  const { data: dependencies = [] } = useQuery({
+        const { data: dependencies = [] } = useQuery<DependencyItem[]>({
     queryKey: ['task-deps', projectId],
     queryFn: () =>
       projectId
         ? taskDependenciesApi.getByProject(projectId)
-            .then(r => (Array.isArray(r.data) ? r.data : []))
+            .then(r => (Array.isArray(r.data) ? (r.data as DependencyItem[]) : []))
             .catch(() => [])
         : Promise.resolve([]),
     staleTime: 30000,
@@ -57,7 +87,7 @@ export default function GanttPage(): JSX.Element {
   // Item #47: sugerencias IA (overdue/stalled) por proyecto. Solo cargamos
   // cuando hay project_id seleccionado — sin él la heurística no puede
   // contextualizar y el endpoint requiere proyecto específico.
-  const { data: aiSuggestionsResp } = useQuery({
+  const { data: aiSuggestionsResp } = useQuery<{ suggestions?: AiSuggestion[] }>({
     queryKey: ['ai-gantt-suggestions', projectId],
     queryFn: () =>
       projectId
@@ -71,7 +101,7 @@ export default function GanttPage(): JSX.Element {
 
   // Map task_id → suggestion para lookup O(1) en GanttChart.
   const aiSuggestionsByTask = useMemo(() => {
-    const out = {}
+    const out: Record<string | number, AiSuggestion> = {}
     for (const s of (aiSuggestionsResp?.suggestions || [])) {
       if (s?.task_id) out[s.task_id] = s
     }
@@ -79,11 +109,11 @@ export default function GanttPage(): JSX.Element {
   }, [aiSuggestionsResp])
 
   // Optimistic local overrides for in-flight drags
-  const [localDates, setLocalDates] = useState({})
+  const [localDates, setLocalDates] = useState<Record<string | number, DateOverride>>({})
 
   const tasks = useMemo(() => {
     const filtered = filter
-      ? rawTasks.filter(t => t.title?.toLowerCase().includes(filter.toLowerCase()))
+      ? rawTasks.filter((t) => String(t.title || '').toLowerCase().includes(filter.toLowerCase()))
       : rawTasks
     return filtered.map(t => ({
       ...t,
@@ -95,29 +125,36 @@ export default function GanttPage(): JSX.Element {
 
   // ── mutations ───────────────────────────────────────────────────────────────
   const { mutate: saveDates } = useMutation({
-    mutationFn: updates => taskDependenciesApi.bulkDates(updates),
+    mutationFn: (updates: Array<{ id: string | number; start_date?: string; due_date?: string }>) => taskDependenciesApi.bulkDates(updates),
     onSuccess:  () => { invalidate('tasks'); setLocalDates({}); toast.success(t('gantt.dates_saved')) },
-    onError:    (e) => { setLocalDates({}); toast.error(e?.response?.data?.detail || t('gantt.error_save')) },
+    onError:    (e: unknown) => {
+      setLocalDates({})
+      const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      toast.error((detail && String(detail)) || t('gantt.error_save'))
+    },
   })
 
   const { mutate: createDep } = useMutation({
-    mutationFn: dep => taskDependenciesApi.create({
+    mutationFn: (dep: { predecessor_id: string | number; successor_id: string | number; dependency_type?: string; lag_days?: number }) => taskDependenciesApi.create({
       predecessor_id: dep.predecessor_id,
       successor_id: dep.successor_id,
       dependency_type: dep.dependency_type || 'FS',
       lag_days: dep.lag_days || 0,
     }),
     onSuccess:  () => { invalidate('task-deps'); toast.success(t('gantt.dependency_created')) },
-    onError:    (e) => toast.error(e?.response?.data?.detail || t('gantt.error_create_dependency')),
+    onError:    (e: unknown) => {
+      const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      toast.error((detail && String(detail)) || t('gantt.error_create_dependency'))
+    },
   })
 
   // ── handlers ────────────────────────────────────────────────────────────────
-  const handleTaskUpdate = useCallback(({ id, start, end }) => {
+  const handleTaskUpdate = useCallback(({ id, start, end }: { id: string | number; start: string; end: string }) => {
     setLocalDates(prev => ({ ...prev, [id]: { start_date: start, due_date: end } }))
     saveDates([{ id, start_date: start, due_date: end }])
   }, [saveDates])
 
-  const handleDepCreate = useCallback(({ predecessor_id, successor_id }) => {
+  const handleDepCreate = useCallback(({ predecessor_id, successor_id }: { predecessor_id: string | number; successor_id: string | number }) => {
     createDep({ predecessor_id, successor_id, dependency_type: 'FS' })
   }, [createDep])
 

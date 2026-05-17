@@ -24,6 +24,52 @@ interface SearchResultItem {
   status?: string
 }
 
+type SearchEntity = Record<string, unknown>
+
+function mapProject(item: SearchEntity): SearchResultItem {
+  return {
+    id: (item.id as string | number) ?? '',
+    type: 'project',
+    title: String(item.name ?? ''),
+    subtitle: item.code ? String(item.code) : undefined,
+    status: item.status ? String(item.status) : undefined,
+  }
+}
+
+function mapTask(item: SearchEntity): SearchResultItem {
+  return {
+    id: (item.id as string | number) ?? '',
+    type: 'task',
+    title: String(item.title ?? ''),
+    subtitle: item.project_name ? String(item.project_name) : undefined,
+    status: item.status ? String(item.status) : undefined,
+  }
+}
+
+function mapClient(item: SearchEntity): SearchResultItem {
+  return {
+    id: (item.id as string | number) ?? '',
+    type: 'client',
+    title: String(item.name ?? ''),
+    subtitle: item.industry ? String(item.industry) : undefined,
+    status: item.status ? String(item.status) : undefined,
+  }
+}
+
+function mapTicket(item: SearchEntity): SearchResultItem {
+  return {
+    id: (item.id as string | number) ?? '',
+    type: 'ticket',
+    title: String(item.title ?? ''),
+    subtitle: item.ticket_type ? String(item.ticket_type) : undefined,
+    status: item.status ? String(item.status) : undefined,
+  }
+}
+
+function toArray(value: unknown): SearchEntity[] {
+  return Array.isArray(value) ? (value as SearchEntity[]) : []
+}
+
 const ENTITY_CFG: Record<string, EntityCfg> = {
   project:  { icon: '⬡', color: 'var(--accent)', label: 'Proyecto',  path: _p => `/projects` },
   task:     { icon: '▦', color: 'var(--success)', label: 'Tarea',     path: _p => `/tasks` },
@@ -67,21 +113,13 @@ export default function GlobalSearchModal({ open, onClose }: Props) {
       if (q.trim().length < 2) return []
       const [projects, tasks, clients, tickets] = await Promise.allSettled([
         projectsApi.list({ search: q, limit: 5 }).then(r =>
-          (r.data?.items || r.data || []).slice(0,4).map(p => ({
-            id: p.id, type: 'project', title: p.name, subtitle: p.code, status: p.status
-          }))),
+          toArray((r.data as { items?: unknown })?.items ?? r.data).slice(0,4).map(mapProject)),
         tasksApi.list({ search: q, limit: 5 }).then(r =>
-          (r.data?.items || r.data || []).slice(0,4).map(t => ({
-            id: t.id, type: 'task', title: t.title, subtitle: t.project_name, status: t.status
-          }))),
+          toArray((r.data as { items?: unknown })?.items ?? r.data).slice(0,4).map(mapTask)),
         clientsApi.list({ q, limit: 5 }).then(r =>
-          (r.data?.items ?? r.data ?? []).slice(0,4).map(c => ({
-            id: c.id, type: 'client', title: c.name, subtitle: c.industry, status: c.status
-          }))),
+          toArray((r.data as { items?: unknown })?.items ?? r.data).slice(0,4).map(mapClient)),
         ticketsApi.list({ search: q, limit: 5 }).then(r =>
-          (r.data?.items || r.data || []).slice(0,4).map(t => ({
-            id: t.id, type: 'ticket', title: t.title, subtitle: t.ticket_type, status: t.status
-          }))),
+          toArray((r.data as { items?: unknown })?.items ?? r.data).slice(0,4).map(mapTicket)),
       ])
       return [
         ...(projects.status === 'fulfilled' ? projects.value : []),
@@ -220,7 +258,7 @@ export default function GlobalSearchModal({ open, onClose }: Props) {
           ) : (
             <div style={{ padding: '8px 8px' }}>
               {results.map((r, i) => {
-                const cfg = ENTITY_CFG[r.type] || {}
+                const cfg: EntityCfg = ENTITY_CFG[r.type] ?? { icon: '•', color: 'var(--text-2)', label: 'Item', path: () => '/' }
                 const isSelected = i === clampedSelected
                 return (
                   <button key={r.id} onClick={() => go(r)}

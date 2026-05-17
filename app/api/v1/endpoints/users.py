@@ -6,7 +6,7 @@ from datetime import date
 from app.db.session import get_db
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, require_admin, require_admin_or_hr, require_admin_or_pm, require_any_manager, require_internal_user
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole, UserStatus
 from app.schemas import (
     UserCreate, UserUpdate, UserSelfUpdate, UserPublic, UserWithRate, UserLoad
@@ -80,13 +80,13 @@ def get_load_map(
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.get("/org-chart", summary="Org chart jerárquico")
+@router.get("/org-chart", response_model=APIResponse[dict], summary="Org chart jerárquico")
 def get_org_chart(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "user", action="read")
-    return get_org_chart_payload(db, current_user)
+    return APIResponse.ok(data=get_org_chart_payload(db, current_user))
 
 
 @router.get("/me/approval-chain", summary="Mi cadena de aprobación")

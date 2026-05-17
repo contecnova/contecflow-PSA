@@ -1,6 +1,5 @@
 import { useContext, useMemo } from 'react';
 import { AppLangContext } from '../i18n/AppLangContext';
-// @ts-expect-error — translationRuntime es un .mjs sin tipos (migración gradual #115)
 import { resolveTranslation } from '../i18n/translationRuntime.mjs';
 
 const NOOP = () => {};

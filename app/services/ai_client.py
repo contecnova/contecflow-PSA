@@ -15,16 +15,38 @@ from app.core.config import settings
 _logger = logging.getLogger("ai_client")
 
 
-def get_api_key() -> Optional[str]:
-    """Return the Anthropic API key from centralized settings.
+def get_api_key(db=None, org_id: Optional[str] = None) -> Optional[str]:
+    """Return the Anthropic API key.
 
-    Settings.ANTHROPIC_API_KEY is the single source of truth; a DB-managed
-    provider key can override it by passing *api_key* to :func:`call_claude`.
+    Resolution order: integration credential row (Settings → Credenciales →
+    AI providers) → env `ANTHROPIC_API_KEY`. A per-call ``api_key`` argument
+    to :func:`call_claude` still wins over both.
     """
+    if db is not None:
+        try:
+            from app.services.integration_credentials_service import get_credential
+            ui_key = get_credential(db, "ai_providers", "anthropic_api_key", org_id=org_id)
+            if ui_key:
+                return ui_key
+        except Exception:
+            pass
     key = settings.ANTHROPIC_API_KEY
     if not key:
         _logger.warning("ANTHROPIC_API_KEY not configured — AI features unavailable")
     return key or None
+
+
+def get_default_model(db=None, org_id: Optional[str] = None) -> str:
+    """Return the default Claude model — runtime-flag override, then env."""
+    if db is not None:
+        try:
+            from app.services.settings_service import get_runtime_str
+            ui_val = get_runtime_str(db, "CONTECFLOW_AI_MODEL", org_id)
+            if ui_val:
+                return ui_val
+        except Exception:
+            pass
+    return settings.CONTECFLOW_AI_MODEL
 
 
 def call_claude(
@@ -34,6 +56,8 @@ def call_claude(
     tools: Optional[list] = None,
     max_tokens: int = 1000,
     api_key: Optional[str] = None,
+    db=None,
+    org_id: Optional[str] = None,
 ) -> dict:
     """Synchronous Claude API call.  Returns the full Anthropic response dict.
 
@@ -55,9 +79,9 @@ def call_claude(
     import urllib.request
     import urllib.error
 
-    key = api_key or get_api_key()
+    key = api_key or get_api_key(db=db, org_id=org_id)
     if not key:
-        raise ValueError("No Anthropic API key available — set ANTHROPIC_API_KEY")
+        raise ValueError("No Anthropic API key available — set ANTHROPIC_API_KEY or configure in Settings → Credenciales")
 
     headers = {
         "Content-Type": "application/json",
@@ -65,7 +89,7 @@ def call_claude(
         "anthropic-version": "2023-06-01",
     }
     body: dict = {
-        "model": model or settings.CONTECFLOW_AI_MODEL,
+        "model": model or get_default_model(db=db, org_id=org_id),
         "max_tokens": max_tokens,
         "messages": messages,
     }
@@ -76,7 +100,8 @@ def call_claude(
 
     data = json.dumps(body).encode()
     req = urllib.request.Request(settings.ANTHROPIC_API_URL, data=data, headers=headers)
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    from app.services.settings_service import outbound_ai_timeout
+    with urllib.request.urlopen(req, timeout=outbound_ai_timeout(db)) as resp:
         return json.loads(resp.read())
 
 

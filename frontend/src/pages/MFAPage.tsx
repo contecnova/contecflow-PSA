@@ -2,6 +2,7 @@
  * MFAPage — Configuración de autenticación en dos pasos (TOTP)
  */
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -13,43 +14,58 @@ import PageShell from '../components/layout/PageShell'
 import { Lock } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
-const fs = { width:'100%', background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize: "var(--text-xl-em)", outline:'none', fontFamily:'inherit', boxSizing:'border-box', letterSpacing:4, textAlign:'center' }
+interface MfaStatus {
+  enabled?: boolean
+  verified_at?: string
+  backup_codes_remaining?: number
+}
+
+interface MfaSetupData {
+  qr_url?: string
+  secret?: string
+}
+
+interface MfaVerifyResponse {
+  data?: { backup_codes?: string[] }
+}
+
+const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
+const fs: CSSProperties = { width:'100%', background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize: "var(--text-xl-em)", outline:'none', fontFamily:'inherit', boxSizing:'border-box', letterSpacing:4, textAlign:'center' }
 
 export default function MFAPage() {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
-  const [step, setStep] = useState('status')  // status | setup | verify | done
-  const [setupData, setSetupData] = useState(null)
+  const [step, setStep] = useState<'status' | 'setup' | 'verify' | 'done'>('status')
+  const [setupData, setSetupData] = useState<MfaSetupData | null>(null)
   const [code, setCode] = useState('')
-  const [backupCodes, setBackupCodes] = useState([])
+  const [backupCodes, setBackupCodes] = useState<string[]>([])
   const [disableCode, setDisableCode] = useState('')
   const [showDisable, setShowDisable] = useState(false)
 
-  const { data: status, isLoading } = useQuery({
+  const { data: status, isLoading } = useQuery<MfaStatus>({
     queryKey: ['mfa-status'],
     queryFn: () => mfaApi.status().then(r => r.data),
   })
 
   const { mutate: setup, isPending: setting } = useMutation({
     mutationFn: () => mfaApi.setup().then(r => r.data),
-    onSuccess: data => { setSetupData(data); setStep('setup') },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onSuccess: (data: MfaSetupData) => { setSetupData(data); setStep('setup') },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: verify, isPending: verifying, isError: verifyError } = useMutation({
-    mutationFn: code => mfaApi.verify(code),
-    onSuccess: data => {
+    mutationFn: (codeValue: string) => mfaApi.verify(codeValue),
+    onSuccess: (data: MfaVerifyResponse) => {
       setBackupCodes(data.data?.backup_codes || [])
       setStep('done')
-      qc.invalidateQueries(['mfa-status'])
+      qc.invalidateQueries({ queryKey: ['mfa-status'] })
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: disable, isPending: disabling } = useMutation({
-    mutationFn: code => mfaApi.disable(code),
-    onSuccess: () => { setShowDisable(false); setDisableCode(''); qc.invalidateQueries(['mfa-status']) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (codeValue: string) => mfaApi.disable(codeValue),
+    onSuccess: () => { setShowDisable(false); setDisableCode(''); qc.invalidateQueries({ queryKey: ['mfa-status'] }) },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   if (isLoading) return <PageShell><Spinner /></PageShell>

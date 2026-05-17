@@ -18,7 +18,7 @@
  *   /puntos     — extrae puntos clave como lista
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, type CSSProperties } from 'react';
 import { nexusAgentApi } from '../services/api';
 import { useAppT } from '../hooks/useAppT';
 
@@ -45,7 +45,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
   const [loading, setLoading] = useState(false);    // AI in progress
   const [error, setError]     = useState('');
   const [slashPos, setSlashPos] = useState(-1);     // caret position of "/"
-  const textareaRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const filtered = COMMANDS.filter(c =>
     !filter || c.id.startsWith(filter.toLowerCase())
@@ -148,8 +148,11 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
       }
       onChange(newVal);
     } catch (err) {
-      const _raw = err?.response?.data?.detail
-      const msg = Array.isArray(_raw) ? _raw.map(d => d.msg).join(', ') : (_raw || err.message || t('ai_inline.contact_error'));
+      const e = err as { response?: { data?: { detail?: unknown } }; message?: string }
+      const _raw = e?.response?.data?.detail
+      const msg = Array.isArray(_raw)
+        ? _raw.map((d: { msg?: string }) => d.msg).filter(Boolean).join(', ')
+        : (_raw as string) || e.message || t('ai_inline.contact_error');
       setError(msg);
     } finally {
       setLoading(false);
@@ -183,7 +186,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
     ...style,
   };
 
-  const paletteStyle = {
+  const paletteStyle: CSSProperties = {
     position: 'absolute',
     top: '100%',
     left: 0,

@@ -179,6 +179,23 @@ EFFORT_HOURS = {
     "default":      (2.0, 4.0,  8.0),
 }
 from app.core.config import settings as _cfg
+
+
+def _get_multi_role_factor(db=None) -> float:
+    """Resolve SEM_MULTI_ROLE_FACTOR with runtime override → env fallback."""
+    if db is not None:
+        try:
+            from app.services.settings_service import get_runtime_float
+            v = get_runtime_float(db, "SEM_MULTI_ROLE_FACTOR")
+            if v is not None:
+                return v
+        except Exception:
+            pass
+    return _cfg.SEM_MULTI_ROLE_FACTOR
+
+
+# Class-level fallback kept for legacy module-level reads (e.g. from other
+# modules that imported MULTI_ROLE_FACTOR by name). Prefer the function form.
 MULTI_ROLE_FACTOR = _cfg.SEM_MULTI_ROLE_FACTOR
 
 
@@ -191,22 +208,27 @@ class SemanticAssigner(ServiceBase):
 
     Score final = sem_score * (1 - load_weight) + (1 - load_ratio) * load_weight
 
-    Donde sem_score = 0.40 * sim(desc_perfil) + 0.60 * mean(top-3 historial)
-    (misma formula que Ficosa)
+    Donde sem_score = WEIGHT_PROFILE * sim(desc_perfil) + WEIGHT_HISTORY * mean(top-K historial)
 
-    Extends ServiceBase for a consistent service-layer interface.
+    Extends ServiceBase for a consistent service-layer interface. Tuning knobs
+    (WEIGHT_PROFILE / WEIGHT_HISTORY / TOP_K_HISTORY / MULTI_ROLE_FACTOR) are
+    instance attributes resolved from runtime flags (Settings → Config.
+    dinámica → Semantic) with env fallback.
     """
 
+    # Class-level defaults left for backward compatibility — overridden per
+    # instance in __init__ based on the live runtime flags.
     WEIGHT_PROFILE   = _cfg.SEM_WEIGHT_PROFILE
     WEIGHT_HISTORY   = _cfg.SEM_WEIGHT_HISTORY
     TOP_K_HISTORY    = _cfg.SEM_TOP_K_HISTORY
 
     @staticmethod
-    def _resolve_embeddings_runtime(config) -> tuple[str, str]:
+    def _resolve_embeddings_runtime(config, db=None) -> tuple[str, str]:
         """
         Resolve backend/model with runtime priority:
         1) SemConfig.local_model_name (supports explicit "tfidf")
-        2) ENV SEMANTIC_EMBEDDINGS_BACKEND fallback
+        2) Runtime override SEMANTIC_EMBEDDINGS_BACKEND from app_settings
+        3) ENV SEMANTIC_EMBEDDINGS_BACKEND fallback
         """
         configured_model = (getattr(config, "local_model_name", "") or "").strip()
         if configured_model:
@@ -214,7 +236,14 @@ class SemanticAssigner(ServiceBase):
                 return "tfidf", "all-MiniLM-L6-v2"
             return "transformer", configured_model
 
-        backend = (settings.SEMANTIC_EMBEDDINGS_BACKEND or "tfidf").strip().lower()
+        backend = None
+        if db is not None:
+            try:
+                from app.services.settings_service import get_runtime_str
+                backend = get_runtime_str(db, "SEMANTIC_EMBEDDINGS_BACKEND")
+            except Exception:
+                backend = None
+        backend = (backend or settings.SEMANTIC_EMBEDDINGS_BACKEND or "tfidf").strip().lower()
         if backend == "transformer":
             return "transformer", "all-MiniLM-L6-v2"
         return "tfidf", "all-MiniLM-L6-v2"
@@ -237,12 +266,24 @@ class SemanticAssigner(ServiceBase):
                 logger.warning("Concurrent SemConfig insert race; re-reading", exc_info=True)
                 db.rollback()  # otra request lo creó concurrentemente — re-leer
                 self.config = db.query(SemConfig).first() or SemConfig()
-        runtime_backend, runtime_model_name = self._resolve_embeddings_runtime(self.config)
+        runtime_backend, runtime_model_name = self._resolve_embeddings_runtime(self.config, db=self.db)
         self.model, self.use_transformer = _get_model(
             runtime_model_name,
             backend_override=runtime_backend,
         )
         self.load_weight = self.config.load_balance_weight or 0.20
+        # Tuning knobs: runtime override → class default → env.
+        try:
+            from app.services.settings_service import get_runtime_float, get_runtime_int
+            self.WEIGHT_PROFILE     = get_runtime_float(self.db, "SEM_WEIGHT_PROFILE") or self.__class__.WEIGHT_PROFILE
+            self.WEIGHT_HISTORY     = get_runtime_float(self.db, "SEM_WEIGHT_HISTORY") or self.__class__.WEIGHT_HISTORY
+            self.TOP_K_HISTORY      = get_runtime_int(self.db, "SEM_TOP_K_HISTORY") or self.__class__.TOP_K_HISTORY
+            self.MULTI_ROLE_FACTOR  = get_runtime_float(self.db, "SEM_MULTI_ROLE_FACTOR") or _cfg.SEM_MULTI_ROLE_FACTOR
+        except Exception:
+            self.WEIGHT_PROFILE    = self.__class__.WEIGHT_PROFILE
+            self.WEIGHT_HISTORY    = self.__class__.WEIGHT_HISTORY
+            self.TOP_K_HISTORY     = self.__class__.TOP_K_HISTORY
+            self.MULTI_ROLE_FACTOR = _cfg.SEM_MULTI_ROLE_FACTOR
 
         # TF-IDF: fijamos el vocabulario una sola vez con un corpus
         # representativo (perfiles + cache de items resueltos). Sin esto el
@@ -459,7 +500,8 @@ class SemanticAssigner(ServiceBase):
                                 {}, False, "Expert cache (coincidencia exacta)")
 
         # Nivel 2 — Expert Cache semantico (coseno >= threshold)
-        sem_thr = self.config.threshold_expert_cache or _cfg.SEM_THRESHOLD_EXPERT_CACHE
+        from app.services.settings_service import get_runtime_float as _rt_f
+        sem_thr = self.config.threshold_expert_cache or _rt_f(self.db, "SEM_THRESHOLD_EXPERT_CACHE")
         feedback_hit = self._semantic_lookup_feedback(text, item_type, sem_thr)
         if feedback_hit:
             return self._result(feedback_hit["user_id"], feedback_hit["score"],
@@ -477,10 +519,10 @@ class SemanticAssigner(ServiceBase):
                                 "Sin perfiles configurados")
 
         # Mejora 4: thresholds dinámicos con bandera auto/manual por prioridad
-        _thr_crit = getattr(self.config, "threshold_critical", None) or _cfg.SEM_THRESHOLD_CRITICAL
-        _thr_high = getattr(self.config, "threshold_high", None) or _cfg.SEM_THRESHOLD_HIGH
-        _thr_med  = getattr(self.config, "threshold_medium", None) or _cfg.SEM_THRESHOLD_MEDIUM
-        _thr_low  = getattr(self.config, "threshold_low", None) or _cfg.SEM_THRESHOLD_LOW
+        _thr_crit = getattr(self.config, "threshold_critical", None) or _rt_f(self.db, "SEM_THRESHOLD_CRITICAL")
+        _thr_high = getattr(self.config, "threshold_high", None) or _rt_f(self.db, "SEM_THRESHOLD_HIGH")
+        _thr_med  = getattr(self.config, "threshold_medium", None) or _rt_f(self.db, "SEM_THRESHOLD_MEDIUM")
+        _thr_low  = getattr(self.config, "threshold_low", None) or _rt_f(self.db, "SEM_THRESHOLD_LOW")
         PRIORITY_THRESHOLDS = {
             "critical":    {"auto": False, "min": _thr_crit},
             "p1_critical": {"auto": False, "min": _thr_crit},

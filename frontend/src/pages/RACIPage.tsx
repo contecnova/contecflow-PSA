@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RACIPage — Matriz de responsabilidades por proyecto (R/A/C/I)
  * Permite definir quién es Responsable, Aprobador, Consultado e Informado

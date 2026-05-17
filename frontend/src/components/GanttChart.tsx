@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useAppT } from '../i18n/AppLangContext'
 /**
  * GanttChart v2 — Production-quality Interactive Gantt

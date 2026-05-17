@@ -53,13 +53,15 @@ _graph_post_sync = m365_service.graph_post_sync
 # ── Status endpoint ──────────────────────────────────────────────────────────
 
 @router.get("/status")
-def m365_status(_: User = Depends(get_current_user)):
+def m365_status(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.services.settings_service import get_runtime_bool
     configured = _m365_configured()
     teams_ok = bool(settings.TEAMS_WEBHOOK_URL)
+    org_id = getattr(current_user, "organization_id", None)
     return {
         "graph_configured":            configured,
-        "calendar_sync_enabled":       settings.M365_CALENDAR_SYNC_ENABLED,
-        "teams_notifications_enabled": settings.M365_TEAMS_NOTIFICATIONS_ENABLED,
+        "calendar_sync_enabled":       get_runtime_bool(db, "M365_CALENDAR_SYNC_ENABLED", org_id),
+        "teams_notifications_enabled": get_runtime_bool(db, "M365_TEAMS_NOTIFICATIONS_ENABLED", org_id),
         "teams_webhook_configured":    teams_ok,
         "required_env_vars": {
             "AZURE_TENANT_ID":     bool(settings.AZURE_TENANT_ID),

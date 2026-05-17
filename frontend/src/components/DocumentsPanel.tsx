@@ -11,6 +11,8 @@ import { extractErr } from '../utils/helpers';
 import { Upload, Download, Trash2, Plus, Sparkles, Loader, X } from 'lucide-react';
 import { useAppT } from '../hooks/useAppT';
 
+import type { CSSProperties } from 'react';
+
 function fmtBytes(b) {
   if (!b) return '';
   if (b < 1024) return `${b} B`;
@@ -67,16 +69,16 @@ function resolveQueryKey(projectId, taskId, ticketId) {
 }
 
 function resolveApiFn(projectId, taskId, ticketId) {
-  if (taskId) return () => documentsApi.byTask(taskId);
-  if (ticketId) return () => documentsApi.byTicket(ticketId);
-  return () => documentsApi.byProject(projectId);
+  if (taskId) return () => documentsApi.byTask(taskId, {});
+  if (ticketId) return () => documentsApi.byTicket(ticketId, {});
+  return () => documentsApi.byProject(projectId, {});
 }
 
 export default function DocumentsPanel({ projectId, taskId, ticketId, _compact = false }) {
   const { t } = useAppT();
   const toast = useToast();
   const qc = useQueryClient();
-  const fileRef = useRef();
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
@@ -129,7 +131,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
     if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); setShowForm(true); }
   }, []);
 
-  const fs = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
 
   return (
     <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden', backgroundColor: 'var(--surface-1)' }}>

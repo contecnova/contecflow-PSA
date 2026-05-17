@@ -87,7 +87,7 @@ export function useTicketMyQueue(): UseQueryResult<unknown> {
 export function useEscalateTicket(): UseMutationResult<unknown, unknown, EscalateArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, level }: EscalateArgs) => ticketsApi.escalate(id, level),
+    mutationFn: ({ id, level }: EscalateArgs) => ticketsApi.escalate(id, String(level)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-tickets'] })
       qc.invalidateQueries({ queryKey: ['sd-ticket'] })

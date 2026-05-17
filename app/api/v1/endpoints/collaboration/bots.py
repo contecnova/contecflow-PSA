@@ -22,7 +22,9 @@ from app.services.collaboration import bots as bot_svc
 from app.services.collaboration._permissions import (
     _org, assert_conversation_access,
 )
-from app.core.responses import APIListResponse
+from app.services.traffic_control_service import consume_quota
+from app.services.key_management import get_integration_rotation_status
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter()
 
@@ -61,8 +63,7 @@ def slash(payload: SlashCommandIn, current_user: User = Depends(get_current_user
 
 @router.get("/slash/help", summary="Listado de slash commands")
 def slash_help():
-    return {
-        "commands": [
+    commands = [
             {"name": "/ask", "desc": "Pregunta a Nexus IA. Si no resuelve, abre ticket auto-asignado."},
             {"name": "/task", "desc": "Crea tarea PSA en el proyecto del canal."},
             {"name": "/ticket", "desc": "Abre ticket de soporte (auto-asignado)."},
@@ -77,7 +78,7 @@ def slash_help():
             {"name": "/recap", "desc": "Resumen IA de los últimos mensajes."},
             {"name": "/escalate", "desc": "Escala a soporte con prioridad alta."},
         ]
-    }
+    return APIListResponse.ok(items=commands, total=len(commands))
 
 
 # ── Integrations ─────────────────────────────────────────────────────────────
@@ -111,7 +112,15 @@ def delete_integration(integration_id: str, current_user: User = Depends(get_cur
     if not row:
         raise HTTPException(404, "Integración no encontrada")
     db.delete(row); db.commit()
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
+
+
+@router.get("/integrations/security/rotation-status", summary="Estado de rotación de secretos de integración",
+            dependencies=[Depends(get_current_user)])
+def integration_rotation_status(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _ = _org(current_user)
+    status = get_integration_rotation_status(db)
+    return APIResponse.ok(data=status)
 
 
 # ── Webhooks ────────────────────────────────────────────────────────────────
@@ -154,6 +163,18 @@ async def incoming_webhook(token: str, request: Request, db: Session = Depends(g
     row = db.query(CollaborationWebhook).filter(CollaborationWebhook.secret_token == token, CollaborationWebhook.is_active == True).first()
     if not row or row.direction != "incoming" or not row.target_channel_id:
         raise HTTPException(404, "Webhook inválido")
+
+    quota = consume_quota(
+        db,
+        scope="collab.webhook.incoming",
+        tenant_id=row.organization_id,
+        subject=row.id,
+        limit=120,
+        window_seconds=60,
+    )
+    if not quota["allowed"]:
+        raise HTTPException(status_code=429, detail=f"Webhook rate limit exceeded. Retry in {quota['retry_after']}s")
+
     payload = await request.json()
     text = (payload or {}).get("text") or "(sin contenido)"
     # Find a system bot author (Bridge)
@@ -174,4 +195,4 @@ async def incoming_webhook(token: str, request: Request, db: Session = Depends(g
     )
     row.last_called_at = datetime.utcnow()
     db.commit()
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})

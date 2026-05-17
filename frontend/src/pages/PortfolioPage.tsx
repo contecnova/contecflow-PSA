@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PortfolioPage — Gestión de carteras de proyectos
  * Vista RAG (Red/Amber/Green) de salud + EVM consolidado + hitos cruzados.

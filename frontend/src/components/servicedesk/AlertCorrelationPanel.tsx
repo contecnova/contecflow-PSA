@@ -85,8 +85,8 @@ function StatCard({ label, value, accent }: { label: string; value?: number | st
 
 interface ClusterCardProps {
   cluster: AlertCluster
-  onMerge: (ids: Array<string | number>) => void
-  merging: boolean
+  onMerge: (ids: Array<string | number>, clusterId: string | number) => void
+  merging: string | number | null
   expanded: boolean
   onToggle: () => void
 }
@@ -94,7 +94,8 @@ interface ClusterCardProps {
 function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterCardProps) {
   const sizeColor = cluster.size >= 10 ? 'var(--danger)' : cluster.size >= 5 ? 'var(--warning)' : 'var(--success)'
   const score = Math.round((cluster.correlation_score ?? 0) * 100)
-  const action = ACTION_META[cluster.suggested_action] || ACTION_META.monitor
+  const suggestedAction = cluster.suggested_action ?? 'monitor'
+  const action = ACTION_META[suggestedAction] || ACTION_META.monitor
   const ticketNums = cluster.ticket_numbers || []
   const ticketIds = cluster.ticket_ids || []
 
@@ -109,7 +110,7 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterC
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
-              #{(cluster.cluster_id || '').slice(0, 8)}
+              #{String(cluster.cluster_id || '').slice(0, 8)}
             </span>
             <span style={chip(sizeColor)}>{cluster.size} alertas</span>
             <span style={chip(action.color)}>{action.label}</span>
@@ -201,7 +202,7 @@ export default function AlertCorrelationPanel() {
   })
 
   const { mutate: mergeMutate, variables: mergeVars, isPending: isMerging } = useMutation({
-    mutationFn: ({ ticket_ids }) => alertClustersApi.merge({ ticket_ids, auto_rca: true }),
+    mutationFn: ({ ticket_ids }: { ticket_ids: Array<string | number>; cluster_id: string | number }) => alertClustersApi.merge({ ticket_ids, auto_rca: true }),
     onSuccess: (res) => {
       const num = res.data?.problem_number || res.data?.problem_id || ''
       toast.success(`Problema ${num} creado desde el cluster`)
@@ -209,7 +210,10 @@ export default function AlertCorrelationPanel() {
       qc.invalidateQueries({ queryKey: ['sd-alert-clusters-stats'] })
       qc.invalidateQueries({ queryKey: ['sd-problems'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al crear problema desde cluster'),
+    onError: (e: unknown) => {
+      const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      toast.error((detail && String(detail)) || 'Error al crear problema desde cluster')
+    },
   })
 
   const { mutate: runScan, isPending: scanning } = useMutation({
@@ -222,7 +226,10 @@ export default function AlertCorrelationPanel() {
       qc.invalidateQueries({ queryKey: ['sd-alert-clusters-stats'] })
       qc.invalidateQueries({ queryKey: ['sd-problems'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al ejecutar el escáner'),
+    onError: (e: unknown) => {
+      const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      toast.error((detail && String(detail)) || 'Error al ejecutar el escáner')
+    },
   })
 
   const mergingId = isMerging ? mergeVars?.cluster_id : null
@@ -275,8 +282,8 @@ export default function AlertCorrelationPanel() {
                 cluster={c}
                 onMerge={(ticket_ids, cluster_id) => mergeMutate({ ticket_ids, cluster_id })}
                 merging={mergingId}
-                expanded={!!expanded[c.cluster_id]}
-                onToggle={() => setExpanded(prev => ({ ...prev, [c.cluster_id]: !prev[c.cluster_id] }))}
+                expanded={!!expanded[String(c.cluster_id)]}
+                onToggle={() => setExpanded(prev => ({ ...prev, [String(c.cluster_id)]: !prev[String(c.cluster_id)] }))}
               />
             ))}
           </div>

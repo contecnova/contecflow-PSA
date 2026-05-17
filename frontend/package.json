@@ -47,7 +47,8 @@
     "playwright": "^1.59.1",
     "postcss": "^8.5.10",
     "tailwindcss": "^3.4.4",
-    "typescript": "^5.4.5",
+    "type-coverage": "^2.29.7",
+    "typescript": "^6.0.3",
     "vite": "^7.1.12",
     "vitest": "^4.1.5",
     "workbox-window": "^7.1.0"
@@ -58,9 +59,9 @@
     "preview": "vite preview",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc --noEmit",
-    "lint:a11y": "npm run lint:a11y:report && npm run lint:a11y:strict:batch1",
-    "lint:a11y:report": "eslint src --ext .js,.jsx --format stylish",
-    "lint:a11y:strict:batch1": "eslint src/main.jsx src/App.jsx src/context/AuthContext.jsx src/components/layout/Breadcrumbs.jsx src/components/ui/IconButton.jsx --ext .js,.jsx --max-warnings 0",
+    "lint:a11y": "npm run lint:a11y:report && npm run lint:a11y:strict:core",
+    "lint:a11y:report": "node scripts/a11y_audit.mjs",
+    "lint:a11y:strict:core": "eslint src/main.tsx src/App.tsx src/context/AuthContext.tsx src/components/layout/Breadcrumbs.tsx src/components/ui/IconButton.tsx --ext .ts,.tsx --max-warnings 0",
     "validate:jsx": "node validate.cjs",
     "check:i18n": "node scripts/check_i18n.mjs",
     "check:i18n:no-new-debt": "node scripts/check_i18n_no_new_debt.mjs",
@@ -72,6 +73,8 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report",
-    "install:playwright": "npx playwright install --with-deps"
+    "install:playwright": "npx playwright install --with-deps",
+    "type:coverage": "type-coverage --at-least 75 --ignore-catch --detail",
+    "quality:p3": "npm run typecheck && npm run type:coverage && npm run lint:a11y:report"
   }
 }

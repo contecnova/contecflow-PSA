@@ -54,9 +54,18 @@ def _encoding_for(content_type: str) -> str:
 class GoogleSTTProvider(STTProvider):
     name = "google"
 
-    def __init__(self, api_key: Optional[str] = None, language: Optional[str] = None) -> None:
-        self._api_key = api_key or _google_setting("GOOGLE_STT_API_KEY")
-        self._default_language = language or _google_setting("GOOGLE_STT_LANGUAGE", "es-ES")
+    def __init__(self, api_key: Optional[str] = None, language: Optional[str] = None, db=None, org_id=None) -> None:
+        ui_key = ui_lang = None
+        if db is not None:
+            try:
+                from app.services.settings_service import get_runtime_str
+                from app.services.integration_credentials_service import get_credential
+                ui_key  = get_credential(db, "ai_providers", "google_stt_api_key", org_id=org_id)
+                ui_lang = get_runtime_str(db, "GOOGLE_STT_LANGUAGE", org_id)
+            except Exception:
+                pass
+        self._api_key = api_key or ui_key or _google_setting("GOOGLE_STT_API_KEY")
+        self._default_language = language or ui_lang or _google_setting("GOOGLE_STT_LANGUAGE", "es-ES")
 
     def is_available(self) -> bool:
         return bool(self._api_key)

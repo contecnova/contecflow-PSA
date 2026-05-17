@@ -99,7 +99,7 @@ def list_projects(
     return APIListResponse.ok(items=result, total=total, page=page, page_size=page_size)
 
 
-@router.get("/milestones", summary="Milestones cross-proyecto con filtro de fecha")
+@router.get("/milestones", response_model=APIListResponse[dict], summary="Milestones cross-proyecto con filtro de fecha")
 def list_all_milestones(
     date_from: Optional[str] = None,
     date_to:   Optional[str] = None,
@@ -112,7 +112,8 @@ def list_all_milestones(
     Lista milestones de todos los proyectos con filtros opcionales.
     Usado por el Calendario global para mostrar fechas clave.
     """
-    return list_milestones_payload(db, project_id, date_from, date_to, status)
+    items = list_milestones_payload(db, project_id, date_from, date_to, status)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/{project_id}", response_model=ProjectOut, summary="Detalle de proyecto")

@@ -39,7 +39,7 @@ export function useClients(params: ClientListParams = {}): UseQueryResult<Client
 export function useAllClients(): UseQueryResult<Client[]> {
   return useQuery<Client[]>({
     queryKey: ['clients'],
-    queryFn: () => clientsApi.list().then((r: { data?: { items?: Client[] } | Client[] | null }) => unwrapList<Client>(r)),
+    queryFn: () => clientsApi.list({}).then((r: { data?: { items?: Client[] } | Client[] | null }) => unwrapList<Client>(r)),
     staleTime: 2 * 60 * 1000,
   })
 }

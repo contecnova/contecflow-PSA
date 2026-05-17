@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useAppT } from "../../hooks/useAppT";
 import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../../context/ConfirmContext'

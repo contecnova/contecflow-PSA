@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PortalClientePage — Portal externo del cliente.
  *

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
@@ -10,18 +11,33 @@ import PageShell from '../components/layout/PageShell'
 import { MessageSquare } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const _ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+interface InternalComment {
+  id: string | number
+  content: string
+  created_at?: string
+}
 
-function InternalCommentThread({ ticketId }) {
+interface TicketItem {
+  id: string | number
+  number?: string
+  title?: string
+  requester_name?: string
+  status?: string
+}
+
+const _ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+
+function InternalCommentThread({ ticketId }: { ticketId: string | number }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [content, setContent] = useState('')
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState<string | number | null>(null)
   const [editContent, setEditContent] = useState('')
+  const t = useAppT()
 
-  const { data: comments = [], isLoading } = useQuery({
+  const { data: comments = [], isLoading } = useQuery<InternalComment[]>({
     queryKey: ['internal-comments', ticketId],
     queryFn: () => ticketsApi.internalComments(ticketId).then(r => r.data).catch(() => []),
     enabled: !!ticketId,
@@ -29,23 +45,21 @@ function InternalCommentThread({ ticketId }) {
 
   const { mutate: addComment, isPending: adding } = useMutation({
     mutationFn: () => ticketsApi.createInternalComment(ticketId, { content }).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['internal-comments', ticketId]); setContent('') },
-    onError: e => toast.error(extractErr(e, t('internal_comments.error_add'))),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['internal-comments', ticketId] }); setContent('') },
+    onError: (e: unknown) => toast.error(extractErr(e, t('internal_comments.error_add'))),
   })
 
   const { mutate: updateComment, isPending: updating } = useMutation({
-    mutationFn: ({ id, content: c }) => ticketsApi.updateInternalComment(ticketId, id, { content: c }).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['internal-comments', ticketId]); setEditing(null) },
-    onError: e => toast.error(extractErr(e, t('internal_comments.error_update'))),
+    mutationFn: ({ id, content: c }: { id: string | number; content: string }) => ticketsApi.updateInternalComment(ticketId, id, { content: c }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['internal-comments', ticketId] }); setEditing(null) },
+    onError: (e: unknown) => toast.error(extractErr(e, t('internal_comments.error_update'))),
   })
 
   const { mutate: deleteComment } = useMutation({
-    mutationFn: id => ticketsApi.deleteInternalComment(ticketId, id),
-    onSuccess: () => qc.invalidateQueries(['internal-comments', ticketId]),
-    onError: e => toast.error(extractErr(e, t('internal_comments.error_delete'))),
+    mutationFn: (id: string | number) => ticketsApi.deleteInternalComment(ticketId, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['internal-comments', ticketId] }),
+    onError: (e: unknown) => toast.error(extractErr(e, t('internal_comments.error_delete'))),
   })
-
-  const t = useAppT()
   if (!ticketId) return (
     <div style={{textAlign:'center', padding:'40px 24px', color:'var(--text-3)', fontSize: "var(--text-base)"}}>
       {t('internal_comments.no_ticket_selected')}
@@ -125,11 +139,11 @@ function InternalCommentThread({ ticketId }) {
 
 export default function InternalCommentsPage(): JSX.Element {
   const t = useAppT()
-  const [ticketId, setTicketId] = useState('')
+  const [ticketId, setTicketId] = useState<string | number | ''>('')
   const [search, setSearch] = useState('')
 
   // Cargar tickets del SD para búsqueda
-  const { data: ticketsData } = useQuery({
+  const { data: ticketsData } = useQuery<TicketItem[]>({
     queryKey: ['sd-tickets', { page_size: 200 }],
     queryFn: () => ticketsApi.list({ page_size: 200 }).then(r => {
       const d = r.data
@@ -149,11 +163,11 @@ export default function InternalCommentsPage(): JSX.Element {
     ).slice(0, 15)
   }, [tickets, search])
 
-  const selectedTicket = tickets.find(t => t.id === ticketId)
+  const selectedTicket = tickets.find((t) => t.id === ticketId)
 
-  const is = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ps = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 22px' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
+  const is: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ps: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 22px' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   return (
     <PageShell>
@@ -173,7 +187,7 @@ export default function InternalCommentsPage(): JSX.Element {
           </div>
           {search.length > 0 && filtered.length > 0 && !selectedTicket && (
             <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden', maxHeight: 280, overflowY: 'auto' }}>
-              {filtered.map(t => (
+              {filtered.map((t) => (
                 <button key={t.id}
                   onClick={() => { setTicketId(t.id); setSearch(`${t.number} — ${t.title}`) }}
                   style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--surface-4)',
@@ -229,7 +243,7 @@ export default function InternalCommentsPage(): JSX.Element {
       {ticketId && (
         <div style={ps}>
           <div style={{fontSize: "var(--text-base)", fontWeight:600, marginBottom:16}}>
-            {t('internal_comments.thread_title')} — ticket <code style={{color:'var(--accent)', fontSize: "var(--text-sm)"}}>{ticketId.slice(0,8)}…</code>
+            {t('internal_comments.thread_title')} — ticket <code style={{color:'var(--accent)', fontSize: "var(--text-sm)"}}>{String(ticketId).slice(0,8)}…</code>
           </div>
           <InternalCommentThread ticketId={ticketId} />
         </div>

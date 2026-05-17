@@ -27,7 +27,7 @@ export function useProblems(params: ProblemListParams = {}): UseQueryResult<unkn
 export function useAllProblems(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['sd-problems'],
-    queryFn: () => problemsApi.list().then((r: { data: unknown }) => r.data),
+    queryFn: () => problemsApi.list({}).then((r: { data: unknown }) => r.data),
     staleTime: STALE,
   })
 }

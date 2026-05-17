@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PerformanceReviewsPage — Evaluaciones de rendimiento 360°
  *

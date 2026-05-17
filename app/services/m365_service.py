@@ -57,52 +57,61 @@ def get_graph_token_sync() -> str:
     return resp.json()["access_token"]
 
 
+from app.core.metrics import track_external_call
+
+
 async def graph_get(path: str) -> dict:
     token = await get_graph_token()
-    async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.get(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
-    resp.raise_for_status()
-    return resp.json()
+    with track_external_call("ms_graph"):
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.get(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
+        resp.raise_for_status()
+        return resp.json()
 
 
 async def graph_post(path: str, payload: dict) -> dict:
     token = await get_graph_token()
-    async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.post(f"{GRAPH_BASE}{path}", json=payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    resp.raise_for_status()
-    return resp.json()
+    with track_external_call("ms_graph"):
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(f"{GRAPH_BASE}{path}", json=payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+        resp.raise_for_status()
+        return resp.json()
 
 
 async def graph_patch(path: str, payload: dict) -> dict:
     token = await get_graph_token()
-    async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.patch(f"{GRAPH_BASE}{path}", json=payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    resp.raise_for_status()
-    return resp.json()
+    with track_external_call("ms_graph"):
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.patch(f"{GRAPH_BASE}{path}", json=payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+        resp.raise_for_status()
+        return resp.json()
 
 
 async def graph_delete(path: str) -> None:
     token = await get_graph_token()
-    async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.delete(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
-    if resp.status_code not in (200, 204):
-        resp.raise_for_status()
+    with track_external_call("ms_graph"):
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.delete(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
+        if resp.status_code not in (200, 204):
+            resp.raise_for_status()
 
 
 def graph_get_sync(path: str) -> dict:
     token = get_graph_token_sync()
-    with httpx.Client(timeout=20) as client:
-        resp = client.get(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
-    resp.raise_for_status()
-    return resp.json()
+    with track_external_call("ms_graph"):
+        with httpx.Client(timeout=20) as client:
+            resp = client.get(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
+        resp.raise_for_status()
+        return resp.json()
 
 
 def graph_post_sync(path: str, payload: dict) -> dict:
     token = get_graph_token_sync()
-    with httpx.Client(timeout=20) as client:
-        resp = client.post(f"{GRAPH_BASE}{path}", json=payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    resp.raise_for_status()
-    return resp.json()
+    with track_external_call("ms_graph"):
+        with httpx.Client(timeout=20) as client:
+            resp = client.post(f"{GRAPH_BASE}{path}", json=payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+        resp.raise_for_status()
+        return resp.json()
 
 
 def get_upcoming_milestones(db: Session, cutoff: date, limit: int = 50) -> list:

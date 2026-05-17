@@ -14,6 +14,23 @@ from sqlalchemy.orm import Session
 from app.models.clients import Client
 from app.models.nps import ClientNPS
 from app.core.config import settings
+from app.services.settings_service import get_runtime_namespace
+
+_HEALTH_KEYS = {
+    "HEALTH_NPS_LOOKBACK_DAYS": "int",
+    "HEALTH_TICKET_LOOKBACK_DAYS": "int",
+    "HEALTH_DEFAULT_NO_DATA": "float",
+    "HEALTH_PORTAL_BASE_SCORE": "float",
+    "HEALTH_PORTAL_SCORE_PER_SESSION": "float",
+    "HEALTH_WEIGHT_NPS": "float",
+    "HEALTH_WEIGHT_DELIVERY": "float",
+    "HEALTH_WEIGHT_BUDGET": "float",
+    "HEALTH_WEIGHT_TICKETS": "float",
+    "HEALTH_WEIGHT_PORTAL": "float",
+    "HEALTH_THRESHOLD_EXCELLENT": "float",
+    "HEALTH_THRESHOLD_GOOD": "float",
+    "HEALTH_THRESHOLD_AT_RISK": "float",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +41,7 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
     if not client:
         raise HTTPException(404, "Client not found")
 
-    s = settings
+    s = get_runtime_namespace(db, _HEALTH_KEYS, org_id=getattr(client, "organization_id", None))
     components: Dict[str, Any] = {}
 
     # NPS

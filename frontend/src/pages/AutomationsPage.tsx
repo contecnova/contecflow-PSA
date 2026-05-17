@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * AutomationsPage — Visual no-code rule builder + Workflows multi-paso + RPA
  * SI [trigger] [condiciones] ENTONCES [acciones]

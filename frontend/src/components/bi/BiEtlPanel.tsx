@@ -35,7 +35,7 @@ interface ConnectorLogEntry {
 interface StatusMetaEntry {
   label: string
   color: string
-  Icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>
+  Icon: React.ComponentType<{ size?: string | number; style?: React.CSSProperties }>
 }
 
 const STATUS_META: Record<string, StatusMetaEntry> = {
@@ -94,7 +94,8 @@ interface ConnectorCardProps {
 }
 
 function ConnectorCard({ connector, onSync, syncing, expanded, onToggleLog, log, logLoading }: ConnectorCardProps) {
-  const meta = STATUS_META[connector.status] || STATUS_META.disconnected
+  const statusKey = connector.status ?? 'disconnected'
+  const meta = STATUS_META[statusKey] || STATUS_META.disconnected
   const Icon = meta.Icon
   const label = CONNECTOR_LABEL[connector.connector_id] || connector.connector_id
 
@@ -146,7 +147,7 @@ function ConnectorCard({ connector, onSync, syncing, expanded, onToggleLog, log,
         </span>
         <button
           type="button"
-          onClick={() => onToggleLog(connector.connector_id)}
+          onClick={onToggleLog}
           style={{
             marginLeft: 'auto',
             background: 'transparent', border: 'none', cursor: 'pointer',
@@ -180,14 +181,16 @@ function ConnectorCard({ connector, onSync, syncing, expanded, onToggleLog, log,
               {log.slice(0, 30).map((entry, i) => {
                 const ok = entry.status === 'ok' || entry.status === 'success' || entry.success === true
                 const c = ok ? 'var(--success)' : entry.status === 'error' ? 'var(--danger)' : 'var(--text-3)'
+                const at = typeof entry.at === 'string' ? entry.at : ''
+                const message = typeof entry.message === 'string' ? entry.message : (entry.records != null ? `${entry.records} registros` : '')
                 return (
                   <div key={i} style={{ display: 'flex', gap: 10, fontSize: 'var(--text-xs)', color: 'var(--text-2)', alignItems: 'center' }}>
                     <span style={{ ...chip(c), flexShrink: 0 }}>{entry.status || (ok ? 'ok' : '—')}</span>
                     <span style={{ color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                      {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : entry.at || ''}
+                      {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : at}
                     </span>
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {entry.message || (entry.records != null ? `${entry.records} registros` : '')}
+                      {message}
                     </span>
                   </div>
                 )
@@ -218,6 +221,12 @@ export default function BiEtlPanel() {
     queryFn: () => biEtlApi.getLog(expandedId).then(r => r.data),
     enabled: !!expandedId,
   })
+
+  function normalizeLog(data: { items?: ConnectorLogEntry[] } | ConnectorLogEntry[] | null | undefined): ConnectorLogEntry[] {
+    if (!data) return []
+    if (Array.isArray(data)) return data
+    return data.items ?? []
+  }
 
   const syncMutation = useMutation<{ queue?: string }, { response?: { data?: { detail?: string } } }, string>({
     mutationFn: (connectorId) =>
@@ -289,8 +298,8 @@ export default function BiEtlPanel() {
               onSync={(id) => syncMutation.mutate(id)}
               syncing={syncingIds.has(c.connector_id)}
               expanded={expandedId === c.connector_id}
-              onToggleLog={(id) => setExpandedId(prev => (prev === id ? null : id))}
-              log={expandedId === c.connector_id ? (logData?.entries || logData?.log || logData?.items || logData?.recent_log || []) : []}
+              onToggleLog={() => setExpandedId(prev => (prev === c.connector_id ? null : c.connector_id))}
+              log={expandedId === c.connector_id ? normalizeLog(logData) : []}
               logLoading={expandedId === c.connector_id && logLoading}
             />
           ))}

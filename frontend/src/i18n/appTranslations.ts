@@ -13,7 +13,6 @@
 // salesforce_sync, template_documents, template_roles,
 // customer_health_dashboard, ai_copilot, block_kit_notify
 // TODO type: appTranslations.mjs is still JS — re-exports inherit `any` types.
-// @ts-ignore appTranslations.mjs has no type declarations
 export {
   APP_LANGUAGES,
   APP_TRANSLATIONS,

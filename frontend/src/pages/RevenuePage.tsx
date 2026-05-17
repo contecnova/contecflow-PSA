@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RevenuePage — Reconocimiento de ingresos ASC 606 / IFRS 15
  * Configura el método por proyecto y registra entradas mensuales

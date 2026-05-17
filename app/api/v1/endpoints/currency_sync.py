@@ -28,11 +28,12 @@ def sync_openexchangerates(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    app_id = settings.OPEN_EXCHANGE_RATES_APP_ID
+    from app.services.integration_credentials_service import get_credential
+    app_id = get_credential(db, "open_exchange_rates", "app_id", org_id=getattr(current_user, "organization_id", None))
     if not app_id:
         raise HTTPException(
             status_code=503,
-            detail="OPEN_EXCHANGE_RATES_APP_ID not configured. Set it in your .env file.",
+            detail="OPEN_EXCHANGE_RATES_APP_ID no configurado. Edita en Settings → Sistema → Credenciales → OpenExchangeRates, o defínelo en .env.",
         )
 
     from app.services.exchange_rate_service import sync_openexchangerates as _sync

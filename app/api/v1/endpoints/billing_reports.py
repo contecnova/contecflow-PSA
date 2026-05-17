@@ -25,6 +25,16 @@ from app.services.billing_reports.data_source_service import (
     run_skills_report,
     run_pipeline_report,
 )
+
+
+def _company_display_name(db) -> str:
+    """Resolve PROJECT_NAME via runtime override → env fallback (used in PDFs/branding)."""
+    try:
+        from app.services.settings_service import get_runtime_str
+        return get_runtime_str(db, "PROJECT_NAME") or settings.PROJECT_NAME
+    except Exception:
+        return settings.PROJECT_NAME
+
 from app.services.psa_flows import build_invoice_preview_from_timesheets_flow
 from app.services import bookings_service as _bookings_svc
 from app.schemas.billing_reports import (
@@ -329,7 +339,7 @@ def download_invoice_pdf(
         po_reference=inv.po_reference,
         period_from=inv.period_from,
         period_to=inv.period_to,
-        company_name=settings.PROJECT_NAME,
+        company_name=_company_display_name(db),
         generated_by="Contecflow PSA",
     )
 

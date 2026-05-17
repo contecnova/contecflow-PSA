@@ -13,6 +13,7 @@ from app.models.collaboration import (
     CollaborationAuditEvent, CollaborationLegalHold,
     CollaborationMessage, CollaborationRetentionPolicy,
 )
+from app.models.settings import AppSetting
 from app.schemas.collaboration import (
     AuditEventOut, EDiscoveryRequest,
     LegalHoldIn, LegalHoldOut,
@@ -23,6 +24,53 @@ from app.services.collaboration._permissions import _org
 from app.core.responses import APIListResponse
 
 router = APIRouter()
+
+RETENTION_SETTINGS_KEY = "collaboration.retention.settings"
+
+
+def _get_retention_settings(db: Session, org_id: str) -> dict:
+    row = db.query(AppSetting).filter(
+        AppSetting.organization_id == org_id,
+        AppSetting.key == RETENTION_SETTINGS_KEY,
+    ).first()
+    default = {"default_months": 12, "max_months": 60}
+    if not row or not row.value:
+        return default
+    try:
+        import json
+
+        parsed = json.loads(row.value)
+        return {
+            "default_months": max(1, int(parsed.get("default_months", 12))),
+            "max_months": max(1, int(parsed.get("max_months", 60))),
+        }
+    except Exception:
+        return default
+
+
+def _set_retention_settings(db: Session, org_id: str, payload: dict) -> dict:
+    import json
+
+    value = {
+        "default_months": max(1, int(payload.get("default_months", 12))),
+        "max_months": max(1, int(payload.get("max_months", 60))),
+    }
+    row = db.query(AppSetting).filter(
+        AppSetting.organization_id == org_id,
+        AppSetting.key == RETENTION_SETTINGS_KEY,
+    ).first()
+    if not row:
+        row = AppSetting(
+            organization_id=org_id,
+            key=RETENTION_SETTINGS_KEY,
+            value=json.dumps(value, ensure_ascii=True, separators=(",", ":")),
+            description="Tenant retention defaults for collaboration",
+        )
+        db.add(row)
+    else:
+        row.value = json.dumps(value, ensure_ascii=True, separators=(",", ":"))
+    db.commit()
+    return value
 
 
 # ── Retention ────────────────────────────────────────────────────────────────
@@ -41,6 +89,10 @@ def list_policies(current_user: User = Depends(get_current_user), db: Session = 
 def create_policy(payload: RetentionPolicyIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.services.collaboration.workspaces import get_or_create_workspace
     ws = get_or_create_workspace(db, current_user)
+    settings = _get_retention_settings(db, _org(current_user))
+    if payload.retention_months > settings["max_months"]:
+        raise HTTPException(status_code=422, detail=f"retention_months exceeds tenant max ({settings['max_months']})")
+
     row = CollaborationRetentionPolicy(
         organization_id=_org(current_user), workspace_id=ws.id,
         name=payload.name, scope=payload.scope, target_id=payload.target_id,
@@ -71,6 +123,11 @@ def run_retention(current_user: User = Depends(get_current_user), db: Session = 
         CollaborationRetentionPolicy.organization_id == org,
         CollaborationRetentionPolicy.is_active == True,
     ).all()
+    settings = _get_retention_settings(db, org)
+    if not policies:
+        policies = [
+            type("_P", (), {"retention_months": settings["default_months"], "scope": "workspace", "target_id": None})()
+        ]
     now = datetime.utcnow()
     held = _legal_held_message_ids(db, org)
     deleted = 0
@@ -100,6 +157,16 @@ def run_retention(current_user: User = Depends(get_current_user), db: Session = 
     )
     db.commit()
     return {"deleted": deleted, "policies_applied": len(policies)}
+
+
+@router.get("/retention/settings", summary="Config retention por tenant", dependencies=[Depends(require_admin)])
+def get_retention_settings(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _get_retention_settings(db, _org(current_user))
+
+
+@router.put("/retention/settings", summary="Actualizar config retention por tenant", dependencies=[Depends(require_admin)])
+def put_retention_settings(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _set_retention_settings(db, _org(current_user), payload)
 
 
 # ── Legal Hold ───────────────────────────────────────────────────────────────
@@ -214,7 +281,7 @@ def ediscovery_export(payload: EDiscoveryRequest, current_user: User = Depends(g
 
 
 # ── Audit ────────────────────────────────────────────────────────────────────
-@router.get("/decisions", summary="Listado de decisiones gobernadas")
+@router.get("/decisions", response_model=APIListResponse[dict], summary="Listado de decisiones gobernadas")
 def list_decisions(limit: int = 100, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Decisiones registradas con `/decision <texto>` extraídas del audit log."""
     rows = db.query(CollaborationAuditEvent).filter(
@@ -231,7 +298,7 @@ def list_decisions(limit: int = 100, current_user: User = Depends(get_current_us
             "conversation_id": r.entity_id,
             "created_at": r.created_at,
         })
-    return out
+    return APIListResponse.ok(items=out, total=len(out))
 
 
 @router.get("/audit", response_model=APIListResponse[AuditEventOut], summary="Eventos de auditoría",

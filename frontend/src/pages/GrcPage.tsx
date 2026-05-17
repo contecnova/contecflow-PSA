@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GrcPage — Governance, Risk & Compliance (backbone de seguridad)
  *

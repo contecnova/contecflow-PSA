@@ -11,25 +11,54 @@ import PageShell from '../components/layout/PageShell'
 import { Webhook } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
+interface WebhookItem {
+  id: string | number
+  name?: string
+  url?: string
+  event_type?: string
+}
+
+interface WebhookLogItem {
+  id?: string | number
+  created_at?: string
+  payload?: unknown
+  response_body?: unknown
+  http_status?: number
+  duration_ms?: number
+  trigger_slug?: string
+  webhook_name?: string
+  webhook_url?: string
+  event_type?: string
+}
+
+function tryParseJson(value: unknown): unknown {
+  if (typeof value !== 'string') return value
+  try {
+    return JSON.parse(value)
+  } catch {
+    return value
+  }
+}
+
 export default function WebhookLogPage() {
   const t = useAppT()
-  const [selectedLog, setSelectedLog] = useState(null)
+  const [selectedLog, setSelectedLog] = useState<WebhookLogItem | null>(null)
 
   // Obtener los webhooks configurados
-  const { data: webhooks = [] } = useQuery({
+  const { data: webhooks = [] } = useQuery<WebhookItem[]>({
     queryKey: ['webhooks-list'],
     queryFn: () => webhooksApi.list().then(r => r.data?.items ?? r.data ?? []).catch(() => []),
   })
 
   // Obtener logs de todos los webhooks
-  const { data: allLogs = [], isLoading, refetch } = useQuery({
+  const { data: allLogs = [], isLoading, refetch } = useQuery<WebhookLogItem[]>({
     queryKey: ['webhook-logs-all'],
     queryFn: async () => {
-      const validWebhooks = webhooks.filter(w => w && w.id)
+      const validWebhooks = webhooks.filter((w) => w && w.id)
       const results = await Promise.all(
-        validWebhooks.map(w =>
+        validWebhooks.map((w) =>
           webhooksApi.logs(w.id)
-            .then(r => (r.data || []).map(l => ({
+            .then(r => ((r.data || []) as WebhookLogItem[]).map(l => ({
               ...l,
               webhook_name: w.name,
               webhook_url: w.url,
@@ -39,7 +68,7 @@ export default function WebhookLogPage() {
         )
       )
       return results.flat().sort((a, b) =>
-        new Date(b.created_at || 0) - new Date(a.created_at || 0)
+        new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
       )
     },
     enabled: webhooks.length > 0,
@@ -51,7 +80,10 @@ export default function WebhookLogPage() {
     400: 'var(--warning)', 401: 'var(--warning)', 403: 'var(--danger)',
     404: 'var(--warning)', 500: 'var(--danger)', 503: 'var(--danger)',
   }
-  const getStatusColor = (code) => STATUS_COLOR[code] || (code >= 200 && code < 300 ? 'var(--success)' : code >= 400 ? 'var(--danger)' : 'var(--text-2)')
+  const getStatusColor = (code: number | undefined) => {
+    if (code == null) return 'var(--text-2)'
+    return STATUS_COLOR[code as keyof typeof STATUS_COLOR] || (code >= 200 && code < 300 ? 'var(--success)' : code >= 400 ? 'var(--danger)' : 'var(--text-2)')
+  }
 
   const successCount = allLogs.filter(l => l.http_status >= 200 && l.http_status < 300).length
   const failCount = allLogs.filter(l => !l.http_status || l.http_status >= 400).length
@@ -181,9 +213,7 @@ export default function WebhookLogPage() {
                   fontSize: "var(--text-xs)", color:'var(--success)', overflow:'auto',
                   maxHeight:200, fontFamily:'var(--font-mono)', margin:0 }}>
                   {JSON.stringify(
-                    typeof selectedLog.payload === 'string'
-                      ? JSON.parse(selectedLog.payload)
-                      : selectedLog.payload, null, 2)}
+                    tryParseJson(selectedLog.payload), null, 2)}
                 </pre>
               </div>
             )}

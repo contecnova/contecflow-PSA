@@ -107,6 +107,21 @@ test-coverage: ## Tests con reporte de cobertura HTML
 	coverage html
 	@echo "$(GREEN)✅ Reporte en htmlcov/index.html$(RESET)"
 
+quality-coverage-75: ## Puerta local de cobertura backend >= 75% (sin CI)
+	@echo "$(CYAN)Validando cobertura backend >= 75%...$(RESET)"
+	coverage run -m pytest tests/ -q
+	coverage report --fail-under=75
+
+quality-types-75: ## Puerta local de type coverage frontend >= 75% (sin CI)
+	@echo "$(CYAN)Validando type coverage frontend >= 75%...$(RESET)"
+	cd frontend && npm run type:coverage
+
+quality-p3: ## Quality gate local P3 (coverage + type coverage + a11y report)
+	@echo "$(CYAN)Ejecutando quality gate local P3...$(RESET)"
+	$(MAKE) quality-coverage-75
+	cd frontend && npm run quality:p3
+	@echo "$(GREEN)✅ Quality gate local P3 OK$(RESET)"
+
 test-e2e: ## Tests E2E con Playwright
 	@echo "$(CYAN)Ejecutando tests E2E...$(RESET)"
 	$(PYTHON) -m pytest tests_e2e/ -v --tb=short --headed

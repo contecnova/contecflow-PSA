@@ -34,6 +34,11 @@ export const settingsApi = {
   createHoliday: (data) => api.post('/settings/holidays', data),
   updateHoliday: (id, data) => api.patch(`/settings/holidays/${id}`, data),
   deleteHoliday: (id) => api.delete(`/settings/holidays/${id}`),
+
+  // Runtime-flag groups (SLA / health / semantic / password_policy / locale)
+  getRuntimeGroup: (group) => api.get(`/settings/runtime/${group}`),
+  updateRuntimeSetting: (group, key, value) =>
+    api.put(`/settings/runtime/${group}/${key}`, { value: String(value) }),
 }
 
 // Advanced config API

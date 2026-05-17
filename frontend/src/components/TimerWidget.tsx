@@ -7,13 +7,50 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { imputationsApi, projectsApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
-function fmt(s) {
+interface TimerState {
+  paused_at?: string | null
+  total_elapsed_seconds?: number | null
+  started_at: string
+  paused_duration_secs?: number | null
+  project_name?: string | null
+  project_id?: number | string | null
+  task_id?: number | string | null
+  task_name?: string | null
+}
+
+interface ProjectOption {
+  id: number | string
+  name: string
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (typeof error !== 'object' || error == null) return 'Error'
+  const maybeResponse = error as { response?: { data?: { detail?: unknown } } }
+  const raw = maybeResponse.response?.data?.detail
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => (typeof item === 'object' && item && 'msg' in item ? String((item as { msg: unknown }).msg) : String(item)))
+      .join(', ')
+  }
+  return raw ? String(raw) : 'Error'
+}
+
+function normalizeProjects(data: unknown): ProjectOption[] {
+  if (Array.isArray(data)) return data as ProjectOption[]
+  if (typeof data === 'object' && data !== null && 'items' in data) {
+    const items = (data as { items?: unknown }).items
+    return Array.isArray(items) ? (items as ProjectOption[]) : []
+  }
+  return []
+}
+
+function fmt(s: number) {
   return String(Math.floor(s/3600)).padStart(2,'0')+':'+
          String(Math.floor((s%3600)/60)).padStart(2,'0')+':'+
          String(s%60).padStart(2,'0')
 }
 
-function calcElapsed(timer) {
+function calcElapsed(timer: TimerState | null) {
   if (!timer) return 0
   if (timer.paused_at && timer.total_elapsed_seconds != null) {
     return timer.total_elapsed_seconds
@@ -25,22 +62,23 @@ function calcElapsed(timer) {
   if (timer.paused_at) {
     const pausedStr = timer.paused_at.endsWith('Z') || timer.paused_at.includes('+')
       ? timer.paused_at : timer.paused_at + 'Z'
-    return Math.max(0, Math.floor((new Date(pausedStr) - start) / 1000) - paused)
+    const pausedAt = new Date(pausedStr)
+    return Math.max(0, Math.floor((pausedAt.getTime() - start.getTime()) / 1000) - paused)
   }
-  return Math.max(0, Math.floor((Date.now() - start) / 1000) - paused)
+  return Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000) - paused)
 }
 
 const TimerWidget = () => {
   useAuth()
   const queryClient = useQueryClient()
   const [elapsed,   setElapsed]  = useState(0)
-  const [projects,  setProjects] = useState([])
+  const [projects,  setProjects] = useState<ProjectOption[]>([])
   const [projectId, setProjectId] = useState('')
   const [loading,   setLoading]  = useState(false)
   const [error,     setError]    = useState('')
-  const tickRef = useRef(null)
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const { data: timer = null } = useQuery({
+  const { data: timer = null } = useQuery<TimerState | null>({
     queryKey: ['timer-current'],
     queryFn: () => imputationsApi.timerCurrent().then(r => r.data).catch(() => null),
     refetchInterval: 5_000,
@@ -50,20 +88,28 @@ const TimerWidget = () => {
 
   useEffect(() => {
     projectsApi.list({ page_size: 100 }).then(r => {
-      setProjects(Array.isArray(r.data) ? r.data : (r.data.items || []))
+      setProjects(normalizeProjects(r.data))
     }).catch(() => {})
   }, [])
 
   useEffect(() => {
-    clearInterval(tickRef.current)
+    if (tickRef.current) {
+      clearInterval(tickRef.current)
+      tickRef.current = null
+    }
     if (!timer) { setElapsed(0); return }
     const tick = () => setElapsed(calcElapsed(timer))
     tick()
     if (!timer.paused_at) tickRef.current = setInterval(tick, 1000)
-    return () => clearInterval(tickRef.current)
+    return () => {
+      if (tickRef.current) {
+        clearInterval(tickRef.current)
+        tickRef.current = null
+      }
+    }
   }, [timer])
 
-  const call = async (fn, options = {}) => {
+  const call = async (fn: () => Promise<{ data?: TimerState | null }>, options: { syncTimerFromResponse?: boolean } = {}) => {
     const { syncTimerFromResponse = true } = options
     setLoading(true); setError('')
     try {
@@ -72,7 +118,7 @@ const TimerWidget = () => {
         queryClient.setQueryData(['timer-current'], r.data || null)
       }
     }
-    catch (e) { const raw = e?.response?.data?.detail; setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'Error')) }
+    catch (e) { setError(extractErrorMessage(e)) }
     finally { setLoading(false) }
   }
 
@@ -144,11 +190,11 @@ const TimerWidget = () => {
           <>
             <select value={projectId} onChange={e => setProjectId(e.target.value)} style={selectStyle}>
               <option value="">— Proyecto —</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {projects.map(p => <option key={String(p.id)} value={String(p.id)}>{p.name}</option>)}
             </select>
             <button
               disabled={!projectId || loading}
-              onClick={() => call(() => imputationsApi.timerStart({ project_id: projectId }))}
+              onClick={() => call(() => imputationsApi.timerStart({ project_id: Number(projectId) }))}
               style={{ ...btnStyle('var(--accent)'), width: '100%', opacity: (!projectId || loading) ? 0.5 : 1 }}>
               {loading ? 'Iniciando…' : '▶ Iniciar'}
             </button>

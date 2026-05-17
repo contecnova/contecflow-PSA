@@ -24,6 +24,8 @@ import { MessageCircle, Eye, Share2, Plus, Trash2, Lock, CheckCircle, Clock, Bel
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 
+type ApiError = { response?: { data?: { detail?: string } } }
+
 const SHARE_PERMISSIONS = [
   { value: 'view',  label: 'Ver',     color: 'var(--text-3)' },
   { value: 'edit',  label: 'Editar',  color: 'var(--warning)' },
@@ -87,7 +89,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
 
   const { data: viewsData, isLoading: viewsLoading } = useQuery({
     queryKey: ['bi-collab-views', dashboardKey],
-    queryFn: () => biCollaborationApi.listSharedViews().then(r => r.data),
+    queryFn: () => biCollaborationApi.listSharedViews({}).then(r => r.data),
     enabled: tab === 'views',
   })
 
@@ -110,7 +112,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     refetchInterval: 15_000,
   })
 
-  const addCommentMutation = useMutation({
+  const addCommentMutation = useMutation<unknown, ApiError, { dashboard_key: string; widget_id: string; message: string }>({
     mutationFn: (data) => biCollaborationApi.createComment(data).then(r => r.data),
     onSuccess: () => {
       setNewComment('')
@@ -120,7 +122,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al añadir comentario'),
   })
 
-  const resolveCommentMutation = useMutation({
+  const resolveCommentMutation = useMutation<unknown, ApiError, string>({
     mutationFn: (id) => biCollaborationApi.resolveComment(id).then(r => r.data),
     onSuccess: () => {
       toast.success('Comentario resuelto')
@@ -129,7 +131,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al resolver'),
   })
 
-  const saveViewMutation = useMutation({
+  const saveViewMutation = useMutation<unknown, ApiError, { name: string; dashboard_key: string; filters: Record<string, unknown> }>({
     mutationFn: (data) => biCollaborationApi.createSharedView(data).then(r => r.data),
     onSuccess: () => {
       setViewName('')
@@ -140,13 +142,13 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al guardar vista'),
   })
 
-  const toggleViewMutation = useMutation({
+  const toggleViewMutation = useMutation<unknown, ApiError, { id: string; active: boolean }>({
     mutationFn: ({ id, active }) => biCollaborationApi.patchSharedView(id, { active }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-collab-views', dashboardKey] }),
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al actualizar vista'),
   })
 
-  const shareDashboardMutation = useMutation({
+  const shareDashboardMutation = useMutation<unknown, ApiError, { target_user_id: string; target_user_name: string; permission: string }>({
     mutationFn: (data) => biCollaborationApi.shareDashboard(dashboardKey, data).then(r => r.data),
     onSuccess: () => {
       setShareUserId('')
@@ -158,7 +160,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al compartir'),
   })
 
-  const revokeShareMutation = useMutation({
+  const revokeShareMutation = useMutation<unknown, ApiError, string>({
     mutationFn: (shareId) =>
       biCollaborationApi.revokeShare(dashboardKey, shareId).then(r => r.data),
     onSuccess: () => {
@@ -168,7 +170,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al revocar'),
   })
 
-  const restoreVersionMutation = useMutation({
+  const restoreVersionMutation = useMutation<unknown, ApiError, string>({
     mutationFn: (versionId) =>
       biCollaborationApi.restoreDashboardVersion(dashboardKey, versionId).then(r => r.data),
     onSuccess: () => {
@@ -179,7 +181,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al restaurar'),
   })
 
-  const markNotificationReadMutation = useMutation({
+  const markNotificationReadMutation = useMutation<unknown, ApiError, string>({
     mutationFn: (notificationId) =>
       biCollaborationApi.patchNotification(notificationId, { is_read: true }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] }),

@@ -1,0 +1,2 @@
+src/main.tsx(26,8): error TS2882: Cannot find module or type declarations for side-effect import of './index.css'.
+src/pages/OrgChartPage.tsx(726,29): error TS2554: Expected 1 arguments, but got 0.
