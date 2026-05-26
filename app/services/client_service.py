@@ -86,21 +86,25 @@ def list_clients(
 # ── Create client ──────────────────────────────────────────────────────────────
 
 def create_client_record(data: dict, current_user: User, db: Session) -> dict:
+    # Audit #C8: create Client + ClientPortalConfig must succeed atomically;
+    # an orphan portal config (or worse, a client without portal config) leaks
+    # into the UI and breaks tenant onboarding.
+    from app.db.transactions import atomic
 
     if current_user.role not in ('admin', 'pm') and not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Solo admin o PM pueden crear clientes")
 
-    c = Client(**{k: v for k, v in data.items() if hasattr(Client, k) and v != "" and v is not None})
-    c.created_by = current_user.id
-    db.add(c)
-    db.flush()
-    cfg = ClientPortalConfig(
-        client_id=c.id,
-        enabled_modules=json.dumps(["service_desk", "projects", "documents"]),
-        sd_without_project=True,
-    )
-    db.add(cfg)
-    db.commit()
+    with atomic(db):
+        c = Client(**{k: v for k, v in data.items() if hasattr(Client, k) and v != "" and v is not None})
+        c.created_by = current_user.id
+        db.add(c)
+        db.flush()
+        cfg = ClientPortalConfig(
+            client_id=c.id,
+            enabled_modules=json.dumps(["service_desk", "projects", "documents"]),
+            sd_without_project=True,
+        )
+        db.add(cfg)
     db.refresh(c)
     return get_client_summary(c, db)
 

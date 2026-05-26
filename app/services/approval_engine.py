@@ -130,59 +130,67 @@ def publish_workflow(db: Session, workflow_id: str) -> ApprovalWorkflow:
 
 
 def clone_workflow_as_version(db: Session, workflow_id: str, suffix: Optional[str] = None) -> ApprovalWorkflow:
+    # Audit #C8: wraps the workflow + N child steps insertion in a single
+    # transaction. Without atomic(), a failure inside the steps loop would
+    # leave an orphan workflow with partial steps (no rollback was issued).
+    from app.db.transactions import atomic
+
     w = get_workflow(db, workflow_id)
     if not w:
         raise HTTPException(404, "Flujo no encontrado")
     version_suffix = suffix or datetime.now(timezone.utc).strftime("v%Y%m%d%H%M")
-    cloned = ApprovalWorkflow(
-        id=str(uuid.uuid4()),
-        name=f"{w.name} ({version_suffix})",
-        description=w.description,
-        entity_type=w.entity_type,
-        is_active=False,
-        is_default=False,
-        trigger_conditions=w.trigger_conditions,
-    )
-    db.add(cloned)
-    db.flush()
-    for s in sorted(w.steps or [], key=lambda st: st.step_order):
-        db.add(ApprovalStep(
+    with atomic(db):
+        cloned = ApprovalWorkflow(
             id=str(uuid.uuid4()),
-            workflow_id=cloned.id,
-            step_order=s.step_order,
-            name=s.name,
-            approver_type=s.approver_type,
-            approver_role=s.approver_role,
-            approver_user_id=s.approver_user_id,
-            approver_department=s.approver_department,
-            is_optional=s.is_optional,
-            timeout_hours=s.timeout_hours,
-            on_timeout=s.on_timeout,
-            escalate_to_user_id=s.escalate_to_user_id,
-        ))
-    db.commit()
+            name=f"{w.name} ({version_suffix})",
+            description=w.description,
+            entity_type=w.entity_type,
+            is_active=False,
+            is_default=False,
+            trigger_conditions=w.trigger_conditions,
+        )
+        db.add(cloned)
+        db.flush()
+        for s in sorted(w.steps or [], key=lambda st: st.step_order):
+            db.add(ApprovalStep(
+                id=str(uuid.uuid4()),
+                workflow_id=cloned.id,
+                step_order=s.step_order,
+                name=s.name,
+                approver_type=s.approver_type,
+                approver_role=s.approver_role,
+                approver_user_id=s.approver_user_id,
+                approver_department=s.approver_department,
+                is_optional=s.is_optional,
+                timeout_hours=s.timeout_hours,
+                on_timeout=s.on_timeout,
+                escalate_to_user_id=s.escalate_to_user_id,
+            ))
     db.refresh(cloned)
     return cloned
 
 
 def create_workflow_from_template(db: Session, template_id: str, override_name: Optional[str] = None) -> ApprovalWorkflow:
+    # Audit #C8: workflow + steps must succeed atomically.
+    from app.db.transactions import atomic
+
     tpl = next((t for t in _WORKFLOW_TEMPLATES if t["id"] == template_id), None)
     if not tpl:
         raise HTTPException(404, "Plantilla no encontrada")
-    w = ApprovalWorkflow(
-        id=str(uuid.uuid4()),
-        name=override_name or tpl["name"],
-        description=tpl.get("description"),
-        entity_type=tpl["entity_type"],
-        is_active=False,
-        is_default=False,
-        trigger_conditions=json.dumps(tpl.get("trigger_conditions") or {}),
-    )
-    db.add(w)
-    db.flush()
-    for s in tpl.get("steps", []):
-        db.add(ApprovalStep(id=str(uuid.uuid4()), workflow_id=w.id, **s))
-    db.commit()
+    with atomic(db):
+        w = ApprovalWorkflow(
+            id=str(uuid.uuid4()),
+            name=override_name or tpl["name"],
+            description=tpl.get("description"),
+            entity_type=tpl["entity_type"],
+            is_active=False,
+            is_default=False,
+            trigger_conditions=json.dumps(tpl.get("trigger_conditions") or {}),
+        )
+        db.add(w)
+        db.flush()
+        for s in tpl.get("steps", []):
+            db.add(ApprovalStep(id=str(uuid.uuid4()), workflow_id=w.id, **s))
     db.refresh(w)
     return w
 

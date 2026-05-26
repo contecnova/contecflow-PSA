@@ -1,12 +1,15 @@
 // Patch HTMLCanvasElement.getContext so Plotly 3D charts don't trigger the
 // "willReadFrequently" browser warning on repeated getImageData calls.
+// Audit #C9: getContext is a heavily overloaded method (2d / webgl / bitmaprenderer
+// / webgl2). Re-typing the patched signature would require replicating every
+// overload, so we cast through `any` once at the install site instead.
 ;(function patchCanvasGetContext() {
   const _orig = HTMLCanvasElement.prototype.getContext
-  HTMLCanvasElement.prototype.getContext = function (type, attrs) {
+  ;(HTMLCanvasElement.prototype as unknown as { getContext: unknown }).getContext = function (this: HTMLCanvasElement, type: string, attrs?: unknown) {
     if (type === '2d') {
-      attrs = { willReadFrequently: true, ...attrs }
+      attrs = { willReadFrequently: true, ...(attrs as object | undefined) }
     }
-    return _orig.call(this, type, attrs)
+    return (_orig as unknown as (type: string, attrs?: unknown) => unknown).call(this, type, attrs)
   }
 })()
 

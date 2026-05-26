@@ -340,6 +340,56 @@ class Settings(
             raise ValueError(f"{info.field_name} must be at least 24 characters long")
         return v
 
+    # Audit #C3: extend strict secret validation to portal & superadmin credentials.
+    # Mirrors SECRET_KEY rules (placeholder rejection, entropy, length) so a weak
+    # superadmin password or a default client-portal secret can never reach prod.
+    _PLACEHOLDER_PREFIXES = ("CHANGE_ME", "REPLACE_ME", "TODO", "PLACEHOLDER")
+    _KNOWN_WEAK_PASSWORDS = {
+        "contecflow2024!",
+        "password",
+        "admin",
+        "admin123",
+        "changeme",
+        "123456",
+    }
+
+    @field_validator("CLIENT_PORTAL_SECRET")
+    @classmethod
+    def client_portal_secret_must_be_strong(cls, v: str, info: ValidationInfo) -> str:
+        environment = info.data.get("ENVIRONMENT", "development")
+        upper = (v or "").upper()
+        if any(upper.startswith(p) for p in cls._PLACEHOLDER_PREFIXES):
+            raise ValueError(
+                "CLIENT_PORTAL_SECRET still has a placeholder value. "
+                "Generate with: python -c 'import secrets; print(secrets.token_hex(32))'"
+            )
+        if environment in {"staging", "production"}:
+            if len(v) < 32:
+                raise ValueError("CLIENT_PORTAL_SECRET must be at least 32 characters in staging/production")
+            if len(set(v[:64])) < 10:
+                raise ValueError("CLIENT_PORTAL_SECRET entropy too low (regenerate with secrets.token_hex)")
+        return v
+
+    @field_validator("SUPERADMIN_PASSWORD")
+    @classmethod
+    def superadmin_password_must_be_strong(cls, v: str, info: ValidationInfo) -> str:
+        environment = info.data.get("ENVIRONMENT", "development")
+        upper = (v or "").upper()
+        if any(upper.startswith(p) for p in cls._PLACEHOLDER_PREFIXES):
+            raise ValueError(
+                "SUPERADMIN_PASSWORD still has a placeholder value. Set a real password in .env."
+            )
+        if environment in {"staging", "production"}:
+            if v.lower() in cls._KNOWN_WEAK_PASSWORDS:
+                raise ValueError(
+                    f"SUPERADMIN_PASSWORD is a known weak/default value; refuse to boot in {environment}."
+                )
+            if len(v) < 16:
+                raise ValueError(f"SUPERADMIN_PASSWORD must be at least 16 characters in {environment}")
+            if len(set(v)) < 8:
+                raise ValueError("SUPERADMIN_PASSWORD entropy too low (needs ≥8 distinct chars)")
+        return v
+
     # ── URL/Origin validators (rechazar localhost/wildcard en producción) ────
     @staticmethod
     def _looks_like_localhost(url: str) -> bool:

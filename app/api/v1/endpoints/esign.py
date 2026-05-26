@@ -379,12 +379,16 @@ async def docusign_webhook(
         _logger.info(f"[eSign] DocuSign webhook: estado '{raw_status}' ignorado (no mapeado)")
         return {"status": "ignored", "reason": "status_not_mapped"}
 
+    # Audit #C7: webhook is legitimately async (await request.body() for HMAC
+    # verification context). DB ops offloaded to threadpool via run_db so they
+    # never block the event loop.
+    from app.core.async_db import run_db
     try:
-        env = esign_service.get_envelope_by_provider_id(db, provider_id)
+        env = await run_db(esign_service.get_envelope_by_provider_id, db, provider_id)
         if not env:
             _logger.warning(f"[eSign] DocuSign webhook: envelope {provider_id} no encontrado")
             raise HTTPException(404, f"Envelope {provider_id} no encontrado")
-        esign_service.update_envelope_from_webhook(db, env, new_status)
+        await run_db(esign_service.update_envelope_from_webhook, db, env, new_status)
         _logger.info(f"[eSign] DocuSign webhook: envelope {provider_id} → {new_status}")
     # intentional: chained re-raise preserves context
     except HTTPException:
@@ -428,12 +432,14 @@ async def adobe_webhook(
         _logger.info(f"[eSign] Adobe webhook: estado '{raw_status}' ignorado (no mapeado)")
         return {"status": "ignored", "reason": "status_not_mapped"}
 
+    # Audit #C7: same pattern as DocuSign webhook above — offload DB to threadpool.
+    from app.core.async_db import run_db
     try:
-        env = esign_service.get_envelope_by_provider_id(db, provider_id)
+        env = await run_db(esign_service.get_envelope_by_provider_id, db, provider_id)
         if not env:
             _logger.warning(f"[eSign] Adobe webhook: agreement {provider_id} no encontrado")
             raise HTTPException(404, f"Agreement {provider_id} no encontrado")
-        esign_service.update_envelope_from_webhook(db, env, new_status)
+        await run_db(esign_service.update_envelope_from_webhook, db, env, new_status)
         _logger.info(f"[eSign] Adobe Sign webhook: agreement {provider_id} → {new_status}")
     # intentional: chained re-raise preserves context
     except HTTPException:

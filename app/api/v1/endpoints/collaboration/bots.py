@@ -155,12 +155,18 @@ def create_webhook(payload: WebhookCreate, current_user: User = Depends(get_curr
     )
 
 
-@router.post("/webhooks/incoming/{token}", summary="Hook entrante (push externo a canal)")
-async def incoming_webhook(token: str, request: Request, db: Session = Depends(get_db)):
-    """External services post here to deliver a message into a channel."""
+# Audit #C7: sync body of the webhook is factored out so we can run it in the
+# threadpool from the async endpoint shell — async is required for await
+# request.json() but every DB op must stay off the event loop.
+def _incoming_webhook_sync(token: str, payload: dict, db: Session):
     from app.services.collaboration.messages import send_message
     from app.models.user import User as U
-    row = db.query(CollaborationWebhook).filter(CollaborationWebhook.secret_token == token, CollaborationWebhook.is_active == True).first()
+    from app.models.collaboration import CollaborationBotApp, CollaborationChannel
+
+    row = db.query(CollaborationWebhook).filter(
+        CollaborationWebhook.secret_token == token,
+        CollaborationWebhook.is_active == True,
+    ).first()
     if not row or row.direction != "incoming" or not row.target_channel_id:
         raise HTTPException(404, "Webhook inválido")
 
@@ -175,10 +181,7 @@ async def incoming_webhook(token: str, request: Request, db: Session = Depends(g
     if not quota["allowed"]:
         raise HTTPException(status_code=429, detail=f"Webhook rate limit exceeded. Retry in {quota['retry_after']}s")
 
-    payload = await request.json()
     text = (payload or {}).get("text") or "(sin contenido)"
-    # Find a system bot author (Bridge)
-    from app.models.collaboration import CollaborationBotApp, CollaborationChannel
     ch = db.query(CollaborationChannel).filter(CollaborationChannel.id == row.target_channel_id).first()
     if not ch:
         raise HTTPException(404, "Canal del webhook no encontrado")
@@ -186,7 +189,6 @@ async def incoming_webhook(token: str, request: Request, db: Session = Depends(g
         CollaborationBotApp.organization_id == row.organization_id,
         CollaborationBotApp.handle == "bridge",
     ).first()
-    # Use a dummy user with org for permissions; we cheat and skip access check by using the bot path.
     fake = U(id="webhook", organization_id=row.organization_id)
     send_message(
         db, fake, body=text, channel_id=ch.id, type="bot",
@@ -195,4 +197,12 @@ async def incoming_webhook(token: str, request: Request, db: Session = Depends(g
     )
     row.last_called_at = datetime.utcnow()
     db.commit()
+
+
+@router.post("/webhooks/incoming/{token}", summary="Hook entrante (push externo a canal)")
+async def incoming_webhook(token: str, request: Request, db: Session = Depends(get_db)):
+    """External services post here to deliver a message into a channel."""
+    from app.core.async_db import run_db
+    payload = await request.json()
+    await run_db(_incoming_webhook_sync, token, payload or {}, db)
     return APIResponse.ok(data={"ok": True})

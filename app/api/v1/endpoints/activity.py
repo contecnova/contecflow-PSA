@@ -271,6 +271,12 @@ async def sse_stream(
     user_id = current_user.id
     last_check = datetime.now(timezone.utc)
 
+    # Audit #C7: SSE generator is legitimately async (await asyncio.sleep,
+    # await request.is_disconnected). The two DB lookups on each tick used to
+    # run synchronously on the event loop — push them to the threadpool so the
+    # long-lived stream cannot stall sibling requests.
+    from app.core.async_db import run_db
+
     async def event_generator():
         nonlocal last_check
         yield f"event: connected\ndata: {json.dumps({'user_id': user_id})}\n\n"
@@ -279,7 +285,7 @@ async def sse_stream(
             if await request.is_disconnected():
                 break
 
-            new_notifs = get_new_notifications(db, user_id, last_check)
+            new_notifs = await run_db(get_new_notifications, db, user_id, last_check)
 
             for n in new_notifs:
                 payload = json.dumps({
@@ -293,7 +299,7 @@ async def sse_stream(
                 })
                 yield f"event: notification\ndata: {payload}\n\n"
 
-            new_events = get_new_activity_events(db, user_id, last_check)
+            new_events = await run_db(get_new_activity_events, db, user_id, last_check)
 
             for ev in new_events:
                 payload = json.dumps({

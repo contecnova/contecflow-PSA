@@ -437,17 +437,26 @@ def list_sla_schedules_records(db) -> list:
 
 
 def create_sla_schedule_record(payload, db) -> dict:
-    if payload.is_default:
-        db.query(SLASchedule).filter(SLASchedule.is_default == True).update({"is_default": False})
-    work_start = time.fromisoformat(payload.work_start) if payload.work_start else None
-    work_end   = time.fromisoformat(payload.work_end)   if payload.work_end   else None
-    s = SLASchedule(
-        name=payload.name, timezone=payload.timezone,
-        is_default=payload.is_default,
-        work_days=json.dumps(payload.work_days),
-        work_start=work_start, work_end=work_end,
-    )
-    db.add(s); db.commit(); db.refresh(s)
+    # Audit #C8: previously the UPDATE (un-setting other default schedules) and
+    # the INSERT ran as two independent statements with one final commit and no
+    # rollback. A failure in `db.add(s)` would leave the prior UPDATE committed
+    # by the next session checkpoint, producing zero default schedules. Wrap
+    # both in an `atomic()` block so they succeed or fail as a single unit.
+    from app.db.transactions import atomic
+
+    with atomic(db):
+        if payload.is_default:
+            db.query(SLASchedule).filter(SLASchedule.is_default == True).update({"is_default": False})
+        work_start = time.fromisoformat(payload.work_start) if payload.work_start else None
+        work_end   = time.fromisoformat(payload.work_end)   if payload.work_end   else None
+        s = SLASchedule(
+            name=payload.name, timezone=payload.timezone,
+            is_default=payload.is_default,
+            work_days=json.dumps(payload.work_days),
+            work_start=work_start, work_end=work_end,
+        )
+        db.add(s)
+    db.refresh(s)
     s = db.query(SLASchedule).options(joinedload(SLASchedule.holidays)).filter(SLASchedule.id == s.id).first()
     return serialize_schedule(s)
 

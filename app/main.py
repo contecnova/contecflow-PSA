@@ -129,6 +129,27 @@ def _enforce_scheduler_mode_safety() -> None:
         )
 
 
+def _enforce_superadmin_bypass_safety() -> None:
+    """Audit #C3: refuse to boot if ENABLE_SUPERADMIN_BYPASS=1 outside development.
+
+    The bypass path in auth_core has multiple defence-in-depth gates, but an
+    early hard-fail at startup prevents a misconfigured env from silently
+    allowing the bypass to take effect at request time.
+    """
+    if os.getenv("ENABLE_SUPERADMIN_BYPASS", "0") != "1":
+        return
+    if settings.ENVIRONMENT != "development":
+        raise RuntimeError(
+            "ENABLE_SUPERADMIN_BYPASS=1 is only allowed when ENVIRONMENT=development "
+            f"(current: {settings.ENVIRONMENT}). Refusing to boot."
+        )
+    if not (settings.DATABASE_URL or "").startswith("sqlite"):
+        raise RuntimeError(
+            "ENABLE_SUPERADMIN_BYPASS=1 requires a SQLite DATABASE_URL. "
+            "Refusing to boot against a non-SQLite database."
+        )
+
+
 # ── Sentry (P1-3) ─────────────────────────────────────────────────────────────
 if settings.SENTRY_DSN:
     import sentry_sdk
@@ -276,8 +297,9 @@ async def lifespan(_app: FastAPI):
     _enable_apscheduler, _celery_beat_enabled = _scheduler_flags()
     try:
         _enforce_scheduler_mode_safety()
+        _enforce_superadmin_bypass_safety()
     except RuntimeError as _sched_exc:
-        logger.error("❌ Scheduler safety check failed: %s", _sched_exc)
+        logger.error("❌ Startup safety check failed: %s", _sched_exc)
         raise
     if _enable_apscheduler:
         logger.info("⏰ Iniciando scheduler de informes...")
@@ -407,15 +429,23 @@ class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
                 },
             )
 
+# Audit #C2: API docs (Swagger/ReDoc/openapi.json) leak full surface area.
+# Disabled in production unless EXPOSE_API_DOCS=1 is explicitly set.
+_expose_docs = (
+    settings.ENVIRONMENT != "production"
+    or os.getenv("EXPOSE_API_DOCS", "0") == "1"
+)
 app = FastAPI(
     title=settings.PROJECT_NAME,
     redirect_slashes=False,
     version=settings.VERSION,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    docs_url=f"{settings.API_V1_STR}/docs",
-    redoc_url=f"{settings.API_V1_STR}/redoc",
+    openapi_url=f"{settings.API_V1_STR}/openapi.json" if _expose_docs else None,
+    docs_url=f"{settings.API_V1_STR}/docs" if _expose_docs else None,
+    redoc_url=f"{settings.API_V1_STR}/redoc" if _expose_docs else None,
     lifespan=lifespan,
 )
+if not _expose_docs:
+    logger.info("🔒 API docs disabled (production). Set EXPOSE_API_DOCS=1 to override.")
 
 if _OTEL_READY:
     try:
@@ -454,6 +484,12 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Request-ID", "X-Requested-With"],
 )
+
+# Audit #C1: CSRF protection — Origin/Referer check (always on) + optional
+# double-submit token via CSRF_DOUBLE_SUBMIT=1. Exempts third-party webhooks
+# (HMAC-verified) and Authorization-header-only requests.
+from app.core.csrf import CSRFMiddleware
+app.add_middleware(CSRFMiddleware)
 
 # ABAC middleware — opt-in route-level ABAC enforcement via ABAC_ROUTE_REGISTRY.
 # Must be added AFTER the auth middleware so request.state.user is populated.

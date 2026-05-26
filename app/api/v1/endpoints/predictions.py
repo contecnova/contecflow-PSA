@@ -12,10 +12,9 @@ Routes:
 """
 import logging
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
-import json
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
@@ -28,23 +27,16 @@ router = APIRouter(tags=["AI Predictions"])
 
 
 @router.post("/overrun-risk", summary="Predicción ML de sobrecosto/retraso por proyecto")
-async def overrun_risk(
-    request: Request,
+def overrun_risk(
+    body: Dict[str, Any] = Body(default_factory=dict),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    try:
-        body = await request.json()
-    except Exception:
-        logger.warning("Body JSON inválido en /overrun-risk para user_id=%s", getattr(current_user, "id", None), exc_info=True)
-        return {
-            "error": "Invalid JSON body",
-            "risk_level": "unknown",
-            "can_predict": False,
-        }
-    
+    # Audit #C7: endpoint converted from async→def. It only does DB work; the
+    # previous async wrapper forced sync ORM calls onto the event loop. FastAPI
+    # now runs this in the threadpool. Body is parsed by FastAPI/Pydantic.
     project_id = body.get("project_id") if isinstance(body, dict) else None
-    
+
     if not project_id:
         return {
             "error": "Missing project_id in request body",

@@ -212,6 +212,11 @@ async def twilio_ivr_webhook(
                 status_code=403,
             )
 
+    # Audit #C7: async is needed for await request.form(); DB ops are
+    # offloaded to the threadpool via run_db so the sync ORM never blocks
+    # the event loop while Twilio waits for TwiML.
+    from app.core.async_db import run_db
+
     # ── Parse Twilio form data ────────────────────────────────────────────────
     form_data = dict(await request.form()) if not auth_token else dict(form_body)
     caller_id = form_data.get("From", "unknown")
@@ -219,11 +224,11 @@ async def twilio_ivr_webhook(
     org_id    = None  # Single-tenant: override with org resolution logic if multi-tenant
 
     # Create a tracking session
-    session = create_session(db, org_id, caller_id, channel="phone")
-    add_transcript_turn(db, org_id, session["id"], "bot", f"Incoming call from {caller_id} (SID: {call_sid})")
+    session = await run_db(create_session, db, org_id, caller_id, channel="phone")
+    await run_db(add_transcript_turn, db, org_id, session["id"], "bot", f"Incoming call from {caller_id} (SID: {call_sid})")
 
     # ── Load greeting from config ─────────────────────────────────────────────
-    cfg = get_config(db, org_id)
+    cfg = await run_db(get_config, db, org_id)
     greeting = cfg.get("greeting", "Gracias por llamar. ¿En qué le podemos ayudar?")
     language  = cfg.get("language", settings.DEFAULT_LANGUAGE)
     dtmf_menu = cfg.get("dtmf_menu", {})
@@ -262,12 +267,15 @@ async def twilio_gather_webhook(
     """Processes DTMF digit selection from a Twilio <Gather> verb."""
     from app.services.service_desk.voice_agent_service import get_config
 
+    # Audit #C7: see twilio_ivr_webhook above for the same pattern.
+    from app.core.async_db import run_db
+
     form_data = dict(await request.form())
     digit     = form_data.get("Digits", "")
     caller_id = form_data.get("From", "unknown")
     org_id    = None
 
-    cfg = get_config(db, org_id)
+    cfg = await run_db(get_config, db, org_id)
     dtmf_menu = cfg.get("dtmf_menu", {})
     language  = cfg.get("language", settings.DEFAULT_LANGUAGE)
 
@@ -276,7 +284,7 @@ async def twilio_gather_webhook(
     selected_queue = selected_option.get("intent", "general") if isinstance(selected_option, dict) else (selected_option or "general")
 
     if session_id:
-        add_transcript_turn(db, org_id, session_id, "user", f"DTMF selection: {digit} → {selected_label or selected_queue}")
+        await run_db(add_transcript_turn, db, org_id, session_id, "user", f"DTMF selection: {digit} → {selected_label or selected_queue}")
 
     if digit and (selected_label or selected_queue):
         message = f"Ha seleccionado: {selected_label or selected_queue}. Le transferimos ahora."

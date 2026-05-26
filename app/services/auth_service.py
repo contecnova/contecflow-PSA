@@ -511,6 +511,17 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
         path="/api/v1/auth/refresh",
         **COOKIE_OPTS,
     )
+    # Audit #C1: also mint a CSRF token cookie on every login/refresh. The
+    # cookie is readable by JS so the SPA can echo it back via X-CSRF-Token
+    # when CSRF_DOUBLE_SUBMIT=1 is enabled. No-op effect on clients that don't
+    # opt in; pure preparation.
+    try:
+        from app.core.csrf import issue_csrf_cookie
+        issue_csrf_cookie(response)
+    except Exception:
+        # Never block auth on CSRF token minting issues — log and continue.
+        import logging as _logging
+        _logging.getLogger(__name__).warning("issue_csrf_cookie failed", exc_info=True)
 
 
 def current_refresh_jti(request: Request) -> Optional[str]:
