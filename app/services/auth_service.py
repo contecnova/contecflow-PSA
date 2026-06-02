@@ -486,7 +486,9 @@ def read_ephemeral_token(token: str, expected_type: str) -> dict:
 COOKIE_OPTS = {
     "httponly": True,
     "samesite": "lax",
-    "secure": settings.ENVIRONMENT == "production",
+    # Audit (Sprint 3-4): require HTTPS-only cookies in staging too, not just
+    # production. Only local development serves over plain HTTP.
+    "secure": settings.ENVIRONMENT in {"production", "staging"},
 }
 
 
@@ -504,12 +506,15 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
         max_age=access_minutes * 60,
         **COOKIE_OPTS,
     )
+    # Audit (Sprint 3-4): refresh cookie is only ever sent to the dedicated
+    # refresh endpoint via same-origin XHR, so SameSite=Strict is safe here and
+    # blocks it from riding along on any cross-site navigation.
     response.set_cookie(
         "refresh_token",
         refresh_token,
         max_age=refresh_days * 86400,
         path="/api/v1/auth/refresh",
-        **COOKIE_OPTS,
+        **{**COOKIE_OPTS, "samesite": "strict"},
     )
     # Audit #C1: also mint a CSRF token cookie on every login/refresh. The
     # cookie is readable by JS so the SPA can echo it back via X-CSRF-Token

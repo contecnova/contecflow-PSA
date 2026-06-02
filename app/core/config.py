@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import Field, ValidationInfo, field_validator
-from typing import List, Optional
+from typing import ClassVar, List, Optional
 
 from app.core.config_groups import (
     AISettingsMixin,
@@ -343,8 +343,12 @@ class Settings(
     # Audit #C3: extend strict secret validation to portal & superadmin credentials.
     # Mirrors SECRET_KEY rules (placeholder rejection, entropy, length) so a weak
     # superadmin password or a default client-portal secret can never reach prod.
-    _PLACEHOLDER_PREFIXES = ("CHANGE_ME", "REPLACE_ME", "TODO", "PLACEHOLDER")
-    _KNOWN_WEAK_PASSWORDS = {
+    # NOTE: must be ClassVar — a bare leading-underscore assignment is treated by
+    # Pydantic v2 as a ModelPrivateAttr, so `cls._PLACEHOLDER_PREFIXES` inside the
+    # validators below would be the descriptor (not iterable) and Settings() would
+    # crash on boot. ClassVar marks them as plain class constants.
+    _PLACEHOLDER_PREFIXES: ClassVar[tuple[str, ...]] = ("CHANGE_ME", "REPLACE_ME", "TODO", "PLACEHOLDER")
+    _KNOWN_WEAK_PASSWORDS: ClassVar[set[str]] = {
         "contecflow2024!",
         "password",
         "admin",

@@ -1,5 +1,7 @@
 import ipaddress
+import socket
 from typing import Optional
+from urllib.parse import urlparse
 
 from app.core.config import settings
 
@@ -95,3 +97,70 @@ def extract_client_ip(request) -> str:
         return real_ip
 
     return direct_ip
+
+
+# ── Outbound SSRF guard ──────────────────────────────────────────────────────
+# Single policy shared by every outbound integration (Slack/Teams webhooks,
+# automations, etc.). Mirrors the OIDC discovery guard in auth_service
+# (validate_https_discovery_url) so private/internal/metadata targets such as
+# 169.254.169.254 can never be reached from a user-supplied URL.
+
+class UnsafeURLError(ValueError):
+    """Raised when a URL targets a private/internal/disallowed network."""
+
+
+def _ip_is_disallowed(ip_obj: "ipaddress._BaseAddress") -> bool:
+    return (
+        ip_obj.is_private
+        or ip_obj.is_loopback
+        or ip_obj.is_link_local
+        or ip_obj.is_multicast
+        or ip_obj.is_reserved
+        or ip_obj.is_unspecified
+    )
+
+
+def assert_safe_outbound_url(url: str, *, require_https: bool = True) -> str:
+    """Validate an outbound URL against SSRF before fetching it.
+
+    Raises ``UnsafeURLError`` if the scheme is disallowed, the host is a local
+    name, or the literal/resolved IP falls in a private/reserved range. Returns
+    the URL unchanged when it is safe so callers can use it inline.
+    """
+    parsed = urlparse(url or "")
+    scheme = parsed.scheme.lower()
+    allowed_schemes = {"https"} if require_https else {"http", "https"}
+    if scheme not in allowed_schemes or not parsed.netloc:
+        raise UnsafeURLError(
+            f"URL must use {'/'.join(sorted(allowed_schemes))} and include a host"
+        )
+
+    hostname = (parsed.hostname or "").strip().lower()
+    if not hostname:
+        raise UnsafeURLError("URL must include a hostname")
+    if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(".local"):
+        raise UnsafeURLError("URL must not point to a local host")
+
+    # Literal IP embedded in the host (e.g. http://169.254.169.254/...)
+    try:
+        literal_ip = ipaddress.ip_address(hostname)
+    except ValueError:
+        literal_ip = None
+    if literal_ip is not None and _ip_is_disallowed(literal_ip):
+        raise UnsafeURLError("URL points to a disallowed (private/internal) network")
+
+    # DNS resolution — block hostnames that resolve into private ranges
+    default_port = 443 if scheme == "https" else 80
+    try:
+        addrinfo = socket.getaddrinfo(hostname, parsed.port or default_port, proto=socket.IPPROTO_TCP)
+    except Exception:
+        addrinfo = []
+    for entry in addrinfo:
+        try:
+            resolved = ipaddress.ip_address(entry[4][0])
+        except ValueError:
+            continue
+        if _ip_is_disallowed(resolved):
+            raise UnsafeURLError("URL resolves to a disallowed (private/internal) network")
+
+    return url
