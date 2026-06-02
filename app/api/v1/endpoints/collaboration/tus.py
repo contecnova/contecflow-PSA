@@ -113,7 +113,7 @@ def tus_options() -> Response:
 
 
 @router.post("/tus")
-async def tus_create(
+def tus_create(
     request: Request,
     upload_length: int = Header(..., alias="Upload-Length"),
     upload_metadata: str = Header("", alias="Upload-Metadata"),

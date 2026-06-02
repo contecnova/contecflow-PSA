@@ -311,7 +311,7 @@ def push_ticket(
 
 
 @router.post("/webhook", summary="Recibir webhook de Jira Cloud")
-async def receive_jira_webhook(
+def receive_jira_webhook(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
 ):

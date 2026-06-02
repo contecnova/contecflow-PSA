@@ -137,7 +137,7 @@ class AutoResolutionConfigPatch(BaseModel):
         403: {"description": "Not authorized to view this ticket"},
     },
 )
-async def analyze_ticket_for_ai_resolution(
+def analyze_ticket_for_ai_resolution(
     ticket_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -181,7 +181,7 @@ async def analyze_ticket_for_ai_resolution(
         400: {"description": "Ticket already resolved or analysis confidence too low"},
     },
 )
-async def apply_ai_auto_resolution(
+def apply_ai_auto_resolution(
     ticket_id: str,
     force: bool = Query(False, description="Force apply even if low confidence"),
     current_user: User = Depends(get_current_user),
@@ -246,7 +246,7 @@ async def apply_ai_auto_resolution(
         403: {"description": "Only admins can run jobs"},
     },
 )
-async def run_auto_resolution_job(
+def run_auto_resolution_job(
     background_tasks: BackgroundTasks,
     limit: int = Query(100, ge=1, le=500, description="Max tickets to process"),
     run_async: bool = Query(True, description="Run in background and return immediately"),
@@ -433,7 +433,7 @@ async def run_auto_resolution_job(
         403: {"description": "Not authorized"},
     },
 )
-async def validate_ticket_auto_resolution(
+def validate_ticket_auto_resolution(
     ticket_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -465,7 +465,7 @@ async def validate_ticket_auto_resolution(
         403: {"description": "Not authorized"},
     },
 )
-async def submit_auto_resolution_feedback(
+def submit_auto_resolution_feedback(
     ticket_id: str,
     body: FeedbackBody,
     current_user: User = Depends(get_current_user),
@@ -497,7 +497,7 @@ async def submit_auto_resolution_feedback(
         403: {"description": "Admin only"},
     },
 )
-async def get_auto_resolution_statistics(
+def get_auto_resolution_statistics(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -521,7 +521,7 @@ async def get_auto_resolution_statistics(
     response_model=dict,
     responses={403: {"description": "Admin only"}},
 )
-async def get_auto_resolution_config_endpoint(
+def get_auto_resolution_config_endpoint(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -536,7 +536,7 @@ async def get_auto_resolution_config_endpoint(
     response_model=dict,
     responses={403: {"description": "Admin only"}},
 )
-async def update_auto_resolution_config_endpoint(
+def update_auto_resolution_config_endpoint(
     body: AutoResolutionConfigPatch,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -558,7 +558,7 @@ async def update_auto_resolution_config_endpoint(
         403: {"description": "Admin only"},
     },
 )
-async def run_auto_close_job_endpoint(
+def run_auto_close_job_endpoint(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
