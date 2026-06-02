@@ -315,6 +315,8 @@ def test_resolve_sso_org_rejects_orphan_autoprovisioning(db):
 
 def test_client_ip_ignores_spoofed_forwarded_headers_without_trusted_proxy(monkeypatch):
     monkeypatch.setattr("app.core.network.settings.TRUST_PROXY_HEADERS", False)
+    import app.core.network as _net
+    _net._PROXY_CACHE.update({"expires_at": 0.0, "trust": None, "cidrs_raw": None})
     request = SimpleNamespace(
         headers={"x-forwarded-for": "127.0.0.1", "x-real-ip": "127.0.0.1"},
         client=SimpleNamespace(host="198.51.100.10"),
@@ -325,6 +327,10 @@ def test_client_ip_ignores_spoofed_forwarded_headers_without_trusted_proxy(monke
 def test_client_ip_accepts_proxy_headers_from_trusted_proxy(monkeypatch):
     monkeypatch.setattr("app.core.network.settings.TRUST_PROXY_HEADERS", True)
     monkeypatch.setattr("app.core.network.settings.TRUSTED_PROXY_CIDRS", "10.0.0.0/8")
+    # _effective_proxy_config() caches for 5 min on the hot path; reset it so the
+    # monkeypatched settings above are actually read instead of a warm cache value.
+    import app.core.network as _net
+    _net._PROXY_CACHE.update({"expires_at": 0.0, "trust": None, "cidrs_raw": None})
     request = SimpleNamespace(
         headers={"x-forwarded-for": "203.0.113.5, 10.1.1.1"},
         client=SimpleNamespace(host="10.1.1.1"),

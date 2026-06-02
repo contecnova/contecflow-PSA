@@ -353,47 +353,47 @@ class TestSOCEndpoints:
         return {"Authorization": f"Bearer {token}"}
 
     def test_soc_overview_unauthorized(self):
-        resp = client.get("/api/v1/soc/overview")
+        resp = client.get("/api/v1/security-observability/soc/overview")
         assert resp.status_code == 401
 
     def test_soc_events_unauthorized(self):
-        resp = client.get("/api/v1/soc/events")
+        resp = client.get("/api/v1/security-observability/soc/events")
         assert resp.status_code == 401
 
     def test_soc_detections_unauthorized(self):
-        resp = client.get("/api/v1/soc/detections")
+        resp = client.get("/api/v1/security-observability/soc/detections")
         assert resp.status_code == 401
 
     def test_soc_incidents_unauthorized(self):
-        resp = client.get("/api/v1/soc/incidents")
+        resp = client.get("/api/v1/security-observability/soc/incidents")
         assert resp.status_code == 401
 
     def test_soc_anomalies_unauthorized(self):
-        resp = client.get("/api/v1/soc/login-anomalies")
+        resp = client.get("/api/v1/security-observability/soc/login-anomalies")
         assert resp.status_code == 401
 
     def test_soc_attack_indicators_unauthorized(self):
-        resp = client.get("/api/v1/soc/metrics/attack-indicators")
+        resp = client.get("/api/v1/security-observability/soc/metrics/attack-indicators")
         assert resp.status_code == 401
 
     def test_soc_mttd_mttr_unauthorized(self):
-        resp = client.get("/api/v1/soc/metrics/mttd-mttr")
+        resp = client.get("/api/v1/security-observability/soc/metrics/mttd-mttr")
         assert resp.status_code == 401
 
     def test_soc_auth_heatmap_unauthorized(self):
-        resp = client.get("/api/v1/soc/metrics/auth-heatmap")
+        resp = client.get("/api/v1/security-observability/soc/metrics/auth-heatmap")
         assert resp.status_code == 401
 
     def test_soc_top_ips_unauthorized(self):
-        resp = client.get("/api/v1/soc/metrics/top-ips")
+        resp = client.get("/api/v1/security-observability/soc/metrics/top-ips")
         assert resp.status_code == 401
 
     def test_soc_timeline_unauthorized(self):
-        resp = client.get("/api/v1/soc/metrics/timeline")
+        resp = client.get("/api/v1/security-observability/soc/metrics/timeline")
         assert resp.status_code == 401
 
     def test_manual_event_ingest_unauthorized(self):
-        resp = client.post("/api/v1/soc/events", json={
+        resp = client.post("/api/v1/security-observability/soc/events", json={
             "event_type": "manual", "category": "system", "severity": "info"
         })
         assert resp.status_code == 401
