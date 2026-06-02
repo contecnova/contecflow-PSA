@@ -80,8 +80,11 @@ def _generate_key_material_ref() -> str:
             logger.error("KMS key generation failed: %s", exc, exc_info=True)
             raise
 
-    # Non-KMS fallback key material
-    return f"plain:{secrets.token_urlsafe(64)}"
+    # Non-KMS: encrypt the key material at rest with the app's field encryption
+    # (Audit Sprint 3-4) so the JWT keyring is never stored as plaintext in the
+    # DB, even without a KMS. `enc:` wraps an encrypt_value() ciphertext.
+    raw = secrets.token_urlsafe(64)
+    return f"enc:{encrypt_value(raw)}"
 
 
 def _resolve_material(ref: str) -> str:
@@ -93,7 +96,14 @@ def _resolve_material(ref: str) -> str:
         res = client.decrypt(CiphertextBlob=blob)
         plaintext = base64.urlsafe_b64encode(res["Plaintext"]).decode()
         return plaintext
+    if ref.startswith("enc:"):
+        plaintext = decrypt_value(ref.split(":", 1)[1])
+        if plaintext is None:
+            raise ValueError("Failed to decrypt enc: JWT key material")
+        return plaintext
     if ref.startswith("plain:"):
+        # Legacy plaintext keys (pre-encryption). Still resolvable for backward
+        # compatibility; migrated to enc: by _upgrade_plaintext_keys on load.
         return ref.split(":", 1)[1]
     raise ValueError("Invalid key material reference format")
 
@@ -147,12 +157,36 @@ def _load_keyring(db) -> Optional[KeyRingState]:
         return None
 
 
+def _upgrade_plaintext_keys(db, state: KeyRingState) -> bool:
+    """Re-wrap any legacy ``plain:`` key material as encrypted-at-rest (``enc:``).
+
+    Idempotent and value-preserving: the underlying key bytes are unchanged, so
+    every JWT already signed with these kids stays valid. Runs opportunistically
+    on keyring load so existing deployments migrate without a manual step.
+    """
+    changed = False
+    for kid, ref in list(state.keys.items()):
+        if ref.startswith("plain:"):
+            raw = ref.split(":", 1)[1]
+            try:
+                state.keys[kid] = f"enc:{encrypt_value(raw)}"
+                changed = True
+            except Exception:
+                logger.error("Failed to encrypt legacy plaintext JWT key kid=%s", kid, exc_info=True)
+    if changed:
+        _save_keyring(db, state)
+        db.commit()
+        logger.info("Migrated legacy plaintext JWT key material to encrypted-at-rest")
+    return changed
+
+
 def ensure_jwt_keyring(db) -> KeyRingState:
     if not _settings_table_available(db):
         raise RuntimeError("Settings table not available for JWT keyring initialization.")
 
     state = _load_keyring(db)
     if state:
+        _upgrade_plaintext_keys(db, state)
         return state
 
     kid = f"k-{_now().strftime('%Y%m%d%H%M%S')}"
