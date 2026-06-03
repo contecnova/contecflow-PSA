@@ -18,6 +18,31 @@ from app.services.imputation_service import delete_imputation_record, get_imputa
 from datetime import date
 
 
+@pytest.fixture
+def test_user(db) -> User:
+    """Existing employee user seeded by the global db fixture."""
+    return db.query(User).filter(User.id == "dev-test-id").first()
+
+
+@pytest.fixture
+def test_project(db, test_user) -> Project:
+    """A fresh active project owned by the test org for soft-delete tests."""
+    from app.models.project import ProjectStatus, ProjectType
+
+    proj = Project(
+        id="soft-delete-test-project",
+        organization_id=1,
+        code="PRJ-SD",
+        name="Soft Delete Test Project",
+        project_type=ProjectType.consulting,
+        status=ProjectStatus.active,
+        created_by="admin-test-id",
+    )
+    db.add(proj)
+    db.commit()
+    return proj
+
+
 class TestWorkflowSoftDelete:
     """Workflow State and Transition soft-delete tests"""
 
