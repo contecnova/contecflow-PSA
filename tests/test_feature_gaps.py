@@ -315,8 +315,8 @@ class TestCurrencyConversion:
         # Convert 1000 EUR → USD
         res = client.post("/api/v1/currency/convert", json={
             "amount": 1000,
-            "from": "EUR",
-            "to": "USD",
+            "from_currency": "EUR",
+            "to_currency": "USD",
             "date": today,
         }, headers=auth(pm_token))
         assert res.status_code == 200
@@ -339,8 +339,8 @@ class TestCurrencyConversion:
     def test_convert_missing_rate_returns_404(self, client, pm_token, db):
         res = client.post("/api/v1/currency/convert", json={
             "amount": 100,
-            "from": "EUR",
-            "to": "JPY",
+            "from_currency": "EUR",
+            "to_currency": "JPY",
         }, headers=auth(pm_token))
         assert res.status_code == 404
 
@@ -349,12 +349,12 @@ class TestCurrencyConversion:
 
 class TestProjectTemplates:
     def test_list_templates_empty(self, client, pm_token, db):
-        res = client.get("/api/v1/templates", headers=auth(pm_token))
+        res = client.get("/api/v1/advanced-config/templates", headers=auth(pm_token))
         assert res.status_code == 200
         assert isinstance(res.json(), list)
 
     def test_create_template(self, client, admin_token, db):
-        res = client.post("/api/v1/templates", json={
+        res = client.post("/api/v1/advanced-config/templates", json={
             "name": "Consultoría estándar",
             "description": "Plantilla para proyectos de consultoría",
             "estimated_weeks": 12,
@@ -387,7 +387,7 @@ class TestProjectTemplates:
 
     def test_instantiate_template(self, client, admin_token, db):
         # Create template first
-        tpl_res = client.post("/api/v1/templates", json={
+        tpl_res = client.post("/api/v1/advanced-config/templates", json={
             "name": "Plantilla test",
             "phases": [
                 {
@@ -405,7 +405,7 @@ class TestProjectTemplates:
         assert tpl_id
 
         # Instantiate it
-        res = client.post(f"/api/v1/templates/{tpl_id}/instantiate", json={
+        res = client.post(f"/api/v1/billing-reports/templates/{tpl_id}/instantiate", json={
             "project_name": "Proyecto desde plantilla",
             "client_name": "ClienteTest",
         }, headers=auth(admin_token))
