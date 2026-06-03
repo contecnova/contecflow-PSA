@@ -72,3 +72,5 @@ htmlcov/
 
 # Playwright MCP browser snapshots
 .playwright-mcp/
+
+remaining_failures.txt
