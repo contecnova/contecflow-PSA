@@ -1,5 +1,16 @@
 // Polski (auto-przetłumaczone)
 const pl = {
+  v239: {
+    ecb_sync: 'Synchronizuj kursy EBC',
+    exchange_rate_refresh: 'Odśwież kursy walut',
+    last_sync: 'Ostatnia synchronizacja',
+    rate_source: 'Źródło kursu',
+    white_label: 'White label',
+    brand_name: 'Nazwa marki',
+    logo_url: 'URL logo',
+    primary_color: 'Kolor podstawowy',
+    custom_domain: 'Domena niestandardowa',
+  },
   common: {
     save: 'Zapisz', cancel: 'Anuluj', delete: 'Usuń', edit: 'Edytuj',
     create: 'Utwórz', add: 'Dodaj', search: 'Szukaj...', filter: 'Filtruj',

@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -474,7 +475,10 @@ async def http_exception_sanitizer(_request: Request, exc: HTTPException):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_sanitizer(_request: Request, exc: RequestValidationError):
     # Keep standard validation structure; sanitize only if it unexpectedly contains a string payload.
-    safe_detail = sanitize_http_detail(422, exc.errors())
+    # jsonable_encoder mirrors FastAPI's default handler: pydantic v2 error dicts may carry a
+    # non-serializable ValueError under `ctx` (raised by custom field validators), which would
+    # otherwise blow up json.dumps and turn a 422 into a 500.
+    safe_detail = sanitize_http_detail(422, jsonable_encoder(exc.errors()))
     return JSONResponse(status_code=422, content={"detail": safe_detail})
 
 app.add_middleware(
