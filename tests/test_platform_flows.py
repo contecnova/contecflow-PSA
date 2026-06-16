@@ -157,7 +157,7 @@ def test_expense_rejected_can_be_recalled(client, pm_token, dev_token, db):
 
     # Verify status reverted to draft
     my_exp = client.get("/api/v1/expenses/my", headers=auth(dev_token))
-    recalled = next(e for e in my_exp.json() if e["id"] == exp_id)
+    recalled = next(e for e in my_exp.json()["items"] if e["id"] == exp_id)
     assert recalled["status"] == "draft"
 
 
@@ -287,7 +287,7 @@ def test_change_request_full_lifecycle(client, pm_token, admin_token, db):
     # Aparece en la lista de pendientes globales
     pending = client.get("/api/v1/changes/all/pending", headers=auth(admin_token))
     assert pending.status_code == 200
-    ids = [c["id"] for c in pending.json()]
+    ids = [c["id"] for c in pending.json()["items"]]
     assert cr_id in ids
 
     # Admin aprueba la CR
@@ -485,7 +485,7 @@ def test_risk_lifecycle_identify_mitigate_close(client, pm_token, admin_token, d
     # Verificar que el riesgo aparece en el portafolio
     portfolio = client.get("/api/v1/risks/all/portfolio", headers=auth(admin_token))
     assert portfolio.status_code == 200
-    risk_ids = [r["id"] for r in portfolio.json()]
+    risk_ids = [r["id"] for r in portfolio.json()["items"]]
     assert risk_id in risk_ids
 
     # Cerrar riesgo
@@ -753,7 +753,7 @@ def test_okr_full_progress_flow(client, admin_token, db):
     # Verificar objetivo aparece en la lista (year=2025 is the default)
     obj_list = client.get("/api/v1/okrs?year=2025", headers=auth(admin_token))
     assert obj_list.status_code == 200
-    obj_ids = [o["id"] for o in obj_list.json()]
+    obj_ids = [o["id"] for o in obj_list.json()["items"]]
     assert obj_id in obj_ids
 
 

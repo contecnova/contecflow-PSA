@@ -705,43 +705,9 @@ def agent_detail(
 # AI GOVERNANCE
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.get("/governance/config", summary="Configuración de gobernanza IA")
-def get_governance_config(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return _svc.get_governance_config(db)
-
-
-@router.patch("/governance/config/{module}", summary="Actualizar configuración de módulo IA")
-def update_governance_config(
-    module: str,
-    payload: dict = Body(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return _svc.update_governance_config(db, module, payload, current_user.id)
-
-
-@router.get("/governance/logs", summary="Audit log de acciones IA")
-def governance_logs(
-    module: Optional[str] = None,
-    status: Optional[str] = None,
-    days: int = Query(7, le=90),
-    limit: int = Query(100, le=500),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return _svc.get_governance_logs(db, module=module, status=status, days=days, limit=limit)
-
-
-@router.get("/governance/stats", summary="Estadísticas de uso de IA")
-def governance_stats(
-    days: int = Query(30, le=365),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return _svc.get_governance_stats(db, days=days)
+# NOTE: /governance/config, /governance/config/{module}, /governance/logs and
+# /governance/stats are canonically served by app/api/v1/endpoints/governance.py.
+# They were duplicated here historically; removed to avoid duplicate routes.
 
 
 #

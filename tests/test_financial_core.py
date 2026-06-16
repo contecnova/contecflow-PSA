@@ -163,7 +163,7 @@ class TestRateVisibility:
     def test_admin_sees_hourly_rates(self, client, admin_token, db):
         r = client.get("/api/v1/users/with-rates", headers=auth(admin_token))
         assert r.status_code == 200
-        users = r.json()
+        users = r.json()["items"]
         assert len(users) > 0
         # Al menos un usuario tiene hourly_rate expuesto
         rate_fields = [u.get("hourly_rate") for u in users]
@@ -172,7 +172,7 @@ class TestRateVisibility:
     def test_hr_sees_hourly_rates(self, client, hr_token, db):
         r = client.get("/api/v1/users/with-rates", headers=auth(hr_token))
         assert r.status_code == 200
-        users = r.json()
+        users = r.json()["items"]
         assert isinstance(users, list) and len(users) > 0, "HR should see at least one user with rate"
         # HR debe ver el campo hourly_rate (no filtrado a None por RBAC)
         assert all("hourly_rate" in u for u in users), (

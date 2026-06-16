@@ -20,7 +20,7 @@ def test_list_automations_active_filter(client, pm_token, db):
     make_rule(client, pm_token, name="Active Rule")
     res = client.get("/api/v1/automations?is_active=true", headers=auth(pm_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["items"]
     assert all(r["is_active"] for r in data)
 
 

@@ -266,7 +266,7 @@ def get_sso_redis():
         )
         r.ping()
         _redis_client = r
-        logger.info("SSO state store: using Redis (%s)", settings.REDIS_URL.split("@")[-1])
+        logger.info("SSO state store: using Redis (%s)", (settings.REDIS_URL or "").split("@")[-1])
     except Exception as _e:
         if settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1":
             logger.info(

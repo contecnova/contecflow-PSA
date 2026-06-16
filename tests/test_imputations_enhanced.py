@@ -442,7 +442,7 @@ def test_get_imputation_alerts(db: Session, timer_client):
 
     response = client.get("/api/v1/imputations/alerts", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["items"]
     assert isinstance(data, list)
 
 

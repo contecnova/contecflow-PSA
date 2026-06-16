@@ -300,7 +300,7 @@ class TestRateCardBilling:
         }, headers=auth(admin_token))
         r = client.get("/api/v1/rate-cards", headers=auth(admin_token))
         assert r.status_code == 200
-        names = [rc["name"] for rc in r.json()]
+        names = [rc["name"] for rc in r.json()["items"]]
         assert "RC List Test" in names
 
     def test_employee_cannot_create_rate_card(self, client, dev_token, db):

@@ -163,20 +163,9 @@ def get_group_workload(group_id: str, db: Session = Depends(get_db), _: User = D
 
 # ── Problems ──────────────────────────────────────────────────────────────────
 
-@router.get("/problems", summary="Listar problemas")
-def list_problems(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    try:
-        return list_problems_payload(db, current_user, page, page_size)
-    except Exception:
-        logger.exception("/sd/problems failed for user_id=%s", getattr(current_user, "id", None))
-        return []
-
-@router.post("/problems", summary="Crear problema")
-@limiter.limit("30/minute")
-def create_problem(request: Request, payload: ProblemIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    p = create_problem_record(db, current_user, payload)
-    _commit_or_rollback(db); db.refresh(p)
-    return {"id": p.id, "number": p.number}
+# NOTE: GET /problems and POST /problems are canonically served by
+# problem_management.py (ITSM-P08). Removed here to avoid duplicate routes.
+# PATCH /problems/{id} and the link-ticket route below remain unique to this module.
 
 @router.patch("/problems/{problem_id}", summary="Actualizar problema")
 @limiter.limit("30/minute")
@@ -417,29 +406,10 @@ def update_major_incident(mi_id: str, payload: dict = Body(...), db: Session = D
     return serialize_major_incident(mi)
 
 # ── Assets ────────────────────────────────────────────────────────────────────
-
-@router.get("/assets", summary="Listar activos IT (HAM/SAM)")
-def list_assets(
-    asset_type: Optional[str] = None, status: Optional[str] = None,
-    assigned_user_id: Optional[str] = None, search: Optional[str] = None,
-    page: int = Query(1, ge=1), page_size: int = Query(50, le=200),
-    db: Session = Depends(get_db), _: User = Depends(get_current_user),
-):
-    return list_assets_payload(db, asset_type, status, assigned_user_id, search, page, page_size)
-
-@router.get("/assets/stats", summary="Estadísticas del inventario de activos")
-def asset_stats(db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
-    return asset_stats_payload(db)
-
-@router.get("/assets/{asset_id}", summary="Detalle de activo")
-def get_asset(asset_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return get_asset_detail_payload(db, asset_id)
-
-@router.post("/assets", summary="Crear activo IT", status_code=201)
-def create_asset(payload: AssetIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
-    asset = create_asset_record(db, payload)
-    _commit_or_rollback(db); db.refresh(asset)
-    return _asset_out(asset)
+# NOTE: GET /assets, GET /assets/stats, GET /assets/{id}, POST /assets,
+# DELETE /assets/{id} and POST /assets/{id}/assign are canonically served by
+# assets.py (HAM/SAM module). Removed here to avoid duplicate routes.
+# PATCH /assets/{id} remains unique to this module (assets.py uses PUT).
 
 @router.patch("/assets/{asset_id}", summary="Actualizar activo")
 def update_asset(asset_id: str, payload: AssetUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
@@ -447,18 +417,8 @@ def update_asset(asset_id: str, payload: AssetUpdate, db: Session = Depends(get_
     _commit_or_rollback(db); db.refresh(a)
     return _asset_out(a)
 
-@router.delete("/assets/{asset_id}", summary="Dar de baja activo (retired)")
-def retire_asset(asset_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
-    enforce_abac(db, current_user, "sd_asset", asset_id, action="delete")
-    retire_asset_record(db, asset_id, current_user.id)
-    _commit_or_rollback(db)
-    return {"ok": True}
-
-@router.post("/assets/{asset_id}/assign", summary="Asignar activo a usuario")
-def assign_asset(asset_id: str, user_id: str = Body(..., embed=True), notes: Optional[str] = Body(None, embed=True), db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
-    user_name = assign_asset_record(db, asset_id, user_id, current_user.id, notes)
-    _commit_or_rollback(db)
-    return {"ok": True, "assigned_to": user_name}
+# DELETE /assets/{id} and POST /assets/{id}/assign are canonically served by
+# assets.py. Removed here to avoid duplicate routes.
 
 # ── Status Page ───────────────────────────────────────────────────────────────
 
@@ -519,29 +479,8 @@ class ProblemToChangeIn(_BaseModel):
     custom_description: Optional[str] = None
 
 
-@router.post("/problems/{problem_id}/create-change", summary="Crear RFC desde Problema", status_code=201)
-def create_change_from_problem(
-    problem_id: str,
-    payload: ProblemToChangeIn,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    from app.services.service_desk.problem_service import create_change_from_problem as _svc  # noqa: PLC0415
-    try:
-        result = _svc(
-            db,
-            current_user=current_user,
-            problem_id=problem_id,
-            change_type=payload.change_type,
-            planned_start=payload.planned_start,
-            planned_end=payload.planned_end,
-            custom_title=payload.custom_title,
-            custom_description=payload.custom_description,
-        )
-    except ValueError as exc:
-        raise HTTPException(400, detail=str(exc))
-    _commit_or_rollback(db)
-    return {"ok": True, **result}
+# NOTE: POST /problems/{problem_id}/create-change is canonically served by
+# problem_management.py. Removed here to avoid duplicate routes.
 
 
 # ── Alert Correlation ML ──────────────────────────────────────────────────────

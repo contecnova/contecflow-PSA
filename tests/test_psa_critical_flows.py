@@ -78,7 +78,7 @@ def _approve_week_timesheet(client, pm_token, dev_token, db, project_code):
 
     pending = client.get("/api/v1/timesheets/pending", headers=auth(pm_token))
     assert pending.status_code == 200
-    ts_id = next(ts["id"] for ts in pending.json() if ts["user_id"] == "dev-test-id" and ts["week_start"] == str(week_start))
+    ts_id = next(ts["id"] for ts in pending.json()["items"] if ts["user_id"] == "dev-test-id" and ts["week_start"] == str(week_start))
 
     review = client.post(
         f"/api/v1/timesheets/{ts_id}/review",
@@ -138,7 +138,7 @@ def test_timesheet_approval_to_invoice_preview_flow(client, pm_token, dev_token,
 
     pending = client.get("/api/v1/timesheets/pending", headers=auth(pm_token))
     assert pending.status_code == 200
-    ts_id = next(ts["id"] for ts in pending.json() if ts["user_id"] == "dev-test-id" and ts["week_start"] == str(week_start))
+    ts_id = next(ts["id"] for ts in pending.json()["items"] if ts["user_id"] == "dev-test-id" and ts["week_start"] == str(week_start))
 
     review = client.post(
         f"/api/v1/timesheets/{ts_id}/review",
@@ -203,7 +203,7 @@ def test_timesheet_send_back_and_resubmit_flow(client, pm_token, dev_token, db):
 
     pending = client.get("/api/v1/timesheets/pending", headers=auth(pm_token))
     assert pending.status_code == 200
-    ts_id = next(ts["id"] for ts in pending.json() if ts["user_id"] == "dev-test-id" and ts["week_start"] == str(week_start))
+    ts_id = next(ts["id"] for ts in pending.json()["items"] if ts["user_id"] == "dev-test-id" and ts["week_start"] == str(week_start))
 
     send_back = client.post(
         f"/api/v1/timesheets/{ts_id}/send-back",

@@ -37,7 +37,7 @@ def add_imputation(client, token, project_id, hours=6):
 def test_get_my_timesheets(client, dev_token, db):
     res = client.get("/api/v1/timesheets/my", headers=auth(dev_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["items"]
     assert isinstance(data, list)
     assert len(data) > 0
     # Check structure
@@ -51,7 +51,7 @@ def test_get_my_timesheets(client, dev_token, db):
 def test_get_my_timesheets_custom_weeks(client, dev_token, db):
     res = client.get("/api/v1/timesheets/my?weeks=4", headers=auth(dev_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["items"]
     assert len(data) == 4
 
 

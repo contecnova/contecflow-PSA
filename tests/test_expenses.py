@@ -92,5 +92,9 @@ def test_delete_expense(client, admin_token, db):
     _mine_items = _mine_body if isinstance(_mine_body, list) else _mine_body.get("items", [])
     assert all(e["id"] != exp_id for e in _mine_items)
 
+    # Soft-delete (audit #36): el gasto se conserva para auditoría financiera con
+    # is_active=False y queda oculto del listado /my (comprobado arriba), no se borra.
+    db.expire_all()
     row = db.query(Expense).filter(Expense.id == exp_id).first()
-    assert row is None
+    assert row is not None
+    assert row.is_active is False

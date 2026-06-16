@@ -204,19 +204,19 @@ class TestMultiCurrencyProfitability:
 
     def test_same_currency_no_conversion_needed(self, db):
         """When project currency == org currency, FX rate is 1.0 (no conversion)."""
-        from app.api.v1.endpoints.profitability import _get_fx_rate, _fx_cache
+        from app.services.profitability_service import get_fx_rate, _fx_cache
         _fx_cache.clear()
 
         from app.core.config import settings
         base = settings.DEFAULT_CURRENCY
 
-        rate = _get_fx_rate(db, base, base, date.today())
+        rate = get_fx_rate(db, base, base, date.today())
         assert rate == 1.0
 
     def test_fx_rate_lookup_uses_most_recent_before_date(self, db):
         """FX rate lookup returns the rate with effective_date <= as_of (most recent)."""
         from app.models.bookings import ExchangeRate
-        from app.api.v1.endpoints.profitability import _get_fx_rate, _fx_cache
+        from app.services.profitability_service import get_fx_rate, _fx_cache
         _fx_cache.clear()
 
         today = date.today()
@@ -240,16 +240,16 @@ class TestMultiCurrencyProfitability:
         db.commit()
 
         # Should return the newer rate (most recent <= today)
-        rate = _get_fx_rate(db, "USD", "EUR", today)
+        rate = get_fx_rate(db, "USD", "EUR", today)
         _fx_cache.clear()
         assert rate == pytest.approx(0.92)
 
     def test_fx_rate_lookup_returns_1_when_no_rate_found(self, db):
         """FX rate defaults to 1.0 when no ExchangeRate row matches (safe fallback)."""
-        from app.api.v1.endpoints.profitability import _get_fx_rate, _fx_cache
+        from app.services.profitability_service import get_fx_rate, _fx_cache
         _fx_cache.clear()
 
-        rate = _get_fx_rate(db, "XYZ", "EUR", date(2020, 1, 1))
+        rate = get_fx_rate(db, "XYZ", "EUR", date(2020, 1, 1))
         _fx_cache.clear()
         assert rate == 1.0
 
@@ -263,11 +263,11 @@ class TestMultiCurrencyProfitability:
 
     def test_fx_rate_not_used_for_future_date(self, db):
         """FX rate lookup for a future date relative to rates returns fallback 1.0."""
-        from app.api.v1.endpoints.profitability import _get_fx_rate, _fx_cache
+        from app.services.profitability_service import get_fx_rate, _fx_cache
         _fx_cache.clear()
 
         future_date = date(2099, 1, 1)
-        rate = _get_fx_rate(db, "JPY", "EUR", future_date)
+        rate = get_fx_rate(db, "JPY", "EUR", future_date)
         _fx_cache.clear()
         # No rates exist for JPY in test DB — should fallback to 1.0
         assert rate == 1.0

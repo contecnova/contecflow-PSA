@@ -12,6 +12,7 @@ LEGACY_ASYNC_DB_ENDPOINT_FILES = {
     "esign.py",
     "git_integration.py",
     "integrations_hub.py",
+    "m365.py",  # external-integration async module (Graph API) — same pattern, pending async-DB migration
     # "v238_features.py",  # Eliminado: archivo no existe
 }
 

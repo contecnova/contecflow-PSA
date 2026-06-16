@@ -174,6 +174,38 @@ def db():
     Base.metadata.drop_all(bind=engine)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _force_tfidf_embeddings():
+    """Keep the semantic engine on the pure-Python TF-IDF encoder for the whole
+    test suite.
+
+    The production `SemConfig.local_model_name` column defaults to
+    "all-MiniLM-L6-v2", and `SemanticAssigner._resolve_embeddings_runtime`
+    prioritises that value over the `SEMANTIC_EMBEDDINGS_BACKEND=tfidf` env
+    flag. So any test that constructs a `SemanticAssigner` (directly or via an
+    endpoint) would trigger a real `SentenceTransformer(...)` download from
+    huggingface — which fails offline / behind the corporate SSL proxy and
+    surfaces as a misleading "Cannot send a request, as the client has been
+    closed." RuntimeError from huggingface_hub's shared httpx client.
+
+    Pinning `_get_model` to the TF-IDF encoder makes the engine fully offline
+    and deterministic in tests without touching production resolution logic.
+    """
+    import app.services.semantic_classifier as sc
+
+    encoder = sc.TFIDFEncoder()
+
+    def _tfidf_only(model_name="all-MiniLM-L6-v2", backend_override=None):
+        return encoder, False
+
+    original = sc._get_model
+    sc._get_model = _tfidf_only
+    try:
+        yield
+    finally:
+        sc._get_model = original
+
+
 @pytest.fixture(scope="function")
 def client():
     return TestClient(app)

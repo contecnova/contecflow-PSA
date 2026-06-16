@@ -73,9 +73,8 @@ def mark_helpful(article_id: str, helpful: bool = True, db: Session = Depends(ge
     return {"ok": True}
 
 
-@router.get("/known-errors", summary="Base de errores conocidos (KEDB)")
-def list_known_errors(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return [serialize_known_error(p) for p in get_known_errors(db)]
+# NOTE: GET /known-errors is canonically served by problem_management.py (KEDB).
+# Removed here to avoid duplicate routes.
 
 
 @router.get("/kb/{article_id}/versions", summary="Historial de versiones de artículo KB")

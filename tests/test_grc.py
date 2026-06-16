@@ -103,7 +103,7 @@ class TestSodRules:
         self._create_rule(client, admin_token)
         res = client.get("/api/v1/grc/sod-rules", headers=auth(admin_token))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["items"]
         assert isinstance(data, list)
         assert len(data) >= 1
 
@@ -139,7 +139,7 @@ class TestSodViolations:
     def test_list_violations_empty(self, client, admin_token, db):
         res = client.get("/api/v1/grc/violations", headers=auth(admin_token))
         assert res.status_code == 200
-        assert isinstance(res.json(), list)
+        assert isinstance(res.json()["items"], list)
 
     def test_sod_check_no_violations(self, client, admin_token, db):
         res = client.get(
@@ -244,7 +244,7 @@ class TestGRCAuditLog:
     def test_audit_log_empty_initially(self, client, admin_token, db):
         res = client.get("/api/v1/grc/audit-log", headers=auth(admin_token))
         assert res.status_code == 200
-        assert isinstance(res.json(), list)
+        assert isinstance(res.json()["items"], list)
 
     def test_audit_log_service_entry(self, db):
         from app.services.grc_service import log_grc_entry
