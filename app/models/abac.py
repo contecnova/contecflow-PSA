@@ -5,6 +5,7 @@ ABAC extends RBAC by adding attribute-based rules that further restrict access
 based on project, client, region, data classification, team, and other context.
 """
 from datetime import datetime
+from app.core.timeutil import utcnow
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, JSON, Boolean, Text, Index
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -22,8 +23,8 @@ class AttributeDefinition(Base):
     possible_values = Column(JSON, nullable=True)  # For enum type: ["internal", "confidential", "public"]
     operators = Column(JSON, nullable=False)  # ["equals", "in", "contains", "gte", "lte", "regex"]
     is_active = Column(Boolean, default=True, index=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
 
     __table_args__ = (
@@ -46,8 +47,8 @@ class UserAttribute(Base):
     attribute_value = Column(JSON, nullable=False)  # Can be string, list, or structured data
     expires_at = Column(DateTime(timezone=True), nullable=True)  # Temporal attribute restrictions
     reason = Column(Text, nullable=True)  # Audit trail
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     assigned_by = Column(String(36), ForeignKey("users.id"), nullable=True)
 
     __table_args__ = (
@@ -101,8 +102,8 @@ class ABACPolicy(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)
 
     is_active = Column(Boolean, default=True, index=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
 
     # Audit trail
@@ -137,7 +138,7 @@ class PolicyAudit(Base):
     evaluation_context = Column(JSON, nullable=True)  # User attributes and request context
 
     detail = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, index=True)
+    created_at = Column(DateTime(timezone=True), default=utcnow, index=True)
 
     __table_args__ = (
         Index("idx_audit_org_user", "org_id", "user_id"),

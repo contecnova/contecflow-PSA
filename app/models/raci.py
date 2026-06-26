@@ -8,6 +8,7 @@ v25 Models — Market-leader feature set expansion:
 from sqlalchemy import Column, String, DateTime, Date, Text, Float, Boolean, Integer, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from datetime import datetime
+from app.core.timeutil import utcnow
 import enum
 from uuid import uuid4
 
@@ -41,8 +42,8 @@ class RACIEntry(Base):
     user_id     = Column(String(36),  ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role        = Column(Enum(RACIRole), nullable=False)
 
-    created_at  = Column(DateTime, default=datetime.utcnow)
-    updated_at  = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at  = Column(DateTime, default=utcnow)
+    updated_at  = Column(DateTime, default=utcnow, onupdate=utcnow)
     is_active   = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
     user    = relationship("User", lazy="joined")
@@ -83,8 +84,8 @@ class SprintRetroNote(Base):
     manual_notes       = Column(Text, nullable=True)
     facilitated_by_id  = Column(String(36), ForeignKey("users.id"), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
     is_active  = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
     sprint         = relationship("Sprint")
@@ -121,7 +122,7 @@ class BurnoutRiskSnapshot(Base):
     risk_score            = Column(Float, default=0.0)     # 0-100 composite score
     factors               = Column(Text, nullable=True)    # JSON list of contributing factors
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     user = relationship("User", lazy="joined")
 
@@ -157,8 +158,8 @@ class ProjectChangelogEntry(Base):
     source_task_ids   = Column(Text,  nullable=True)      # JSON list of task IDs that generated this
 
     author_id  = Column(String(36), ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
     is_active  = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
     author  = relationship("User", foreign_keys=[author_id])
@@ -200,8 +201,8 @@ class UATCase(Base):
     notes           = Column(Text, nullable=True)
 
     executed_at = Column(DateTime, nullable=True)
-    created_at  = Column(DateTime, default=datetime.utcnow)
-    updated_at  = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at  = Column(DateTime, default=utcnow)
+    updated_at  = Column(DateTime, default=utcnow, onupdate=utcnow)
     is_active   = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
     project     = relationship("Project")

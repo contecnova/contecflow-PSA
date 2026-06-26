@@ -5,6 +5,7 @@ AI Governance DB models:
 """
 import uuid
 from datetime import datetime
+from app.core.timeutil import utcnow
 from sqlalchemy import (
     Column, String, Integer, Boolean, DateTime, Text, JSON,
     ForeignKey, Index,
@@ -43,8 +44,8 @@ class AIGuardrailPolicyModel(Base):
     is_active           = Column(Boolean, default=True, index=True)
     priority            = Column(Integer, default=0)   # higher = evaluated first
     created_by          = Column(String(36), ForeignKey("users.id"), nullable=True)
-    created_at          = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at          = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at          = Column(DateTime(timezone=True), default=utcnow)
+    updated_at          = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     __table_args__ = (
         Index("idx_guardrail_org_active", "org_id", "is_active"),
@@ -77,7 +78,7 @@ class AIGuardrailAuditLog(Base):
     original_length = Column(Integer,     default=0)            # char count (not stored content)
     warnings        = Column(JSON,        default=list)
 
-    evaluated_at    = Column(DateTime(timezone=True), default=datetime.utcnow, index=True)
+    evaluated_at    = Column(DateTime(timezone=True), default=utcnow, index=True)
 
     __table_args__ = (
         Index("idx_guardrail_audit_org_ts",  "org_id", "evaluated_at"),

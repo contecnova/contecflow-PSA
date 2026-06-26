@@ -8,6 +8,7 @@ Models:
 - SecurityBaseline: Per-user/IP behavioral baselines for anomaly detection
 """
 from datetime import datetime
+from app.core.timeutil import utcnow
 from enum import Enum
 from sqlalchemy import (
     Column, String, Integer, Float, DateTime,
@@ -97,8 +98,8 @@ class SecurityEvent(Base):
     detection_id = Column(String(36), ForeignKey("security_detections.id"), nullable=True, index=True)
 
     # Timestamps
-    occurred_at  = Column(DateTime, default=datetime.utcnow, index=True)  # when it happened
-    ingested_at  = Column(DateTime, default=datetime.utcnow)              # when we stored it
+    occurred_at  = Column(DateTime, default=utcnow, index=True)  # when it happened
+    ingested_at  = Column(DateTime, default=utcnow)              # when we stored it
 
     __table_args__ = (
         Index("idx_event_org_cat",      "org_id", "category"),
@@ -145,8 +146,8 @@ class SecurityDetection(Base):
     evidence     = Column(JSON,     nullable=True)  # {"rule": "...", "matched": [...]}
 
     # MTTD tracking
-    first_seen_at  = Column(DateTime, default=datetime.utcnow, index=True)  # oldest event  timestamp
-    detected_at    = Column(DateTime, default=datetime.utcnow, index=True)  # when rule fired
+    first_seen_at  = Column(DateTime, default=utcnow, index=True)  # oldest event  timestamp
+    detected_at    = Column(DateTime, default=utcnow, index=True)  # when rule fired
     # MTTD = detected_at - first_seen_at (seconds)
 
     # Status
@@ -193,7 +194,7 @@ class SecurityIncident(Base):
     mttr_seconds   = Column(Float,   nullable=True)   # set on resolution
 
     # Timeline
-    started_at     = Column(DateTime, default=datetime.utcnow, index=True)  # first event
+    started_at     = Column(DateTime, default=utcnow, index=True)  # first event
     detected_at    = Column(DateTime, nullable=True)
     contained_at   = Column(DateTime, nullable=True)
     resolved_at    = Column(DateTime, nullable=True, index=True)
@@ -209,8 +210,8 @@ class SecurityIncident(Base):
     remediation_note = Column(Text,  nullable=True)
     lessons_learned  = Column(Text,  nullable=True)
 
-    created_at  = Column(DateTime, default=datetime.utcnow)
-    updated_at  = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at  = Column(DateTime, default=utcnow)
+    updated_at  = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     __table_args__ = (
         Index("idx_inc_org_status",   "org_id", "status"),
@@ -247,7 +248,7 @@ class LoginAnomaly(Base):
     is_resolved  = Column(Boolean,     default=False, index=True)
     resolved_at  = Column(DateTime,    nullable=True)
 
-    occurred_at  = Column(DateTime, default=datetime.utcnow, index=True)
+    occurred_at  = Column(DateTime, default=utcnow, index=True)
 
     __table_args__ = (
         Index("idx_anomaly_org_type", "org_id", "anomaly_type"),
@@ -302,7 +303,7 @@ class SecurityMetricSnapshot(Base):
     open_incidents  = Column(Integer, default=0)
     new_incidents   = Column(Integer, default=0)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     __table_args__ = (
         Index("idx_snapshot_org_hour", "org_id", "snapshot_hour", unique=True),
