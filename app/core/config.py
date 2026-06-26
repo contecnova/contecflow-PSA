@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import Field, ValidationInfo, field_validator
-from typing import List, Optional
+from typing import ClassVar, List, Optional
 
 from app.core.config_groups import (
     AISettingsMixin,
@@ -73,6 +73,10 @@ class Settings(
 
     CLIENT_PORTAL_SECRET: str = Field(..., env="CLIENT_PORTAL_SECRET")
     SCIM_BEARER_TOKEN: str = Field(default="", env="SCIM_BEARER_TOKEN")
+    # Legacy global SCIM token compat: if SCIM_BEARER_TOKEN is set, bind it to a
+    # single org via this setting. When unset, the legacy global token is only
+    # honoured (for ANY org) in development/testing — never silently in prod.
+    SCIM_ALLOWED_ORG_ID: str = Field(default="", env="SCIM_ALLOWED_ORG_ID")
     WEBHOOK_SECRET: str = Field(default="", env="WEBHOOK_SECRET")
     # Secret token for inbound email webhook (Mailgun/SendGrid/Postmark relay)
     # Set this to a long random string and configure your email relay to send it
@@ -88,14 +92,35 @@ class Settings(
     GITHUB_WEBHOOK_SECRET: str = Field(default="", env="GITHUB_WEBHOOK_SECRET")
     GITLAB_WEBHOOK_SECRET: str = Field(default="", env="GITLAB_WEBHOOK_SECRET")
 
+    # ── Jira inbound webhook ──────────────────────────────────────────────────
+    # Shared secret expected in the `X-Atlassian-Webhook-Token` header (or an
+    # HMAC-SHA256 of the raw body in `X-Hub-Signature-256`). When empty, all
+    # inbound Jira webhook requests are REJECTED (fail-closed), mirroring the
+    # GitHub/GitLab webhook policy above. Configure a Jira automation rule to
+    # send this header so cross-tenant ticket mutation cannot be forged.
+    JIRA_WEBHOOK_SECRET: str = Field(default="", env="JIRA_WEBHOOK_SECRET")
+
     # ── E-Signature providers ─────────────────────────────────────────────────
     DOCUSIGN_INTEGRATION_KEY:  str = Field(default="", env="DOCUSIGN_INTEGRATION_KEY")
     DOCUSIGN_SECRET_KEY:       str = Field(default="", env="DOCUSIGN_SECRET_KEY")
     DOCUSIGN_ACCOUNT_ID:       str = Field(default="", env="DOCUSIGN_ACCOUNT_ID")
     DOCUSIGN_BASE_URL:         str = Field(default="", env="DOCUSIGN_BASE_URL")
+    # DocuSign Connect HMAC key (Connect → "Include HMAC Signature"). Used to
+    # verify the `X-DocuSign-Signature-1..N` headers on inbound webhooks.
+    # When empty, DocuSign webhook requests are REJECTED (fail-closed).
+    DOCUSIGN_CONNECT_HMAC_KEY: str = Field(default="", env="DOCUSIGN_CONNECT_HMAC_KEY")
     ADOBE_SIGN_CLIENT_ID:      str = Field(default="", env="ADOBE_SIGN_CLIENT_ID")
     ADOBE_SIGN_CLIENT_SECRET:  str = Field(default="", env="ADOBE_SIGN_CLIENT_SECRET")
     ADOBE_SIGN_BASE_URL:       str = Field(default="https://api.na1.adobesign.com/api/rest/v6", env="ADOBE_SIGN_BASE_URL")
+
+    # ── Infrastructure provisioning (Terraform / Ansible runners) ──────────────
+    # Running IaC from tenant-stored config is RCE-prone, so it is OFF by default
+    # and every filesystem path (workdir / playbook / var_file / inventory) MUST
+    # resolve inside PROVISIONING_ROOT_DIR — an operator-controlled directory of
+    # vetted modules/playbooks. Tenant config can never point the runner outside
+    # this root. When disabled or the root is unset, provisioning is rejected.
+    PROVISIONING_ENABLED: bool = Field(default=False, env="PROVISIONING_ENABLED")
+    PROVISIONING_ROOT_DIR: str = Field(default="", env="PROVISIONING_ROOT_DIR")
 
     # ── SSO OAuth endpoints ───────────────────────────────────────────────────
     MICROSOFT_OAUTH_BASE: str = Field(
@@ -338,6 +363,60 @@ class Settings(
             raise ValueError(f"{info.field_name} must be configured in {environment}")
         if (v or "").strip() and len(v.strip()) < 24:
             raise ValueError(f"{info.field_name} must be at least 24 characters long")
+        return v
+
+    # Audit #C3: extend strict secret validation to portal & superadmin credentials.
+    # Mirrors SECRET_KEY rules (placeholder rejection, entropy, length) so a weak
+    # superadmin password or a default client-portal secret can never reach prod.
+    # NOTE: must be ClassVar — a bare leading-underscore assignment is treated by
+    # Pydantic v2 as a ModelPrivateAttr, so `cls._PLACEHOLDER_PREFIXES` inside the
+    # validators below would be the descriptor (not iterable) and Settings() would
+    # crash on boot. ClassVar marks them as plain class constants.
+    _PLACEHOLDER_PREFIXES: ClassVar[tuple[str, ...]] = ("CHANGE_ME", "REPLACE_ME", "TODO", "PLACEHOLDER")
+    _KNOWN_WEAK_PASSWORDS: ClassVar[set[str]] = {
+        "contecflow2024!",
+        "password",
+        "admin",
+        "admin123",
+        "changeme",
+        "123456",
+    }
+
+    @field_validator("CLIENT_PORTAL_SECRET")
+    @classmethod
+    def client_portal_secret_must_be_strong(cls, v: str, info: ValidationInfo) -> str:
+        environment = info.data.get("ENVIRONMENT", "development")
+        upper = (v or "").upper()
+        if any(upper.startswith(p) for p in cls._PLACEHOLDER_PREFIXES):
+            raise ValueError(
+                "CLIENT_PORTAL_SECRET still has a placeholder value. "
+                "Generate with: python -c 'import secrets; print(secrets.token_hex(32))'"
+            )
+        if environment in {"staging", "production"}:
+            if len(v) < 32:
+                raise ValueError("CLIENT_PORTAL_SECRET must be at least 32 characters in staging/production")
+            if len(set(v[:64])) < 10:
+                raise ValueError("CLIENT_PORTAL_SECRET entropy too low (regenerate with secrets.token_hex)")
+        return v
+
+    @field_validator("SUPERADMIN_PASSWORD")
+    @classmethod
+    def superadmin_password_must_be_strong(cls, v: str, info: ValidationInfo) -> str:
+        environment = info.data.get("ENVIRONMENT", "development")
+        upper = (v or "").upper()
+        if any(upper.startswith(p) for p in cls._PLACEHOLDER_PREFIXES):
+            raise ValueError(
+                "SUPERADMIN_PASSWORD still has a placeholder value. Set a real password in .env."
+            )
+        if environment in {"staging", "production"}:
+            if v.lower() in cls._KNOWN_WEAK_PASSWORDS:
+                raise ValueError(
+                    f"SUPERADMIN_PASSWORD is a known weak/default value; refuse to boot in {environment}."
+                )
+            if len(v) < 16:
+                raise ValueError(f"SUPERADMIN_PASSWORD must be at least 16 characters in {environment}")
+            if len(set(v)) < 8:
+                raise ValueError("SUPERADMIN_PASSWORD entropy too low (needs ≥8 distinct chars)")
         return v
 
     # ── URL/Origin validators (rechazar localhost/wildcard en producción) ────

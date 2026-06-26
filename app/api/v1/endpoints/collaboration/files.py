@@ -1,5 +1,6 @@
 """Attachment endpoints — upload, AV/DLP, signed download, preview."""
 from datetime import datetime
+from app.core.timeutil import utcnow
 from typing import Optional
 import re
 
@@ -58,7 +59,7 @@ async def upload_attachment(
     is_quarantined = (av_status == "infected") or (dlp_status == "blocked")
 
     safe_name = _safe_filename(file.filename)
-    key = f"{org}/{conversation_id}/{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{safe_name}"
+    key = f"{org}/{conversation_id}/{utcnow().strftime('%Y%m%d%H%M%S')}_{safe_name}"
     stored = storage.save_bytes(key, data)
 
     att = CollaborationAttachment(
@@ -73,7 +74,7 @@ async def upload_attachment(
         storage_key=stored.storage_key,
         sha256=stored.sha256,
         av_status=av_status,
-        av_scanned_at=datetime.utcnow(),
+        av_scanned_at=utcnow(),
         dlp_status=dlp_status,
         dlp_findings={"items": dlp_findings},
         is_quarantined=is_quarantined,
@@ -120,7 +121,7 @@ async def upload_attachment(
             body=body,
             metadata_json={"attachment_id": att.id, "quarantined": is_quarantined},
             has_attachments=not is_quarantined,
-            sent_at=datetime.utcnow(),
+            sent_at=utcnow(),
         )
         db.add(new_msg); db.flush()
         # Vincular el adjunto al mensaje recién creado ANTES de serializar
@@ -129,7 +130,7 @@ async def upload_attachment(
         from app.models.collaboration import CollaborationConversation
         conv = db.query(CollaborationConversation).filter(CollaborationConversation.id == conversation_id).first()
         if conv:
-            conv.last_activity_at = datetime.utcnow()
+            conv.last_activity_at = utcnow()
             conv.last_message_id = new_msg.id
         db.commit()
         # Realtime publish con los attachments ya enlazados
@@ -197,7 +198,7 @@ async def upload_new_version(
     att.size_bytes = stored.size_bytes
     att.sha256 = stored.sha256
     att.av_status = av_status
-    att.av_scanned_at = datetime.utcnow()
+    att.av_scanned_at = utcnow()
     att.dlp_status = dlp_status
     att.dlp_findings = {"items": dlp_findings}
     att.is_quarantined = is_quarantined

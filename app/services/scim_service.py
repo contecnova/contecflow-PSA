@@ -1,6 +1,7 @@
 """SCIM service — provisioning helpers (RFC 7644)."""
 from __future__ import annotations
 
+import hashlib
 import hmac
 import secrets
 from datetime import datetime, timezone
@@ -19,15 +20,116 @@ def scim_token_expected() -> str:
     return settings.SCIM_BEARER_TOKEN
 
 
-def require_scim_token(authorization: Optional[str]) -> None:
+def hash_scim_token(token: str) -> str:
+    """Return the storage hash (SHA-256 hex) for a SCIM plaintext token."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def generate_scim_token(db: Session, org_id: str) -> str:
+    """Generate, store (hashed) and return a new per-org SCIM token (plaintext).
+
+    The plaintext is returned ONCE for the caller to hand to the IdP; only the
+    hash is persisted.
+    """
+    org = (
+        db.query(Organization)
+        .filter(Organization.id == org_id, Organization.is_active == True)
+        .first()
+    )
+    if not org:
+        raise HTTPException(status_code=404, detail="Organización no encontrada")
+    token = secrets.token_urlsafe(32)
+    org.scim_token_hash = hash_scim_token(token)
+    db.commit()
+    return token
+
+
+def _is_dev_or_test() -> bool:
+    import os
+    if os.environ.get("TESTING") == "1" or os.environ.get("PYTEST_CURRENT_TEST"):
+        return True
+    env = (settings.ENVIRONMENT or "").lower()
+    return env in ("development", "dev", "test", "testing", "local")
+
+
+def _legacy_global_token_allows(org_id: str, provided: str) -> bool:
+    """Backward-compat: honour the legacy global SCIM_BEARER_TOKEN.
+
+    Binding rules:
+      * If SCIM_ALLOWED_ORG_ID is set, the global token is valid ONLY for that
+        single org (any environment).
+      * If SCIM_ALLOWED_ORG_ID is unset, the global token is valid for ANY org
+        ONLY in development/testing — never silently in production.
+    """
     expected = scim_token_expected()
-    if not expected:
+    if not expected or not hmac.compare_digest(provided, expected):
+        return False
+    allowed_org = (settings.SCIM_ALLOWED_ORG_ID or "").strip()
+    if allowed_org:
+        return hmac.compare_digest(org_id, allowed_org)
+    return _is_dev_or_test()
+
+
+def require_scim_token(
+    db: Session, authorization: Optional[str], org_id: str
+) -> Organization:
+    """Authenticate a SCIM request and bind it to ``org_id``.
+
+    Resolution order:
+      1. Per-org token: hash the presented bearer and look up the Organization
+         whose ``scim_token_hash`` matches AND whose id equals ``org_id``.
+      2. Legacy global token (backward compat, see _legacy_global_token_allows).
+
+    Returns the resolved Organization. Raises:
+      * 503 if no SCIM auth is configured at all,
+      * 401 if no/blank bearer token is presented,
+      * 403 if the token does not authorise ``org_id`` (cross-tenant attempt),
+      * 404 if the bound org does not exist / is inactive.
+    """
+    legacy_configured = bool(scim_token_expected())
+
+    # Is there ANY SCIM auth configured at all (global token OR per-org tokens)?
+    any_per_org = (
+        db.query(Organization.id)
+        .filter(Organization.scim_token_hash.isnot(None))
+        .first()
+        is not None
+    )
+    if not legacy_configured and not any_per_org:
         raise HTTPException(status_code=503, detail="SCIM no configurado")
+
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Token SCIM requerido")
     provided = authorization.split(" ", 1)[1].strip()
-    if not hmac.compare_digest(provided, expected):
-        raise HTTPException(status_code=403, detail="Token SCIM inválido")
+    if not provided:
+        raise HTTPException(status_code=401, detail="Token SCIM requerido")
+
+    # 1) Per-org token: resolve the org by the presented token's hash.
+    token_hash = hash_scim_token(provided)
+    matched = (
+        db.query(Organization)
+        .filter(Organization.scim_token_hash.isnot(None))
+        .all()
+    )
+    resolved: Optional[Organization] = None
+    for org in matched:
+        if hmac.compare_digest(org.scim_token_hash or "", token_hash):
+            resolved = org
+            break
+
+    if resolved is not None:
+        # Token is valid for SOME org — it must be the one in the path.
+        if not hmac.compare_digest(resolved.id, org_id):
+            raise HTTPException(status_code=403, detail="Token SCIM inválido para esta organización")
+        if not resolved.is_active:
+            raise HTTPException(status_code=404, detail="Organización no encontrada")
+        return resolved
+
+    # 2) Legacy global token (backward compat).
+    if _legacy_global_token_allows(org_id, provided):
+        return ensure_org(db, org_id)
+
+    raise HTTPException(status_code=403, detail="Token SCIM inválido")
 
 
 def ensure_org(db: Session, org_id: str) -> Organization:

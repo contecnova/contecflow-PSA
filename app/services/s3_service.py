@@ -60,11 +60,12 @@ class LocalFileStorage:
         return f"/api/v1/documents/file/{file_key}?access={token}"
 
     def get_file_bytes(self, file_key: str) -> bytes:
-        # Resolve the absolute path and ensure it stays within the upload root
-        # (guards against path traversal like ../../etc/passwd)
+        # Audit #C4: previous check used `startswith(str(upload_root)+"/")`
+        # which is broken on Windows (Path.resolve() returns `\` separators).
+        # `is_relative_to` performs the comparison on Path components, OS-agnostic.
         upload_root = _LOCAL_UPLOAD_ROOT.resolve()
         path = (upload_root / file_key).resolve()
-        if not str(path).startswith(str(upload_root) + "/"):
+        if not path.is_relative_to(upload_root):
             raise PermissionError("Access denied: path outside upload root")
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_key}")

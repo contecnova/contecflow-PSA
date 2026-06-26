@@ -23,6 +23,7 @@ from uuid import uuid4
 from app.db.session import SessionLocal
 from app.db.session import get_db
 from app.core.deps import get_current_user
+from app.core.tenancy import org_scoped_or_404
 from app.models.user import User
 from app.models.service_desk import Ticket, TicketStatus
 from app.services.service_desk.ai_auto_resolution_service import (
@@ -137,7 +138,7 @@ class AutoResolutionConfigPatch(BaseModel):
         403: {"description": "Not authorized to view this ticket"},
     },
 )
-async def analyze_ticket_for_ai_resolution(
+def analyze_ticket_for_ai_resolution(
     ticket_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -156,9 +157,7 @@ async def analyze_ticket_for_ai_resolution(
         "recommendation": str,
     }
     """
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
     # Authorization: user must be assigned to ticket or be admin
     if (
@@ -181,7 +180,7 @@ async def analyze_ticket_for_ai_resolution(
         400: {"description": "Ticket already resolved or analysis confidence too low"},
     },
 )
-async def apply_ai_auto_resolution(
+def apply_ai_auto_resolution(
     ticket_id: str,
     force: bool = Query(False, description="Force apply even if low confidence"),
     current_user: User = Depends(get_current_user),
@@ -195,9 +194,7 @@ async def apply_ai_auto_resolution(
     if current_user.role not in ["admin", "support"]:
         raise HTTPException(status_code=403, detail="Only admins/support can apply auto-resolution")
 
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
     if ticket.status in [TicketStatus.resolved, TicketStatus.closed]:
         raise HTTPException(status_code=400, detail="Ticket already resolved/closed")
@@ -246,7 +243,7 @@ async def apply_ai_auto_resolution(
         403: {"description": "Only admins can run jobs"},
     },
 )
-async def run_auto_resolution_job(
+def run_auto_resolution_job(
     background_tasks: BackgroundTasks,
     limit: int = Query(100, ge=1, le=500, description="Max tickets to process"),
     run_async: bool = Query(True, description="Run in background and return immediately"),
@@ -433,7 +430,7 @@ async def run_auto_resolution_job(
         403: {"description": "Not authorized"},
     },
 )
-async def validate_ticket_auto_resolution(
+def validate_ticket_auto_resolution(
     ticket_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -447,9 +444,7 @@ async def validate_ticket_auto_resolution(
     if current_user.role not in ["admin", "support"]:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
     result = validate_auto_resolution(db, ticket)
     db.commit()
@@ -465,7 +460,7 @@ async def validate_ticket_auto_resolution(
         403: {"description": "Not authorized"},
     },
 )
-async def submit_auto_resolution_feedback(
+def submit_auto_resolution_feedback(
     ticket_id: str,
     body: FeedbackBody,
     current_user: User = Depends(get_current_user),
@@ -480,9 +475,7 @@ async def submit_auto_resolution_feedback(
     if current_user.role not in ["admin", "support"]:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
     record_resolution_feedback(db, ticket, body.success)
     db.commit()
@@ -497,7 +490,7 @@ async def submit_auto_resolution_feedback(
         403: {"description": "Admin only"},
     },
 )
-async def get_auto_resolution_statistics(
+def get_auto_resolution_statistics(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -521,7 +514,7 @@ async def get_auto_resolution_statistics(
     response_model=dict,
     responses={403: {"description": "Admin only"}},
 )
-async def get_auto_resolution_config_endpoint(
+def get_auto_resolution_config_endpoint(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -536,7 +529,7 @@ async def get_auto_resolution_config_endpoint(
     response_model=dict,
     responses={403: {"description": "Admin only"}},
 )
-async def update_auto_resolution_config_endpoint(
+def update_auto_resolution_config_endpoint(
     body: AutoResolutionConfigPatch,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -558,7 +551,7 @@ async def update_auto_resolution_config_endpoint(
         403: {"description": "Admin only"},
     },
 )
-async def run_auto_close_job_endpoint(
+def run_auto_close_job_endpoint(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

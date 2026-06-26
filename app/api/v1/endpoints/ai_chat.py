@@ -246,19 +246,24 @@ async def chat_stream(
             detail="Petición rechazada: el mensaje contiene patrones que intentan manipular el sistema de IA.",
         )
 
+    # Audit #C7: this endpoint is async (SSE streaming via httpx). Pre-stream
+    # DB-bound work was running on the event loop — push it to the threadpool.
+    from app.core.async_db import run_db
+
     # Rate-limit check (same as non-streaming endpoint)
-    limit_err = _check_rate_limit(db, current_user.id, "nexusassist")
+    limit_err = await run_db(_check_rate_limit, db, current_user.id, "nexusassist")
     if limit_err:
         raise HTTPException(429, limit_err)
 
     # Guardrail: PII & policy check on incoming prompt
-    gr = check_prompt(payload.message, current_user, "nexusassist", db)
+    gr = await run_db(check_prompt, payload.message, current_user, "nexusassist", db)
     if not gr.allowed:
         raise HTTPException(400, f"Mensaje bloqueado por política de gobernanza: {gr.blocked_by}")
     effective_message = gr.redacted_text if gr.redacted_text else payload.message
 
     # Obtain or create conversation, persist user message, build history
-    conv, messages, system = _svc.prepare_chat(
+    conv, messages, system = await run_db(
+        _svc.prepare_chat,
         db, payload.conversation_id, current_user.id,
         context_type=payload.context_type, context_id=payload.context_id,
         effective_message=effective_message, system_template=NEXUSASSIST_SYSTEM,
@@ -268,7 +273,8 @@ async def chat_stream(
     conv_id = conv.id
 
     # Detect whether the active provider is Anthropic (supports native SSE)
-    active_provider = get_default_provider(
+    active_provider = await run_db(
+        get_default_provider,
         db,
         is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
         organization_id=getattr(current_user, "organization_id", None),
@@ -570,11 +576,12 @@ Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
                         f"Configura Google Gemini, OpenAI u otro proveedor en **IA & Conectores** "
                         f"para ejecutar instrucciones del agente.\n\nInstrucción recibida: *{instruction}*"
                     )
-                # Emit tokens word by word for streaming UX
-                import time as _time
-                for word in fallback_text.split(" "):
-                    yield _event({"type": "token", "text": word + " "})
-                    _time.sleep(0.015)
+                # Audit #C6: emitting tokens word-by-word for the fallback path
+                # (no AI provider configured). The previous _time.sleep(0.015) per
+                # token was a synthetic "streaming feel" delay that wasted threadpool
+                # workers without benefit — the text is already fully generated here,
+                # so we just flush it as one event.
+                yield _event({"type": "token", "text": fallback_text})
                 yield _event({"type": "done", "result": fallback_text, "steps": []})
                 return
 
@@ -698,43 +705,9 @@ def agent_detail(
 # AI GOVERNANCE
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.get("/governance/config", summary="Configuración de gobernanza IA")
-def get_governance_config(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return _svc.get_governance_config(db)
-
-
-@router.patch("/governance/config/{module}", summary="Actualizar configuración de módulo IA")
-def update_governance_config(
-    module: str,
-    payload: dict = Body(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return _svc.update_governance_config(db, module, payload, current_user.id)
-
-
-@router.get("/governance/logs", summary="Audit log de acciones IA")
-def governance_logs(
-    module: Optional[str] = None,
-    status: Optional[str] = None,
-    days: int = Query(7, le=90),
-    limit: int = Query(100, le=500),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return _svc.get_governance_logs(db, module=module, status=status, days=days, limit=limit)
-
-
-@router.get("/governance/stats", summary="Estadísticas de uso de IA")
-def governance_stats(
-    days: int = Query(30, le=365),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return _svc.get_governance_stats(db, days=days)
+# NOTE: /governance/config, /governance/config/{module}, /governance/logs and
+# /governance/stats are canonically served by app/api/v1/endpoints/governance.py.
+# They were duplicated here historically; removed to avoid duplicate routes.
 
 
 #

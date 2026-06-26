@@ -59,6 +59,7 @@
     "preview": "vite preview",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc --noEmit",
+    "typecheck:strict": "node scripts/check_strict.mjs",
     "lint:a11y": "npm run lint:a11y:report && npm run lint:a11y:strict:core",
     "lint:a11y:report": "node scripts/a11y_audit.mjs",
     "lint:a11y:strict:core": "eslint src/main.tsx src/App.tsx src/context/AuthContext.tsx src/components/layout/Breadcrumbs.tsx src/components/ui/IconButton.tsx --ext .ts,.tsx --max-warnings 0",

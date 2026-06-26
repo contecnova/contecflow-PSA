@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from app.core.timeutil import utcnow
 from typing import Any, Dict
 
 from fastapi import HTTPException
@@ -45,7 +46,7 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
     components: Dict[str, Any] = {}
 
     # NPS
-    cutoff_nps = datetime.utcnow() - timedelta(days=s.HEALTH_NPS_LOOKBACK_DAYS)
+    cutoff_nps = utcnow() - timedelta(days=s.HEALTH_NPS_LOOKBACK_DAYS)
     nps_responses = db.query(ClientNPS).filter(
         ClientNPS.client_id == client_id,
         ClientNPS.created_at >= cutoff_nps,
@@ -101,7 +102,7 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
     components["budget"] = {"value": budget_score, "weight": s.HEALTH_WEIGHT_BUDGET}
 
     # Ticket resolution
-    cutoff_tickets = datetime.utcnow() - timedelta(days=s.HEALTH_TICKET_LOOKBACK_DAYS)
+    cutoff_tickets = utcnow() - timedelta(days=s.HEALTH_TICKET_LOOKBACK_DAYS)
     try:
         from app.models.service_desk import Ticket
         recent_tickets = db.query(Ticket).filter(Ticket.created_at >= cutoff_tickets).all()
@@ -151,5 +152,5 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
         "composite_score": composite,
         "category": category,
         "components": components,
-        "computed_at": str(datetime.utcnow()),
+        "computed_at": str(utcnow()),
     }

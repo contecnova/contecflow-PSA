@@ -48,6 +48,10 @@ class Organization(Base):
     # organización deben tener MFA habilitada para poder completar el login.
     # Aplicado en auth_core.py durante el flujo de password+MFA.
     require_mfa  = Column(Boolean, default=False, nullable=False, server_default="0")
+    # Per-organization SCIM bearer token (SHA-256 hex hash; the plaintext token
+    # is shown to the admin once at generation time and never stored). Used to
+    # authenticate SCIM provisioning calls scoped to THIS org only.
+    scim_token_hash = Column(String(64), nullable=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     updated_at   = Column(DateTime(timezone=True), onupdate=func.now())
 

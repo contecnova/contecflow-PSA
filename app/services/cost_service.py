@@ -105,9 +105,34 @@ def cost_per_hour(db: Session, user: User, on_date: Optional[Date] = None) -> Op
 
 
 def cost_amount(db: Session, user: User, hours: float, on_date: Optional[Date] = None) -> float:
-    """Return the cost in the org's default currency for `hours` worked by user."""
-    rate = cost_per_hour(db, user, on_date) or 0.0
-    return round(rate * (hours or 0), 2)
+    """Return the cost in the org's default currency for `hours` worked by user.
+
+    The active cost profile may be denominated in a foreign currency
+    (``profile.currency``). When it differs from the org's default currency we
+    convert via the FX helper at `on_date` so the returned amount is always in
+    the org currency.
+    """
+    if user is None:
+        return 0.0
+    on_date = on_date or Date.today()
+    profile = get_active_profile(db, user.id, on_date)
+    if profile is not None:
+        rate = profile.cost_per_hour or 0.0
+        src_currency = profile.currency
+    else:
+        rate = float(user.hourly_rate) if (user.hourly_rate and user.hourly_rate > 0) else 0.0
+        src_currency = None  # legacy rate assumed already in org currency
+
+    amount = rate * (hours or 0)
+
+    from app.core.config import settings
+    org_currency = settings.DEFAULT_CURRENCY
+    if src_currency and src_currency != org_currency:
+        from app.services.profitability_service import get_fx_rate
+        fx = get_fx_rate(db, src_currency, org_currency, on_date)
+        amount *= fx
+
+    return round(amount, 2)
 
 
 # ── Country preset access ───────────────────────────────────────────────────

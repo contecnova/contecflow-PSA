@@ -107,7 +107,11 @@ def create_webhook(
     payload: WebhookCreate, db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.create_webhook(payload, current_user, db)
+    try:
+        return _svc.create_webhook(payload, current_user, db)
+    except ValueError as e:
+        # SSRF guard / validation failure → 400 (bad destination URL).
+        raise HTTPException(400, str(e))
 
 
 @router.patch("/webhooks/{hook_id}", summary="Actualizar webhook")
@@ -117,8 +121,11 @@ def update_webhook(
 ):
     try:
         return _svc.update_webhook(hook_id, payload, current_user, db)
-    except ValueError:
-        raise HTTPException(404)
+    except ValueError as e:
+        if str(e) == "not_found":
+            raise HTTPException(404)
+        # SSRF guard / validation failure → 400.
+        raise HTTPException(400, str(e))
 
 
 @router.delete("/webhooks/{hook_id}", summary="Eliminar webhook")

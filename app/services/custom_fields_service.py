@@ -53,6 +53,7 @@ def serialize_state(s) -> dict:
                 "requires_comment": t.requires_comment,
             }
             for t in (s.transitions_from or [])
+            if t.is_active
         ],
     }
 

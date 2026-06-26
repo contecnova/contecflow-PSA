@@ -85,7 +85,6 @@ export {
 // Utility / UI hooks (not query-related) — exported for convenience
 export { useInvalidate } from './useInvalidate'
 export { useFormValidation } from './useFormValidation'
-export { default as useCountUp } from './useCountUp'
 export { useIdleTimeout } from './useIdleTimeout'
 export { default as useMediaQuery } from './useMediaQuery'
 export { useNotificationBadges } from './useNotificationBadges'

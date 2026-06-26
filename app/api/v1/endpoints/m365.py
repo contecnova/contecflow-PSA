@@ -20,6 +20,7 @@ NOTE: Real Graph API calls require AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_T
 """
 
 from datetime import datetime, timedelta
+from app.core.timeutil import utcnow
 from typing import Optional
 import logging
 import httpx
@@ -82,8 +83,8 @@ async def sync_calendar_events(
 ):
     """Pull upcoming calendar events for the given user via Microsoft Graph."""
     _require_m365()
-    start = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-    end   = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
+    start = utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+    end   = (utcnow() + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
     try:
         data = await _graph_get(
             f"/users/{user_upn}/calendarView?startDateTime={start}Z&endDateTime={end}Z&$top=50"
@@ -129,7 +130,11 @@ async def delete_calendar_event(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    enforce_abac(db, current_user, "m365_calendar_event", event_id, action="delete")
+    # Audit #C7: ABAC enforcement reads from DB; offload to threadpool so the
+    # sync ORM call does not block the event loop. The Graph API call is
+    # legitimately async (httpx).
+    from app.core.async_db import run_db
+    await run_db(enforce_abac, db, current_user, "m365_calendar_event", event_id, action="delete")
     _require_m365()
     try:
         await _graph_delete(f"/users/{user_upn}/events/{event_id}")
@@ -239,10 +244,12 @@ async def notify_project_milestone(
 
 
 @router.post("/teams/webhooks/incoming")
-async def receive_teams_webhook(
+def receive_teams_webhook(
     payload: dict,
     _: User = Depends(get_current_user),
 ):
+    # Audit #C7: converted async→def — no awaits inside, was unnecessarily on
+    # the event loop. Now runs in FastAPI's threadpool.
     """
     Receive incoming messages from a Teams bot (e.g. task updates, commands).
     Processes: 'create_task', 'list_projects', 'log_hours' commands from Teams chat.

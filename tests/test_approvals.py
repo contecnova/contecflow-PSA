@@ -45,7 +45,7 @@ def create_request(client, token, entity_type="expense", workflow_id=None):
 def test_list_workflows_empty(client, admin_token, db):
     res = client.get("/api/v1/approvals/workflows", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    assert isinstance(res.json()["items"], list)
 
 
 def test_create_workflow(client, admin_token, db):
@@ -107,7 +107,7 @@ def test_filter_workflows_by_entity_type(client, admin_token, db):
     create_workflow(client, admin_token, entity_type="timesheet", is_default=False, name="WF-ts")
     res = client.get("/api/v1/approvals/workflows?entity_type=expense", headers=auth(admin_token))
     assert res.status_code == 200
-    for wf in res.json():
+    for wf in res.json()["items"]:
         assert wf["entity_type"] == "expense"
 
 
@@ -227,8 +227,8 @@ def test_list_my_requests(client, admin_token, dev_token, db):
     create_request(client, dev_token, entity_type="myrequests")
     res = client.get("/api/v1/approvals/requests", headers=auth(dev_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
-    assert len(res.json()) >= 1
+    assert isinstance(res.json()["items"], list)
+    assert len(res.json()["items"]) >= 1
 
 
 def test_list_requests_filter_by_status(client, admin_token, dev_token, db):
@@ -237,7 +237,7 @@ def test_list_requests_filter_by_status(client, admin_token, dev_token, db):
     create_request(client, dev_token, entity_type="filterstatus")
     res = client.get("/api/v1/approvals/requests?status=pending", headers=auth(dev_token))
     assert res.status_code == 200
-    for req in res.json():
+    for req in res.json()["items"]:
         assert req["status"] == "pending"
 
 

@@ -451,7 +451,8 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         logger.warning("Failed to load _month_series for smart alerts org=%s", organization_id, exc_info=True)
         series = []
     if not series:
-        series = [{"month": f"2025-{m:02d}", "revenue": 0.0, "cost": 0.0, "hours": 0.0} for m in range(1, 13)]
+        _cur_year = datetime.now(timezone.utc).year
+        series = [{"month": f"{_cur_year}-{m:02d}", "revenue": 0.0, "cost": 0.0, "hours": 0.0} for m in range(1, 13)]
 
     def _empty_like() -> list[float]:
         return [0.0 for _ in series]

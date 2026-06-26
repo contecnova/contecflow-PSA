@@ -1,5 +1,6 @@
 """Voice/video calls — LiveKit autohosteado."""
 from datetime import datetime
+from app.core.timeutil import utcnow
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -51,7 +52,7 @@ def start_call(payload: CallStartIn, current_user: User = Depends(get_current_us
         kind=payload.kind,
         status="active",
         livekit_room="placeholder",
-        started_at=datetime.utcnow(),
+        started_at=utcnow(),
     )
     db.add(call)
     db.flush()
@@ -59,7 +60,7 @@ def start_call(payload: CallStartIn, current_user: User = Depends(get_current_us
     # Add initiator as host participant
     db.add(CollaborationCallParticipant(
         organization_id=org, call_id=call.id, user_id=current_user.id,
-        joined_at=datetime.utcnow(), role="host",
+        joined_at=utcnow(), role="host",
     ))
     audit_log.write(
         db, organization_id=org, actor_user_id=current_user.id, actor_client_id=None,
@@ -103,7 +104,7 @@ def join_call(call_id: str, current_user: User = Depends(get_current_user), db: 
     if not p:
         db.add(CollaborationCallParticipant(
             organization_id=org, call_id=call_id, user_id=current_user.id,
-            joined_at=datetime.utcnow(), role="participant",
+            joined_at=utcnow(), role="participant",
         ))
         db.commit()
     audit_log.write(
@@ -129,7 +130,7 @@ def leave_call(call_id: str, current_user: User = Depends(get_current_user), db:
         CollaborationCallParticipant.left_at == None,
     ).first()
     if p:
-        p.left_at = datetime.utcnow()
+        p.left_at = utcnow()
         db.commit()
     return {"ok": True}
 
@@ -142,7 +143,7 @@ def end_call(call_id: str, current_user: User = Depends(get_current_user), db: S
         raise HTTPException(404, "Llamada no encontrada")
     if call.status == "ended":
         return {"ok": True}
-    now = datetime.utcnow()
+    now = utcnow()
     call.status = "ended"
     call.ended_at = now
     if call.started_at:
@@ -171,7 +172,7 @@ def start_recording(call_id: str, current_user: User = Depends(get_current_user)
         organization_id=org, call_id=call_id,
         storage_provider="local",
         storage_key=f"recordings/{call_id}.webm",
-        started_at=datetime.utcnow(),
+        started_at=utcnow(),
         status="recording",
     )
     db.add(rec)
@@ -225,12 +226,12 @@ async def transcribe_chunk(
         if existing:
             existing.text = (existing.text or "") + "\n" + text
             seg = list(existing.segments_json or [])
-            seg.append({"speaker": current_user.id, "text": text, "ts": datetime.utcnow().isoformat()})
+            seg.append({"speaker": current_user.id, "text": text, "ts": utcnow().isoformat()})
             existing.segments_json = seg
         else:
             db.add(CollaborationTranscript(
                 organization_id=org, call_id=call_id, language="es",
-                text=text, segments_json=[{"speaker": current_user.id, "text": text, "ts": datetime.utcnow().isoformat()}],
+                text=text, segments_json=[{"speaker": current_user.id, "text": text, "ts": utcnow().isoformat()}],
             ))
             call.has_transcript = True
         db.commit()

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime, timedelta
+from app.core.timeutil import utcnow
 from typing import Dict
 
 from fastapi import HTTPException
@@ -77,7 +78,7 @@ def get_ai_gantt_suggestions(project_id: str, db: Session, current_user=None) ->
         "project_name": proj.name,
         "suggestions_count": len(suggestions),
         "suggestions": suggestions,
-        "analysed_at": str(datetime.utcnow()),
+        "analysed_at": str(utcnow()),
     }
 
 
@@ -169,7 +170,7 @@ def get_ai_timesheet_anomalies(user_id: str, db: Session, current_user=None) -> 
         "total_entries": len(entries),
         "anomalies_count": len(anomalies),
         "anomalies": anomalies,
-        "analysed_at": str(datetime.utcnow()),
+        "analysed_at": str(utcnow()),
     }
 
 
@@ -200,5 +201,5 @@ def get_ai_ticket_kb_suggestions(ticket_id: str, db: Session) -> dict:
         "ticket_id": ticket_id,
         "ticket_title": ticket.title,
         "suggestions": scored[:5],
-        "analysed_at": str(datetime.utcnow()),
+        "analysed_at": str(utcnow()),
     }

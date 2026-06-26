@@ -1,5 +1,6 @@
 """Retention policies, legal hold, audit, eDiscovery."""
 from datetime import datetime, timedelta
+from app.core.timeutil import utcnow
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -128,7 +129,7 @@ def run_retention(current_user: User = Depends(get_current_user), db: Session = 
         policies = [
             type("_P", (), {"retention_months": settings["default_months"], "scope": "workspace", "target_id": None})()
         ]
-    now = datetime.utcnow()
+    now = utcnow()
     held = _legal_held_message_ids(db, org)
     deleted = 0
     for pol in policies:
@@ -217,7 +218,7 @@ def release_hold(hold_id: str, current_user: User = Depends(get_current_user), d
     if not row:
         raise HTTPException(404, "Hold no encontrado")
     row.is_active = False
-    row.ended_at = datetime.utcnow()
+    row.ended_at = utcnow()
     audit_log.write(
         db, organization_id=_org(current_user), actor_user_id=current_user.id, actor_client_id=None,
         action="legal_hold.released", entity_type="legal_hold", entity_id=hold_id, payload={},
@@ -270,7 +271,7 @@ def ediscovery_export(payload: EDiscoveryRequest, current_user: User = Depends(g
     db.commit()
     return {
         "case_reference": payload.case_reference,
-        "exported_at": datetime.utcnow().isoformat(),
+        "exported_at": utcnow().isoformat(),
         "total": len(rows),
         "messages": [{
             "id": m.id, "conversation_id": m.conversation_id,

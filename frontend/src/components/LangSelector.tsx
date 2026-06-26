@@ -1,4 +1,4 @@
-import { APP_LANGUAGES } from '../i18n/appTranslations';
+import { AVAILABLE_LANGUAGES } from '../i18n/appTranslations';
 import { useAppLang } from '../i18n/AppLangContext';
 
 /**
@@ -9,7 +9,7 @@ export default function LangSelector({ dark = false, style = {} }) {
   const { lang, setLang } = useAppLang();
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', ...style }}>
-      {APP_LANGUAGES.map(l => (
+      {AVAILABLE_LANGUAGES.map(l => (
         <button
           key={l.code}
           onClick={() => setLang(l.code)}

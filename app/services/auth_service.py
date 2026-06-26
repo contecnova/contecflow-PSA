@@ -266,7 +266,7 @@ def get_sso_redis():
         )
         r.ping()
         _redis_client = r
-        logger.info("SSO state store: using Redis (%s)", settings.REDIS_URL.split("@")[-1])
+        logger.info("SSO state store: using Redis (%s)", (settings.REDIS_URL or "").split("@")[-1])
     except Exception as _e:
         if settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1":
             logger.info(
@@ -486,7 +486,9 @@ def read_ephemeral_token(token: str, expected_type: str) -> dict:
 COOKIE_OPTS = {
     "httponly": True,
     "samesite": "lax",
-    "secure": settings.ENVIRONMENT == "production",
+    # Audit (Sprint 3-4): require HTTPS-only cookies in staging too, not just
+    # production. Only local development serves over plain HTTP.
+    "secure": settings.ENVIRONMENT in {"production", "staging"},
 }
 
 
@@ -504,13 +506,27 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
         max_age=access_minutes * 60,
         **COOKIE_OPTS,
     )
+    # Audit (Sprint 3-4): refresh cookie is only ever sent to the dedicated
+    # refresh endpoint via same-origin XHR, so SameSite=Strict is safe here and
+    # blocks it from riding along on any cross-site navigation.
     response.set_cookie(
         "refresh_token",
         refresh_token,
         max_age=refresh_days * 86400,
         path="/api/v1/auth/refresh",
-        **COOKIE_OPTS,
+        **{**COOKIE_OPTS, "samesite": "strict"},
     )
+    # Audit #C1: also mint a CSRF token cookie on every login/refresh. The
+    # cookie is readable by JS so the SPA can echo it back via X-CSRF-Token
+    # when CSRF_DOUBLE_SUBMIT=1 is enabled. No-op effect on clients that don't
+    # opt in; pure preparation.
+    try:
+        from app.core.csrf import issue_csrf_cookie
+        issue_csrf_cookie(response)
+    except Exception:
+        # Never block auth on CSRF token minting issues — log and continue.
+        import logging as _logging
+        _logging.getLogger(__name__).warning("issue_csrf_cookie failed", exc_info=True)
 
 
 def current_refresh_jti(request: Request) -> Optional[str]:

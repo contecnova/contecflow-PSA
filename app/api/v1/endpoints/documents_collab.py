@@ -26,11 +26,14 @@ async def save_collab_snapshot(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    get_document_or_404(db, doc_id)
+    # Audit #C7: async is required to read the raw body without blocking; DB
+    # work is delegated to the threadpool via `run_db`.
+    from app.core.async_db import run_db
+    await run_db(get_document_or_404, db, doc_id)
     snapshot = await request.body()
     if not snapshot:
         raise HTTPException(400, "Missing snapshot body")
-    snap = svc_save_snapshot(db, doc_id, snapshot, current_user.id)
+    snap = await run_db(svc_save_snapshot, db, doc_id, snapshot, current_user.id)
     return {"id": snap.id, "document_id": doc_id, "clock": snap.clock, "size_bytes": snap.size_bytes}
 
 

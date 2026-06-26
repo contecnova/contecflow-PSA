@@ -1,12 +1,14 @@
 import { vi, describe, it, expect, afterEach } from 'vitest';
+import { createContext } from 'react';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import LangSelector from '../components/LangSelector';
 import { AppLangProvider } from '../i18n/AppLangContext';
-import { APP_LANGUAGES } from '../i18n/appTranslations';
+import { AVAILABLE_LANGUAGES } from '../i18n/appTranslations';
 
-// AppLangProvider needs useAuth and api
+// AppLangProvider needs useAuth, AuthContext (read via useContext) and api
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: null }),
+  AuthContext: createContext({ user: null }),
 }));
 
 vi.mock('../services/api', () => ({
@@ -25,8 +27,17 @@ vi.mock('../i18n/appTranslations', () => ({
     { code: 'de', label: 'Deutsch',    flag: '🇩🇪', partial: true },
     { code: 'pt', label: 'Português',  flag: '🇵🇹', partial: true },
     { code: 'it', label: 'Italiano',   flag: '🇮🇹', partial: true },
-    { code: 'pl', label: 'Polski',     flag: '🇵🇱', partial: true },
-    { code: 'zh', label: '中文',       flag: '🇨🇳', partial: true },
+    { code: 'pl', label: 'Polski',     flag: '🇵🇱', partial: true, enabled: false },
+    { code: 'zh', label: '中文',       flag: '🇨🇳', partial: true, enabled: false },
+  ],
+  // Switcher shows only enabled locales (pl/zh excluded).
+  AVAILABLE_LANGUAGES: [
+    { code: 'es', label: 'Español',    flag: '🇪🇸' },
+    { code: 'en', label: 'English',    flag: '🇬🇧' },
+    { code: 'fr', label: 'Français',   flag: '🇫🇷', partial: true },
+    { code: 'de', label: 'Deutsch',    flag: '🇩🇪', partial: true },
+    { code: 'pt', label: 'Português',  flag: '🇵🇹', partial: true },
+    { code: 'it', label: 'Italiano',   flag: '🇮🇹', partial: true },
   ],
   APP_TRANSLATIONS: {
     es: { nav: { projects: 'Proyectos' } },
@@ -46,7 +57,7 @@ vi.mock('../i18n/appTranslations', () => ({
 describe('LangSelector', () => {
   afterEach(() => { cleanup(); });
 
-  APP_LANGUAGES.forEach(({ code, label }) => {
+  AVAILABLE_LANGUAGES.forEach(({ code, label }) => {
     it(`permite cambiar a ${label} (${code})`, async () => {
       render(
         <AppLangProvider>

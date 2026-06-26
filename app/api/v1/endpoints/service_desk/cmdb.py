@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.tenancy import org_scoped_or_404
 from app.models.cmdb import CMDBDiscoveryProvider, CMDBDiscoveryJob
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.schemas.service_desk import CIIn
@@ -140,11 +141,13 @@ def get_ci_topology(
 def list_discovery_providers(
     db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ):
-    providers = (
-        db.query(CMDBDiscoveryProvider)
-        .order_by(CMDBDiscoveryProvider.created_at.desc())
-        .all()
-    )
+    q = db.query(CMDBDiscoveryProvider)
+    if not getattr(current_user, "is_superadmin", False) and current_user.organization_id:
+        q = q.filter(
+            (CMDBDiscoveryProvider.organization_id == current_user.organization_id)
+            | (CMDBDiscoveryProvider.organization_id.is_(None))
+        )
+    providers = q.order_by(CMDBDiscoveryProvider.created_at.desc()).all()
     return [_serialize_discovery_provider(p) for p in providers]
 
 
@@ -174,9 +177,7 @@ def patch_discovery_provider(
     payload: DiscoveryProviderPatch,
     db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ):
-    provider = db.query(CMDBDiscoveryProvider).filter(CMDBDiscoveryProvider.id == provider_id).first()
-    if not provider:
-        return {"ok": False, "error": "Provider not found"}
+    provider = org_scoped_or_404(db, CMDBDiscoveryProvider, provider_id, current_user, detail="Provider not found")
 
     data = payload.model_dump(exclude_none=True)
     if "name" in data:
@@ -205,9 +206,7 @@ def run_discovery_provider_now(
     provider_id: str,
     db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ):
-    provider = db.query(CMDBDiscoveryProvider).filter(CMDBDiscoveryProvider.id == provider_id).first()
-    if not provider:
-        return {"ok": False, "error": "Provider not found"}
+    provider = org_scoped_or_404(db, CMDBDiscoveryProvider, provider_id, current_user, detail="Provider not found")
     job = run_discovery_for_provider(db, provider)
     return {"ok": True, "job": _serialize_discovery_job(job)}
 
@@ -218,6 +217,8 @@ def list_discovery_jobs(
     page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ):
+    # Verify the provider belongs to the caller's org before exposing its jobs.
+    org_scoped_or_404(db, CMDBDiscoveryProvider, provider_id, current_user, detail="Provider not found")
     q = (
         db.query(CMDBDiscoveryJob)
         .filter(CMDBDiscoveryJob.provider_id == provider_id)

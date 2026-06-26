@@ -263,9 +263,11 @@ async def slack_inbound_command(
     verb  = (parts[0] if parts else "").lower()
     rest  = parts[1] if len(parts) > 1 else ""
 
-    # Find Contecflow user by Slack username
+    # Audit #C7: async webhook (await request.body() for HMAC). DB work via
+    # threadpool — the slack_* helpers below are sync internally.
+    from app.core.async_db import run_db
     from app.services.integrations import find_user_by_slack_name
-    contecflow_user = find_user_by_slack_name(db, user_name)
+    contecflow_user = await run_db(find_user_by_slack_name, db, user_name)
 
     try:
         if verb in ("tarea", "task"):
@@ -285,25 +287,29 @@ async def slack_inbound_command(
 
 async def _slack_create_task(text: str, user, db):
     """Parse: tarea <título> [#proyecto-code]"""
+    from app.core.async_db import run_db
     from app.services.integrations import slack_create_task_from_text
-    return slack_create_task_from_text(db, text, user)
+    return await run_db(slack_create_task_from_text, db, text, user)
 
 
 async def _slack_log_time(text: str, user, db):
     """Parse: tiempo <horas> [#proyecto-code] [descripción]"""
+    from app.core.async_db import run_db
     from app.services.integrations import slack_log_time_from_text
-    return slack_log_time_from_text(db, text, user)
+    return await run_db(slack_log_time_from_text, db, text, user)
 
 
 async def _slack_create_ticket(text: str, user, db):
     """Creates a Service Desk incident ticket from Slack."""
+    from app.core.async_db import run_db
     from app.services.integrations import slack_create_ticket_from_text
-    return slack_create_ticket_from_text(db, text, user)
+    return await run_db(slack_create_ticket_from_text, db, text, user)
 
 
 async def _slack_get_status(code: str, db):
+    from app.core.async_db import run_db
     from app.services.integrations import slack_get_status_by_code
-    return slack_get_status_by_code(db, code)
+    return await run_db(slack_get_status_by_code, db, code)
 
 
 from app.services.integrations import slack_help_response as _slack_help
@@ -352,9 +358,10 @@ async def teams_inbound_command(
     from_obj   = body.get("from", {})
     teams_name = from_obj.get("name", "").strip()
 
-    # Look up the Contecflow user by display name (best effort)
+    # Audit #C7: DB lookup offloaded to threadpool.
+    from app.core.async_db import run_db
     from app.services.integrations import find_user_by_teams_name
-    contecflow_user = find_user_by_teams_name(db, teams_name) if teams_name else None
+    contecflow_user = (await run_db(find_user_by_teams_name, db, teams_name)) if teams_name else None
 
     parts = text.split(None, 1)
     verb  = (parts[0] if parts else "").lower()

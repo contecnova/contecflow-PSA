@@ -1,0 +1,34 @@
+{
+  "//": "Audit #C9 — gradual TypeScript strict mode. The base tsconfig.json sets",
+  "//1": "`noCheck: true` so the project builds with 61 @ts-nocheck files. This",
+  "//2": "config opts a *whitelist* of files into real strict checking, runnable",
+  "//3": "in CI as `tsc --noEmit -p tsconfig.strict.json`. As files are cleaned",
+  "//4": "up (remove @ts-nocheck, fix types) they are added to the `include` list.",
+  "//5": "When the list covers the entire src/, flip the base tsconfig.json's",
+  "//6": "`noCheck` to false and delete this file.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noCheck": false,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "types": ["vite/client"]
+  },
+  "include": [
+    "src/main.tsx",
+    "src/hooks/useAppT.ts",
+    "src/context/AuthContext.tsx",
+    "src/services/api/auth.ts",
+    "src/services/api/users.ts",
+    "src/services/api/projects.ts",
+    "src/services/api/tasks.ts",
+    "src/services/api/settings.ts"
+  ]
+}

@@ -1,4 +1,4 @@
-﻿"""Problem Management service — ITSM-P08 (relational schema)
+"""Problem Management service — ITSM-P08 (relational schema)
 
 Thin orchestration layer for problem management operations. The real
 business logic lives in `problem_service.py`; this module handles

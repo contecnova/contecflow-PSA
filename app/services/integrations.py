@@ -10,6 +10,7 @@ Funciones:
   - notify_event(event_type, entity, db) → despacha a todas las integraciones activas
 """
 from app.core.config import settings
+from app.core.network import assert_safe_outbound_url, UnsafeURLError
 import json
 import logging
 import urllib.request
@@ -45,6 +46,12 @@ def send_slack_message(
     }
     if blocks:
         payload["blocks"] = blocks
+
+    try:
+        assert_safe_outbound_url(webhook_url)
+    except UnsafeURLError as e:
+        logger.warning("Slack webhook_url rechazado por SSRF guard: %s", e)
+        return {"ok": False, "error": f"webhook_url no permitido: {e}"}
 
     data = json.dumps(payload).encode("utf-8")
     req  = urllib.request.Request(
@@ -111,6 +118,12 @@ def send_teams_message(
             "name":  "Ver en Contecflow",
             "targets": [{"os": "default", "uri": url}]
         }]
+
+    try:
+        assert_safe_outbound_url(webhook_url)
+    except UnsafeURLError as e:
+        logger.warning("Teams webhook_url rechazado por SSRF guard: %s", e)
+        return {"ok": False, "error": f"webhook_url no permitido: {e}"}
 
     data = json.dumps(payload).encode("utf-8")
     req  = urllib.request.Request(

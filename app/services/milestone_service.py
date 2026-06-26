@@ -237,14 +237,20 @@ def decide_milestone_approval(
 
 def generate_milestone_invoice(milestone_id: str, current_user: User, db: Session) -> dict:
 
+    # Lock the milestone row to prevent a double-invoice race (two concurrent
+    # callers both passing the check-then-act on m.invoice_id). On Postgres this
+    # serializes the requests via SELECT ... FOR UPDATE; sqlite ignores the lock
+    # but the defensive re-check below still guards single-process test runs.
     m = db.query(ProjectMilestone).filter(
         ProjectMilestone.id == milestone_id,
         ProjectMilestone.is_active == True,
-    ).first()
+    ).with_for_update().first()
     if not m:
         raise HTTPException(404)
     if m.billing_status != "approved":
         raise HTTPException(400, f"El milestone debe estar aprobado para facturar (estado: {m.billing_status})")
+    # Re-check under the lock: if a concurrent transaction already invoiced this
+    # milestone, bail out idempotently.
     if m.invoice_id:
         raise HTTPException(400, "Este milestone ya tiene una factura generada")
 

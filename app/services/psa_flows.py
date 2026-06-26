@@ -125,6 +125,9 @@ def sync_timesheet_from_imputations_flow(db: Session, user_id: str, week_start: 
         Imputation.user_id == user_id,
         Imputation.date >= week_start,
         Imputation.date <= week_end,
+        # Excluir imputaciones soft-deleted: si no, al borrar una imputación
+        # (is_active=False) sus horas seguían sumando en el timesheet.
+        Imputation.is_active == True,
     ).all()
 
     total = sum(i.hours for i in imps)

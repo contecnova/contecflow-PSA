@@ -1,6 +1,8 @@
 from app.core.config import settings
+from app.core.deps import require_admin
+from app.main import app
 from app.models.mfa import Organization
-from app.models.user import User
+from app.models.user import User, UserRole
 from tests.conftest import auth
 
 
@@ -93,24 +95,37 @@ def test_scim_user_provisioning(client, db):
 
 
 def test_governance_ai_read_endpoints_allow_admin_without_org(client, admin_token, db):
-    admin = db.query(User).filter(User.username == "admin").first()
-    admin.organization_id = None
-    db.commit()
+    # users.organization_id is NOT NULL at the DB layer (audit #37), so we cannot
+    # persist an org-less admin. Override require_admin with a transient admin whose
+    # organization_id is None to exercise the production strict=False read path.
+    orgless_admin = User(
+        id="orgless-admin",
+        username="orgless_admin",
+        email="orgless@contecflow.com",
+        full_name="Orgless Admin",
+        role=UserRole.admin,
+        is_active=True,
+        hashed_password="x",
+    )
+    orgless_admin.organization_id = None
+    app.dependency_overrides[require_admin] = lambda: orgless_admin
+    try:
+        config_res = client.get("/api/v1/governance/config", headers=auth(admin_token))
+        assert config_res.status_code == 200
+        config_payload = config_res.json()
+        assert isinstance(config_payload, list)
+        assert len(config_payload) > 0
+        assert all("module" in item for item in config_payload)
+        assert all("is_enabled" in item for item in config_payload)
 
-    config_res = client.get("/api/v1/governance/config", headers=auth(admin_token))
-    assert config_res.status_code == 200
-    config_payload = config_res.json()
-    assert isinstance(config_payload, list)
-    assert len(config_payload) > 0
-    assert all("module" in item for item in config_payload)
-    assert all("is_enabled" in item for item in config_payload)
+        stats_res = client.get("/api/v1/governance/stats", headers=auth(admin_token))
+        assert stats_res.status_code == 200
+        stats_payload = stats_res.json()
+        assert "total_calls" in stats_payload
+        assert "by_module" in stats_payload
 
-    stats_res = client.get("/api/v1/governance/stats", headers=auth(admin_token))
-    assert stats_res.status_code == 200
-    stats_payload = stats_res.json()
-    assert "total_calls" in stats_payload
-    assert "by_module" in stats_payload
-
-    logs_res = client.get("/api/v1/governance/logs", headers=auth(admin_token))
-    assert logs_res.status_code == 200
-    assert isinstance(logs_res.json(), list)
+        logs_res = client.get("/api/v1/governance/logs", headers=auth(admin_token))
+        assert logs_res.status_code == 200
+        assert isinstance(logs_res.json(), list)
+    finally:
+        app.dependency_overrides.pop(require_admin, None)

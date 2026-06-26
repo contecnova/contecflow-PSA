@@ -1,6 +1,7 @@
 """Tests de integración Jira — configuración, mapeos, webhooks."""
 from unittest.mock import patch, MagicMock
 from tests.conftest import auth
+from app.core.config import settings
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -138,11 +139,24 @@ def test_jira_webhook_updates_task_status(client, admin_token, pm_token, db):
             },
         },
     }
-    res = client.post("/api/v1/jira/webhook", json=webhook_payload)
+    res = client.post(
+        "/api/v1/jira/webhook",
+        json=webhook_payload,
+        headers={"X-Atlassian-Webhook-Token": settings.JIRA_WEBHOOK_SECRET},
+    )
     assert res.status_code == 200
     data = res.json()
     # Webhook returns {"ok": True, "jira_key": ..., "updated": bool}
     assert data.get("ok") is True
+
+
+def test_jira_webhook_rejects_unauthenticated(client):
+    """Webhook without the shared secret is rejected (no cross-tenant mutation)."""
+    res = client.post(
+        "/api/v1/jira/webhook",
+        json={"webhookEvent": "jira:issue_updated", "issue": {"key": "TST-1"}},
+    )
+    assert res.status_code == 403
 
 
 def test_jira_webhook_ignores_unknown_issue(client, db):
@@ -161,7 +175,11 @@ def test_jira_webhook_ignores_unknown_issue(client, db):
             },
         },
     }
-    res = client.post("/api/v1/jira/webhook", json=payload)
+    res = client.post(
+        "/api/v1/jira/webhook",
+        json=payload,
+        headers={"X-Atlassian-Webhook-Token": settings.JIRA_WEBHOOK_SECRET},
+    )
     assert res.status_code == 200
     data = res.json()
     # Returns {"ok": True, "message": "No task linked to UNKNOWN-9999"}

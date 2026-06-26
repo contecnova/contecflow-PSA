@@ -86,16 +86,15 @@ def test_cmdb_discovery_create_invalid_payload_returns_422(client, admin_token):
     assert r.status_code == 422
 
 
-def test_cmdb_discovery_patch_nonexistent_provider_returns_ok_false(client, admin_token):
+def test_cmdb_discovery_patch_nonexistent_provider_returns_404(client, admin_token):
+    # Missing / cross-tenant providers are now 404 (org-scoped lookup), not a
+    # 200 {"ok": False} body — existence is never leaked.
     r = client.patch(
         "/api/v1/sd/cmdb/discovery/providers/not-found-provider",
         headers=auth(admin_token),
         json={"name": "x"},
     )
-    assert r.status_code == 200
-    data = r.json()
-    assert data.get("ok") is False
-    assert data.get("error") == "Provider not found"
+    assert r.status_code == 404
 
 
 def test_governance_drift_invalid_type_returns_422(client, admin_token):

@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime
+from app.core.timeutil import utcnow
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -67,7 +68,7 @@ def _post_bot_message(
         status="visible",
         body=body,
         metadata_json=metadata or {},
-        sent_at=datetime.utcnow(),
+        sent_at=utcnow(),
     )
     db.add(msg)
     db.flush()
@@ -75,7 +76,7 @@ def _post_bot_message(
     # Update conv last activity
     conv = db.query(CollaborationConversation).filter(CollaborationConversation.id == conversation_id).first()
     if conv:
-        conv.last_activity_at = datetime.utcnow()
+        conv.last_activity_at = utcnow()
         conv.last_message_id = msg.id
     db.commit()
 
@@ -251,7 +252,7 @@ def _slash_imputar(db: Session, user, conversation_id: str, args: str) -> dict:
         project_id = ch.project_id
     if not project_id:
         return {"error": "El canal no está vinculado a un proyecto"}
-    imp = Imputation(user_id=user.id, project_id=project_id, hours=duration, description=args, date=datetime.utcnow().date())
+    imp = Imputation(user_id=user.id, project_id=project_id, hours=duration, description=args, date=utcnow().date())
     if hasattr(imp, "organization_id"):
         imp.organization_id = org
     db.add(imp)
@@ -287,7 +288,7 @@ def _slash_decision(db: Session, user, conversation_id: str, args: str) -> dict:
     _post_bot_message(
         db, organization_id=org, bot=bot, conversation_id=conversation_id,
         body=f"📜 Decisión registrada (auditada):\n{args}",
-        metadata={"card": "decision", "text": args, "actor": user.id, "ts": datetime.utcnow().isoformat()},
+        metadata={"card": "decision", "text": args, "actor": user.id, "ts": utcnow().isoformat()},
     )
     from app.services.collaboration import audit_log
     audit_log.write(
@@ -377,7 +378,7 @@ def _slash_meet(db: Session, user, conversation_id: str, args: str) -> dict:
     org = _org(user)
     call = CollaborationCall(
         organization_id=org, conversation_id=conversation_id, initiated_by=user.id,
-        kind="video", status="active", livekit_room="placeholder", started_at=datetime.utcnow(),
+        kind="video", status="active", livekit_room="placeholder", started_at=utcnow(),
     )
     db.add(call); db.flush()
     call.livekit_room = f"contec-{call.id}"
@@ -500,7 +501,7 @@ def _escalate_to_ticket(db: Session, user, conversation_id: str, query: str, *, 
     # viene vía project_id → Project.organization_id. El bot crea tickets
     # ad-hoc sin project, así que la org se deriva del requester user.
     if hasattr(ticket, "number"):
-        ticket.number = f"SD-{int(datetime.utcnow().timestamp()) % 1_000_000:06d}"
+        ticket.number = f"SD-{int(utcnow().timestamp()) % 1_000_000:06d}"
     db.add(ticket)
     db.commit()
     return {"id": ticket.id, "number": getattr(ticket, "number", None), "assignee": "soporte"}

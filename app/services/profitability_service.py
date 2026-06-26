@@ -232,7 +232,11 @@ def calc_project_profitability(
 # ── Imputation queries ─────────────────────────────────────────────────────────
 
 def get_project_imputations(db: Session, project_id: str) -> list:
-    return db.query(Imputation).filter(Imputation.project_id == project_id).all()
+    return (
+        db.query(Imputation)
+        .filter(Imputation.project_id == project_id, Imputation.is_active == True)
+        .all()
+    )
 
 
 def get_imputation_totals_by_project(db: Session, project_ids: list) -> dict:
@@ -245,7 +249,7 @@ def get_imputation_totals_by_project(db: Session, project_ids: list) -> dict:
             func.sum(case((Imputation.is_billable == True, Imputation.hours), else_=0)).label("billable_hours"),
             func.sum(Imputation.cost_amount).label("internal_cost"),
         )
-        .filter(Imputation.project_id.in_(project_ids))
+        .filter(Imputation.project_id.in_(project_ids), Imputation.is_active == True)
         .group_by(Imputation.project_id)
         .all()
     )

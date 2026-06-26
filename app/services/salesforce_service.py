@@ -1,5 +1,6 @@
 """Service layer for Salesforce sync operations."""
 from datetime import date, datetime
+from app.core.timeutil import utcnow
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
@@ -78,7 +79,7 @@ def update_instance_sync_status(
     db: Session, inst, records: int, errors: List[str]
 ) -> None:
     """Persist last-sync metadata on the IntegrationInstance."""
-    inst.last_sync_at = datetime.utcnow()
+    inst.last_sync_at = utcnow()
     inst.last_sync_status = "error" if errors else "ok"
     inst.last_sync_records = records
     inst.last_error = "; ".join(errors) if errors else None

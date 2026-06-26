@@ -11,6 +11,7 @@ from app.core.deps import get_current_user, require_any_manager
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.tenancy import org_scoped_or_404
 from app.models.workflow_designer import (
     WorkflowBlueprint, WorkflowBlueprintVersion,
     WorkflowRun, WorkflowRunStatus,
@@ -101,6 +102,7 @@ def create_workflow_blueprint(
         graph=payload.graph,
         created_by_user_id=current_user.id,
         description=payload.description,
+        organization_id=current_user.organization_id,
     )
     db.commit()
     db.refresh(bp)
@@ -112,9 +114,7 @@ def get_blueprint(
     blueprint_id: str,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    bp = db.query(WorkflowBlueprint).filter(WorkflowBlueprint.id == blueprint_id).first()
-    if not bp:
-        raise HTTPException(404, "Blueprint not found")
+    bp = org_scoped_or_404(db, WorkflowBlueprint, blueprint_id, current_user, detail="Blueprint not found")
     versions = [serialize_version(v) for v in bp.versions]
     return {"blueprint": serialize_blueprint(bp), "versions": versions}
 
@@ -125,9 +125,7 @@ def create_blueprint_version(
     payload: BlueprintVersionIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    bp = db.query(WorkflowBlueprint).filter(WorkflowBlueprint.id == blueprint_id).first()
-    if not bp:
-        raise HTTPException(404, "Blueprint not found")
+    bp = org_scoped_or_404(db, WorkflowBlueprint, blueprint_id, current_user, detail="Blueprint not found")
 
     validation = validate_graph(payload.graph)
     if not validation.get("valid"):
@@ -145,9 +143,7 @@ def publish_blueprint_version(
     version: int,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    bp = db.query(WorkflowBlueprint).filter(WorkflowBlueprint.id == blueprint_id).first()
-    if not bp:
-        raise HTTPException(404, "Blueprint not found")
+    bp = org_scoped_or_404(db, WorkflowBlueprint, blueprint_id, current_user, detail="Blueprint not found")
 
     target = (
         db.query(WorkflowBlueprintVersion)
@@ -171,9 +167,7 @@ def clone_blueprint(
     payload: BlueprintCloneIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    src = db.query(WorkflowBlueprint).filter(WorkflowBlueprint.id == blueprint_id).first()
-    if not src:
-        raise HTTPException(404, "Blueprint not found")
+    src = org_scoped_or_404(db, WorkflowBlueprint, blueprint_id, current_user, detail="Blueprint not found")
     # Toma la versión publicada si la hay, si no la última creada
     head = next((v for v in src.versions if v.is_published), None) or (src.versions[0] if src.versions else None)
     if not head:
@@ -187,6 +181,7 @@ def clone_blueprint(
         graph=graph,
         created_by_user_id=current_user.id,
         description=src.description,
+        organization_id=current_user.organization_id,
     )
     db.commit()
     db.refresh(bp)
@@ -199,9 +194,7 @@ def delete_blueprint(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "sd_workflow_blueprint", blueprint_id, action="delete")
-    bp = db.query(WorkflowBlueprint).filter(WorkflowBlueprint.id == blueprint_id).first()
-    if not bp:
-        raise HTTPException(404, "Blueprint not found")
+    bp = org_scoped_or_404(db, WorkflowBlueprint, blueprint_id, current_user, detail="Blueprint not found")
     archive_blueprint(db, bp)
     db.commit()
     return {"ok": True, "archived": True}

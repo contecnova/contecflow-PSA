@@ -143,7 +143,7 @@ migrate-create: ## Crea una migración nueva: make migrate-create MSG="descripci
 	alembic revision --autogenerate -m "$(MSG)"
 
 seed: ## Carga datos de ejemplo
-	$(PYTHON) scripts/seed_data.py
+	$(PYTHON) scripts/seed_full_data.py
 
 init-admin: ## Crea el usuario admin inicial
 	bash init_admin.sh

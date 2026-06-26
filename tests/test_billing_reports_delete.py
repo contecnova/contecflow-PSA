@@ -52,7 +52,7 @@ def test_delete_automation_workflow(client, admin_token, db):
 
     listed = client.get("/api/v1/billing-reports/automation-workflows", headers=auth(admin_token))
     assert listed.status_code == 200
-    assert all(w["id"] != wf_id for w in listed.json())
+    assert all(w["id"] != wf_id for w in listed.json()["items"])
 
 
 def test_delete_scheduled_report(client, admin_token, db):
@@ -80,4 +80,4 @@ def test_delete_scheduled_report(client, admin_token, db):
 
     listed = client.get("/api/v1/billing-reports/scheduled-reports", headers=auth(admin_token))
     assert listed.status_code == 200
-    assert all(r["id"] != report_id for r in listed.json())
+    assert all(r["id"] != report_id for r in listed.json()["items"])

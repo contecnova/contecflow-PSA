@@ -211,6 +211,7 @@ def test_create_review_rejects_ineligible_reviewer(client, admin_token, db):
         full_name="Outsider", role="employee",
         team="Backend", department="Engineering",
         is_active=True, hashed_password="x",
+        organization_id=1,
     )
     db.add(outsider)
     db.commit()

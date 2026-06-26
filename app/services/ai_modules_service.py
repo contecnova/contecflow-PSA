@@ -6,6 +6,7 @@ import json
 import time
 import logging
 from datetime import datetime, timedelta, date, timezone
+from app.core.timeutil import utcnow
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -1827,7 +1828,7 @@ def revenue_forecast(db: Session, months_ahead: int = 3) -> dict:
     """
     from app.models.billing_reports import Invoice  # noqa: PLC0415
 
-    now   = datetime.utcnow()
+    now   = utcnow()
     start = (now.replace(day=1) - timedelta(days=365)).replace(day=1)
     history: list[dict] = []
 
@@ -1934,7 +1935,7 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
     if not unscheduled:
         return {"scheduled": [], "message": "No unscheduled tasks found"}
 
-    now   = datetime.utcnow()
+    now   = utcnow()
     w4ago = (now - timedelta(weeks=4)).date()
     capacity = []
     users_q = db.query(User).filter(User.is_active == True)

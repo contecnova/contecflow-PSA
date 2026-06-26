@@ -437,17 +437,26 @@ def list_sla_schedules_records(db) -> list:
 
 
 def create_sla_schedule_record(payload, db) -> dict:
-    if payload.is_default:
-        db.query(SLASchedule).filter(SLASchedule.is_default == True).update({"is_default": False})
-    work_start = time.fromisoformat(payload.work_start) if payload.work_start else None
-    work_end   = time.fromisoformat(payload.work_end)   if payload.work_end   else None
-    s = SLASchedule(
-        name=payload.name, timezone=payload.timezone,
-        is_default=payload.is_default,
-        work_days=json.dumps(payload.work_days),
-        work_start=work_start, work_end=work_end,
-    )
-    db.add(s); db.commit(); db.refresh(s)
+    # Audit #C8: previously the UPDATE (un-setting other default schedules) and
+    # the INSERT ran as two independent statements with one final commit and no
+    # rollback. A failure in `db.add(s)` would leave the prior UPDATE committed
+    # by the next session checkpoint, producing zero default schedules. Wrap
+    # both in an `atomic()` block so they succeed or fail as a single unit.
+    from app.db.transactions import atomic
+
+    with atomic(db):
+        if payload.is_default:
+            db.query(SLASchedule).filter(SLASchedule.is_default == True).update({"is_default": False})
+        work_start = time.fromisoformat(payload.work_start) if payload.work_start else None
+        work_end   = time.fromisoformat(payload.work_end)   if payload.work_end   else None
+        s = SLASchedule(
+            name=payload.name, timezone=payload.timezone,
+            is_default=payload.is_default,
+            work_days=json.dumps(payload.work_days),
+            work_start=work_start, work_end=work_end,
+        )
+        db.add(s)
+    db.refresh(s)
     s = db.query(SLASchedule).options(joinedload(SLASchedule.holidays)).filter(SLASchedule.id == s.id).first()
     return serialize_schedule(s)
 
@@ -1030,6 +1039,43 @@ def _render_step_value(value, context: dict):
     return value
 
 
+def _provisioning_root() -> "Path":
+    """Return the operator-controlled provisioning root, or raise if provisioning
+    is disabled / unconfigured (fail-closed)."""
+    from pathlib import Path  # noqa: PLC0415
+
+    if not settings.PROVISIONING_ENABLED:
+        raise PermissionError("Infrastructure provisioning is disabled (set PROVISIONING_ENABLED=1)")
+    root = (settings.PROVISIONING_ROOT_DIR or "").strip()
+    if not root:
+        raise PermissionError("PROVISIONING_ROOT_DIR is not configured; refusing to run provisioning")
+    return Path(root).resolve()
+
+
+def _safe_provision_path(candidate, *, label: str, required: bool = True) -> "str | None":
+    """Resolve *candidate* and guarantee it stays inside PROVISIONING_ROOT_DIR.
+
+    Blocks path-traversal / absolute-path escapes / symlink breakout so a
+    tenant-supplied workdir/playbook/var_file/inventory can never make the
+    runner execute code outside the vetted module tree. Returns the resolved
+    absolute path as a string, or None when *candidate* is empty and not
+    required. Raises ValueError on any containment violation.
+    """
+    from pathlib import Path  # noqa: PLC0415
+
+    if candidate is None or str(candidate).strip() == "":
+        if required:
+            raise ValueError(f"Provisioning '{label}' is required")
+        return None
+    root = _provisioning_root()
+    resolved = (root / str(candidate)).resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError:
+        raise ValueError(f"Provisioning '{label}' escapes the provisioning root")
+    return str(resolved)
+
+
 def _run_cli(cmd: list[str], cwd: str | None = None, timeout_seconds: int = 1200) -> dict:
     started = datetime.now(timezone.utc)
     proc = subprocess.run(
@@ -1145,8 +1191,14 @@ def _execute_provision_action(config: dict, context: dict) -> dict:
 
 
 def _execute_terraform_action(config: dict, context: dict) -> dict:
-    """Run Terraform command (init+apply/destroy/plan) for provisioning."""
-    workdir = _render_step_value(config.get("workdir"), context)
+    """Run Terraform command (init+apply/destroy/plan) for provisioning.
+
+    All filesystem paths are forced inside PROVISIONING_ROOT_DIR (server-side),
+    so a tenant-supplied workdir/var_file can never make the runner execute a
+    module tree outside the operator-vetted root.
+    """
+    # Containment first — raises if provisioning is disabled or paths escape root.
+    workdir = _safe_provision_path(_render_step_value(config.get("workdir"), context), label="workdir")
     command = str(config.get("command") or "apply").lower()
     allowed_commands = {
         str(c).lower() for c in (config.get("allowed_commands") or sorted(ALLOWED_TERRAFORM_COMMANDS))
@@ -1159,7 +1211,9 @@ def _execute_terraform_action(config: dict, context: dict) -> dict:
         raise RuntimeError("terraform executable not found in PATH")
 
     auto_approve = bool(config.get("auto_approve", True))
-    var_file = _render_step_value(config.get("var_file"), context)
+    var_file = _safe_provision_path(
+        _render_step_value(config.get("var_file"), context), label="var_file", required=False
+    )
     vars_map = _render_step_value(config.get("vars") or {}, context)
     timeout_seconds = int(config.get("timeout_seconds", 1800))
 
@@ -1185,12 +1239,20 @@ def _execute_ansible_action(config: dict, context: dict) -> dict:
     if not shutil.which("ansible-playbook"):
         raise RuntimeError("ansible-playbook executable not found in PATH")
 
-    playbook = _render_step_value(config.get("playbook"), context)
-    inventory = _render_step_value(config.get("inventory"), context)
-    workdir = _render_step_value(config.get("workdir"), context)
+    # Containment first — playbook/inventory/workdir are forced inside the
+    # operator-controlled PROVISIONING_ROOT_DIR, so a tenant cannot point the
+    # runner at an attacker-staged playbook (which could carry local-exec /
+    # shell tasks → RCE on the worker).
+    playbook = _safe_provision_path(_render_step_value(config.get("playbook"), context), label="playbook")
+    inventory = _safe_provision_path(
+        _render_step_value(config.get("inventory"), context), label="inventory", required=False
+    )
+    workdir = _safe_provision_path(
+        _render_step_value(config.get("workdir"), context), label="workdir", required=False
+    )
     timeout_seconds = int(config.get("timeout_seconds", 1800))
-    if not playbook:
-        raise ValueError("Ansible action requires 'playbook'")
+    # Optional defense-in-depth: a config allow-list further narrows playbooks
+    # (already constrained to the root above). Compared on the resolved path.
     allowed_playbooks = {str(p) for p in (config.get("allowed_playbooks") or [])}
     if allowed_playbooks and str(playbook) not in allowed_playbooks:
         raise ValueError(f"Ansible playbook '{playbook}' is not in allowed_playbooks")

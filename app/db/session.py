@@ -294,6 +294,109 @@ else:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=TenantSession)
 
 
+# ── Audit #C5: global tenant isolation via do_orm_execute ─────────────────────
+#
+# `TenantSession.query()` and `.execute(Select)` already inject org filters for
+# the common code paths. The remaining gap is lazy-loaded relationships and any
+# raw `session.execute(select(Model))` that bypasses our overrides at runtime
+# (e.g. SA internals during refresh).
+#
+# `do_orm_execute` is SA 2.0's canonical hook for this: it fires for every ORM
+# statement and lets us attach `with_loader_criteria` clauses that the SA
+# planner applies wherever the model appears (including eager/lazy joins).
+#
+# Bypass options:
+#   • `session.info["is_superadmin"] = True` — already used for superadmin paths.
+#   • `session.info["bypass_tenant_filter"] = True` — explicit per-session escape
+#     hatch for migration scripts / cross-tenant analytics jobs.
+#   • Set env `TENANT_AUTO_FILTER_GLOBAL=0` to disable the event entirely.
+
+import os as _os
+from sqlalchemy import event as _sa_event
+from sqlalchemy.orm import with_loader_criteria as _with_loader_criteria
+
+_TENANT_AUTO_FILTER_GLOBAL = _os.getenv("TENANT_AUTO_FILTER_GLOBAL", "1") == "1"
+
+
+def _iter_tenant_scoped_models():
+    """Yield mapped ORM classes that carry an `organization_id` column."""
+    try:
+        from app.db.base import Base
+    except Exception:
+        return
+    for mapper in Base.registry.mappers:
+        cls = mapper.class_
+        if hasattr(cls, "organization_id"):
+            yield cls
+
+
+if _TENANT_AUTO_FILTER_GLOBAL:
+
+    @_sa_event.listens_for(SessionLocal, "do_orm_execute")
+    def _enforce_tenant_isolation(execute_state) -> None:
+        # Only filter ORM SELECT statements; INSERT/UPDATE/DELETE carry their
+        # own WHERE clauses and would be incorrectly narrowed otherwise.
+        if not execute_state.is_select:
+            return
+        if execute_state.is_relationship_load:
+            # Relationship loads already inherit their parent's tenant scope
+            # (parent row was filtered when loaded). Skipping avoids double
+            # filtering joined-eager loads where the cross-table FK is the
+            # legitimate access path.
+            return
+
+        session = execute_state.session
+        info = getattr(session, "info", {}) or {}
+
+        if info.get("bypass_tenant_filter") is True:
+            return
+        is_superadmin = info.get("is_superadmin", None)
+        if is_superadmin is None or is_superadmin is True:
+            # Uninitialised session (background job, test) or superadmin: skip.
+            return
+        org_id = info.get("organization_id")
+        if org_id is None:
+            # Regular user with no org → block any data return.
+            from sqlalchemy import false as _sql_false
+            execute_state.statement = execute_state.statement.options(
+                _with_loader_criteria(
+                    object,  # base — will be skipped by SA when no class matches
+                    lambda cls: _sql_false(),
+                    include_aliases=True,
+                )
+            )
+            return
+
+        # Attach a loader_criteria for every tenant-scoped model. SA filters out
+        # criteria whose target class is not in the statement, so the cost is
+        # mostly evaluation at plan time, not execution.
+        criteria_options = []
+        for model in _iter_tenant_scoped_models():
+            include_global = getattr(model, "_tenant_filter_include_global", False)
+            if include_global:
+                from sqlalchemy import or_ as _or
+                criteria_options.append(
+                    _with_loader_criteria(
+                        model,
+                        lambda cls, _org=org_id: _or(
+                            cls.organization_id == _org,
+                            cls.organization_id.is_(None),
+                        ),
+                        include_aliases=True,
+                    )
+                )
+            else:
+                criteria_options.append(
+                    _with_loader_criteria(
+                        model,
+                        lambda cls, _org=org_id: cls.organization_id == _org,
+                        include_aliases=True,
+                    )
+                )
+        if criteria_options:
+            execute_state.statement = execute_state.statement.options(*criteria_options)
+
+
 def get_db() -> Generator[Session, None, None]:
     """
     Yield a synchronous SQLAlchemy session for request-scoped DB access.

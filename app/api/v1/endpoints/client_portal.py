@@ -801,21 +801,33 @@ def get_portal_stats(
 
 # ── Traducciones personalizadas del portal ───────────────────────────────────
 
-_TRANSLATIONS_STORE: dict = {}  # En producción usar BD o Redis
+# Custom portal translations, keyed by organization_id to avoid cross-tenant
+# leakage (audit HIGH): a single flat dict was shared across ALL tenants.
+# Shape: { "<organization_id>": { <lang>: { <module>: { <key>: <value> } } } }
+# TODO(multi-worker): still per-process and lost on restart. Move to DB
+# (e.g. an OrgBranding.portal_translations JSON column) or Redis for durability
+# and to share state across workers.
+_TRANSLATIONS_STORE: dict = {}
+
+
+def _org_key(current_user: User) -> str:
+    """Resolve the tenant bucket key for the current manager."""
+    return str(getattr(current_user, "organization_id", None) or "_global")
+
 
 @router.get("/translations", summary="Obtener traducciones personalizadas del portal")
 async def get_portal_translations(
     current_user: User = Depends(require_any_manager),
 ):
-    return _TRANSLATIONS_STORE
+    return _TRANSLATIONS_STORE.get(_org_key(current_user), {})
 
 @router.post("/translations", summary="Guardar traducciones personalizadas del portal")
 async def save_portal_translations(
     data: dict,
     current_user: User = Depends(require_any_manager),
 ):
-    global _TRANSLATIONS_STORE
-    _TRANSLATIONS_STORE.update(data)
+    bucket = _TRANSLATIONS_STORE.setdefault(_org_key(current_user), {})
+    bucket.update(data)
     return {"ok": True}
 
 

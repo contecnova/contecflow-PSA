@@ -1,5 +1,16 @@
 // 中文 (自动翻译)
 const zh = {
+  v239: {
+    ecb_sync: '同步欧洲央行汇率',
+    exchange_rate_refresh: '刷新汇率',
+    last_sync: '上次同步',
+    rate_source: '汇率来源',
+    white_label: '白标',
+    brand_name: '品牌名称',
+    logo_url: 'Logo 网址',
+    primary_color: '主色',
+    custom_domain: '自定义域名',
+  },
   common: {
     save: '保存', cancel: '取消', delete: '删除', edit: '编辑',
     create: '创建', add: '添加', search: '搜索...', filter: '筛选',

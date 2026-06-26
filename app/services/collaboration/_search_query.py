@@ -19,6 +19,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
+from app.core.timeutil import utcnow
 from typing import Optional
 
 
@@ -97,7 +98,7 @@ def _parse_date(s: str) -> Optional[datetime]:
     if not s:
         return None
     s = s.lower()
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     if s == "today":
         return today
     if s == "yesterday":
@@ -114,7 +115,7 @@ def _parse_date(s: str) -> Optional[datetime]:
             "w": timedelta(weeks=n),
             "m": timedelta(days=30 * n),
         }[unit]
-        return datetime.utcnow() - delta
+        return utcnow() - delta
     for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S", "%d/%m/%Y"):
         try:
             return datetime.strptime(s, fmt)

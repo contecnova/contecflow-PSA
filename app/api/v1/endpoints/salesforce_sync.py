@@ -1,5 +1,6 @@
 import json
 from datetime import date, datetime
+from app.core.timeutil import utcnow
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -105,5 +106,5 @@ def sync_salesforce_opportunities(
         "synced_inbound": synced_in,
         "synced_outbound": synced_out,
         "errors": errors,
-        "synced_at": str(datetime.utcnow()),
+        "synced_at": str(utcnow()),
     }

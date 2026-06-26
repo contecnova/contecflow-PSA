@@ -18,6 +18,7 @@ import hmac
 import logging
 import re
 from datetime import datetime
+from app.core.timeutil import utcnow
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -124,7 +125,7 @@ def handle_github_pr(db: Session, payload: dict) -> None:
         existing.closed_at = closed_at
         if task_id and not existing.task_id:
             existing.task_id = task_id
-        existing.updated_at = datetime.utcnow()
+        existing.updated_at = utcnow()
     else:
         pr = GitPullRequest(
             provider=GitProvider.github, repo_full_name=repo_full_name,
@@ -166,7 +167,7 @@ def handle_github_deployment(db: Session, payload: dict) -> None:
     environment    = deployment.get("environment", "production")
     deploy_url     = dep_status_data.get("target_url", "") or dep_status_data.get("log_url", "")
     task_id        = find_task_by_ref(db, deployment.get("ref", ""))
-    deployed_at    = datetime.utcnow() if status == DeployStatus.success else None
+    deployed_at    = utcnow() if status == DeployStatus.success else None
 
     db.add(GitDeployment(
         provider=GitProvider.github, repo_full_name=repo_full_name,
@@ -206,7 +207,7 @@ def handle_gitlab_mr(db: Session, payload: dict) -> None:
         existing.pr_title = pr_title
         if task_id and not existing.task_id:
             existing.task_id = task_id
-        existing.updated_at = datetime.utcnow()
+        existing.updated_at = utcnow()
     else:
         db.add(GitPullRequest(
             provider=GitProvider.gitlab, repo_full_name=repo_full_name,
@@ -239,7 +240,7 @@ def handle_gitlab_deployment(db: Session, payload: dict) -> None:
         try:
             deployed_at = datetime.fromisoformat(finished.replace("Z", "+00:00"))
         except Exception:
-            deployed_at = datetime.utcnow()
+            deployed_at = utcnow()
 
     db.add(GitDeployment(
         provider=GitProvider.gitlab, repo_full_name=repo_full_name,

@@ -8,7 +8,8 @@ from fastapi import APIRouter, Body, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
+from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.settings import AppSetting
 from app.models.user import User
@@ -190,7 +191,7 @@ def put_provisioning(
     service_item_id: str,
     payload: ProvisioningConfigIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     _set_provisioning_config(db, service_item_id, org_id, payload.model_dump())
@@ -202,7 +203,7 @@ def trigger_provisioning(
     service_item_id: str,
     payload: ProvisionIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     """Execute automated provisioning steps for a service request ticket.
 
@@ -220,10 +221,7 @@ def trigger_provisioning(
 
     from app.models.service_desk import Ticket, TicketHistory
 
-    ticket = db.query(Ticket).filter(Ticket.id == payload.ticket_id).first()
-    if not ticket:
-        from fastapi import HTTPException
-        raise HTTPException(404, "Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, payload.ticket_id, current_user, detail="Ticket not found")
 
     steps_done = []
     context = _render_context(ticket, current_user, service_item_id)

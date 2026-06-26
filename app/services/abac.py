@@ -6,6 +6,7 @@ that work in conjunction with RBAC (role-based access control).
 """
 import re
 from datetime import datetime, timedelta
+from app.core.timeutil import utcnow
 from typing import Dict, List, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from app.models.abac import ABACPolicy, UserAttribute, AttributeDefinition, PolicyAudit
@@ -155,7 +156,7 @@ class ABACEngine:
         if not policy.is_active:
             return False
 
-        now = current_time or datetime.utcnow()
+        now = current_time or utcnow()
 
         # Check temporal constraints
         if policy.starts_at and now < policy.starts_at:
@@ -228,7 +229,7 @@ class ABACService:
 
         Returns: {attribute_key: attribute_value, ...}
         """
-        now = datetime.utcnow()
+        now = utcnow()
         attrs = self.db.query(UserAttribute).filter(
             UserAttribute.user_id == user_id,
             UserAttribute.org_id == self.org_id,
@@ -298,7 +299,7 @@ class ABACService:
             if hasattr(policy, key):
                 setattr(policy, key, value)
 
-        policy.updated_at = datetime.utcnow()
+        policy.updated_at = utcnow()
         self.db.commit()
         return policy
 
@@ -497,7 +498,7 @@ def get_admin_overview(db: Session, org: str, since: datetime, days: int) -> dic
     total_denials = base_audit.filter(PolicyAudit.result == "deny").count()
     total_allows = base_audit.filter(PolicyAudit.result == "allow").count()
     deny_rate = round(total_denials / total_evaluations, 4) if total_evaluations else 0.0
-    now = datetime.utcnow()
+    now = utcnow()
     expired_attrs = db.query(func.count(UserAttribute.id)).filter(
         UserAttribute.org_id == org,
         UserAttribute.expires_at < now,
@@ -518,7 +519,7 @@ def get_admin_overview(db: Session, org: str, since: datetime, days: int) -> dic
 
 
 def get_attribute_summary(db: Session, org: str) -> list:
-    now = datetime.utcnow()
+    now = utcnow()
     rows = db.query(
         UserAttribute.attribute_key,
         func.count(func.distinct(UserAttribute.user_id)).label("user_count"),

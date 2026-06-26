@@ -7,7 +7,9 @@ import { useIdleTimeout } from '../hooks/useIdleTimeout'
 // Prevent Vite from hot-replacing this module individually: a partial HMR reload
 // creates a new context reference while AuthProvider still injects the old one,
 // causing "useAuth must be used inside AuthProvider" in consumers.
-if (import.meta.hot) import.meta.hot.decline()
+// Audit #C9: `.decline()` is removed from Vite's typings but still functions; cast
+// to keep strict mode happy without altering runtime behaviour.
+if (import.meta.hot) (import.meta.hot as { decline?: () => void }).decline?.()
 
 // ── Public domain types ─────────────────────────────────────────────────
 // Other modules (hooks, pages, components) import these via:

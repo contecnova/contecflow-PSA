@@ -19,6 +19,7 @@ import logging
 import os
 import re
 from datetime import datetime
+from app.core.timeutil import utcnow
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -113,7 +114,7 @@ def tus_options() -> Response:
 
 
 @router.post("/tus")
-async def tus_create(
+def tus_create(
     request: Request,
     upload_length: int = Header(..., alias="Upload-Length"),
     upload_metadata: str = Header("", alias="Upload-Metadata"),
@@ -138,7 +139,7 @@ async def tus_create(
         "mime_type": meta.get("filetype") or meta.get("mime_type") or None,
         "size": upload_length,
         "offset": 0,
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": utcnow().isoformat(),
     })
     open(_data_path(uid), "wb").close()
     base = str(request.base_url).rstrip("/")
@@ -198,7 +199,7 @@ async def tus_patch(
         av_status, av_details = scan_with_av(data)
         dlp_status, dlp_findings = scan_dlp(data.decode("utf-8", errors="ignore")[:200_000])
         is_quarantined = (av_status == "infected") or (dlp_status == "blocked")
-        key = f"{meta['organization_id']}/{meta['conversation_id']}/{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{_safe_filename(meta['name'])}"
+        key = f"{meta['organization_id']}/{meta['conversation_id']}/{utcnow().strftime('%Y%m%d%H%M%S')}_{_safe_filename(meta['name'])}"
         stored = storage.save_bytes(key, data)
         att = CollaborationAttachment(
             organization_id=meta["organization_id"],
@@ -211,7 +212,7 @@ async def tus_patch(
             storage_key=stored.storage_key,
             sha256=stored.sha256,
             av_status=av_status,
-            av_scanned_at=datetime.utcnow(),
+            av_scanned_at=utcnow(),
             dlp_status=dlp_status,
             dlp_findings={"items": dlp_findings},
             is_quarantined=is_quarantined,

@@ -5,6 +5,7 @@ All db.query/add/commit/flush calls live here; the router only calls these funct
 import logging
 import os
 from datetime import datetime, timedelta
+from app.core.timeutil import utcnow
 from typing import List, Optional
 
 from sqlalchemy import func
@@ -16,6 +17,53 @@ from app.models.settings import AppSetting
 from app.core.config import settings
 
 _log = logging.getLogger(__name__)
+
+
+# ── Inbound webhook authentication ──────────────────────────────────────────────
+# Provider webhooks mutate envelope state (incl. legally-binding "completed"),
+# so they MUST be authenticated. Both verifiers fail CLOSED: when the relevant
+# secret is not configured, every request is rejected — never silently trusted.
+
+def verify_docusign_signature(body: bytes, signature_headers: List[str]) -> bool:
+    """Verify a DocuSign Connect HMAC-SHA256 signature.
+
+    DocuSign sends one ``X-DocuSign-Signature-N`` header per active HMAC key
+    (base64 of HMAC-SHA256 over the raw request body). We accept the request if
+    any provided signature matches our configured key, using a constant-time
+    comparison. Returns False when no key is configured (fail-closed).
+    """
+    import hmac
+    import hashlib
+    import base64
+
+    secret = settings.DOCUSIGN_CONNECT_HMAC_KEY
+    if not secret:
+        return False
+    expected = base64.b64encode(
+        hmac.new(secret.encode(), body, hashlib.sha256).digest()
+    ).decode()
+    for header in signature_headers:
+        if header and hmac.compare_digest(expected, header.strip()):
+            return True
+    return False
+
+
+def verify_adobe_client_id(client_id_header: Optional[str]) -> bool:
+    """Verify an Adobe Sign webhook via the ``X-AdobeSign-ClientId`` header.
+
+    Adobe Sign authenticates webhooks by echoing the registered OAuth client id
+    in every callback (and in the intent-verification handshake). We compare it
+    in constant time against ``ADOBE_SIGN_CLIENT_ID``. Returns False when the
+    client id is not configured (fail-closed).
+    """
+    import hmac
+
+    expected = settings.ADOBE_SIGN_CLIENT_ID
+    if not expected:
+        return False
+    if not client_id_header:
+        return False
+    return hmac.compare_digest(expected, client_id_header.strip())
 
 
 # ── Read helpers ──────────────────────────────────────────────────────────────
@@ -104,7 +152,7 @@ def create_envelope(
         provider=provider,
         subject=subject,
         message=message,
-        expires_at=datetime.utcnow() + timedelta(days=expires_days),
+        expires_at=utcnow() + timedelta(days=expires_days),
     )
     db.add(envelope)
     db.flush()
@@ -125,7 +173,7 @@ def create_envelope(
     envelope.signing_url = provider_result.get("signing_url")
     envelope.status = provider_result.get("status", ESignStatus.draft)
     if envelope.status == ESignStatus.sent:
-        envelope.sent_at = datetime.utcnow()
+        envelope.sent_at = utcnow()
 
     db.commit()
     db.refresh(envelope)
@@ -138,11 +186,11 @@ def update_envelope_status(
     new_status: ESignStatus,
 ) -> ESignEnvelope:
     envelope.status = new_status
-    envelope.updated_at = datetime.utcnow()
+    envelope.updated_at = utcnow()
     if new_status == ESignStatus.completed and not envelope.completed_at:
-        envelope.completed_at = datetime.utcnow()
+        envelope.completed_at = utcnow()
     if new_status == ESignStatus.sent and not envelope.sent_at:
-        envelope.sent_at = datetime.utcnow()
+        envelope.sent_at = utcnow()
     db.commit()
     return envelope
 
@@ -153,19 +201,19 @@ def mark_signer_signed(
     envelope: ESignEnvelope,
 ) -> None:
     signer.signed = True
-    signer.signed_at = datetime.utcnow()
+    signer.signed_at = utcnow()
 
     all_signed = all(s.signed for s in get_signers_for_envelope(db, envelope.id))
     if all_signed:
         envelope.status = ESignStatus.completed
-        envelope.completed_at = datetime.utcnow()
+        envelope.completed_at = utcnow()
 
     db.commit()
 
 
 def void_envelope(db: Session, envelope: ESignEnvelope) -> ESignEnvelope:
     envelope.status = ESignStatus.voided
-    envelope.updated_at = datetime.utcnow()
+    envelope.updated_at = utcnow()
     db.commit()
     return envelope
 
@@ -177,7 +225,7 @@ def update_envelope_from_webhook(
 ) -> None:
     envelope.status = new_status
     if new_status == ESignStatus.completed.value and not envelope.completed_at:
-        envelope.completed_at = datetime.utcnow()
+        envelope.completed_at = utcnow()
     db.commit()
 
 

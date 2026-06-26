@@ -18,6 +18,7 @@ import logging
 import os
 import smtplib
 from datetime import datetime, timedelta
+from app.core.timeutil import utcnow
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional
@@ -77,7 +78,7 @@ def run(db: Session, *, dry_run: bool = False, frequency: Optional[str] = None) 
     )
     from app.models.user import User
 
-    now = datetime.utcnow()
+    now = utcnow()
     cutoff_daily = now - timedelta(days=1)
     cutoff_weekly = now - timedelta(weeks=1)
     sent = 0

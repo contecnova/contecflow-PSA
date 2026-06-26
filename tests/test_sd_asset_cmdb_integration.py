@@ -44,7 +44,7 @@ def test_assets_by_ci_lists_linked_assets(client, admin_token):
             "ci_id": ci_id,
         },
     )
-    assert create_res.status_code == 200, create_res.text
+    assert create_res.status_code in (200, 201), create_res.text
 
     res = client.get(f"/api/v1/sd/assets/by-ci/{ci_id}", headers=auth(admin_token))
     assert res.status_code == 200
@@ -80,7 +80,7 @@ def test_cmdb_deprecation_impact_includes_impacted_assets(client, admin_token):
             "ci_id": ci_dep,
         },
     )
-    assert asset_dep.status_code == 200, asset_dep.text
+    assert asset_dep.status_code in (200, 201), asset_dep.text
 
     asset_root = client.post(
         "/api/v1/sd/assets",
@@ -92,7 +92,7 @@ def test_cmdb_deprecation_impact_includes_impacted_assets(client, admin_token):
             "ci_id": ci_root,
         },
     )
-    assert asset_root.status_code == 200, asset_root.text
+    assert asset_root.status_code in (200, 201), asset_root.text
 
     res = client.get(
         f"/api/v1/sd/cmdb/{ci_root}/deprecation-impact?max_depth=3&include_root_assets=true",

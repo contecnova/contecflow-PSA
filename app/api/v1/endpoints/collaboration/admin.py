@@ -1,5 +1,6 @@
 """Admin + OAuth + Push + Digest endpoints para collaboration."""
 from datetime import datetime
+from app.core.timeutil import utcnow
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -185,7 +186,7 @@ async def oauth_callback(
     expires_in = token_data.get("expires_in")
     if expires_in:
         from datetime import timedelta
-        row.token_expires_at = datetime.utcnow() + timedelta(seconds=int(expires_in))
+        row.token_expires_at = utcnow() + timedelta(seconds=int(expires_in))
     cfg = dict(row.config or {})
     # Persist additional provider-specific data (cloud_id Jira, etc.)
     for k in ("cloud_id", "scope", "token_type", "id_token"):

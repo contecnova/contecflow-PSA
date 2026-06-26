@@ -189,8 +189,13 @@ async def fire_webhook(
     External systems POST here to trigger automations.
     Verifiable via X-Contecflow-Signature HMAC header.
     """
-    trigger = _svc.get_active_webhook_trigger_by_slug(db, slug)
-    # Read body
+    from app.core.async_db import run_db  # local import to avoid bootstrap cost on cold paths
+
+    # Audit #C7: this endpoint is legitimately `async` because it needs the raw
+    # request body (`await request.body()`) for HMAC verification. All DB ops
+    # are now offloaded to the threadpool via `run_db` so they don't block the
+    # event loop.
+    trigger = await run_db(_svc.get_active_webhook_trigger_by_slug, db, slug)
     body = await request.body()
     payload_str = body.decode("utf-8") if body else "{}"
     try:
@@ -214,8 +219,8 @@ async def fire_webhook(
     if not _hmac.compare_digest(signature_header, expected):
         raise HTTPException(401, "Firma HMAC inválida")
 
-    # Log the call and update fire stats
-    _svc.log_webhook_fire(trigger, payload_str, json.dumps(dict(request.headers)), db)
+    # Log the call and update fire stats (DB op → threadpool)
+    await run_db(_svc.log_webhook_fire, trigger, payload_str, json.dumps(dict(request.headers)), db)
 
     # Fire the workflow/rule in background
     if trigger.workflow_id:

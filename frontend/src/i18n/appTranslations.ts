@@ -15,6 +15,7 @@
 // TODO type: appTranslations.mjs is still JS — re-exports inherit `any` types.
 export {
   APP_LANGUAGES,
+  AVAILABLE_LANGUAGES,
   APP_TRANSLATIONS,
   es,
   en,

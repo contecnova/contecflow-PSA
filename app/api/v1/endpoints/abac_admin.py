@@ -13,6 +13,7 @@ Endpoints:
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from app.core.timeutil import utcnow
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -48,7 +49,7 @@ def abac_overview(
 ):
     verify_admin_or_governance_role(current_user)
     org = _org(current_user)
-    since = datetime.utcnow() - timedelta(days=days)
+    since = utcnow() - timedelta(days=days)
     return get_admin_overview(db, org, since, days)
 
 
@@ -74,7 +75,7 @@ def policy_effectiveness(
 ):
     verify_admin_or_governance_role(current_user)
     org = _org(current_user)
-    since = datetime.utcnow() - timedelta(days=days)
+    since = utcnow() - timedelta(days=days)
     return get_policy_effectiveness(db, org, since, days)
 
 
@@ -89,7 +90,7 @@ def access_patterns(
 ):
     verify_admin_or_governance_role(current_user)
     org = _org(current_user)
-    since = datetime.utcnow() - timedelta(days=days)
+    since = utcnow() - timedelta(days=days)
     return get_access_patterns(db, org, since, days, limit)
 
 
@@ -122,7 +123,7 @@ def abac_audit_log(
 ):
     verify_admin_or_governance_role(current_user)
     org   = _org(current_user)
-    since = datetime.utcnow() - timedelta(days=days)
+    since = utcnow() - timedelta(days=days)
     return get_audit_log(db, org, since, result, resource_type, user_id, page, page_size)
 
 
@@ -134,5 +135,5 @@ def abac_audit_stats(
 ):
     verify_admin_or_governance_role(current_user)
     org   = _org(current_user)
-    since = datetime.utcnow() - timedelta(days=days)
+    since = utcnow() - timedelta(days=days)
     return get_audit_stats(db, org, since, days)

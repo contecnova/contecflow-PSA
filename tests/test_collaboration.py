@@ -59,7 +59,7 @@ def test_reactions_pins_saved(client, admin_token):
     pins = client.get(f"/api/v1/collaboration/conversations/{cid}/pins", headers=h).json()
     assert any(p["message_id"] == mid for p in pins)
     client.post("/api/v1/collaboration/saved", json={"message_id": mid}, headers=h)
-    saved = client.get("/api/v1/collaboration/saved", headers=h).json()
+    saved = client.get("/api/v1/collaboration/saved", headers=h).json()["items"]
     assert any(s["message_id"] == mid for s in saved)
 
 
@@ -337,7 +337,7 @@ def test_link_message_to_task(client, admin_token, db):
     db.add(t); db.commit()
     r = client.post(f"/api/v1/collaboration/messages/{msg_id}/link", json={"kind": "task", "id": t.id}, headers=h)
     assert r.status_code == 200
-    msgs = client.get(f"/api/v1/collaboration/conversations/{cid}/messages", headers=h).json()
+    msgs = client.get(f"/api/v1/collaboration/conversations/{cid}/messages", headers=h).json()["items"]
     linked = next(m for m in msgs if m["id"] == msg_id)
     assert linked["linked_task_id"] == t.id
 
@@ -359,7 +359,7 @@ def test_decisions_endpoint(client, admin_token):
     client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "decision", "args": "Migrar Postgres 16"}, headers=h)
     r = client.get("/api/v1/collaboration/decisions", headers=h)
     assert r.status_code == 200
-    items = r.json()
+    items = r.json()["items"]
     assert any("Postgres 16" in (d.get("text") or "") for d in items)
 
 
@@ -444,7 +444,8 @@ def test_upload_creates_visible_message(client, admin_token):
     cid = _conv_id(client, h)
     # Snapshot de mensajes antes
     before = client.get(f"/api/v1/collaboration/conversations/{cid}/messages", headers=h).json()
-    before_count = len(before)
+    # El endpoint devuelve el envelope paginado canónico {"items": [...], "meta": {...}}.
+    before_count = len(before["items"])
     # Sube un archivo limpio
     r = client.post(
         "/api/v1/collaboration/attachments",
@@ -456,8 +457,9 @@ def test_upload_creates_visible_message(client, admin_token):
     att_id = r.json()["id"]
     # Tras la subida, debe haber un mensaje nuevo tipo "file" con el adjunto enlazado
     after = client.get(f"/api/v1/collaboration/conversations/{cid}/messages", headers=h).json()
-    assert len(after) == before_count + 1
-    new_msg = after[-1]
+    after_items = after["items"]
+    assert len(after_items) == before_count + 1
+    new_msg = after_items[-1]
     assert new_msg["type"] == "file"
     assert new_msg["has_attachments"] is True
     assert any(a["id"] == att_id for a in new_msg["attachments"])
@@ -785,7 +787,8 @@ def test_group_add_and_remove_members(client, admin_token, pm_token, dev_token, 
 
     # 9) No se permite añadir miembros a un canal vía esta ruta
     workspace = client.get("/api/v1/collaboration/workspace", headers=h_admin).json()
-    teams = client.get("/api/v1/collaboration/teams", headers=h_admin).json()
+    # /teams devuelve el envelope paginado canónico {"items": [...], "meta": {...}}.
+    teams = client.get("/api/v1/collaboration/teams", headers=h_admin).json()["items"]
     if teams:
         ch = client.post(
             "/api/v1/collaboration/channels",

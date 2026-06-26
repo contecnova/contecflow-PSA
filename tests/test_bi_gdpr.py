@@ -104,6 +104,23 @@ def test_resolve_dsr(client, admin_token):
     assert r.json()["status"] == "completed"
 
 
+def test_resolve_dsr_compat_completion_requires_admin(client, admin_token, dev_token):
+    """A non-admin must not be able to trigger the erasure pipeline via the
+    compat PATCH by setting status=completed."""
+    res = client.post(
+        "/api/v1/bi/gdpr/dsr",
+        json={"user_id": "u-gate", "request_type": "erasure"},
+        headers=auth(admin_token),
+    )
+    dsr_id = res.json()["id"]
+    r = client.patch(
+        f"/api/v1/bi/gdpr/dsr/{dsr_id}",
+        json={"status": "completed"},
+        headers=auth(dev_token),
+    )
+    assert r.status_code == 403
+
+
 def test_gdpr_stats(client, admin_token):
     """Stats endpoint returns summary counts."""
     client.post("/api/v1/bi/gdpr/dsr", json={"user_id": "stats-u", "request_type": "erasure"}, headers=auth(admin_token))

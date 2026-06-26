@@ -26,7 +26,7 @@ def test_delete_oauth_app_is_soft_and_hidden(client, pm_token, db):
 
     listed = client.get("/api/v1/developer/apps", headers=auth(pm_token))
     assert listed.status_code == 200
-    ids = [item["id"] for item in listed.json()]
+    ids = [item["id"] for item in listed.json()["items"]]
     assert app_id not in ids
 
     fetched = client.get(f"/api/v1/developer/apps/{app_id}", headers=auth(pm_token))

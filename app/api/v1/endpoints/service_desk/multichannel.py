@@ -89,14 +89,22 @@ async def inbound_email(
     Supports Mailgun, Postmark, and SendGrid payload formats.
     Authenticates via X-Inbound-Secret header or ``token`` field in body.
     """
+    # Audit #C7: async required for await request.json/form; DB to threadpool.
+    from app.core.async_db import run_db
+
     try:
         payload = await request.json()
     except Exception:
         payload = dict(await request.form())
 
     secret = x_inbound_secret or payload.get("token") or payload.get("signature")
-    ticket, requester_email = process_inbound_email(db, dict(payload), provided_secret=secret)
-    db.commit()
+
+    def _process_and_commit():
+        ticket, requester_email = process_inbound_email(db, dict(payload), provided_secret=secret)
+        db.commit()
+        return ticket, requester_email
+
+    ticket, requester_email = await run_db(_process_and_commit)
     return {
         "ticket_id": ticket.id,
         "ticket_number": ticket.number,
@@ -120,6 +128,9 @@ async def inbound_sms(
     Validates Twilio signature when TWILIO_AUTH_TOKEN is configured.
     Twilio sends form-encoded POST with fields: From, Body, etc.
     """
+    # Audit #C7: same pattern as inbound_email above.
+    from app.core.async_db import run_db
+
     form = dict(await request.form())
     from_phone = form.get("From", "")
     body = form.get("Body", "")
@@ -131,9 +142,12 @@ async def inbound_sms(
             from fastapi import HTTPException
             raise HTTPException(403, "Invalid Twilio signature")
 
-    result = process_inbound_sms(db, from_phone=from_phone, body=body)
-    db.commit()
-    return result
+    def _process_and_commit():
+        result = process_inbound_sms(db, from_phone=from_phone, body=body)
+        db.commit()
+        return result
+
+    return await run_db(_process_and_commit)
 
 
 # ── Outbound notification ─────────────────────────────────────────────────────

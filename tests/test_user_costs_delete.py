@@ -36,7 +36,7 @@ def test_delete_country_preset_hard_and_hidden(client, admin_token, db):
 
     listed = client.get("/api/v1/user-costs/countries", headers=auth(admin_token))
     assert listed.status_code == 200
-    assert all(c["id"] != preset_id for c in listed.json())
+    assert all(c["id"] != preset_id for c in listed.json()["items"])
 
     row = db.query(CountryEmployerCost).filter(CountryEmployerCost.id == preset_id).first()
     assert row is None
@@ -72,7 +72,7 @@ def test_delete_user_cost_profile_hard_and_hidden(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert listed.status_code == 200
-    assert all(p["id"] != profile_id for p in listed.json())
+    assert all(p["id"] != profile_id for p in listed.json()["items"])
 
     row = db.query(UserCostProfile).filter(UserCostProfile.id == profile_id).first()
     assert row is None
