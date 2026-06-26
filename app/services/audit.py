@@ -48,17 +48,3 @@ def audit_log(
     db.add(entry)
     # Note: caller is responsible for db.commit()
     return entry
-
-
-def diff_dict(before: dict, after: dict) -> tuple[dict, dict]:
-    """Return only the changed fields as (old_values, new_values)."""
-    old = {}
-    new = {}
-    all_keys = set(before) | set(after)
-    for k in all_keys:
-        v_before = before.get(k)
-        v_after = after.get(k)
-        if str(v_before) != str(v_after):
-            old[k] = v_before
-            new[k] = v_after
-    return old, new

@@ -110,38 +110,3 @@ def check_project_access(
         action=action,
         require_allow=True,
     )
-
-
-def check_client_access(
-    client_id: str,
-    action: str = "read",
-) -> ABACDependency:
-    """Check if user has access to specific client."""
-    return ABACDependency(
-        resource_type="client",
-        action=action,
-        require_allow=True,
-    )
-
-
-def check_data_classification_access(
-    min_classification: str = "internal",
-    # Classification levels: public < internal < confidential < restricted
-) -> ABACDependency:
-    """Check if user has access to data at given classification level."""
-    return ABACDependency(
-        resource_type="data",
-        action="read",
-        require_allow=True,
-    )
-
-
-def check_region_access(
-    region: str,
-) -> ABACDependency:
-    """Check if user is authorized to access resources in given region."""
-    return ABACDependency(
-        resource_type="region",
-        action="read",
-        require_allow=True,
-    )

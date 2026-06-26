@@ -135,29 +135,3 @@ def decrypt_value(ciphertext: str) -> Optional[str]:
     except Exception as exc:
         logger.warning(f"Decryption failed (value may be unencrypted plaintext): {exc}")
         return None
-
-
-def encrypt_float(value: Optional[float]) -> Optional[str]:
-    """Encrypt a float value; returns None if value is None."""
-    if value is None:
-        return None
-    return encrypt_value(str(value))
-
-
-def decrypt_float(ciphertext: Optional[str]) -> Optional[float]:
-    """Decrypt a float that was encrypted with encrypt_float."""
-    if not ciphertext:
-        return None
-    raw = decrypt_value(ciphertext)
-    if raw is None:
-        # Fallback: try to parse as plaintext float (for migration)
-        try:
-            return float(ciphertext)
-        # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except (ValueError, TypeError):
-            return None
-    try:
-        return float(raw)
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except (ValueError, TypeError):
-        return None

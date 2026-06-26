@@ -3,10 +3,14 @@ import { spawnSync } from 'node:child_process'
 
 mkdirSync('reports', { recursive: true })
 
+// ESLint v9 (flat config) removed --ext; pass an explicit glob instead, and
+// allow a large buffer since the JSON report for the whole src tree is big.
+// shell:true so this works on Windows (npx → npx.cmd); ESLint v9 (flat config)
+// removed --ext, so pass an explicit glob. Large buffer for the full-tree JSON.
 const eslintJson = spawnSync(
   'npx',
-  ['eslint', 'src', '--ext', '.js,.jsx,.ts,.tsx', '--format', 'json'],
-  { encoding: 'utf-8' }
+  ['eslint', 'src/**/*.{js,jsx,ts,tsx}', '--format', 'json'],
+  { encoding: 'utf-8', maxBuffer: 64 * 1024 * 1024, shell: true }
 )
 
 const stdout = eslintJson.stdout || '[]'

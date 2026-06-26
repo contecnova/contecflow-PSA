@@ -42,21 +42,6 @@ def _org_filter(org_id: Optional[str], table_alias: str = "") -> str:
 
 # ── Public query functions ────────────────────────────────────────────────────
 
-def query_olap(sql: str, org_id: Optional[str] = None) -> list[dict]:
-    """Execute arbitrary SQL on DuckDB and return list of dicts.
-
-    Automatically injects tenant filter for SELECT-only queries.
-    """
-    conn = _try_olap()
-    if conn is None:
-        raise RuntimeError("OLAP store not initialised — run the nightly ETL first")
-    try:
-        cur = conn.execute(sql)
-        return _rows_to_dicts(cur)
-    finally:
-        conn.close()
-
-
 def get_margin_evolution(org_id: Optional[str] = None, months: int = 12) -> list[dict]:
     """Monthly margin evolution for all projects."""
     conn = _try_olap()
