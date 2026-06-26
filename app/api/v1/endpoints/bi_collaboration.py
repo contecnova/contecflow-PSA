@@ -429,23 +429,25 @@ async def dashboard_updates_ws(websocket: WebSocket, dashboard_key: str, token: 
 
     await websocket.accept()
 
+    from app.core.async_db import run_db
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.id == user_id).first()
+        user = await run_db(lambda: db.query(User).filter(User.id == user_id).first())
         if not user:
             await websocket.close(code=4004, reason='Usuario no encontrado')
             return
 
         org_id = getattr(user, 'organization_id', None)
-        policy = svc.get_cache_policy(db, organization_id=org_id)
+        policy = await run_db(svc.get_cache_policy, db, organization_id=org_id)
         interval = int(policy.get('critical_refresh_seconds', 10))
         interval = max(5, min(10, interval))
 
         while True:
-            snapshot = svc.dashboard_update_snapshot(
-                db,
-                organization_id=org_id,
-                dashboard_key=dashboard_key,
+            # Offload the per-tick ORM snapshot to the threadpool so the WS
+            # poll never blocks the event loop.
+            snapshot = await run_db(
+                svc.dashboard_update_snapshot,
+                db, organization_id=org_id, dashboard_key=dashboard_key,
             )
             await websocket.send_text(json.dumps(snapshot, ensure_ascii=False))
             await asyncio.sleep(interval)

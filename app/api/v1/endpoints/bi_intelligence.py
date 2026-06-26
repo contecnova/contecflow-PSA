@@ -451,10 +451,12 @@ async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Qu
 
     await websocket.accept()
 
+    from app.core.async_db import run_db
+
     db = SessionLocal()
     org_id: Optional[str] = None
     try:
-        user = db.query(User).filter(User.id == user_id).first()
+        user = await run_db(lambda: db.query(User).filter(User.id == user_id).first())
         if user:
             org_id = getattr(user, "organization_id", None)
     finally:
@@ -493,15 +495,16 @@ async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Qu
     db = SessionLocal()
     try:
         while True:
-            user = db.query(User).filter(User.id == user_id).first()
+            user = await run_db(lambda: db.query(User).filter(User.id == user_id).first())
             if not user:
                 await websocket.send_text(json.dumps({"type": "error", "detail": "user_not_found"}))
                 break
             _org_id = getattr(user, "organization_id", None)
 
-            forecast = svc.ml_forecast_revenue(db, organization_id=_org_id, months_ahead=3)
-            anomalies = svc.ml_detect_revenue_anomalies(db, organization_id=_org_id, z_threshold=2.0)
-            delivery = svc.delivery_overview(db, organization_id=_org_id)
+            # Offload the per-tick ORM/ML work to the threadpool.
+            forecast = await run_db(svc.ml_forecast_revenue, db, organization_id=_org_id, months_ahead=3)
+            anomalies = await run_db(svc.ml_detect_revenue_anomalies, db, organization_id=_org_id, z_threshold=2.0)
+            delivery = await run_db(svc.delivery_overview, db, organization_id=_org_id)
 
             await websocket.send_text(json.dumps({
                 "type": "bi_intelligence_snapshot",

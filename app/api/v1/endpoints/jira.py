@@ -362,6 +362,12 @@ async def jira_webhook(
     if not jira_key:
         return {"ok": True, "ignored": True}
 
+    # Async handler (awaits raw body for auth) → offload blocking ORM to threadpool.
+    from app.core.async_db import run_db
+    return await run_db(_process_legacy_jira_webhook_sync, db, issue, jira_key, event)
+
+
+def _process_legacy_jira_webhook_sync(db: Session, issue: dict, jira_key: str, event: str) -> dict:
     fields       = issue.get("fields", {})
     raw_status   = (fields.get("status", {}).get("name") or "").lower()
     raw_priority = (fields.get("priority", {}).get("name") or "").lower()
