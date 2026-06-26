@@ -739,7 +739,7 @@ export const invoicesApi = {
   get:           (id)              => api.get(`/invoices/${id}`),
   summary:       ()                => api.get('/invoices/summary'),
   create:        (data)            => api.post('/invoices', data),
-  updateStatus:  (id, status)      => api.patch(`/invoices/${id}/status`, { status }),
+  updateStatus:  (id, status)      => api.patch(`/billing-reports/invoices/${id}/status`, { status }),
   pdf:           (id)              => api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
   fromTimesheets:(data)            => api.post('/invoices/from-timesheets', data),
 }
@@ -1074,10 +1074,11 @@ export const profitabilityApi = {
 
 // ── BI Forecasting ────────────────────────────────────────────────────────────
 export const biForecastingApi = {
-  getMetrics:     ()                   => api.get('/bi/forecasting/metrics'),
-  forecast:       (metric, params)     => api.get(`/bi/forecasting/${metric}`, { params }),
-  multiForecast:  (data)               => api.post('/bi/forecasting/multi', data),
-  // Legacy endpoints used by BiForecastingPanel
+  getMetrics:     ()                   => api.get('/bi/forecast/metrics'),
+  // The backend forecasts a single metric via POST /bi/forecast {metric, ...}.
+  forecast:       (metric, params)     => api.post('/bi/forecast', { metric, ...(params || {}) }),
+  multiForecast:  (data)               => api.post('/bi/forecast/multi', data),
+  // Aliases kept for BiForecastingPanel (same canonical routes).
   listMetrics:    ()                   => api.get('/bi/forecast/metrics'),
   run:            (data)               => api.post('/bi/forecast', data),
 }
@@ -1300,18 +1301,18 @@ export const autoWorkflowsApi = {
 }
 
 export const workflowsLegacyApi = {
-  list:   ()         => api.get('/workflows'),
-  create: (data)     => api.post('/workflows', data),
-  update: (id, data) => api.patch(`/workflows/${id}`, data),
+  list:   ()         => api.get('/billing-reports/automation-workflows'),
+  create: (data)     => api.post('/billing-reports/automation-workflows', data),
+  update: (id, data) => api.patch(`/billing-reports/automation-workflows/${id}`, data),
 }
 
 // ── Scheduled Reports ─────────────────────────────────────────────────────────
 export const scheduledReportsApi = {
-  list:   ()         => api.get('/scheduled-reports'),
-  create: (data)     => api.post('/scheduled-reports', data),
-  delete: (id)       => api.delete(`/scheduled-reports/${id}`),
-  run:    (id)       => api.post(`/scheduled-reports/${id}/run`),
-  toggle: (id, data) => api.patch(`/scheduled-reports/${id}`, data),
+  list:   ()         => api.get('/billing-reports/scheduled-reports'),
+  create: (data)     => api.post('/billing-reports/scheduled-reports', data),
+  delete: (id)       => api.delete(`/billing-reports/scheduled-reports/${id}`),
+  run:    (id)       => api.post(`/billing-reports/scheduled-reports/${id}/run`),
+  toggle: (id, data) => api.patch(`/billing-reports/scheduled-reports/${id}`, data),
 }
 
 // ── AI Providers ──────────────────────────────────────────────────────────────
