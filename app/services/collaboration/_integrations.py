@@ -30,7 +30,17 @@ from typing import Optional
 
 import httpx
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
+
+_CALLBACK_PATH = "/api/v1/collaboration/integrations/oauth/callback"
+
+
+def _default_redirect_uri() -> str:
+    """OAuth callback URL derived from BACKEND_URL — never a hardcoded localhost,
+    which would break the flow (or leak the auth code) in staging/production."""
+    return f"{settings.BACKEND_URL.rstrip('/')}{_CALLBACK_PATH}"
 
 
 @dataclass
@@ -117,7 +127,7 @@ def auth_url_for(kind: str, integration_id: str) -> Optional[str]:
     # env-driven: per-provider OAuth credentials are looked up dynamically by env var
     # name (see PROVIDERS table). Not in Settings because providers are pluggable.
     client_id = os.environ.get(p.client_id_env)
-    redirect = os.environ.get(p.redirect_env, "http://localhost:8000/api/v1/collaboration/integrations/oauth/callback")
+    redirect = os.environ.get(p.redirect_env) or _default_redirect_uri()
     if not client_id:
         return None
     state = secrets.token_urlsafe(24)
@@ -149,7 +159,7 @@ async def handle_callback(state: str, code: str) -> tuple[Optional[str], Optiona
     p = PROVIDERS[pending["kind"]]
     client_id = os.environ.get(p.client_id_env)
     client_secret = os.environ.get(p.client_secret_env)
-    redirect = os.environ.get(p.redirect_env, "http://localhost:8000/api/v1/collaboration/integrations/oauth/callback")
+    redirect = os.environ.get(p.redirect_env) or _default_redirect_uri()
     if not client_id or not client_secret:
         return None, None, "credenciales no configuradas"
 
