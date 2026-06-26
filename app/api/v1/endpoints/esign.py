@@ -21,7 +21,7 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -347,8 +347,9 @@ async def docusign_webhook(
 ):
     """
     DocuSign sends XML connect events. We parse the minimal subset needed
-    to update envelope status. Signature validation requires Basic Auth or
-    HMAC (DocuSign HMAC-SHA256) configured via DocuSign Connect console.
+    to update envelope status. Inbound requests are authenticated with the
+    DocuSign Connect HMAC-SHA256 signature (``X-DocuSign-Signature-N``) before
+    any state is touched; unsigned/invalid requests are rejected.
     """
     import re
     try:
@@ -357,6 +358,16 @@ async def docusign_webhook(
     except Exception as e:
         _logger.warning(f"[eSign] DocuSign webhook body read failed: {e}")
         raise HTTPException(400, "Cuerpo del webhook ilegible")
+
+    # Authenticate BEFORE parsing/mutating: gather every X-DocuSign-Signature-N
+    # header (DocuSign emits one per active HMAC key during rotation).
+    signature_headers = [
+        v for k, v in request.headers.items()
+        if k.lower().startswith("x-docusign-signature")
+    ]
+    if not esign_service.verify_docusign_signature(body, signature_headers):
+        _logger.warning("[eSign] DocuSign webhook rejected: invalid/missing HMAC signature")
+        raise HTTPException(403, "Firma de webhook DocuSign inválida")
 
     m_id = re.search(r'<EnvelopeID[^>]*>([^<]+)<', payload_str)
     m_st = re.search(r'<Status[^>]*>([^<]+)<', payload_str)
@@ -401,11 +412,34 @@ async def docusign_webhook(
     return {"status": "ok"}
 
 
+@router.get("/webhooks/adobe", summary="Verificación de intención de Adobe Sign")
+async def adobe_webhook_verify(request: Request, response: Response):
+    """Adobe Sign intent-verification handshake: it issues a GET with the
+    ``X-AdobeSign-ClientId`` header and requires that exact value echoed back
+    in the response header. Reject if the client id doesn't match our config."""
+    client_id = request.headers.get("X-AdobeSign-ClientId")
+    if not esign_service.verify_adobe_client_id(client_id):
+        _logger.warning("[eSign] Adobe webhook verify rejected: client id mismatch")
+        raise HTTPException(403, "Adobe Sign client id inválido")
+    response.headers["X-AdobeSign-ClientId"] = client_id
+    return {"xAdobeSignClientId": client_id}
+
+
 @router.post("/webhooks/adobe", summary="Webhook de Adobe Sign")
 async def adobe_webhook(
-    request: Request,
-    db:      Session = Depends(get_db),
+    request:  Request,
+    response: Response,
+    db:       Session = Depends(get_db),
 ):
+    # Authenticate BEFORE parsing/mutating: Adobe echoes the registered OAuth
+    # client id in every callback. Also echo it back, which Adobe requires to
+    # acknowledge both the verification handshake and notifications.
+    client_id = request.headers.get("X-AdobeSign-ClientId")
+    if not esign_service.verify_adobe_client_id(client_id):
+        _logger.warning("[eSign] Adobe webhook rejected: client id mismatch")
+        raise HTTPException(403, "Adobe Sign client id inválido")
+    response.headers["X-AdobeSign-ClientId"] = client_id
+
     try:
         payload = await request.json()
     except Exception as e:

@@ -92,11 +92,23 @@ class Settings(
     GITHUB_WEBHOOK_SECRET: str = Field(default="", env="GITHUB_WEBHOOK_SECRET")
     GITLAB_WEBHOOK_SECRET: str = Field(default="", env="GITLAB_WEBHOOK_SECRET")
 
+    # ── Jira inbound webhook ──────────────────────────────────────────────────
+    # Shared secret expected in the `X-Atlassian-Webhook-Token` header (or an
+    # HMAC-SHA256 of the raw body in `X-Hub-Signature-256`). When empty, all
+    # inbound Jira webhook requests are REJECTED (fail-closed), mirroring the
+    # GitHub/GitLab webhook policy above. Configure a Jira automation rule to
+    # send this header so cross-tenant ticket mutation cannot be forged.
+    JIRA_WEBHOOK_SECRET: str = Field(default="", env="JIRA_WEBHOOK_SECRET")
+
     # ── E-Signature providers ─────────────────────────────────────────────────
     DOCUSIGN_INTEGRATION_KEY:  str = Field(default="", env="DOCUSIGN_INTEGRATION_KEY")
     DOCUSIGN_SECRET_KEY:       str = Field(default="", env="DOCUSIGN_SECRET_KEY")
     DOCUSIGN_ACCOUNT_ID:       str = Field(default="", env="DOCUSIGN_ACCOUNT_ID")
     DOCUSIGN_BASE_URL:         str = Field(default="", env="DOCUSIGN_BASE_URL")
+    # DocuSign Connect HMAC key (Connect → "Include HMAC Signature"). Used to
+    # verify the `X-DocuSign-Signature-1..N` headers on inbound webhooks.
+    # When empty, DocuSign webhook requests are REJECTED (fail-closed).
+    DOCUSIGN_CONNECT_HMAC_KEY: str = Field(default="", env="DOCUSIGN_CONNECT_HMAC_KEY")
     ADOBE_SIGN_CLIENT_ID:      str = Field(default="", env="ADOBE_SIGN_CLIENT_ID")
     ADOBE_SIGN_CLIENT_SECRET:  str = Field(default="", env="ADOBE_SIGN_CLIENT_SECRET")
     ADOBE_SIGN_BASE_URL:       str = Field(default="https://api.na1.adobesign.com/api/rest/v6", env="ADOBE_SIGN_BASE_URL")

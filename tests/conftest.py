@@ -22,6 +22,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests-only-not-pro
 os.environ.setdefault("CLIENT_PORTAL_SECRET", "test-client-portal-secret-unit-tests-only")
 os.environ.setdefault("SCIM_BEARER_TOKEN", "test-scim-token-unit-tests-only")
 os.environ.setdefault("WEBHOOK_SECRET", "test-webhook-secret-for-unit-tests")
+os.environ.setdefault("JIRA_WEBHOOK_SECRET", "test-jira-webhook-secret-unit-tests")
 os.environ.setdefault("INBOUND_EMAIL_SECRET", "test-inbound-email-secret-for-unit-tests")
 os.environ.setdefault("ANTHROPIC_API_URL", "https://api.anthropic.test")
 os.environ.setdefault("OPENAI_API_URL", "https://api.openai.test")

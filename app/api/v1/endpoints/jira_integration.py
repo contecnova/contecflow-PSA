@@ -18,7 +18,7 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy.orm import Session
 
@@ -311,16 +311,34 @@ def push_ticket(
 
 
 @router.post("/webhook", summary="Recibir webhook de Jira Cloud")
-def receive_jira_webhook(
-    payload: dict = Body(...),
+async def receive_jira_webhook(
+    request: Request,
+    x_atlassian_webhook_token: Optional[str] = Header(None),
+    x_hub_signature_256: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
     """
     Receives Jira Cloud webhooks (issue_updated, comment_created, etc.)
     and applies changes to the linked Contecflow ticket.
 
+    Authenticated against JIRA_WEBHOOK_SECRET (shared token or body HMAC)
+    before any mutation — unauthenticated requests could otherwise drive
+    cross-tenant ticket changes via a guessed issue key.
+
     Jira sends: {"webhookEvent": "jira:issue_updated", "issue": {...}}
     """
+    from app.services.jira_service import verify_jira_webhook
+
+    body = await request.body()
+    if not verify_jira_webhook(body, x_atlassian_webhook_token, x_hub_signature_256):
+        logger.warning("Jira webhook rejected: invalid/missing authentication token")
+        raise HTTPException(403, "Invalid Jira webhook authentication")
+
+    try:
+        payload = json.loads(body or b"{}")
+    except (ValueError, TypeError):
+        raise HTTPException(400, "Invalid JSON payload")
+
     event = payload.get("webhookEvent", "")
     issue = payload.get("issue") or {}
     issue_key = issue.get("key") or payload.get("issueKey") or ""

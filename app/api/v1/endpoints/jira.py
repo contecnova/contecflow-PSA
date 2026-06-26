@@ -17,12 +17,13 @@ Endpoints:
 from __future__ import annotations
 
 import datetime
+import json
 from app.core.timeutil import utcnow
 import logging
 from typing import Optional, List
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, Header
+from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
@@ -328,16 +329,30 @@ def push_nexus_to_jira(
 
 
 @router.post("/webhook", summary="Recibir eventos Jira (issue:updated / issue:created)")
-def jira_webhook(
-    payload: dict,
-    x_atlassian_token: Optional[str] = Header(None),
+async def jira_webhook(
+    request: Request,
+    x_atlassian_webhook_token: Optional[str] = Header(None),
+    x_hub_signature_256: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
     """
     Jira sends webhooks on issue events. This endpoint:
     - Updates NexusPM task status / priority when a Jira issue changes
     - Marks tasks as done when Jira issue is resolved/closed
+
+    Authenticated against JIRA_WEBHOOK_SECRET (shared token or body HMAC)
+    before any mutation.
     """
+    body = await request.body()
+    if not jira_service.verify_jira_webhook(body, x_atlassian_webhook_token, x_hub_signature_256):
+        logger.warning("Jira webhook rejected: invalid/missing authentication token")
+        raise HTTPException(403, "Invalid Jira webhook authentication")
+
+    try:
+        payload = json.loads(body or b"{}")
+    except (ValueError, TypeError):
+        raise HTTPException(400, "Invalid JSON payload")
+
     event = payload.get("webhookEvent", "")
     issue = payload.get("issue", {})
     if not issue:

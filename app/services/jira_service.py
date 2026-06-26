@@ -14,8 +14,39 @@ from sqlalchemy.orm import Session
 from app.models.settings import AppSetting
 from app.models.task import Task
 from app.core.encryption import encrypt_value, decrypt_value
+from app.core.config import settings
 
 _SENSITIVE_SETTING_KEYS = {"jira_api_token"}
+
+
+# ── Inbound webhook authentication ──────────────────────────────────────────────
+
+def verify_jira_webhook(body: bytes, token_header: Optional[str], signature_header: Optional[str]) -> bool:
+    """Authenticate an inbound Jira webhook against ``JIRA_WEBHOOK_SECRET``.
+
+    Jira Cloud does not sign native webhooks, so we support either:
+      * a shared secret in ``X-Atlassian-Webhook-Token`` (configure a Jira
+        automation rule to send it), or
+      * an HMAC-SHA256 of the raw body in ``X-Hub-Signature-256`` (``sha256=``
+        prefixed), for setups that proxy/sign the payload.
+
+    Constant-time comparison throughout. Returns False when the secret is not
+    configured (fail-closed) — unauthenticated webhooks can mutate tickets
+    cross-tenant, so they must never be trusted by default.
+    """
+    import hmac
+    import hashlib
+
+    secret = settings.JIRA_WEBHOOK_SECRET
+    if not secret:
+        return False
+    if token_header and hmac.compare_digest(secret, token_header.strip()):
+        return True
+    if signature_header and signature_header.startswith("sha256="):
+        expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+        if hmac.compare_digest(expected, signature_header.strip()):
+            return True
+    return False
 
 # ── Jira ↔ NexusPM status / priority maps ─────────────────────────────────────
 
