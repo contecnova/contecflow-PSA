@@ -113,6 +113,15 @@ class Settings(
     ADOBE_SIGN_CLIENT_SECRET:  str = Field(default="", env="ADOBE_SIGN_CLIENT_SECRET")
     ADOBE_SIGN_BASE_URL:       str = Field(default="https://api.na1.adobesign.com/api/rest/v6", env="ADOBE_SIGN_BASE_URL")
 
+    # ── Infrastructure provisioning (Terraform / Ansible runners) ──────────────
+    # Running IaC from tenant-stored config is RCE-prone, so it is OFF by default
+    # and every filesystem path (workdir / playbook / var_file / inventory) MUST
+    # resolve inside PROVISIONING_ROOT_DIR — an operator-controlled directory of
+    # vetted modules/playbooks. Tenant config can never point the runner outside
+    # this root. When disabled or the root is unset, provisioning is rejected.
+    PROVISIONING_ENABLED: bool = Field(default=False, env="PROVISIONING_ENABLED")
+    PROVISIONING_ROOT_DIR: str = Field(default="", env="PROVISIONING_ROOT_DIR")
+
     # ── SSO OAuth endpoints ───────────────────────────────────────────────────
     MICROSOFT_OAUTH_BASE: str = Field(
         default="https://login.microsoftonline.com", env="MICROSOFT_OAUTH_BASE"
