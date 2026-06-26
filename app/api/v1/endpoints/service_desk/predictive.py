@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk.predictive_analytics_service import (
@@ -48,11 +49,8 @@ def predict_one_ticket(
     current_user: User = Depends(get_current_user),
 ):
     from app.models.service_desk import Ticket
-    from fastapi import HTTPException
 
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(404, "Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
     prediction = predict_ticket(db, ticket)
     sla = predict_sla_breach(db, ticket)
@@ -66,11 +64,8 @@ def sla_breach_prediction(
     current_user: User = Depends(get_current_user),
 ):
     from app.models.service_desk import Ticket
-    from fastapi import HTTPException
 
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(404, "Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
     return predict_sla_breach(db, ticket)
 

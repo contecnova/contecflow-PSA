@@ -35,6 +35,7 @@ from app.models.jira_integration import (
 from app.models.service_desk import Ticket
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.tenancy import org_scoped_or_404
 from app.services.service_desk.jira_sync_service import (
     apply_jira_update_to_ticket,
     pull_jira_issue,
@@ -161,6 +162,7 @@ def create_jira_config(
         status_map_json=json.dumps(payload.status_map) if payload.status_map else None,
         priority_map_json=json.dumps(payload.priority_map) if payload.priority_map else None,
         created_by_user_id=current_user.id,
+        organization_id=current_user.organization_id,
     )
     db.add(config)
     db.commit()
@@ -175,9 +177,9 @@ def patch_jira_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    config: Optional[JiraConfig] = db.query(JiraConfig).filter(JiraConfig.id == config_id).first()
-    if not config:
-        raise HTTPException(404, "Jira config not found")
+    config: JiraConfig = org_scoped_or_404(
+        db, JiraConfig, config_id, current_user, detail="Jira config not found"
+    )
 
     updates = payload.model_dump(exclude_none=True)
     for k, v in updates.items():
@@ -202,9 +204,7 @@ def delete_jira_config(
     current_user: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, current_user, "jira_config", config_id, action="delete")
-    config = db.query(JiraConfig).filter(JiraConfig.id == config_id).first()
-    if not config:
-        raise HTTPException(404, "Jira config not found")
+    config = org_scoped_or_404(db, JiraConfig, config_id, current_user, detail="Jira config not found")
     db.delete(config)
     db.commit()
     return {"deleted": True}
@@ -220,9 +220,7 @@ def test_jira_connection(
     import base64
     import httpx
 
-    config = db.query(JiraConfig).filter(JiraConfig.id == config_id).first()
-    if not config:
-        raise HTTPException(404, "Jira config not found")
+    config = org_scoped_or_404(db, JiraConfig, config_id, current_user, detail="Jira config not found")
 
     creds = base64.b64encode(
         f"{config.jira_email}:{config.jira_api_token_enc}".encode()
@@ -252,6 +250,8 @@ def get_sync_log(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
+    # Verify the config belongs to the caller's org before exposing its logs.
+    org_scoped_or_404(db, JiraConfig, config_id, current_user, detail="Jira config not found")
     q = (
         db.query(JiraSyncLog)
         .filter(JiraSyncLog.config_id == config_id)

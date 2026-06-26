@@ -208,6 +208,11 @@ def resolve_dsr_compat(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Completing a DSR here triggers the same irreversible erasure pipeline as
+    # the dedicated /erasure-execute endpoint, so it must carry the same admin
+    # gate — otherwise any authenticated user could force a physical anonymise.
+    if body.status == "completed" and getattr(current_user, "role", None) not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Admin role required to execute GDPR erasure")
     org_id = getattr(current_user, "organization_id", None)
     try:
         return svc.resolve_dsr(

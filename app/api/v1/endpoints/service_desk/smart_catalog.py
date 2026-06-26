@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin
+from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.settings import AppSetting
 from app.models.user import User
@@ -220,10 +221,7 @@ def trigger_provisioning(
 
     from app.models.service_desk import Ticket, TicketHistory
 
-    ticket = db.query(Ticket).filter(Ticket.id == payload.ticket_id).first()
-    if not ticket:
-        from fastapi import HTTPException
-        raise HTTPException(404, "Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, payload.ticket_id, current_user, detail="Ticket not found")
 
     steps_done = []
     context = _render_context(ticket, current_user, service_item_id)

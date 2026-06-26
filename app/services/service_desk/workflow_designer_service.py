@@ -241,6 +241,7 @@ def create_blueprint(
     graph: dict,
     created_by_user_id: Optional[str],
     description: Optional[str] = None,
+    organization_id: Optional[str] = None,
 ) -> WorkflowBlueprint:
     bp = WorkflowBlueprint(
         name=name,
@@ -249,6 +250,7 @@ def create_blueprint(
         status=WorkflowBlueprintStatus.draft,
         latest_version=1,
         created_by_user_id=created_by_user_id,
+        organization_id=organization_id,
     )
     db.add(bp)
     db.flush()
@@ -260,6 +262,7 @@ def create_blueprint(
         rules_json=json.dumps(compile_rules_from_graph(graph)),
         created_by_user_id=created_by_user_id,
         is_published=False,
+        organization_id=organization_id,
     )
     db.add(ver)
     db.flush()
@@ -280,6 +283,7 @@ def add_blueprint_version(
         rules_json=json.dumps(compile_rules_from_graph(graph)),
         created_by_user_id=created_by_user_id,
         is_published=False,
+        organization_id=blueprint.organization_id,
     )
     blueprint.latest_version = next_version
     blueprint.status = WorkflowBlueprintStatus.draft

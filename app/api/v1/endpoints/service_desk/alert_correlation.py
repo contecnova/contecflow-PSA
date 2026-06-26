@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
 
@@ -192,9 +193,7 @@ def deduplicate_ticket(
     from app.services.service_desk.incident_intelligence_service import deduplicate_new_ticket
     from app.services.service_desk.ticket_ops_service import commit_or_rollback
 
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
     result = deduplicate_new_ticket(db, ticket, acting_user_id=current_user.id)
     commit_or_rollback(db)

@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -97,11 +98,8 @@ def evaluate_ticket(
     current_user: User = Depends(get_current_user),
 ):
     from app.models.service_desk import Ticket
-    from fastapi import HTTPException
 
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(404, "Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
     return evaluate_ticket_for_autonomy(db, ticket)
 

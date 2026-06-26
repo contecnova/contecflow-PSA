@@ -23,6 +23,7 @@ from uuid import uuid4
 from app.db.session import SessionLocal
 from app.db.session import get_db
 from app.core.deps import get_current_user
+from app.core.tenancy import org_scoped_or_404
 from app.models.user import User
 from app.models.service_desk import Ticket, TicketStatus
 from app.services.service_desk.ai_auto_resolution_service import (
@@ -156,9 +157,7 @@ def analyze_ticket_for_ai_resolution(
         "recommendation": str,
     }
     """
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
     # Authorization: user must be assigned to ticket or be admin
     if (
@@ -195,9 +194,7 @@ def apply_ai_auto_resolution(
     if current_user.role not in ["admin", "support"]:
         raise HTTPException(status_code=403, detail="Only admins/support can apply auto-resolution")
 
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
     if ticket.status in [TicketStatus.resolved, TicketStatus.closed]:
         raise HTTPException(status_code=400, detail="Ticket already resolved/closed")
@@ -447,9 +444,7 @@ def validate_ticket_auto_resolution(
     if current_user.role not in ["admin", "support"]:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
     result = validate_auto_resolution(db, ticket)
     db.commit()
@@ -480,9 +475,7 @@ def submit_auto_resolution_feedback(
     if current_user.role not in ["admin", "support"]:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
     record_resolution_feedback(db, ticket, body.success)
     db.commit()
