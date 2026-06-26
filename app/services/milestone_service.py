@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from app.services.numbering import next_numbered_code
 
 from app.core.config import settings
+from app.db.transactions import atomic
 from app.models.user import User
 from app.models.billing_reports import Invoice, InvoiceLine
 from app.models.financial import ProjectMilestone
@@ -264,42 +265,44 @@ def generate_milestone_invoice(milestone_id: str, current_user: User, db: Sessio
 
     invoice_num = _next_invoice_number(db)
 
-    inv = Invoice(
-        id=str(uuid.uuid4()),
-        project_id=proj.id,
-        client_id=getattr(proj, "client_id", None),
-        client_name=getattr(proj, "client_name", ""),
-        number=invoice_num,
-        issue_date=date.today(),
-        subtotal=amount,
-        tax_rate=settings.DEFAULT_TAX_RATE,
-        tax_amount=round(amount * settings.DEFAULT_TAX_RATE / 100, 2),
-        total=round(amount * (1 + settings.DEFAULT_TAX_RATE / 100), 2),
-        status="draft",
-        notes=f"Factura por milestone: {m.name}",
-        created_by=current_user.id,
-    )
-    db.add(inv)
-    db.flush()
+    # Atomic: invoice header + line + milestone status flip must all land or none
+    # do — a partial write would leave a milestone marked invoiced with no/empty
+    # invoice (or vice versa). atomic() commits on success, rolls back on error.
+    with atomic(db):
+        inv = Invoice(
+            id=str(uuid.uuid4()),
+            project_id=proj.id,
+            client_id=getattr(proj, "client_id", None),
+            client_name=getattr(proj, "client_name", ""),
+            number=invoice_num,
+            issue_date=date.today(),
+            subtotal=amount,
+            tax_rate=settings.DEFAULT_TAX_RATE,
+            tax_amount=round(amount * settings.DEFAULT_TAX_RATE / 100, 2),
+            total=round(amount * (1 + settings.DEFAULT_TAX_RATE / 100), 2),
+            status="draft",
+            notes=f"Factura por milestone: {m.name}",
+            created_by=current_user.id,
+        )
+        db.add(inv)
+        db.flush()
 
-    line = InvoiceLine(
-        id=str(uuid.uuid4()),
-        invoice_id=inv.id,
-        description=f"Milestone: {m.name}",
-        quantity=1.0,
-        unit_price=amount,
-        amount=amount,
-        source_type="milestone",
-        source_ids=f'["{m.id}"]',
-    )
-    db.add(line)
+        line = InvoiceLine(
+            id=str(uuid.uuid4()),
+            invoice_id=inv.id,
+            description=f"Milestone: {m.name}",
+            quantity=1.0,
+            unit_price=amount,
+            amount=amount,
+            source_type="milestone",
+            source_ids=f'["{m.id}"]',
+        )
+        db.add(line)
 
-    m.invoice_id = inv.id
-    m.is_billed = True
-    m.billed_at = date.today()
-    m.billing_status = "invoiced"
-
-    db.commit()
+        m.invoice_id = inv.id
+        m.is_billed = True
+        m.billed_at = date.today()
+        m.billing_status = "invoiced"
 
     return {
         "invoice_id": inv.id,
