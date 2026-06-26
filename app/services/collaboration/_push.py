@@ -11,6 +11,7 @@ Genera con (una vez):
 Si no hay claves configuradas, las funciones registran/borran subs pero no envían.
 """
 from __future__ import annotations
+from app.core.timeutil import utcnow
 
 import json
 import logging
@@ -81,7 +82,7 @@ def purge_stale_subscriptions(db: Session, *, days: int = 30) -> int:
     login (re-activa la fila). Retorna cuántas se eliminaron."""
     from datetime import datetime, timedelta
     from app.models.collaboration import CollaborationPushSubscription
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = utcnow() - timedelta(days=days)
     n = db.query(CollaborationPushSubscription).filter(
         CollaborationPushSubscription.is_active == False,  # noqa: E712
         CollaborationPushSubscription.created_at < cutoff,

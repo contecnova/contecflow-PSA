@@ -20,6 +20,7 @@ NOTE: Real Graph API calls require AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_T
 """
 
 from datetime import datetime, timedelta
+from app.core.timeutil import utcnow
 from typing import Optional
 import logging
 import httpx
@@ -82,8 +83,8 @@ async def sync_calendar_events(
 ):
     """Pull upcoming calendar events for the given user via Microsoft Graph."""
     _require_m365()
-    start = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-    end   = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
+    start = utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+    end   = (utcnow() + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
     try:
         data = await _graph_get(
             f"/users/{user_upn}/calendarView?startDateTime={start}Z&endDateTime={end}Z&$top=50"

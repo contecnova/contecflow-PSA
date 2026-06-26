@@ -22,14 +22,33 @@ logger = logging.getLogger(__name__)
 
 # ── Input cleaner ─────────────────────────────────────────────────────────────
 
+# Fields that must NEVER be set from client-supplied payloads (mass-assignment
+# guard). Tenant isolation (organization_id), identity (id), audit timestamps and
+# the soft-delete flag are owned by the server, not the caller.
+PROTECTED_FIELDS = frozenset({
+    "id",
+    "organization_id",
+    "created_at",
+    "updated_at",
+    "created_by",
+    "is_active",
+})
+
+
 def clean_input(data: dict, model_cls, date_fields=None, int_fields=None, float_fields=None) -> dict:
-    """Limpia el dict del frontend: '' → None, tipos correctos, ignora campos sin columna."""
+    """Limpia el dict del frontend: '' → None, tipos correctos, ignora campos sin columna.
+
+    Aplica además una deny-list (PROTECTED_FIELDS) para impedir mass-assignment
+    de campos de tenant/identidad/auditoría desde el payload del cliente.
+    """
 
     date_fields  = date_fields  or []
     int_fields   = int_fields   or []
     float_fields = float_fields or []
     out = {}
     for k, v in data.items():
+        if k in PROTECTED_FIELDS:
+            continue
         if not hasattr(model_cls, k):
             continue
         if v == "" or v is None:
@@ -314,6 +333,8 @@ def update_contract_record(cid: str, data: dict, db: Session) -> dict:
     if not c:
         raise HTTPException(404)
     for k, v in data.items():
+        if k in PROTECTED_FIELDS:
+            continue
         if hasattr(c, k):
             if k in ["start_date", "end_date", "renewal_date"] and isinstance(v, str) and v:
                 try:

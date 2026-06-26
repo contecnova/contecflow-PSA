@@ -5,6 +5,7 @@ All db.query/add/commit/flush calls live here; the router only calls these funct
 import logging
 import os
 from datetime import datetime, timedelta
+from app.core.timeutil import utcnow
 from typing import List, Optional
 
 from sqlalchemy import func
@@ -104,7 +105,7 @@ def create_envelope(
         provider=provider,
         subject=subject,
         message=message,
-        expires_at=datetime.utcnow() + timedelta(days=expires_days),
+        expires_at=utcnow() + timedelta(days=expires_days),
     )
     db.add(envelope)
     db.flush()
@@ -125,7 +126,7 @@ def create_envelope(
     envelope.signing_url = provider_result.get("signing_url")
     envelope.status = provider_result.get("status", ESignStatus.draft)
     if envelope.status == ESignStatus.sent:
-        envelope.sent_at = datetime.utcnow()
+        envelope.sent_at = utcnow()
 
     db.commit()
     db.refresh(envelope)
@@ -138,11 +139,11 @@ def update_envelope_status(
     new_status: ESignStatus,
 ) -> ESignEnvelope:
     envelope.status = new_status
-    envelope.updated_at = datetime.utcnow()
+    envelope.updated_at = utcnow()
     if new_status == ESignStatus.completed and not envelope.completed_at:
-        envelope.completed_at = datetime.utcnow()
+        envelope.completed_at = utcnow()
     if new_status == ESignStatus.sent and not envelope.sent_at:
-        envelope.sent_at = datetime.utcnow()
+        envelope.sent_at = utcnow()
     db.commit()
     return envelope
 
@@ -153,19 +154,19 @@ def mark_signer_signed(
     envelope: ESignEnvelope,
 ) -> None:
     signer.signed = True
-    signer.signed_at = datetime.utcnow()
+    signer.signed_at = utcnow()
 
     all_signed = all(s.signed for s in get_signers_for_envelope(db, envelope.id))
     if all_signed:
         envelope.status = ESignStatus.completed
-        envelope.completed_at = datetime.utcnow()
+        envelope.completed_at = utcnow()
 
     db.commit()
 
 
 def void_envelope(db: Session, envelope: ESignEnvelope) -> ESignEnvelope:
     envelope.status = ESignStatus.voided
-    envelope.updated_at = datetime.utcnow()
+    envelope.updated_at = utcnow()
     db.commit()
     return envelope
 
@@ -177,7 +178,7 @@ def update_envelope_from_webhook(
 ) -> None:
     envelope.status = new_status
     if new_status == ESignStatus.completed.value and not envelope.completed_at:
-        envelope.completed_at = datetime.utcnow()
+        envelope.completed_at = utcnow()
     db.commit()
 
 

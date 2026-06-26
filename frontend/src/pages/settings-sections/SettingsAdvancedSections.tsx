@@ -3,7 +3,7 @@ import { Fragment, useState, useEffect } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { APP_LANGUAGES, loadLanguage, getAllKeys, es } from '../../i18n/appTranslations.mjs'
+import { APP_LANGUAGES, AVAILABLE_LANGUAGES, loadLanguage, getAllKeys, es } from '../../i18n/appTranslations.mjs'
 import { PORTAL_TRANSLATIONS, PORTAL_LANGUAGES, getPortalKeys } from '../../i18n/portalTranslations'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
@@ -153,7 +153,8 @@ export function IdiomasSection() {
           </div>
           <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {APP_LANGUAGES.map(l => (
+              {/* Operator-facing picker: only well-covered locales (pl/zh hidden). */}
+              {AVAILABLE_LANGUAGES.map(l => (
                 <button key={l.code} onClick={() => setOperatorLang(l.code)}
                   style={{ padding: '12px 22px', borderRadius: 10, border: `2px solid ${operatorLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: operatorLang === l.code ? 'var(--accent-muted)' : 'var(--surface-2)', color: operatorLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-md-em)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
                   {l.flag} {l.label}

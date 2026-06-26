@@ -1,5 +1,6 @@
 """Workspace + Teams + Channels + Conversations + Presence + Search + Notifications endpoints."""
 from datetime import datetime
+from app.core.timeutil import utcnow
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -460,7 +461,7 @@ def update_presence(payload: PresenceIn, current_user: User = Depends(get_curren
         db.add(row)
     row.status = payload.status
     row.custom_message = payload.custom_message
-    row.last_seen_at = datetime.utcnow()
+    row.last_seen_at = utcnow()
     db.commit()
     return {"status": row.status}
 
@@ -501,7 +502,7 @@ def mark_all_notifications_read(current_user: User = Depends(get_current_user), 
     n = db.query(CollaborationNotification).filter(
         CollaborationNotification.user_id == current_user.id,
         CollaborationNotification.is_read == False,
-    ).update({"is_read": True, "read_at": datetime.utcnow()})
+    ).update({"is_read": True, "read_at": utcnow()})
     db.commit()
     return {"marked": n}
 
@@ -514,7 +515,7 @@ def mark_notif_read(notif_id: str, current_user: User = Depends(get_current_user
     if not n:
         raise HTTPException(404, "Notificación no encontrada")
     n.is_read = True
-    n.read_at = datetime.utcnow()
+    n.read_at = utcnow()
     db.commit()
     return {"ok": True}
 
@@ -614,7 +615,7 @@ def run_saved_search(saved_id: str, current_user: User = Depends(get_current_use
         conversation_ids=accessible, limit=200,
     )
     row.use_count = (row.use_count or 0) + 1
-    row.last_used_at = datetime.utcnow()
+    row.last_used_at = utcnow()
     db.commit()
     return SearchResponse(hits=[SearchHit(**h) for h in hits], total=len(hits))
 

@@ -1,5 +1,6 @@
 """Bots, slash commands, integrations, webhooks."""
 from datetime import datetime
+from app.core.timeutil import utcnow
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -195,7 +196,7 @@ def _incoming_webhook_sync(token: str, payload: dict, db: Session):
         metadata_json={"card": "webhook", "source": row.name, "raw": payload},
         bot_id=bot.id if bot else None,
     )
-    row.last_called_at = datetime.utcnow()
+    row.last_called_at = utcnow()
     db.commit()
 
 

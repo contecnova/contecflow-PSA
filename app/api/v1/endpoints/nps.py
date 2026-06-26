@@ -12,6 +12,7 @@ Routes:
 """
 
 from datetime import datetime, timedelta
+from app.core.timeutil import utcnow
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -100,7 +101,7 @@ def client_nps_summary(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    cutoff    = datetime.utcnow() - timedelta(days=days)
+    cutoff    = utcnow() - timedelta(days=days)
     responses = nps_service.get_nps_responses_since(db, client_id, cutoff)
     summary   = nps_service.compute_nps_summary(responses)
     return {**summary, "days": days}
@@ -181,7 +182,7 @@ def health_trend_all(
     _: User = Depends(get_current_user),
 ):
     """Aggregate average health score per week across all clients."""
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = utcnow() - timedelta(days=days)
     rows   = nps_service.get_health_trend(db, cutoff)
 
     weekly: dict = {}

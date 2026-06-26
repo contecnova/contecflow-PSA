@@ -122,8 +122,15 @@ def run_projects_report(db: Session, filters: dict, group_by, date_from, date_to
 
     rows = []
     for p in projects:
-        hours = sum(i.hours for i in p.imputations)
-        cost = sum(i.hours * (i.user.hourly_rate or 0) for i in p.imputations if i.user)
+        active_imps = [i for i in p.imputations if i.is_active]
+        hours = sum(i.hours for i in active_imps)
+        # Use the per-imputation cost snapshot (cost_amount) for historical accuracy;
+        # fall back to live rate only if no snapshot was recorded.
+        cost = sum(
+            i.cost_amount if i.cost_amount is not None
+            else i.hours * ((i.user.hourly_rate or 0) if i.user else 0)
+            for i in active_imps
+        )
         revenue = p.contract_amount or 0
         margin = round((revenue - cost) / revenue * 100, 1) if revenue > 0 else None
         budget_pct = round(cost / p.budget_amount * 100, 1) if p.budget_amount else None
@@ -167,6 +174,7 @@ def run_imputations_report(db: Session, filters: dict, group_by, date_from, date
             _Project.organization_id == org_id
         ).all()]
         q = q.filter(Imputation.project_id.in_(org_project_ids))
+    q = q.filter(Imputation.is_active == True)
     if date_from: q = q.filter(Imputation.date >= date_from)
     if date_to:   q = q.filter(Imputation.date <= date_to)
     if project_id: q = q.filter(Imputation.project_id == project_id)
@@ -179,7 +187,11 @@ def run_imputations_report(db: Session, filters: dict, group_by, date_from, date
         "hours": i.hours, "is_billable": i.is_billable,
         "work_type": i.work_type or "development",
         "description": (i.description or "")[:80],
-        "cost": round(i.hours * (i.user.hourly_rate or 0), 2) if i.user else 0,
+        "cost": round(
+            i.cost_amount if i.cost_amount is not None
+            else (i.hours * (i.user.hourly_rate or 0) if i.user else 0),
+            2,
+        ),
     } for i in imps]
 
     by_user = {}
@@ -264,7 +276,8 @@ def run_tickets_report(db: Session, filters: dict, group_by, date_from, date_to,
 
 def run_expenses_report(db: Session, filters: dict, group_by, date_from, date_to, project_id, org_id=None) -> dict:
     q = db.query(Expense).options(joinedload(Expense.user), joinedload(Expense.project)).filter(
-        Expense.status.in_(["approved", "reimbursed"])
+        Expense.status.in_(["approved", "reimbursed"]),
+        Expense.is_active == True,
     )
     if org_id:
         org_proj_ids = [r.id for r in db.query(_Project.id).filter(

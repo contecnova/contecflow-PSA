@@ -73,6 +73,10 @@ class Settings(
 
     CLIENT_PORTAL_SECRET: str = Field(..., env="CLIENT_PORTAL_SECRET")
     SCIM_BEARER_TOKEN: str = Field(default="", env="SCIM_BEARER_TOKEN")
+    # Legacy global SCIM token compat: if SCIM_BEARER_TOKEN is set, bind it to a
+    # single org via this setting. When unset, the legacy global token is only
+    # honoured (for ANY org) in development/testing — never silently in prod.
+    SCIM_ALLOWED_ORG_ID: str = Field(default="", env="SCIM_ALLOWED_ORG_ID")
     WEBHOOK_SECRET: str = Field(default="", env="WEBHOOK_SECRET")
     # Secret token for inbound email webhook (Mailgun/SendGrid/Postmark relay)
     # Set this to a long random string and configure your email relay to send it

@@ -1,6 +1,7 @@
 """Service layer for NPS and Client Health Snapshot operations."""
 
 from datetime import datetime, timedelta
+from app.core.timeutil import utcnow
 from typing import List, Optional
 
 from sqlalchemy import func
@@ -132,7 +133,7 @@ def create_health_snapshot(
 
 def compute_and_save_health(db: Session, client_id: str) -> ClientHealthSnapshot:
     """Auto-compute health score from current signals and persist a snapshot."""
-    cutoff    = datetime.utcnow() - timedelta(days=90)
+    cutoff    = utcnow() - timedelta(days=90)
     responses = get_nps_responses_since(db, client_id, cutoff)
     nps_score = _compute_nps(responses)
     nps_component = ((nps_score or 0) + 100) / 2 if nps_score is not None else 50.0

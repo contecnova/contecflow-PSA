@@ -21,6 +21,9 @@ export function getAllKeys(obj = es) {
 
 // partial: true → translation is incomplete; UI shows a β badge and
 // loadLanguage will fill missing keys with English as fallback.
+// enabled: false → locale stays loadable (kept in APP_TRANSLATIONS / langs/*.mjs)
+// but is hidden from user-facing switchers. pl/zh only cover ~340 of ~3000 keys
+// (~90% would render in English), so we don't offer them until coverage improves.
 export const APP_LANGUAGES = [
 	{ code: 'es', label: 'Español',    flag: '🇪🇸' },
 	{ code: 'en', label: 'English',    flag: '🇬🇧' },
@@ -28,9 +31,14 @@ export const APP_LANGUAGES = [
 	{ code: 'de', label: 'Deutsch',    flag: '🇩🇪', partial: true },
 	{ code: 'pt', label: 'Português',  flag: '🇵🇹', partial: true },
 	{ code: 'it', label: 'Italiano',   flag: '🇮🇹', partial: true },
-	{ code: 'pl', label: 'Polski',     flag: '🇵🇱', partial: true },
-	{ code: 'zh', label: '中文',       flag: '🇨🇳', partial: true },
+	{ code: 'pl', label: 'Polski',     flag: '🇵🇱', partial: true, enabled: false },
+	{ code: 'zh', label: '中文',       flag: '🇨🇳', partial: true, enabled: false },
 ];
+
+// Locales offered in user-facing language switchers. Excludes locales explicitly
+// flagged enabled:false (insufficient translation coverage). APP_LANGUAGES remains
+// the full list for admin tooling (e.g. the translation editor) and runtime loading.
+export const AVAILABLE_LANGUAGES = APP_LANGUAGES.filter(l => l.enabled !== false);
 
 // Carga dinámica de traducciones por idioma
 const langFiles = {

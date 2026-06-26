@@ -8,7 +8,7 @@ from fastapi import APIRouter, Body, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.db.session import get_db
 from app.models.settings import AppSetting
 from app.models.user import User
@@ -190,7 +190,7 @@ def put_provisioning(
     service_item_id: str,
     payload: ProvisioningConfigIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     _set_provisioning_config(db, service_item_id, org_id, payload.model_dump())
@@ -202,7 +202,7 @@ def trigger_provisioning(
     service_item_id: str,
     payload: ProvisionIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     """Execute automated provisioning steps for a service request ticket.
 

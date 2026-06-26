@@ -27,8 +27,14 @@ from app.services.scim_service import (
 router = APIRouter(prefix="/scim/v2/{org_id}", tags=["SCIM"])
 
 
-def _require_scim_token(authorization: Optional[str] = Header(default=None)) -> None:
-    require_scim_token(authorization)
+def _require_scim_token(
+    org_id: str,
+    authorization: Optional[str] = Header(default=None),
+    db: Session = Depends(get_db),
+) -> None:
+    # Per-org token auth: resolves the org by the presented bearer token and
+    # asserts it matches the path {org_id} (403 on cross-tenant attempts).
+    require_scim_token(db, authorization, org_id)
 
 
 @router.get("/ServiceProviderConfig")

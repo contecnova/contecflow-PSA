@@ -17,6 +17,7 @@ Endpoints:
 from __future__ import annotations
 
 import datetime
+from app.core.timeutil import utcnow
 import logging
 from typing import Optional, List
 
@@ -211,7 +212,7 @@ def sync_jira_to_nexus(
     if not key:
         raise HTTPException(400, "Proporciona project_key.")
 
-    cutoff = (datetime.datetime.utcnow() - datetime.timedelta(days=payload.since_days)).strftime("%Y-%m-%d")
+    cutoff = (utcnow() - datetime.timedelta(days=payload.since_days)).strftime("%Y-%m-%d")
     jql = f"project = {key} AND updated >= '{cutoff}' ORDER BY updated DESC"
     max_results = min(payload.max_results, 200)
 

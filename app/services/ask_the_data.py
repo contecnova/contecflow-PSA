@@ -76,10 +76,18 @@ class SQLValidationError(ValueError):
     pass
 
 
-def validate_sql(sql: str, org_id: Optional[str] = None) -> str:
+def validate_sql(sql: str, org_id: Optional[str] = None) -> tuple[str, dict]:
     """Validate and transform LLM-generated SQL before execution.
 
-    Returns the safe, tenant-filtered SQL string.
+    Returns a tuple ``(safe_sql, params)`` where ``params`` carries any bound
+    parameters (e.g. the tenant ``org_id``) that the caller MUST pass to the
+    DB driver — never string-interpolated.
+
+    Tenant scoping is ALWAYS enforced when ``org_id`` is provided: the validated
+    LLM query is wrapped as an outer ``SELECT * FROM (<llm_sql>) WHERE
+    organization_id = ?`` so a tenant predicate cannot be bypassed by the model
+    happening to mention ``organization_id`` itself.
+
     Raises SQLValidationError on any policy violation.
     """
     # Strip markdown fences if model included them
@@ -104,23 +112,7 @@ def validate_sql(sql: str, org_id: Optional[str] = None) -> str:
     if unknown:
         raise SQLValidationError(f"Unauthorized tables: {unknown}")
 
-    # Inject tenant filter — find WHERE clause or add one
-    if org_id:
-        # If model already included tenant scoping, do not inject a duplicate clause.
-        if not re.search(r"\borganization_id\b", sql, re.IGNORECASE):
-            tenant_clause = f"organization_id = '{org_id}'"
-            if re.search(r"\bWHERE\b", sql, re.IGNORECASE):
-                sql = re.sub(r"\bWHERE\b", f"WHERE {tenant_clause} AND", sql, count=1, flags=re.IGNORECASE)
-            else:
-                # Insert before GROUP BY / ORDER BY / LIMIT or at end
-                insert_before = re.search(r"\b(GROUP\s+BY|ORDER\s+BY|LIMIT)\b", sql, re.IGNORECASE)
-                if insert_before:
-                    pos = insert_before.start()
-                    sql = sql[:pos] + f" WHERE {tenant_clause} " + sql[pos:]
-                else:
-                    sql = sql + f" WHERE {tenant_clause}"
-
-    # Enforce LIMIT
+    # Enforce LIMIT on the inner query before wrapping
     if not re.search(r"\bLIMIT\b", sql, re.IGNORECASE):
         sql = sql + f" LIMIT {MAX_ROWS}"
     else:
@@ -130,7 +122,37 @@ def validate_sql(sql: str, org_id: Optional[str] = None) -> str:
             return f"LIMIT {min(n, MAX_ROWS)}"
         sql = re.sub(r"\bLIMIT\s+(\d+)", _clamp_limit, sql, flags=re.IGNORECASE)
 
-    return sql
+    # ALWAYS enforce tenant scoping (no conditional bypass).
+    #
+    # We do NOT trust any ``organization_id`` predicate the model may have
+    # written: the model controls its value and could scope to a foreign org.
+    # Instead we inject our OWN tenant predicate, bound to the trusted org_id,
+    # into the query's WHERE clause. Every allowed fact/dim table exposes
+    # ``organization_id``, so this filters rows before any GROUP BY/aggregation
+    # (an outer ``SELECT * ... WHERE organization_id`` wrapper would break on
+    # aggregate queries that don't project the column — injection avoids that).
+    #
+    # The org_id is passed as a BOUND parameter ($org_id) — never
+    # string-interpolated — so it cannot be used for injection.
+    params: dict = {}
+    if org_id:
+        params["org_id"] = org_id
+        tenant_clause = "organization_id = $org_id"
+        if re.search(r"\bWHERE\b", sql, re.IGNORECASE):
+            sql = re.sub(
+                r"\bWHERE\b", f"WHERE {tenant_clause} AND", sql, count=1, flags=re.IGNORECASE
+            )
+        else:
+            insert_before = re.search(
+                r"\b(GROUP\s+BY|HAVING|ORDER\s+BY|LIMIT)\b", sql, re.IGNORECASE
+            )
+            if insert_before:
+                pos = insert_before.start()
+                sql = sql[:pos] + f" WHERE {tenant_clause} " + sql[pos:]
+            else:
+                sql = sql + f" WHERE {tenant_clause}"
+
+    return sql, params
 
 
 # ── LLM SQL generation ────────────────────────────────────────────────────────
@@ -171,13 +193,17 @@ def _generate_sql(
 
 # ── Execution ─────────────────────────────────────────────────────────────────
 
-def _execute_on_olap(sql: str) -> list[dict]:
-    """Run validated SQL on DuckDB and return rows as list of dicts."""
+def _execute_on_olap(sql: str, params: Optional[dict] = None) -> list[dict]:
+    """Run validated SQL on DuckDB and return rows as list of dicts.
+
+    ``params`` (if any) are passed as bound parameters to the driver — they are
+    NEVER interpolated into the SQL string (defends against tenant-id injection).
+    """
     from app.services.olap.etl import get_duckdb_conn
 
     conn = get_duckdb_conn()
     try:
-        cur = conn.execute(sql)
+        cur = conn.execute(sql, params) if params else conn.execute(sql)
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
     finally:
@@ -311,10 +337,10 @@ def ask(
             logger.debug("LLM generated SQL (attempt %s): %s", attempt + 1, raw_sql)
 
             try:
-                validated_sql = validate_sql(raw_sql, org_id)
+                validated_sql, exec_params = validate_sql(raw_sql, org_id)
                 validated_sql = _normalize_sql_for_duckdb(validated_sql)
                 logger.debug("Validated SQL (attempt %s): %s", attempt + 1, validated_sql)
-                rows = _execute_on_olap(validated_sql)
+                rows = _execute_on_olap(validated_sql, exec_params)
                 break
             except (SQLValidationError, Exception) as exc:
                 last_exc = exc
@@ -343,8 +369,8 @@ def ask(
         fallback_sql = _fallback_sql_for_question(question)
         if fallback_sql:
             try:
-                validated_sql = validate_sql(fallback_sql, org_id)
-                rows = _execute_on_olap(validated_sql)
+                validated_sql, exec_params = validate_sql(fallback_sql, org_id)
+                rows = _execute_on_olap(validated_sql, exec_params)
                 columns = list(rows[0].keys()) if rows else []
                 return {
                     "question": question,

@@ -14,6 +14,7 @@ Endpoints:
   GET  /portal/collaboration/search
 """
 from datetime import datetime
+from app.core.timeutil import utcnow
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -133,7 +134,7 @@ def send_message(payload: MessageCreate, current_client: ClientUser = Depends(ge
         type=payload.type or "text",
         body=payload.body,
         metadata_json=payload.metadata_json or {},
-        sent_at=datetime.utcnow(),
+        sent_at=utcnow(),
         parent_message_id=payload.parent_message_id,
     )
     db.add(msg)
@@ -141,7 +142,7 @@ def send_message(payload: MessageCreate, current_client: ClientUser = Depends(ge
 
     conv = db.query(CollaborationConversation).filter(CollaborationConversation.id == conv_id).first()
     if conv:
-        conv.last_activity_at = datetime.utcnow()
+        conv.last_activity_at = utcnow()
         conv.last_message_id = msg.id
 
     # Notify counterparts
@@ -204,7 +205,7 @@ def mark_read(conversation_id: str, payload: ReadUpdate, current_client: ClientU
     org = getattr(current_client, "organization_id", None)
     if row:
         row.last_message_id = payload.last_message_id
-        row.last_read_at = datetime.utcnow()
+        row.last_read_at = utcnow()
     else:
         db.add(CollaborationRead(
             organization_id=org,
@@ -235,7 +236,7 @@ def mark_all_read(current_client: ClientUser = Depends(get_current_client), db: 
     n = db.query(CollaborationNotification).filter(
         CollaborationNotification.client_user_id == current_client.id,
         CollaborationNotification.is_read == False,
-    ).update({"is_read": True, "read_at": datetime.utcnow()})
+    ).update({"is_read": True, "read_at": utcnow()})
     db.commit()
     return APIResponse.ok(data={"marked": n})
 

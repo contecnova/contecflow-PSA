@@ -1,4 +1,5 @@
 from celery import Celery
+from app.core.timeutil import utcnow
 from celery.schedules import crontab
 from app.core.config import settings
 
@@ -806,7 +807,7 @@ def jira_periodic_sync():
                 return {"skipped": "Jira not configured or incomplete configuration"}
 
             # Fetch issues updated in the last 65 minutes (overlap buffer)
-            cutoff = (datetime.datetime.utcnow() - datetime.timedelta(minutes=65)).strftime("%Y-%m-%d %H:%M")
+            cutoff = (utcnow() - datetime.timedelta(minutes=65)).strftime("%Y-%m-%d %H:%M")
             jql = f"project = {project_key} AND updated >= '{cutoff}' ORDER BY updated DESC"
 
             resp = httpx.post(

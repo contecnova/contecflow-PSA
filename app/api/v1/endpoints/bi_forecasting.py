@@ -88,7 +88,17 @@ def run_forecast(
         horizon = body.periods or body.horizon
         timestamps = body.timestamps
         if method == "prophet" and not timestamps:
-            timestamps = [f"2025-{month:02d}-01" for month in range(1, len(values) + 1)]
+            # Synthesize monthly timestamps ending at the current month (handles
+            # len(values) > 12 correctly, unlike a fixed-year/month formatting).
+            from datetime import date as _date
+            _today = _date.today()
+            _base = _today.year * 12 + (_today.month - 1)
+            _n = len(values)
+            timestamps = []
+            for _i in range(_n):
+                _idx = _base - (_n - 1 - _i)
+                _y, _m = divmod(_idx, 12)
+                timestamps.append(f"{_y:04d}-{_m + 1:02d}-01")
 
         result = svc.forecast(
             metric=metric,

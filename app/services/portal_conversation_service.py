@@ -2,6 +2,7 @@ import json
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
+from app.core.timeutil import utcnow
 from typing import Optional
 
 from sqlalchemy import or_
@@ -107,7 +108,7 @@ def _is_past(dt: Optional[datetime]) -> bool:
         return False
     # SQLite may return naive datetimes even for timezone-aware columns.
     if dt.tzinfo is None:
-        return dt < datetime.utcnow()
+        return dt < utcnow()
     return dt < _now()
 
 

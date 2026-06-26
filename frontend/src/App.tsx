@@ -1,5 +1,3 @@
-import { ToastProvider } from './context/ToastContext'
-import { ConfirmProvider } from './context/ConfirmContext'
 import { Component, Suspense, lazy } from 'react'
 import type { ReactNode } from 'react'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -643,18 +641,17 @@ function AppRoutes() {
 
 
 export default function App() {
+  // Toast/Confirm providers live in AppProviders (main.tsx). They were previously
+  // duplicated here, creating a second parallel provider tree so AuthContext toasts
+  // and component toasts landed in different containers.
   return (
     <ErrorBoundary>
-      <ToastProvider>
-        <ConfirmProvider>
-          <AppShell>
-            <OfflineBanner />
-            <OfflineIndicator />
-            <OfflineConflictResolver />
-            <AppRoutes />
-          </AppShell>
-        </ConfirmProvider>
-      </ToastProvider>
+      <AppShell>
+        <OfflineBanner />
+        <OfflineIndicator />
+        <OfflineConflictResolver />
+        <AppRoutes />
+      </AppShell>
     </ErrorBoundary>
   )
 }
