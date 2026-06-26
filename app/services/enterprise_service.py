@@ -571,6 +571,9 @@ def list_webhooks(db: Session) -> list:
 
 def create_webhook(payload, current_user, db: Session) -> dict:
     import json as _json
+    # SSRF guard at the source: never persist a webhook pointing at an internal
+    # or non-HTTPS destination. Raises ValueError → mapped to 400 by the router.
+    _validate_webhook_url(payload.url)
     hook = Webhook(
         name=payload.name, url=payload.url,
         secret=encrypt_value(payload.secret) if payload.secret else None,
@@ -590,6 +593,8 @@ def update_webhook(hook_id: str, payload, current_user, db: Session) -> dict:
     if not hook:
         raise ValueError("not_found")
     data = payload.model_dump(exclude_unset=True)
+    if data.get("url"):
+        _validate_webhook_url(data["url"])
     if "events" in data:
         data["events"] = _json.dumps(data["events"])
     if "secret" in data and data["secret"]:

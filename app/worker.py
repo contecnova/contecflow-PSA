@@ -293,6 +293,7 @@ def deliver_webhook_task(self, webhook_id: int, body: str, event: str):
     from app.models.enterprise import Webhook, WebhookDelivery
     from app.core.encryption import decrypt_value
     from app.services.webhooks import _sign_payload
+    from app.services.enterprise_service import _validate_webhook_url
 
     # Explicit retry schedule requested for transient webhook failures.
     retry_schedule = (60, 300, 1800)
@@ -313,6 +314,25 @@ def deliver_webhook_task(self, webhook_id: int, body: str, event: str):
         error = None
         duration_ms = None
         http_exc = None
+
+        # ── SSRF guard — re-validate at delivery time (defense in depth) ──────
+        # The URL is validated on create/update, but DNS can be re-pointed at an
+        # internal address afterwards (DNS rebinding / TOCTOU). Re-check here, in
+        # the worker, immediately before any outbound network I/O.
+        try:
+            _validate_webhook_url(hook.url)
+        except ValueError as exc:
+            _worker_logger.warning(
+                "Webhook delivery blocked by SSRF guard: hook_id=%s url=%r reason=%s",
+                hook.id, hook.url, exc,
+            )
+            db.add(WebhookDelivery(
+                webhook_id=hook.id, event=event, payload=body[:10000],
+                status_code=None, response=None, success=False,
+                error=f"blocked: unsafe destination ({exc})"[:500],
+            ))
+            db.commit()
+            return {"skipped": True, "blocked": True, "reason": "unsafe_destination"}
 
         try:
             headers = {

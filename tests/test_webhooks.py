@@ -72,6 +72,30 @@ class TestWebhookCRUD:
         # Should return a list of event names or a dict
         assert data
 
+    def test_create_webhook_rejects_internal_url(self, client, admin_token, db):
+        """SSRF guard at the source: internal/metadata destinations → 400."""
+        for bad_url in (
+            "http://example.com/hook",                 # non-HTTPS
+            "https://169.254.169.254/latest/meta-data/",  # cloud IMDS
+            "https://localhost/hook",                   # loopback
+        ):
+            res = client.post(
+                "/api/v1/enterprise/webhooks",
+                json={"name": "SSRF Hook", "url": bad_url,
+                      "events": ["task.created"], "is_active": True},
+                headers=auth(admin_token),
+            )
+            assert res.status_code == 400, f"{bad_url} → {res.status_code} {res.text}"
+
+    def test_update_webhook_rejects_internal_url(self, client, admin_token, db):
+        hook = _create_webhook(client, admin_token)
+        res = client.patch(
+            f"/api/v1/enterprise/webhooks/{hook['id']}",
+            json={"url": "https://127.0.0.1/hook"},
+            headers=auth(admin_token),
+        )
+        assert res.status_code == 400, res.text
+
     def test_non_admin_cannot_create_webhook(self, client, dev_token, db):
         res = client.post(
             "/api/v1/enterprise/webhooks",
