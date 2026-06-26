@@ -70,3 +70,27 @@ def test_profitability_converts_internal_cost_to_project_currency(client, pm_tok
     assert res.status_code == 200
     data = res.json()
     assert data["internal_cost"] == 90.0
+
+
+def test_drilldowns_exclude_soft_deleted_imputations(client, pm_token, db):
+    """get_imputations_by_person/by_day must ignore soft-deleted rows so the
+    drill-downs reconcile with the (already-filtered) project totals."""
+    from app.services.profitability_service import (
+        get_imputations_by_person,
+        get_imputations_by_day,
+    )
+
+    pid = make_project(client, pm_token)
+    dev = db.query(User).filter(User.id == "dev-test-id").first()
+    common = dict(user_id=dev.id, task_id=None, project_id=pid, date=date.today(),
+                  is_billable=True, hourly_rate_snapshot=50.0)
+    db.add(Imputation(hours=4.0, cost_amount=200.0, is_active=True, **common))
+    db.add(Imputation(hours=8.0, cost_amount=400.0, is_active=False, **common))  # soft-deleted
+    db.commit()
+
+    by_person = get_imputations_by_person(db, pid)
+    assert sum(float(r.hours) for r in by_person) == 4.0
+    assert sum(float(r.cost) for r in by_person) == 200.0
+
+    by_day = get_imputations_by_day(db, pid)
+    assert sum(float(r.hours) for r in by_day) == 4.0

@@ -272,7 +272,7 @@ def get_imputations_by_person(db: Session, project_id: str) -> list:
             func.sum(Imputation.cost_amount).label("cost"),
         )
         .join(User, User.id == Imputation.user_id)
-        .filter(Imputation.project_id == project_id)
+        .filter(Imputation.project_id == project_id, Imputation.is_active == True)
         .group_by(Imputation.user_id, User.full_name)
         .all()
     )
@@ -285,7 +285,7 @@ def get_imputations_by_day(db: Session, project_id: str) -> list:
             func.sum(Imputation.hours).label("hours"),
             func.sum(Imputation.cost_amount).label("cost"),
         )
-        .filter(Imputation.project_id == project_id)
+        .filter(Imputation.project_id == project_id, Imputation.is_active == True)
         .group_by(Imputation.date)
         .order_by(Imputation.date)
         .all()
