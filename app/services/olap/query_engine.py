@@ -240,8 +240,54 @@ def get_kpi_summary(org_id: Optional[str] = None) -> dict:
 # ── PostgreSQL fallbacks ──────────────────────────────────────────────────────
 
 def _pg_margin_evolution(org_id: Optional[str], months: int) -> list[dict]:
-    logger.info("OLAP unavailable — margin_evolution using PostgreSQL fallback (stub)")
-    return []
+    """Monthly cost + active-project count from PostgreSQL when DuckDB is not
+    ready. Aggregates in Python so it works on both Postgres and SQLite, and
+    excludes soft-deleted imputations to match the financial aggregates."""
+    logger.info("OLAP unavailable — margin_evolution using PostgreSQL fallback")
+    try:
+        from app.db.session import SessionLocal
+        from app.models.imputation import Imputation
+        from app.models.project import Project
+        from datetime import date
+
+        today = date.today()
+        # First day of the month, `months` months back.
+        start_year = today.year + (today.month - 1 - (months - 1)) // 12
+        start_month = (today.month - 1 - (months - 1)) % 12 + 1
+        window_start = date(start_year, start_month, 1)
+
+        db = SessionLocal()
+        try:
+            q = (
+                db.query(Imputation.date, Imputation.cost_amount, Imputation.project_id)
+                .filter(Imputation.date >= window_start, Imputation.is_active == True)
+            )
+            if org_id:
+                proj_ids = [p.id for p in db.query(Project.id).filter(Project.organization_id == org_id).all()]
+                q = q.filter(Imputation.project_id.in_(proj_ids))
+
+            buckets: dict[str, dict] = {}
+            for imp_date, cost_amount, project_id in q.all():
+                key = f"{imp_date.year:04d}{imp_date.month:02d}"
+                b = buckets.setdefault(key, {"month": key, "total_cost": 0.0, "_projects": set()})
+                b["total_cost"] += float(cost_amount or 0)
+                if project_id:
+                    b["_projects"].add(project_id)
+
+            result = []
+            for key in sorted(buckets):
+                b = buckets[key]
+                result.append({
+                    "month": b["month"],
+                    "total_cost": round(b["total_cost"], 2),
+                    "active_projects": len(b["_projects"]),
+                })
+            return result
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.warning("PostgreSQL margin_evolution fallback failed: %s", exc)
+        return []
 
 
 def _pg_utilization_by_user(org_id: Optional[str]) -> list[dict]:

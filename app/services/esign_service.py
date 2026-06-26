@@ -342,8 +342,10 @@ def _read_document_bytes(doc: Document, db: Optional[Session]) -> tuple[bytes, s
         )
 
     if latest_version is None:
-        _log.warning("[eSign] Document %s has no versions; using empty placeholder", doc.id)
-        return b"%PDF-1.4 placeholder", "document.pdf", "pdf"
+        _log.error("[eSign] Document %s has no stored versions; cannot send for signature", doc.id)
+        raise ValueError(
+            f"Document {doc.id} has no content to sign (no stored versions)."
+        )
 
     file_name = latest_version.file_name or "document.pdf"
     ext = os.path.splitext(file_name)[1].lstrip(".").lower() or "pdf"
@@ -367,8 +369,11 @@ def _read_document_bytes(doc: Document, db: Optional[Session]) -> tuple[bytes, s
         with open(local_path, "rb") as fh:
             return fh.read(), file_name, ext
 
-    _log.warning("[eSign] Could not read document %s from S3 or local path %s", doc.id, local_path)
-    return b"%PDF-1.4 placeholder", file_name, ext
+    _log.error("[eSign] Could not read document %s from S3 or local path %s", doc.id, local_path)
+    raise ValueError(
+        f"Document {doc.id} content could not be retrieved from storage; refusing "
+        f"to send an empty document for signature."
+    )
 
 
 # ── Provider helpers ───────────────────────────────────────────────────────────

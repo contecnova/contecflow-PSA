@@ -313,7 +313,11 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
     when OLAP is unavailable.
     """
     if not _REPORTLAB:
-        return b"%PDF-placeholder-reportlab-not-installed"
+        # Never hand back a corrupt 1-byte "PDF"; fail loudly so the caller
+        # surfaces a real error instead of delivering an unreadable file.
+        raise RuntimeError(
+            "PDF generation requires the 'reportlab' package, which is not installed."
+        )
 
     report_type = getattr(report, "report_type", None) or "custom"
     include_narrative = getattr(report, "include_narrative", False)
