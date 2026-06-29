@@ -53,17 +53,17 @@ export default function AlertsDrawer({ onClose }: Props) {
   const { mutate: resolve } = useMutation({
     mutationFn: (id: AlertItem['id']) => alertsApi.resolve(id),
     onSuccess: () => {
-      qc.invalidateQueries(['alerts-drawer'])
-      qc.invalidateQueries(['alerts-page'])
-      qc.invalidateQueries(['notification-badges'])
+      qc.invalidateQueries({ queryKey: ['alerts-drawer'] })
+      qc.invalidateQueries({ queryKey: ['alerts-page'] })
+      qc.invalidateQueries({ queryKey: ['notification-badges'] })
     },
   })
 
   const { mutate: markRead } = useMutation({
     mutationFn: (id: AlertItem['id']) => alertsApi.read(id),
     onSuccess: () => {
-      qc.invalidateQueries(['alerts-drawer'])
-      qc.invalidateQueries(['notification-badges'])
+      qc.invalidateQueries({ queryKey: ['alerts-drawer'] })
+      qc.invalidateQueries({ queryKey: ['notification-badges'] })
     },
   })
 

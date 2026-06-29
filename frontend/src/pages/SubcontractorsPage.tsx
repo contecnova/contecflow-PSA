@@ -68,7 +68,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
       ? enterpriseSubsApi.updateWorker(worker.id, d)
       : enterpriseSubsApi.createWorker(subId, d),
     onSuccess: (res) => {
-      qc.invalidateQueries(['sub-workers', subId])
+      qc.invalidateQueries({ queryKey: ['sub-workers', subId] })
       qc.invalidateQueries({ queryKey: ['users'] })
       onSaved?.()
       if (!isEdit && res.data?.login_username) {
@@ -83,13 +83,13 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
 
   const { mutate: addSkill, isPending: addingSkill } = useMutation({
     mutationFn: d => enterpriseSubsApi.addWorkerSkill(worker?.id, d),
-    onSuccess: () => { qc.invalidateQueries(['sub-workers', subId]); setShowSkillForm(false); setSkillForm({ skill_id: '', level: 'intermediate', years_experience: '', certified: false, cert_name: '' }); toast.success('Skill añadida') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sub-workers', subId] }); setShowSkillForm(false); setSkillForm({ skill_id: '', level: 'intermediate', years_experience: '', certified: false, cert_name: '' }); toast.success('Skill añadida') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: removeSkill } = useMutation({
     mutationFn: skill_id => enterpriseSubsApi.removeWorkerSkill(worker?.id, skill_id),
-    onSuccess: () => { qc.invalidateQueries(['sub-workers', subId]); toast.success('Skill eliminada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sub-workers', subId] }); toast.success('Skill eliminada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -257,7 +257,7 @@ function WorkersPanel({ subId }) {
   const { mutate: deactivate } = useMutation({
     mutationFn: id => enterpriseSubsApi.deleteWorker(id),
     onSuccess: () => {
-      qc.invalidateQueries(['sub-workers', subId])
+      qc.invalidateQueries({ queryKey: ['sub-workers', subId] })
       qc.invalidateQueries({ queryKey: ['users'] })
       toast.success('Trabajador desactivado')
     },
@@ -331,8 +331,8 @@ function WorkersPanel({ subId }) {
         </div>
       )}
 
-      {showCreate && <WorkerModal subId={subId} onClose={() => setShowCreate(false)} onSaved={() => qc.invalidateQueries(['subcontractors'])} />}
-      {editWorker && <WorkerModal subId={subId} worker={editWorker} onClose={() => setEditWorker(null)} onSaved={() => qc.invalidateQueries(['subcontractors'])} />}
+      {showCreate && <WorkerModal subId={subId} onClose={() => setShowCreate(false)} onSaved={() => qc.invalidateQueries({ queryKey: ['subcontractors'] })} />}
+      {editWorker && <WorkerModal subId={subId} worker={editWorker} onClose={() => setEditWorker(null)} onSaved={() => qc.invalidateQueries({ queryKey: ['subcontractors'] })} />}
       {deactivateTarget && (
         <Modal open title="Desactivar trabajador" onClose={() => setDeactivateTarget(null)} width={380}>
           <p style={{ fontSize: "var(--text-md)", color: 'var(--text-1)', marginBottom: 20 }}>
@@ -379,25 +379,25 @@ function SubDetail({ sub, onBack }) {
 
   const { mutate: logHours, isPending: logging } = useMutation({
     mutationFn: d => enterpriseSubsApi.createTimelog(sub.id, d),
-    onSuccess: () => { qc.invalidateQueries(['sub-timelogs', sub.id]); setShowTimelog(false); toast.success('Horas registradas') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sub-timelogs', sub.id] }); setShowTimelog(false); toast.success('Horas registradas') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: createInv, isPending: invoicing } = useMutation({
     mutationFn: d => enterpriseSubsApi.createInvoice(sub.id, d),
-    onSuccess: () => { qc.invalidateQueries(['sub-invoices', sub.id]); setShowInvoice(false); toast.success('Factura registrada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sub-invoices', sub.id] }); setShowInvoice(false); toast.success('Factura registrada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: createAssign, isPending: assigning } = useMutation({
     mutationFn: d => enterpriseSubsApi.createAssignment(sub.id, d),
-    onSuccess: () => { qc.invalidateQueries(['sub-assignments', sub.id]); setShowAssign(false); toast.success('Asignación creada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sub-assignments', sub.id] }); setShowAssign(false); toast.success('Asignación creada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: updateInvStatus } = useMutation({
     mutationFn: ({ id, status }) => enterpriseSubsApi.updateInvoice(sub.id, id, { status }),
-    onSuccess: () => qc.invalidateQueries(['sub-invoices', sub.id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sub-invoices', sub.id] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
@@ -705,7 +705,7 @@ export default function SubcontractorsPage() {
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => enterpriseSubsApi.create(d),
     onSuccess: (res) => {
-      qc.invalidateQueries(['subcontractors'])
+      qc.invalidateQueries({ queryKey: ['subcontractors'] })
       setShowCreate(false)
       setForm({ name: '', company: '', email: '', phone: '', country: 'España', currency: currency, vat_number: '', notes: '' })
       setSelected(res.data)
@@ -716,7 +716,7 @@ export default function SubcontractorsPage() {
   const { mutate: update, isPending: updating } = useMutation({
     mutationFn: ({id, ...d}) => enterpriseSubsApi.update(id, d),
     onSuccess: (_res) => {
-      qc.invalidateQueries(['subcontractors'])
+      qc.invalidateQueries({ queryKey: ['subcontractors'] })
       setShowEdit(false)
       setEditTarget(null)
       toast.success('Subcontratista actualizado')
@@ -726,8 +726,8 @@ export default function SubcontractorsPage() {
   const { mutate: remove } = useMutation({
     mutationFn: id => enterpriseSubsApi.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries(['subcontractors'])
-      qc.invalidateQueries(['sub-dashboard'])
+      qc.invalidateQueries({ queryKey: ['subcontractors'] })
+      qc.invalidateQueries({ queryKey: ['sub-dashboard'] })
       toast.success('Subcontratista eliminado')
     },
     onError: e => toast.error(extractErr(e, t('common.error_delete'))),

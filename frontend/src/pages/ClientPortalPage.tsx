@@ -97,12 +97,12 @@ function ClientUsersTab({ projectId }) {
   })
   const { mutate: deleteClient } = useMutation({
     mutationFn: (id) => portalApi.deleteClient(id),
-    onSuccess: () => qc.invalidateQueries(['portal-clients', projectId]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   const { mutate: toggleActive } = useMutation({
     mutationFn: ({ id, active }) => portalApi.updateClient(id, { is_active: active }),
-    onSuccess: () => qc.invalidateQueries(['portal-clients', projectId]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -147,7 +147,7 @@ function ClientUsersTab({ projectId }) {
         </div>
       )}
       {showCreate && projectId && <CreateClientModal projectId={projectId} onClose={() => setShowCreate(false)} />}
-      {editingClient && <EditClientModal client={editingClient} onClose={() => setEditingClient(null)} onSaved={() => { qc.invalidateQueries(['portal-clients', projectId]); setEditingClient(null) }} />}
+      {editingClient && <EditClientModal client={editingClient} onClose={() => setEditingClient(null)} onSaved={() => { qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }); setEditingClient(null) }} />}
     </div>
   )
 }
@@ -173,7 +173,7 @@ function CreateClientModal({ projectId, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => portalApi.createClient(data),
-    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['portal-clients', projectId]); onClose() },
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -436,7 +436,7 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
       }
       return res
     },
-    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['uat-team', projectId]); onClose() },
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['uat-team', projectId] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -616,13 +616,13 @@ function FeatureRequestsTab({ projectId }) {
 
   const { mutate: respond, isPending } = useMutation({
     mutationFn: ({ id, data }) => portalApi.respondFeatureRequest(id, data),
-    onSuccess: () => { qc.invalidateQueries(['portal-frs', projectId]); setResponding(null) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs', projectId] }); setResponding(null) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => portalApi.respondFeatureRequest(id, { status }),
-    onSuccess: () => qc.invalidateQueries(['portal-frs', projectId]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-frs', projectId] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -744,7 +744,7 @@ function DocumentsTab({ projectId }) {
   })
   const { mutate: addDoc } = useMutation({
     mutationFn: (data) => portalApi.createDocument(projectId, data),
-    onSuccess: () => { qc.invalidateQueries(['portal-docs', projectId]); setShowAdd(false) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-docs', projectId] }); setShowAdd(false) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -840,7 +840,7 @@ function WikiPortalTab({ projectId }) {
   const qc = useQueryClient()
   const { mutate: setVis } = useMutation({
     mutationFn: ({ id, visibility }) => wikiApi.portalUpdatePage(id, { visibility }),
-    onSuccess: () => qc.invalidateQueries(['wiki-pages-portal-op', selectedSpace]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['wiki-pages-portal-op', selectedSpace] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 

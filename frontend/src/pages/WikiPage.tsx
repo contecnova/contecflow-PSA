@@ -234,7 +234,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
     mutationFn: d => isEdit
       ? wikiApi.updatePage(editPage.id, d).then(r=>r.data)
       : wikiApi.createPage(spaceId, d).then(r=>r.data),
-    onSuccess: () => { qc.invalidateQueries(['wiki-pages', spaceId]); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wiki-pages', spaceId] }); onClose() },
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
 
@@ -361,7 +361,7 @@ function WikiTagsInline() {
       ? wikiApi.updateTag(editing.id, d).then(r => r.data)
       : wikiApi.createTag(space, d).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries(['wiki-tags-inline', space])
+      qc.invalidateQueries({ queryKey: ['wiki-tags-inline', space] })
       setShowForm(false); setEditing(null); setForm({ name: '', color: 'var(--accent)' })
       toast.success(editing ? 'Etiqueta actualizada' : 'Etiqueta creada')
     },
@@ -369,7 +369,7 @@ function WikiTagsInline() {
   })
   const { mutate: del } = useMutation({
     mutationFn: id => wikiApi.deleteTag(id),
-    onSuccess: () => { qc.invalidateQueries(['wiki-tags-inline', space]); toast.success('Etiqueta eliminada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wiki-tags-inline', space] }); toast.success('Etiqueta eliminada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -476,14 +476,14 @@ export default function WikiPage() {
 
   const { mutate:createSpace,isPending:cSpace } = useMutation({
     mutationFn: d=>wikiApi.createSpace(d).then(r=>r.data),
-    onSuccess: ()=>{qc.invalidateQueries(['wiki-spaces']);setSpaceModal(false);setSpaceForm({name:'',slug:'',description:'',project_id:'',is_public:false})},
+    onSuccess: ()=>{qc.invalidateQueries({ queryKey: ['wiki-spaces'] });setSpaceModal(false);setSpaceForm({name:'',slug:'',description:'',project_id:'',is_public:false})},
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate:restoreVersion, isPending:restoring } = useMutation({
     mutationFn: (vn)=>wikiApi.restorePage(page.id, vn).then(r=>r.data),
     onSuccess: (d)=>{
-      qc.invalidateQueries(['wiki-pages', space?.id])
-      qc.invalidateQueries(['wiki-versions', page?.id])
+      qc.invalidateQueries({ queryKey: ['wiki-pages', space?.id] })
+      qc.invalidateQueries({ queryKey: ['wiki-versions', page?.id] })
       setShowHistory(false)
       toast.info(`Restaurado a versión ${d.restored_to}. Nueva versión: ${d.new_version}`)
       // Recargar página actual
@@ -494,7 +494,7 @@ export default function WikiPage() {
 
     const { mutate:deletePage } = useMutation({
     mutationFn: id=>wikiApi.deletePage(id),
-    onSuccess: ()=>{qc.invalidateQueries(['wiki-pages',space?.id]);setPage(null)},
+    onSuccess: ()=>{qc.invalidateQueries({ queryKey: ['wiki-pages',space?.id] });setPage(null)},
     onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })
 

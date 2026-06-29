@@ -60,13 +60,13 @@ function ObligationsPanel({ contractId, onClose, currency }) {
     mutationFn: d => editing
       ? revenueRecognitionApi.updateObligation(editing.id, d).then(r => r.data)
       : revenueRecognitionApi.createObligation(contractId, d).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['asc606-obligations', contractId]); reset() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-obligations', contractId] }); reset() },
     onError: e => toast.error(extractErr(e, 'Error al guardar obligación')),
   })
 
   const { mutate: del } = useMutation({
     mutationFn: id => revenueRecognitionApi.deleteObligation(id),
-    onSuccess: () => qc.invalidateQueries(['asc606-obligations', contractId]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['asc606-obligations', contractId] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -198,27 +198,27 @@ export default function RevenuePage() {
   })
   const { mutate: reverseEntry } = useMutation({
     mutationFn: id => revenueRecognitionApi.reverseEntry(id),
-    onSuccess: () => { qc.invalidateQueries(['asc606-entries']); toast.success('Entrada revertida') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-entries'] }); toast.success('Entrada revertida') },
     onError: e => toast.error(extractErr(e, 'Error al revertir')),
   })
 
   // ── Existing mutations ─────────────────────────────────────────────────────
   const { mutate: createRule, isPending:creating } = useMutation({
     mutationFn: d => revenueApi.createRule(d),
-    onSuccess: () => { qc.invalidateQueries(['rev-rules']); setShowCreate(false) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rev-rules'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: _autoCompute, isPending: _autoComputing } = useMutation({
     mutationFn: () => revenueApi.autoCompute(computePeriod),
     onSuccess: (res) => {
-      qc.invalidateQueries(['revenue-rules'])
+      qc.invalidateQueries({ queryKey: ['revenue-rules'] })
       toast.success(`Auto-compute: ${res.data.total_recognised?.toLocaleString('es-ES', {style:'currency',currency})} reconocidos`)
     },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: compute, isPending:computing } = useMutation({
     mutationFn: ({ id, period }) => revenueApi.compute(id, period),
-    onSuccess: () => { qc.invalidateQueries(['rev-rules']); qc.invalidateQueries(['rev-summary']); setShowCompute(null) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rev-rules'] }); qc.invalidateQueries({ queryKey: ['rev-summary'] }); setShowCompute(null) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -226,8 +226,8 @@ export default function RevenuePage() {
   const { mutate: createContract, isPending: creatingContract } = useMutation({
     mutationFn: d => revenueRecognitionApi.createContract(d),
     onSuccess: () => {
-      qc.invalidateQueries(['asc606-contracts'])
-      qc.invalidateQueries(['asc606-dashboard', dashYear])
+      qc.invalidateQueries({ queryKey: ['asc606-contracts'] })
+      qc.invalidateQueries({ queryKey: ['asc606-dashboard', dashYear] })
       setShowCreateContract(false)
       toast.success('Contrato creado')
     },
@@ -236,7 +236,7 @@ export default function RevenuePage() {
   const { mutate: closePeriodMut, isPending: closingPeriod } = useMutation({
     mutationFn: d => revenueRecognitionApi.closePeriod(d),
     onSuccess: () => {
-      qc.invalidateQueries(['asc606-period-closes'])
+      qc.invalidateQueries({ queryKey: ['asc606-period-closes'] })
       setShowCloseModal(false)
       toast.success(`Período ${closePeriod.year}-${String(closePeriod.month).padStart(2,'0')} cerrado`)
     },
@@ -244,13 +244,13 @@ export default function RevenuePage() {
   })
   const { mutate: reopenPeriodMut } = useMutation({
     mutationFn: ({ year, month }) => revenueRecognitionApi.reopenPeriod(year, month),
-    onSuccess: () => { qc.invalidateQueries(['asc606-period-closes']); toast.success('Período reabierto') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-period-closes'] }); toast.success('Período reabierto') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: runMonthly, isPending: runningMonthly } = useMutation({
     mutationFn: d => revenueRecognitionApi.runMonthly(d),
     onSuccess: (res) => {
-      qc.invalidateQueries(['asc606-dashboard', dashYear])
+      qc.invalidateQueries({ queryKey: ['asc606-dashboard', dashYear] })
       const r = res.data.recognized
       toast.success(`Reconocimiento completado: T&M ${fmt(r?.over_time)}, Línea recta ${fmt(r?.straight_line)}`)
     },

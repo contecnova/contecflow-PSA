@@ -214,13 +214,13 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
       collabApi.markRead(conv.id, conv.last_message_id)
         .catch(() => {})
         .finally(() => {
-          qc.invalidateQueries(['collab-conversations'])
-          qc.invalidateQueries(['collab-notifications'])
+          qc.invalidateQueries({ queryKey: ['collab-conversations'] })
+          qc.invalidateQueries({ queryKey: ['collab-notifications'] })
           realtime.refresh()
         })
     } else {
-      qc.invalidateQueries(['collab-conversations'])
-      qc.invalidateQueries(['collab-notifications'])
+      qc.invalidateQueries({ queryKey: ['collab-conversations'] })
+      qc.invalidateQueries({ queryKey: ['collab-notifications'] })
       realtime.refresh()
     }
   }
@@ -245,7 +245,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
   const saveRule = useMutation({
     mutationFn: (payload) => collabApi.upsertRule(payload),
-    onSuccess: () => qc.invalidateQueries(['collab-notification-rules']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['collab-notification-rules'] }),
     onError: () => toast.error('No se pudieron guardar preferencias de notificación'),
   })
 
@@ -366,8 +366,8 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
     collabApi.markAllRead()
       .catch(() => {})
       .finally(() => {
-        qc.invalidateQueries(['collab-notifications'])
-        qc.invalidateQueries(['collab-conversations'])
+        qc.invalidateQueries({ queryKey: ['collab-notifications'] })
+        qc.invalidateQueries({ queryKey: ['collab-conversations'] })
         realtime.refresh()
       })
   }, [open, minimized, qc, realtime])
@@ -376,8 +376,8 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
     mutationFn: () => collabApi.sendMessage({ conversation_id: activeConvId, body: draft.trim() }),
     onSuccess: () => {
       setDraft('')
-      qc.invalidateQueries(['collab-messages', activeConvId])
-      qc.invalidateQueries(['collab-conversations'])
+      qc.invalidateQueries({ queryKey: ['collab-messages', activeConvId] })
+      qc.invalidateQueries({ queryKey: ['collab-conversations'] })
     },
     onError: (e) => {
       toast.error(e?.response?.data?.detail || 'No se pudo enviar el mensaje')
@@ -393,7 +393,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
   const openDirect = useMutation({
     mutationFn: (userId) => collabApi.openDirect({ user_id: userId }),
     onSuccess: (c) => {
-      qc.invalidateQueries(['collab-conversations'])
+      qc.invalidateQueries({ queryKey: ['collab-conversations'] })
       setNewDirectOpen(false)
       setUserSearch('')
       setActiveConvId(c.conversation_id || c.id)

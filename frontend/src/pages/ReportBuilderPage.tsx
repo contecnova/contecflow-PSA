@@ -443,7 +443,7 @@ export default function ReportBuilderPage() {
     setSavingTpl(true)
     try {
       await reportBuilderApi.saveTemplate({ name: tplName.trim(), query: buildQuery() })
-      await qc.invalidateQueries(['report-templates'])
+      await qc.invalidateQueries({ queryKey: ['report-templates'] })
       setTplName('')
     } finally {
       setSavingTpl(false)
@@ -457,7 +457,7 @@ export default function ReportBuilderPage() {
 
   const { mutate: deleteTpl } = useMutation({
     mutationFn: (id) => reportBuilderApi.deleteTemplate(id),
-    onSuccess: () => qc.invalidateQueries(['report-templates']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['report-templates'] }),
   })
 
   const loadTemplate = (tpl) => {

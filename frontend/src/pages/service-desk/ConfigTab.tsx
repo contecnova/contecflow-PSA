@@ -766,12 +766,12 @@ export function AnnouncementsConfig() {
   })
   const { mutate: create, isPending: creating } = useMutation({
     mutationFn: d => sdAnnouncementsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['sd-announcements']); setShowCreate(false); setForm({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' }); toast.success(t('service_desk.ann_published')) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-announcements'] }); setShowCreate(false); setForm({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' }); toast.success(t('service_desk.ann_published')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: id => sdAnnouncementsApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries(['sd-announcements']); toast.success(t('service_desk.ann_deactivated')) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-announcements'] }); toast.success(t('service_desk.ann_deactivated')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 

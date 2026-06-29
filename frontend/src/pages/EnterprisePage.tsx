@@ -34,12 +34,12 @@ function WebhooksTab() {
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => webhooksApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['wh-triggers']); setShowCreate(false) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wh-triggers'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: id => webhooksApi.delete(id),
-    onSuccess: () => qc.invalidateQueries(['wh-triggers']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['wh-triggers'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -120,12 +120,12 @@ function GDPRTab() {
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => gdprApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['gdpr']); setShowCreate(false) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['gdpr'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: process } = useMutation({
     mutationFn: id => gdprApi.process(id),
-    onSuccess: () => qc.invalidateQueries(['gdpr']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['gdpr'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -205,12 +205,12 @@ function EmailTab() {
 
   const { mutate: send, isPending:sending } = useMutation({
     mutationFn: d => emailApi.send({...d, to:[d.to]}),
-    onSuccess: () => { qc.invalidateQueries(['email-logs']); setShowSend(false) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['email-logs'] }); setShowSend(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: createTpl } = useMutation({
     mutationFn: d => emailApi.createTemplate(d),
-    onSuccess: () => { qc.invalidateQueries(['email-tpl']); setShowCreate(false) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['email-tpl'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -314,20 +314,20 @@ function IntegrationsTab() {
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => oauthIntegrationsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['integrations']); setConfiguring(null); toast.success('Integración guardada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['integrations'] }); setConfiguring(null); toast.success('Integración guardada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: del } = useMutation({
     mutationFn: id => oauthIntegrationsApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries(['integrations']); toast.success('Integración eliminada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success('Integración eliminada') },
 
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const { mutate: sync } = useMutation({
     mutationFn: id => oauthIntegrationsApi.sync(id, {}),
-    onSuccess: () => { qc.invalidateQueries(['integrations']); toast.success('Sincronización completada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success('Sincronización completada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -554,12 +554,12 @@ function APIKeysTab() {
   const { data: keys = [] } = useQuery({ queryKey:['api-keys'], queryFn:() => apiKeysApi.list().then(r => r.data) })
   const { mutate: create } = useMutation({
     mutationFn: d => apiKeysApi.create({ ...d, scopes:['read'] }).then(r => r.data),
-    onSuccess: data => { qc.invalidateQueries(['api-keys']); setNewKey(data); setShowCreate(false) },
+    onSuccess: data => { qc.invalidateQueries({ queryKey: ['api-keys'] }); setNewKey(data); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: revoke } = useMutation({
     mutationFn: id => apiKeysApi.delete(id),
-    onSuccess: () => qc.invalidateQueries(['api-keys']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['api-keys'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -625,13 +625,13 @@ function SSOTab() {
 
   const { mutate: create, isPending: creating } = useMutation({
     mutationFn: d => enterpriseApi.ssoCreate(d),
-    onSuccess: () => { qc.invalidateQueries(['sso-cfg']); setShowCreate(false); toast.success('SSO creado') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sso-cfg'] }); setShowCreate(false); toast.success('SSO creado') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: del } = useMutation({
     mutationFn: id => enterpriseApi.ssoDelete(id),
-    onSuccess: () => { qc.invalidateQueries(['sso-cfg']); toast.success('SSO eliminado') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sso-cfg'] }); toast.success('SSO eliminado') },
 
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })

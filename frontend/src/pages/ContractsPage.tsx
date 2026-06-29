@@ -123,7 +123,7 @@ function ContractFormModal({ contract, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => isEdit ? contractsApi.update(contract.id, data) : contractsApi.create(data),
-    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['contracts']); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['clients']); onClose() },
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['contracts'] }); qc.invalidateQueries({ queryKey: ['client-detail'] }); qc.invalidateQueries({ queryKey: ['clients'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -252,12 +252,12 @@ function ContractDetail({ contract, onClose, onEdit }) {
 
   const { mutate: createWO } = useMutation({
     mutationFn: (data) => contractsApi.createWorkOrder(contract.id, data),
-    onSuccess: () => { woValidation.setErrors({}); qc.invalidateQueries(['contracts']); setShowWO(false); setWoForm({ name: '', amount: '', hours: '', start_date: '', end_date: '' }) },
+    onSuccess: () => { woValidation.setErrors({}); qc.invalidateQueries({ queryKey: ['contracts'] }); setShowWO(false); setWoForm({ name: '', amount: '', hours: '', start_date: '', end_date: '' }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: updateWOStatus } = useMutation({
     mutationFn: ({ woId, status }) => contractsApi.updateWorkOrderStatus(contract.id, woId, status),
-    onSuccess: () => qc.invalidateQueries(['contracts']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contracts'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 

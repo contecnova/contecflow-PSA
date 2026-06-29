@@ -235,7 +235,7 @@ function EditUserModal({ user, open, onClose }) {
   })
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => usersApi.update(userId, data),
-    onSuccess: () => { qc.invalidateQueries(['resources']); qc.invalidateQueries(['users']); qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['resources'] }); qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))

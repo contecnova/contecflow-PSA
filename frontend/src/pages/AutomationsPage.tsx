@@ -289,7 +289,7 @@ function RuleModal({ rule, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? automationsApi.update(rule.id, d) : automationsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['automations']); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['automations'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
 
@@ -613,12 +613,12 @@ function WorkflowsTab() {
 
   const { mutate: update } = useMutation({
     mutationFn: ({ id, data }) => autoWorkflowsApi.update(id, data),
-    onSuccess: () => qc.invalidateQueries(['workflows']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['workflows'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: id => autoWorkflowsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries(['workflows']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['workflows'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -752,12 +752,12 @@ export default function AutomationsPage(): JSX.Element {
 
   const { mutate: del } = useMutation({
     mutationFn: id => automationsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries(['automations']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['automations'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: toggle } = useMutation({
     mutationFn: ({ id, active }) => automationsApi.update(id, { is_active: active }),
-    onSuccess: () => qc.invalidateQueries(['automations']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['automations'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: test } = useMutation({
@@ -773,7 +773,7 @@ export default function AutomationsPage(): JSX.Element {
       actions: tpl.actions,
       is_global: true,
     }),
-    onSuccess: () => { qc.invalidateQueries(['automations']); setShowTemplates(false) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['automations'] }); setShowTemplates(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 

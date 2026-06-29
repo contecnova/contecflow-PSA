@@ -93,7 +93,7 @@ export function PortalSupportDesk() {
   const { mutate: createTicket, isPending: creatingTicket } = useMutation({
     mutationFn: d => CLIENT_API.post('/sd/tickets/client', d),
     onSuccess: () => {
-      qc.invalidateQueries(['portal-sd-tickets'])
+      qc.invalidateQueries({ queryKey: ['portal-sd-tickets'] })
       setShowCreate(false)
       setCreateForm({ title: '', description: '', ticket_type: 'incident', urgency: 'medium', impact: 'user', service_item_id: '', ci_id: '' })
       setDynamicValues({})
@@ -103,12 +103,12 @@ export function PortalSupportDesk() {
   })
   const { mutate: addComment } = useMutation({
     mutationFn: d => CLIENT_API.post(`/sd/tickets/${selectedId}/comments/client`, d),
-    onSuccess: () => qc.invalidateQueries(['portal-sd-ticket', selectedId]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-sd-ticket', selectedId] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: submitCSAT } = useMutation({
     mutationFn: d => CLIENT_API.post(`/sd/tickets/${selectedId}/csat`, d),
-    onSuccess: () => { qc.invalidateQueries(['portal-sd-ticket', selectedId]); toast.success('Gracias por tu valoración') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-sd-ticket', selectedId] }); toast.success('Gracias por tu valoración') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 

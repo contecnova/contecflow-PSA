@@ -64,7 +64,7 @@ function CMDBItemForm({ item, categories, onClose }) {
     mutationFn: d => isEdit
       ? cmdbApi.updateItem(item.id, d).then(r => r.data)
       : cmdbApi.createItem(d).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['cmdb-items']); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cmdb-items'] }); onClose() },
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
 
@@ -155,13 +155,13 @@ function RelationsModal({ item, allItems, onClose }) {
 
   const { mutate: createRel, isPending } = useMutation({
     mutationFn: () => cmdbApi.createRelation({from_item_id: fromId, to_item_id: toId, rel_type: relType}).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['item-rels', item.id]); setToId('') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['item-rels', item.id] }); setToId('') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: deleteRel } = useMutation({
     mutationFn: id => cmdbApi.deleteRelation(id),
-    onSuccess: () => qc.invalidateQueries(['item-rels', item.id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['item-rels', item.id] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -502,7 +502,7 @@ export default function CMDBPage(): JSX.Element {
 
   const { mutate: deleteItem } = useMutation({
     mutationFn: id => cmdbApi.deleteItem(id),
-    onSuccess: () => qc.invalidateQueries(['cmdb-items']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['cmdb-items'] }),
     onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })
 

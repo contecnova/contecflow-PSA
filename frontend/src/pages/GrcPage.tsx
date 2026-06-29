@@ -81,7 +81,7 @@ function MatrixTab({ roles }) {
 
   const { mutate: resetMatrix, isPending: resetting } = useMutation({
     mutationFn: () => grcApi.seedPermissions(),
-    onSuccess: () => { qc.invalidateQueries(['grc-permissions']); toast.success(t('grc.matrix_reset_success')) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grc-permissions'] }); toast.success(t('grc.matrix_reset_success')) },
     onError: e => toast.error(extractErr(e, t('grc.error'))),
   })
 
@@ -90,7 +90,7 @@ function MatrixTab({ roles }) {
     setSaving(key)
     try {
       await grcApi.updatePermission(role, module, action, { allowed: !current })
-      qc.invalidateQueries(['grc-permissions'])
+      qc.invalidateQueries({ queryKey: ['grc-permissions'] })
     } catch (e) {
       toast.error(extractErr(e, t('grc.error_save_permission')))
     } finally {
@@ -213,7 +213,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? grcApi.updateSodRule(rule.id, d) : grcApi.createSodRule(d),
-    onSuccess: () => { qc.invalidateQueries(['grc-sod-rules']); qc.invalidateQueries(['grc-sod-check']); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grc-sod-rules'] }); qc.invalidateQueries({ queryKey: ['grc-sod-check'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -326,12 +326,12 @@ function SodTab({ roles }) {
 
   const { mutate: del } = useMutation({
     mutationFn: id => grcApi.deleteSodRule(id),
-    onSuccess: () => { qc.invalidateQueries(['grc-sod-rules']); qc.invalidateQueries(['grc-sod-check']) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grc-sod-rules'] }); qc.invalidateQueries({ queryKey: ['grc-sod-check'] }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: toggle } = useMutation({
     mutationFn: ({ id, active }) => grcApi.updateSodRule(id, { is_active: active }),
-    onSuccess: () => qc.invalidateQueries(['grc-sod-rules']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['grc-sod-rules'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -445,7 +445,7 @@ function ViolationsTab() {
 
   const { mutate: resolve } = useMutation({
     mutationFn: ({ id, note }) => grcApi.resolveViolation(id, { resolution_note: note }),
-    onSuccess: () => { qc.invalidateQueries(['grc-violations']); toast.success('Violación marcada como resuelta') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grc-violations'] }); toast.success('Violación marcada como resuelta') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 

@@ -408,8 +408,8 @@ export default function ProjectDetailPage() {
   const { mutate: updateProject, isPending: saving } = useMutation({
     mutationFn: (data) => projectsApi.update(id, data),
     onSuccess: () => {
-      qc.invalidateQueries(['project', id])
-      qc.invalidateQueries(['projects'])
+      qc.invalidateQueries({ queryKey: ['project', id] })
+      qc.invalidateQueries({ queryKey: ['projects'] })
       toast.success(t('project_detail.project_updated'))
       setEditing(false)
     },

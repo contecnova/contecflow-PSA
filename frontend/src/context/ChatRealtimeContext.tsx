@@ -203,20 +203,20 @@ export default function ChatRealtimeProvider({ children }: ChatRealtimeProviderP
       if (!ev?.type) return
       if (ev.type === 'message.created' && ev.conversation_id) {
         // TODO type: @tanstack/react-query v5 invalidateQueries signature
-        qc.invalidateQueries(['collab-messages', ev.conversation_id] as unknown as Parameters<typeof qc.invalidateQueries>[0])
-        qc.invalidateQueries(['collab-conversations'] as unknown as Parameters<typeof qc.invalidateQueries>[0])
+        qc.invalidateQueries({ queryKey: ['collab-messages', ev.conversation_id] })
+        qc.invalidateQueries({ queryKey: ['collab-conversations'] })
         notifyNewMessage(ev)
       } else if (
         ev.type === 'message.updated' || ev.type === 'message.deleted' ||
         ev.type.startsWith?.('reaction.') || ev.type === 'message.pinned' ||
         ev.type === 'message.unpinned' || ev.type === 'read.updated'
       ) {
-        if (ev.conversation_id) qc.invalidateQueries(['collab-messages', ev.conversation_id] as unknown as Parameters<typeof qc.invalidateQueries>[0])
+        if (ev.conversation_id) qc.invalidateQueries({ queryKey: ['collab-messages', ev.conversation_id] })
       } else if (ev.type === 'notification.new') {
-        qc.invalidateQueries(['collab-notifications'] as unknown as Parameters<typeof qc.invalidateQueries>[0])
+        qc.invalidateQueries({ queryKey: ['collab-notifications'] })
         refresh()
       } else if (ev.type === 'presence.updated') {
-        qc.invalidateQueries(['collab-presence'] as unknown as Parameters<typeof qc.invalidateQueries>[0])
+        qc.invalidateQueries({ queryKey: ['collab-presence'] })
       } else if (ev.type === 'typing') {
         window.dispatchEvent(new CustomEvent('collab:typing', { detail: ev }))
       }
@@ -305,7 +305,7 @@ export default function ChatRealtimeProvider({ children }: ChatRealtimeProviderP
         .catch(() => {})
         .finally(() => {
           // TODO type: @tanstack/react-query v5 invalidateQueries signature
-          qc.invalidateQueries(['collab-notifications'] as unknown as Parameters<typeof qc.invalidateQueries>[0])
+          qc.invalidateQueries({ queryKey: ['collab-notifications'] })
           refresh()
         })
     }

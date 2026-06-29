@@ -218,19 +218,19 @@ function TaskDetailModal({ task, open, onClose }) {
         await customFieldsApi.setValues(projectId, taskId, payload)
       }
     },
-    onSuccess: () => { qc.invalidateQueries(['tasks']); qc.invalidateQueries(['dash-my-tasks']); qc.invalidateQueries(['dash-overdue-tasks']); qc.invalidateQueries(['cal-tasks']); qc.invalidateQueries(['kanban-board']); setIsEditing(false); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); qc.invalidateQueries({ queryKey: ['dash-my-tasks'] }); qc.invalidateQueries({ queryKey: ['dash-overdue-tasks'] }); qc.invalidateQueries({ queryKey: ['cal-tasks'] }); qc.invalidateQueries({ queryKey: ['kanban-board'] }); setIsEditing(false); onClose() },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
 
   const { mutate: deleteTask, isPending: deleting } = useMutation({
     mutationFn: () => tasksApi.delete(task.id),
-    onSuccess: () => { qc.invalidateQueries(['tasks']); qc.invalidateQueries(['dash-my-tasks']); qc.invalidateQueries(['dash-overdue-tasks']); qc.invalidateQueries(['cal-tasks']); qc.invalidateQueries(['kanban-board']); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); qc.invalidateQueries({ queryKey: ['dash-my-tasks'] }); qc.invalidateQueries({ queryKey: ['dash-overdue-tasks'] }); qc.invalidateQueries({ queryKey: ['cal-tasks'] }); qc.invalidateQueries({ queryKey: ['kanban-board'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
 
   const { mutate: addComment, isPending: commenting } = useMutation({
     mutationFn: ({ id, content }) => tasksApi.comment(id, { content }),
-    onSuccess: () => { qc.invalidateQueries(['tasks']); setComment('') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); setComment('') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -669,8 +669,8 @@ export default function TasksPage() {
     mutationFn: ({ id, status, move_reason }) =>
       tasksApi.update(id, { status, ...(move_reason ? { move_reason } : {}) }),
     onSuccess: () => {
-      qc.invalidateQueries(['tasks'])
-      qc.invalidateQueries(['kanban-board'])
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+      qc.invalidateQueries({ queryKey: ['kanban-board'] })
     },
     onError: e => toast.error(e?.response?.data?.detail || 'Error al mover tarea'),
   })
@@ -847,11 +847,11 @@ export default function TasksPage() {
   const { mutate: bulkMutate, isPending: bulkPending } = useMutation({
     mutationFn: (payload) => tasksApi.bulkUpdate(payload),
     onSuccess: (res) => {
-      qc.invalidateQueries(['tasks'])
-      qc.invalidateQueries(['dash-my-tasks'])
-      qc.invalidateQueries(['dash-overdue-tasks'])
-      qc.invalidateQueries(['cal-tasks'])
-      qc.invalidateQueries(['kanban-board'])
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+      qc.invalidateQueries({ queryKey: ['dash-my-tasks'] })
+      qc.invalidateQueries({ queryKey: ['dash-overdue-tasks'] })
+      qc.invalidateQueries({ queryKey: ['cal-tasks'] })
+      qc.invalidateQueries({ queryKey: ['kanban-board'] })
       const data = res.data
       const n = data?.updated ?? 0
       const s = data?.skipped?.length ?? 0
@@ -1249,11 +1249,11 @@ function CreateTaskModal({ open, onClose, projects }) {
           reasoning: pendingSuggestion.reasoning,
         }).catch(() => { /* non-blocking */ })
       }
-      qc.invalidateQueries(['tasks'])
-      qc.invalidateQueries(['dash-my-tasks'])
-      qc.invalidateQueries(['dash-overdue-tasks'])
-      qc.invalidateQueries(['cal-tasks'])
-      qc.invalidateQueries(['kanban-board'])
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+      qc.invalidateQueries({ queryKey: ['dash-my-tasks'] })
+      qc.invalidateQueries({ queryKey: ['dash-overdue-tasks'] })
+      qc.invalidateQueries({ queryKey: ['cal-tasks'] })
+      qc.invalidateQueries({ queryKey: ['kanban-board'] })
       onClose()
       setForm({ title: '', project_id: '', status: 'todo', priority: 'medium', estimated_hours: '', start_date: '', due_date: '', description: '', assignee_id: '' })
       setCustomValues({})

@@ -69,7 +69,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
       localStorage.removeItem(LAST_CONV_KEY)
       setConvId(null)
       setMessages([])
-      qc.invalidateQueries(['ai-conversations'])
+      qc.invalidateQueries({ queryKey: ['ai-conversations'] })
     },
   })
 
@@ -145,7 +145,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
       })
       setConvId(data.conversation_id)
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
-      qc.invalidateQueries(['ai-conversations'])
+      qc.invalidateQueries({ queryKey: ['ai-conversations'] })
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: '⚠ Error de conexión con NexusAssist.' }])
     }

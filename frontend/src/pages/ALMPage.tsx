@@ -224,7 +224,7 @@ function VendorModal({ vendor, onClose }) {
   const s = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? vendorsApi.update(vendor.id, d) : vendorsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['alm-vendors']); qc.invalidateQueries(['alm-dashboard']); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['alm-vendors'] }); qc.invalidateQueries({ queryKey: ['alm-dashboard'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   return (
@@ -270,7 +270,7 @@ function VendorsTab() {
   })
   const { mutate: del } = useMutation({
     mutationFn: id => vendorsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries(['alm-vendors']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['alm-vendors'] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -468,7 +468,7 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }) {
   }
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? almExtApi.updateContract(contract.id, d) : almExtApi.createContract(d),
-    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['alm-contracts']); qc.invalidateQueries(['alm-dashboard']); onClose() },
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['alm-contracts'] }); qc.invalidateQueries({ queryKey: ['alm-dashboard'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -592,7 +592,7 @@ function ContractsTab() {
 
   const { mutate: del } = useMutation({
     mutationFn: id => almExtApi.deleteContract(id),
-    onSuccess: () => { qc.invalidateQueries(['alm-contracts']); qc.invalidateQueries(['alm-dashboard']) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['alm-contracts'] }); qc.invalidateQueries({ queryKey: ['alm-dashboard'] }) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -685,7 +685,7 @@ function LicenseAssignModal({ license, onClose }) {
   const availSeats = license.total_seats ? license.total_seats - (license.used_seats || 0) : null
   const { mutate, isPending } = useMutation({
     mutationFn: d => licensesApi.assign(license.id, d),
-    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['alm-licenses']); qc.invalidateQueries(['alm-license', license.id]); onClose() },
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['alm-licenses'] }); qc.invalidateQueries({ queryKey: ['alm-license', license.id] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -754,7 +754,7 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }) {
   }
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? licensesApi.update(license.id, d) : licensesApi.create(d),
-    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['alm-licenses']); onClose() },
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['alm-licenses'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -869,7 +869,7 @@ function LicensesTab() {
 
   const { mutate: del } = useMutation({
     mutationFn: id => licensesApi.delete(id),
-    onSuccess: () => qc.invalidateQueries(['alm-licenses']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['alm-licenses'] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -1001,7 +1001,7 @@ function AssetModal({ asset, vendors, users, onClose }) {
   const showNetwork = ['server','vm','network','desktop'].includes(form.type)
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? assetsApi.update(asset.id, d) : assetsApi.create(d),
-    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['alm-assets']); onClose() },
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['alm-assets'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -1115,7 +1115,7 @@ function AssetsTab() {
 
   const { mutate: del } = useMutation({
     mutationFn: id => assetsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries(['alm-assets']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['alm-assets'] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -1210,12 +1210,12 @@ function CostCentersTab() {
 
   const { mutate: save, isPending } = useMutation({
     mutationFn: d => editing ? almExtApi.updateCostCenter(editing.id, d) : almExtApi.createCostCenter(d),
-    onSuccess: () => { qc.invalidateQueries(['alm-cost-centers']); setShowForm(false); setEditing(null); setForm({ code: '', name: '', description: '', budget_annual: '', currency: defaultCurrency }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['alm-cost-centers'] }); setShowForm(false); setEditing(null); setForm({ code: '', name: '', description: '', budget_annual: '', currency: defaultCurrency }) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   const { mutate: del } = useMutation({
     mutationFn: id => almExtApi.deleteCostCenter(id),
-    onSuccess: () => qc.invalidateQueries(['alm-cost-centers']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['alm-cost-centers'] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 

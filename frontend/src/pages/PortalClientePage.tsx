@@ -121,15 +121,15 @@ function PortalApp({ changeLang }) {
           try {
             const msg = JSON.parse(event.data)
             if (msg?.type === 'portal_notifications') {
-              qc.invalidateQueries(['portal-dashboard'])
-              qc.invalidateQueries(['portal-messages-client'])
-              qc.invalidateQueries(['portal-conversations-client'])
-              qc.invalidateQueries(['portal-sd-tickets'])
-              qc.invalidateQueries(['portal-invoices'])
-              qc.invalidateQueries(['portal-docs-client'])
-              qc.invalidateQueries(['portal-frs-client'])
-              qc.invalidateQueries(['portal-uat'])
-              qc.invalidateQueries(['portal-surveys'])
+              qc.invalidateQueries({ queryKey: ['portal-dashboard'] })
+              qc.invalidateQueries({ queryKey: ['portal-messages-client'] })
+              qc.invalidateQueries({ queryKey: ['portal-conversations-client'] })
+              qc.invalidateQueries({ queryKey: ['portal-sd-tickets'] })
+              qc.invalidateQueries({ queryKey: ['portal-invoices'] })
+              qc.invalidateQueries({ queryKey: ['portal-docs-client'] })
+              qc.invalidateQueries({ queryKey: ['portal-frs-client'] })
+              qc.invalidateQueries({ queryKey: ['portal-uat'] })
+              qc.invalidateQueries({ queryKey: ['portal-surveys'] })
             }
           } catch { /* network garbage */ }
         }
@@ -263,7 +263,7 @@ function PortalMyProfile({ changeLang }) {
   const { mutate: saveProfile, isPending: saving } = useMutation({
     mutationFn: d => CLIENT_API.patch('/portal/auth/me', d).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries(['portal-me'])
+      qc.invalidateQueries({ queryKey: ['portal-me'] })
       setSavedProfile(true)
       setTimeout(() => setSavedProfile(false), 3000)
     },
@@ -273,7 +273,7 @@ function PortalMyProfile({ changeLang }) {
   const { mutate: saveLanguage, isPending: savingLanguage } = useMutation({
     mutationFn: lang => CLIENT_API.patch('/portal/auth/me', { language: lang }).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries(['portal-me'])
+      qc.invalidateQueries({ queryKey: ['portal-me'] })
       localStorage.setItem('portal_lang', pendingLang)
       try {
         const saved = JSON.parse(localStorage.getItem('client_user') || '{}')

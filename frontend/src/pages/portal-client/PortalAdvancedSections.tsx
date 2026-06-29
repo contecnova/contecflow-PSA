@@ -70,7 +70,7 @@ export function PortalUAT() {
         id: tc.id, status: testResults[tc.id] || 'pending', actual_result: '', notes: '',
       })) || []
       await CLIENT_API.post(`/portal/uat/${sessionId}/submit-result`, { result, notes: globalNotes, test_cases: testCases })
-      qc.invalidateQueries(['portal-uat'])
+      qc.invalidateQueries({ queryKey: ['portal-uat'] })
       toast.success('Resultado enviado')
       setSelected(null)
     } catch (e) {
@@ -81,7 +81,7 @@ export function PortalUAT() {
   const submitIssue = async () => {
     try {
       await CLIENT_API.post(`/portal/uat/${selected.id}/issues`, issueForm)
-      qc.invalidateQueries(['portal-uat'])
+      qc.invalidateQueries({ queryKey: ['portal-uat'] })
       toast.success('Incidencia reportada')
       setReportingIssue(false)
       setIssueForm({ title: '', description: '', severity: 'medium', steps_to_reproduce: '' })
@@ -328,22 +328,22 @@ export function PortalFeatureRequests() {
 
   const { mutate: createFR } = useMutation({
     mutationFn: d => CLIENT_API.post('/portal/feature-requests', d),
-    onSuccess: () => { qc.invalidateQueries(['portal-frs-client']); setShowNew(false); resetForm(); toast.success('Solicitud enviada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setShowNew(false); resetForm(); toast.success('Solicitud enviada') },
     onError: e => toast.error(extractErr(e, 'Error al enviar')),
   })
   const { mutate: updateFR, isPending: updatingFr } = useMutation({
     mutationFn: ({ id, data }) => CLIENT_API.patch(`/portal/feature-requests/${id}`, data),
-    onSuccess: () => { qc.invalidateQueries(['portal-frs-client']); setEditingFr(null); setShowNew(false); resetForm(); toast.success('Actualizada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setEditingFr(null); setShowNew(false); resetForm(); toast.success('Actualizada') },
     onError: e => toast.error(extractErr(e, 'Error al actualizar')),
   })
   const { mutate: withdrawFR, isPending: withdrawingFr } = useMutation({
     mutationFn: ({ id }) => CLIENT_API.post(`/portal/feature-requests/${id}/withdraw`, {}),
-    onSuccess: () => { qc.invalidateQueries(['portal-frs-client']); toast.success('Solicitud retirada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); toast.success('Solicitud retirada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: decide } = useMutation({
     mutationFn: ({ id, approved, reason }) => CLIENT_API.post(`/portal/feature-requests/${id}/decide`, { approved, reason }),
-    onSuccess: () => { qc.invalidateQueries(['portal-frs-client']); toast.success('Decisión registrada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); toast.success('Decisión registrada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -552,8 +552,8 @@ export function PortalMessages() {
   const send = useMutation({
     mutationFn: () => CLIENT_API.post('/portal/collaboration/messages', { conversation_id: activeConvId, body: draft }),
     onSuccess: () => {
-      qc.invalidateQueries(['portal-collab-messages', activeConvId])
-      qc.invalidateQueries(['portal-collab-conversations'])
+      qc.invalidateQueries({ queryKey: ['portal-collab-messages', activeConvId] })
+      qc.invalidateQueries({ queryKey: ['portal-collab-conversations'] })
       setDraft('')
     },
   })
@@ -674,8 +674,8 @@ export function PortalInvoices() {
   const { mutate: approveInvoice, isPending } = useMutation({
     mutationFn: ({ invoiceId, approved, reason }) => CLIENT_API.post(`/portal/invoices/${invoiceId}/approve`, { approved, reason }),
     onSuccess: () => {
-      qc.invalidateQueries(['portal-invoices'])
-      qc.invalidateQueries(['portal-dashboard'])
+      qc.invalidateQueries({ queryKey: ['portal-invoices'] })
+      qc.invalidateQueries({ queryKey: ['portal-dashboard'] })
       toast.success('Decisión registrada')
     },
     onError: e => toast.error(extractErr(e, 'Error al actualizar la factura')),
@@ -901,7 +901,7 @@ export function PortalDocuments() {
   const { mutate: sign, isPending: signing } = useMutation({
     mutationFn: ({ id, job_title }) => CLIENT_API.post(`/portal/documents/${id}/sign`, { job_title }).then(r => r.data),
     onSuccess: (data) => {
-      qc.invalidateQueries(['portal-docs-client'])
+      qc.invalidateQueries({ queryKey: ['portal-docs-client'] })
       setSignModal(null)
       setSignJobTitle('')
       if (data?.pdf_b64) {

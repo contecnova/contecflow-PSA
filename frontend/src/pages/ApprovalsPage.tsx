@@ -96,7 +96,7 @@ function StepModal({ workflowId, step, onClose }) {
       ? approvalsApi.updateStep(workflowId, step.id, d)
       : approvalsApi.addStep(workflowId, d),
     onSuccess: () => {
-      qc.invalidateQueries(['approval-workflow', workflowId])
+      qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] })
       toast.success(isEdit ? t('approvals.step_updated') : t('approvals.step_added'))
       onClose()
     },
@@ -245,14 +245,14 @@ function WorkflowDetail({ workflowId, onBack }) {
 
   const { mutate: delStep } = useMutation({
     mutationFn: sid => approvalsApi.deleteStep(workflowId, sid),
-    onSuccess: () => { qc.invalidateQueries(['approval-workflow', workflowId]); toast.success(t('approvals.step_deleted')) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] }); toast.success(t('approvals.step_deleted')) },
 
     onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
   const { mutate: toggleActive } = useMutation({
     mutationFn: val => approvalsApi.updateWorkflow(workflowId, { is_active: val }),
-    onSuccess: () => qc.invalidateQueries(['approval-workflow', workflowId]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] }),
     onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
@@ -260,7 +260,7 @@ function WorkflowDetail({ workflowId, onBack }) {
     mutationFn: cat => approvalsApi.updateWorkflow(workflowId, {
       trigger_conditions: cat ? JSON.stringify({ category: cat }) : '{}'
     }),
-    onSuccess: () => { qc.invalidateQueries(['approval-workflow', workflowId]); toast.success('Categoría actualizada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] }); toast.success('Categoría actualizada') },
     onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
@@ -422,14 +422,14 @@ function MyPendingTab() {
   const { mutate: decide, isPending: deciding } = useMutation({
     mutationFn: ({ id, decision, note }) => approvalsApi.decide(id, { decision, note }),
     onSuccess: () => {
-      qc.invalidateQueries(['approvals-pending-me'])
+      qc.invalidateQueries({ queryKey: ['approvals-pending-me'] })
       // Cascade to the affected entity caches (approval could be for timesheets, expenses, or absences)
-      qc.invalidateQueries(['timesheets-pending'])
-      qc.invalidateQueries(['timesheets-mine'])
-      qc.invalidateQueries(['expenses-pending'])
-      qc.invalidateQueries(['expenses-my'])
-      qc.invalidateQueries(['absences-pending'])
-      qc.invalidateQueries(['team-absences'])
+      qc.invalidateQueries({ queryKey: ['timesheets-pending'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-mine'] })
+      qc.invalidateQueries({ queryKey: ['expenses-pending'] })
+      qc.invalidateQueries({ queryKey: ['expenses-my'] })
+      qc.invalidateQueries({ queryKey: ['absences-pending'] })
+      qc.invalidateQueries({ queryKey: ['team-absences'] })
       toast.success(t('approvals.decision_registered'))
     },
     onError: e => toast.error(extractErr(e, t('approvals.error_generic'))),
@@ -444,13 +444,13 @@ function MyPendingTab() {
       await Promise.all(Array.from(selectedIds).map(id => approvalsApi.decide(id, { decision: 'approved' })))
       toast.success(t('approvals.approve_selected', { count: selectedIds.size }))
       setSelectedIds(new Set())
-      qc.invalidateQueries(['approvals-pending-me'])
-      qc.invalidateQueries(['timesheets-pending'])
-      qc.invalidateQueries(['timesheets-mine'])
-      qc.invalidateQueries(['expenses-pending'])
-      qc.invalidateQueries(['expenses-my'])
-      qc.invalidateQueries(['absences-pending'])
-      qc.invalidateQueries(['team-absences'])
+      qc.invalidateQueries({ queryKey: ['approvals-pending-me'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-pending'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-mine'] })
+      qc.invalidateQueries({ queryKey: ['expenses-pending'] })
+      qc.invalidateQueries({ queryKey: ['expenses-my'] })
+      qc.invalidateQueries({ queryKey: ['absences-pending'] })
+      qc.invalidateQueries({ queryKey: ['team-absences'] })
     } catch (e) {
       toast.error(extractErr(e, t('approvals.bulk_approval_error')))
     } finally {
@@ -649,7 +649,7 @@ function WorkflowTemplatesTab() {
   const { mutate: createFromTemplate, isPending } = useMutation({
     mutationFn: (payload) => approvalsApi.createFromTemplate(payload),
     onSuccess: () => {
-      qc.invalidateQueries(['approval-workflows'])
+      qc.invalidateQueries({ queryKey: ['approval-workflows'] })
       toast.success('Flujo creado desde plantilla')
     },
     onError: e => toast.error(extractErr(e, 'Error creando flujo desde plantilla')),
@@ -690,7 +690,7 @@ function WorkflowTemplatesTab() {
       return created
     },
     onSuccess: () => {
-      qc.invalidateQueries(['approval-workflows'])
+      qc.invalidateQueries({ queryKey: ['approval-workflows'] })
       setShowCreateScratch(false)
       setScratch({
         name: '',
@@ -1174,12 +1174,12 @@ function ApprovalGroupsTab() {
 
   const { mutate: save, isPending } = useMutation({
     mutationFn: d => editGroup ? approvalsApi.updateGroup(editGroup.id, d) : approvalsApi.createGroup(d),
-    onSuccess: () => { qc.invalidateQueries(['approval-groups']); setShowCreate(false); setEditGroup(null); setForm({ name: '', description: '', member_ids: [] }); toast.success(editGroup ? 'Grupo actualizado' : 'Grupo creado') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['approval-groups'] }); setShowCreate(false); setEditGroup(null); setForm({ name: '', description: '', member_ids: [] }); toast.success(editGroup ? 'Grupo actualizado' : 'Grupo creado') },
     onError: e => toast.error(extractErr(e, 'Error guardando grupo')),
   })
   const { mutate: del } = useMutation({
     mutationFn: approvalsApi.deleteGroup,
-    onSuccess: () => { qc.invalidateQueries(['approval-groups']); toast.success('Grupo eliminado') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['approval-groups'] }); toast.success('Grupo eliminado') },
     onError: e => toast.error(extractErr(e, 'Error eliminando grupo')),
   })
 
@@ -1406,7 +1406,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
   const { mutate: create, isPending: creating } = useMutation({
     mutationFn: approvalsApi.createWorkflow,
     onSuccess: (res) => {
-      qc.invalidateQueries(['approval-workflows'])
+      qc.invalidateQueries({ queryKey: ['approval-workflows'] })
       setShowCreate(false)
       setSelected(res.data.id)
       toast.success(t('approvals.workflow_created'))
@@ -1416,7 +1416,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
 
   const { mutate: del } = useMutation({
     mutationFn: approvalsApi.deleteWorkflow,
-    onSuccess: () => { qc.invalidateQueries(['approval-workflows']); toast.success(t('approvals.workflow_deleted')) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['approval-workflows'] }); toast.success(t('approvals.workflow_deleted')) },
 
     onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
@@ -1439,7 +1439,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
     e.stopPropagation()
     try {
       await approvalsApi.publishWorkflow(workflowId)
-      qc.invalidateQueries(['approval-workflows'])
+      qc.invalidateQueries({ queryKey: ['approval-workflows'] })
       toast.success('Flujo publicado')
     } catch (err) {
       toast.error(extractErr(err, 'Error publicando flujo'))
@@ -1450,7 +1450,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
     e.stopPropagation()
     try {
       await approvalsApi.cloneVersion(workflowId, {})
-      qc.invalidateQueries(['approval-workflows'])
+      qc.invalidateQueries({ queryKey: ['approval-workflows'] })
       toast.success('Nueva version clonada')
     } catch (err) {
       toast.error(extractErr(err, 'Error clonando flujo'))

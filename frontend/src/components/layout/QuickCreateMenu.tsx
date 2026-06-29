@@ -46,8 +46,8 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
   const { mutate: create, isPending } = useMutation({
     mutationFn: () => tasksApi.create({ title, project_id: projectId || undefined, status: 'todo', priority: 'medium' }),
     onSuccess: () => {
-      qc.invalidateQueries(['tasks'])
-      qc.invalidateQueries(['kanban-board'])
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+      qc.invalidateQueries({ queryKey: ['kanban-board'] })
       toast.success('Tarea creada')
       onClose()
     },

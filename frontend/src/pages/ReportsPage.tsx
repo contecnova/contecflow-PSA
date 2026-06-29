@@ -811,7 +811,7 @@ function ScheduledReportsTab() {
   const { mutate: create, isPending: creating } = useMutation({
     mutationFn: d => scheduledReportsApi.create(d),
     onSuccess: () => {
-      qc.invalidateQueries(['scheduled-reps'])
+      qc.invalidateQueries({ queryKey: ['scheduled-reps'] })
       setShowCreate(false)
       setForm({ name: '', metric: 'hours_by_month', recipients: '', frequency: 'weekly', include_pdf: true })
       toast.success('Informe programado creado correctamente')
@@ -821,7 +821,7 @@ function ScheduledReportsTab() {
 
   const { mutate: remove } = useMutation({
     mutationFn: id => scheduledReportsApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries(['scheduled-reps']); toast.success('Informe eliminado') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['scheduled-reps'] }); toast.success('Informe eliminado') },
 
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
@@ -829,7 +829,7 @@ function ScheduledReportsTab() {
   const { mutate: runNow, isPending: running } = useMutation({
     mutationFn: id => scheduledReportsApi.run(id).then(r => r.data),
     onSuccess: (data) => {
-      qc.invalidateQueries(['scheduled-reps'])
+      qc.invalidateQueries({ queryKey: ['scheduled-reps'] })
       const to = data.recipients?.join(', ') || '—'
       toast.success(`Informe enviado a: ${to}`)
     },
@@ -838,7 +838,7 @@ function ScheduledReportsTab() {
 
   const { mutate: toggle } = useMutation({
     mutationFn: ({ id, val }) => scheduledReportsApi.toggle(id, { is_active: val }),
-    onSuccess: () => qc.invalidateQueries(['scheduled-reps']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['scheduled-reps'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 

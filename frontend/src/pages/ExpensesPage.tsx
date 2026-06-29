@@ -134,7 +134,7 @@ function ExpenseModal({ expense, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? expensesApi.updateMy(expense.id, d) : expensesApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['expenses-my']); qc.invalidateQueries(['expenses-pending']); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -253,7 +253,7 @@ function ReviewModal({ expense, onClose }) {
   const [reason, setReason] = useState('')
   const { mutate, isPending } = useMutation({
     mutationFn: d => expensesApi.review(expense.id, d),
-    onSuccess: () => { qc.invalidateQueries(['expenses-pending']); qc.invalidateQueries(['expenses-team']); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-pending'] }); qc.invalidateQueries({ queryKey: ['expenses-team'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (
@@ -326,17 +326,17 @@ function MyExpenses() {
 
   const { mutate: submit, isPending: saving } = useMutation({
     mutationFn: id => expensesApi.submitMy(id),
-    onSuccess: () => { qc.invalidateQueries(['expenses-my']); qc.invalidateQueries(['expenses-pending']); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }); },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: recall } = useMutation({
     mutationFn: id => expensesApi.recall(id),
-    onSuccess: () => { qc.invalidateQueries(['expenses-my']); qc.invalidateQueries(['expenses-pending']); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }); },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
     mutationFn: id => expensesApi.deleteMy(id),
-    onSuccess: () => qc.invalidateQueries(['expenses-my']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses-my'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -451,7 +451,7 @@ function PendingApproval() {
 
   const { mutate: _reimburse } = useMutation({
     mutationFn: id => expensesApi.reimburse(id),
-    onSuccess: () => qc.invalidateQueries(['expenses-pending']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses-pending'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -534,7 +534,7 @@ function TeamExpenses() {
   const qcTeam = useQueryClient()
   const { mutate: reimburse } = useMutation({
     mutationFn: id => expensesApi.reimburse(id),
-    onSuccess: () => qcTeam.invalidateQueries(['expenses-team']),
+    onSuccess: () => qcTeam.invalidateQueries({ queryKey: ['expenses-team'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 

@@ -47,7 +47,7 @@ function ProfileModal({ user, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => semanticApi.createProfile(d),
-    onSuccess: () => { qc.invalidateQueries(['sem-profiles']); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sem-profiles'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -241,7 +241,7 @@ export default function SemanticEnginePage() {
     mutationFn: () => semanticApi.autoGenerate(),
     onMutate: () => setOpStatus({ type: 'generating', startedAt: Date.now() }),
     onSuccess: d => {
-      qc.invalidateQueries(['sem-profiles'])
+      qc.invalidateQueries({ queryKey: ['sem-profiles'] })
       toast.success(`✅ ${d.data.created} creados, ${d.data.updated} actualizados`)
       setOpStatus({ type: 'done', startedAt: null })
     },

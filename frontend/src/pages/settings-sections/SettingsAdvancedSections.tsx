@@ -33,7 +33,7 @@ export function IdiomasSection() {
   })
   const { mutate: savePortalTrans, isPending: savingPortal } = useMutation({
     mutationFn: d => portalClientsApi.saveTranslations(d),
-    onSuccess: () => { qc.invalidateQueries(['portal-translations']); toast.success(t('i18n.saved_ok')) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-translations'] }); toast.success(t('i18n.saved_ok')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -433,7 +433,7 @@ export function LogLevelSection() {
       setBackendLevel(lvl)
       await settingsApi.setLogLevel({ level: lvl })
       toast.success(`Nivel backend cambiado a ${lvl}`)
-      qc.invalidateQueries(['log-level'])
+      qc.invalidateQueries({ queryKey: ['log-level'] })
     } catch {
       toast.error('Error al cambiar nivel de log')
     }

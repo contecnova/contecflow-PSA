@@ -60,13 +60,13 @@ export function ProjectsTab({ cid }) {
 
   const { mutate: link } = useMutation({
     mutationFn: pid => clientExtApi.linkProject(cid, pid).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['client-projects-linked', cid]); qc.invalidateQueries(['client-projects-available', cid]); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['clients']) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-projects-linked', cid] }); qc.invalidateQueries({ queryKey: ['client-projects-available', cid] }); qc.invalidateQueries({ queryKey: ['client-detail'] }); qc.invalidateQueries({ queryKey: ['clients'] }) },
     onError: e => toast.error(extractErr(e, 'Error al vincular')),
   })
 
   const { mutate: unlink } = useMutation({
     mutationFn: pid => clientExtApi.unlinkProject(cid, pid).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['client-projects-linked', cid]); qc.invalidateQueries(['client-projects-available', cid]); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['clients']) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-projects-linked', cid] }); qc.invalidateQueries({ queryKey: ['client-projects-available', cid] }); qc.invalidateQueries({ queryKey: ['client-detail'] }); qc.invalidateQueries({ queryKey: ['clients'] }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -153,12 +153,12 @@ export function ContactsTab({ cid }) {
   })
   const { mutate: add } = useMutation({
     mutationFn: d => clientExtApi.createContact(cid, d).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['client-contacts', cid]); setShowAdd(false); setForm({ full_name: '', email: '', phone: '', job_title: '', role: 'other', is_primary: false }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-contacts', cid] }); setShowAdd(false); setForm({ full_name: '', email: '', phone: '', job_title: '', role: 'other', is_primary: false }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: remove } = useMutation({
     mutationFn: id => clientExtApi.deleteContact(cid, id),
-    onSuccess: () => qc.invalidateQueries(['client-contacts', cid]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['client-contacts', cid] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -241,12 +241,12 @@ export function LicensesTab({ cid }) {
 
   const { mutate: link } = useMutation({
     mutationFn: d => clientExtApi.linkLicense(cid, d),
-    onSuccess: () => { qc.invalidateQueries(['client-licenses', cid]); qc.invalidateQueries(['alm-licenses']); setShowLink(false); setSelectedLic(''); setLicNote('') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-licenses', cid] }); qc.invalidateQueries({ queryKey: ['alm-licenses'] }); setShowLink(false); setSelectedLic(''); setLicNote('') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: unlink } = useMutation({
     mutationFn: id => clientExtApi.unlinkLicense(cid, id),
-    onSuccess: () => { qc.invalidateQueries(['client-licenses', cid]); qc.invalidateQueries(['alm-licenses']) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-licenses', cid] }); qc.invalidateQueries({ queryKey: ['alm-licenses'] }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -313,12 +313,12 @@ export function ContractsTab({ cid }) {
 
   const { mutate: link } = useMutation({
     mutationFn: d => clientExtApi.linkContract(cid, d),
-    onSuccess: () => { qc.invalidateQueries(['client-contracts', cid]); qc.invalidateQueries(['contracts']); qc.invalidateQueries(['alm-contracts']); setShowLink(false); setSelectedCon('') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-contracts', cid] }); qc.invalidateQueries({ queryKey: ['contracts'] }); qc.invalidateQueries({ queryKey: ['alm-contracts'] }); setShowLink(false); setSelectedCon('') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: unlink } = useMutation({
     mutationFn: id => clientExtApi.unlinkContract(cid, id),
-    onSuccess: () => { qc.invalidateQueries(['client-contracts', cid]); qc.invalidateQueries(['contracts']); qc.invalidateQueries(['alm-contracts']) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-contracts', cid] }); qc.invalidateQueries({ queryKey: ['contracts'] }); qc.invalidateQueries({ queryKey: ['alm-contracts'] }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -503,7 +503,7 @@ export function PortalSolicitudesTab({ cid }) {
             const msg = JSON.parse(ev.data)
             if (msg.type === 'cr_state_changed' && msg.feature_request_id) {
               toast.info(`El estado de la Change Request vinculada a "${msg.title}" ha cambiado a: ${msg.cr_status}`)
-              qc.invalidateQueries(['portal-frs-client', cid])
+              qc.invalidateQueries({ queryKey: ['portal-frs-client', cid] })
             }
           } catch {
             // ignore parse errors
@@ -528,13 +528,13 @@ export function PortalSolicitudesTab({ cid }) {
 
   const { mutate: respond, isPending } = useMutation({
     mutationFn: ({ id, data }) => portalApi.respondFeatureRequest(id, data),
-    onSuccess: () => { qc.invalidateQueries(['portal-frs-client', cid]); setResponding(null) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client', cid] }); setResponding(null) },
     onError: e => toast.error(extractErr(e, 'Error al responder')),
   })
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => portalApi.respondFeatureRequest(id, { status }),
-    onSuccess: () => qc.invalidateQueries(['portal-frs-client', cid]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-frs-client', cid] }),
     onError: e => toast.error(extractErr(e, 'Error al actualizar estado')),
   })
 
@@ -775,7 +775,7 @@ export function PortalSettingsTab({ cid }) {
 
   const { mutate: save, isPending: saving } = useMutation({
     mutationFn: d => clientExtApi.updatePortalConfig(cid, d),
-    onSuccess: () => { qc.invalidateQueries(['client-portal-cfg', cid]); toast.success('✅ Configuración guardada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-portal-cfg', cid] }); toast.success('✅ Configuración guardada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 

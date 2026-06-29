@@ -336,12 +336,12 @@ export default function TimerPage() {
       toast.success('Sesión guardada como imputación')
       qc.setQueryData(['timer-current'], null)
       qc.invalidateQueries({ queryKey: ['timer-history'] })
-      qc.invalidateQueries(['my-week'])
-      qc.invalidateQueries(['imputations-today'])
-      qc.invalidateQueries(['dash-hours-week'])
-      qc.invalidateQueries(['timesheets-mine'])
-      qc.invalidateQueries(['timesheets-pending'])
-      qc.invalidateQueries(['timesheets-team'])
+      qc.invalidateQueries({ queryKey: ['my-week'] })
+      qc.invalidateQueries({ queryKey: ['imputations-today'] })
+      qc.invalidateQueries({ queryKey: ['dash-hours-week'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-mine'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-pending'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-team'] })
       setShowStop(false); setElapsed(0)
     },
     onError: (e) => {

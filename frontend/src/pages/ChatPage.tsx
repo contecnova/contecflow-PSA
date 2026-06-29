@@ -570,8 +570,8 @@ function NewConversationModal({ onClose, onCreated }) {
       }
     },
     onSuccess: (data) => {
-      qc.invalidateQueries(['collab-conversations'])
-      qc.invalidateQueries(['collab-channels'])
+      qc.invalidateQueries({ queryKey: ['collab-conversations'] })
+      qc.invalidateQueries({ queryKey: ['collab-channels'] })
       // Notifica al WS para que re-suscriba a la nueva conversación sin recargar página
       window.dispatchEvent(new CustomEvent('collab:resync'))
       onCreated?.({ id: data.conversation_id || data.id, kind: tab === 'channel' ? 'channel' : tab })
@@ -867,7 +867,7 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }) {
       notify_messages: toMute ? 'none' : 'all',
       desktop_push: !toMute, email_digest: 'weekly',
     }),
-    onSuccess: () => { qc.invalidateQueries(['collab-rules']); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['collab-rules'] }); onClose() },
   })
 
   const copyLink = () => {
@@ -884,7 +884,7 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }) {
   const leaveGroup = useMutation({
     mutationFn: () => collabApi.removeConversationMember(conv.id, currentUser.id),
     onSuccess: () => {
-      qc.invalidateQueries(['collab-conversations'])
+      qc.invalidateQueries({ queryKey: ['collab-conversations'] })
       toast.success('Has salido del grupo')
       onClose()
     },
@@ -993,26 +993,26 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
       })
     },
     onSuccess: () => {
-      qc.invalidateQueries(['collab-messages', conv.id])
-      qc.invalidateQueries(['collab-conversations'])
+      qc.invalidateQueries({ queryKey: ['collab-messages', conv.id] })
+      qc.invalidateQueries({ queryKey: ['collab-conversations'] })
     },
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al enviar'),
   })
 
   const editMsg = useMutation({
     mutationFn: ({ id, body }) => collabApi.editMessage(id, { body }),
-    onSuccess: () => qc.invalidateQueries(['collab-messages', conv?.id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['collab-messages', conv?.id] }),
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al editar'),
   })
 
   const delMsg = useMutation({
     mutationFn: (id) => collabApi.deleteMessage(id),
-    onSuccess: () => qc.invalidateQueries(['collab-messages', conv?.id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['collab-messages', conv?.id] }),
   })
 
   const react = useMutation({
     mutationFn: ({ id, emoji }) => collabApi.toggleReaction(id, emoji),
-    onSuccess: () => qc.invalidateQueries(['collab-messages', conv?.id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['collab-messages', conv?.id] }),
   })
 
   // Mark read on open
@@ -1154,8 +1154,8 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
     fd.append('file', file)
     try {
       const result = await collabApi.uploadAttachment(fd)
-      qc.invalidateQueries(['collab-messages', conv.id])
-      qc.invalidateQueries(['collab-conversations'])
+      qc.invalidateQueries({ queryKey: ['collab-messages', conv.id] })
+      qc.invalidateQueries({ queryKey: ['collab-conversations'] })
       if (result?.is_quarantined) {
         toast.warning(`Archivo bloqueado: ${result.av_status === 'infected' ? 'antivirus' : 'DLP'}`)
       } else {
@@ -1278,9 +1278,9 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
           conv={conv}
           onClose={() => setPanelUi({ showAddMembers: false })}
           onAdded={() => {
-            qc.invalidateQueries(['collab-members', conv.id])
-            qc.invalidateQueries(['collab-members-for-add', conv.id])
-            qc.invalidateQueries(['collab-conversations'])
+            qc.invalidateQueries({ queryKey: ['collab-members', conv.id] })
+            qc.invalidateQueries({ queryKey: ['collab-members-for-add', conv.id] })
+            qc.invalidateQueries({ queryKey: ['collab-conversations'] })
             setPanelUi({ showAddMembers: false })
             toast.success('Miembros añadidos')
           }}
@@ -1299,7 +1299,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
               onReact={(emoji) => react.mutate({ id: m.id, emoji })}
               onEdit={() => { setEditing({ id: m.id, body: m.body || '' }); setDraft(m.body || ''); composerRef.current?.focus() }}
               onDelete={() => { if (confirm('¿Borrar mensaje?')) delMsg.mutate(m.id) }}
-              onPin={() => collabApi.pinMessage(conv.id, m.id).then(() => qc.invalidateQueries(['collab-messages', conv.id]))}
+              onPin={() => collabApi.pinMessage(conv.id, m.id).then(() => qc.invalidateQueries({ queryKey: ['collab-messages', conv.id] }))}
               onSave={() => collabApi.saveMessage(m.id).then(() => toast.success('Guardado'))}
               onReplyThread={() => setActiveThreadRoot(m.id)}
               onLink={(kind) => setPanelUi({ linkPicker: { messageId: m.id, kind } })}
@@ -1415,7 +1415,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
           onClose={() => setPanelUi({ linkPicker: null })}
           onPicked={() => {
             setPanelUi({ linkPicker: null })
-            qc.invalidateQueries(['collab-messages', conv.id])
+            qc.invalidateQueries({ queryKey: ['collab-messages', conv.id] })
             toast.success('Anclado')
           }}
         />
@@ -1845,8 +1845,8 @@ function ThreadPanel({ conv, rootId, onClose }) {
   const send = useMutation({
     mutationFn: () => collabApi.sendMessage({ conversation_id: conv.id, parent_message_id: rootId, body: reply }),
     onSuccess: () => {
-      qc.invalidateQueries(['collab-thread', conv.id, rootId])
-      qc.invalidateQueries(['collab-messages', conv.id])
+      qc.invalidateQueries({ queryKey: ['collab-thread', conv.id, rootId] })
+      qc.invalidateQueries({ queryKey: ['collab-messages', conv.id] })
       setReply('')
     },
   })
@@ -1939,8 +1939,8 @@ function ContextPanel({ conv }) {
   const removeMember = useMutation({
     mutationFn: (uid) => collabApi.removeConversationMember(conv.id, uid),
     onSuccess: () => {
-      qc.invalidateQueries(['collab-members', conv.id])
-      qc.invalidateQueries(['collab-conversations'])
+      qc.invalidateQueries({ queryKey: ['collab-members', conv.id] })
+      qc.invalidateQueries({ queryKey: ['collab-conversations'] })
       toast.success('Miembro eliminado')
     },
     onError: (e) => toast.error(e?.response?.data?.detail || 'No se pudo eliminar'),
@@ -2040,8 +2040,8 @@ function ContextPanel({ conv }) {
           existingUserIds={members.map(m => m.user_id).filter(Boolean)}
           onClose={() => setShowAddMember(false)}
           onAdded={() => {
-            qc.invalidateQueries(['collab-members', conv.id])
-            qc.invalidateQueries(['collab-conversations'])
+            qc.invalidateQueries({ queryKey: ['collab-members', conv.id] })
+            qc.invalidateQueries({ queryKey: ['collab-conversations'] })
             setShowAddMember(false)
             toast.success('Miembros añadidos')
           }}

@@ -310,10 +310,10 @@ export default function SprintsPage() {
   })
 
   const inv = (keys) => {
-    keys.forEach(k => qc.invalidateQueries([k, selectedProject]))
-    qc.invalidateQueries(['cal-sprints'])
+    keys.forEach(k => qc.invalidateQueries({ queryKey: [k, selectedProject] }))
+    qc.invalidateQueries({ queryKey: ['cal-sprints'] })
     if (keys.includes('sprints') || keys.includes('backlog')) {
-      qc.invalidateQueries(['dash-my-tasks'])
+      qc.invalidateQueries({ queryKey: ['dash-my-tasks'] })
     }
   }
 

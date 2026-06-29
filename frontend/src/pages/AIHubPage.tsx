@@ -453,7 +453,7 @@ export default function AIHubPage(): JSX.Element {
   })
   const { mutate: triggerRetrain, isPending: retraining } = useMutation({
     mutationFn: () => predictiveObservabilityApi.triggerRetrain(),
-    onSuccess: () => { toast.success('Ciclo de reentrenamiento completado'); qc.invalidateQueries(['predictive-obs-health']) },
+    onSuccess: () => { toast.success('Ciclo de reentrenamiento completado'); qc.invalidateQueries({ queryKey: ['predictive-obs-health'] }) },
     onError: e => toast.error(extractErr(e, 'Error al reentrenar')),
   })
 

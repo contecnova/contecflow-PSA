@@ -295,16 +295,16 @@ function ProjectFormModal({ open, onClose, project = null }) {
     onSuccess: (_saved) => {
       qc.invalidateQueries({ queryKey: ['projects'] })
       qc.invalidateQueries({ queryKey: ['project'] })
-      qc.invalidateQueries(['dash-projects-health'])
-      qc.invalidateQueries(['dash-pipeline'])
+      qc.invalidateQueries({ queryKey: ['dash-projects-health'] })
+      qc.invalidateQueries({ queryKey: ['dash-pipeline'] })
       // Sincronización bidireccional: si cambió el cliente, actualizar vista de Clientes
-      qc.invalidateQueries(['clients'])
-      qc.invalidateQueries(['client-detail'])
-      qc.invalidateQueries(['client-projects-linked'])
-      qc.invalidateQueries(['client-projects-available'])
+      qc.invalidateQueries({ queryKey: ['clients'] })
+      qc.invalidateQueries({ queryKey: ['client-detail'] })
+      qc.invalidateQueries({ queryKey: ['client-projects-linked'] })
+      qc.invalidateQueries({ queryKey: ['client-projects-available'] })
       // Invalidar el detalle específico del proyecto editado
       if (isEdit && project?.id) {
-        qc.invalidateQueries(['project', project.id])
+        qc.invalidateQueries({ queryKey: ['project', project.id] })
       }
       onClose()
     },
@@ -462,19 +462,19 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
 
   const { mutate: respondFR, isPending: respondingFRPending } = useMutation({
     mutationFn: ({ id, data }) => portalApi.respondFeatureRequest(id, data),
-    onSuccess: () => { qc.invalidateQueries(['project-feature-requests', project?.id]); setRespondingFr(null); setRespondForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-feature-requests', project?.id] }); setRespondingFr(null); setRespondForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) },
     onError: e => toast.error(extractErr(e, 'Error al responder')),
   })
   const allUsers = Array.isArray(allUsersRaw) ? allUsersRaw : []
 
   const { mutate: addMember, isPending: adding } = useMutation({
     mutationFn: d => projectsApi.addMember(project.id, d),
-    onSuccess: () => { qc.invalidateQueries(['project-members', project.id]); qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); setShowAdd(false); setAddForm({ user_id: '', role: 'developer', allocation_pct: 100, notes: '' }); addValidation.setErrors({}) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-members', project.id] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); setShowAdd(false); setAddForm({ user_id: '', role: 'developer', allocation_pct: 100, notes: '' }); addValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, 'Error al añadir miembro')),
   })
   const { mutate: removeMember } = useMutation({
     mutationFn: memberId => projectsApi.removeMember(project.id, memberId),
-    onSuccess: () => { qc.invalidateQueries(['project-members', project.id]); qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-members', project.id] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -790,7 +790,7 @@ function TemplatesTab() {
   const { mutate: instantiate, isPending: creating } = useMutation({
     mutationFn: ({ tplId, data }) => templatesApi.instantiate(tplId, data).then(r => r.data),
     onSuccess: (data) => {
-      qc.invalidateQueries(['projects'])
+      qc.invalidateQueries({ queryKey: ['projects'] })
       toast.success(`✓ Proyecto creado: ${data.project_code} — ${data.project_name}\\n${data.phases_created} fases · ${data.tasks_created} tareas`)
       setInstantiating(null)
     },
@@ -801,7 +801,7 @@ function TemplatesTab() {
 
   const { mutate: createTpl, isPending: creatingTpl } = useMutation({
     mutationFn: d => templatesApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['project-templates']); setShowCreate(false) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-templates'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -949,7 +949,7 @@ export default function ProjectsPage() {
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => projectsApi.update(id, { status }),
-    onSuccess: () => qc.invalidateQueries(['projects']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 

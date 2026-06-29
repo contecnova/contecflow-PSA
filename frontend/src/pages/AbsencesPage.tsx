@@ -87,7 +87,7 @@ function RequestModal({ onClose }) {
 
   const { mutate, isPending, error } = useMutation({
     mutationFn: (data) => absencesApi.createMy(data),
-    onSuccess: () => { qc.invalidateQueries(['absences-my']); qc.invalidateQueries(['team-absences']); qc.invalidateQueries(['vacation-balance-my']); qc.invalidateQueries(['cal-absences']); qc.invalidateQueries(['absence-calendar']); validation.setErrors({}); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['absences-my'] }); qc.invalidateQueries({ queryKey: ['team-absences'] }); qc.invalidateQueries({ queryKey: ['vacation-balance-my'] }); qc.invalidateQueries({ queryKey: ['cal-absences'] }); qc.invalidateQueries({ queryKey: ['absence-calendar'] }); validation.setErrors({}); onClose() },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
 
@@ -161,7 +161,7 @@ function ReviewModal({ absence, onClose }) {
   const [notes, setNotes] = useState('')
   const { mutate, isPending } = useMutation({
     mutationFn: ({ approved }) => absencesApi.review(absence.id, { approved, rejection_reason: notes }),
-    onSuccess: () => { qc.invalidateQueries(['absences-pending']); qc.invalidateQueries(['team-absences']); qc.invalidateQueries(['vacation-balance-my']); qc.invalidateQueries(['cal-absences']); qc.invalidateQueries(['absence-calendar']); qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['dash-team-load']); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['absences-pending'] }); qc.invalidateQueries({ queryKey: ['team-absences'] }); qc.invalidateQueries({ queryKey: ['vacation-balance-my'] }); qc.invalidateQueries({ queryKey: ['cal-absences'] }); qc.invalidateQueries({ queryKey: ['absence-calendar'] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['dash-team-load'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
   return (
@@ -432,7 +432,7 @@ export default function AbsencesPage(): JSX.Element {
 
   const { mutate: cancel } = useMutation({
     mutationFn: (id) => absencesApi.deleteMy(id),
-    onSuccess: () => { qc.invalidateQueries(['absences-my']); qc.invalidateQueries(['vacation-balance-my']); qc.invalidateQueries(['cal-absences']); qc.invalidateQueries(['absence-calendar']); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['absences-my'] }); qc.invalidateQueries({ queryKey: ['vacation-balance-my'] }); qc.invalidateQueries({ queryKey: ['cal-absences'] }); qc.invalidateQueries({ queryKey: ['absence-calendar'] }); },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
 

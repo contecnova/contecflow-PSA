@@ -250,12 +250,12 @@ export default function ImputarPage(): JSX.Element {
       setForceDuplicate(false)
       setTimeout(() => setSaved(false), 2500)
       setForm(f => ({ ...f, task_id: '', hours: 0, description: '' }))
-      qc.invalidateQueries(['my-week'])
-      qc.invalidateQueries(['imputations-today'])
-      qc.invalidateQueries(['dash-hours-week'])
-      qc.invalidateQueries(['timesheets-mine'])
-      qc.invalidateQueries(['timesheets-pending'])
-      qc.invalidateQueries(['timesheets-team'])
+      qc.invalidateQueries({ queryKey: ['my-week'] })
+      qc.invalidateQueries({ queryKey: ['imputations-today'] })
+      qc.invalidateQueries({ queryKey: ['dash-hours-week'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-mine'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-pending'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-team'] })
     },
     onError: e => {
       if (e?.response?.status === 409) {
@@ -291,12 +291,12 @@ export default function ImputarPage(): JSX.Element {
     mutationFn: ({ id, data }) => imputationsApi.update(id, data),
     onSuccess: () => {
       setEditingId(null)
-      qc.invalidateQueries(['my-week'])
-      qc.invalidateQueries(['imputations-today'])
-      qc.invalidateQueries(['dash-hours-week'])
-      qc.invalidateQueries(['timesheets-mine'])
-      qc.invalidateQueries(['timesheets-pending'])
-      qc.invalidateQueries(['timesheets-team'])
+      qc.invalidateQueries({ queryKey: ['my-week'] })
+      qc.invalidateQueries({ queryKey: ['imputations-today'] })
+      qc.invalidateQueries({ queryKey: ['dash-hours-week'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-mine'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-pending'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-team'] })
       toast.success(t('imputa_page.updated_ok'))
     },
     onError: e => toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK)),  
@@ -305,12 +305,12 @@ export default function ImputarPage(): JSX.Element {
   const { mutate: deleteImp } = useMutation({
     mutationFn: (id) => imputationsApi.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries(['my-week'])
-      qc.invalidateQueries(['imputations-today'])
-      qc.invalidateQueries(['dash-hours-week'])
-      qc.invalidateQueries(['timesheets-mine'])
-      qc.invalidateQueries(['timesheets-pending'])
-      qc.invalidateQueries(['timesheets-team'])
+      qc.invalidateQueries({ queryKey: ['my-week'] })
+      qc.invalidateQueries({ queryKey: ['imputations-today'] })
+      qc.invalidateQueries({ queryKey: ['dash-hours-week'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-mine'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-pending'] })
+      qc.invalidateQueries({ queryKey: ['timesheets-team'] })
       toast.success(t('imputa_page.deleted_ok'))
     },
     onError: e => toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK)),  

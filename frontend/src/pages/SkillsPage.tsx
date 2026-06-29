@@ -124,12 +124,12 @@ function UserSkillModal({ user, onClose }) {
 
   const { mutate: addSkill } = useMutation({
     mutationFn: (data) => skillsApi.addUserSkill(user.id, data),
-    onSuccess: () => { qc.invalidateQueries(['user-skills', user.id]); qc.invalidateQueries(['skills-matrix']); setForm({ skill_id: '', level: 'basic', years_experience: '', certified: false, cert_name: '', notes: '' }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['user-skills', user.id] }); qc.invalidateQueries({ queryKey: ['skills-matrix'] }); setForm({ skill_id: '', level: 'basic', years_experience: '', certified: false, cert_name: '', notes: '' }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: removeSkill } = useMutation({
     mutationFn: (skillId) => skillsApi.removeUserSkill(user.id, skillId),
-    onSuccess: () => { qc.invalidateQueries(['user-skills', user.id]); qc.invalidateQueries(['skills-matrix']) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['user-skills', user.id] }); qc.invalidateQueries({ queryKey: ['skills-matrix'] }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -389,12 +389,12 @@ export default function SkillsPage() {
 
   const { mutate: createSkill } = useMutation({
     mutationFn: (data) => skillsApi.createCatalog(data),
-    onSuccess: () => qc.invalidateQueries(['skills-catalog']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['skills-catalog'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteSkill } = useMutation({
     mutationFn: (id) => skillsApi.deleteCatalog(id),
-    onSuccess: () => qc.invalidateQueries(['skills-catalog']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['skills-catalog'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 

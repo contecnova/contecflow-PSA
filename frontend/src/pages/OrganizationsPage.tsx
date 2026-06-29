@@ -53,7 +53,7 @@ export default function OrganizationsPage() {
     const { mutate: removeUser, isPending: isRemoving } = useMutation({
       mutationFn: ({ orgId, userId }) => organizationsApi.removeUser(orgId, userId),
       onSuccess: () => {
-        qc.invalidateQueries(['org-detail', selected]);
+        qc.invalidateQueries({ queryKey: ['org-detail', selected] });
         setRemovingUserId(null)
         toast.success('Usuario eliminado')
       },
@@ -95,7 +95,7 @@ export default function OrganizationsPage() {
   const { mutate: assignUser, isPending: isAssigning } = useMutation({
     mutationFn: ({ orgId, userId }) => organizationsApi.assignUser(orgId, { user_id: userId }),
     onSuccess: () => {
-      qc.invalidateQueries(['org-detail', selected]);
+      qc.invalidateQueries({ queryKey: ['org-detail', selected] });
       setShowAssignUser(false)
       setAssignUserId('')
       toast.success('Usuario asignado')
@@ -105,7 +105,7 @@ export default function OrganizationsPage() {
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => organizationsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['orgs']); setShowCreate(false); createValidation.setErrors({}) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orgs'] }); setShowCreate(false); createValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -122,12 +122,12 @@ export default function OrganizationsPage() {
   }
   const { mutate: toggle } = useMutation({
     mutationFn: ({ id, is_active }) => organizationsApi.update(id, { is_active }),
-    onSuccess: () => qc.invalidateQueries(['orgs']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['orgs'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: update, isPending: isUpdating } = useMutation({
     mutationFn: ({ id, data }) => organizationsApi.update(id, data),
-    onSuccess: () => { qc.invalidateQueries(['orgs']); qc.invalidateQueries(['org-detail', selected]); setShowEdit(false); editValidation.setErrors({}) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orgs'] }); qc.invalidateQueries({ queryKey: ['org-detail', selected] }); setShowEdit(false); editValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, 'Error al actualizar')),
   })
 
