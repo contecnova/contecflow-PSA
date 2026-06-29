@@ -13,6 +13,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from app.models.money import Money
 import enum
 import uuid
 from app.db.base import Base
@@ -192,10 +193,10 @@ class Invoice(Base):
     client_email   = Column(String(255), nullable=True)
 
     # Amounts
-    subtotal    = Column(Float, default=0)
-    tax_rate    = Column(Float, default=settings.DEFAULT_TAX_RATE)    # % IVA
-    tax_amount  = Column(Float, default=0)
-    total       = Column(Float, default=0)
+    subtotal    = Column(Money, default=0)
+    tax_rate    = Column(Float, default=settings.DEFAULT_TAX_RATE)    # % IVA (ratio, not money)
+    tax_amount  = Column(Money, default=0)
+    total       = Column(Money, default=0)
     currency    = Column(String(3), default=settings.DEFAULT_CURRENCY)
 
     # Dates
@@ -238,11 +239,11 @@ class InvoiceLine(Base):
     invoice_id  = Column(String(36), ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
     order       = Column(Integer, default=0)
     description = Column(String(500), nullable=False)
-    quantity    = Column(Float, default=1)
+    quantity    = Column(Float, default=1)  # count, not money
     unit        = Column(String(20), default="h")   # h, día, unidad, servicio
-    unit_price  = Column(Float, nullable=False)
-    discount_pct = Column(Float, default=0)
-    amount      = Column(Float, nullable=False)     # qty * price * (1 - discount)
+    unit_price  = Column(Money, nullable=False)
+    discount_pct = Column(Float, default=0)  # % ratio, not money
+    amount      = Column(Money, nullable=False)     # qty * price * (1 - discount)
 
     # Source reference
     source_type  = Column(String(20), nullable=True)   # timesheet | expense | milestone | manual

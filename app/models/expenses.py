@@ -2,6 +2,7 @@
 Expense tracking — project-linked expense management with approval workflow.
 """
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Enum, Date
+from app.models.money import Money
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -45,7 +46,7 @@ class Expense(Base):
     # Expense details
     category    = Column(Enum(ExpenseCategory), nullable=False)
     description = Column(String(500), nullable=False)
-    amount      = Column(Float, nullable=False)
+    amount      = Column(Money, nullable=False)
     currency    = Column(String(3), default=settings.DEFAULT_CURRENCY)
     expense_date = Column(Date, nullable=False)
     is_billable = Column(Boolean, default=True)     # Charge to client?

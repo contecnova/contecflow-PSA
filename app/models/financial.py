@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Date, Boolean, Integer, Enum
+from app.models.money import Money
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -28,7 +29,7 @@ class Timesheet(Base):
 
     total_hours = Column(Float, default=0)
     billable_hours = Column(Float, default=0)
-    total_cost = Column(Float, default=0)
+    total_cost = Column(Money, default=0)
 
     # Approval
     submitted_at = Column(DateTime(timezone=True), nullable=True)
@@ -99,8 +100,8 @@ class ProjectMilestone(Base):
     rejection_reason       = Column(Text, nullable=True)
 
     # ── Facturación ─────────────────────────────────────────────────────────────
-    billing_amount  = Column(Float, nullable=True)    # € a facturar
-    billing_pct     = Column(Float, nullable=True)    # % del contrato total
+    billing_amount  = Column(Money, nullable=True)    # € a facturar
+    billing_pct     = Column(Float, nullable=True)    # % del contrato total (ratio)
     invoice_id      = Column(String(36), ForeignKey("invoices.id"), nullable=True, index=True)
     is_billed       = Column(Boolean, default=False)
     billed_at       = Column(Date, nullable=True)

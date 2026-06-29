@@ -5,6 +5,7 @@ Entidad central que vincula proyectos, oportunidades y portal de acceso externo.
 import uuid
 import enum
 from sqlalchemy import Column, String, Float, Boolean, DateTime, Text, ForeignKey, Enum, Integer
+from app.models.money import Money
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -61,7 +62,7 @@ class Client(Base):
     # Económico
     billing_address = Column(Text,        nullable=True)
     payment_terms   = Column(String(100), nullable=True)  # "30 días", "inmediato"
-    credit_limit    = Column(Float,       nullable=True)
+    credit_limit    = Column(Money,       nullable=True)
     currency        = Column(String(3),   default=settings.DEFAULT_CURRENCY)
     sla_policy_id   = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True)
 

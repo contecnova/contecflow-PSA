@@ -13,6 +13,7 @@ from sqlalchemy import (
     Column, String, Float, DateTime, ForeignKey, Text,
     Boolean, Integer, Enum, Date, Time
 )
+from app.models.money import Money, Rate
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -100,7 +101,7 @@ class ExchangeRate(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     from_currency = Column(String(3), nullable=False, index=True)
     to_currency   = Column(String(3), nullable=False, index=True)
-    rate          = Column(Float, nullable=False)        # 1 from_currency = rate to_currency
+    rate          = Column(Rate, nullable=False)         # 1 from_currency = rate to_currency
     effective_date = Column(Date, nullable=False, index=True)
     source        = Column(String(50), default="manual")  # manual | ecb | openexchange
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
@@ -206,8 +207,8 @@ class RecurringInvoice(Base):
     client_name    = Column(String(255), nullable=True)
     client_email   = Column(String(255), nullable=True)
     client_vat     = Column(String(50), nullable=True)
-    amount         = Column(Float, nullable=False)       # Fixed amount per period
-    tax_rate       = Column(Float, default=settings.DEFAULT_TAX_RATE)
+    amount         = Column(Money, nullable=False)       # Fixed amount per period
+    tax_rate       = Column(Float, default=settings.DEFAULT_TAX_RATE)  # % ratio
     currency       = Column(String(3), default=settings.DEFAULT_CURRENCY)
     description    = Column(String(500), nullable=True)  # Line item description
     payment_terms_days = Column(Integer, default=30)

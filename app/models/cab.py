@@ -15,6 +15,7 @@ from sqlalchemy import (
     Column, String, Float, DateTime, ForeignKey, Text,
     Boolean, Integer, Enum, Date
 )
+from app.models.money import Money
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -324,7 +325,7 @@ class RevenueRecognitionRule(Base):
                              nullable=False, unique=True, index=True)
     method          = Column(Enum(RecognitionMethod),
                              default=RecognitionMethod.percentage_complete)
-    contract_value  = Column(Float, nullable=True)   # Total contract amount
+    contract_value  = Column(Money, nullable=True)   # Total contract amount
     start_date      = Column(Date, nullable=True)
     end_date        = Column(Date, nullable=True)
     notes           = Column(Text, nullable=True)
@@ -350,11 +351,11 @@ class RevenueRecognitionEntry(Base):
     project_id      = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
     period_date     = Column(Date, nullable=False, index=True)  # First day of month
     pct_complete    = Column(Float, default=0)       # % of project complete this period
-    amount_planned  = Column(Float, default=0)       # Revenue planned to recognise
-    amount_actual   = Column(Float, default=0)       # Revenue actually recognised
-    amount_deferred = Column(Float, default=0)       # Deferred to future periods
-    cumulative_pct  = Column(Float, default=0)
-    cumulative_amount = Column(Float, default=0)
+    amount_planned  = Column(Money, default=0)       # Revenue planned to recognise
+    amount_actual   = Column(Money, default=0)       # Revenue actually recognised
+    amount_deferred = Column(Money, default=0)       # Deferred to future periods
+    cumulative_pct  = Column(Float, default=0)       # % ratio
+    cumulative_amount = Column(Money, default=0)
     is_locked       = Column(Boolean, default=False)  # Locked after accounting close
     notes           = Column(Text, nullable=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
