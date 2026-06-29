@@ -1,11 +1,11 @@
-// @ts-nocheck
+import type { CSSProperties, ChangeEvent } from 'react'
 // Estilos reutilizables globales (asegurar que siempre estén definidos)
-const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
 // Estado global para clientes (usado en toda la página)
-const STATUS_LABEL = {
+const STATUS_LABEL: Record<string, string> = {
   active: 'Activo',
   planning: 'Planificación',
   on_hold: 'En espera',
@@ -24,7 +24,7 @@ const STATUS_LABEL = {
   failed: 'Rechazado',
   conditional: 'Con reservas',
 }
-const STATUS_COLOR = {
+const STATUS_COLOR: Record<string, string> = {
   active: 'var(--success)',
   planning: 'var(--accent)',
   on_hold: 'var(--warning)',
@@ -43,7 +43,7 @@ const STATUS_COLOR = {
   failed: 'var(--danger)',
   conditional: 'var(--warning)',
 }
-const SLA_COLOR = {
+const SLA_COLOR: Record<string, string> = {
   enterprise: 'var(--purple)',
   gold: 'var(--warning)',
   silver: 'var(--text-2)',
@@ -72,8 +72,41 @@ import {
 } from './clients/ClientsPageTabs'
 
 
+// ── Client shape (list item + hydrated detail) ───────────────────────────────
+interface ClientTicket {
+  id: string; title?: string; priority?: string; status?: string
+  linked_resource_type?: string; created_at?: string
+}
+type Client = {
+  [key: string]: unknown
+  id: string
+  name: string
+  short_name?: string
+  tax_id?: string
+  status?: string
+  industry?: string
+  notes?: string
+  website?: string
+  country?: string
+  city?: string
+  contact_name?: string
+  contact_email?: string
+  contact_phone?: string
+  account_manager_name?: string
+  projects_count?: number
+  tickets_count?: number
+  invoices_count?: number
+  portal_users_count?: number
+  portal_config?: { sla_tier?: string } | null
+  projects?: unknown[]
+  contracts?: unknown[]
+  licenses?: unknown[]
+  portal_users?: unknown[]
+  tickets?: ClientTicket[]
+}
+
 // ── Zod schema mirroring backend Client model (app/models/clients.py) ────────
-const optionalString = (max) => z.union([
+const optionalString = (max: number) => z.union([
   z.literal(''),
   z.string().trim().max(max, `Máximo ${max} caracteres`),
 ]).optional()
@@ -104,49 +137,49 @@ export default function ClientsPage(): JSX.Element {
   const [search, setSearch] = useState('')
   const [statusF, setStatusF] = useState('')
   const [sortBy, setSortBy] = useState('name')
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected] = useState<Client | null>(null)
   const [activeTab, setActiveTab] = useState('contacts')
   const [showCreate, setShowCreate] = useState(false)
-  const [newForm, setNewForm] = useState({ name: '', short_name: '', tax_id: '', contact_name: '', contact_email: '', contact_phone: '', status: 'active', industry: 'other', notes: '' })
+  const [newForm, setNewForm] = useState<Record<string, string>>({ name: '', short_name: '', tax_id: '', contact_name: '', contact_email: '', contact_phone: '', status: 'active', industry: 'other', notes: '' })
   const createValidation = useFormValidation(clientCreateSchema)
   const [showEdit, setShowEdit] = useState(false)
-  const [editClientForm, setEditClientForm] = useState({})
+  const [editClientForm, setEditClientForm] = useState<Record<string, string>>({})
   const [clientView, setClientView] = useState('grid')
 
-  const { data: clients = [], isLoading } = useQuery({
+  const { data: clients = [], isLoading } = useQuery<Client[]>({
     queryKey: ['clients', search, statusF],
-    queryFn: () => clientsApi.list({ q: search || undefined, status: statusF || undefined }).then(r => unwrapList(r)),
+    queryFn: () => clientsApi.list({ q: search || undefined, status: statusF || undefined }).then(r => unwrapList(r) as Client[]),
   })
 
   const { sort: clientSort, setSort: setClientSort, sortedData: sortedClients } = useSort(clients, sortBy)
 
-  const { data: detail } = useQuery({
+  const { data: detail } = useQuery<Client>({
     queryKey: ['client-detail', selected?.id],
-    queryFn: () => clientsApi.get(selected.id).then(r => r.data),
+    queryFn: () => clientsApi.get(selected!.id).then(r => r.data as Client),
     enabled: !!selected,
   })
 
   const { mutate: create, isPending: creating } = useMutation({
-    mutationFn: d => clientsApi.create(d),
+    mutationFn: (d: Record<string, unknown>) => clientsApi.create(d),
     onSuccess: (_res) => {
-      qc.invalidateQueries(['clients'])
+      qc.invalidateQueries({ queryKey: ['clients'] })
       setShowCreate(false)
       setNewForm({ name: '', short_name: '', tax_id: '', contact_name: '', contact_email: '', contact_phone: '', status: 'active', industry: 'other', notes: '' })
       createValidation.setErrors({})
       toast.success('Cliente creado correctamente')
     },
-    onError: e => toast.error(extractErr(e, 'Error al crear cliente')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al crear cliente')),
   })
 
   const { mutate: updateClient, isPending: updatingClient } = useMutation({
-    mutationFn: ({ id, data }) => clientsApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => clientsApi.update(id, data),
     onSuccess: () => {
-      qc.invalidateQueries(['clients'])
-      qc.invalidateQueries(['client-detail', selected?.id])
+      qc.invalidateQueries({ queryKey: ['clients'] })
+      qc.invalidateQueries({ queryKey: ['client-detail', selected?.id] })
       setShowEdit(false)
       toast.success('Cliente actualizado correctamente')
     },
-    onError: e => toast.error(extractErr(e, 'Error al actualizar cliente')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar cliente')),
   })
 
   const openEditClient = () => {
@@ -221,15 +254,15 @@ export default function ClientsPage(): JSX.Element {
               onMouseLeave={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-4)' } }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                 <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{c.name}</div>
-                <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: (STATUS_COLOR[c.status] || 'var(--text-2)') + '20', color: STATUS_COLOR[c.status] || 'var(--text-2)', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                  {STATUS_LABEL[c.status] || c.status}
+                <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: (STATUS_COLOR[c.status || ""] || 'var(--text-2)') + '20', color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  {STATUS_LABEL[c.status || ""] || c.status}
                 </span>
               </div>
               {c.contact_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>👤 {c.contact_name}</div>}
               <div style={{ display: 'flex', gap: 12, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
                 <span>⬡ {c.projects_count}</span>
                 <span>🎫 {c.tickets_count}</span>
-                {c.invoices_count > 0 && <span>🧾 {c.invoices_count}</span>}
+                {(c.invoices_count ?? 0) > 0 && <span>🧾 {c.invoices_count}</span>}
                 <span>👤 {c.portal_users_count}</span>
               </div>
             </button>
@@ -248,8 +281,8 @@ export default function ClientsPage(): JSX.Element {
                   onMouseLeave={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'transparent' }}>
                   <div>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-                    <span style={{ fontSize: "var(--text-3xs)", padding: '1px 5px', borderRadius: 10, background: (STATUS_COLOR[c.status] || 'var(--text-2)') + '20', color: STATUS_COLOR[c.status] || 'var(--text-2)', fontWeight: 700 }}>
-                      {STATUS_LABEL[c.status] || c.status}
+                    <span style={{ fontSize: "var(--text-3xs)", padding: '1px 5px', borderRadius: 10, background: (STATUS_COLOR[c.status || ""] || 'var(--text-2)') + '20', color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700 }}>
+                      {STATUS_LABEL[c.status || ""] || c.status}
                     </span>
                   </div>
                   <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textAlign: 'center' }}>{c.projects_count}</span>
@@ -290,8 +323,8 @@ export default function ClientsPage(): JSX.Element {
                       fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
                     ✏️ Editar
                   </button>
-                  <span style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 20, background: (STATUS_COLOR[detail?.status] || 'var(--text-2)') + '20', color: STATUS_COLOR[detail?.status] || 'var(--text-2)', fontWeight: 700 }}>
-                    {STATUS_LABEL[detail?.status] || detail?.status}
+                  <span style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 20, background: (STATUS_COLOR[detail?.status || ""] || 'var(--text-2)') + '20', color: STATUS_COLOR[detail?.status || ""] || 'var(--text-2)', fontWeight: 700 }}>
+                    {STATUS_LABEL[detail?.status || ""] || detail?.status}
                   </span>
                   {detail?.portal_config?.sla_tier && (
                     <span style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 20, background: (SLA_COLOR[detail.portal_config.sla_tier] || 'var(--text-2)') + '20', color: SLA_COLOR[detail.portal_config.sla_tier] || 'var(--text-2)', fontWeight: 700 }}>
@@ -302,10 +335,10 @@ export default function ClientsPage(): JSX.Element {
               </div>
               {/* Chips de recursos vinculados */}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {detail?.projects?.length > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--accent-muted)', color: 'var(--accent)' }}>⬡ {detail.projects.length} proyectos</span>}
-                {detail?.contracts?.length > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--success-bg)', color: 'var(--success)' }}>📄 {detail.contracts.length} contratos</span>}
-                {detail?.licenses?.length > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--purple-bg)', color: 'var(--purple)' }}>🔑 {detail.licenses.length} licencias</span>}
-                {detail?.portal_users?.length > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--warning-bg)', color: 'var(--warning)' }}>👤 {detail.portal_users.length} usuarios portal</span>}
+                {(detail?.projects?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--accent-muted)', color: 'var(--accent)' }}>⬡ {detail?.projects?.length} proyectos</span>}
+                {(detail?.contracts?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--success-bg)', color: 'var(--success)' }}>📄 {detail?.contracts?.length} contratos</span>}
+                {(detail?.licenses?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--purple-bg)', color: 'var(--purple)' }}>🔑 {detail?.licenses?.length} licencias</span>}
+                {(detail?.portal_users?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--warning-bg)', color: 'var(--warning)' }}>👤 {detail?.portal_users?.length} usuarios portal</span>}
               </div>
             </div>
 
@@ -447,7 +480,7 @@ export default function ClientsPage(): JSX.Element {
             <Button
               loading={updatingClient}
               disabled={!editClientForm.name || updatingClient}
-              onClick={() => updateClient({ id: selected.id, data: editClientForm })}>
+              onClick={() => selected && updateClient({ id: selected.id, data: editClientForm })}>
               {updatingClient ? '⟳ Guardando...' : '💾 Guardar cambios'}
             </Button>
           </div>
@@ -456,7 +489,7 @@ export default function ClientsPage(): JSX.Element {
 
       {/* Modal nuevo cliente */}
       {showCreate && (() => {
-        const setCreateField = (key) => (e) => {
+        const setCreateField = (key: string) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
           const value = e.target.value
           setNewForm(f => ({ ...f, [key]: value }))
           createValidation.clearFieldError(key)
@@ -466,7 +499,7 @@ export default function ClientsPage(): JSX.Element {
           if (!result.success) return
           create(newForm)
         }
-        const errField = (key) => createValidation.errors[key] && (
+        const errField = (key: string) => createValidation.errors[key] && (
           <div style={{ color: 'var(--danger)', fontSize: 'var(--text-xs)', marginTop: 4 }}>{createValidation.errors[key]}</div>
         )
         return (

@@ -29,6 +29,7 @@
     "src/services/api/users.ts",
     "src/services/api/projects.ts",
     "src/services/api/tasks.ts",
-    "src/services/api/settings.ts"
+    "src/services/api/settings.ts",
+    "src/pages/ClientsPage.tsx"
   ]
 }
