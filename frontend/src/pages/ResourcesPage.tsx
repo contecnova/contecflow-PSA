@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties, ChangeEvent } from 'react'
 import { useToast } from '../context/ToastContext'
 import ResourceHeatmap from '../components/ResourceHeatmap'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -16,21 +16,35 @@ import { useAppT } from '../i18n/AppLangContext'
 
 const ROLES = Object.entries(ROLE_LABELS).map(([v, l]) => ({ value: v, label: l }))
 
-const RISK_META = {
+type RiskMeta = { label: string; color: string; bg: string; border: string }
+const RISK_META: Record<string, RiskMeta> = {
   green:  { label: 'Saludable',   color: 'var(--success)',  bg: 'rgba(74,222,128,0.1)',  border: 'rgba(74,222,128,0.3)'  },
   yellow: { label: 'Atención',    color: 'var(--warning)',  bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.3)'  },
   orange: { label: 'Riesgo',      color: 'var(--orange)',         bg: 'rgba(249,115,22,0.1)',  border: 'rgba(249,115,22,0.3)'  },
   red:    { label: 'Crítico 🔴',  color: 'var(--danger)',   bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.35)' },
 }
 
-function BurnoutRiskCard({ member }) {
-  const m = RISK_META[member.risk_level] || RISK_META.green
+interface BurnoutMember {
+  user_id?: string
+  risk_level?: string
+  full_name?: string
+  job_title?: string
+  department?: string
+  current_load_pct?: number
+  avg_load_4w?: number
+  overload_weeks_streak?: number
+  weekly_history?: { load_pct?: number }[]
+  factors?: string[]
+}
+
+function BurnoutRiskCard({ member }: { member: BurnoutMember }) {
+  const m = RISK_META[member.risk_level || ''] || RISK_META.green
   return (
     <div style={{
       background: 'var(--surface-2)', border: `1px solid ${m.border}`,
       borderRadius: 14, padding: 18, display: 'flex', gap: 14, alignItems: 'flex-start',
     }}>
-      <Avatar name={member.full_name} size={38} />
+      <Avatar name={member.full_name} size={38} url={undefined} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <div>
@@ -44,9 +58,9 @@ function BurnoutRiskCard({ member }) {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
           {[
-            { label: 'Carga actual', value: `${member.current_load_pct?.toFixed(0)}%`, color: member.current_load_pct > 100 ? 'var(--danger)' : 'var(--text-1)' },
-            { label: 'Media 4sem',   value: `${member.avg_load_4w?.toFixed(0)}%`,      color: member.avg_load_4w > 90 ? 'var(--warning)' : 'var(--text-1)' },
-            { label: 'Streak (sem)', value: member.overload_weeks_streak,              color: member.overload_weeks_streak >= 3 ? 'var(--danger)' : 'var(--text-1)' },
+            { label: 'Carga actual', value: `${member.current_load_pct?.toFixed(0)}%`, color: (member.current_load_pct ?? 0) > 100 ? 'var(--danger)' : 'var(--text-1)' },
+            { label: 'Media 4sem',   value: `${member.avg_load_4w?.toFixed(0)}%`,      color: (member.avg_load_4w ?? 0) > 90 ? 'var(--warning)' : 'var(--text-1)' },
+            { label: 'Streak (sem)', value: member.overload_weeks_streak,              color: (member.overload_weeks_streak ?? 0) >= 3 ? 'var(--danger)' : 'var(--text-1)' },
           ].map(s => (
             <div key={s.label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
               <div style={{ fontSize: "var(--text-17)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: s.color }}>{s.value}</div>
@@ -55,10 +69,10 @@ function BurnoutRiskCard({ member }) {
           ))}
         </div>
         {/* Sparkline mini-bar */}
-        {member.weekly_history?.length > 0 && (
+        {(member.weekly_history?.length ?? 0) > 0 && (
           <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 28, marginBottom: 8 }}>
-            {member.weekly_history.slice(0, 8).map((w, i) => {
-              const h = Math.min(100, w.load_pct)
+            {member.weekly_history!.slice(0, 8).map((w: { load_pct?: number }, i: number) => {
+              const h = Math.min(100, w.load_pct ?? 0)
               const c = h > 100 ? 'var(--danger)' : h > 85 ? 'var(--warning)' : 'var(--success)'
               return (
                 <div key={i} title={`Sem -${i}: ${w.load_pct?.toFixed(0)}%`}
@@ -68,9 +82,9 @@ function BurnoutRiskCard({ member }) {
             }).reverse()}
           </div>
         )}
-        {member.factors?.length > 0 && (
+        {(member.factors?.length ?? 0) > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-            {member.factors.map((f, i) => (
+            {member.factors!.map((f: string, i: number) => (
               <span key={i} style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 10,
                 background: 'var(--surface-3)', color: 'var(--text-2)' }}>{f}</span>
             ))}
@@ -84,7 +98,7 @@ function BurnoutRiskCard({ member }) {
 function BurnoutMonitorTab() {
   const t = useAppT()
   const [filter, setFilter] = useState('all')
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<{ members?: BurnoutMember[]; summary?: Record<string, number> }>({
     queryKey: ['burnout-risk', filter],
     queryFn: () => burnoutRiskApi.get(
       filter !== 'all' ? { min_risk_level: filter } : undefined
@@ -97,7 +111,7 @@ function BurnoutMonitorTab() {
   })
 
   const members = data?.members || []
-  const summary = data?.summary || {}
+  const summary: Record<string, number> = data?.summary || {}
 
   return (
     <div>
@@ -152,7 +166,29 @@ function BurnoutMonitorTab() {
   )
 }
 
-function ResourceCard({ resource, onEdit, showRates }) {
+interface ResourceUser {
+  id?: string
+  full_name?: string
+  job_title?: string
+  department?: string
+  role?: string
+  email?: string
+  hourly_rate?: number | string | null
+  weekly_capacity_hours?: number | string
+}
+type Resource = {
+  [key: string]: unknown
+  user?: ResourceUser
+  full_name?: string
+  job_title?: string
+  department?: string
+  current_load_pct?: number
+  hours_this_week?: number
+  active_projects?: number
+  hourly_rate?: number | string | null
+}
+
+function ResourceCard({ resource, onEdit, showRates }: { resource: Resource; onEdit: (r: Resource) => void; showRates: boolean }) {
   const load = resource.current_load_pct ?? 0
   const loadColor = load > 100 ? 'var(--danger)' : load > 85 ? 'var(--warning)' : load > 60 ? 'var(--accent)' : 'var(--success)'
   return (
@@ -165,7 +201,7 @@ function ResourceCard({ resource, onEdit, showRates }) {
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <Avatar name={resource.user?.full_name || resource.full_name} size={40} />
+          <Avatar name={resource.user?.full_name || resource.full_name} size={40} url={undefined} />
           <div>
             <div style={{ fontWeight: 700, fontSize: "var(--text-md)", color: 'var(--text-1)' }}>{resource.user?.full_name || resource.full_name}</div>
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 2 }}>
@@ -203,7 +239,7 @@ function ResourceCard({ resource, onEdit, showRates }) {
           <span>Utilización</span>
           <span style={{ color: loadColor, fontWeight: 700 }}>{load.toFixed(0)}%</span>
         </div>
-        <LoadBar value={load} />
+        <LoadBar value={load} label={undefined} />
       </div>
       {showRates && resource.user?.hourly_rate && (
         <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--surface-3)', borderRadius: 8, fontSize: "var(--text-sm)", display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -215,30 +251,30 @@ function ResourceCard({ resource, onEdit, showRates }) {
   )
 }
 
-function EditUserModal({ user, open, onClose }) {
+function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
-  const [form, setForm] = useState({
-    email:                 user?.user?.email                 || user?.email                 || '',
-    full_name:             user?.user?.full_name             || user?.full_name             || '',
-    job_title:             user?.user?.job_title             || user?.job_title             || '',
-    department:            user?.user?.department            || user?.department            || '',
-    role:                  user?.user?.role                  || user?.role                  || 'employee',
-    weekly_capacity_hours: user?.user?.weekly_capacity_hours || 40,
-    hourly_rate:           user?.hourly_rate                 ?? user?.user?.hourly_rate     ?? '',
+  const [form, setForm] = useState<Record<string, string>>({
+    email:                 String(user?.user?.email                 || user?.email                 || ''),
+    full_name:             String(user?.user?.full_name             || user?.full_name             || ''),
+    job_title:             String(user?.user?.job_title             || user?.job_title             || ''),
+    department:            String(user?.user?.department            || user?.department            || ''),
+    role:                  String(user?.user?.role                  || (user?.role as string)     || 'employee'),
+    weekly_capacity_hours: String(user?.user?.weekly_capacity_hours || 40),
+    hourly_rate:           String(user?.hourly_rate                 ?? user?.user?.hourly_rate     ?? ''),
   })
   const { hasRole } = useAuth()
-  const userId = user?.user?.id || user?.id
-  const { data: departments = [] } = useQuery({
+  const userId = (user?.user?.id || user?.id) as string
+  const { data: departments = [] } = useQuery<Array<{ name: string; is_active?: boolean }>>({
     queryKey: ['departments-select'],
     queryFn: () => settingsApi.getDepartments().then(r => r.data),
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => usersApi.update(userId, data),
+    mutationFn: (data: Record<string, unknown>) => usersApi.update(userId, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['resources'] }); qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); onClose() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
   const handleSave = () => {
     const payload = {
       ...form,
@@ -250,14 +286,14 @@ function EditUserModal({ user, open, onClose }) {
   return (
     <Modal open={open} onClose={onClose} title="Editar recurso">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Input label="Email" type="email" value={form.email} onChange={set('email')} />
-        <Input label="Nombre completo" value={form.full_name} onChange={set('full_name')} />
-        <Input label="Cargo" value={form.job_title} onChange={set('job_title')} />
+        <Input label="Email" type="email" value={form.email} onChange={set('email')} placeholder={undefined} required={undefined} hint={undefined} />
+        <Input label="Nombre completo" value={form.full_name} onChange={set('full_name')} placeholder={undefined} required={undefined} hint={undefined} />
+        <Input label="Cargo" value={form.job_title} onChange={set('job_title')} placeholder={undefined} required={undefined} hint={undefined} />
         <Select label="Departamento" value={form.department} onChange={set('department')}
-          options={[{ value: '', label: '— Sin departamento —' }, ...departments.filter(d => d.is_active !== false).map(d => ({ value: d.name, label: d.name }))]} />
+          options={[{ value: '', label: '— Sin departamento —' }, ...departments.filter((d) => d.is_active !== false).map((d) => ({ value: d.name, label: d.name }))]} />
         <Select label="Rol" value={form.role} onChange={set('role')} options={ROLES} />
-        <Input label="Capacidad semanal" type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} />
-        {hasRole('admin') && <Input label="Tarifa por hora" type="number" value={form.hourly_rate} onChange={set('hourly_rate')} />}
+        <Input label="Capacidad semanal" type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} placeholder={undefined} required={undefined} hint={undefined} />
+        {hasRole('admin') && <Input label="Tarifa por hora" type="number" value={form.hourly_rate} onChange={set('hourly_rate')} placeholder={undefined} required={undefined} hint={undefined} />}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={handleSave} disabled={isPending} loading={isPending}>{isPending ? 'Guardando...' : 'Guardar cambios'}</Button>
@@ -267,34 +303,62 @@ function EditUserModal({ user, open, onClose }) {
   )
 }
 
+interface SmartMatchForm {
+  skills: string[]
+  role: string
+  hours_needed: number
+  start_date: string
+  end_date: string
+  max_hourly_rate: string
+}
+interface SmartMatchCandidate {
+  user_id?: string
+  user_name?: string
+  job_title?: string
+  role?: string
+  department?: string
+  recommendation?: string
+  hourly_rate?: number
+  availability_hours?: number
+  active_tasks?: number
+  matched_skills?: string[]
+  missing_skills?: string[]
+  scores: { overall: number; skills: number; availability: number; workload: number; cost: number }
+}
+interface SmartMatchResult {
+  message?: string
+  candidates?: SmartMatchCandidate[]
+}
+interface SkillItem { id?: string; name: string }
+
 function SmartMatchTab() {
   const toast = useToast()
-  const [form, setForm] = useState({ skills: [], role: '', hours_needed: 40, start_date: '', end_date: '', max_hourly_rate: '' })
+  const [form, setForm] = useState<SmartMatchForm>({ skills: [], role: '', hours_needed: 40, start_date: '', end_date: '', max_hourly_rate: '' })
   const [skillInput, setSkillInput] = useState('')
-  const [results, setResults] = useState(null)
+  const [results, setResults] = useState<SmartMatchResult | null>(null)
 
-  const { data: allSkills = [] } = useQuery({
+  const { data: allSkills = [] } = useQuery<SkillItem[]>({
     queryKey: ['skills-sm'],
-    queryFn: () => skillsApi.catalog().then(unwrapList),
+    queryFn: () => skillsApi.catalog().then(unwrapList) as Promise<SkillItem[]>,
   })
 
   const { mutate: search, isPending } = useMutation({
-    mutationFn: d => billingSmartMatchApi.match(d).then(r => r.data),
-    onSuccess: data => setResults(data),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (d: Record<string, unknown>) => billingSmartMatchApi.match(d).then(r => r.data),
+    onSuccess: (data: SmartMatchResult) => setResults(data),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const addSkill = (skill) => {
+  const addSkill = (skill: string | SkillItem) => {
     const name = typeof skill === 'string' ? skill : skill.name
     if (name && !form.skills.includes(name)) setForm(f => ({ ...f, skills: [...f.skills, name] }))
     setSkillInput('')
   }
-  const removeSkill = (s) => setForm(f => ({ ...f, skills: f.skills.filter(x => x !== s) }))
-  const scoreColor  = (n) => n >= 75 ? 'var(--success)' : n >= 50 ? 'var(--warning)' : n >= 25 ? 'var(--warning)' : 'var(--danger)'
+  const removeSkill = (s: string) => setForm(f => ({ ...f, skills: f.skills.filter(x => x !== s) }))
+  const scoreColor  = (n: number) => n >= 75 ? 'var(--success)' : n >= 50 ? 'var(--warning)' : n >= 25 ? 'var(--warning)' : 'var(--danger)'
 
-  const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const labelStyle = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const panelStyle = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14 }
+  const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const panelStyle: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14 }
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 24 }}>
@@ -385,11 +449,11 @@ function SmartMatchTab() {
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                  {c.hourly_rate > 0 && <span>💰 {c.hourly_rate}€/h</span>}
+                  {(c.hourly_rate ?? 0) > 0 && <span>💰 {c.hourly_rate}€/h</span>}
                   <span>⏱ {c.availability_hours}h disponibles</span>
                   <span>📋 {c.active_tasks} tareas activas</span>
-                  {c.matched_skills?.length > 0 && <span>✓ {c.matched_skills.join(', ')}</span>}
-                  {c.missing_skills?.length > 0 && <span style={{ color: 'var(--danger)' }}>✗ Faltan: {c.missing_skills.join(', ')}</span>}
+                  {(c.matched_skills?.length ?? 0) > 0 && <span>✓ {c.matched_skills!.join(', ')}</span>}
+                  {(c.missing_skills?.length ?? 0) > 0 && <span style={{ color: 'var(--danger)' }}>✗ Faltan: {c.missing_skills!.join(', ')}</span>}
                 </div>
               </div>
             ))}
@@ -407,12 +471,12 @@ export default function ResourcesPage() {
   const [deptFilter, setDeptFilter] = useState('')
   const [search, setSearch] = useState('')
   const [resSortBy] = useState('user.full_name')
-  const [editTarget, setEditTarget] = useState(null)
+  const [editTarget, setEditTarget] = useState<Resource | null>(null)
   const [view, setView] = useState('grid')
 
-  const { data: loadData = [], isLoading } = useQuery({
+  const { data: loadData = [], isLoading } = useQuery<Resource[]>({
     queryKey: ['resources'],
-    queryFn: () => usersApi.load().then(unwrapList),
+    queryFn: () => usersApi.load().then(unwrapList) as Promise<Resource[]>,
   })
 
   const filtered = loadData.filter(r => {
@@ -420,12 +484,12 @@ export default function ResourcesPage() {
     const dept = r.user?.department || ''
     return (!search || name.toLowerCase().includes(search.toLowerCase())) && (!deptFilter || dept === deptFilter)
   })
-  const { sort: resSort, setSort: setResSort, sortedData: sortedResources } = useSort(filtered, resSortBy)
+  const { sort: resSort, setSort: setResSort, sortedData: sortedResources } = useSort<Resource>(filtered, resSortBy)
 
   const departments = [...new Set(loadData.map(r => r.user?.department).filter(Boolean))]
-  const overloaded  = loadData.filter(r => r.current_load_pct > 100).length
-  const available   = loadData.filter(r => r.current_load_pct < 60).length
-  const avgLoad     = loadData.length ? (loadData.reduce((s, r) => s + r.current_load_pct, 0) / loadData.length).toFixed(0) : 0
+  const overloaded  = loadData.filter(r => (r.current_load_pct ?? 0) > 100).length
+  const available   = loadData.filter(r => (r.current_load_pct ?? 0) < 60).length
+  const avgLoad     = loadData.length ? (loadData.reduce((s, r) => s + (r.current_load_pct ?? 0), 0) / loadData.length).toFixed(0) : 0
 
   const TABS = [
     { id: 'team',       label: 'Equipo' },
@@ -465,7 +529,7 @@ export default function ResourcesPage() {
               <option value="">Todos los departamentos</option>
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <select value={resSort.key} onChange={e => setResSort({ key: e.target.value, dir: 'asc' })}
+            <select value={resSort.key} onChange={e => setResSort({ key: e.target.value, dir: 'asc' } as unknown as string)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="user.full_name">Nombre A-Z</option>
               <option value="current_load_pct">Carga %</option>
@@ -510,9 +574,9 @@ export default function ResourcesPage() {
                   <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{r.user?.role || '—'}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{ flex: 1, height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${Math.min(r.current_load_pct, 100)}%`, background: r.current_load_pct > 100 ? 'var(--danger)' : r.current_load_pct > 80 ? 'var(--warning)' : 'var(--success)', borderRadius: 3 }} />
+                      <div style={{ height: '100%', width: `${Math.min(r.current_load_pct ?? 0, 100)}%`, background: (r.current_load_pct ?? 0) > 100 ? 'var(--danger)' : (r.current_load_pct ?? 0) > 80 ? 'var(--warning)' : 'var(--success)', borderRadius: 3 }} />
                     </div>
-                    <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: r.current_load_pct > 100 ? 'var(--danger)' : 'var(--text-1)', minWidth: 34 }}>{r.current_load_pct}%</span>
+                    <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: (r.current_load_pct ?? 0) > 100 ? 'var(--danger)' : 'var(--text-1)', minWidth: 34 }}>{r.current_load_pct}%</span>
                   </div>
                   <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{r.hours_this_week || 0}h</span>
                   <span style={{ fontSize: "var(--text-sm)" }}>{r.active_projects || 0}</span>

@@ -30,6 +30,11 @@
     "src/services/api/projects.ts",
     "src/services/api/tasks.ts",
     "src/services/api/settings.ts",
-    "src/pages/ClientsPage.tsx"
+    "src/pages/ClientsPage.tsx",
+    "src/pages/PortalClientePage.tsx",
+    "src/pages/SkillsPage.tsx",
+    "src/pages/ResourcesPage.tsx",
+    "src/components/bi/BiGovernancePanel.tsx",
+    "src/components/servicedesk/ChangeRolloutPanel.tsx"
   ]
 }

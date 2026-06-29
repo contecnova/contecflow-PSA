@@ -1,11 +1,11 @@
-// @ts-nocheck
+import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { skillsApi } from '../services/api'
+import { skillsApi, usersApi } from '../services/api'
 import { Card, Button, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -14,25 +14,51 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
+// ── Tipos de dominio ──────────────────────────────────────────────────────────
+type LevelKey = 'basic' | 'intermediate' | 'advanced' | 'expert'
+interface CatalogSkill { id: string; name: string; category: string; user_count?: number }
+interface UserSkill {
+  id: string; skill_id?: string; skill_name?: string; category?: string
+  level?: string; years_experience?: number | string; certified?: boolean
+}
+interface MatrixUserSkill { level?: string; certified?: boolean }
+interface MatrixUser {
+  user_id: string; user_name?: string; department?: string
+  skills: Record<string, MatrixUserSkill | undefined>
+}
+interface SkillsMatrixData { users: MatrixUser[]; skills: CatalogSkill[] }
+interface SkillHistoryEntry {
+  id: string; skill_name?: string; old_level?: string; new_level?: string
+  notes?: string; recorded_at?: string; recorded_by?: string
+}
+interface StaffMatchSkill { skill_id: string; skill_name?: string; level?: string; years_experience?: number | string }
+interface StaffMatch {
+  user_id: string; user_name?: string; department?: string; role?: string
+  skill_count?: number; matching_skills: StaffMatchSkill[]
+}
+interface DomainUser {
+  id: string; full_name?: string; job_title?: string; role?: string
+  department?: string; is_active?: boolean
+}
 
-const LEVEL_CFG = {
+const LEVEL_CFG: Record<string, { label: string; color: string; score: number }> = {
   basic:        { label: 'Básico',       color: 'var(--text-2)', score: 1 },
   intermediate: { label: 'Intermedio',   color: 'var(--accent)', score: 2 },
   advanced:     { label: 'Avanzado',     color: 'var(--warning)', score: 3 },
   expert:       { label: 'Experto',      color: 'var(--success)', score: 4 },
 }
-const CAT_LABELS = {
+const CAT_LABELS: Record<string, string> = {
   technical: '💻 Técnico', language: '🌍 Idioma', methodology: '📐 Metodología',
   tool: '🔧 Herramienta', soft: '🤝 Habilidad blanda', certification: '🏆 Certificación'
 }
 const CATEGORIES = Object.keys(CAT_LABELS)
 const LEVELS = Object.keys(LEVEL_CFG)
 
-function LevelBadge({ level }) {
-  const cfg = LEVEL_CFG[level] || LEVEL_CFG.basic
+function LevelBadge({ level }: { level?: string }) {
+  const cfg = LEVEL_CFG[level || ''] || LEVEL_CFG.basic
   return (
     <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, whiteSpace: 'nowrap' }}>
       {'★'.repeat(cfg.score)}{'☆'.repeat(4 - cfg.score)} {cfg.label}
@@ -40,9 +66,9 @@ function LevelBadge({ level }) {
   )
 }
 
-function SkillsMatrix({ users, skills }) {
+function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: CatalogSkill[] }) {
   const _levelScore = { basic: 1, intermediate: 2, advanced: 3, expert: 4 }
-  const levelColor = (level) => LEVEL_CFG[level]?.color || 'transparent'
+  const levelColor = (level?: string) => LEVEL_CFG[level || '']?.color || 'transparent'
 
   const cats = [...new Set(skills.map(s => s.category))]
 
@@ -106,34 +132,34 @@ function SkillsMatrix({ users, skills }) {
   )
 }
 
-function UserSkillModal({ user, onClose }) {
+function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [modalTab, setModalTab] = useState('skills')
   const [form, setForm] = useState({ skill_id: '', level: 'basic', years_experience: '', certified: false, cert_name: '', notes: '' })
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-  const { data: catalog = [] } = useQuery({ queryKey: ['skills-catalog'], queryFn: () => skillsApi.catalog().then(r => r.data?.items ?? r.data ?? []) })
-  const { data: userSkills = [] } = useQuery({ queryKey: ['user-skills', user.id], queryFn: () => skillsApi.userSkills(user.id).then(r => r.data?.items ?? r.data ?? []) })
-  const { data: skillHistory = [] } = useQuery({
+  const { data: catalog = [] } = useQuery<CatalogSkill[]>({ queryKey: ['skills-catalog'], queryFn: () => skillsApi.catalog().then(r => r.data?.items ?? r.data ?? []) })
+  const { data: userSkills = [] } = useQuery<UserSkill[]>({ queryKey: ['user-skills', user.id], queryFn: () => skillsApi.userSkills(user.id).then(r => r.data?.items ?? r.data ?? []) })
+  const { data: skillHistory = [] } = useQuery<SkillHistoryEntry[]>({
     queryKey: ['skill-history', user.id],
     queryFn: () => skillsApi.userHistory(user.id).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
     enabled: modalTab === 'history',
   })
 
   const { mutate: addSkill } = useMutation({
-    mutationFn: (data) => skillsApi.addUserSkill(user.id, data),
+    mutationFn: (data: Record<string, unknown>) => skillsApi.addUserSkill(user.id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['user-skills', user.id] }); qc.invalidateQueries({ queryKey: ['skills-matrix'] }); setForm({ skill_id: '', level: 'basic', years_experience: '', certified: false, cert_name: '', notes: '' }) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: removeSkill } = useMutation({
-    mutationFn: (skillId) => skillsApi.removeUserSkill(user.id, skillId),
+    mutationFn: (skillId: string) => skillsApi.removeUserSkill(user.id, skillId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['user-skills', user.id] }); qc.invalidateQueries({ queryKey: ['skills-matrix'] }) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const byCategory = userSkills.reduce((a, s) => { const c = s.category; if (!a[c]) a[c] = []; a[c].push(s); return a }, {})
+  const byCategory = userSkills.reduce<Record<string, UserSkill[]>>((a, s) => { const c = s.category || ''; if (!a[c]) a[c] = []; a[c]!.push(s); return a }, {})
 
   return (
     <Modal open title={`Skills — ${user.full_name}`} onClose={onClose} width={620}>
@@ -158,7 +184,7 @@ function UserSkillModal({ user, onClose }) {
               Sin historial de evaluaciones registrado
             </div>
           ) : skillHistory.map(e => {
-            const LEVEL_ICONS = { basic:'⬜', intermediate:'🔵', advanced:'🟣', expert:'⭐' }
+            const LEVEL_ICONS: Record<string, string> = { basic:'⬜', intermediate:'🔵', advanced:'🟣', expert:'⭐' }
             return (
               <div key={e.id} style={{ display:'flex', gap:12, padding:'10px 14px',
                 background:'var(--surface-2)', border:'1px solid var(--surface-4)',
@@ -168,7 +194,7 @@ function UserSkillModal({ user, onClose }) {
                   <div style={{ display:'flex', alignItems:'center', gap:8, fontSize: "var(--text-sm)" }}>
                     {e.old_level && <span style={{ color:'var(--text-3)' }}>{LEVEL_ICONS[e.old_level]} {e.old_level}</span>}
                     {e.old_level && <span style={{ color:'var(--text-3)' }}>→</span>}
-                    <span style={{ color:'var(--accent)', fontWeight:600 }}>{LEVEL_ICONS[e.new_level]} {e.new_level}</span>
+                    <span style={{ color:'var(--accent)', fontWeight:600 }}>{LEVEL_ICONS[e.new_level || '']} {e.new_level}</span>
                   </div>
                   {e.notes && <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:3 }}>{e.notes}</div>}
                 </div>
@@ -260,12 +286,12 @@ function UserSkillModal({ user, onClose }) {
 }
 
 function StaffingSearch() {
-  const [selectedSkills, setSelectedSkills] = useState([])
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([])
   const [minLevel, setMinLevel] = useState('basic')
-  const [results, setResults] = useState(null)
+  const [results, setResults] = useState<StaffMatch[] | null>(null)
   const [searching, setSearching] = useState(false)
 
-  const { data: catalog = [] } = useQuery({ queryKey: ['skills-catalog'], queryFn: () => skillsApi.catalog().then(r => r.data) })
+  const { data: catalog = [] } = useQuery<CatalogSkill[]>({ queryKey: ['skills-catalog'], queryFn: () => skillsApi.catalog().then(r => r.data) })
 
   const search = async () => {
     if (selectedSkills.length === 0) return
@@ -276,7 +302,7 @@ function StaffingSearch() {
     } finally { setSearching(false) }
   }
 
-  const toggleSkill = (id) => setSelectedSkills(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
+  const toggleSkill = (id: string) => setSelectedSkills(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
 
   return (
     <Card style={{ padding: 20 }}>
@@ -340,8 +366,8 @@ function StaffingSearch() {
   )
 }
 
-function UserSkillPreview({ userId }) {
-  const { data: skills = [] } = useQuery({
+function UserSkillPreview({ userId }: { userId: string }) {
+  const { data: skills = [] } = useQuery<UserSkill[]>({
     queryKey: ['user-skills-preview', userId],
     queryFn: () => skillsApi.userSkills(userId).then(r => r.data?.items ?? r.data ?? []),
   })
@@ -349,7 +375,7 @@ function UserSkillPreview({ userId }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
       {skills.slice(0, 6).map(s => {
-        const cfg = LEVEL_CFG[s.level] || LEVEL_CFG.basic
+        const cfg = LEVEL_CFG[s.level || ''] || LEVEL_CFG.basic
         return (
           <span key={s.id} style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 20, background: cfg.color + '15', color: cfg.color, border: `1px solid ${cfg.color}30` }}>
             {s.skill_name}
@@ -363,43 +389,43 @@ function UserSkillPreview({ userId }) {
 
 export default function SkillsPage() {
   const t = useAppT()
-  const { _user, hasRole } = useAuth()
+  const { hasRole } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   const [tab, setTab] = useState('matrix')
-  const [editingUser, setEditingUser] = useState(null)
+  const [editingUser, setEditingUser] = useState<DomainUser | null>(null)
 
-  const { data: matrix, isLoading: loadingMatrix } = useQuery({
+  const { data: matrix, isLoading: loadingMatrix } = useQuery<SkillsMatrixData>({
     queryKey: ['skills-matrix'],
     queryFn: () => skillsApi.matrix().then(r => r.data),
     enabled: tab === 'matrix',
   })
 
-  const { data: catalog = [], isLoading: loadingCatalog } = useQuery({
+  const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogSkill[]>({
     queryKey: ['skills-catalog'],
     queryFn: () => skillsApi.catalog().then(r => r.data?.items ?? r.data ?? []),
     enabled: tab === 'catalog',
   })
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<DomainUser[]>({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data),
+    queryFn: () => usersApi.list().then(r => r.data as unknown as DomainUser[]),
     enabled: tab === 'profiles',
   })
 
   const { mutate: createSkill } = useMutation({
-    mutationFn: (data) => skillsApi.createCatalog(data),
+    mutationFn: (data: Record<string, unknown>) => skillsApi.createCatalog(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['skills-catalog'] }),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteSkill } = useMutation({
-    mutationFn: (id) => skillsApi.deleteCatalog(id),
+    mutationFn: (id: string) => skillsApi.deleteCatalog(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['skills-catalog'] }),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const [newSkill, setNewSkill] = useState({ name: '', category: 'technical', description: '' })
-  const inputStyle = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
+  const inputStyle: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
 
   const tabs = [
     { id: 'matrix',   label: 'Matriz' },

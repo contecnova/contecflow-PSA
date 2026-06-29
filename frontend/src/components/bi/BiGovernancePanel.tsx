@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * BiGovernancePanel.jsx — BI Governance management.
  *
@@ -46,7 +45,7 @@ const inputBase: React.CSSProperties = {
   outline: 'none',
   boxSizing: 'border-box',
 }
-const chip = (color) => ({
+const chip = (color: string): React.CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   textTransform: 'uppercase',
@@ -62,7 +61,7 @@ const chip = (color) => ({
 // ── Overview structured renderer ──────────────────────────────────────────────
 
 interface OverviewSectionProps {
-  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>
+  icon: React.ComponentType<{ size?: number | string; style?: React.CSSProperties }>
   iconColor: string
   title: string
   children?: React.ReactNode
@@ -118,12 +117,21 @@ function MetricRow({ label, value, mono }: MetricRowProps) {
 }
 
 // TODO type: biCollaborationApi.getGovernanceOverview payload — needs shared type
-function OverviewView({ data }: { data?: Record<string, unknown> | null }) {
-  const ts = data.timestamp ? new Date(data.timestamp) : null
-  const olap = data.olap || {}
-  const sched = data.scheduled_reports || {}
-  const collab = data.collaboration || {}
-  const cache = data.cache_policy || {}
+interface OverviewData {
+  timestamp?: string | number | Date
+  olap?: { available?: boolean; staleness_hours?: number | null; path?: string }
+  scheduled_reports?: { active?: number; error?: number }
+  collaboration?: { unresolved_comments?: number }
+  cache_policy?: { metric_count?: number; default_ttl_seconds?: number; min_ttl_seconds?: number; max_ttl_seconds?: number }
+}
+
+function OverviewView({ data }: { data?: OverviewData | null }) {
+  const d = data ?? {}
+  const ts = d.timestamp ? new Date(d.timestamp) : null
+  const olap = d.olap || {}
+  const sched = d.scheduled_reports || {}
+  const collab = d.collaboration || {}
+  const cache = d.cache_policy || {}
 
   const olapAvailable = !!olap.available
   const olapColor = olapAvailable ? 'var(--success)' : 'var(--danger)'
@@ -217,6 +225,27 @@ function OverviewView({ data }: { data?: Record<string, unknown> | null }) {
   )
 }
 
+interface Policy {
+  id: string
+  name: string
+  policy_type: string
+  enabled: boolean
+  extra?: Record<string, unknown>
+}
+
+interface AuditEvent {
+  action?: string
+  resource?: string
+  dataset_id?: string
+  entity_type?: string
+  user_id?: string
+  accessed_at?: string | number | Date
+}
+
+interface ApiError {
+  response?: { data?: { detail?: string } }
+}
+
 export default function BiGovernancePanel() {
   const t = useAppT()
   const toast = useToast()
@@ -245,29 +274,30 @@ export default function BiGovernancePanel() {
   })
 
   // Normalizamos las reglas: backend devuelve un dict { name: {...} } o array
-  const rawPolicies = policiesData?.policies ?? policiesData?.items ?? policiesData?.rules ?? policiesData
-  const rulesObject = rawPolicies && typeof rawPolicies === 'object' && !Array.isArray(rawPolicies)
-    ? rawPolicies
+  const pd = policiesData as Record<string, unknown> | null | undefined
+  const rawPolicies = pd?.policies ?? pd?.items ?? pd?.rules ?? pd
+  const rulesObject: Record<string, unknown> = rawPolicies && typeof rawPolicies === 'object' && !Array.isArray(rawPolicies)
+    ? (rawPolicies as Record<string, unknown>)
     : {}
-  const policies = Array.isArray(rawPolicies)
-    ? rawPolicies
+  const policies: Policy[] = Array.isArray(rawPolicies)
+    ? (rawPolicies as Policy[])
     : Object.entries(rulesObject).map(([key, value]) => {
-        const r = value && typeof value === 'object' ? value : {}
+        const r = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>
         return {
-          id: r.id ?? key,
-          name: r.name ?? key,
-          policy_type: r.policy_type ?? 'data_retention',
-          enabled: r.enabled ?? r.active ?? true,
+          id: (r.id as string) ?? key,
+          name: (r.name as string) ?? key,
+          policy_type: (r.policy_type as string) ?? 'data_retention',
+          enabled: (r.enabled ?? r.active ?? true) as boolean,
           extra: r,
         }
       })
 
   const createPolicyMutation = useMutation({
-    mutationFn: (data) => {
+    mutationFn: (data: { name: string; policy_type: string }) => {
       const next = {
         ...rulesObject,
         [data.name]: {
-          ...(rulesObject[data.name] || {}),
+          ...((rulesObject[data.name] as Record<string, unknown>) || {}),
           policy_type: data.policy_type,
           enabled: true,
         },
@@ -280,23 +310,23 @@ export default function BiGovernancePanel() {
       setForm({ name: '', policy_type: 'data_retention' })
       qc.invalidateQueries({ queryKey: ['bi-gov-policies'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al crear política'),
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al crear política'),
   })
 
   const togglePolicyMutation = useMutation({
-    mutationFn: ({ name, enabled }) => {
+    mutationFn: ({ name, enabled }: { name: string; enabled: boolean }) => {
       const next = {
         ...rulesObject,
-        [name]: { ...(rulesObject[name] || {}), enabled },
+        [name]: { ...((rulesObject[name] as Record<string, unknown>) || {}), enabled },
       }
       return biCollaborationApi.updateGovernanceRules(next).then(r => r.data)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-gov-policies'] }),
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al cambiar estado'),
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al cambiar estado'),
   })
 
   const deletePolicyMutation = useMutation({
-    mutationFn: (name) => {
+    mutationFn: (name: string) => {
       const { [name]: _removed, ...rest } = rulesObject
       return biCollaborationApi.updateGovernanceRules(rest).then(r => r.data)
     },
@@ -304,10 +334,11 @@ export default function BiGovernancePanel() {
       toast.success('Política eliminada')
       qc.invalidateQueries({ queryKey: ['bi-gov-policies'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al eliminar'),
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al eliminar'),
   })
 
-  const auditItems = auditData?.items ?? auditData?.events ?? auditData?.entries ?? []
+  const ad = auditData as Record<string, unknown> | null | undefined
+  const auditItems = (ad?.items ?? ad?.events ?? ad?.entries ?? []) as AuditEvent[]
 
   return (
     <Card style={{ padding: '20px 22px' }}>
@@ -481,7 +512,7 @@ export default function BiGovernancePanel() {
               }}>
                 {auditItems.length} evento(s) {auditUserFilter && `· user ${auditUserFilter}`}
               </div>
-              {auditItems.map((ev, i) => {
+              {auditItems.map((ev: AuditEvent, i: number) => {
                 const action = ev.action || 'view'
                 const actionColor = action === 'delete' ? 'var(--danger)'
                   : action === 'create' || action === 'update' ? 'var(--warning)'
@@ -519,7 +550,7 @@ export default function BiGovernancePanel() {
         ) : !overviewData ? (
           <EmptyState icon="📊" title="Sin overview" />
         ) : (
-          <OverviewView data={overviewData} />
+          <OverviewView data={overviewData as OverviewData | null} />
         )
       )}
     </Card>

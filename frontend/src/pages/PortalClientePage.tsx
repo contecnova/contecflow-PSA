@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * PortalClientePage — Portal externo del cliente.
  *
@@ -8,6 +7,7 @@
  * Auth: separado del backoffice (ClientUser). Ver portalClientContext.jsx.
  */
 import { useEffect, useState } from 'react'
+import type { ChangeEvent, ComponentType } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Settings, User, Palette, Globe, ShieldCheck, KeyRound,
@@ -21,10 +21,57 @@ import {
   ClientAuthProvider, LoginScreen,
 } from './portal-client/portalClientContext'
 import {
-  PortalShell, PortalPageHeader, PortalCard, PortalSection,
-  PortalButton, PortalField, PortalInput, PortalSelect, PortalBadge,
-  PortalBanner,
+  PortalShell as PortalShellRaw, PortalPageHeader as PortalPageHeaderRaw,
+  PortalCard as PortalCardRaw, PortalSection as PortalSectionRaw,
+  PortalButton as PortalButtonRaw, PortalField as PortalFieldRaw,
+  PortalInput as PortalInputRaw, PortalSelect as PortalSelectRaw,
+  PortalBadge as PortalBadgeRaw, PortalBanner as PortalBannerRaw,
 } from './portal-client/PortalUI'
+
+// PortalUI sigue bajo @ts-nocheck: sus props quedan inferidas como obligatorias.
+// Re-tipamos los componentes de forma permisiva (sin cambiar runtime).
+type AnyProps = Record<string, unknown>
+const PortalShell = PortalShellRaw as unknown as ComponentType<AnyProps>
+const PortalPageHeader = PortalPageHeaderRaw as unknown as ComponentType<AnyProps>
+const PortalCard = PortalCardRaw as unknown as ComponentType<AnyProps>
+const PortalSection = PortalSectionRaw as unknown as ComponentType<AnyProps>
+const PortalButton = PortalButtonRaw as unknown as ComponentType<AnyProps>
+const PortalField = PortalFieldRaw as unknown as ComponentType<AnyProps>
+const PortalInput = PortalInputRaw as unknown as ComponentType<AnyProps>
+const PortalSelect = PortalSelectRaw as unknown as ComponentType<AnyProps>
+const PortalBadge = PortalBadgeRaw as unknown as ComponentType<AnyProps>
+const PortalBanner = PortalBannerRaw as unknown as ComponentType<AnyProps>
+
+// ── Tipos locales del dominio del portal ─────────────────────────────────────
+interface PortalClientUser {
+  id?: string
+  email?: string
+  name?: string
+  full_name?: string
+  language?: string
+  organization_name?: string
+  company?: string
+  job_title?: string
+  phone?: string
+  project_id?: string
+  project_ids?: string[]
+  projects?: unknown[]
+  [k: string]: unknown
+}
+interface ClientAuthValue { client: PortalClientUser | null; [k: string]: unknown }
+type ChangeLangFn = (lang: string) => void
+interface PortalListItem {
+  status?: string
+  requires_signature?: boolean
+  signed_by_client?: boolean
+  client_approval_status?: string
+  client_approved?: unknown
+  [k: string]: unknown
+}
+interface PortalDashboardData {
+  kpis?: { unread_messages?: number; [k: string]: unknown }
+  [k: string]: unknown
+}
 import { PortalDashboard } from './portal-client/PortalDashboard'
 import {
   PortalUAT, PortalFeatureRequests, PortalMessages,
@@ -35,9 +82,9 @@ import { PortalSurveys } from './portal-client/PortalSurveys'
 import PortalAIChatWidget from './portal-client/PortalAIChatWidget'
 
 // ── Inner app (con cliente autenticado) ──────────────────────────────────────
-function PortalApp({ changeLang }) {
+function PortalApp({ changeLang }: { changeLang: ChangeLangFn }) {
   const qc = useQueryClient()
-  const { client } = useClientAuth()
+  const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
   const [section, setSection] = useState('dashboard')
 
   const { data: branding } = useQuery({
@@ -46,41 +93,41 @@ function PortalApp({ changeLang }) {
     enabled: !!client,
   })
 
-  const { data: surveys = [] } = useQuery({
+  const { data: surveys = [] } = useQuery<PortalListItem[]>({
     queryKey: ['portal-surveys'],
-    queryFn: () => CLIENT_API.get('/portal/surveys').then(r => r.data),
+    queryFn: () => CLIENT_API.get('/portal/surveys').then(r => r.data as PortalListItem[]),
     enabled: !!client, staleTime: 60000,
   })
 
   // Badges para sidebar y topbar
-  const { data: dash } = useQuery({
+  const { data: dash } = useQuery<PortalDashboardData>({
     queryKey: ['portal-dashboard'],
-    queryFn: () => CLIENT_API.get('/portal/dashboard').then(r => r.data),
+    queryFn: () => CLIENT_API.get('/portal/dashboard').then(r => r.data as PortalDashboardData),
     enabled: !!client, staleTime: 30000, refetchOnWindowFocus: false,
   })
-  const { data: tickets = [] } = useQuery({
+  const { data: tickets = [] } = useQuery<PortalListItem[]>({
     queryKey: ['portal-sd-tickets'],
-    queryFn: () => CLIENT_API.get('/sd/tickets/client/my').then(r => r.data),
+    queryFn: () => CLIENT_API.get('/sd/tickets/client/my').then(r => r.data as PortalListItem[]),
     enabled: !!client, staleTime: 30000,
   })
-  const { data: docs = [] } = useQuery({
+  const { data: docs = [] } = useQuery<PortalListItem[]>({
     queryKey: ['portal-docs-client'],
-    queryFn: () => CLIENT_API.get('/portal/documents').then(r => r.data),
+    queryFn: () => CLIENT_API.get('/portal/documents').then(r => r.data as PortalListItem[]),
     enabled: !!client, staleTime: 30000,
   })
-  const { data: invoices = [] } = useQuery({
+  const { data: invoices = [] } = useQuery<PortalListItem[]>({
     queryKey: ['portal-invoices'],
-    queryFn: () => CLIENT_API.get('/portal/invoices').then(r => r.data),
+    queryFn: () => CLIENT_API.get('/portal/invoices').then(r => r.data as PortalListItem[]),
     enabled: !!client, staleTime: 30000,
   })
-  const { data: frs = [] } = useQuery({
+  const { data: frs = [] } = useQuery<PortalListItem[]>({
     queryKey: ['portal-frs-client'],
-    queryFn: () => CLIENT_API.get('/portal/feature-requests').then(r => r.data),
+    queryFn: () => CLIENT_API.get('/portal/feature-requests').then(r => r.data as PortalListItem[]),
     enabled: !!client, staleTime: 30000,
   })
-  const { data: uats = [] } = useQuery({
+  const { data: uats = [] } = useQuery<PortalListItem[]>({
     queryKey: ['portal-uat'],
-    queryFn: () => CLIENT_API.get('/portal/uat').then(r => r.data),
+    queryFn: () => CLIENT_API.get('/portal/uat').then(r => r.data as PortalListItem[]),
     enabled: !!client, staleTime: 30000,
   })
 
@@ -91,7 +138,7 @@ function PortalApp({ changeLang }) {
     documents: docs.filter(d => d.requires_signature && !d.signed_by_client).length,
     invoices:  invoices.filter(i => i.client_approval_status === 'pending').length,
     requests:  frs.filter(f => f.status === 'estimated' && f.client_approved == null).length,
-    uat:       uats.filter(u => ['pending', 'in_progress'].includes(u.status)).length,
+    uat:       uats.filter(u => ['pending', 'in_progress'].includes(String(u.status))).length,
     messages:  dash?.kpis?.unread_messages || 0,
     surveys:   pendingSurveys,
   }
@@ -99,9 +146,9 @@ function PortalApp({ changeLang }) {
   // WebSocket portal-notifications con reconexión exponencial.
   useEffect(() => {
     if (!client) return
-    let socket = null
-    let pingInterval = null
-    let reconnectTimer = null
+    let socket: WebSocket | null = null
+    let pingInterval: ReturnType<typeof window.setInterval> | null = null
+    let reconnectTimer: ReturnType<typeof window.setTimeout> | null = null
     let cancelled = false
     let attempt = 0
     const MAX_ATTEMPTS = 5
@@ -200,8 +247,8 @@ function PortalApp({ changeLang }) {
 }
 
 // ── Mi perfil rediseñado ─────────────────────────────────────────────────────
-function PortalMyProfile({ changeLang }) {
-  const { client } = useClientAuth()
+function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
+  const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
   const _t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -218,9 +265,9 @@ function PortalMyProfile({ changeLang }) {
   const [savedLanguage, setSavedLanguage] = useState(false)
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('portal_theme_mode') || 'freight')
 
-  const { data: me } = useQuery({
+  const { data: me } = useQuery<Record<string, unknown>>({
     queryKey: ['portal-me'],
-    queryFn: () => CLIENT_API.get('/portal/auth/me').then(r => r.data),
+    queryFn: () => CLIENT_API.get('/portal/auth/me').then(r => r.data as Record<string, unknown>),
   })
 
   const LANGUAGES = [
@@ -245,7 +292,7 @@ function PortalMyProfile({ changeLang }) {
     { id: 'security',   label: 'Seguridad',   icon: <ShieldCheck size={13} /> },
   ]
 
-  const applyTheme = (id) => {
+  const applyTheme = (id: string) => {
     setThemeMode(id)
     if (id === 'system') {
       const dark = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -261,17 +308,17 @@ function PortalMyProfile({ changeLang }) {
   }, [])
 
   const { mutate: saveProfile, isPending: saving } = useMutation({
-    mutationFn: d => CLIENT_API.patch('/portal/auth/me', d).then(r => r.data),
+    mutationFn: (d: Record<string, unknown>) => CLIENT_API.patch('/portal/auth/me', d).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-me'] })
       setSavedProfile(true)
       setTimeout(() => setSavedProfile(false), 3000)
     },
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
   })
 
   const { mutate: saveLanguage, isPending: savingLanguage } = useMutation({
-    mutationFn: lang => CLIENT_API.patch('/portal/auth/me', { language: lang }).then(r => r.data),
+    mutationFn: (lang: string) => CLIENT_API.patch('/portal/auth/me', { language: lang }).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-me'] })
       localStorage.setItem('portal_lang', pendingLang)
@@ -284,15 +331,15 @@ function PortalMyProfile({ changeLang }) {
       setSavedLanguage(true)
       setTimeout(() => setSavedLanguage(false), 3000)
     },
-    onError: e => toast.error(extractErr(e, 'Error al cambiar idioma')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al cambiar idioma')),
   })
 
   const { mutate: savePwd, isPending: changingPwd } = useMutation({
-    mutationFn: d => CLIENT_API.patch('/portal/auth/me', { password: d.new_pwd }).then(r => r.data),
+    mutationFn: (d: { new_pwd: string; confirm: string }) => CLIENT_API.patch('/portal/auth/me', { password: d.new_pwd }).then(r => r.data),
     onSuccess: () => { setPwdForm({ new_pwd: '', confirm: '' }); toast.success('Contraseña actualizada') },
-    onError: e => {
-      const raw = e?.response?.data?.detail
-      setPwdError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'Error al cambiar contraseña'))
+    onError: (e: unknown) => {
+      const raw = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+      setPwdError(Array.isArray(raw) ? raw.map((d: { msg?: string }) => d.msg).join(', ') : (raw ? String(raw) : 'Error al cambiar contraseña'))
     },
   })
 
@@ -365,13 +412,13 @@ function PortalMyProfile({ changeLang }) {
           <PortalSection title="Información personal">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
               <PortalField label="Nombre visible">
-                <PortalInput value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
+                <PortalInput value={form.full_name} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, full_name: e.target.value }))} />
               </PortalField>
               <PortalField label="Cargo / Rol">
-                <PortalInput value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} />
+                <PortalInput value={form.job_title} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, job_title: e.target.value }))} />
               </PortalField>
               <PortalField label="Teléfono">
-                <PortalInput value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+                <PortalInput value={form.phone} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, phone: e.target.value }))} />
               </PortalField>
             </div>
             <PortalBanner tone="info" icon={<KeyRound size={16} />}
@@ -441,7 +488,7 @@ function PortalMyProfile({ changeLang }) {
         <PortalCard>
           <PortalSection title="Idioma del portal">
             <PortalField label="Selecciona idioma">
-              <PortalSelect value={pendingLang} onChange={e => setPendingLang(e.target.value)}>
+              <PortalSelect value={pendingLang} onChange={(e: ChangeEvent<HTMLSelectElement>) => setPendingLang(e.target.value)}>
                 {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
               </PortalSelect>
             </PortalField>
@@ -464,11 +511,11 @@ function PortalMyProfile({ changeLang }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <PortalField label="Nueva contraseña">
                 <PortalInput type="password" value={pwdForm.new_pwd}
-                  onChange={e => setPwdForm(f => ({ ...f, new_pwd: e.target.value }))} placeholder="Nueva contraseña" />
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPwdForm(f => ({ ...f, new_pwd: e.target.value }))} placeholder="Nueva contraseña" />
               </PortalField>
               <PortalField label="Confirmar nueva contraseña">
                 <PortalInput type="password" value={pwdForm.confirm}
-                  onChange={e => setPwdForm(f => ({ ...f, confirm: e.target.value }))} placeholder="Repite la contraseña" />
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPwdForm(f => ({ ...f, confirm: e.target.value }))} placeholder="Repite la contraseña" />
               </PortalField>
             </div>
             {pwdError && (
@@ -501,7 +548,7 @@ export default function PortalClientePage() {
     } catch { /* noop */ }
     return localStorage.getItem('portal_lang') || 'es'
   })
-  const changeLang = (l) => { setLang(l); localStorage.setItem('portal_lang', l) }
+  const changeLang: ChangeLangFn = (l) => { setLang(l); localStorage.setItem('portal_lang', l) }
   return (
     <LangContext.Provider value={lang}>
       <ClientAuthProvider>
@@ -511,10 +558,10 @@ export default function PortalClientePage() {
   )
 }
 
-function PortalClienteInner({ changeLang, currentLang }) {
+function PortalClienteInner({ changeLang, currentLang }: { changeLang: ChangeLangFn; currentLang: string }) {
   const _toast = useToast()
-  const { client } = useClientAuth()
+  const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
   return client
-    ? <PortalApp changeLang={changeLang} currentLang={currentLang} />
-    : <LoginScreen changeLang={changeLang} currentLang={currentLang} />
+    ? <PortalApp changeLang={changeLang} />
+    : <LoginScreen _changeLang={changeLang} _currentLang={currentLang} />
 }
