@@ -16,9 +16,11 @@ import {
   getSyncStats,
 } from '../services/offlineSync';
 import api from '../services/api';
+import { useAppT } from '../i18n/AppLangContext';
 
 export default function OfflineIndicator() {
-  const { 
+  const t = useAppT();
+  const {
     isOnline, 
     pendingCount: offlineSyncCount, 
     conflictCount, 
@@ -93,7 +95,7 @@ export default function OfflineIndicator() {
           }}
         >
           <span style={{ fontSize: "var(--text-md)" }}>⚠️</span>
-          <span>{totalConflicts} conflict{totalConflicts !== 1 ? 's' : ''} pending review</span>
+          <span>{t('offline_indicator.conflicts_pending', { count: totalConflicts })}</span>
         </div>
       )}
 
@@ -142,11 +144,11 @@ export default function OfflineIndicator() {
             fontWeight: 500,
           }}
         >
-          {isOnline ? 'Online' : 'Offline'}
+          {isOnline ? t('offline_indicator.online') : t('offline_indicator.offline')}
         </span>
 
         {syncInProgress && (
-          <span style={{ fontSize: "var(--text-2xs)", color: 'var(--warning)', marginLeft: 4 }}>🔄 Syncing...</span>
+          <span style={{ fontSize: "var(--text-2xs)", color: 'var(--warning)', marginLeft: 4 }}>{t('offline_indicator.syncing')}</span>
         )}
 
         {totalPending > 0 && (
@@ -189,18 +191,18 @@ export default function OfflineIndicator() {
           {/* Stats */}
           <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--surface-5)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span>Pending operations:</span>
+              <span>{t('offline_indicator.pending_operations')}</span>
               <strong style={{ color: 'var(--warning)' }}>{totalPending}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span>Pending conflicts:</span>
+              <span>{t('offline_indicator.pending_conflicts')}</span>
               <strong style={{ color: totalConflicts > 0 ? 'var(--danger)' : 'var(--success)' }}>
                 {totalConflicts}
               </strong>
             </div>
             {syncStats?.resolvedConflictsCount > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Resolved conflicts:</span>
+                <span>{t('offline_indicator.resolved_conflicts')}</span>
                 <strong style={{ color: 'var(--success)' }}>{syncStats.resolvedConflictsCount}</strong>
               </div>
             )}
@@ -209,13 +211,13 @@ export default function OfflineIndicator() {
           {/* Last sync result */}
           {lastSyncResult && (
             <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--surface-5)', fontSize: "var(--text-2xs)" }}>
-              <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text-2)' }}>Last sync:</div>
-              <div>✓ Synced: {lastSyncResult.synced}</div>
+              <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text-2)' }}>{t('offline_indicator.last_sync')}</div>
+              <div>{t('offline_indicator.synced_count', { count: lastSyncResult.synced })}</div>
               {lastSyncResult.failed > 0 && (
-                <div style={{ color: 'var(--danger)' }}>✗ Failed: {lastSyncResult.failed}</div>
+                <div style={{ color: 'var(--danger)' }}>{t('offline_indicator.failed_count', { count: lastSyncResult.failed })}</div>
               )}
               {lastSyncResult.conflicts > 0 && (
-                <div style={{ color: 'var(--orange)' }}>⚠ Conflicts: {lastSyncResult.conflicts}</div>
+                <div style={{ color: 'var(--orange)' }}>{t('offline_indicator.conflicts_count', { count: lastSyncResult.conflicts })}</div>
               )}
             </div>
           )}
@@ -238,13 +240,13 @@ export default function OfflineIndicator() {
                 opacity: manualSyncing || syncInProgress ? 0.7 : 1,
               }}
             >
-              {manualSyncing || syncInProgress ? '⏳ Syncing...' : '🔄 Sync Now'}
+              {manualSyncing || syncInProgress ? t('offline_indicator.syncing_now') : t('offline_indicator.sync_now_btn')}
             </button>
           )}
 
           {isOnline && totalPending === 0 && totalConflicts === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-2xs)" }}>
-              ✓ All synced
+              {t('offline_indicator.all_synced')}
             </div>
           )}
         </div>

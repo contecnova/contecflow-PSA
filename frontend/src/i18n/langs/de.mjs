@@ -1418,5 +1418,51 @@ git_integration: {
   errors: {
     generic: 'Unerwarteter Fehler',
   },
+
+  // TODO: i18n translation review
+  offline_indicator: {
+    synced_partial: '⚠ {synced} synchronisiert, {failed} fehlgeschlagen — {at}',
+    synced_ok: '✅ {synced} Buchungen synchronisiert — {at}',
+    online: 'Online',
+    offline: 'Offline',
+    pending: 'Synchronisierung ausstehend',
+    pending_label: '{count} ausstehend',
+    sync_now: '⚡ Synchronisieren',
+    syncing: '🔄 Synchronisiere…',
+    banner_offline: 'Keine Verbindung — im Offline-Modus',
+    banner_pending: '({count} ausstehende Vorgänge)',
+    conflicts_pending: '{count} Konflikt(e) zur Überprüfung ausstehend',
+    pending_operations: 'Ausstehende Vorgänge:',
+    pending_conflicts: 'Ausstehende Konflikte:',
+    resolved_conflicts: 'Gelöste Konflikte:',
+    last_sync: 'Letzte Synchronisierung:',
+    synced_count: '✓ Synchronisiert: {count}',
+    failed_count: '✗ Fehlgeschlagen: {count}',
+    conflicts_count: '⚠ Konflikte: {count}',
+    sync_now_btn: '🔄 Jetzt synchronisieren',
+    syncing_now: '⏳ Synchronisiere…',
+    all_synced: '✓ Alles synchronisiert',
+  },
+
+  // TODO: i18n translation review
+  offline_conflicts: {
+    aria_history: 'Verlauf der Offline-Konflikte',
+    aria_conflicts: 'Offline-Synchronisierungskonflikte',
+    title_history: 'Konfliktverlauf',
+    title_count: '{count} Konflikte',
+    btn_pending: 'Ausstehend',
+    btn_history: 'Verlauf',
+    no_history: 'Noch kein Konfliktverlauf vorhanden.',
+    conflict_num: 'Konflikt Nr. {id}',
+    operation: 'Vorgang: {opId}',
+    resolution: 'Lösung: {resolution}',
+    back_to_list: '← Zurück zur Liste',
+    local_value: 'Lokaler Wert:',
+    server_value: 'Serverwert:',
+    accept_server: 'Server übernehmen',
+    keep_local: 'Lokal behalten',
+    resolving: '…',
+    strategy: 'Strategie: {strategy}',
+  },
 };
 export default de;
