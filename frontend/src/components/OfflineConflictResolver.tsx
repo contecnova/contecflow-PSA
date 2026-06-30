@@ -78,6 +78,8 @@ export default function OfflineConflictResolver() {
 
   return (
     <div
+      role="region"
+      aria-label={showHistory ? 'Historial de conflictos offline' : 'Conflictos de sincronización offline'}
       style={{
         position: 'fixed',
         bottom: 20,
