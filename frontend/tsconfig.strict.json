@@ -46,6 +46,10 @@
     "src/pages/SemanticEnginePage.tsx",
     "src/pages/CallPage.tsx",
     "src/components/cmdb/CMDBTopologyGraph.tsx",
-    "src/pages/ProjectDetailPage.tsx"
+    "src/pages/ProjectDetailPage.tsx",
+    "src/pages/ExpensesPage.tsx",
+    "src/pages/PipelinePage.tsx",
+    "src/pages/service-desk/QueueAndRoutingSections.tsx",
+    "src/pages/WikiPage.tsx"
   ]
 }
