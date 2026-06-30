@@ -50,6 +50,10 @@
     "src/pages/ExpensesPage.tsx",
     "src/pages/PipelinePage.tsx",
     "src/pages/service-desk/QueueAndRoutingSections.tsx",
-    "src/pages/WikiPage.tsx"
+    "src/pages/WikiPage.tsx",
+    "src/pages/service-desk/MetricsDashboardTab.tsx",
+    "src/pages/SprintsPage.tsx",
+    "src/pages/ReportBuilderPage.tsx",
+    "src/pages/GrcPage.tsx"
   ]
 }
