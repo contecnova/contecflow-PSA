@@ -1,16 +1,29 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, tasksApi, risksApi } from '../services/api'
-import { Spinner, LoadBar } from '../components/ui'
+import { Spinner, LoadBar as LoadBarRaw } from '../components/ui'
 import { fmtDate, fmtCurrency, TYPE_LABELS } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check, Sparkles } from 'lucide-react'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { useAppT } from '../i18n/AppLangContext'
 
-const STATUS_COLOR_MAP = {
+// LoadBar's inferred props are all-required; expose a loose signature for callers.
+const LoadBar = LoadBarRaw as (props: { value: number; max?: number; height?: number; label?: string; color?: string }) => JSX.Element
+
+// ── Loose project / task / member / risk shapes (API slices are narrowly typed) ──
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Project = { [k: string]: any; id: string; name?: string; status?: string }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Task = { [k: string]: any; id?: string; status?: string; title?: string; assignee_name?: string; due_date?: string }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Member = { [k: string]: any; id?: string; user_id?: string; full_name?: string; name?: string; role?: string; project_role?: string; allocation_pct?: number | null }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Risk = { [k: string]: any; id?: string; title?: string; description?: string; impact?: string; severity?: string; status?: string }
+
+const STATUS_COLOR_MAP: Record<string, string> = {
   planning:  'var(--text-2)',
   active:    'var(--accent)',
   on_hold:   'var(--warning)',
@@ -21,9 +34,9 @@ const STATUS_COLOR_MAP = {
   archived:  'var(--text-4)',
 }
 
-const RISK_COLOR = { low: 'var(--success)', medium: 'var(--warning)', high: 'var(--danger)', critical: 'var(--danger)' }
+const RISK_COLOR: Record<string, string> = { low: 'var(--success)', medium: 'var(--warning)', high: 'var(--danger)', critical: 'var(--danger)' }
 
-function MetaItem({ label, value }) {
+function MetaItem({ label, value }: { label: string; value?: string | number | null }) {
   if (!value) return null
   return (
     <div>
@@ -33,7 +46,7 @@ function MetaItem({ label, value }) {
   )
 }
 
-function OverviewTab({ project }) {
+function OverviewTab({ project }: { project: Project }) {
   const t = useAppT()
   const budgetPct = project.budget_used_pct ?? 0
   const budgetColor = budgetPct > 90 ? 'var(--danger)' : budgetPct > 70 ? 'var(--warning)' : 'var(--success)'
@@ -109,18 +122,19 @@ function OverviewTab({ project }) {
   )
 }
 
-function TasksTab({ projectId }) {
+function TasksTab({ projectId }: { projectId?: string }) {
   const t = useAppT()
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<Task[]>({
     queryKey: ['project-detail-tasks', projectId],
     queryFn: () => tasksApi.list({ project_id: projectId, page_size: 50 }).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
+      const d = r.data as unknown as Task[] | { items?: Task[] }
+      return Array.isArray(d) ? d : (d?.items || [])
     }),
     staleTime: 30_000,
   })
 
   const tasks = data || []
-  const STATUS_COLOR = { todo: 'var(--text-3)', in_progress: 'var(--accent)', done: 'var(--success)', blocked: 'var(--danger)' }
+  const STATUS_COLOR: Record<string, string> = { todo: 'var(--text-3)', in_progress: 'var(--accent)', done: 'var(--success)', blocked: 'var(--danger)' }
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
 
@@ -152,7 +166,7 @@ function TasksTab({ projectId }) {
         }}>
           <div style={{
             width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-            background: STATUS_COLOR[task.status] || 'var(--text-3)',
+            background: STATUS_COLOR[task.status || ''] || 'var(--text-3)',
           }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -167,8 +181,8 @@ function TasksTab({ projectId }) {
           )}
           <span style={{
             fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 4, flexShrink: 0,
-            background: `${STATUS_COLOR[task.status] || 'var(--text-3)'}18`,
-            color: STATUS_COLOR[task.status] || 'var(--text-3)', fontWeight: 700,
+            background: `${STATUS_COLOR[task.status || ''] || 'var(--text-3)'}18`,
+            color: STATUS_COLOR[task.status || ''] || 'var(--text-3)', fontWeight: 700,
             textTransform: 'uppercase', letterSpacing: '0.05em',
           }}>
             {task.status?.replace(/_/g, ' ') || '—'}
@@ -179,12 +193,13 @@ function TasksTab({ projectId }) {
   )
 }
 
-function TeamTab({ projectId }) {
+function TeamTab({ projectId }: { projectId?: string }) {
   const t = useAppT()
-  const { data: members = [], isLoading } = useQuery({
+  const { data: members = [], isLoading } = useQuery<Member[]>({
     queryKey: ['project-detail-team', projectId],
-    queryFn: () => projectsApi.team(projectId).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.members || d?.items || [])
+    queryFn: () => projectsApi.team(projectId!).then(r => {
+      const d = r.data as Member[] | { members?: Member[]; items?: Member[] }
+      return Array.isArray(d) ? d : (d?.members || d?.items || [])
     }),
     staleTime: 60_000,
   })
@@ -234,12 +249,13 @@ function TeamTab({ projectId }) {
   )
 }
 
-function RisksTab({ projectId }) {
+function RisksTab({ projectId }: { projectId?: string }) {
   const t = useAppT()
-  const { data: risks = [], isLoading } = useQuery({
+  const { data: risks = [], isLoading } = useQuery<Risk[]>({
     queryKey: ['project-detail-risks', projectId],
-    queryFn: () => risksApi.list(projectId).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
+    queryFn: () => risksApi.list(projectId, undefined).then((r: { data: unknown }) => {
+      const d = r.data as Risk[] | { items?: Risk[] }
+      return Array.isArray(d) ? d : (d?.items || [])
     }),
     staleTime: 60_000,
   })
@@ -256,12 +272,12 @@ function RisksTab({ projectId }) {
     </div>
   )
 
-  const IMPACT_COLOR = { low: 'var(--success)', medium: 'var(--warning)', high: 'var(--danger)', critical: 'var(--danger)' }
+  const IMPACT_COLOR: Record<string, string> = { low: 'var(--success)', medium: 'var(--warning)', high: 'var(--danger)', critical: 'var(--danger)' }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {risks.map((risk, i) => {
-        const impColor = IMPACT_COLOR[risk.impact || risk.severity] || 'var(--text-3)'
+        const impColor = IMPACT_COLOR[risk.impact || risk.severity || ''] || 'var(--text-3)'
         return (
           <div key={risk.id || i} style={{
             background: 'var(--surface-2)', border: `1px solid ${impColor}30`,
@@ -297,7 +313,12 @@ function RisksTab({ projectId }) {
   )
 }
 
-function EditProjectForm({ project, onSave, onCancel, isPending }) {
+function EditProjectForm({ project, onSave, onCancel, isPending }: {
+  project: Project
+  onSave: (form: Record<string, string>) => void
+  onCancel: () => void
+  isPending: boolean
+}) {
   const t = useAppT()
   const STATUS_CFG = {
     planning:  { color: STATUS_COLOR_MAP.planning,  label: t('project_detail.status_planning') },
@@ -309,21 +330,21 @@ function EditProjectForm({ project, onSave, onCancel, isPending }) {
     cancelled: { color: STATUS_COLOR_MAP.cancelled, label: t('project_detail.status_cancelled') },
     archived:  { color: STATUS_COLOR_MAP.archived,  label: t('project_detail.status_archived') },
   }
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Record<string, string>>({
     name: project.name || '',
     description: project.description || '',
     status: project.status || 'active',
     end_date_planned: project.end_date_planned?.slice(0, 10) || '',
     budget_amount: project.budget_amount ?? '',
   })
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const inputStyle = {
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+  const inputStyle: CSSProperties = {
     width: '100%', boxSizing: 'border-box',
     background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
     borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)',
     fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit',
   }
-  const labelStyle = { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 4 }
+  const labelStyle: CSSProperties = { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 4 }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600 }}>
@@ -381,7 +402,7 @@ export default function ProjectDetailPage() {
     { id: 'team',      label: t('project_detail.tab_team'),     icon: Users },
     { id: 'risks',     label: t('project_detail.tab_risks'),    icon: AlertTriangle },
   ]
-  const STATUS_CFG = {
+  const STATUS_CFG: Record<string, { color: string; label: string }> = {
     planning:  { color: STATUS_COLOR_MAP.planning,  label: t('project_detail.status_planning') },
     active:    { color: STATUS_COLOR_MAP.active,    label: t('project_detail.status_active') },
     on_hold:   { color: STATUS_COLOR_MAP.on_hold,   label: t('project_detail.status_on_hold') },
@@ -391,7 +412,7 @@ export default function ProjectDetailPage() {
     cancelled: { color: STATUS_COLOR_MAP.cancelled, label: t('project_detail.status_cancelled') },
     archived:  { color: STATUS_COLOR_MAP.archived,  label: t('project_detail.status_archived') },
   }
-  const { id } = useParams()
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const toast = useToast()
   const qc = useQueryClient()
@@ -399,14 +420,14 @@ export default function ProjectDetailPage() {
   const [editing, setEditing] = useState(false)
   const [smartScheduleOpen, setSmartScheduleOpen] = useState(false)
 
-  const { data: project, isLoading } = useQuery({
+  const { data: project, isLoading } = useQuery<Project>({
     queryKey: ['project', id],
-    queryFn: () => projectsApi.get(id).then(r => r.data),
+    queryFn: () => projectsApi.get(id!).then(r => r.data as Project),
     staleTime: 30_000,
   })
 
   const { mutate: updateProject, isPending: saving } = useMutation({
-    mutationFn: (data) => projectsApi.update(id, data),
+    mutationFn: (data: Record<string, string>) => projectsApi.update(id!, data as Record<string, never>),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project', id] })
       qc.invalidateQueries({ queryKey: ['projects'] })
@@ -429,8 +450,8 @@ export default function ProjectDetailPage() {
     </div>
   )
 
-  const statusCfg = STATUS_CFG[project.status] || STATUS_CFG.planning
-  const riskColor = RISK_COLOR[project.risk_level] || 'var(--text-3)'
+  const statusCfg = STATUS_CFG[project.status || ''] || STATUS_CFG.planning
+  const riskColor = RISK_COLOR[project.risk_level || ''] || 'var(--text-3)'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * CallPage — vista de videollamada (Mockup §6.2).
  *
@@ -19,6 +18,7 @@
  *     (envía chunks audio a Whisper si está habilitado).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ComponentType, Ref } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Mic, MicOff, Video, VideoOff, Monitor, Phone, MessageSquare,
@@ -27,13 +27,36 @@ import {
 import { collabApi } from '../services/collaborationApi'
 import { useAppT } from '../i18n/AppLangContext'
 
+type TFn = (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
+
+interface ChatItem {
+  time: string
+  name: string
+  body: string
+  me: boolean
+  reaction?: boolean
+}
+interface CaptionLine {
+  name: string
+  text: string
+  ts: number
+}
+interface ParticipantInfo {
+  id: string
+  name: string
+  audioOnly?: boolean
+  raised?: boolean
+  quality?: string
+  local?: boolean
+}
+
 export default function CallPage(): JSX.Element {
   const t = useAppT()
   const { callId } = useParams<{ callId: string }>()
   const [params] = useSearchParams()
   const navigate = useNavigate()
   // Leer credenciales desde sessionStorage (nunca desde URL) y limpiar inmediatamente
-  const _stored = (() => {
+  const _stored: { room?: string; url?: string; token?: string; kind?: string } = (() => {
     try {
       const raw = sessionStorage.getItem(`call_creds_${callId}`)
       if (raw) { sessionStorage.removeItem(`call_creds_${callId}`); return JSON.parse(raw) }
@@ -54,18 +77,19 @@ export default function CallPage(): JSX.Element {
   const [showChat, setShowChat] = useState(true)
   const [showParticipants, setShowParticipants] = useState(false)
   const [chatMsg, setChatMsg] = useState('')
-  const [chatItems, setChatItems] = useState([])
+  const [chatItems, setChatItems] = useState<ChatItem[]>([])
   const [duration, setDuration] = useState(0)
-  const [participants, setParticipants] = useState([])  // {id, name, audioOnly, raised, quality}
+  const [participants, setParticipants] = useState<ParticipantInfo[]>([])  // {id, name, audioOnly, raised, quality}
   const [networkQuality, setNetworkQuality] = useState('excellent')
   const [autoFallback, setAutoFallback] = useState(false)
-  const [captionLines, setCaptionLines] = useState([])
+  const [captionLines, setCaptionLines] = useState<CaptionLine[]>([])
 
-  const localVideoRef = useRef(null)
-  const localStreamRef = useRef(null)
-  const remoteRefs = useRef({})  // identity -> HTMLVideoElement
-  const roomRef = useRef(null)
-  const recorderRef = useRef(null)
+  const localVideoRef = useRef<HTMLVideoElement | null>(null)
+  const localStreamRef = useRef<MediaStream | null>(null)
+  const remoteRefs = useRef<Record<string, HTMLVideoElement>>({})  // identity -> HTMLVideoElement
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const roomRef = useRef<any>(null)
+  const recorderRef = useRef<MediaRecorder | null>(null)
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -78,7 +102,8 @@ export default function CallPage(): JSX.Element {
   useEffect(() => {
     if (!isLiveKitReal) return
     let mounted = true
-    let room
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let room: any
 
     ;(async () => {
       try {
@@ -92,7 +117,7 @@ export default function CallPage(): JSX.Element {
 
         room.on(RoomEvent.ParticipantConnected, refreshParticipants)
         room.on(RoomEvent.ParticipantDisconnected, refreshParticipants)
-        room.on(RoomEvent.ConnectionQualityChanged, (quality, p) => {
+        room.on(RoomEvent.ConnectionQualityChanged, (quality: string, p: { identity?: string }) => {
           if (p?.identity === room.localParticipant.identity) {
             setNetworkQuality(quality)
             // Auto-fallback a audio si la red baja
@@ -105,7 +130,8 @@ export default function CallPage(): JSX.Element {
           }
           refreshParticipants()
         })
-        room.on(RoomEvent.TrackSubscribed, (track, _pub, p) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        room.on(RoomEvent.TrackSubscribed, (track: any, _pub: any, p: { identity: string }) => {
           if (track.kind === Track.Kind.Video) {
             const el = remoteRefs.current[p.identity]
             if (el) track.attach(el)
@@ -113,7 +139,7 @@ export default function CallPage(): JSX.Element {
             track.attach()
           }
         })
-        room.on(RoomEvent.DataReceived, (payload, p) => {
+        room.on(RoomEvent.DataReceived, (payload: Uint8Array, p: { name?: string; identity?: string } | undefined) => {
           try {
             const decoded = new TextDecoder().decode(payload)
             const msg = JSON.parse(decoded)
@@ -128,7 +154,8 @@ export default function CallPage(): JSX.Element {
 
         // Attach local video
         const localTrack = Array.from(room.localParticipant.videoTrackPublications.values())
-          .map(p => p.track).find(Boolean)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((p: any) => p.track).find(Boolean)
         if (localTrack && localVideoRef.current) localTrack.attach(localVideoRef.current)
 
         refreshParticipants()
@@ -139,7 +166,7 @@ export default function CallPage(): JSX.Element {
 
     function refreshParticipants() {
       if (!roomRef.current) return
-      const list = []
+      const list: ParticipantInfo[] = []
       list.push({
         id: roomRef.current.localParticipant.identity,
         name: t('call.you'),
@@ -152,7 +179,8 @@ export default function CallPage(): JSX.Element {
         list.push({
           id: p.identity,
           name: p.name || p.identity,
-          audioOnly: !Array.from(p.videoTrackPublications.values()).some(pub => pub.track),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          audioOnly: !Array.from(p.videoTrackPublications.values()).some((pub: any) => pub.track),
           raised: p.metadata?.includes('raised') || false,
           quality: p.connectionQuality,
         })
@@ -160,12 +188,12 @@ export default function CallPage(): JSX.Element {
       setParticipants(list)
     }
 
-    function handleDataMessage(msg, sender) {
+    function handleDataMessage(msg: { type?: string; body?: string; emoji?: string; text?: string }, sender: { name?: string; identity?: string } | undefined) {
       if (msg.type === 'chat') {
         setChatItems(prev => [...prev, {
           time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
           name: sender?.name || sender?.identity || t('call.other'),
-          body: msg.body, me: false,
+          body: msg.body || '', me: false,
         }])
       } else if (msg.type === 'reaction') {
         setChatItems(prev => [...prev, {
@@ -175,7 +203,7 @@ export default function CallPage(): JSX.Element {
           me: false, reaction: true,
         }])
       } else if (msg.type === 'caption') {
-        setCaptionLines(prev => [...prev.slice(-5), { name: sender?.name || t('call.other'), text: msg.text, ts: Date.now() }])
+        setCaptionLines(prev => [...prev.slice(-5), { name: sender?.name || t('call.other'), text: msg.text || '', ts: Date.now() }])
       }
     }
 
@@ -226,12 +254,13 @@ export default function CallPage(): JSX.Element {
       const stream = roomRef.current
         ? new MediaStream([
             ...Array.from(roomRef.current.localParticipant.audioTrackPublications.values())
-              .map(p => p.track?.mediaStreamTrack).filter(Boolean),
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .map((p: any) => p.track?.mediaStreamTrack).filter(Boolean),
           ])
-        : new MediaStream(localStreamRef.current.getAudioTracks())
+        : new MediaStream(localStreamRef.current!.getAudioTracks())
       const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
       recorderRef.current = recorder
-      const chunks = []
+      const chunks: Blob[] = []
       recorder.ondataavailable = async (e) => {
         if (e.data.size === 0) return
         chunks.push(e.data)
@@ -264,7 +293,7 @@ export default function CallPage(): JSX.Element {
     else { try { recorderRef.current?.stop() } catch { /* noop */ } }
   }, [captions, startCaptions])
 
-  const fmtDuration = (s) => {
+  const fmtDuration = (s: number) => {
     const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
     return [h, m, sec].map(x => String(x).padStart(2, '0')).join(':')
   }
@@ -325,7 +354,7 @@ export default function CallPage(): JSX.Element {
     navigate(-1)
   }
 
-  const tilesToShow = isLiveKitReal && participants.length > 0
+  const tilesToShow: ParticipantInfo[] = isLiveKitReal && participants.length > 0
     ? participants
     : [{ id: 'me', name: t('call.you'), local: true, audioOnly: cameraOff }, { id: 'wait1', name: t('call.waiting') }]
 
@@ -424,8 +453,8 @@ export default function CallPage(): JSX.Element {
 
 function now() { return new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) }
 
-function QualityBadge({ q, fallback, t }) {
-  const map = {
+function QualityBadge({ q, fallback, t }: { q: string; fallback: boolean; t: TFn }) {
+  const map: Record<string, { color: string; label: string }> = {
     excellent: { color: '#10b981', label: t('call.quality_excellent') },
     good: { color: '#34d399', label: t('call.quality_good') },
     poor: { color: '#f59e0b', label: t('call.quality_poor') },
@@ -443,7 +472,13 @@ function QualityBadge({ q, fallback, t }) {
   )
 }
 
-function Tile({ name, hasVideo, videoRef, raised, quality }) {
+function Tile({ name, hasVideo, videoRef, raised, quality }: {
+  name?: string
+  hasVideo?: boolean
+  videoRef: Ref<HTMLVideoElement> | ((el: HTMLVideoElement | null) => void)
+  raised?: boolean
+  quality?: string
+}) {
   return (
     <div style={{
       aspectRatio: '16 / 9', borderRadius: 14, overflow: 'hidden',
@@ -476,7 +511,14 @@ function Tile({ name, hasVideo, videoRef, raised, quality }) {
   )
 }
 
-function CtrlBtn({ icon: Icon, active, onClick, label, dangerWhenOff }) {
+function CtrlBtn({ icon: Icon, active, onClick, label, dangerWhenOff }: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  icon: ComponentType<any>
+  active?: boolean
+  onClick: () => void
+  label: string
+  dangerWhenOff?: boolean
+}) {
   const bg = dangerWhenOff ? '#dc2626' : (active ? '#4f8ef7' : '#1f2738')
   return (
     <button onClick={onClick} title={label} style={{
@@ -489,7 +531,14 @@ function CtrlBtn({ icon: Icon, active, onClick, label, dangerWhenOff }) {
   )
 }
 
-function ChatLateral({ items, value, onChange, onSend, onClose, t }) {
+function ChatLateral({ items, value, onChange, onSend, onClose, t }: {
+  items: ChatItem[]
+  value: string
+  onChange: (v: string) => void
+  onSend: () => void
+  onClose: () => void
+  t: TFn
+}) {
   return (
     <div style={{ width: 320, borderLeft: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -524,7 +573,11 @@ function ChatLateral({ items, value, onChange, onSend, onClose, t }) {
   )
 }
 
-function ParticipantsPanel({ onClose, participants, t }) {
+function ParticipantsPanel({ onClose, participants, t }: {
+  onClose: () => void
+  participants: ParticipantInfo[]
+  t: TFn
+}) {
   return (
     <div style={{ width: 280, borderLeft: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>

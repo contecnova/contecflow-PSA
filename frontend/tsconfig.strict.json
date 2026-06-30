@@ -43,6 +43,9 @@
     "src/pages/service-desk/TicketDetail.tsx",
     "src/pages/ProjectTemplatesPage.tsx",
     "src/pages/UserCostsPage.tsx",
-    "src/pages/SemanticEnginePage.tsx"
+    "src/pages/SemanticEnginePage.tsx",
+    "src/pages/CallPage.tsx",
+    "src/components/cmdb/CMDBTopologyGraph.tsx",
+    "src/pages/ProjectDetailPage.tsx"
   ]
 }
