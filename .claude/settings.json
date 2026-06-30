@@ -18,7 +18,10 @@
       "Bash(python -m pytest tests/test_performance_reminders_kpi.py::test_org_kpis_aggregate_active_cycles -x --tb=long)",
       "Bash(python -m pytest tests/test_performance_reminders_kpi.py -x --tb=short)",
       "Bash(python -c \"import reportlab; print\\('reportlab', reportlab.__version__\\)\")",
-      "Bash(python -m pytest tests/test_perf_pdf_email.py -x --tb=short)"
+      "Bash(python -m pytest tests/test_perf_pdf_email.py -x --tb=short)",
+      "Bash(cd \"C:/Users/f80ova0/Documents/Code/contecflow PSA/frontend\" && sed -i 's/typeLabels\\(t\\)\\\\[a\\\\.type\\\\]/typeLabels\\(t\\)[a.type || \"\"]/g' src/pages/AbsencesPage.tsx && grep -n 'typeLabels\\(t\\)\\\\[a.type' src/pages/AbsencesPage.tsx)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT_GREP=$?\")"
     ]
   }
 }

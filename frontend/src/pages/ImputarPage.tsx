@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useMemo } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -17,7 +16,50 @@ import { useAppT } from '../i18n/AppLangContext'
 
 const HOUR_OPTIONS = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8]
 
-function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }) {
+type TFn = (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
+
+interface Anomaly {
+  type?: string
+  date?: string
+  message?: string
+  suggestion?: string
+  [k: string]: unknown
+}
+interface AnomaliesData {
+  anomalies?: Anomaly[]
+  period?: { from?: string; to?: string }
+  total_entries?: number
+}
+interface WeekDayEntry { date?: string; hours?: number }
+interface WeekData {
+  by_day?: WeekDayEntry[]
+  week_start?: string
+  total_hours?: number
+  capacity_hours?: number
+  load_pct?: number
+}
+
+interface ProjectOption { id: string; code?: string; name?: string }
+interface TaskOption { id: string; code?: string; title?: string }
+interface ActiveTimer { total_elapsed_seconds?: number | null }
+interface ImputationRow {
+  id: string
+  hours: number
+  description?: string
+  is_billable?: boolean
+  project?: { name?: string }
+  task?: { title?: string }
+}
+
+interface WeekGridProps {
+  weekData: WeekData | undefined
+  anomaliesByDate: Record<string, Anomaly>
+  hasAnyAnomaly: boolean
+  onOpenDrawer: () => void
+  t: TFn
+}
+
+function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }: WeekGridProps) {
   if (!weekData) return null
   const days = ['L', 'M', 'X', 'J', 'V']
   const byDay = weekData.by_day || []
@@ -54,8 +96,8 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t })
             base.setDate(base.getDate() + i)
             dayIso = base.toISOString().split('T')[0]
           }
-          const entry = dayIso ? byDay.find(e => e.date === dayIso) : byDay[i]
-          const hasHours = entry && entry.hours > 0
+          const entry = dayIso ? byDay.find((e: WeekDayEntry) => e.date === dayIso) : byDay[i]
+          const hasHours = entry && (entry.hours ?? 0) > 0
           const dayAnomaly = dayIso ? anomaliesByDate?.[dayIso] : null
           return (
             <div key={d} style={{ flex: 1, textAlign: 'center', position: 'relative' }}>
@@ -75,7 +117,7 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t })
                 }}
                 title={dayAnomaly ? dayAnomaly.message : undefined}
               >
-                {hasHours ? `${fmtNumber(entry.hours, 2)}h` : '—'}
+                {hasHours ? `${fmtNumber(entry?.hours ?? 0, 2)}h` : '—'}
                 {dayAnomaly && (
                   <span
                     style={{
@@ -96,7 +138,7 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t })
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
         <span>{t('imputa_page.total')}: <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{fmtNumber(weekData.total_hours, 2)}h</span></span>
         <span>{t('imputa_page.capacity')}: <span style={{ color: 'var(--text-1)' }}>{weekData.capacity_hours}h</span></span>
-        <span style={{ color: weekData.load_pct > 100 ? 'var(--danger)' : weekData.load_pct > 85 ? 'var(--warning)' : 'var(--success)', fontWeight: 700 }}>
+        <span style={{ color: (weekData.load_pct ?? 0) > 100 ? 'var(--danger)' : (weekData.load_pct ?? 0) > 85 ? 'var(--warning)' : 'var(--success)', fontWeight: 700 }}>
           {weekData.load_pct?.toFixed(0)}{t('imputa_page.load_pct')}
         </span>
       </div>
@@ -105,9 +147,15 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t })
 }
 
 
-function AnomaliesDrawer({ open, onClose, anomaliesData }) {
+interface AnomaliesDrawerProps {
+  open: boolean
+  onClose: () => void
+  anomaliesData: AnomaliesData | undefined
+}
+
+function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps) {
   if (!open) return null
-  const items = anomaliesData?.anomalies || []
+  const items: Anomaly[] = anomaliesData?.anomalies || []
   return (
     <div
       onClick={onClose}
@@ -142,7 +190,7 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }) {
           <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)' }}>
             Sin anomalías detectadas.
           </div>
-        ) : items.map((a, idx) => (
+        ) : items.map((a: Anomaly, idx: number) => (
           <div key={idx} style={{
             background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
             borderRadius: 10, padding: 14,
@@ -185,44 +233,50 @@ export default function ImputarPage(): JSX.Element {
     is_billable: false,
   })
   const [saved, setSaved] = useState(false)
-  const [duplicateError, setDuplicateError] = useState(null)
+  const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const [forceDuplicate, setForceDuplicate] = useState(false)
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectOption[]>({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data),
+    queryFn: () => projectsApi.list().then(r => (r.data ?? []) as unknown as ProjectOption[]),
   })
 
-  const { data: tasks = [] } = useQuery({
+  const { data: tasks = [] } = useQuery<TaskOption[]>({
     queryKey: ['tasks-my', form.project_id],
-    queryFn: () => tasksApi.list({ project_id: form.project_id, assignee_id: user?.id }).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => tasksApi.list({ project_id: form.project_id, assigned_to: user?.id }).then(r => {
+      const d = r.data as unknown as { items?: TaskOption[] } | TaskOption[] | null | undefined
+      return (Array.isArray(d) ? d : d?.items ?? []) as TaskOption[]
+    }),
     enabled: !!form.project_id,
   })
 
-  const { data: weekData } = useQuery({
+  const { data: weekData } = useQuery<WeekData>({
     queryKey: ['my-week'],
-    queryFn: () => imputationsApi.myWeek().then(r => r.data),
+    queryFn: () => imputationsApi.myWeek({}).then(r => r.data as WeekData),
   })
 
-  const { data: activeTimer } = useQuery({
+  const { data: activeTimer } = useQuery<ActiveTimer | null>({
     queryKey: ['timer-current'],
-    queryFn: () => imputationsApi.timerCurrent().then(r => r.data).catch(() => null),
+    queryFn: () => imputationsApi.timerCurrent().then(r => r.data as ActiveTimer).catch(() => null),
     refetchInterval: NOTIFICATIONS_POLL_MS,
   })
 
-  const { data: todayImputations = [] } = useQuery({
+  const { data: todayImputations = [] } = useQuery<ImputationRow[]>({
     queryKey: ['imputations-today'],
-    queryFn: () => imputationsApi.list({ date_from: today, date_to: today, user_id: user?.id }).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => imputationsApi.list({ date_from: today, date_to: today, user_id: user?.id }).then(r => {
+      const d = r.data as unknown as { items?: ImputationRow[] } | ImputationRow[] | null | undefined
+      return (Array.isArray(d) ? d : d?.items ?? []) as ImputationRow[]
+    }),
   })
 
   // Item #48: anomalías de imputación del propio user (últimos 30 días).
   // Heurística + estadística (mean + 2σ con n≥7). Solo se invoca si hay user.
-  const { data: anomaliesData } = useQuery({
+  const { data: anomaliesData } = useQuery<AnomaliesData>({
     queryKey: ['ai-timesheet-anomalies', user?.id],
     queryFn: () =>
       user?.id
         ? aiCopilotApi.timesheetSuggestions(user.id)
-            .then(r => r.data)
+            .then(r => r.data as AnomaliesData)
             .catch(() => ({ anomalies: [] }))
         : Promise.resolve({ anomalies: [] }),
     enabled: !!user?.id,
@@ -231,7 +285,7 @@ export default function ImputarPage(): JSX.Element {
 
   // Map ISO date → high_hours anomaly para badge inline en WeekGrid.
   const anomaliesByDate = useMemo(() => {
-    const out = {}
+    const out: Record<string, Anomaly> = {}
     for (const a of (anomaliesData?.anomalies || [])) {
       if (a?.type === 'high_hours' && a?.date) out[a.date] = a
     }
@@ -243,7 +297,7 @@ export default function ImputarPage(): JSX.Element {
   const [anomaliesDrawerOpen, setAnomaliesDrawerOpen] = useState(false)
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => imputationsApi.create(data),
+    mutationFn: (data: Record<string, unknown>) => imputationsApi.create(data),
     onSuccess: () => {
       setSaved(true)
       setDuplicateError(null)
@@ -257,9 +311,10 @@ export default function ImputarPage(): JSX.Element {
       qc.invalidateQueries({ queryKey: ['timesheets-pending'] })
       qc.invalidateQueries({ queryKey: ['timesheets-team'] })
     },
-    onError: e => {
-      if (e?.response?.status === 409) {
-        setDuplicateError(e?.response?.data?.detail || 'Ya existe una imputación para esta tarea en esa fecha.')
+    onError: (e: unknown) => {
+      const err = e as { response?: { status?: number; data?: { detail?: string } } }
+      if (err?.response?.status === 409) {
+        setDuplicateError(err?.response?.data?.detail || 'Ya existe una imputación para esta tarea en esa fecha.')
       } else {
         toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK))
       }
@@ -284,11 +339,11 @@ export default function ImputarPage(): JSX.Element {
     mutate({ ...form, force_duplicate: forceDuplicate })
   }
 
-  const [editingId, setEditingId] = useState(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ hours: 0, description: '', is_billable: false })
 
   const { mutate: updateImp, isPending: updating } = useMutation({
-    mutationFn: ({ id, data }) => imputationsApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => imputationsApi.update(id, data),
     onSuccess: () => {
       setEditingId(null)
       qc.invalidateQueries({ queryKey: ['my-week'] })
@@ -299,11 +354,11 @@ export default function ImputarPage(): JSX.Element {
       qc.invalidateQueries({ queryKey: ['timesheets-team'] })
       toast.success(t('imputa_page.updated_ok'))
     },
-    onError: e => toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK)),  
+    onError: (e: unknown) => toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: deleteImp } = useMutation({
-    mutationFn: (id) => imputationsApi.delete(id),
+    mutationFn: (id: string) => imputationsApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-week'] })
       qc.invalidateQueries({ queryKey: ['imputations-today'] })
@@ -313,17 +368,17 @@ export default function ImputarPage(): JSX.Element {
       qc.invalidateQueries({ queryKey: ['timesheets-team'] })
       toast.success(t('imputa_page.deleted_ok'))
     },
-    onError: e => toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK)),  
+    onError: (e: unknown) => toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK)),
   })
 
-  const set = (k) => (v) => {
+  const set = (k: string) => (v: unknown) => {
     setForm(f => ({ ...f, [k]: v }))
     if (k === 'task_id' || k === 'date') {
       setDuplicateError(null)
       setForceDuplicate(false)
     }
   }
-  const todayHours = todayImputations.reduce((s, i) => s + i.hours, 0)
+  const todayHours = todayImputations.reduce((s: number, i: ImputationRow) => s + i.hours, 0)
   const canSubmit = form.project_id && form.hours > 0 && form.date
 
   return (

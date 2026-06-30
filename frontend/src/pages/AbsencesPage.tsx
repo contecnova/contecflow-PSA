@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useId, useState } from 'react'
+import type { CSSProperties, ChangeEvent } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -15,11 +15,42 @@ import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
+type TFn = (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
 
-const typeLabels = (t) => ({
+interface VacationBalance {
+  days_remaining?: number
+  days_taken?: number
+  days_pending?: number
+  days_entitled?: number
+}
+
+interface ApiError {
+  response?: { data?: { detail?: unknown } }
+}
+// Render-equivalent formatter for backend validation detail (string | [{msg}]).
+const errDetailText = (err: unknown, fallback: string): string => {
+  const d = (err as ApiError)?.response?.data?.detail
+  if (Array.isArray(d)) return d.map((e: { msg?: string }) => e?.msg).join(', ')
+  return (typeof d === 'string' ? d : '') || fallback
+}
+
+type Absence = {
+  [k: string]: unknown
+  id: string
+  type?: string
+  status?: string
+  start_date?: string
+  end_date?: string
+  reason?: string
+  rejection_reason?: string
+  user_name?: string
+  working_days?: number
+}
+
+const typeLabels = (t: TFn): Record<string, string> => ({
   vacation: t('absences.type_vacation_full'),
   sick: t('absences.type_sick_full'),
   personal: t('absences.type_personal_full'),
@@ -29,14 +60,14 @@ const typeLabels = (t) => ({
   other: t('absences.type_other_full'),
 })
 
-const statusCfg = (t) => ({
+const statusCfg = (t: TFn): Record<string, { label: string; color: string }> => ({
   pending: { label: t('absences.status_pending'), color: 'var(--warning)' },
   approved: { label: t('absences.status_approved'), color: 'var(--success)' },
   rejected: { label: t('absences.status_rejected'), color: 'var(--danger)' },
   cancelled: { label: t('absences.status_cancelled'), color: 'var(--text-2)' },
 })
 
-const buildAbsenceRequestSchema = (t) => z.object({
+const buildAbsenceRequestSchema = (t: TFn) => z.object({
   type: z.string().min(1, t('absences.error_type_required')),
   start_date: z.string().min(1, t('absences.error_start_required')),
   end_date: z.string().min(1, t('absences.error_end_required')),
@@ -51,26 +82,26 @@ const buildAbsenceRequestSchema = (t) => z.object({
   }
 })
 
-const monthNames = (t) => ['', ...t('absences.months').split('|')]
-const dayNamesShort = (t) => t('absences.days_short').split('|')
+const monthNames = (t: TFn): string[] => ['', ...t('absences.months').split('|')]
+const dayNamesShort = (t: TFn): string[] => t('absences.days_short').split('|')
 
-function StatusBadge({ status }) {
+function StatusBadge({ status }: { status?: string }) {
   const t = useAppT()
   const cfgMap = statusCfg(t)
-  const cfg = cfgMap[status] || cfgMap.pending
+  const cfg = cfgMap[status || ''] || cfgMap.pending
   return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase' }}>{cfg.label}</span>
 }
 
-function RequestModal({ onClose }) {
+function RequestModal({ onClose }: { onClose: () => void }) {
   const t = useAppT()
   const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const [form, setForm] = useState({ type: 'vacation', start_date: '', end_date: '', reason: '' })
   const validation = useFormValidation(buildAbsenceRequestSchema(t))
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const set = (k) => (e) => {
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
@@ -79,22 +110,22 @@ function RequestModal({ onClose }) {
   const endId = `${idPrefix}-end`
   const reasonId = `${idPrefix}-reason`
 
-  const { data: balance } = useQuery({
+  const { data: balance } = useQuery<VacationBalance | null>({
     queryKey: ['vacation-balance-my'],
-    queryFn: () => absencesApi.vacationBalance().then(r => r.data).catch(() => null),
+    queryFn: () => absencesApi.vacationBalance().then(r => r.data as VacationBalance).catch(() => null),
     staleTime: 60000,
   })
 
   const { mutate, isPending, error } = useMutation({
-    mutationFn: (data) => absencesApi.createMy(data),
+    mutationFn: (data: Record<string, unknown>) => absencesApi.createMy(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['absences-my'] }); qc.invalidateQueries({ queryKey: ['team-absences'] }); qc.invalidateQueries({ queryKey: ['vacation-balance-my'] }); qc.invalidateQueries({ queryKey: ['cal-absences'] }); qc.invalidateQueries({ queryKey: ['absence-calendar'] }); validation.setErrors({}); onClose() },
-    onError: e => toast.error(extractErr(e, t('common.error'))),
+    onError: (e: unknown) => toast.error(extractErr(e, t('common.error'))),
   })
 
   const submit = () => {
     const result = validation.validateForm(form)
     if (!result.success) return
-    mutate(result.data)
+    mutate(result.data as Record<string, unknown>)
   }
 
   return (
@@ -106,7 +137,7 @@ function RequestModal({ onClose }) {
             background: 'var(--surface-3)', borderRadius: 10,
             border: '1px solid var(--surface-4)' }}>
             {[
-              { label: t('absences.balance_available'), value: balance.days_remaining, color: balance.days_remaining > 5 ? 'var(--success)' : balance.days_remaining > 0 ? 'var(--warning)' : 'var(--danger)' },
+              { label: t('absences.balance_available'), value: balance.days_remaining, color: (balance.days_remaining ?? 0) > 5 ? 'var(--success)' : (balance.days_remaining ?? 0) > 0 ? 'var(--warning)' : 'var(--danger)' },
               { label: t('absences.balance_taken'), value: balance.days_taken, color: 'var(--text-2)' },
               { label: t('absences.balance_pending'), value: balance.days_pending, color: 'var(--warning)' },
               { label: t('absences.balance_total'), value: balance.days_entitled, color: 'var(--accent)' },
@@ -141,7 +172,7 @@ function RequestModal({ onClose }) {
           <label htmlFor={reasonId} style={ls}>{t('absences.label_reason_optional')}</label>
           <textarea id={reasonId} value={form.reason} onChange={set('reason')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('absences.reason_placeholder')} />
         </div>
-        {error && <div style={{ fontSize: "var(--text-base)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 8, padding: '8px 12px' }}>{Array.isArray(error.response?.data?.detail) ? error.response.data.detail.map(e => e.msg).join(', ') : (error.response?.data?.detail || t('absences.error_submit'))}</div>}
+        {error ? <div style={{ fontSize: "var(--text-base)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 8, padding: '8px 12px' }}>{errDetailText(error, t('absences.error_submit'))}</div> : null}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={submit} disabled={isPending}>
@@ -153,22 +184,22 @@ function RequestModal({ onClose }) {
   )
 }
 
-function ReviewModal({ absence, onClose }) {
+function ReviewModal({ absence, onClose }: { absence: Absence; onClose: () => void }) {
   const t = useAppT()
   const idPrefix = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const [notes, setNotes] = useState('')
   const { mutate, isPending } = useMutation({
-    mutationFn: ({ approved }) => absencesApi.review(absence.id, { approved, rejection_reason: notes }),
+    mutationFn: ({ approved }: { approved: boolean }) => absencesApi.review(absence.id, { approved, rejection_reason: notes }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['absences-pending'] }); qc.invalidateQueries({ queryKey: ['team-absences'] }); qc.invalidateQueries({ queryKey: ['vacation-balance-my'] }); qc.invalidateQueries({ queryKey: ['cal-absences'] }); qc.invalidateQueries({ queryKey: ['absence-calendar'] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['dash-team-load'] }); onClose() },
-    onError: e => toast.error(extractErr(e, t('common.error'))),
+    onError: (e: unknown) => toast.error(extractErr(e, t('common.error'))),
   })
   return (
     <Modal open title={`${t('absences.modal_review_title')} - ${absence.user_name}`} onClose={onClose} width={460}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
         {[
-          { label: t('absences.type_label'), value: typeLabels(t)[absence.type]?.replace(/^\S+\s/, '') || absence.type },
+          { label: t('absences.type_label'), value: typeLabels(t)[absence.type || '']?.replace(/^\S+\s/, '') || absence.type },
           { label: t('absences.start_label'), value: fmtDate(absence.start_date) },
           { label: t('absences.end_label'), value: fmtDate(absence.end_date) },
           { label: t('absences.working_days_label'), value: `${absence.working_days} ${t('absences.days_unit')}` },
@@ -194,11 +225,14 @@ function ReviewModal({ absence, onClose }) {
   )
 }
 
-function CalendarView({ year, month }) {
+interface Holiday { date?: string; name?: string }
+interface CalendarData { absences: Absence[]; holidays: Holiday[] }
+
+function CalendarView({ year, month }: { year: number; month: number }) {
   const t = useAppT()
-  const { data } = useQuery({
+  const { data } = useQuery<CalendarData>({
     queryKey: ['absence-calendar', year, month],
-    queryFn: () => absencesApi.calendar({ year, month }).then(r => r.data),
+    queryFn: () => absencesApi.calendar({ year, month }).then(r => r.data as CalendarData),
   })
 
   if (!data) return <Spinner />
@@ -207,13 +241,13 @@ function CalendarView({ year, month }) {
   const firstDay = (new Date(year, month - 1, 1).getDay() + 6) % 7  // Monday = 0
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
-  const getAbsencesForDay = (day) => {
+  const getAbsencesForDay = (day: number) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    return data.absences.filter(a => a.start_date <= dateStr && a.end_date >= dateStr)
+    return data.absences.filter((a: Absence) => (a.start_date ?? '') <= dateStr && (a.end_date ?? '') >= dateStr)
   }
-  const isHoliday = (day) => {
+  const isHoliday = (day: number) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    return data.holidays.find(h => h.date === dateStr)
+    return data.holidays.find((h: Holiday) => h.date === dateStr)
   }
 
   const MONTH_NAMES = monthNames(t)
@@ -236,9 +270,9 @@ function CalendarView({ year, month }) {
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: holiday ? 'var(--purple)' : isWeekend ? 'var(--text-3)' : 'var(--text-2)', marginBottom: 2 }}>{day}</div>
               {holiday && <div style={{ fontSize: "var(--text-3xs)", color: 'var(--purple)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{holiday.name}</div>}
               {absences.slice(0, 2).map(a => (
-                <div key={a.id} title={`${a.user_name} - ${typeLabels(t)[a.type]}`}
+                <div key={a.id} title={`${a.user_name} - ${typeLabels(t)[a.type || '']}`}
                   style={{ fontSize: "var(--text-3xs)", background: 'var(--accent-glow)', color: 'var(--accent)', borderRadius: 3, padding: '1px 4px', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {a.user_name.split(' ')[0]}
+                  {(a.user_name || '').split(' ')[0]}
                 </div>
               ))}
               {absences.length > 2 && <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-2)' }}>+{absences.length - 2}</div>}
@@ -250,7 +284,7 @@ function CalendarView({ year, month }) {
   )
 }
 
-function EditAbsenceModal({ absence, onClose }) {
+function EditAbsenceModal({ absence, onClose }: { absence: Absence; onClose: () => void }) {
   const t = useAppT()
   const idPrefix = useId()
   const toast = useToast()
@@ -264,7 +298,7 @@ function EditAbsenceModal({ absence, onClose }) {
   const validation = useFormValidation(buildAbsenceRequestSchema(t))
 
   const { mutate, isPending, error } = useMutation({
-    mutationFn: (data) => absencesApi.updateMy(absence.id, data),
+    mutationFn: (data: Record<string, unknown>) => absencesApi.updateMy(absence.id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['absences-my'] })
       qc.invalidateQueries({ queryKey: ['absences-pending'] })
@@ -275,20 +309,20 @@ function EditAbsenceModal({ absence, onClose }) {
       toast.success(t('absences.update_success'))
       onClose()
     },
-    onError: e => toast.error(e?.response?.data?.detail || t('absences.error_update')),
+    onError: (e: unknown) => toast.error(errDetailText(e, t('absences.error_update'))),
   })
 
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
+  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
     borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block',
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block',
     marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
   const typeId = `${idPrefix}-type`
   const startId = `${idPrefix}-start`
   const endId = `${idPrefix}-end`
   const reasonId = `${idPrefix}-reason`
 
-  const setField = (key) => (e) => {
+  const setField = (key: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm(f => ({ ...f, [key]: e.target.value }))
     validation.clearFieldError(key)
   }
@@ -296,7 +330,7 @@ function EditAbsenceModal({ absence, onClose }) {
   const submit = () => {
     const result = validation.validateForm(form)
     if (!result.success) return
-    mutate(result.data)
+    mutate(result.data as Record<string, unknown>)
   }
 
   return (
@@ -334,15 +368,15 @@ function EditAbsenceModal({ absence, onClose }) {
           <label htmlFor={reasonId} style={LS}>{t('absences.label_reason_optional')}</label>
           <textarea id={reasonId} value={form.reason} onChange={setField('reason')}
             rows={3} placeholder={t('absences.reason_edit_placeholder')}
-            style={{...IS, resize:'vertical'}} />
+            style={{...IS, resize:'vertical'} as CSSProperties} />
         </div>
 
-        {error && (
+        {error ? (
           <div style={{ padding:'8px 12px', background:'var(--danger-bg)',
             border:'1px solid rgba(255,71,87,0.3)', borderRadius:8, fontSize: "var(--text-sm)", color:'var(--danger)' }}>
-            {Array.isArray(error?.response?.data?.detail) ? error.response.data.detail.map(e => e.msg).join(', ') : (error?.response?.data?.detail || t('absences.error_update'))}
+            {errDetailText(error, t('absences.error_update'))}
           </div>
-        )}
+        ) : null}
 
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -361,32 +395,37 @@ function EditAbsenceModal({ absence, onClose }) {
 
 export default function AbsencesPage(): JSX.Element {
   const t = useAppT()
-  const { _user, hasRole } = useAuth()
+  const { hasRole } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   const [tab, setTab] = useState('mine')
   const [showRequest, setShowRequest] = useState(false)
-  const [reviewing, setReviewing] = useState(null)
-  const [editingAbsence, setEditingAbsence] = useState(null)
+  const [reviewing, setReviewing] = useState<Absence | null>(null)
+  const [editingAbsence, setEditingAbsence] = useState<Absence | null>(null)
   const today = new Date()
   const [calYear, setCalYear] = useState(today.getFullYear())
   const [calMonth, setCalMonth] = useState(today.getMonth() + 1)
 
-  const { data: myAbsences = [], isLoading: loadingMine } = useQuery({
+  const unwrapAbsences = (r: { data?: unknown }): Absence[] => {
+    const d = r.data as { items?: Absence[] } | Absence[] | null | undefined
+    return (Array.isArray(d) ? d : d?.items ?? []) as Absence[]
+  }
+
+  const { data: myAbsences = [], isLoading: loadingMine } = useQuery<Absence[]>({
     queryKey: ['absences-my'],
-    queryFn: () => absencesApi.my().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => absencesApi.my({}).then(unwrapAbsences),
     enabled: tab === 'mine',
   })
 
-  const { data: pending = [] } = useQuery({
+  const { data: pending = [] } = useQuery<Absence[]>({
     queryKey: ['absences-pending'],
-    queryFn: () => absencesApi.pending().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => absencesApi.pending().then(unwrapAbsences),
     enabled: hasRole('admin', 'hr', 'pm'),
   })
 
-  const { data: teamAbsences = [] } = useQuery({
+  const { data: teamAbsences = [] } = useQuery<Absence[]>({
     queryKey: ['team-absences'],
-    queryFn: () => absencesApi.team().then(r => r.data),
+    queryFn: () => absencesApi.team({}).then(r => r.data as Absence[]),
     enabled: tab === 'team' && hasRole('admin', 'hr', 'pm'),
   })
   const [teamSearch, setTeamSearch] = useState('')
@@ -431,9 +470,9 @@ export default function AbsencesPage(): JSX.Element {
   })
 
   const { mutate: cancel } = useMutation({
-    mutationFn: (id) => absencesApi.deleteMy(id),
+    mutationFn: (id: string) => absencesApi.deleteMy(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['absences-my'] }); qc.invalidateQueries({ queryKey: ['vacation-balance-my'] }); qc.invalidateQueries({ queryKey: ['cal-absences'] }); qc.invalidateQueries({ queryKey: ['absence-calendar'] }); },
-    onError: e => toast.error(extractErr(e, t('common.error'))),
+    onError: (e: unknown) => toast.error(extractErr(e, t('common.error'))),
   })
 
   const tabs = [
@@ -498,7 +537,7 @@ export default function AbsencesPage(): JSX.Element {
                   {filteredMine.map(a => (
                     <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: `1px solid ${a.status === 'rejected' ? 'var(--danger-border)' : a.status === 'approved' ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 12 }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{typeLabels(t)[a.type] || a.type}</div>
+                        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{typeLabels(t)[a.type || ""] || a.type}</div>
                         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                           {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · <span style={{ color: 'var(--text-1)' }}>{a.working_days} {t('absences.workdays_unit')}</span>
                         </div>
@@ -507,14 +546,14 @@ export default function AbsencesPage(): JSX.Element {
                       <StatusBadge status={a.status} />
                       <div style={{ display:'flex', gap:6 }}>
                         {a.status === 'pending' && (
-                          <button aria-label={`${t('absences.edit_action')} ${typeLabels(t)[a.type] || a.type}`} onClick={() => setEditingAbsence(a)}
+                          <button aria-label={`${t('absences.edit_action')} ${typeLabels(t)[a.type || ""] || a.type}`} onClick={() => setEditingAbsence(a)}
                             style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6,
                               padding:'3px 10px', color:'var(--accent)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
                             {t('absences.edit_action')}
                           </button>
                         )}
                         {(a.status === 'pending' || a.status === 'approved') && (
-                          <button aria-label={`${t('absences.cancel_action')} ${typeLabels(t)[a.type] || a.type}`} onClick={() => { openConfirmGlobal({ message: t('absences.cancel_confirm'), onConfirm: () => cancel(a.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>{t('absences.cancel_action')}</button>
+                          <button aria-label={`${t('absences.cancel_action')} ${typeLabels(t)[a.type || ""] || a.type}`} onClick={() => { openConfirmGlobal({ message: t('absences.cancel_confirm'), onConfirm: () => cancel(a.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>{t('absences.cancel_action')}</button>
                         )}
                       </div>
                     </div>
@@ -570,7 +609,7 @@ export default function AbsencesPage(): JSX.Element {
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{a.user_name}</div>
                         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                          {typeLabels(t)[a.type]} · {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · {a.working_days} {t('absences.days_unit')}
+                          {typeLabels(t)[a.type || ""]} · {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · {a.working_days} {t('absences.days_unit')}
                         </div>
                         {a.reason && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{a.reason}</div>}
                       </div>
@@ -626,7 +665,7 @@ export default function AbsencesPage(): JSX.Element {
               {sortedTeamAbs.map(a => (
                 <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
                   <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{a.user_name}</span>
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{typeLabels(t)[a.type]?.replace(/^\S+\s/, '') || a.type}</span>
+                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{typeLabels(t)[a.type || ""]?.replace(/^\S+\s/, '') || a.type}</span>
                   <span style={{ fontSize: "var(--text-sm)" }}>{fmtDate(a.start_date)}</span>
                   <span style={{ fontSize: "var(--text-sm)" }}>{fmtDate(a.end_date)}</span>
                   <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{a.working_days}d</span>

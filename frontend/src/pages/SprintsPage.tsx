@@ -1,9 +1,9 @@
-// @ts-nocheck
 /**
  * SprintsPage — Full Scrum sprint management
  * Views: Backlog | Sprint Activo | Velocity histórico
  */
 import { useState, useEffect } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -19,6 +19,48 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, R
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 
+type Task = {
+  [k: string]: unknown
+  id: string
+  code?: string
+  title?: string
+  status?: string
+  priority?: string
+  story_points?: number
+  assignee_name?: string
+}
+type Sprint = {
+  [k: string]: unknown
+  id: string
+  name?: string
+  number?: number
+  status?: string
+  goal?: string
+  tasks?: Task[]
+  went_well?: string
+  to_improve?: string
+  action_items?: string
+  days_remaining: number | null
+  start_date?: string
+  end_date?: string
+  planned_points?: number
+  completed_points?: number
+  task_count?: number
+  velocity?: number
+}
+type RetroInsights = {
+  metrics?: {
+    completion_rate_pct: number
+    velocity_ratio_pct: number
+    blocked: number
+    carryover: number
+  }
+  went_well?: string[]
+  improve?: string[]
+  actions?: { text: string }[]
+  risks?: string[]
+}
+
 const _STATUS_CFG = {
   planning:  { label: 'Planificación', color: 'var(--purple)', bg: 'var(--purple-bg)' },
   active:    { label: 'Activo',        color: 'var(--accent)', bg: 'var(--accent-glow)' },
@@ -27,18 +69,18 @@ const _STATUS_CFG = {
 }
 
 // ── Retrospective modal (v25 AI insights) ────────────────────────────────────
-function RetroModal({ sprint, projectId, onClose }) {
+function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId: string; onClose: () => void }) {
   const toast = useToast()
   const [manualNotes, setManualNotes] = useState('')
 
-  const { data: retro, isLoading } = useQuery({
+  const { data: retro, isLoading } = useQuery<{ computed_insights?: RetroInsights; saved_notes?: { manual_notes?: string } }>({
     queryKey: ['retro', sprint.id],
     queryFn: () => projectSprintsApi.retrospective(projectId, sprint.id).then(r => r.data),
-    onSuccess: d => { if (d.saved_notes?.manual_notes) setManualNotes(d.saved_notes.manual_notes) },
+    ...({ onSuccess: (d: { saved_notes?: { manual_notes?: string } }) => { if (d.saved_notes?.manual_notes) setManualNotes(d.saved_notes.manual_notes) } } as object),
   })
 
   const { mutate: save, isPending: saving } = useMutation({
-    mutationFn: (notes) => projectSprintsApi.saveRetrospective(projectId, sprint.id, { manual_notes: notes }),
+    mutationFn: (notes: string) => projectSprintsApi.saveRetrospective(projectId, sprint.id, { manual_notes: notes }),
     onSuccess: () => { toast.success('Notas guardadas'); onClose() },
     onError: () => toast.error('Error al guardar'),
   })
@@ -88,10 +130,10 @@ function RetroModal({ sprint, projectId, onClose }) {
             ))}
           </div>
           {/* Actions */}
-          {ins.actions?.length > 0 && (
+          {(ins.actions?.length ?? 0) > 0 && (
             <div style={{ background: 'rgba(79,142,247,0.06)', border: '1px solid rgba(79,142,247,0.2)', borderRadius: 10, padding: '12px 14px' }}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 8 }}>→ Acciones propuestas</div>
-              {ins.actions.map((a, i) => (
+              {ins.actions?.map((a, i) => (
                 <div key={i} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 5, display: 'flex', gap: 7 }}>
                   <span style={{ color: 'var(--accent)', flexShrink: 0 }}>○</span>{a.text}
                 </div>
@@ -99,10 +141,10 @@ function RetroModal({ sprint, projectId, onClose }) {
             </div>
           )}
           {/* Risks */}
-          {ins.risks?.length > 0 && (
+          {(ins.risks?.length ?? 0) > 0 && (
             <div style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 10, padding: '12px 14px' }}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--danger)', textTransform: 'uppercase', marginBottom: 8 }}>⚠ Señales de riesgo</div>
-              {ins.risks.map((r, i) => (
+              {ins.risks?.map((r, i) => (
                 <div key={i} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 5, display: 'flex', gap: 7 }}>
                   <span style={{ color: 'var(--danger)', flexShrink: 0 }}>!</span>{r}
                 </div>
@@ -131,8 +173,8 @@ function RetroModal({ sprint, projectId, onClose }) {
     </div>
   )
 }
-const PRIORITY_COLOR = { low: 'var(--text-3)', medium: 'var(--warning)', high: 'var(--warning)', critical: 'var(--danger)' }
-const TASK_STATUS_CFG = {
+const PRIORITY_COLOR: Record<string, string> = { low: 'var(--text-3)', medium: 'var(--warning)', high: 'var(--warning)', critical: 'var(--danger)' }
+const TASK_STATUS_CFG: Record<string, { label: string; color: string }> = {
   todo:        { label: 'Por hacer',   color: 'var(--text-3)' },
   in_progress: { label: 'En progreso', color: 'var(--accent)' },
   in_review:   { label: 'En revisión', color: 'var(--purple)' },
@@ -140,14 +182,14 @@ const TASK_STATUS_CFG = {
   blocked:     { label: 'Bloqueado',   color: 'var(--danger)' },
 }
 
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 // ── Task card ──────────────────────────────────────────────────────────────────
-function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }) {
+function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { task: Task; onStatusChange?: (taskId: string, status: string) => void; onMoveToBacklog?: (taskId: string) => void; compact?: boolean }) {
   const [showMenu, setShowMenu] = useState(false)
-  const cfg = TASK_STATUS_CFG[task.status] || { label: task.status, color: 'var(--text-2)' }
-  const pColor = PRIORITY_COLOR[task.priority] || 'var(--text-2)'
+  const cfg = TASK_STATUS_CFG[task.status || ''] || { label: task.status, color: 'var(--text-2)' }
+  const pColor = PRIORITY_COLOR[task.priority || ''] || 'var(--text-2)'
 
   return (
     <div style={{ background: 'var(--surface-2)', border: `1px solid ${cfg.color}30`, borderRadius: 10, padding: compact ? '8px 12px' : '12px 14px', cursor: 'pointer', position: 'relative' }}
@@ -164,7 +206,7 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }) {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: pColor + '20', color: pColor }}>{task.priority}</span>
-        {task.story_points > 0 && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)' }}>{task.story_points} pts</span>}
+        {(task.story_points ?? 0) > 0 && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)' }}>{task.story_points} pts</span>}
         {task.assignee_name && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>👤 {task.assignee_name.split(' ')[0]}</span>}
       </div>
 
@@ -197,7 +239,7 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }) {
 }
 
 // ── Sprint Kanban ──────────────────────────────────────────────────────────────
-function SprintKanban({ sprint, onStatusChange, onMoveToBacklog }) {
+function SprintKanban({ sprint, onStatusChange, onMoveToBacklog }: { sprint: Sprint; onStatusChange?: (taskId: string, status: string) => void; onMoveToBacklog?: (taskId: string) => void }) {
   const columns = [
     { key: 'todo',        label: 'Por hacer' },
     { key: 'in_progress', label: 'En progreso' },
@@ -209,7 +251,7 @@ function SprintKanban({ sprint, onStatusChange, onMoveToBacklog }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
       {columns.map(col => {
-        const colTasks = tasks.filter(t => t.status === col.key)
+        const colTasks = tasks.filter((t: Task) => t.status === col.key)
         const cfg = TASK_STATUS_CFG[col.key]
         return (
           <div key={col.key}>
@@ -230,8 +272,8 @@ function SprintKanban({ sprint, onStatusChange, onMoveToBacklog }) {
 }
 
 // ── Burndown Chart ─────────────────────────────────────────────────────────────
-function BurndownChart({ sprintId, projectId }) {
-  const { data, isLoading } = useQuery({
+function BurndownChart({ sprintId, projectId }: { sprintId: string; projectId: string }) {
+  const { data, isLoading } = useQuery<{ burndown?: unknown[] }>({
     queryKey: ['burndown', sprintId],
     queryFn: () => projectSprintsApi.burndown(projectId, sprintId).then(r => r.data),
     enabled: !!sprintId,
@@ -259,15 +301,15 @@ export default function SprintsPage() {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
-  const { _invalidate } = useInvalidate()
-  const { _user } = useAuth()
+  useInvalidate()
+  useAuth()
   const [selectedProject, setSelectedProject] = useState('')
   const [activeView, setActiveView] = useState('board') // board | backlog | velocity
   const [showCreateSprint, setShowCreateSprint] = useState(false)
 
   // Atajos de teclado: Ctrl+S = nuevo sprint
   useEffect(() => {
-    const h = (e) => {
+    const h = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
         e.preventDefault()
         setShowCreateSprint(true)
@@ -276,41 +318,41 @@ export default function SprintsPage() {
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
   }, [])
-  const [showAddTasks, setShowAddTasks] = useState(false)
-  const [showRetro, setShowRetro] = useState(null)
+  const [showAddTasks, setShowAddTasks] = useState<string | false>(false)
+  const [showRetro, setShowRetro] = useState<Sprint | null>(null)
   const [sprintForm, setSprintForm] = useState({ name: '', goal: '', start_date: '', end_date: '' })
   const [_retroForm, _setRetroForm] = useState({ went_well: '', to_improve: '', action_items: '' })
 
-  const { data: projRaw = [] } = useQuery({
+  const { data: projRaw = [] } = useQuery<{ id: string; code?: string; name?: string }[]>({
     queryKey: ['projects'],
     queryFn: () => projectsApi.list().then(r => r.data),
   })
   const projects = Array.isArray(projRaw) ? projRaw : []
 
-  const { data: sprintsRaw = [], isLoading } = useQuery({
+  const { data: sprintsRaw = [], isLoading } = useQuery<Sprint[]>({
     queryKey: ['sprints', selectedProject],
     queryFn: () => projectSprintsApi.list(selectedProject).then(r => r.data),
     enabled: !!selectedProject,
   })
-  const sprints = Array.isArray(sprintsRaw) ? sprintsRaw : []
-  const activeSprint = sprints.find(s => s.status === 'active')
-  const planningSprints = sprints.filter(s => s.status === 'planning')
-  const completedSprints = sprints.filter(s => s.status === 'completed')
+  const sprints: Sprint[] = Array.isArray(sprintsRaw) ? sprintsRaw : []
+  const activeSprint = sprints.find((s: Sprint) => s.status === 'active')
+  const planningSprints = sprints.filter((s: Sprint) => s.status === 'planning')
+  const completedSprints = sprints.filter((s: Sprint) => s.status === 'completed')
 
-  const { data: backlog = [] } = useQuery({
+  const { data: backlog = [] } = useQuery<Task[]>({
     queryKey: ['backlog', selectedProject],
     queryFn: () => projectSprintsApi.backlog(selectedProject).then(r => r.data),
     enabled: !!selectedProject,
   })
 
-  const { data: velocity } = useQuery({
+  const { data: velocity } = useQuery<{ avg_velocity?: number; sprints?: { sprint: string; name: string; planned: number; completed: number }[] }>({
     queryKey: ['velocity', selectedProject],
     queryFn: () => projectSprintsApi.velocity(selectedProject).then(r => r.data),
     enabled: !!selectedProject && activeView === 'velocity',
   })
 
-  const inv = (keys) => {
-    keys.forEach(k => qc.invalidateQueries({ queryKey: [k, selectedProject] }))
+  const inv = (keys: string[]) => {
+    keys.forEach((k: string) => qc.invalidateQueries({ queryKey: [k, selectedProject] }))
     qc.invalidateQueries({ queryKey: ['cal-sprints'] })
     if (keys.includes('sprints') || keys.includes('backlog')) {
       qc.invalidateQueries({ queryKey: ['dash-my-tasks'] })
@@ -318,42 +360,42 @@ export default function SprintsPage() {
   }
 
   const { mutate: createSprint, isPending: creatingS } = useMutation({
-    mutationFn: d => projectSprintsApi.create(selectedProject, d),
+    mutationFn: (d: typeof sprintForm) => projectSprintsApi.create(selectedProject, d),
     onSuccess: () => { inv(['sprints']); setShowCreateSprint(false); setSprintForm({ name: '', goal: '', start_date: '', end_date: '' }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: startSprint } = useMutation({
-    mutationFn: id => projectSprintsApi.start(selectedProject, id),
+    mutationFn: (id: string) => projectSprintsApi.start(selectedProject, id),
     onSuccess: () => inv(['sprints']),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: closeSprint } = useMutation({
-    mutationFn: id => projectSprintsApi.close(selectedProject, id),
+    mutationFn: (id: string) => projectSprintsApi.close(selectedProject, id),
     onSuccess: () => inv(['sprints', 'backlog']),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: _updateSprint } = useMutation({
-    mutationFn: ({ id, data }) => projectSprintsApi.update(selectedProject, id, data),
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => projectSprintsApi.update(selectedProject, id, data),
     onSuccess: () => inv(['sprints']),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: addTasksToSprint } = useMutation({
-    mutationFn: ({ sprintId, taskIds }) => projectSprintsApi.addTasks(selectedProject, sprintId, taskIds),
+    mutationFn: ({ sprintId, taskIds }: { sprintId: string; taskIds: string[] }) => projectSprintsApi.addTasks(selectedProject, sprintId, taskIds),
     onSuccess: () => { inv(['sprints', 'backlog']); setShowAddTasks(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: removeTask } = useMutation({
-    mutationFn: ({ sprintId, taskId }) => projectSprintsApi.removeTask(selectedProject, sprintId, taskId),
+    mutationFn: ({ sprintId, taskId }: { sprintId: string; taskId: string }) => projectSprintsApi.removeTask(selectedProject, sprintId, taskId),
     onSuccess: () => inv(['sprints', 'backlog']),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: updateTaskStatus } = useMutation({
-    mutationFn: ({ taskId, status }) => tasksApi.update(taskId, { status }),
+    mutationFn: ({ taskId, status }: { taskId: string; status: string }) => tasksApi.update(taskId, { status } as Parameters<typeof tasksApi.update>[1]),
     onSuccess: () => inv(['sprints']),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const [selectedBacklogTasks, setSelectedBacklogTasks] = useState([])
+  const [selectedBacklogTasks, setSelectedBacklogTasks] = useState<string[]>([])
 
   return (
     <PageShell>
@@ -370,7 +412,7 @@ export default function SprintsPage() {
         <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setActiveView('board') }}
           style={{ ...fs, width: 300 }}>
           <option value="">Selecciona un proyecto...</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+          {projects.map((p: { id: string; code?: string; name?: string }) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
         {selectedProject && (
           <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
@@ -518,7 +560,7 @@ export default function SprintsPage() {
                     <input type="checkbox" checked={selected} readOnly style={{ cursor: 'pointer' }} />
                     <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{task.code}</span>
                     <span style={{ fontSize: "var(--text-sm)", fontWeight: 500 }}>{task.title}</span>
-                    <span style={{ fontSize: "var(--text-xs)", padding: '2px 6px', borderRadius: 4, background: (PRIORITY_COLOR[task.priority] || 'var(--text-3)') + '20', color: PRIORITY_COLOR[task.priority] || 'var(--text-3)', textAlign: 'center' }}>{task.priority}</span>
+                    <span style={{ fontSize: "var(--text-xs)", padding: '2px 6px', borderRadius: 4, background: (PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)') + '20', color: PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)', textAlign: 'center' }}>{task.priority}</span>
                     <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textAlign: 'center' }}>{task.story_points || '—'} pts</span>
                     <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{task.assignee_name || 'Sin asignar'}</span>
                   </div>
@@ -647,7 +689,7 @@ export default function SprintsPage() {
                   <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{selectedBacklogTasks.length} seleccionadas</span>
                   <div style={{ display: 'flex', gap: 10 }}>
                     <Button variant="secondary" onClick={() => setShowAddTasks(false)}>Cancelar</Button>
-                    <Button onClick={() => { addTasksToSprint({ sprintId: showAddTasks, taskIds: selectedBacklogTasks }); setSelectedBacklogTasks([]) }} disabled={selectedBacklogTasks.length === 0}>
+                    <Button onClick={() => { addTasksToSprint({ sprintId: showAddTasks || '', taskIds: selectedBacklogTasks }); setSelectedBacklogTasks([]) }} disabled={selectedBacklogTasks.length === 0}>
                       Añadir al sprint
                     </Button>
                   </div>

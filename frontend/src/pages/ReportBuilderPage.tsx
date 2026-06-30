@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ReportBuilderPage — No-code parametric report builder
  *
@@ -7,6 +6,7 @@
  */
 
 import { useState, useCallback, useMemo, useRef } from 'react'
+import type { CSSProperties, ChangeEvent, DragEvent, ReactNode } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { reportBuilderApi, biReportBuilderV2Api } from '../services/api'
@@ -15,14 +15,34 @@ import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const fs = { width: '100%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const fs: CSSProperties = { width: '100%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-const EMPTY_FILTER = { column: '', operator: 'eq', value: '' }
+type ColumnDef = { label: string; type?: string }
+type EntityDef = { label: string; group?: string; columns: Record<string, ColumnDef> }
+type OperatorDef = { label: string }
+type ReportSchema = {
+  entities: Record<string, EntityDef>
+  operators: Record<string, OperatorDef>
+  groups: Record<string, string>
+}
+type ReportFilter = { column: string; operator: string; value: string }
+type ReportSort = { column: string; direction: string }
+type ReportQuery = {
+  entity: string
+  columns: string[]
+  filters: ReportFilter[]
+  sort: ReportSort | null
+  limit: number
+}
+type PreviewResult = { rows: Record<string, unknown>[]; columns?: string[]; count?: number; truncated?: boolean; error?: boolean }
+type Template = { id: string; name: string; query?: Partial<ReportQuery> }
+
+const EMPTY_FILTER: ReportFilter = { column: '', operator: 'eq', value: '' }
 const NULL_OPS = new Set(['is_null', 'is_not_null'])
 
 function useSchema() {
-  return useQuery({
+  return useQuery<ReportSchema>({
     queryKey: ['report-schema'],
     queryFn: () => reportBuilderApi.schema().then(r => r.data),
     staleTime: Infinity,
@@ -30,10 +50,10 @@ function useSchema() {
 }
 
 // ── Entity picker grouped by category ────────────────────────────────────
-function EntityPicker({ entities, groups, value, onChange }) {
+function EntityPicker({ entities, groups, value, onChange }: { entities: Record<string, EntityDef>; groups: Record<string, string>; value: string; onChange: (e: ChangeEvent<HTMLSelectElement>) => void }) {
   // Build { groupKey: [{ key, label }] }
   const byGroup = useMemo(() => {
-    const map = {}
+    const map: Record<string, { key: string; label: string }[]> = {}
     Object.entries(entities).forEach(([k, e]) => {
       const g = e.group || 'otros'
       if (!map[g]) map[g] = []
@@ -63,11 +83,11 @@ function EntityPicker({ entities, groups, value, onChange }) {
 }
 
 // ── Column panel with search + select-all + drag-to-reorder ──────────────────
-function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll, onReorder }) {
+function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll, onReorder }: { entityDef: EntityDef | null; selected: string[]; onToggle: (key: string) => void; onSelectAll: () => void; onDeselectAll: () => void; onReorder: (order: string[]) => void }) {
   const [search, setSearch] = useState('')
-  const cols = useMemo(() => entityDef?.columns || {}, [entityDef])
-  const dragItem = useRef(null)
-  const dragOver = useRef(null)
+  const cols: Record<string, ColumnDef> = useMemo(() => entityDef?.columns || {}, [entityDef])
+  const dragItem = useRef<number | null>(null)
+  const dragOver = useRef<number | null>(null)
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
@@ -79,11 +99,11 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
   const _allVisible = filtered.every(([k]) => selected.includes(k))
 
   // Drag-to-reorder selected columns
-  const handleDragStart = (e, idx) => {
+  const handleDragStart = (e: DragEvent, idx: number) => {
     dragItem.current = idx
     e.dataTransfer.effectAllowed = 'move'
   }
-  const handleDragOver = (e, idx) => {
+  const handleDragOver = (e: DragEvent, idx: number) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     dragOver.current = idx
@@ -203,9 +223,9 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
 }
 
 // ── Filter row ─────────────────────────────────────────────────────────────
-function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }) {
-  const cols = entityDef?.columns || {}
-  const set = (k) => (e) => onChange(index, { ...filter, [k]: e.target.value })
+function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }: { filter: ReportFilter; index: number; entityDef: EntityDef | null; operators: Record<string, OperatorDef>; onChange: (index: number, val: ReportFilter) => void; onRemove: (index: number) => void }) {
+  const cols: Record<string, ColumnDef> = entityDef?.columns || {}
+  const set = (k: string) => (e: ChangeEvent<HTMLSelectElement | HTMLInputElement>) => onChange(index, { ...filter, [k]: e.target.value })
   const needsValue = !NULL_OPS.has(filter.operator)
   return (
     <div style={{ display: 'flex', gap: 5, alignItems: 'center', marginBottom: 5 }}>
@@ -233,8 +253,8 @@ function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }) 
 }
 
 // ── Preview table ──────────────────────────────────────────────────────────
-function PreviewTable({ rows, columns, entityDef }) {
-  const colDef = entityDef?.columns || {}
+function PreviewTable({ rows, columns, entityDef }: { rows?: Record<string, unknown>[]; columns: string[]; entityDef: EntityDef | null }) {
+  const colDef: Record<string, ColumnDef> = entityDef?.columns || {}
   if (!rows || rows.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: 48, color: 'var(--surface-5)', fontSize: "var(--text-base)" }}>
@@ -242,8 +262,8 @@ function PreviewTable({ rows, columns, entityDef }) {
       </div>
     )
   }
-  const cellBase = { padding: '7px 10px', fontSize: "var(--text-sm)", borderBottom: '1px solid var(--surface-4)', color: 'var(--text-1)', whiteSpace: 'nowrap' }
-  const thStyle  = { ...cellBase, fontWeight: 700, fontSize: "var(--text-2xs)", color: 'var(--text-2)', textTransform: 'uppercase', background: 'var(--surface-2)' }
+  const cellBase: CSSProperties = { padding: '7px 10px', fontSize: "var(--text-sm)", borderBottom: '1px solid var(--surface-4)', color: 'var(--text-1)', whiteSpace: 'nowrap' }
+  const thStyle: CSSProperties  = { ...cellBase, fontWeight: 700, fontSize: "var(--text-2xs)", color: 'var(--text-2)', textTransform: 'uppercase', background: 'var(--surface-2)' }
 
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -274,10 +294,13 @@ function PreviewTable({ rows, columns, entityDef }) {
 }
 
 // ── BI presets tab (Report Builder v2) ─────────────────────────────────────
+type BiPreset = { id: string; name: string }
+type BiPreviewData = { columns?: string[]; rows?: Record<string, unknown>[] }
+
 function BiPresetsTab() {
   const [selected, setSelected] = useState('finance_revenue_by_client')
-  const [previewData, setPreview] = useState(null)
-  const { data: presets } = useQuery({
+  const [previewData, setPreview] = useState<BiPreviewData | null>(null)
+  const { data: presets } = useQuery<{ items: BiPreset[] }>({
     queryKey: ['rbv2-presets'],
     queryFn: () => biReportBuilderV2Api.listPresets({ grouped: false }).then(r => r.data).catch(() => ({ items: [] })),
     staleTime: 60_000,
@@ -345,7 +368,7 @@ function BiPresetsTab() {
               <tbody>
                 {(previewData.rows || []).map((row, ri) => (
                   <tr key={ri} style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                    {(previewData.columns || []).map(c => <td key={c} style={{ padding: '8px 12px', color: 'var(--text-1)' }}>{row[c] ?? '—'}</td>)}
+                    {(previewData.columns || []).map(c => <td key={c} style={{ padding: '8px 12px', color: 'var(--text-1)' }}>{(row[c] ?? '—') as ReactNode}</td>)}
                   </tr>
                 ))}
                 {!(previewData.rows || []).length && (
@@ -367,21 +390,21 @@ export default function ReportBuilderPage() {
   const qc = useQueryClient()
 
   const [entity,    setEntity]    = useState('')
-  const [columns,   setColumns]   = useState([])
-  const [filters,   setFilters]   = useState([])
-  const [sort,      setSort]      = useState({ column: '', direction: 'asc' })
-  const [preview,   setPreview]   = useState(null)
+  const [columns,   setColumns]   = useState<string[]>([])
+  const [filters,   setFilters]   = useState<ReportFilter[]>([])
+  const [sort,      setSort]      = useState<ReportSort>({ column: '', direction: 'asc' })
+  const [preview,   setPreview]   = useState<PreviewResult | null>(null)
   const [loading,   setLoading]   = useState(false)
   const [tplName,   setTplName]   = useState('')
   const [savingTpl, setSavingTpl] = useState(false)
   const [activeTab, setTab]       = useState('builder')
 
-  const entities  = schema?.entities  || {}
-  const operators = schema?.operators || {}
-  const groups    = schema?.groups    || {}
+  const entities: Record<string, EntityDef>  = schema?.entities  || {}
+  const operators: Record<string, OperatorDef> = schema?.operators || {}
+  const groups: Record<string, string>    = schema?.groups    || {}
   const entityDef = entity ? entities[entity] : null
 
-  const toggleColumn = useCallback((col) => {
+  const toggleColumn = useCallback((col: string) => {
     setColumns(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col])
   }, [])
 
@@ -391,9 +414,9 @@ export default function ReportBuilderPage() {
 
   const deselectAllColumns = useCallback(() => setColumns([]), [])
 
-  const reorderColumns = useCallback((newOrder) => setColumns(newOrder), [])
+  const reorderColumns = useCallback((newOrder: string[]) => setColumns(newOrder), [])
 
-  const changeEntity = (e) => {
+  const changeEntity = (e: ChangeEvent<HTMLSelectElement>) => {
     setEntity(e.target.value)
     setColumns([])
     setFilters([])
@@ -402,8 +425,8 @@ export default function ReportBuilderPage() {
   }
 
   const addFilter    = () => setFilters(f => [...f, { ...EMPTY_FILTER }])
-  const changeFilter = (i, val) => setFilters(f => f.map((x, idx) => idx === i ? val : x))
-  const removeFilter = (i) => setFilters(f => f.filter((_, idx) => idx !== i))
+  const changeFilter = (i: number, val: ReportFilter) => setFilters(f => f.map((x, idx) => idx === i ? val : x))
+  const removeFilter = (i: number) => setFilters(f => f.filter((_, idx) => idx !== i))
 
   const buildQuery = () => ({
     entity,
@@ -450,19 +473,19 @@ export default function ReportBuilderPage() {
     }
   }
 
-  const { data: templates = [] } = useQuery({
+  const { data: templates = [] } = useQuery<Template[]>({
     queryKey: ['report-templates'],
     queryFn: () => reportBuilderApi.templates().then(r => r.data),
   })
 
   const { mutate: deleteTpl } = useMutation({
-    mutationFn: (id) => reportBuilderApi.deleteTemplate(id),
+    mutationFn: (id: string) => reportBuilderApi.deleteTemplate(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['report-templates'] }),
   })
 
-  const loadTemplate = (tpl) => {
-    const q = tpl.query
-    setEntity(q.entity)
+  const loadTemplate = (tpl: Template) => {
+    const q = tpl.query || {}
+    setEntity(q.entity || '')
     setColumns(q.columns || [])
     setFilters(q.filters || [])
     setSort(q.sort || { column: '', direction: 'asc' })
@@ -511,7 +534,7 @@ export default function ReportBuilderPage() {
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "var(--text-md)", color: 'var(--text-1)', fontWeight: 600 }}>{t.name}</div>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
-                  {entities[t.query?.entity]?.label || t.query?.entity}
+                  {entities[t.query?.entity || '']?.label || t.query?.entity}
                   {' · '}{(t.query?.columns || []).length} columnas
                   {' · '}{(t.query?.filters || []).length} filtros
                 </div>
