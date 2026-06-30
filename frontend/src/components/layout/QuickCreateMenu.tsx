@@ -135,6 +135,8 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
       <div role="presentation" onMouseDown={onClose}
         style={{ position: 'fixed', inset: 0, zIndex: 500 }} />
       <div ref={panelRef}
+        role="region"
+        aria-label="Crear nuevo"
         style={{
           position: 'fixed', top: 52, right: 16, zIndex: 501,
           width: 280, background: 'var(--surface-1)',
@@ -164,13 +166,13 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
               <span>Crear nuevo</span>
-              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', padding: 2 }}>
+              <button onClick={onClose} aria-label="Cerrar" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', padding: 2 }}>
                 <X size={13} />
               </button>
             </div>
-            <div style={{ padding: '6px 8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div role="menu" aria-label="Crear nuevo" style={{ padding: '6px 8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
               {ACTIONS.map(({ id, icon: Icon, label, color }) => (
-                <button key={id} onClick={() => handleAction(id)} style={{
+                <button key={id} role="menuitem" onClick={() => handleAction(id)} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '10px 12px', borderRadius: 8,
                   background: 'transparent', border: 'none',
