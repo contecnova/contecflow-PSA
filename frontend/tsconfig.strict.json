@@ -35,6 +35,14 @@
     "src/pages/SkillsPage.tsx",
     "src/pages/ResourcesPage.tsx",
     "src/components/bi/BiGovernancePanel.tsx",
-    "src/components/servicedesk/ChangeRolloutPanel.tsx"
+    "src/components/servicedesk/ChangeRolloutPanel.tsx",
+    "src/pages/ContractsPage.tsx",
+    "src/pages/TimerPage.tsx",
+    "src/components/layout/UserProfilePanel.tsx",
+    "src/components/ui/EntitySelect.tsx",
+    "src/pages/service-desk/TicketDetail.tsx",
+    "src/pages/ProjectTemplatesPage.tsx",
+    "src/pages/UserCostsPage.tsx",
+    "src/pages/SemanticEnginePage.tsx"
   ]
 }

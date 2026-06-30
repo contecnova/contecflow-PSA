@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * EntitySelect — Reusable select components for shared catalog entities.
  *
@@ -116,7 +115,7 @@ export interface ClientSelectProps {
 export function ClientSelect({ value = '', onChange, placeholder = 'Seleccionar cliente…', required = false, style }: ClientSelectProps) {
   const { data: clients = [], isLoading } = useQuery<ClientEntity[]>({
     queryKey: ['clients'],
-    queryFn: () => clientsApi.list().then((r: { data: { items?: ClientEntity[] } | ClientEntity[] }) => {
+    queryFn: () => clientsApi.list(undefined).then((r: { data: { items?: ClientEntity[] } | ClientEntity[] }) => {
       const d = r.data
       if (Array.isArray(d)) return d
       return d?.items ?? []
@@ -251,7 +250,7 @@ export interface SprintSelectProps {
 export function SprintSelect({ value = '', onChange, projectId, placeholder = 'Seleccionar sprint…', required = false, style }: SprintSelectProps) {
   const { data: sprints = [], isLoading } = useQuery<SprintEntity[]>({
     queryKey: ['sprints', projectId],
-    queryFn: () => sprintsApi.list(projectId).then((r: { data: { items?: SprintEntity[] } | SprintEntity[] }) => {
+    queryFn: () => sprintsApi.list(projectId, undefined).then((r: { data: { items?: SprintEntity[] } | SprintEntity[] }) => {
       const d = r.data
       if (Array.isArray(d)) return d
       return d?.items ?? []
@@ -312,7 +311,7 @@ export interface ContractSelectProps {
 export function ContractSelect({ value = '', onChange, placeholder = 'Seleccionar contrato…', required = false, style }: ContractSelectProps) {
   const { data: contracts = [], isLoading } = useQuery<ContractEntity[]>({
     queryKey: ['contracts'],
-    queryFn: () => contractsApi.list().then((r: { data: { items?: ContractEntity[] } | ContractEntity[] }) => {
+    queryFn: () => contractsApi.list(undefined).then((r: { data: { items?: ContractEntity[] } | ContractEntity[] }) => {
       const d = r.data
       if (Array.isArray(d)) return d
       return d?.items ?? []
@@ -409,7 +408,7 @@ export interface AssetSelectProps {
 export function AssetSelect({ value = '', onChange, placeholder = 'Seleccionar asset…', required = false, style }: AssetSelectProps) {
   const { data: assets = [], isLoading } = useQuery<AssetEntity[]>({
     queryKey: ['alm-assets'],
-    queryFn: () => assetsApi.list().then((r: { data: AssetEntity[] }) => r.data),
+    queryFn: () => assetsApi.list(undefined).then((r: { data: AssetEntity[] }) => r.data),
     staleTime: 2 * 60 * 1000,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -436,7 +435,7 @@ export interface LicenseSelectProps {
 export function LicenseSelect({ value = '', onChange, placeholder = 'Seleccionar licencia…', required = false, style }: LicenseSelectProps) {
   const { data: licenses = [], isLoading } = useQuery<LicenseEntity[]>({
     queryKey: ['alm-licenses'],
-    queryFn: () => licensesApi.list().then((r: { data: LicenseEntity[] }) => r.data),
+    queryFn: () => licensesApi.list(undefined).then((r: { data: LicenseEntity[] }) => r.data),
     staleTime: 2 * 60 * 1000,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -463,7 +462,7 @@ export interface VendorSelectProps {
 export function VendorSelect({ value = '', onChange, placeholder = 'Seleccionar proveedor…', required = false, style }: VendorSelectProps) {
   const { data: vendors = [], isLoading } = useQuery<VendorEntity[]>({
     queryKey: ['alm-vendors'],
-    queryFn: () => vendorsApi.list().then((r: { data: VendorEntity[] }) => r.data),
+    queryFn: () => vendorsApi.list(undefined).then((r: { data: VendorEntity[] }) => r.data),
     staleTime: 2 * 60 * 1000,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -490,7 +489,7 @@ export interface TicketSelectProps {
 export function TicketSelect({ value = '', onChange, placeholder = 'Seleccionar incidencia…', required = false, style }: TicketSelectProps) {
   const { data: tickets = [], isLoading } = useQuery<TicketEntity[]>({
     queryKey: ['sd-tickets', {}],
-    queryFn: () => ticketsApi.list().then((r: { data: TicketEntity[] }) => r.data),
+    queryFn: () => ticketsApi.list(undefined).then((r: { data: TicketEntity[] }) => r.data),
     staleTime: 60 * 1000,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -517,7 +516,7 @@ export interface ProblemSelectProps {
 export function ProblemSelect({ value = '', onChange, placeholder = 'Seleccionar problema…', required = false, style }: ProblemSelectProps) {
   const { data: problems = [], isLoading } = useQuery<ProblemEntity[]>({
     queryKey: ['sd-problems'],
-    queryFn: () => problemsApi.list().then((r: { data: ProblemEntity[] }) => r.data),
+    queryFn: () => problemsApi.list(undefined).then((r: { data: ProblemEntity[] }) => r.data),
     staleTime: 2 * 60 * 1000,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -544,7 +543,7 @@ export interface SubcontractorSelectProps {
 export function SubcontractorSelect({ value = '', onChange, placeholder = 'Seleccionar subcontratista…', required = false, style }: SubcontractorSelectProps) {
   const { data: subs = [], isLoading } = useQuery<SubcontractorEntity[]>({
     queryKey: ['subcontractors'],
-    queryFn: () => subcontractorsApi.list().then((r: { data: SubcontractorEntity[] }) => r.data),
+    queryFn: () => subcontractorsApi.list(undefined).then((r: { data: SubcontractorEntity[] }) => r.data),
     staleTime: 2 * 60 * 1000,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

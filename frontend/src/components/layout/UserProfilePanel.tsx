@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * UserProfilePanel — Panel lateral de perfil de usuario
  * Se abre al hacer clic en el nombre/avatar en el footer del sidebar.
@@ -90,18 +89,18 @@ export default function UserProfilePanel({ onClose }: Props) {
 
   // ── Perfil ──────────────────────────────────────────────────────────────────
   const [profileForm, setProfileForm] = useState<ProfileForm>({
-    email:      user?.email      || '',
-    first_name: user?.first_name || '',
-    last_name:  user?.last_name  || '',
-    phone:      user?.phone      || '',
-    job_title:  user?.job_title  || '',
-    avatar_url: user?.avatar_url || '',
+    email:      (user?.email      as string) || '',
+    first_name: (user?.first_name as string) || '',
+    last_name:  (user?.last_name  as string) || '',
+    phone:      (user?.phone      as string) || '',
+    job_title:  (user?.job_title  as string) || '',
+    avatar_url: (user?.avatar_url as string) || '',
   })
 
   const { mutate: saveProfile, isPending: savingProfile } = useMutation({
     mutationFn: (data: ProfileForm) => usersApi.updateMe(data),
     onSuccess: (res: { data: unknown }) => {
-      setUser(res.data)
+      setUser(res.data as import('../../context/AuthContext').User)
       qc.invalidateQueries({ queryKey: ['auth-me'] })
       toast.success('Perfil actualizado')
     },
@@ -174,7 +173,7 @@ export default function UserProfilePanel({ onClose }: Props) {
         {/* Header del panel */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)',
           display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
-          <Avatar name={user?.full_name} size={44} />
+          <Avatar name={user?.full_name ?? undefined} size={44} url={undefined} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -460,7 +459,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                 <div style={{ color: 'var(--text-2)', marginBottom: 6 }}>Sesión actual</div>
                 <div style={{ color: 'var(--text-1)' }}>
                   Último acceso: {user?.last_login
-                    ? new Date(user.last_login).toLocaleDateString('es-ES', {
+                    ? new Date(user.last_login as string).toLocaleDateString('es-ES', {
                         day:'2-digit', month:'short', year:'numeric',
                         hour:'2-digit', minute:'2-digit' })
                     : 'No disponible'}
@@ -499,10 +498,10 @@ export default function UserProfilePanel({ onClose }: Props) {
                 </div>
               )}
 
-              {user?.sso_provider && (
+              {Boolean(user?.sso_provider) && (
                 <div style={{ padding: '12px 14px', background: 'var(--surface-3)',
                   borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                  Tu cuenta usa SSO ({user.sso_provider}). La contraseña se gestiona
+                  Tu cuenta usa SSO ({String(user?.sso_provider)}). La contraseña se gestiona
                   desde tu proveedor de identidad corporativo.
                 </div>
               )}

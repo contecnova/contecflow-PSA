@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type { CSSProperties } from 'react'
 import { useState, useEffect } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -11,18 +11,18 @@ import PageShell from '../components/layout/PageShell'
 import { Brain } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%' }
-const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
-const ENGINE_MODES = {
+const ENGINE_MODES: Record<string, { label: string; icon: string; desc: string }> = {
   hybrid:     { label: 'Híbrido',       icon: '⚡', desc: 'Semántico primero, LLM como desempate. Recomendado.' },
   semantic:   { label: 'Solo semántico', icon: '🧠', desc: 'Sin API key necesaria. Usa embeddings locales (TF-IDF o sentence-transformers).' },
   llm:        { label: 'Solo LLM',       icon: '🤖', desc: 'Usa el proveedor IA configurado en IA & Conectores.' },
   rules_only: { label: 'Solo reglas',    icon: '📋', desc: 'Sin IA, solo reglas de negocio y carga de trabajo.' },
 }
 
-const EMBEDDINGS_BACKENDS = {
+const EMBEDDINGS_BACKENDS: Record<string, { label: string; desc: string }> = {
   tfidf: {
     label: 'TF-IDF (ligero)',
     desc: 'Sin descarga de modelos. Menor precision, arranque inmediato.',
@@ -39,14 +39,14 @@ const _COMPLEXITY_CFG = {
   complex: { label: 'Compleja', color: 'var(--danger)', bg: 'var(--danger-bg)' },
 }
 
-function ProfileModal({ user, onClose }) {
+function ProfileModal({ user, onClose }: { user: any; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
-  const [text, setText] = useState(user?.profile_text || '')
-  const [maxLoad, setMaxLoad] = useState(user?.max_load || 10)
+  const [text, setText] = useState<string>(user?.profile_text || '')
+  const [maxLoad, setMaxLoad] = useState<number>(user?.max_load || 10)
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => semanticApi.createProfile(d),
+    mutationFn: (d: Record<string, unknown>) => semanticApi.createProfile(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sem-profiles'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -83,7 +83,7 @@ function TestPanel() {
   const [type, setType] = useState('ticket')
   const [title, setTitle] = useState('')
   const [desc, setDesc] = useState('')
-  const [result, setResult] = useState(null)
+  const [result, setResult] = useState<any>(null)
   const [testing, setTesting] = useState(false)
 
   const runTest = async () => {
@@ -95,8 +95,8 @@ function TestPanel() {
       const res = await fn({ title, description: desc })
       setResult(res.data)
     } catch (e) {
-      const raw = e?.response?.data?.detail
-      setResult({ error: Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'Error') })
+      const raw = (e as any)?.response?.data?.detail
+      setResult({ error: Array.isArray(raw) ? raw.map((d: any) => d.msg).join(', ') : (raw || 'Error') })
     } finally { setTesting(false) }
   }
 
@@ -159,7 +159,7 @@ function TestPanel() {
               {result.top_candidates && Object.keys(result.top_candidates).length > 0 && (
                 <div>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>Top candidatos</div>
-                  {Object.entries(result.top_candidates).map(([uid, info]) => (
+                  {Object.entries(result.top_candidates).map(([uid, info]: [string, any]) => (
                     <div key={uid} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: "var(--text-sm)" }}>
                       <span>{info.name}</span>
                       <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{Math.round(info.score * 100)}%</span>
@@ -180,8 +180,8 @@ export default function SemanticEnginePage() {
   const toast = useToast()
   const qc = useQueryClient()
   const [tab, setTab] = useState('overview')
-  const [editProfile, setEditProfile] = useState(null)
-  const [opStatus, setOpStatus] = useState({ type: 'idle', startedAt: null })
+  const [editProfile, setEditProfile] = useState<any>(null)
+  const [opStatus, setOpStatus] = useState<{ type: string; startedAt: number | null }>({ type: 'idle', startedAt: null })
   const [opElapsed, setOpElapsed] = useState(0)
   const [hfModelDraft, setHfModelDraft] = useState('')
 
@@ -190,44 +190,45 @@ export default function SemanticEnginePage() {
       setOpElapsed(0)
       return
     }
+    const startedAt = opStatus.startedAt
     const id = setInterval(() => {
-      setOpElapsed(Math.floor((Date.now() - opStatus.startedAt) / 1000))
+      setOpElapsed(Math.floor((Date.now() - startedAt) / 1000))
     }, 1000)
     return () => clearInterval(id)
   }, [opStatus.startedAt])
 
-  const { data: config = {}, isLoading: _loadingCfg } = useQuery({
+  const { data: config = {}, isLoading: _loadingCfg } = useQuery<Record<string, any>>({
     queryKey: ['sem-config'],
-    queryFn: () => semanticApi.config().then(r => r.data),
+    queryFn: () => semanticApi.config().then((r: { data: Record<string, any> }) => r.data),
   })
 
   useEffect(() => {
     setHfModelDraft(config.local_model_name && config.local_model_name !== 'tfidf' ? config.local_model_name : 'all-MiniLM-L6-v2')
   }, [config.local_model_name])
-  const { data: profiles = [], isLoading: _loadingProfiles } = useQuery({
+  const { data: profiles = [], isLoading: _loadingProfiles } = useQuery<any[]>({
     queryKey: ['sem-profiles'],
-    queryFn: () => semanticApi.profiles().then(r => r.data),
+    queryFn: () => semanticApi.profiles().then((r: { data: any[] }) => r.data),
     enabled: tab === 'profiles' || tab === 'overview',
   })
-  const { data: stats = {} } = useQuery({
+  const { data: stats = {} } = useQuery<Record<string, any>>({
     queryKey: ['sem-stats'],
-    queryFn: () => semanticApi.stats().then(r => r.data),
+    queryFn: () => semanticApi.stats().then((r: { data: Record<string, any> }) => r.data),
   })
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<any[]>({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data),
+    queryFn: () => usersApi.list().then((r: { data: any[] }) => r.data),
     enabled: tab === 'profiles',
   })
 
   const { mutate: saveConfig, isPending: savingConfig } = useMutation({
-    mutationFn: d => semanticApi.updateConfig(d).then(r => r.data),
+    mutationFn: (d: Record<string, unknown>) => semanticApi.updateConfig(d).then((r: { data: unknown }) => r.data),
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: ['sem-config'] })
       const previous = qc.getQueryData(['sem-config'])
-      qc.setQueryData(['sem-config'], current => ({ ...(current || {}), ...patch }))
+      qc.setQueryData(['sem-config'], (current: any) => ({ ...(current || {}), ...patch }))
       return { previous }
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       if (data?.config) qc.setQueryData(['sem-config'], data.config)
       toast.success('Configuración del motor actualizada')
     },
@@ -569,7 +570,7 @@ export default function SemanticEnginePage() {
                       <div style={{ marginTop: 8, borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
                         <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>PIPELINE DE RESOLUCIÓN</div>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          {Object.entries(stats.by_mode).map(([mode, count]) => (
+                          {Object.entries(stats.by_mode).map(([mode, count]: [string, any]) => (
                             <div key={mode} style={{ padding: '4px 10px', borderRadius: 20, background: 'var(--surface-3)', fontSize: "var(--text-xs)", color: 'var(--text-1)' }}>
                               {ENGINE_MODES[mode]?.icon} {ENGINE_MODES[mode]?.label || mode}: <strong>{count}</strong>
                             </div>

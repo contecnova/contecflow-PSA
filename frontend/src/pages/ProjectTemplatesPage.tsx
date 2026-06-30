@@ -1,8 +1,8 @@
-// @ts-nocheck
 /**
  * ProjectTemplatesPage — Manage and instantiate project templates.
  * Templates predefine phases, tasks, risks and deliverables for fast project creation.
  */
+import type { CSSProperties, ReactNode } from 'react'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { templatesApi } from '../services/api'
@@ -17,7 +17,9 @@ const TASK_COLOR  = 'var(--success)'
 const RISK_COLOR  = 'var(--warning)'
 const DELIV_COLOR = 'var(--accent)'
 
-function Badge({ color, label }) {
+type Tpl = { [k: string]: unknown; id: string; name?: string; description?: string; estimated_weeks?: number; estimated_hours?: number; phases?: any[]; risks?: any[]; deliverables?: any[]; risk_count?: number; deliverable_count?: number }
+
+function Badge({ color, label }: { color: string; label: ReactNode }) {
   return (
     <span style={{
       fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 7px', borderRadius: 4,
@@ -26,10 +28,10 @@ function Badge({ color, label }) {
   )
 }
 
-function TemplateCard({ tpl, onInstantiate, t }) {
+function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl: Tpl) => void; t: (k: string) => string }) {
   const [expanded, setExpanded] = useState(false)
   const phaseCount = tpl.phases?.length || 0
-  const taskCount = (tpl.phases || []).reduce((acc, p) => acc + (p.tasks?.length || 0), 0)
+  const taskCount = (tpl.phases || []).reduce((acc: number, p: any) => acc + (p.tasks?.length || 0), 0)
   const riskCount = tpl.risk_count || tpl.risks?.length || 0
   const deliverableCount = tpl.deliverable_count || tpl.deliverables?.length || 0
 
@@ -97,7 +99,7 @@ function TemplateCard({ tpl, onInstantiate, t }) {
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: PHASE_COLOR, marginBottom: 4 }}>
                 {t('project_templates.phase')} {phase.order}: {phase.name}
               </div>
-              {phase.tasks?.map((task, j) => (
+              {phase.tasks?.map((task: any, j: number) => (
                 <div key={j} style={{
                   fontSize: "var(--text-xs)", color: 'var(--text-2)', paddingLeft: 14,
                   display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2,
@@ -110,10 +112,10 @@ function TemplateCard({ tpl, onInstantiate, t }) {
             </div>
           ))}
           {/* Risks */}
-          {tpl.risks?.length > 0 && (
+          {(tpl.risks?.length ?? 0) > 0 && (
             <div style={{ marginTop: 8 }}>
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: RISK_COLOR, marginBottom: 4 }}>{t('project_templates.predefined_risks')}</div>
-              {tpl.risks.map((risk, i) => (
+              {tpl.risks!.map((risk: any, i: number) => (
                 <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', paddingLeft: 14, marginBottom: 2, display: 'flex', gap: 8 }}>
                   <span style={{ color: RISK_COLOR }}>▲</span>{risk.title}
                 </div>
@@ -121,10 +123,10 @@ function TemplateCard({ tpl, onInstantiate, t }) {
             </div>
           )}
           {/* Deliverables */}
-          {tpl.deliverables?.length > 0 && (
+          {(tpl.deliverables?.length ?? 0) > 0 && (
             <div style={{ marginTop: 8 }}>
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: DELIV_COLOR, marginBottom: 4 }}>{t('project_templates.deliverables')}</div>
-              {tpl.deliverables.map((d, i) => (
+              {tpl.deliverables!.map((d: any, i: number) => (
                 <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', paddingLeft: 14, marginBottom: 2, display: 'flex', gap: 8 }}>
                   <span style={{ color: DELIV_COLOR }}>◆</span>{d.title}
                 </div>
@@ -137,8 +139,8 @@ function TemplateCard({ tpl, onInstantiate, t }) {
   )
 }
 
-function CreateTemplateModal({ onClose, onDone }) {
-  const [form, setForm] = useState({
+function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [form, setForm] = useState<{ name: string; description: string; project_type: string; estimated_weeks: string; estimated_hours: string; phases: any[]; risks: any[]; deliverables: any[] }>({
     name: '',
     description: '',
     project_type: 'consulting',
@@ -148,19 +150,19 @@ function CreateTemplateModal({ onClose, onDone }) {
     risks: [],
     deliverables: [],
   })
-  const [phase, setPhase] = useState({ name: '', description: '', estimated_weeks: '', estimated_hours: '', tasks: [] })
+  const [phase, setPhase] = useState<{ name: string; description: string; estimated_weeks: string; estimated_hours: string; tasks: any[] }>({ name: '', description: '', estimated_weeks: '', estimated_hours: '', tasks: [] })
   const [task, setTask] = useState({ title: '', estimated_hours: '', skill_required: '' })
   const [risk, setRisk] = useState({ title: '', category: '', probability: 'medium', impact: 'moderate', mitigation_plan: '' })
   const [deliverable, setDeliverable] = useState({ name: '', format: '', week_offset: '', billing_pct: '', acceptance_criteria: '' })
   const [error, setError] = useState('')
 
   const mutation = useMutation({
-    mutationFn: (payload) => templatesApi.create(payload),
+    mutationFn: (payload: Record<string, unknown>) => templatesApi.create(payload),
     onSuccess: () => onDone(),
-    onError: (err) => setError(err.response?.data?.detail || 'No se pudo crear la plantilla'),
+    onError: (err: any) => setError(err.response?.data?.detail || 'No se pudo crear la plantilla'),
   })
 
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const addTaskToPhase = () => {
     if (!task.title?.trim()) return
@@ -324,7 +326,7 @@ function CreateTemplateModal({ onClose, onDone }) {
   )
 }
 
-const inp = {
+const inp: CSSProperties = {
   background: 'var(--surface-2)',
   border: '1px solid var(--surface-4)',
   borderRadius: 8,
@@ -335,7 +337,7 @@ const inp = {
   boxSizing: 'border-box',
 }
 
-const btnPrimary = {
+const btnPrimary: CSSProperties = {
   padding: '8px 16px',
   borderRadius: 8,
   border: 'none',
@@ -346,7 +348,7 @@ const btnPrimary = {
   fontFamily: 'inherit',
 }
 
-const btnSecondary = {
+const btnSecondary: CSSProperties = {
   padding: '8px 14px',
   borderRadius: 8,
   border: '1px solid var(--surface-4)',
@@ -356,7 +358,7 @@ const btnSecondary = {
   fontFamily: 'inherit',
 }
 
-const chip = {
+const chip: CSSProperties = {
   fontSize: "var(--text-xs)",
   background: 'var(--surface-2)',
   border: '1px solid var(--surface-4)',
@@ -364,7 +366,7 @@ const chip = {
   padding: '2px 8px',
 }
 
-const h3 = {
+const h3: CSSProperties = {
   fontSize: "var(--text-base)",
   fontWeight: 700,
   marginBottom: 8,
@@ -372,24 +374,24 @@ const h3 = {
 
 // ── Modal: instantiate template ───────────────────────────────────────────────
 
-function InstantiateModal({ tpl, onClose, onDone, t }) {
+function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () => void; onDone: (data: any) => void; t: (k: string) => string }) {
   const [projectName, setProjectName] = useState(tpl?.name || '')
   const [clientName, setClientName] = useState('')
   const [startDate, setStartDate] = useState('')
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
 
   const mutation = useMutation({
-    mutationFn: (data) => templatesApi.instantiate(tpl.id, data),
-    onSuccess: (res) => {
+    mutationFn: (data: Record<string, unknown>) => templatesApi.instantiate(tpl.id, data),
+    onSuccess: (res: { data: unknown }) => {
       onDone(res.data)
     },
-    onError: (err) => {
+    onError: (err: any) => {
       setError(err.response?.data?.detail || t('project_templates.creation_error'))
     },
   })
 
   const submit = () => {
-    if (!projectName.trim()) return setError(t('project_templates.project_name_required'))
+    if (!projectName.trim()) { setError(t('project_templates.project_name_required')); return }
     mutation.mutate({
       project_name: projectName.trim(),
       client_name: clientName.trim() || undefined,
@@ -498,16 +500,16 @@ function InstantiateModal({ tpl, onClose, onDone, t }) {
 export default function ProjectTemplatesPage() {
   const t = useAppT()
   const queryClient = useQueryClient()
-  const [selectedTpl, setSelectedTpl] = useState(null)
+  const [selectedTpl, setSelectedTpl] = useState<Tpl | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [successMsg, setSuccessMsg] = useState(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
-  const { data: templates = [], isLoading } = useQuery({
+  const { data: templates = [], isLoading } = useQuery<Tpl[]>({
     queryKey: ['project-templates'],
-    queryFn: () => templatesApi.list().then(r => r.data),
+    queryFn: () => templatesApi.list().then((r: { data: Tpl[] }) => r.data),
   })
 
-  const handleInstantiateSuccess = (result) => {
+  const handleInstantiateSuccess = (result: any) => {
     setSelectedTpl(null)
     setSuccessMsg(
       t('project_templates.created_ok')

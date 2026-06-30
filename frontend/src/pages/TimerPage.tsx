@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * Timer Page — Seguimiento de tiempo con cronómetro activo e historial
  */
 import { useState, useEffect, useRef } from 'react'
+import type { CSSProperties } from 'react'
+import type { TaskListParams, TaskListItem } from '../services/api/tasks'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { imputationsApi, projectsApi, tasksApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
@@ -13,24 +14,49 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { DEFAULT_PAGE_SIZE, LARGE_PAGE_SIZE, NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS } from '../constants/timings'
 
-const FS = {
+const FS: CSSProperties = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
   borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
-const LS = {
+const LS: CSSProperties = {
   fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase',
   letterSpacing: '0.07em', display: 'block', marginBottom: 5,
 }
 
-function formatTime(seconds) {
+interface TimerData {
+  id?: string
+  project_id?: string | number
+  project_name?: string | null
+  task_id?: string | number | null
+  task_name?: string | null
+  started_at: string
+  paused_at?: string | null
+  total_elapsed_seconds?: number | null
+  paused_duration_secs?: number | null
+}
+
+type ApiErr = { response?: { data?: { detail?: string } } }
+
+interface TimerHistoryItem {
+  id: string
+  timer_session_id?: string | null
+  description?: string | null
+  hours?: number | null
+  hours_imputed?: number | null
+  is_billable?: boolean
+  created_at?: string | null
+  project?: { id?: string | number; name?: string | null; code?: string | null } | null
+}
+
+function formatTime(seconds: number) {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   const s = seconds % 60
   return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')
 }
 
-function computeElapsed(timer) {
+function computeElapsed(timer: TimerData | null | undefined) {
   if (!timer) return 0
   // If paused, use server-computed value (avoids timezone drift)
   if (timer.paused_at && timer.total_elapsed_seconds != null) {
@@ -46,34 +72,38 @@ function computeElapsed(timer) {
     const pausedStr = timer.paused_at.endsWith('Z') || timer.paused_at.includes('+')
       ? timer.paused_at
       : timer.paused_at + 'Z'
-    return Math.max(0, Math.floor((new Date(pausedStr) - startedAt) / 1000) - totalPausedSecs)
+    return Math.max(0, Math.floor((new Date(pausedStr).getTime() - startedAt.getTime()) / 1000) - totalPausedSecs)
   }
-  return Math.max(0, Math.floor((Date.now() - startedAt) / 1000) - totalPausedSecs)
+  return Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 1000) - totalPausedSecs)
 }
 
-function _onKeyboardActivate(event, action) {
+function _onKeyboardActivate(event: { key: string; preventDefault: () => void }, action: () => void) {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     action()
   }
 }
 
-function StartModal({ onClose, onStart, isPending }) {
+function StartModal({ onClose, onStart, isPending }: {
+  onClose: () => void
+  onStart: (p: { project_id: string; task_id: string | null; is_billable: boolean }) => void
+  isPending: boolean
+}) {
   const [projectId, setProjectId] = useState('')
   const [taskId,    setTaskId]    = useState('')
   const [billable,  setBillable]  = useState(true)
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<Array<{ id: string; name?: string }>>({
     queryKey: ['projects-list-timer'],
-    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE, status: 'active' }).then(r =>
-      Array.isArray(r.data) ? r.data : (r.data.items || [])
+    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE, status: 'active' }).then((r: { data: unknown }) =>
+      Array.isArray(r.data) ? r.data : ((r.data as { items?: unknown[] }).items || [])
     ),
   })
 
-  const { data: tasks = [] } = useQuery({
+  const { data: tasks = [] } = useQuery<TaskListItem[]>({
     queryKey: ['tasks-for-project-timer', projectId],
-    queryFn: () => tasksApi.list({ project_id: projectId, assigned_to_me: true, page_size: LARGE_PAGE_SIZE }).then(r =>
-      Array.isArray(r.data) ? r.data : (r.data.items || [])
+    queryFn: () => tasksApi.list({ project_id: projectId, assigned_to_me: true, page_size: LARGE_PAGE_SIZE } as TaskListParams).then((r: { data: unknown }) =>
+      Array.isArray(r.data) ? r.data : ((r.data as { items?: TaskListItem[] }).items || [])
     ),
     enabled: !!projectId,
   })
@@ -117,7 +147,7 @@ function StartModal({ onClose, onStart, isPending }) {
           <select value={taskId} onChange={e => setTaskId(e.target.value)}
             style={{ ...FS, opacity: projectId ? 1 : 0.5 }} disabled={!projectId}>
             <option value="">— Sin tarea —</option>
-            {tasks.map(t => <option key={t.id} value={t.id}>{t.title || t.name}</option>)}
+            {tasks.map(t => <option key={t.id} value={t.id}>{t.title || (t as { name?: string }).name}</option>)}
           </select>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: "var(--text-base)", color: 'var(--text-1)' }}>
@@ -148,21 +178,28 @@ function StartModal({ onClose, onStart, isPending }) {
   )
 }
 
-function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction, elapsed }) {
+function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction, elapsed }: {
+  currentTimer: TimerData | null | undefined
+  onClose: () => void
+  onStop: (p: { description: string; is_billable: boolean; task_id: string | null; force_duplicate: boolean }) => void
+  onCancelTimer: () => void
+  pendingAction: 'stop' | 'cancel' | null
+  elapsed: number
+}) {
   const [description, setDescription] = useState('')
   const [billable, setBillable] = useState(true)
-  const [taskId, setTaskId] = useState(currentTimer?.task_id || '')
+  const [taskId, setTaskId] = useState<string>(currentTimer?.task_id ? String(currentTimer.task_id) : '')
   const [forceDuplicate, setForceDuplicate] = useState(false)
 
   useEffect(() => {
-    setTaskId(currentTimer?.task_id || '')
+    setTaskId(currentTimer?.task_id ? String(currentTimer.task_id) : '')
     setForceDuplicate(false)
   }, [currentTimer?.id, currentTimer?.task_id])
 
-  const { data: tasks = [] } = useQuery({
+  const { data: tasks = [] } = useQuery<TaskListItem[]>({
     queryKey: ['tasks-for-stop-timer', currentTimer?.project_id, 'mine'],
-    queryFn: () => tasksApi.list({ project_id: currentTimer?.project_id, assigned_to_me: true, page_size: LARGE_PAGE_SIZE }).then(r =>
-      Array.isArray(r.data) ? r.data : (r.data.items || [])
+    queryFn: () => tasksApi.list({ project_id: currentTimer?.project_id, assigned_to_me: true, page_size: LARGE_PAGE_SIZE } as TaskListParams).then((r: { data: unknown }) =>
+      Array.isArray(r.data) ? r.data : ((r.data as { items?: TaskListItem[] }).items || [])
     ),
     enabled: !!currentTimer?.project_id,
   })
@@ -210,7 +247,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
           <label style={LS}>Tarea final</label>
           <select value={taskId} onChange={e => setTaskId(e.target.value)} style={FS} aria-label="Tarea final">
             <option value="">— Sin tarea —</option>
-            {tasks.map(task => <option key={task.id} value={task.id}>{task.title || task.name}</option>)}
+            {tasks.map(task => <option key={task.id} value={task.id}>{task.title || (task as { name?: string }).name}</option>)}
           </select>
           <div style={{ marginTop: 6, fontSize: "var(--text-xs)", color: 'var(--text-3)', lineHeight: 1.5 }}>
             Si ya existe una imputación para esa tarea y fecha, selecciona otra tarea o activa el guardado forzado.
@@ -262,63 +299,63 @@ export default function TimerPage() {
   const [elapsed,    setElapsed]   = useState(0)
   const [showStart,  setShowStart] = useState(false)
   const [showStop,   setShowStop]  = useState(false)
-  const intervalRef = useRef(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const { data: currentTimer } = useQuery({
+  const { data: currentTimer } = useQuery<TimerData | null>({
     queryKey: ['timer-current'],
-    queryFn: () => imputationsApi.timerCurrent().then(r => r.data),
+    queryFn: () => imputationsApi.timerCurrent().then((r: { data: TimerData | null }) => r.data),
     refetchInterval: NOTIFICATIONS_POLL_MS,
   })
 
   const { data: timerProject } = useQuery({
     queryKey: ['timer-current-project', currentTimer?.project_id],
-    queryFn: () => projectsApi.get(currentTimer.project_id).then(r => r.data),
+    queryFn: () => projectsApi.get(String(currentTimer?.project_id)).then(r => r.data),
     enabled: !!currentTimer?.project_id && !currentTimer?.project_name,
     staleTime: STALE_5_MIN_MS,
   })
 
   const { data: timerTask } = useQuery({
     queryKey: ['timer-current-task', currentTimer?.task_id],
-    queryFn: () => tasksApi.get(currentTimer.task_id).then(r => r.data),
+    queryFn: () => tasksApi.get(String(currentTimer?.task_id)).then(r => r.data),
     enabled: !!currentTimer?.task_id && !currentTimer?.task_name,
     staleTime: STALE_5_MIN_MS,
   })
 
-  const { data: timerHistory = [] } = useQuery({
+  const { data: timerHistory = [] } = useQuery<TimerHistoryItem[]>({
     queryKey: ['timer-history'],
-    queryFn: () => imputationsApi.list({ page_size: DEFAULT_PAGE_SIZE }).then(r => {
+    queryFn: () => imputationsApi.list({ page_size: DEFAULT_PAGE_SIZE }).then((r: { data: unknown }) => {
       const data = r.data
-      const items = Array.isArray(data) ? data : (data.items || [])
-      return items.filter(imp => imp.timer_session_id)
+      const items: TimerHistoryItem[] = Array.isArray(data) ? data : ((data as { items?: TimerHistoryItem[] }).items || [])
+      return items.filter((imp) => imp.timer_session_id)
     }),
     refetchInterval: 60_000,
   })
 
   useEffect(() => {
-    clearInterval(intervalRef.current)
+    clearInterval(intervalRef.current ?? undefined)
     if (!currentTimer) { setElapsed(0); return }
     const tick = () => setElapsed(computeElapsed(currentTimer))
     tick()
     if (!currentTimer.paused_at) {
       intervalRef.current = setInterval(tick, 1000)
     }
-    return () => clearInterval(intervalRef.current)
+    return () => clearInterval(intervalRef.current ?? undefined)
   }, [currentTimer])
 
   const startMutation = useMutation({
-    mutationFn: (p) => imputationsApi.timerStart(p).then(r => r.data),
+    mutationFn: (p: Record<string, unknown>) => imputationsApi.timerStart(p).then(r => r.data),
     onSuccess: (data) => { toast.success('Cronómetro iniciado'); qc.setQueryData(['timer-current'], data); setShowStart(false) },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al iniciar'),
+    onError: (e: ApiErr) => toast.error(e?.response?.data?.detail || 'Error al iniciar'),
   })
   const pauseMutation = useMutation({
     mutationFn: () => imputationsApi.timerPause().then(r => r.data),
     onSuccess: (data) => { toast.success('Cronómetro pausado'); qc.setQueryData(['timer-current'], data) },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al pausar'),
+    onError: (e: ApiErr) => toast.error(e?.response?.data?.detail || 'Error al pausar'),
   })
   const resumeMutation = useMutation({
     mutationFn: () => imputationsApi.timerResume().then(r => r.data),
     onSuccess: (data) => { toast.success('Cronómetro reanudado'); qc.setQueryData(['timer-current'], data) },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al reanudar'),
+    onError: (e: ApiErr) => toast.error(e?.response?.data?.detail || 'Error al reanudar'),
   })
   const cancelMutation = useMutation({
     mutationFn: () => imputationsApi.timerCancel().then(r => r.data),
@@ -328,10 +365,10 @@ export default function TimerPage() {
       setShowStop(false)
       setElapsed(0)
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al cancelar el cronómetro'),
+    onError: (e: ApiErr) => toast.error(e?.response?.data?.detail || 'Error al cancelar el cronómetro'),
   })
   const stopMutation = useMutation({
-    mutationFn: (p) => imputationsApi.timerStop(p).then(r => r.data),
+    mutationFn: (p: Record<string, unknown>) => imputationsApi.timerStop(p).then(r => r.data),
     onSuccess: () => {
       toast.success('Sesión guardada como imputación')
       qc.setQueryData(['timer-current'], null)
@@ -344,7 +381,7 @@ export default function TimerPage() {
       qc.invalidateQueries({ queryKey: ['timesheets-team'] })
       setShowStop(false); setElapsed(0)
     },
-    onError: (e) => {
+    onError: (e: ApiErr) => {
       const detail = e?.response?.data?.detail || 'Error al detener'
       toast.error(detail)
     },
@@ -358,7 +395,7 @@ export default function TimerPage() {
   const stateLabel = isRunning ? 'Corriendo' : isPaused ? 'Pausado' : 'Sin sesión'
   const isOnline = useOnlineStatus()
   const timerProjectLabel = currentTimer?.project_name || timerProject?.name || (currentTimer?.project_id ? `Proyecto #${currentTimer.project_id}` : '—')
-  const timerTaskLabel = currentTimer?.task_name || timerTask?.title || timerTask?.name || (currentTimer?.task_id ? `Tarea #${currentTimer.task_id}` : null)
+  const timerTaskLabel = currentTimer?.task_name || timerTask?.title || (timerTask as { name?: string } | undefined)?.name || (currentTimer?.task_id ? `Tarea #${currentTimer.task_id}` : null)
 
   return (
     <PageShell style={{ maxWidth: 860, margin: '0 auto' }}>
@@ -423,7 +460,7 @@ export default function TimerPage() {
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
             Inicio: {new Date(currentTimer.started_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             {(currentTimer.paused_duration_secs || 0) > 0 && (
-              <span style={{ marginLeft: 14 }}>· Pausado acumulado: {formatTime(currentTimer.paused_duration_secs)}</span>
+              <span style={{ marginLeft: 14 }}>· Pausado acumulado: {formatTime(currentTimer.paused_duration_secs ?? 0)}</span>
             )}
           </div>
 
