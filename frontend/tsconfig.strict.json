@@ -70,6 +70,10 @@
     "src/pages/AutomationsPage.tsx",
     "src/pages/portal-client/PortalUI.tsx",
     "src/pages/ClientPortalPage.tsx",
-    "src/pages/ProjectsPage.tsx"
+    "src/pages/ProjectsPage.tsx",
+    "src/pages/RevenuePage.tsx",
+    "src/pages/portal-client/PortalDashboard.tsx",
+    "src/pages/CMDBPage.tsx",
+    "src/features/bi/widgets.tsx"
   ]
 }
