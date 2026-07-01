@@ -54,6 +54,10 @@
     "src/pages/service-desk/MetricsDashboardTab.tsx",
     "src/pages/SprintsPage.tsx",
     "src/pages/ReportBuilderPage.tsx",
-    "src/pages/GrcPage.tsx"
+    "src/pages/GrcPage.tsx",
+    "src/pages/ImputarPage.tsx",
+    "src/pages/AbsencesPage.tsx",
+    "src/components/GanttChart.tsx",
+    "src/components/portal/GovernedConversations.tsx"
   ]
 }

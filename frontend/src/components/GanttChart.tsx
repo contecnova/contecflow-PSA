@@ -400,9 +400,10 @@ export default function GanttChart({
           </div>
           <div ref={labelRef} style={{ overflow: 'hidden', flex: 1 }}>
             {rowsLayout.map(({ item, h, isGroup }) => {
-              const isOverdue = !isGroup && item.due_date && parseDate(item.due_date) < today &&
-                !['done', 'closed', 'cancelled'].includes(item.status)
-              const dotColor = isOverdue ? 'var(--danger)' : (STATUS_COLOR[item.status] || 'var(--text-3)')
+              const dueD = parseDate(item.due_date)
+              const isOverdue = !isGroup && !!item.due_date && !!dueD && dueD < today &&
+                !['done', 'closed', 'cancelled'].includes(item.status || '')
+              const dotColor = isOverdue ? 'var(--danger)' : (STATUS_COLOR[item.status || ''] || 'var(--text-3)')
               return (
                 <div key={item.id} style={{
                   height: h, borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 60%, transparent)',
@@ -428,7 +429,7 @@ export default function GanttChart({
                       <span style={{ fontSize: "var(--text-sm)", color: isOverdue ? 'var(--danger)' : 'rgba(200,216,240,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                         {item.title || item.name}
                       </span>
-                      {item.story_points > 0 && (
+                      {(item.story_points ?? 0) > 0 && (
                         <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'var(--surface-4)', padding: '1px 4px', borderRadius: 4, flexShrink: 0 }}>
                           {item.story_points}p
                         </span>
@@ -507,8 +508,8 @@ export default function GanttChart({
                 : item
               const startD    = parseDate(eff.start_date)
               const endD      = parseDate(eff.due_date || eff.end_date_planned || eff.end_date)
-              const isOverdue = endD && endD < today && !['done', 'closed', 'cancelled'].includes(item.status)
-              const barColor  = isOverdue ? 'var(--danger)' : item.is_critical ? 'var(--orange)' : (STATUS_COLOR[item.status] || 'var(--text-3)')
+              const isOverdue = endD && endD < today && !['done', 'closed', 'cancelled'].includes(item.status || '')
+              const barColor  = isOverdue ? 'var(--danger)' : item.is_critical ? 'var(--orange)' : (STATUS_COLOR[item.status || ''] || 'var(--text-3)')
               const isDragging = dragState?.id === item.id
               const progress   = item.progress_pct != null ? item.progress_pct / 100
                 : item.status === 'done' ? 1 : item.status === 'in_progress' ? 0.4 : 0
@@ -598,7 +599,7 @@ export default function GanttChart({
                   {onTaskUpdate && (
                     <rect x={x1 + bW - 8} y={bY + 2} width={8} height={bH - 4} rx={2}
                       fill={barColor + '55'} style={{ cursor: 'ew-resize' }}
-                      title={onDepCreate ? 'Redimensionar · Shift+drag = crear dependencia' : 'Redimensionar'}
+                      {...{ title: onDepCreate ? 'Redimensionar · Shift+drag = crear dependencia' : 'Redimensionar' } as object}
                       onMouseDown={e => { e.stopPropagation(); startDrag(e, item, 'resize') }} />
                   )}
 
@@ -689,7 +690,7 @@ export default function GanttChart({
                   <text x={tx + 8} y={ty + 30} fontSize={10} fill="var(--text-3)" fontFamily="inherit">
                     {item.start_date || '?'} {'→'} {item.due_date || item.end_date_planned || '?'}
                   </text>
-                  <text x={tx + 8} y={ty + 44} fontSize={10} fill={STATUS_COLOR[item.status] || 'var(--text-3)'} fontFamily="inherit">
+                  <text x={tx + 8} y={ty + 44} fontSize={10} fill={STATUS_COLOR[item.status || ''] || 'var(--text-3)'} fontFamily="inherit">
                     {item.status}{item.progress_pct != null ? ` · ${item.progress_pct}%` : ''}{item.story_points ? ` · ${item.story_points}p` : ''}
                   </text>
                   {sug && (
