@@ -39,7 +39,7 @@ api.interceptors.request.use((config) => {
 // Singleton refresh promise — ensures only one /auth/refresh call is in flight at a time.
 // All concurrent 401s wait for the same promise instead of each firing their own refresh,
 // which would invalidate the rotating refresh token for all but the first caller.
-let _refreshPromise = null
+let _refreshPromise: Promise<unknown> | null = null
 
 // APIListResponse compatibility — audit #67 migrated many list endpoints to
 // `{ items: T[], meta: { total, page, page_size, has_more } }`. Consumers that
@@ -115,37 +115,37 @@ api.interceptors.response.use(
 // ── Rate Cards ────────────────────────────────────────────────────────────────
 export const rateCardsApi = {
   list:            ()         => api.get('/rate-cards'),
-  get:             (id)       => api.get(`/rate-cards/${id}`),
-  create:          (d)        => api.post('/rate-cards', d),
-  update:          (id, d)    => api.patch(`/rate-cards/${id}`, d),
-  delete:          (id)       => api.delete(`/rate-cards/${id}`),
-  duplicate:       (id, d)    => api.post(`/rate-cards/${id}/duplicate`, d),
-  addEntry:        (id, d)    => api.post(`/rate-cards/${id}/entries`, d),
-  updateEntry:     (id,eid,d) => api.patch(`/rate-cards/${id}/entries/${eid}`, d),
-  deleteEntry:     (id,eid)   => api.delete(`/rate-cards/${id}/entries/${eid}`),
-  addOverride:     (id, d)    => api.post(`/rate-cards/${id}/overrides`, d),
-  deleteOverride:  (id,oid)   => api.delete(`/rate-cards/${id}/overrides/${oid}`),
+  get:             (id: any)       => api.get(`/rate-cards/${id}`),
+  create:          (d: Record<string, unknown>)        => api.post('/rate-cards', d),
+  update:          (id: any, d: Record<string, unknown>)    => api.patch(`/rate-cards/${id}`, d),
+  delete:          (id: any)       => api.delete(`/rate-cards/${id}`),
+  duplicate:       (id: any, d: Record<string, unknown>)    => api.post(`/rate-cards/${id}/duplicate`, d),
+  addEntry:        (id: any, d: Record<string, unknown>)    => api.post(`/rate-cards/${id}/entries`, d),
+  updateEntry:     (id: any,eid: any,d: Record<string, unknown>) => api.patch(`/rate-cards/${id}/entries/${eid}`, d),
+  deleteEntry:     (id: any,eid: any)   => api.delete(`/rate-cards/${id}/entries/${eid}`),
+  addOverride:     (id: any, d: Record<string, unknown>)    => api.post(`/rate-cards/${id}/overrides`, d),
+  deleteOverride:  (id: any,oid: any)   => api.delete(`/rate-cards/${id}/overrides/${oid}`),
   effectiveRate:   (params?: any)   => api.get('/rate-cards/effective', { params }),
 }
 
 // ── Milestones (SOW flow) ─────────────────────────────────────────────────────
 export const milestonesApi = {
-  list:            (projectId) => api.get(`/milestones/project/${projectId}`),
-  create:          (pid, d)    => api.post(`/milestones/project/${pid}`, d),
-  update:          (id, d)     => api.patch(`/milestones/${id}`, d),
-  delete:          (id)        => api.delete(`/milestones/${id}`),
-  complete:        (id)        => api.post(`/milestones/${id}/complete`),
-  uncomplete:      (id)        => api.post(`/milestones/${id}/uncomplete`),
-  requestApproval: (id, d)     => api.post(`/milestones/${id}/request-approval`, d || {}),
-  approve:         (id, d)     => api.post(`/milestones/${id}/approve`, d),
-  generateInvoice: (id)        => api.post(`/milestones/${id}/generate-invoice`),
+  list:            (projectId: any) => api.get(`/milestones/project/${projectId}`),
+  create:          (pid: any, d: Record<string, unknown>)    => api.post(`/milestones/project/${pid}`, d),
+  update:          (id: any, d: Record<string, unknown>)     => api.patch(`/milestones/${id}`, d),
+  delete:          (id: any)        => api.delete(`/milestones/${id}`),
+  complete:        (id: any)        => api.post(`/milestones/${id}/complete`),
+  uncomplete:      (id: any)        => api.post(`/milestones/${id}/uncomplete`),
+  requestApproval: (id: any, d: Record<string, unknown>)     => api.post(`/milestones/${id}/request-approval`, d || {}),
+  approve:         (id: any, d: Record<string, unknown>)     => api.post(`/milestones/${id}/approve`, d),
+  generateInvoice: (id: any)        => api.post(`/milestones/${id}/generate-invoice`),
   dashboard:       ()          => api.get('/milestones/dashboard/pending'),
 }
 
 // ── Resource Forecast ─────────────────────────────────────────────────────────
 export const forecastApi = {
   heatmap:      (params?: any) => api.get('/resource-forecast/weeks',        { params }),
-  userDetail:   (uid, p) => api.get(`/resource-forecast/users/${uid}`, { params: p }),
+  userDetail:   (uid: any, p: any) => api.get(`/resource-forecast/users/${uid}`, { params: p }),
   availability: (params?: any) => api.get('/resource-forecast/availability',  { params }),
   summary:      (params?: any) => api.get('/resource-forecast/summary',       { params }),
 }
@@ -154,40 +154,40 @@ export const forecastApi = {
 export const approvalsApi = {
   listWorkflows:     (params?: any)      => api.get('/approvals/workflows', { params }),
   listTemplates:     ()            => api.get('/approvals/workflow-templates'),
-  getWorkflow:       (id)          => api.get(`/approvals/workflows/${id}`),
-  createWorkflow:    (d)           => api.post('/approvals/workflows', d),
-  createFromTemplate:(d)           => api.post('/approvals/workflows/from-template', d),
-  updateWorkflow:    (id, d)       => api.patch(`/approvals/workflows/${id}`, d),
-  validateWorkflow:  (id)          => api.get(`/approvals/workflows/${id}/validate`),
-  publishWorkflow:   (id)          => api.post(`/approvals/workflows/${id}/publish`),
-  cloneVersion:      (id, d)       => api.post(`/approvals/workflows/${id}/clone-version`, d || {}),
-  deleteWorkflow:    (id)          => api.delete(`/approvals/workflows/${id}`),
-  addStep:           (wid, d)      => api.post(`/approvals/workflows/${wid}/steps`, d),
-  updateStep:        (wid, sid, d) => api.patch(`/approvals/workflows/${wid}/steps/${sid}`, d),
-  deleteStep:        (wid, sid)    => api.delete(`/approvals/workflows/${wid}/steps/${sid}`),
-  simulate:          (d)           => api.post('/approvals/simulate', d),
+  getWorkflow:       (id: any)          => api.get(`/approvals/workflows/${id}`),
+  createWorkflow:    (d: Record<string, unknown>)           => api.post('/approvals/workflows', d),
+  createFromTemplate:(d: Record<string, unknown>)           => api.post('/approvals/workflows/from-template', d),
+  updateWorkflow:    (id: any, d: Record<string, unknown>)       => api.patch(`/approvals/workflows/${id}`, d),
+  validateWorkflow:  (id: any)          => api.get(`/approvals/workflows/${id}/validate`),
+  publishWorkflow:   (id: any)          => api.post(`/approvals/workflows/${id}/publish`),
+  cloneVersion:      (id: any, d: Record<string, unknown>)       => api.post(`/approvals/workflows/${id}/clone-version`, d || {}),
+  deleteWorkflow:    (id: any)          => api.delete(`/approvals/workflows/${id}`),
+  addStep:           (wid: any, d: Record<string, unknown>)      => api.post(`/approvals/workflows/${wid}/steps`, d),
+  updateStep:        (wid: any, sid: any, d: Record<string, unknown>) => api.patch(`/approvals/workflows/${wid}/steps/${sid}`, d),
+  deleteStep:        (wid: any, sid: any)    => api.delete(`/approvals/workflows/${wid}/steps/${sid}`),
+  simulate:          (d: Record<string, unknown>)           => api.post('/approvals/simulate', d),
   bottlenecks:       (params?: any)      => api.get('/approvals/analytics/bottlenecks', { params }),
   approverLoad:      (params?: any)      => api.get('/approvals/analytics/approver-load', { params }),
   listRequests:      (params?: any)      => api.get('/approvals/requests', { params }),
   pendingMyAction:   ()            => api.get('/approvals/requests/pending-my-action'),
-  createRequest:     (d)           => api.post('/approvals/requests', d),
-  decide:            (id, d)       => api.post(`/approvals/requests/${id}/decide`, d),
-  cancel:            (id)          => api.post(`/approvals/requests/${id}/cancel`),
+  createRequest:     (d: Record<string, unknown>)           => api.post('/approvals/requests', d),
+  decide:            (id: any, d: Record<string, unknown>)       => api.post(`/approvals/requests/${id}/decide`, d),
+  cancel:            (id: any)          => api.post(`/approvals/requests/${id}/cancel`),
   stats:             ()            => api.get('/approvals/stats'),
   // Groups
   listGroups:        ()            => api.get('/approvals/groups'),
-  getGroup:          (id)          => api.get(`/approvals/groups/${id}`),
-  createGroup:       (d)           => api.post('/approvals/groups', d),
-  updateGroup:       (id, d)       => api.patch(`/approvals/groups/${id}`, d),
-  deleteGroup:       (id)          => api.delete(`/approvals/groups/${id}`),
+  getGroup:          (id: any)          => api.get(`/approvals/groups/${id}`),
+  createGroup:       (d: Record<string, unknown>)           => api.post('/approvals/groups', d),
+  updateGroup:       (id: any, d: Record<string, unknown>)       => api.patch(`/approvals/groups/${id}`, d),
+  deleteGroup:       (id: any)          => api.delete(`/approvals/groups/${id}`),
 }
 
 export const uatApi = {
-  list:   (projectId, params?: any) => api.get(`/projects/${projectId}/uat`, { params }),
-  create: (projectId, data)   => api.post(`/projects/${projectId}/uat`, data),
-  update: (projectId, id, d)  => api.patch(`/projects/${projectId}/uat/${id}`, d),
-  remove: (projectId, id)     => api.delete(`/projects/${projectId}/uat/${id}`),
-  export: (projectId)         => api.get(`/projects/${projectId}/uat/export`),
+  list:   (projectId: any, params?: any) => api.get(`/projects/${projectId}/uat`, { params }),
+  create: (projectId: any, data: Record<string, unknown>)   => api.post(`/projects/${projectId}/uat`, data),
+  update: (projectId: any, id: any, d: Record<string, unknown>)  => api.patch(`/projects/${projectId}/uat/${id}`, d),
+  remove: (projectId: any, id: any)     => api.delete(`/projects/${projectId}/uat/${id}`),
+  export: (projectId: any)         => api.get(`/projects/${projectId}/uat/export`),
 }
 
 export default api
@@ -224,213 +224,213 @@ export function unwrapList(response: unknown, key?: string): unknown[] {
  * array que encuentre. Útil cuando el endpoint puede devolver objeto o array
  * y necesitas también los metadatos paginated (`{items, count}` mantiene `count`).
  */
-export function unwrapData(response) {
+export function unwrapData(response: { data?: unknown } | null | undefined) {
   return response?.data ?? response ?? null
 }
 
 // ── Typed API helpers ─────────────────────────────────────────────────────────
 
 export const authApi = {
-  login:          (credentials) => api.post('/auth/login', credentials),
-  forgotPassword: (payload)     => api.post('/auth/password/forgot', payload),
-  resetPassword:  (payload)     => api.post('/auth/password/reset', payload),
+  login:          (credentials: any) => api.post('/auth/login', credentials),
+  forgotPassword: (payload: Record<string, unknown>)     => api.post('/auth/password/forgot', payload),
+  resetPassword:  (payload: Record<string, unknown>)     => api.post('/auth/password/reset', payload),
   me:             ()            => api.get('/auth/me'),
   syncLdap:       ()            => api.post('/auth/ldap/sync'),
-  changePassword: (data)        => api.post('/auth/change-password', data),
+  changePassword: (data: Record<string, unknown>)        => api.post('/auth/change-password', data),
 }
 
 export const usersApi = {
   list:           (params?: any) => api.get('/users', { params }),
   withRates:      () => api.get('/users/with-rates'),
   load:           (params?: any) => api.get('/users/load', { params }),
-  get:            (id) => api.get(`/users/${id}`),
-  create:         (data) => api.post('/users', data),
-  update:         (id, data) => api.patch(`/users/${id}`, data),
-  deactivate:     (id) => api.delete(`/users/${id}`),
-  deletePermanent:(id) => api.delete(`/users/${id}/permanent`),
-  productivity:   (id, params?: any) => api.get(`/users/${id}/productivity`, { params }),
+  get:            (id: any) => api.get(`/users/${id}`),
+  create:         (data: Record<string, unknown>) => api.post('/users', data),
+  update:         (id: any, data: Record<string, unknown>) => api.patch(`/users/${id}`, data),
+  deactivate:     (id: any) => api.delete(`/users/${id}`),
+  deletePermanent:(id: any) => api.delete(`/users/${id}/permanent`),
+  productivity:   (id: any, params?: any) => api.get(`/users/${id}/productivity`, { params }),
   orgChart:       () => api.get('/users/org-chart'),
-  updateManager:  (id, data) => api.patch(`/users/${id}/manager`, data),
-  updateMe:       (data) => api.patch('/users/me', data),
-  approvalChain:  (userId)   => api.get(`/users/${userId}/approval-chain`),
+  updateManager:  (id: any, data: Record<string, unknown>) => api.patch(`/users/${id}/manager`, data),
+  updateMe:       (data: Record<string, unknown>) => api.patch('/users/me', data),
+  approvalChain:  (userId: any)   => api.get(`/users/${userId}/approval-chain`),
   myApprovalChain: ()        => api.get('/users/me/approval-chain'),
 }
 
 export const projectsApi = {
   list:              (params?: any)    => api.get('/projects', { params }),
-  get:               (id)       => api.get(`/projects/${id}`),
-  create:            (data)     => api.post('/projects', data),
-  update:            (id, data) => api.patch(`/projects/${id}`, data),
-  delete:            (id)       => api.delete(`/projects/${id}`),
-  team:              (id)       => api.get(`/projects/${id}/team`),
-  addPhase:          (id, data) => api.post(`/projects/${id}/phases`, data),
-  members:           (id)       => api.get(`/projects/${id}/members`),
-  addMember:         (id, data) => api.post(`/projects/${id}/members`, data),
-  removeMember:      (id, memberId) => api.delete(`/projects/${id}/members/${memberId}`),
+  get:               (id: any)       => api.get(`/projects/${id}`),
+  create:            (data: Record<string, unknown>)     => api.post('/projects', data),
+  update:            (id: any, data: Record<string, unknown>) => api.patch(`/projects/${id}`, data),
+  delete:            (id: any)       => api.delete(`/projects/${id}`),
+  team:              (id: any)       => api.get(`/projects/${id}/team`),
+  addPhase:          (id: any, data: Record<string, unknown>) => api.post(`/projects/${id}/phases`, data),
+  members:           (id: any)       => api.get(`/projects/${id}/members`),
+  addMember:         (id: any, data: Record<string, unknown>) => api.post(`/projects/${id}/members`, data),
+  removeMember:      (id: any, memberId: any) => api.delete(`/projects/${id}/members/${memberId}`),
   milestones:        (params?: any)   => api.get('/projects/milestones', { params }),
-  changelog:         (id, params?: any) => api.get(`/projects/${id}/changelog`, { params }),
-  createChangelog:   (id, data) => api.post(`/projects/${id}/changelog`, data),
-  generateChangelog: (id, data) => api.post(`/projects/${id}/changelog/generate`, data),
-  deleteChangelog:   (id, entryId) => api.delete(`/projects/${id}/changelog/${entryId}`),
-  raci:              (id)       => api.get(`/projects/${id}/raci`),
-  updateRaci:        (id, data) => api.put(`/projects/${id}/raci`, data),
-  deleteRaci:        (id, entryId) => api.delete(`/projects/${id}/raci/${entryId}`),
-  evm:               (id)       => api.get(`/projects/${id}/evm`),
+  changelog:         (id: any, params?: any) => api.get(`/projects/${id}/changelog`, { params }),
+  createChangelog:   (id: any, data: Record<string, unknown>) => api.post(`/projects/${id}/changelog`, data),
+  generateChangelog: (id: any, data: Record<string, unknown>) => api.post(`/projects/${id}/changelog/generate`, data),
+  deleteChangelog:   (id: any, entryId: any) => api.delete(`/projects/${id}/changelog/${entryId}`),
+  raci:              (id: any)       => api.get(`/projects/${id}/raci`),
+  updateRaci:        (id: any, data: Record<string, unknown>) => api.put(`/projects/${id}/raci`, data),
+  deleteRaci:        (id: any, entryId: any) => api.delete(`/projects/${id}/raci/${entryId}`),
+  evm:               (id: any)       => api.get(`/projects/${id}/evm`),
   evmPortfolio:      ()         => api.get('/projects/evm/portfolio'),
 }
 
 export const aiCopilotApi = {
-  ganttSuggestions:     (projectId) => api.get(`/ai/suggestions/gantt/${projectId}`),
-  timesheetSuggestions: (userId)    => api.get(`/ai/suggestions/timesheets/${userId}`),
+  ganttSuggestions:     (projectId: any) => api.get(`/ai/suggestions/gantt/${projectId}`),
+  timesheetSuggestions: (userId: any)    => api.get(`/ai/suggestions/timesheets/${userId}`),
 }
 
 export const tasksApi = {
   list:        (params?: any)    => api.get('/tasks', { params }),
-  kanban:      (projectId) => api.get(`/tasks/kanban/${projectId}`),
-  get:         (id)        => api.get(`/tasks/${id}`),
-  create:      (data)      => api.post('/tasks', data),
-  update:      (id, data)  => api.patch(`/tasks/${id}`, data),
-  delete:      (id)        => api.delete(`/tasks/${id}`),
-  comment:     (id, data)  => api.post(`/tasks/${id}/comments`, data),
-  bulkUpdate:  (data)      => api.post('/tasks/bulk-update', data),
-  movementLog: (id)        => api.get(`/tasks/${id}/movement-log`),
+  kanban:      (projectId: any) => api.get(`/tasks/kanban/${projectId}`),
+  get:         (id: any)        => api.get(`/tasks/${id}`),
+  create:      (data: Record<string, unknown>)      => api.post('/tasks', data),
+  update:      (id: any, data: Record<string, unknown>)  => api.patch(`/tasks/${id}`, data),
+  delete:      (id: any)        => api.delete(`/tasks/${id}`),
+  comment:     (id: any, data: Record<string, unknown>)  => api.post(`/tasks/${id}/comments`, data),
+  bulkUpdate:  (data: Record<string, unknown>)      => api.post('/tasks/bulk-update', data),
+  movementLog: (id: any)        => api.get(`/tasks/${id}/movement-log`),
 }
 
 export const imputationsApi = {
   list:           (params?: any) => api.get('/imputations', { params }),
   myWeek:         (params?: any) => api.get('/imputations/my/week', { params }),
-  create:         (data) => api.post('/imputations', data),
-  update:         (id, data) => api.patch(`/imputations/${id}`, data),
-  delete:         (id) => api.delete(`/imputations/${id}`),
-  approve:        (id) => api.post(`/imputations/${id}/approve`),
-  reject:         (id) => api.post(`/imputations/${id}/reject`),
+  create:         (data: Record<string, unknown>) => api.post('/imputations', data),
+  update:         (id: any, data: Record<string, unknown>) => api.patch(`/imputations/${id}`, data),
+  delete:         (id: any) => api.delete(`/imputations/${id}`),
+  approve:        (id: any) => api.post(`/imputations/${id}/approve`),
+  reject:         (id: any) => api.post(`/imputations/${id}/reject`),
   timerCurrent:   () => api.get('/imputations/timer/current'),
-  timerStart:     (data) => api.post('/imputations/timer/start', data),
+  timerStart:     (data: Record<string, unknown>) => api.post('/imputations/timer/start', data),
   timerPause:     () => api.post('/imputations/timer/pause'),
   timerResume:    () => api.post('/imputations/timer/resume'),
   timerCancel:    () => api.post('/imputations/timer/cancel'),
-  timerStop:      (data) => api.post('/imputations/timer/stop', data),
+  timerStop:      (data: Record<string, unknown>) => api.post('/imputations/timer/stop', data),
 }
 
 export const analyticsApi = {
-  query:        (metricId, params?: any) => api.get(`/analytics/query/${metricId}`, { params }),
+  query:        (metricId: any, params?: any) => api.get(`/analytics/query/${metricId}`, { params }),
   filterOptions: ()                => api.get('/analytics/filters/options'),
   hoursWeek:    (params?: any)           => api.get('/analytics/hours_by_week', { params }),
   utilization:  (params?: any)           => api.get('/analytics/utilization/advanced', { params }),
   metricBreaches: (params?: any)         => api.get('/analytics/alerts/metric-breaches', { params }),
   // BI / OLAP
   narrative:       (params?: any)        => api.get('/analytics/narrative', { params }),
-  ask:             (question)      => api.post('/analytics/ask', { question }),
+  ask:             (question: any)      => api.post('/analytics/ask', { question }),
   olapKpis:        (params?: any)        => api.get('/analytics/olap/kpis', { params }),
   olapFunnel:      ()              => api.get('/analytics/olap/pipeline-funnel'),
   olapPortfolio:   ()              => api.get('/analytics/olap/portfolio-health'),
-  olapMargin:      (months)        => api.get('/analytics/olap/margin-evolution', { params: { months } }),
+  olapMargin:      (months: any)        => api.get('/analytics/olap/margin-evolution', { params: { months } }),
   olapUtilization: ()              => api.get('/analytics/olap/utilization'),
   catalogue:       ()              => api.get('/analytics/catalogue'),
 }
 
 export const biCollaborationApi = {
   listComments:   (params?: any)             => api.get('/bi/collaboration/comments', { params }),
-  createComment:  (payload)            => api.post('/bi/collaboration/comments', payload),
-  resolveComment: (commentId)          => api.patch(`/bi/collaboration/comments/${commentId}/resolve`),
+  createComment:  (payload: Record<string, unknown>)            => api.post('/bi/collaboration/comments', payload),
+  resolveComment: (commentId: any)          => api.patch(`/bi/collaboration/comments/${commentId}/resolve`),
   listSharedViews: (params?: any)            => api.get('/bi/collaboration/shared-views', { params }),
-  createSharedView: (payload)          => api.post('/bi/collaboration/shared-views', payload),
-  patchSharedView: (viewId, payload)   => api.patch(`/bi/collaboration/shared-views/${viewId}`, payload),
+  createSharedView: (payload: Record<string, unknown>)          => api.post('/bi/collaboration/shared-views', payload),
+  patchSharedView: (viewId: any, payload: Record<string, unknown>)   => api.patch(`/bi/collaboration/shared-views/${viewId}`, payload),
   governanceOverview: ()               => api.get('/bi/governance/overview'),
   governanceRules: ()                  => api.get('/bi/governance/rules'),
-  updateGovernanceRules: (payload)     => api.patch('/bi/governance/rules', payload),
+  updateGovernanceRules: (payload: Record<string, unknown>)     => api.patch('/bi/governance/rules', payload),
   runGovernanceChecks: ()              => api.post('/bi/governance/run-checks'),
   lastGovernanceRun: ()                => api.get('/bi/governance/last-run'),
   // Dashboard shares
-  listDashboardShares:    (key)              => api.get(`/bi/collaboration/dashboards/${key}/shares`),
-  shareDashboard:         (key, data)        => api.post(`/bi/collaboration/dashboards/${key}/shares`, data),
-  revokeShare:            (key, shareId)     => api.delete(`/bi/collaboration/dashboards/${key}/shares/${shareId}`),
+  listDashboardShares:    (key: any)              => api.get(`/bi/collaboration/dashboards/${key}/shares`),
+  shareDashboard:         (key: any, data: Record<string, unknown>)        => api.post(`/bi/collaboration/dashboards/${key}/shares`, data),
+  revokeShare:            (key: any, shareId: any)     => api.delete(`/bi/collaboration/dashboards/${key}/shares/${shareId}`),
   // Dashboard versions
-  listDashboardVersions:  (key)              => api.get(`/bi/collaboration/dashboards/${key}/versions`),
-  restoreDashboardVersion:(key, versionId)   => api.post(`/bi/collaboration/dashboards/${key}/versions/${versionId}/restore`),
+  listDashboardVersions:  (key: any)              => api.get(`/bi/collaboration/dashboards/${key}/versions`),
+  restoreDashboardVersion:(key: any, versionId: any)   => api.post(`/bi/collaboration/dashboards/${key}/versions/${versionId}/restore`),
   // Notifications
   listNotifications:      (params?: any)           => api.get('/bi/collaboration/notifications', { params }),
-  patchNotification:      (id, data)         => api.patch(`/bi/collaboration/notifications/${id}`, data),
+  patchNotification:      (id: any, data: Record<string, unknown>)         => api.patch(`/bi/collaboration/notifications/${id}`, data),
 }
 
 export const biIntelligenceApi = {
   revenueForecast: (params?: any)            => api.get('/bi/intelligence/ml/forecast/revenue', { params }),
   revenueAnomalies: (params?: any)           => api.get('/bi/intelligence/ml/anomalies/revenue', { params }),
   listConnectors: ()                   => api.get('/bi/intelligence/connectors'),
-  patchConnector: (name, payload)      => api.patch(`/bi/intelligence/connectors/${name}`, payload),
-  syncConnector: (name)                => api.post(`/bi/intelligence/connectors/${name}/sync`),
+  patchConnector: (name: any, payload: Record<string, unknown>)      => api.patch(`/bi/intelligence/connectors/${name}`, payload),
+  syncConnector: (name: any)                => api.post(`/bi/intelligence/connectors/${name}/sync`),
   reportPresets: ()                    => api.get('/bi/intelligence/reports/presets'),
-  previewPreset: (payload)             => api.post('/bi/intelligence/reports/preview', payload),
+  previewPreset: (payload: Record<string, unknown>)             => api.post('/bi/intelligence/reports/preview', payload),
   queryBuilderSchema: ()               => api.get('/bi/intelligence/query-builder/schema'),
-  queryBuilderPreview: (payload)       => api.post('/bi/intelligence/query-builder/preview', payload),
+  queryBuilderPreview: (payload: Record<string, unknown>)       => api.post('/bi/intelligence/query-builder/preview', payload),
   queryBuilderTemplates: ()            => api.get('/bi/intelligence/query-builder/templates'),
-  saveQueryBuilderTemplate: (payload)  => api.post('/bi/intelligence/query-builder/templates', payload),
-  deleteQueryBuilderTemplate: (id)     => api.delete(`/bi/intelligence/query-builder/templates/${id}`),
+  saveQueryBuilderTemplate: (payload: Record<string, unknown>)  => api.post('/bi/intelligence/query-builder/templates', payload),
+  deleteQueryBuilderTemplate: (id: any)     => api.delete(`/bi/intelligence/query-builder/templates/${id}`),
   deliveryOverview: ()                 => api.get('/bi/intelligence/delivery/overview'),
-  runDeliveryNow: (reportId)           => api.post(`/bi/intelligence/delivery/run/${reportId}`),
+  runDeliveryNow: (reportId: any)           => api.post(`/bi/intelligence/delivery/run/${reportId}`),
   realtimeToken: ()                    => api.get('/bi/intelligence/realtime/token'),
 }
 
 export const biPlatformApi = {
   sdkManifest: ()                      => api.get('/bi/platform/embed/sdk'),
   embedSettings: ()                    => api.get('/bi/platform/embed/settings'),
-  patchEmbedSettings: (payload)        => api.patch('/bi/platform/embed/settings', payload),
-  embedToken: (payload)                => api.post('/bi/platform/embed/token', payload),
+  patchEmbedSettings: (payload: Record<string, unknown>)        => api.patch('/bi/platform/embed/settings', payload),
+  embedToken: (payload: Record<string, unknown>)                => api.post('/bi/platform/embed/token', payload),
   connectorCatalog: ()                 => api.get('/bi/platform/connectors/catalog'),
-  patchCatalogConnector: (name, p)     => api.patch(`/bi/platform/connectors/catalog/${name}`, p),
+  patchCatalogConnector: (name: any, p: any)     => api.patch(`/bi/platform/connectors/catalog/${name}`, p),
   listCustomConnectors: ()             => api.get('/bi/platform/connectors/custom'),
-  createCustomConnector: (payload)     => api.post('/bi/platform/connectors/custom', payload),
-  deleteCustomConnector: (id)          => api.delete(`/bi/platform/connectors/custom/${id}`),
-  testCustomConnector: (id)            => api.post(`/bi/platform/connectors/custom/${id}/test`),
+  createCustomConnector: (payload: Record<string, unknown>)     => api.post('/bi/platform/connectors/custom', payload),
+  deleteCustomConnector: (id: any)          => api.delete(`/bi/platform/connectors/custom/${id}`),
+  testCustomConnector: (id: any)            => api.post(`/bi/platform/connectors/custom/${id}/test`),
   lineage: ()                          => api.get('/bi/platform/governance/lineage'),
-  upsertLineageEdge: (payload)         => api.post('/bi/platform/governance/lineage/edges', payload),
-  logAccess: (payload)                 => api.post('/bi/platform/governance/audit/access', payload),
-  createSnapshot: (datasetKey, p)      => api.post(`/bi/platform/versioning/${datasetKey}/snapshots`, p),
-  listSnapshots: (datasetKey)          => api.get(`/bi/platform/versioning/${datasetKey}/snapshots`),
-  diffSnapshots: (datasetKey, fromId, toId) => api.get(`/bi/platform/versioning/${datasetKey}/diff`, { params: { from_id: fromId, to_id: toId } }),
+  upsertLineageEdge: (payload: Record<string, unknown>)         => api.post('/bi/platform/governance/lineage/edges', payload),
+  logAccess: (payload: Record<string, unknown>)                 => api.post('/bi/platform/governance/audit/access', payload),
+  createSnapshot: (datasetKey: any, p: any)      => api.post(`/bi/platform/versioning/${datasetKey}/snapshots`, p),
+  listSnapshots: (datasetKey: any)          => api.get(`/bi/platform/versioning/${datasetKey}/snapshots`),
+  diffSnapshots: (datasetKey: any, fromId: any, toId: any) => api.get(`/bi/platform/versioning/${datasetKey}/diff`, { params: { from_id: fromId, to_id: toId } }),
 }
 
 export const biSmartAlertsApi = {
   supportedMetrics: ()                 => api.get('/bi/alerts/supported-metrics'),
   listRules: ()                        => api.get('/bi/alerts/rules'),
-  createRule: (payload)                => api.post('/bi/alerts/rules', payload),
-  updateRule: (ruleId, payload)        => api.patch(`/bi/alerts/rules/${ruleId}`, payload),
-  deleteRule: (ruleId)                 => api.delete(`/bi/alerts/rules/${ruleId}`),
+  createRule: (payload: Record<string, unknown>)                => api.post('/bi/alerts/rules', payload),
+  updateRule: (ruleId: any, payload: Record<string, unknown>)        => api.patch(`/bi/alerts/rules/${ruleId}`, payload),
+  deleteRule: (ruleId: any)                 => api.delete(`/bi/alerts/rules/${ruleId}`),
   evaluate: ()                         => api.post('/bi/alerts/evaluate'),
-  getHistory: (limit = 100)            => api.get('/bi/alerts/history', { params: { limit } }),
-  acknowledge: (alertId)               => api.post(`/bi/alerts/history/${alertId}/acknowledge`),
+  getHistory: (limit: number = 100)            => api.get('/bi/alerts/history', { params: { limit } }),
+  acknowledge: (alertId: any)               => api.post(`/bi/alerts/history/${alertId}/acknowledge`),
   seedDefaults: ()                     => api.post('/bi/alerts/seed-defaults'),
   listCustomMetrics: ()                => api.get('/bi/alerts/custom-metrics'),
-  createCustomMetric: (payload)        => api.post('/bi/alerts/custom-metrics', payload),
-  deleteCustomMetric: (key)            => api.delete(`/bi/alerts/custom-metrics/${key}`),
+  createCustomMetric: (payload: Record<string, unknown>)        => api.post('/bi/alerts/custom-metrics', payload),
+  deleteCustomMetric: (key: any)            => api.delete(`/bi/alerts/custom-metrics/${key}`),
 }
 
 export const biBookmarksApi = {
   list: ()                             => api.get('/bi/bookmarks'),
-  create: (payload)                    => api.post('/bi/bookmarks', payload),
-  get: (id)                            => api.get(`/bi/bookmarks/${id}`),
-  update: (id, payload)                => api.patch(`/bi/bookmarks/${id}`, payload),
-  delete: (id)                         => api.delete(`/bi/bookmarks/${id}`),
+  create: (payload: Record<string, unknown>)                    => api.post('/bi/bookmarks', payload),
+  get: (id: any)                            => api.get(`/bi/bookmarks/${id}`),
+  update: (id: any, payload: Record<string, unknown>)                => api.patch(`/bi/bookmarks/${id}`, payload),
+  delete: (id: any)                         => api.delete(`/bi/bookmarks/${id}`),
 }
 
 export const biGovernanceAuditApi = {
   // BI Governance — audit trail, data lineage, field sensitivity
-  logAccessEvent: (payload)            => api.post('/bi/governance/audit/access', payload),
+  logAccessEvent: (payload: Record<string, unknown>)            => api.post('/bi/governance/audit/access', payload),
   getAccessHistory: (params?: any)           => api.get('/bi/governance/audit/access', { params }),
-  listLineage: (target_table)          => api.get('/bi/governance/lineage', { params: target_table ? { target_table } : undefined }),
-  trackLineage: (payload)              => api.post('/bi/governance/lineage', payload),
-  listFieldSensitivity: (dataset_id)   => api.get('/bi/governance/field-sensitivity', { params: dataset_id ? { dataset_id } : undefined }),
-  upsertFieldSensitivity: (payload)    => api.put('/bi/governance/field-sensitivity', payload),
+  listLineage: (target_table: any)          => api.get('/bi/governance/lineage', { params: target_table ? { target_table } : undefined }),
+  trackLineage: (payload: Record<string, unknown>)              => api.post('/bi/governance/lineage', payload),
+  listFieldSensitivity: (dataset_id: any)   => api.get('/bi/governance/field-sensitivity', { params: dataset_id ? { dataset_id } : undefined }),
+  upsertFieldSensitivity: (payload: Record<string, unknown>)    => api.put('/bi/governance/field-sensitivity', payload),
 }
 
 export const biReportBuilderV2Api = {
   listPresets: (params?: any)                => api.get('/bi/reports/v2/presets', { params }),
-  getPreset: (presetId)                => api.get(`/bi/reports/v2/presets/${presetId}`),
+  getPreset: (presetId: any)                => api.get(`/bi/reports/v2/presets/${presetId}`),
   categories: ()                       => api.get('/bi/reports/v2/categories'),
-  customize: (presetId, payload)       => api.post(`/bi/reports/v2/presets/${presetId}/customize`, payload),
-  resetCustomize: (presetId)           => api.delete(`/bi/reports/v2/presets/${presetId}/customize`),
-  preview: (presetId, limit = 50)      => api.get(`/bi/reports/v2/presets/${presetId}/preview`, { params: { limit } }),
-  export: (presetId, format = 'json')  => api.get(`/bi/reports/v2/presets/${presetId}/export`, { params: { format } }),
+  customize: (presetId: any, payload: Record<string, unknown>)       => api.post(`/bi/reports/v2/presets/${presetId}/customize`, payload),
+  resetCustomize: (presetId: any)           => api.delete(`/bi/reports/v2/presets/${presetId}/customize`),
+  preview: (presetId: any, limit: number = 50)      => api.get(`/bi/reports/v2/presets/${presetId}/preview`, { params: { limit } }),
+  export: (presetId: any, format: string = 'json')  => api.get(`/bi/reports/v2/presets/${presetId}/export`, { params: { format } }),
 }
 
 export const dashboardApi = {
@@ -444,67 +444,67 @@ export const dashboardApi = {
 export const alertsApi = {
   list:     (params?: any) => api.get('/alerts', { params }),
   run:      () => api.post('/alerts/run'),
-  read:     (id) => api.patch(`/alerts/${id}/read`),
-  resolve:  (id) => api.patch(`/alerts/${id}/resolve`),
+  read:     (id: any) => api.patch(`/alerts/${id}/read`),
+  resolve:  (id: any) => api.patch(`/alerts/${id}/resolve`),
 }
 
 export const integrationsApi = {
-  exportImputations: (data) => api.post('/integrations/export/imputations', data, { responseType: 'blob' }),
-  exportProjects:    (data) => api.post('/integrations/export/projects', data, { responseType: 'blob' }),
-  jiraSync:          (projectId) => api.post(`/integrations/jira/sync/${projectId}`),
-  jiraStatus:        (projectId) => api.get(`/integrations/jira/status/${projectId}`),
+  exportImputations: (data: Record<string, unknown>) => api.post('/integrations/export/imputations', data, { responseType: 'blob' }),
+  exportProjects:    (data: Record<string, unknown>) => api.post('/integrations/export/projects', data, { responseType: 'blob' }),
+  jiraSync:          (projectId: any) => api.post(`/integrations/jira/sync/${projectId}`),
+  jiraStatus:        (projectId: any) => api.get(`/integrations/jira/status/${projectId}`),
 }
 
 export const clientsApi = {
   list:         (params?: any)     => api.get('/clients', { params }),
-  get:          (id)         => api.get(`/clients/${id}`),
-  create:       (data)       => api.post('/clients', data),
-  update:       (id, data)   => api.patch(`/clients/${id}`, data),
-  delete:       (id)         => api.delete(`/clients/${id}`),
-  contacts:     (id)         => api.get(`/clients/${id}/contacts`),
-  addContact:   (id, data)   => api.post(`/clients/${id}/contacts`, data),
-  deleteContact:(id, cid)    => api.delete(`/clients/${id}/contacts/${cid}`),
-  view360:      (id)         => api.get(`/clients/${id}/360`),
+  get:          (id: any)         => api.get(`/clients/${id}`),
+  create:       (data: Record<string, unknown>)       => api.post('/clients', data),
+  update:       (id: any, data: Record<string, unknown>)   => api.patch(`/clients/${id}`, data),
+  delete:       (id: any)         => api.delete(`/clients/${id}`),
+  contacts:     (id: any)         => api.get(`/clients/${id}/contacts`),
+  addContact:   (id: any, data: Record<string, unknown>)   => api.post(`/clients/${id}/contacts`, data),
+  deleteContact:(id: any, cid: any)    => api.delete(`/clients/${id}/contacts/${cid}`),
+  view360:      (id: any)         => api.get(`/clients/${id}/360`),
 }
 
 // ── Sprints ───────────────────────────────────────────────────────────────────
 export const sprintsApi = {
-  list:    (projectId, params?: any) => api.get('/sprints', { params: { project_id: projectId, ...params } }),
-  get:     (id)                => api.get(`/sprints/${id}`),
-  create:  (data)              => api.post('/sprints', data),
-  update:  (id, data)          => api.patch(`/sprints/${id}`, data),
-  delete:  (id)                => api.delete(`/sprints/${id}`),
-  start:   (id)                => api.post(`/sprints/${id}/start`),
-  complete:(id)                => api.post(`/sprints/${id}/complete`),
-  burndown:(id)                => api.get(`/sprints/${id}/burndown`),
-  velocity:(projectId)         => api.get(`/sprints/velocity/${projectId}`),
+  list:    (projectId: any, params?: any) => api.get('/sprints', { params: { project_id: projectId, ...params } }),
+  get:     (id: any)                => api.get(`/sprints/${id}`),
+  create:  (data: Record<string, unknown>)              => api.post('/sprints', data),
+  update:  (id: any, data: Record<string, unknown>)          => api.patch(`/sprints/${id}`, data),
+  delete:  (id: any)                => api.delete(`/sprints/${id}`),
+  start:   (id: any)                => api.post(`/sprints/${id}/start`),
+  complete:(id: any)                => api.post(`/sprints/${id}/complete`),
+  burndown:(id: any)                => api.get(`/sprints/${id}/burndown`),
+  velocity:(projectId: any)         => api.get(`/sprints/velocity/${projectId}`),
 }
 
 // ── Epics ─────────────────────────────────────────────────────────────────────
 export const epicsApi = {
-  list:            (projectId) => api.get('/epics', { params: { project_id: projectId } }),
-  get:             (id)        => api.get(`/epics/${id}`),
-  create:          (data)      => api.post('/epics', data),
-  createForProject:(projectId, data) => api.post('/epics', data, { params: { project_id: projectId } }),
-  update:          (id, data)  => api.patch(`/epics/${id}`, data),
-  delete:          (id)        => api.delete(`/epics/${id}`),
-  roadmap:         (projectId) => api.get('/roadmap', { params: { project_id: projectId } }),
-  roadmapByProject:(projectId) => api.get('/epics/roadmap', { params: { project_id: projectId } }),
+  list:            (projectId: any) => api.get('/epics', { params: { project_id: projectId } }),
+  get:             (id: any)        => api.get(`/epics/${id}`),
+  create:          (data: Record<string, unknown>)      => api.post('/epics', data),
+  createForProject:(projectId: any, data: Record<string, unknown>) => api.post('/epics', data, { params: { project_id: projectId } }),
+  update:          (id: any, data: Record<string, unknown>)  => api.patch(`/epics/${id}`, data),
+  delete:          (id: any)        => api.delete(`/epics/${id}`),
+  roadmap:         (projectId: any) => api.get('/roadmap', { params: { project_id: projectId } }),
+  roadmapByProject:(projectId: any) => api.get('/epics/roadmap', { params: { project_id: projectId } }),
   cfd:             (params?: any)    => api.get('/epics/cfd', { params }),
-  cfdSnapshot:     (projectId) => api.post('/epics/cfd/snapshot', null, { params: { project_id: projectId } }),
-  nqlSearch:       (data)      => api.post('/epics/nql/search', data),
+  cfdSnapshot:     (projectId: any) => api.post('/epics/cfd/snapshot', null, { params: { project_id: projectId } }),
+  nqlSearch:       (data: Record<string, unknown>)      => api.post('/epics/nql/search', data),
 }
 
 // ── Contracts ─────────────────────────────────────────────────────────────────
 export const contractsApi = {
   list:                (params?: any)           => api.get('/contracts', { params }),
-  get:                 (id)               => api.get(`/contracts/${id}`),
-  create:              (data)             => api.post('/contracts', data),
-  update:              (id, data)         => api.patch(`/contracts/${id}`, data),
-  delete:              (id)               => api.delete(`/contracts/${id}`),
-  workOrders:          (id)               => api.get(`/contracts/${id}/work-orders`),
-  createWorkOrder:     (id, data)         => api.post(`/contracts/${id}/work-orders`, data),
-  updateWorkOrderStatus:(id, woId, status)=> api.patch(`/contracts/${id}/work-orders/${woId}/status`, null, { params: { status } }),
+  get:                 (id: any)               => api.get(`/contracts/${id}`),
+  create:              (data: Record<string, unknown>)             => api.post('/contracts', data),
+  update:              (id: any, data: Record<string, unknown>)         => api.patch(`/contracts/${id}`, data),
+  delete:              (id: any)               => api.delete(`/contracts/${id}`),
+  workOrders:          (id: any)               => api.get(`/contracts/${id}/work-orders`),
+  createWorkOrder:     (id: any, data: Record<string, unknown>)         => api.post(`/contracts/${id}/work-orders`, data),
+  updateWorkOrderStatus:(id: any, woId: any, status: any)=> api.patch(`/contracts/${id}/work-orders/${woId}/status`, null, { params: { status } }),
 }
 
 // ── Expenses ──────────────────────────────────────────────────────────────────
@@ -513,28 +513,28 @@ export const expensesApi = {
   my:        (params?: any)    => api.get('/expenses/my', { params }),
   pending:   ()          => api.get('/expenses/pending'),
   team:      (params?: any)    => api.get('/expenses/team', { params }),
-  get:       (id)        => api.get(`/expenses/${id}`),
-  create:    (data)      => api.post('/expenses', data),
-  update:    (id, data)  => api.patch(`/expenses/${id}`, data),
-  updateMy:  (id, data)  => api.patch(`/expenses/my/${id}`, data),
-  approve:   (id)        => api.post(`/expenses/${id}/approve`),
-  reject:    (id, data)  => api.post(`/expenses/${id}/reject`, data),
-  review:    (id, data)  => api.post(`/expenses/${id}/review`, data),
-  submitMy:  (id)        => api.post(`/expenses/my/${id}/submit`),
-  recall:    (id)        => api.post(`/expenses/my/${id}/recall`),
-  reimburse: (id)        => api.post(`/expenses/${id}/reimburse`),
-  delete:    (id)        => api.delete(`/expenses/${id}`),
-  deleteMy:  (id)        => api.delete(`/expenses/my/${id}`),
-  ocr:       (fd)        => api.post('/expenses/ocr', fd),
+  get:       (id: any)        => api.get(`/expenses/${id}`),
+  create:    (data: Record<string, unknown>)      => api.post('/expenses', data),
+  update:    (id: any, data: Record<string, unknown>)  => api.patch(`/expenses/${id}`, data),
+  updateMy:  (id: any, data: Record<string, unknown>)  => api.patch(`/expenses/my/${id}`, data),
+  approve:   (id: any)        => api.post(`/expenses/${id}/approve`),
+  reject:    (id: any, data: Record<string, unknown>)  => api.post(`/expenses/${id}/reject`, data),
+  review:    (id: any, data: Record<string, unknown>)  => api.post(`/expenses/${id}/review`, data),
+  submitMy:  (id: any)        => api.post(`/expenses/my/${id}/submit`),
+  recall:    (id: any)        => api.post(`/expenses/my/${id}/recall`),
+  reimburse: (id: any)        => api.post(`/expenses/${id}/reimburse`),
+  delete:    (id: any)        => api.delete(`/expenses/${id}`),
+  deleteMy:  (id: any)        => api.delete(`/expenses/my/${id}`),
+  ocr:       (fd: Record<string, unknown>)        => api.post('/expenses/ocr', fd),
 }
 
 // ── Risks ─────────────────────────────────────────────────────────────────────
 export const risksApi = {
-  list:         (projectId, params?: any) => api.get(`/risks/${projectId}`, { params }),
-  get:          (projectId, riskId) => api.get(`/risks/${projectId}/${riskId}`),
-  create:       (projectId, data)   => api.post(`/risks/${projectId}`, data),
-  update:       (projectId, riskId, data) => api.patch(`/risks/${projectId}/${riskId}`, data),
-  delete:       (projectId, riskId) => api.delete(`/risks/${projectId}/${riskId}`),
+  list:         (projectId: any, params?: any) => api.get(`/risks/${projectId}`, { params }),
+  get:          (projectId: any, riskId: any) => api.get(`/risks/${projectId}/${riskId}`),
+  create:       (projectId: any, data: Record<string, unknown>)   => api.post(`/risks/${projectId}`, data),
+  update:       (projectId: any, riskId: any, data: Record<string, unknown>) => api.patch(`/risks/${projectId}/${riskId}`, data),
+  delete:       (projectId: any, riskId: any) => api.delete(`/risks/${projectId}/${riskId}`),
   scores:       ()                  => api.get('/risks/scores'),
   portfolioAll: ()                  => api.get('/risks/all/portfolio'),
 }
@@ -542,74 +542,74 @@ export const risksApi = {
 // ── OKRs ─────────────────────────────────────────────────────────────────────
 export const okrsApi = {
   list:     (params?: any)      => api.get('/okrs', { params }),
-  get:      (id)          => api.get(`/okrs/${id}`),
-  create:   (data)        => api.post('/okrs', data),
-  update:   (id, data)    => api.patch(`/okrs/${id}`, data),
-  delete:   (id)          => api.delete(`/okrs/${id}`),
-  updateKR: (id, krid, d) => api.patch(`/okrs/${id}/key-results/${krid}`, d),
-  createKR: (data)        => api.post('/okrs/key-results', data),
-  deleteKR: (id)          => api.delete(`/okrs/key-results/${id}`),
-  checkin:  (krId, data)  => api.post(`/okrs/key-results/${krId}/checkin`, data),
+  get:      (id: any)          => api.get(`/okrs/${id}`),
+  create:   (data: Record<string, unknown>)        => api.post('/okrs', data),
+  update:   (id: any, data: Record<string, unknown>)    => api.patch(`/okrs/${id}`, data),
+  delete:   (id: any)          => api.delete(`/okrs/${id}`),
+  updateKR: (id: any, krid: any, d: Record<string, unknown>) => api.patch(`/okrs/${id}/key-results/${krid}`, d),
+  createKR: (data: Record<string, unknown>)        => api.post('/okrs/key-results', data),
+  deleteKR: (id: any)          => api.delete(`/okrs/key-results/${id}`),
+  checkin:  (krId: any, data: Record<string, unknown>)  => api.post(`/okrs/key-results/${krId}/checkin`, data),
 }
 
 // ── Pipeline (opportunities) ──────────────────────────────────────────────────
 export const pipelineApi = {
   list:       (params?: any)    => api.get('/pipeline', { params }),
-  get:        (id)        => api.get(`/pipeline/${id}`),
-  create:     (data)      => api.post('/pipeline', data),
-  update:     (id, data)  => api.patch(`/pipeline/${id}`, data),
-  delete:     (id)        => api.delete(`/pipeline/${id}`),
-  activities:       (id)          => api.get(`/pipeline/${id}/activities`),
-  addActivity:      (id, data)    => api.post(`/pipeline/${id}/activities`, data),
-  generateProposal: (id, payload) => api.post(`/pipeline/${id}/generate-proposal`, payload || {}),
-  markProposalSent: (id)          => api.post(`/pipeline/${id}/mark-proposal-sent`),
-  convertToProject: (id)          => api.post(`/pipeline/${id}/convert`),
-  getProposal:      (id)          => api.get(`/pipeline/${id}/proposal`),
+  get:        (id: any)        => api.get(`/pipeline/${id}`),
+  create:     (data: Record<string, unknown>)      => api.post('/pipeline', data),
+  update:     (id: any, data: Record<string, unknown>)  => api.patch(`/pipeline/${id}`, data),
+  delete:     (id: any)        => api.delete(`/pipeline/${id}`),
+  activities:       (id: any)          => api.get(`/pipeline/${id}/activities`),
+  addActivity:      (id: any, data: Record<string, unknown>)    => api.post(`/pipeline/${id}/activities`, data),
+  generateProposal: (id: any, payload: Record<string, unknown>) => api.post(`/pipeline/${id}/generate-proposal`, payload || {}),
+  markProposalSent: (id: any)          => api.post(`/pipeline/${id}/mark-proposal-sent`),
+  convertToProject: (id: any)          => api.post(`/pipeline/${id}/convert`),
+  getProposal:      (id: any)          => api.get(`/pipeline/${id}/proposal`),
 }
 
 // ── Deliverables ──────────────────────────────────────────────────────────────
 export const deliverablesApi = {
-  list:            (projectId) => api.get('/deliverables', { params: { project_id: projectId } }),
-  listByProject:   (projectId) => api.get(`/deliverables/${projectId}`),
+  list:            (projectId: any) => api.get('/deliverables', { params: { project_id: projectId } }),
+  listByProject:   (projectId: any) => api.get(`/deliverables/${projectId}`),
   overviewAll:     ()          => api.get('/deliverables/all/overview'),
-  get:             (id)        => api.get(`/deliverables/${id}`),
-  create:          (data)      => api.post('/deliverables', data),
-  createForProject:(projectId, data) => api.post(`/deliverables/${projectId}`, data),
-  update:          (id, data)  => api.patch(`/deliverables/${id}`, data),
-  updateInProject: (projectId, id, data) => api.patch(`/deliverables/${projectId}/${id}`, data),
-  updateStatus:    (projectId, id, status) => api.patch(`/deliverables/${projectId}/${id}`, { status }),
-  delete:          (id)        => api.delete(`/deliverables/${id}`),
-  deleteFromProject:(projectId, id) => api.delete(`/deliverables/${projectId}/${id}`),
-  accept:          (projectId, id) => api.post(`/deliverables/${projectId}/${id}/accept`),
-  reject:          (projectId, id, reason) => api.post(`/deliverables/${projectId}/${id}/reject`, {}, { params: { reason } }),
+  get:             (id: any)        => api.get(`/deliverables/${id}`),
+  create:          (data: Record<string, unknown>)      => api.post('/deliverables', data),
+  createForProject:(projectId: any, data: Record<string, unknown>) => api.post(`/deliverables/${projectId}`, data),
+  update:          (id: any, data: Record<string, unknown>)  => api.patch(`/deliverables/${id}`, data),
+  updateInProject: (projectId: any, id: any, data: Record<string, unknown>) => api.patch(`/deliverables/${projectId}/${id}`, data),
+  updateStatus:    (projectId: any, id: any, status: any) => api.patch(`/deliverables/${projectId}/${id}`, { status }),
+  delete:          (id: any)        => api.delete(`/deliverables/${id}`),
+  deleteFromProject:(projectId: any, id: any) => api.delete(`/deliverables/${projectId}/${id}`),
+  accept:          (projectId: any, id: any) => api.post(`/deliverables/${projectId}/${id}/accept`),
+  reject:          (projectId: any, id: any, reason: any) => api.post(`/deliverables/${projectId}/${id}/reject`, {}, { params: { reason } }),
   overview:        ()          => api.get('/deliverables/overview'),
 }
 
 // ── Subcontractors ────────────────────────────────────────────────────────────
 export const subcontractorsApi = {
   list:        (params?: any)    => api.get('/subcontractors', { params }),
-  get:         (id)        => api.get(`/subcontractors/${id}`),
-  create:      (data)      => api.post('/subcontractors', data),
-  update:      (id, data)  => api.patch(`/subcontractors/${id}`, data),
-  delete:      (id)        => api.delete(`/subcontractors/${id}`),
-  assignments: (id)        => api.get(`/subcontractors/${id}/assignments`),
-  timelogs:    (id, params?: any)=> api.get(`/subcontractors/${id}/timelogs`, { params }),
-  invoices:    (id)        => api.get(`/subcontractors/${id}/invoices`),
+  get:         (id: any)        => api.get(`/subcontractors/${id}`),
+  create:      (data: Record<string, unknown>)      => api.post('/subcontractors', data),
+  update:      (id: any, data: Record<string, unknown>)  => api.patch(`/subcontractors/${id}`, data),
+  delete:      (id: any)        => api.delete(`/subcontractors/${id}`),
+  assignments: (id: any)        => api.get(`/subcontractors/${id}/assignments`),
+  timelogs:    (id: any, params?: any)=> api.get(`/subcontractors/${id}/timelogs`, { params }),
+  invoices:    (id: any)        => api.get(`/subcontractors/${id}/invoices`),
 }
 
 // ── Training ──────────────────────────────────────────────────────────────────
 export const trainingApi = {
   courses:     (params?: any)    => api.get('/training/courses', { params }),
-  course:      (id)        => api.get(`/training/courses/${id}`),
-  createCourse:(data)      => api.post('/training/courses', data),
-  updateCourse:(id, data)  => api.patch(`/training/courses/${id}`, data),
-  deleteCourse:(id)        => api.delete(`/training/courses/${id}`),
+  course:      (id: any)        => api.get(`/training/courses/${id}`),
+  createCourse:(data: Record<string, unknown>)      => api.post('/training/courses', data),
+  updateCourse:(id: any, data: Record<string, unknown>)  => api.patch(`/training/courses/${id}`, data),
+  deleteCourse:(id: any)        => api.delete(`/training/courses/${id}`),
   certs:       (params?: any)    => api.get('/training/certifications', { params }),
-  cert:        (id)        => api.get(`/training/certifications/${id}`),
-  createCert:  (data)      => api.post('/training/certifications', data),
-  updateCert:  (id, data)  => api.patch(`/training/certifications/${id}`, data),
-  deleteCert:  (id)        => api.delete(`/training/certifications/${id}`),
-  enroll:      (data)      => api.post('/training/enrollments', data),
+  cert:        (id: any)        => api.get(`/training/certifications/${id}`),
+  createCert:  (data: Record<string, unknown>)      => api.post('/training/certifications', data),
+  updateCert:  (id: any, data: Record<string, unknown>)  => api.patch(`/training/certifications/${id}`, data),
+  deleteCert:  (id: any)        => api.delete(`/training/certifications/${id}`),
+  enroll:      (data: Record<string, unknown>)      => api.post('/training/enrollments', data),
   enrollments: (params?: any)    => api.get('/training/enrollments', { params }),
 }
 
@@ -620,16 +620,16 @@ export const absencesApi = {
   pending:        ()          => api.get('/absences/pending'),
   team:           (params?: any)    => api.get('/absences/team', { params }),
   calendar:       (params?: any)    => api.get('/absences/calendar', { params }),
-  get:            (id)        => api.get(`/absences/${id}`),
-  create:         (data)      => api.post('/absences', data),
-  createMy:       (data)      => api.post('/absences/my', data),
-  update:         (id, data)  => api.patch(`/absences/${id}`, data),
-  updateMy:       (id, data)  => api.patch(`/absences/my/${id}`, data),
-  approve:        (id)        => api.post(`/absences/${id}/approve`),
-  reject:         (id, data)  => api.post(`/absences/${id}/reject`, data),
-  review:         (id, data)  => api.post(`/absences/${id}/review`, data),
-  delete:         (id)        => api.delete(`/absences/${id}`),
-  deleteMy:       (id)        => api.delete(`/absences/my/${id}`),
+  get:            (id: any)        => api.get(`/absences/${id}`),
+  create:         (data: Record<string, unknown>)      => api.post('/absences', data),
+  createMy:       (data: Record<string, unknown>)      => api.post('/absences/my', data),
+  update:         (id: any, data: Record<string, unknown>)  => api.patch(`/absences/${id}`, data),
+  updateMy:       (id: any, data: Record<string, unknown>)  => api.patch(`/absences/my/${id}`, data),
+  approve:        (id: any)        => api.post(`/absences/${id}/approve`),
+  reject:         (id: any, data: Record<string, unknown>)  => api.post(`/absences/${id}/reject`, data),
+  review:         (id: any, data: Record<string, unknown>)  => api.post(`/absences/${id}/review`, data),
+  delete:         (id: any)        => api.delete(`/absences/${id}`),
+  deleteMy:       (id: any)        => api.delete(`/absences/my/${id}`),
   balance:        (params?: any)    => api.get('/absences/balance', { params }),
   vacationBalance:()          => api.get('/absences/my/vacation-balance'),
   policies:       ()          => api.get('/absences/policies'),
@@ -638,110 +638,110 @@ export const absencesApi = {
 // ── ALM — Assets, Licenses, Vendors ──────────────────────────────────────────
 export const assetsApi = {
   list:    (params?: any)   => api.get('/alm/assets', { params }),
-  get:     (id)       => api.get(`/alm/assets/${id}`),
-  create:  (data)     => api.post('/alm/assets', data),
-  update:  (id, data) => api.patch(`/alm/assets/${id}`, data),
-  delete:  (id)       => api.delete(`/alm/assets/${id}`),
-  cmdb:    (id)       => api.get(`/alm/assets/${id}/cmdb`),
+  get:     (id: any)       => api.get(`/alm/assets/${id}`),
+  create:  (data: Record<string, unknown>)     => api.post('/alm/assets', data),
+  update:  (id: any, data: Record<string, unknown>) => api.patch(`/alm/assets/${id}`, data),
+  delete:  (id: any)       => api.delete(`/alm/assets/${id}`),
+  cmdb:    (id: any)       => api.get(`/alm/assets/${id}/cmdb`),
 }
 
 export const licensesApi = {
   list:    (params?: any)   => api.get('/alm/licenses', { params }),
-  get:     (id)       => api.get(`/alm/licenses/${id}`),
-  create:  (data)     => api.post('/alm/licenses', data),
-  update:  (id, data) => api.patch(`/alm/licenses/${id}`, data),
-  delete:  (id)       => api.delete(`/alm/licenses/${id}`),
-  assign:  (id, data) => api.post(`/alm/licenses/${id}/assign`, data),
-  revoke:  (id, uid)  => api.delete(`/alm/licenses/${id}/users/${uid}`),
+  get:     (id: any)       => api.get(`/alm/licenses/${id}`),
+  create:  (data: Record<string, unknown>)     => api.post('/alm/licenses', data),
+  update:  (id: any, data: Record<string, unknown>) => api.patch(`/alm/licenses/${id}`, data),
+  delete:  (id: any)       => api.delete(`/alm/licenses/${id}`),
+  assign:  (id: any, data: Record<string, unknown>) => api.post(`/alm/licenses/${id}/assign`, data),
+  revoke:  (id: any, uid: any)  => api.delete(`/alm/licenses/${id}/users/${uid}`),
 }
 
 export const vendorsApi = {
   list:   (params?: any)   => api.get('/alm/vendors', { params }),
-  get:    (id)       => api.get(`/alm/vendors/${id}`),
-  create: (data)     => api.post('/alm/vendors', data),
-  update: (id, data) => api.patch(`/alm/vendors/${id}`, data),
-  delete: (id)       => api.delete(`/alm/vendors/${id}`),
+  get:    (id: any)       => api.get(`/alm/vendors/${id}`),
+  create: (data: Record<string, unknown>)     => api.post('/alm/vendors', data),
+  update: (id: any, data: Record<string, unknown>) => api.patch(`/alm/vendors/${id}`, data),
+  delete: (id: any)       => api.delete(`/alm/vendors/${id}`),
 }
 
 // ── Service Desk ──────────────────────────────────────────────────────────────
 export const ticketsApi = {
   list:    (params?: any)   => api.get('/sd/tickets', { params }),
   myQueue: ()         => api.get('/sd/tickets/my-queue'),
-  get:     (id)       => api.get(`/sd/tickets/${id}`),
-  create:  (data)     => api.post('/sd/tickets', data),
-  update:  (id, data) => api.patch(`/sd/tickets/${id}`, data),
-  close:   (id, data) => api.post(`/sd/tickets/${id}/close`, data),
-  comment: (id, data) => api.post(`/sd/tickets/${id}/comments`, data),
-  aiSuggest: (id, data) => api.post(`/sd/tickets/${id}/ai-suggest`, data),
-  split:   (id, data) => api.post(`/sd/tickets/${id}/split`, data),
-  links:   (id)       => api.get(`/sd/tickets/${id}/links`),
-  addLink:    (id, data) => api.post(`/sd/tickets/${id}/links`, data),
-  timelog:    (id, data)         => api.post(`/sd/tickets/${id}/time-log`, data),
-  restorePending: (id)           => api.post(`/sd/tickets/${id}/restore-pending`, {}),
-  escalate:   (id, level = 'l2') => api.post(`/sd/tickets/${id}/escalate?to_level=${level}`, {}),
-  slaPause:   (id, data) => api.post(`/sd/tickets/${id}/sla/pause`, data),
-  slaResume:  (id)       => api.post(`/sd/tickets/${id}/sla/resume`),
-  internalComments:      (id)         => api.get(`/sd/tickets/${id}/internal-comments`),
-  createInternalComment: (id, data)   => api.post(`/sd/tickets/${id}/internal-comments`, data),
-  updateInternalComment: (id, cid, data) => api.patch(`/sd/tickets/${id}/internal-comments/${cid}`, data),
-  deleteInternalComment: (id, cid)    => api.delete(`/sd/tickets/${id}/internal-comments/${cid}`),
-  recommendAssignment:   (id, data)   => api.post(`/sd/tickets/${id}/recommend-assignment`, data),
-  autoResolutionFeedback:(id, data)   => api.post(`/sd/tickets/${id}/auto-resolution/feedback`, data),
+  get:     (id: any)       => api.get(`/sd/tickets/${id}`),
+  create:  (data: Record<string, unknown>)     => api.post('/sd/tickets', data),
+  update:  (id: any, data: Record<string, unknown>) => api.patch(`/sd/tickets/${id}`, data),
+  close:   (id: any, data: Record<string, unknown>) => api.post(`/sd/tickets/${id}/close`, data),
+  comment: (id: any, data: Record<string, unknown>) => api.post(`/sd/tickets/${id}/comments`, data),
+  aiSuggest: (id: any, data: Record<string, unknown>) => api.post(`/sd/tickets/${id}/ai-suggest`, data),
+  split:   (id: any, data: Record<string, unknown>) => api.post(`/sd/tickets/${id}/split`, data),
+  links:   (id: any)       => api.get(`/sd/tickets/${id}/links`),
+  addLink:    (id: any, data: Record<string, unknown>) => api.post(`/sd/tickets/${id}/links`, data),
+  timelog:    (id: any, data: Record<string, unknown>)         => api.post(`/sd/tickets/${id}/time-log`, data),
+  restorePending: (id: any)           => api.post(`/sd/tickets/${id}/restore-pending`, {}),
+  escalate:   (id: any, level: string = 'l2') => api.post(`/sd/tickets/${id}/escalate?to_level=${level}`, {}),
+  slaPause:   (id: any, data: Record<string, unknown>) => api.post(`/sd/tickets/${id}/sla/pause`, data),
+  slaResume:  (id: any)       => api.post(`/sd/tickets/${id}/sla/resume`),
+  internalComments:      (id: any)         => api.get(`/sd/tickets/${id}/internal-comments`),
+  createInternalComment: (id: any, data: Record<string, unknown>)   => api.post(`/sd/tickets/${id}/internal-comments`, data),
+  updateInternalComment: (id: any, cid: any, data: Record<string, unknown>) => api.patch(`/sd/tickets/${id}/internal-comments/${cid}`, data),
+  deleteInternalComment: (id: any, cid: any)    => api.delete(`/sd/tickets/${id}/internal-comments/${cid}`),
+  recommendAssignment:   (id: any, data: Record<string, unknown>)   => api.post(`/sd/tickets/${id}/recommend-assignment`, data),
+  autoResolutionFeedback:(id: any, data: Record<string, unknown>)   => api.post(`/sd/tickets/${id}/auto-resolution/feedback`, data),
 }
 
 export const problemsApi = {
   list:   (params?: any)   => api.get('/sd/problems', { params }),
-  get:    (id)       => api.get(`/sd/problems/${id}`),
-  create: (data)     => api.post('/sd/problems', data),
-  update: (id, data) => api.patch(`/sd/problems/${id}`, data),
-  delete:             (id)       => api.delete(`/sd/problems/${id}`),
-  promoteKnownError:  (id)       => api.post(`/sd/problems/${id}/promote-known-error`),
+  get:    (id: any)       => api.get(`/sd/problems/${id}`),
+  create: (data: Record<string, unknown>)     => api.post('/sd/problems', data),
+  update: (id: any, data: Record<string, unknown>) => api.patch(`/sd/problems/${id}`, data),
+  delete:             (id: any)       => api.delete(`/sd/problems/${id}`),
+  promoteKnownError:  (id: any)       => api.post(`/sd/problems/${id}/promote-known-error`),
   // RCA Wizard
-  rcaWizardGet:      (id)        => api.get(`/sd/problems/${id}/rca-wizard`),
-  rcaWizardStart:    (id, data)  => api.post(`/sd/problems/${id}/rca-wizard/start`, data),
-  rcaWizardStep:     (id, data)  => api.post(`/sd/problems/${id}/rca-wizard/step`, data),
-  rcaWizardComplete: (id)        => api.post(`/sd/problems/${id}/rca-wizard/complete`),
-  rcaWizardAiAssist: (id, data)  => api.post(`/sd/problems/${id}/rca-wizard/ai-assist`, data),
+  rcaWizardGet:      (id: any)        => api.get(`/sd/problems/${id}/rca-wizard`),
+  rcaWizardStart:    (id: any, data: Record<string, unknown>)  => api.post(`/sd/problems/${id}/rca-wizard/start`, data),
+  rcaWizardStep:     (id: any, data: Record<string, unknown>)  => api.post(`/sd/problems/${id}/rca-wizard/step`, data),
+  rcaWizardComplete: (id: any)        => api.post(`/sd/problems/${id}/rca-wizard/complete`),
+  rcaWizardAiAssist: (id: any, data: Record<string, unknown>)  => api.post(`/sd/problems/${id}/rca-wizard/ai-assist`, data),
 }
 
 export const changesApi = {
   list:    (params?: any)   => api.get('/sd/changes', { params }),
-  get:     (id)       => api.get(`/sd/changes/${id}`),
-  create:  (data)     => api.post('/sd/changes', data),
-  update:  (id, data) => api.patch(`/sd/changes/${id}`, data),
-  delete:  (id)       => api.delete(`/sd/changes/${id}`),
-  approve: (id, data) => api.post(`/sd/changes/${id}/approve`, data),
+  get:     (id: any)       => api.get(`/sd/changes/${id}`),
+  create:  (data: Record<string, unknown>)     => api.post('/sd/changes', data),
+  update:  (id: any, data: Record<string, unknown>) => api.patch(`/sd/changes/${id}`, data),
+  delete:  (id: any)       => api.delete(`/sd/changes/${id}`),
+  approve: (id: any, data: Record<string, unknown>) => api.post(`/sd/changes/${id}/approve`, data),
 }
 
 export const sdDynamicFormsApi = {
   get:           () => api.get('/sd/dynamic-forms'),
-  save:          (data) => api.put('/sd/dynamic-forms', data),
+  save:          (data: Record<string, unknown>) => api.put('/sd/dynamic-forms', data),
   history:       () => api.get('/sd/dynamic-forms/history'),
-  diff:          (data) => api.post('/sd/dynamic-forms/diff', data),
+  diff:          (data: Record<string, unknown>) => api.post('/sd/dynamic-forms/diff', data),
   contextOptions:(params?: any) => api.get('/sd/dynamic-forms/context-options', { params }),
-  rollback:      (snapshot_id) => api.post('/sd/dynamic-forms/rollback', { snapshot_id }),
-  importPreview: (data) => api.post('/sd/dynamic-forms/import/preview', data),
-  importApply:   (data) => api.post('/sd/dynamic-forms/import/apply', data),
+  rollback:      (snapshot_id: any) => api.post('/sd/dynamic-forms/rollback', { snapshot_id }),
+  importPreview: (data: Record<string, unknown>) => api.post('/sd/dynamic-forms/import/preview', data),
+  importApply:   (data: Record<string, unknown>) => api.post('/sd/dynamic-forms/import/apply', data),
 }
 
 // ── Revenue (legacy engine) ───────────────────────────────────────────────────
 export const revenueApi = {
   rules:       ()               => api.get('/revenue/rules'),
   summary:     ()               => api.get('/revenue/summary'),
-  createRule:  (data)           => api.post('/revenue/rules', data),
-  autoCompute: (period)         => api.post('/revenue/auto-compute', { period }),
-  compute:     (id, period)     => api.post(`/revenue/rules/${id}/compute`, { period }),
+  createRule:  (data: Record<string, unknown>)           => api.post('/revenue/rules', data),
+  autoCompute: (period: any)         => api.post('/revenue/auto-compute', { period }),
+  compute:     (id: any, period: any)     => api.post(`/revenue/rules/${id}/compute`, { period }),
 }
 
 // ── Invoices ──────────────────────────────────────────────────────────────────
 export const invoicesApi = {
   list:          (params?: any)          => api.get('/invoices', { params }),
-  get:           (id)              => api.get(`/invoices/${id}`),
+  get:           (id: any)              => api.get(`/invoices/${id}`),
   summary:       ()                => api.get('/invoices/summary'),
-  create:        (data)            => api.post('/invoices', data),
-  updateStatus:  (id, status)      => api.patch(`/billing-reports/invoices/${id}/status`, { status }),
-  pdf:           (id)              => api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
-  fromTimesheets:(data)            => api.post('/invoices/from-timesheets', data),
+  create:        (data: Record<string, unknown>)            => api.post('/invoices', data),
+  updateStatus:  (id: any, status: any)      => api.patch(`/billing-reports/invoices/${id}/status`, { status }),
+  pdf:           (id: any)              => api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
+  fromTimesheets:(data: Record<string, unknown>)            => api.post('/invoices/from-timesheets', data),
 }
 
 // ── Accounting Hub (Xero / QuickBooks) ────────────────────────────────────────
@@ -749,33 +749,33 @@ export const accountingApi = {
   syncStatus:    ()                => api.get('/accounting/sync-status'),
   xeroTest:      ()                => api.post('/accounting/xero/test'),
   qbTest:        ()                => api.post('/accounting/qb/test'),
-  pushInvoice:   (data)            => api.post('/accounting/push-invoice', data),
-  pushBulk:      (data)            => api.post('/accounting/push-invoices-bulk', data),
+  pushInvoice:   (data: Record<string, unknown>)            => api.post('/accounting/push-invoice', data),
+  pushBulk:      (data: Record<string, unknown>)            => api.post('/accounting/push-invoices-bulk', data),
   xeroContacts:  ()                => api.get('/accounting/xero/contacts'),
 }
 
 // ── Currency Rates ────────────────────────────────────────────────────────────
-const getWithFallback = async (paths, config) => {
-  let lastErr
+const getWithFallback = async (paths: string[], config?: Record<string, unknown>) => {
+  let lastErr: unknown
   for (const path of paths) {
     try {
       return await api.get(path, config)
     } catch (err) {
       lastErr = err
-      if (err?.response?.status !== 404) throw err
+      if ((err as { response?: { status?: number } })?.response?.status !== 404) throw err
     }
   }
   throw lastErr
 }
 
-const postWithFallback = async (paths, data, config = undefined) => {
-  let lastErr
+const postWithFallback = async (paths: string[], data?: Record<string, unknown>, config: Record<string, unknown> | undefined = undefined) => {
+  let lastErr: unknown
   for (const path of paths) {
     try {
       return await api.post(path, data, config)
     } catch (err) {
       lastErr = err
-      if (err?.response?.status !== 404) throw err
+      if ((err as { response?: { status?: number } })?.response?.status !== 404) throw err
     }
   }
   throw lastErr
@@ -784,21 +784,21 @@ const postWithFallback = async (paths, data, config = undefined) => {
 export const currencyApi = {
   // Canonical platform routes go first to avoid dev-console 404 noise from legacy probes.
   rates:   (params?: any)        => getWithFallback(['/currency/rates', '/currency-rates/currency/rates', '/bookings/currency/rates'], { params }),
-  upsert:  (data)          => postWithFallback(['/currency/rates', '/currency-rates/currency/rates', '/bookings/currency/rates'], data),
+  upsert:  (data: Record<string, unknown>)          => postWithFallback(['/currency/rates', '/currency-rates/currency/rates', '/bookings/currency/rates'], data),
   convert: (params?: any)        => getWithFallback(['/currency/convert', '/currency-rates/currency/convert'], { params }),
   report:  (params?: any)        => getWithFallback(['/currency/report', '/currency-rates/currency/report'], { params }),
 }
 
 // ── Predictive Observability ──────────────────────────────────────────────────
 export const predictiveObservabilityApi = {
-  status:        (orgId)   => api.get('/bi/predictive/observability/status', { params: orgId ? { organization_id: orgId } : {} }),
+  status:        (orgId: any)   => api.get('/bi/predictive/observability/status', { params: orgId ? { organization_id: orgId } : {} }),
   health:        (params?: any)  => api.get('/bi/predictive/observability/health', { params }),
   triggerRetrain:()        => api.post('/bi/predictive/observability/trigger-retrain'),
 }
 
 // ── ML Predictions ────────────────────────────────────────────────────────────
 export const predictionsApi = {
-  overrunRisk:    (projectId)  => api.post('/predictions/overrun-risk', { project_id: projectId }),
+  overrunRisk:    (projectId: any)  => api.post('/predictions/overrun-risk', { project_id: projectId }),
   portfolioRisk:  ()           => api.get('/predictions/portfolio-risk'),
   train:          ()           => api.post('/predictions/train'),
   models:         ()           => api.get('/predictions/models'),
@@ -807,52 +807,52 @@ export const predictionsApi = {
 
 // ── Revenue Recognition (ASC 606) ─────────────────────────────────────────────
 export const revenueRecognitionApi = {
-  dashboard:           (year, months) => api.get('/revenue-recognition/dashboard', { params: { year, months } }),
+  dashboard:           (year: any, months: any) => api.get('/revenue-recognition/dashboard', { params: { year, months } }),
   contracts:           (params?: any)       => api.get('/revenue-recognition/contracts', { params }),
-  getContract:         (id)           => api.get(`/revenue-recognition/contracts/${id}`),
-  createContract:      (data)         => api.post('/revenue-recognition/contracts', data),
-  updateContract:      (id, data)     => api.patch(`/revenue-recognition/contracts/${id}`, data),
-  deleteContract:      (id)           => api.delete(`/revenue-recognition/contracts/${id}`),
-  obligations:         (contractId)   => api.get(`/revenue-recognition/contracts/${contractId}/obligations`),
-  createObligation:    (contractId, d)=> api.post(`/revenue-recognition/contracts/${contractId}/obligations`, d),
-  updateObligation:    (id, data)     => api.patch(`/revenue-recognition/obligations/${id}`, data),
-  deleteObligation:    (id)           => api.delete(`/revenue-recognition/obligations/${id}`),
+  getContract:         (id: any)           => api.get(`/revenue-recognition/contracts/${id}`),
+  createContract:      (data: Record<string, unknown>)         => api.post('/revenue-recognition/contracts', data),
+  updateContract:      (id: any, data: Record<string, unknown>)     => api.patch(`/revenue-recognition/contracts/${id}`, data),
+  deleteContract:      (id: any)           => api.delete(`/revenue-recognition/contracts/${id}`),
+  obligations:         (contractId: any)   => api.get(`/revenue-recognition/contracts/${contractId}/obligations`),
+  createObligation:    (contractId: any, d: Record<string, unknown>)=> api.post(`/revenue-recognition/contracts/${contractId}/obligations`, d),
+  updateObligation:    (id: any, data: Record<string, unknown>)     => api.patch(`/revenue-recognition/obligations/${id}`, data),
+  deleteObligation:    (id: any)           => api.delete(`/revenue-recognition/obligations/${id}`),
   entries:             (params?: any)       => api.get('/revenue-recognition/entries', { params }),
-  reverseEntry:        (id)           => api.post(`/revenue-recognition/entries/${id}/reverse`),
+  reverseEntry:        (id: any)           => api.post(`/revenue-recognition/entries/${id}/reverse`),
   periodCloses:        ()             => api.get('/revenue-recognition/period-closes'),
-  closePeriod:         (data)         => api.post('/revenue-recognition/period-closes', data),
-  reopenPeriod:        (year, month)  => api.delete(`/revenue-recognition/period-closes/${year}/${month}`),
-  runMonthly:          (data)         => api.post('/revenue-recognition/run-monthly', data),
+  closePeriod:         (data: Record<string, unknown>)         => api.post('/revenue-recognition/period-closes', data),
+  reopenPeriod:        (year: any, month: any)  => api.delete(`/revenue-recognition/period-closes/${year}/${month}`),
+  runMonthly:          (data: Record<string, unknown>)         => api.post('/revenue-recognition/run-monthly', data),
 }
 
 // ── CMDB ──────────────────────────────────────────────────────────────────────
 export const cmdbApi = {
   items:          (params?: any)   => api.get('/cmdb/items', { params }),
-  getItem:        (id)       => api.get(`/cmdb/items/${id}`),
-  createItem:     (data)     => api.post('/cmdb/items', data),
-  updateItem:     (id, data) => api.patch(`/cmdb/items/${id}`, data),
-  deleteItem:     (id)       => api.delete(`/cmdb/items/${id}`),
-  changelog:      (id)       => api.get(`/cmdb/items/${id}/changelog`),
+  getItem:        (id: any)       => api.get(`/cmdb/items/${id}`),
+  createItem:     (data: Record<string, unknown>)     => api.post('/cmdb/items', data),
+  updateItem:     (id: any, data: Record<string, unknown>) => api.patch(`/cmdb/items/${id}`, data),
+  deleteItem:     (id: any)       => api.delete(`/cmdb/items/${id}`),
+  changelog:      (id: any)       => api.get(`/cmdb/items/${id}/changelog`),
   categories:     ()         => api.get('/cmdb/categories'),
-  relations:      (id)       => api.get(`/cmdb/items/${id}/relations`),
-  createRelation: (data)     => api.post('/cmdb/relations', data),
-  deleteRelation: (id)       => api.delete(`/cmdb/relations/${id}`),
-  topology:       (id, r)    => api.get(`/sd/cmdb/${id}/topology`, { params: { radius: r } }),
+  relations:      (id: any)       => api.get(`/cmdb/items/${id}/relations`),
+  createRelation: (data: Record<string, unknown>)     => api.post('/cmdb/relations', data),
+  deleteRelation: (id: any)       => api.delete(`/cmdb/relations/${id}`),
+  topology:       (id: any, r: any)    => api.get(`/sd/cmdb/${id}/topology`, { params: { radius: r } }),
   topologyItems:  ()         => api.get('/sd/cmdb'),
   // SD CMDB
   sdList:         (params?: any)   => api.get('/sd/cmdb', { params }),
-  sdGet:          (id)       => api.get(`/sd/cmdb/${id}`),
-  sdCreate:       (data)     => api.post('/sd/cmdb', data),
-  sdUpdate:       (id, data) => api.patch(`/sd/cmdb/${id}`, data),
-  sdRelations:    (id)       => api.get(`/sd/cmdb/${id}/relations`),
-  sdImpact:       (id)       => api.get(`/sd/cmdb/${id}/impact`),
+  sdGet:          (id: any)       => api.get(`/sd/cmdb/${id}`),
+  sdCreate:       (data: Record<string, unknown>)     => api.post('/sd/cmdb', data),
+  sdUpdate:       (id: any, data: Record<string, unknown>) => api.patch(`/sd/cmdb/${id}`, data),
+  sdRelations:    (id: any)       => api.get(`/sd/cmdb/${id}/relations`),
+  sdImpact:       (id: any)       => api.get(`/sd/cmdb/${id}/impact`),
   // Agents
   agents:         ()         => api.get('/sd/cmdb/agents'),
-  registerAgent:  (data)     => api.post('/sd/cmdb/agents/register', data),
-  deleteAgent:    (id)       => api.delete(`/sd/cmdb/agents/${id}`),
-  agentDashboard: (agentId, days) => api.get(`/cmdb/agent-dashboard/${agentId}?days=${days}`),
-  agentSnapshot:  (agentId)  => api.post(`/cmdb/agent-dashboard/${agentId}/snapshot`),
-  assetsByCI:     (ciId)     => api.get(`/sd/assets/by-ci/${ciId}`),
+  registerAgent:  (data: Record<string, unknown>)     => api.post('/sd/cmdb/agents/register', data),
+  deleteAgent:    (id: any)       => api.delete(`/sd/cmdb/agents/${id}`),
+  agentDashboard: (agentId: any, days: any) => api.get(`/cmdb/agent-dashboard/${agentId}?days=${days}`),
+  agentSnapshot:  (agentId: any)  => api.post(`/cmdb/agent-dashboard/${agentId}/snapshot`),
+  assetsByCI:     (ciId: any)     => api.get(`/sd/assets/by-ci/${ciId}`),
 }
 
 // ── Timesheets ────────────────────────────────────────────────────────────────
@@ -860,73 +860,73 @@ export const timesheetsApi = {
   my:          ()              => api.get('/timesheets/my'),
   pending:     ()              => api.get('/timesheets/pending'),
   team:        ()              => api.get('/timesheets/team'),
-  weekLines:   (weekStart)     => api.get(`/timesheets/my/${weekStart}/lines`),
-  submit:      (weekStart)     => api.post(`/timesheets/my/${weekStart}/submit`),
-  review:      (id, data)      => api.post(`/timesheets/${id}/review`, data),
+  weekLines:   (weekStart: any)     => api.get(`/timesheets/my/${weekStart}/lines`),
+  submit:      (weekStart: any)     => api.post(`/timesheets/my/${weekStart}/submit`),
+  review:      (id: any, data: Record<string, unknown>)      => api.post(`/timesheets/${id}/review`, data),
 }
 
 // ── Documents ─────────────────────────────────────────────────────────────────
 export const documentsApi = {
   list:      (params?: any)   => api.get('/documents', { params }),
-  get:       (id)       => api.get(`/documents/${id}`),
-  upload:    (fd)       => api.post('/documents/upload', fd),
-  update:    (id, data) => api.patch(`/documents/${id}`, data),
-  delete:    (id)       => api.delete(`/documents/${id}`),
-  approve:   (id, data) => api.post(`/documents/${id}/approve`, data),
-  submitApproval: (id)  => api.post(`/documents/${id}/submit-approval`),
-  aiSummary: (id)       => api.post(`/documents/${id}/ai-summary`),
-  addVersion:(id, fd)   => api.post(`/documents/${id}/versions`, fd),
+  get:       (id: any)       => api.get(`/documents/${id}`),
+  upload:    (fd: Record<string, unknown>)       => api.post('/documents/upload', fd),
+  update:    (id: any, data: Record<string, unknown>) => api.patch(`/documents/${id}`, data),
+  delete:    (id: any)       => api.delete(`/documents/${id}`),
+  approve:   (id: any, data: Record<string, unknown>) => api.post(`/documents/${id}/approve`, data),
+  submitApproval: (id: any)  => api.post(`/documents/${id}/submit-approval`),
+  aiSummary: (id: any)       => api.post(`/documents/${id}/ai-summary`),
+  addVersion:(id: any, fd: Record<string, unknown>)   => api.post(`/documents/${id}/versions`, fd),
   // Permisos
-  listPermissions:   (id)              => api.get(`/documents/${id}/permissions`),
-  grantPermission:   (id, data)        => api.post(`/documents/${id}/permissions`, data),
-  revokePermission:  (id, permId)      => api.delete(`/documents/${id}/permissions/${permId}`),
+  listPermissions:   (id: any)              => api.get(`/documents/${id}/permissions`),
+  grantPermission:   (id: any, data: Record<string, unknown>)        => api.post(`/documents/${id}/permissions`, data),
+  revokePermission:  (id: any, permId: any)      => api.delete(`/documents/${id}/permissions/${permId}`),
   // By context
-  byTask:    (taskId, params?: any)    => api.get(`/documents/by-task/${taskId}`, { params }),
-  byTicket:  (ticketId, params?: any)  => api.get(`/documents/by-ticket/${ticketId}`, { params }),
-  byProject: (projectId, params?: any) => api.get(`/documents/by-project/${projectId}`, { params }),
+  byTask:    (taskId: any, params?: any)    => api.get(`/documents/by-task/${taskId}`, { params }),
+  byTicket:  (ticketId: any, params?: any)  => api.get(`/documents/by-ticket/${ticketId}`, { params }),
+  byProject: (projectId: any, params?: any) => api.get(`/documents/by-project/${projectId}`, { params }),
 }
 
 // ── Custom Fields ─────────────────────────────────────────────────────────────
 export const customFieldsApi = {
-  list:   (projectId)          => api.get(`/custom-fields/${projectId}`),
-  create: (projectId, data)    => api.post(`/custom-fields/${projectId}`, data),
-  update: (projectId, id, data)=> api.patch(`/custom-fields/${projectId}/${id}`, data),
-  delete:    (projectId, id)           => api.delete(`/custom-fields/${projectId}/${id}`),
-  getValues: (projectId, taskId)       => api.get(`/custom-fields/${projectId}/values/${taskId}`),
-  setValues: (projectId, taskId, data) => api.post(`/custom-fields/${projectId}/values/${taskId}`, data),
+  list:   (projectId: any)          => api.get(`/custom-fields/${projectId}`),
+  create: (projectId: any, data: Record<string, unknown>)    => api.post(`/custom-fields/${projectId}`, data),
+  update: (projectId: any, id: any, data: Record<string, unknown>)=> api.patch(`/custom-fields/${projectId}/${id}`, data),
+  delete:    (projectId: any, id: any)           => api.delete(`/custom-fields/${projectId}/${id}`),
+  getValues: (projectId: any, taskId: any)       => api.get(`/custom-fields/${projectId}/values/${taskId}`),
+  setValues: (projectId: any, taskId: any, data: Record<string, unknown>) => api.post(`/custom-fields/${projectId}/values/${taskId}`, data),
 }
 
 // ── Wiki ──────────────────────────────────────────────────────────────────────
 export const wikiApi = {
   spaces:       ()              => api.get('epics/wiki/spaces'),
-  createSpace:  (data)          => api.post('epics/wiki/spaces', data),
-  pages:        (spaceId)       => api.get(`epics/wiki/spaces/${spaceId}/pages`),
-  getPage:      (id)            => api.get(`epics/wiki/pages/${id}`),
-  createPage:   (spaceId, data) => api.post(`epics/wiki/spaces/${spaceId}/pages`, data),
-  updatePage:   (id, data)      => api.patch(`epics/wiki/pages/${id}`, data),
-  deletePage:   (id)            => api.delete(`epics/wiki/pages/${id}`),
-  versions:     (id)            => api.get(`epics/wiki/pages/${id}/versions`),
-  restorePage:  (id, vn)        => api.post(`epics/wiki/pages/${id}/restore/${vn}`),
-  search:       (q, spaceId)    => api.get(`epics/wiki/search`, { params: { q, space_id: spaceId } }),
-  tags:             (space)         => api.get(`/wiki-tags/${space}`),
-  createTag:        (space, data)   => api.post(`/wiki-tags/${space}`, data),
-  updateTag:        (id, data)      => api.patch(`/wiki-tags/${id}`, data),
-  deleteTag:        (id)            => api.delete(`/wiki-tags/${id}`),
+  createSpace:  (data: Record<string, unknown>)          => api.post('epics/wiki/spaces', data),
+  pages:        (spaceId: any)       => api.get(`epics/wiki/spaces/${spaceId}/pages`),
+  getPage:      (id: any)            => api.get(`epics/wiki/pages/${id}`),
+  createPage:   (spaceId: any, data: Record<string, unknown>) => api.post(`epics/wiki/spaces/${spaceId}/pages`, data),
+  updatePage:   (id: any, data: Record<string, unknown>)      => api.patch(`epics/wiki/pages/${id}`, data),
+  deletePage:   (id: any)            => api.delete(`epics/wiki/pages/${id}`),
+  versions:     (id: any)            => api.get(`epics/wiki/pages/${id}/versions`),
+  restorePage:  (id: any, vn: any)        => api.post(`epics/wiki/pages/${id}/restore/${vn}`),
+  search:       (q: any, spaceId: any)    => api.get(`epics/wiki/search`, { params: { q, space_id: spaceId } }),
+  tags:             (space: any)         => api.get(`/wiki-tags/${space}`),
+  createTag:        (space: any, data: Record<string, unknown>)   => api.post(`/wiki-tags/${space}`, data),
+  updateTag:        (id: any, data: Record<string, unknown>)      => api.patch(`/wiki-tags/${id}`, data),
+  deleteTag:        (id: any)            => api.delete(`/wiki-tags/${id}`),
   // portal-scoped wiki (different URL prefix)
   portalSpaces:     ()              => api.get('wiki/spaces'),
-  portalPages:      (spaceId)       => api.get(`wiki/spaces/${spaceId}/pages`),
-  portalUpdatePage: (id, data)      => api.patch(`wiki/pages/${id}`, data),
+  portalPages:      (spaceId: any)       => api.get(`wiki/spaces/${spaceId}/pages`),
+  portalUpdatePage: (id: any, data: Record<string, unknown>)      => api.patch(`wiki/pages/${id}`, data),
 }
 
 // ── Skills ────────────────────────────────────────────────────────────────────
 export const skillsApi = {
   catalog:        ()               => api.get('/skills/catalog'),
-  createCatalog:  (data)           => api.post('/skills/catalog', data),
-  deleteCatalog:  (id)             => api.delete(`/skills/catalog/${id}`),
-  userSkills:     (userId)         => api.get(`/skills/users/${userId}`),
-  userHistory:    (userId)         => api.get(`/skills/users/${userId}/history`),
-  addUserSkill:   (userId, data)   => api.post(`/skills/users/${userId}`, data),
-  removeUserSkill:(userId, skillId)=> api.delete(`/skills/users/${userId}/${skillId}`),
+  createCatalog:  (data: Record<string, unknown>)           => api.post('/skills/catalog', data),
+  deleteCatalog:  (id: any)             => api.delete(`/skills/catalog/${id}`),
+  userSkills:     (userId: any)         => api.get(`/skills/users/${userId}`),
+  userHistory:    (userId: any)         => api.get(`/skills/users/${userId}/history`),
+  addUserSkill:   (userId: any, data: Record<string, unknown>)   => api.post(`/skills/users/${userId}`, data),
+  removeUserSkill:(userId: any, skillId: any)=> api.delete(`/skills/users/${userId}/${skillId}`),
   matrix:         ()               => api.get('/skills/matrix'),
   search:         (params?: any)         => api.get('/skills/search', { params }),
 }
@@ -935,35 +935,35 @@ export const skillsApi = {
 export const enterpriseSubsApi = {
   dashboard:        ()                     => api.get('/enterprise/subcontractors-dashboard'),
   list:             ()                     => api.get('/enterprise/subcontractors'),
-  create:           (data)                 => api.post('/enterprise/subcontractors', data),
-  update:           (id, data)             => api.patch(`/enterprise/subcontractors/${id}`, data),
-  delete:           (id)                   => api.delete(`/enterprise/subcontractors/${id}`),
-  workers:          (subId)                => api.get(`/enterprise/subcontractors/${subId}/workers`),
-  createWorker:     (subId, data)          => api.post(`/enterprise/subcontractors/${subId}/workers`, data),
-  updateWorker:     (id, data)             => api.patch(`/enterprise/subcontractors/workers/${id}`, data),
-  deleteWorker:     (id)                   => api.delete(`/enterprise/subcontractors/workers/${id}`),
-  addWorkerSkill:   (id, data)             => api.post(`/enterprise/subcontractors/workers/${id}/skills`, data),
-  removeWorkerSkill:(id, skillId)          => api.delete(`/enterprise/subcontractors/workers/${id}/skills/${skillId}`),
-  assignments:      (subId)                => api.get(`/enterprise/subcontractors/${subId}/assignments`),
-  createAssignment: (subId, data)          => api.post(`/enterprise/subcontractors/${subId}/assignments`, data),
-  timelogs:         (subId)                => api.get(`/enterprise/subcontractors/${subId}/timelogs`),
-  createTimelog:    (subId, data)          => api.post(`/enterprise/subcontractors/${subId}/timelogs`, data),
-  invoices:         (subId)                => api.get(`/enterprise/subcontractors/${subId}/invoices`),
-  createInvoice:    (subId, data)          => api.post(`/enterprise/subcontractors/${subId}/invoices`, data),
-  updateInvoice:    (subId, id, data)      => api.patch(`/enterprise/subcontractors/${subId}/invoices/${id}`, data),
+  create:           (data: Record<string, unknown>)                 => api.post('/enterprise/subcontractors', data),
+  update:           (id: any, data: Record<string, unknown>)             => api.patch(`/enterprise/subcontractors/${id}`, data),
+  delete:           (id: any)                   => api.delete(`/enterprise/subcontractors/${id}`),
+  workers:          (subId: any)                => api.get(`/enterprise/subcontractors/${subId}/workers`),
+  createWorker:     (subId: any, data: Record<string, unknown>)          => api.post(`/enterprise/subcontractors/${subId}/workers`, data),
+  updateWorker:     (id: any, data: Record<string, unknown>)             => api.patch(`/enterprise/subcontractors/workers/${id}`, data),
+  deleteWorker:     (id: any)                   => api.delete(`/enterprise/subcontractors/workers/${id}`),
+  addWorkerSkill:   (id: any, data: Record<string, unknown>)             => api.post(`/enterprise/subcontractors/workers/${id}/skills`, data),
+  removeWorkerSkill:(id: any, skillId: any)          => api.delete(`/enterprise/subcontractors/workers/${id}/skills/${skillId}`),
+  assignments:      (subId: any)                => api.get(`/enterprise/subcontractors/${subId}/assignments`),
+  createAssignment: (subId: any, data: Record<string, unknown>)          => api.post(`/enterprise/subcontractors/${subId}/assignments`, data),
+  timelogs:         (subId: any)                => api.get(`/enterprise/subcontractors/${subId}/timelogs`),
+  createTimelog:    (subId: any, data: Record<string, unknown>)          => api.post(`/enterprise/subcontractors/${subId}/timelogs`, data),
+  invoices:         (subId: any)                => api.get(`/enterprise/subcontractors/${subId}/invoices`),
+  createInvoice:    (subId: any, data: Record<string, unknown>)          => api.post(`/enterprise/subcontractors/${subId}/invoices`, data),
+  updateInvoice:    (subId: any, id: any, data: Record<string, unknown>)      => api.patch(`/enterprise/subcontractors/${subId}/invoices/${id}`, data),
 }
 
 // ── ALM Extended (contracts, cost-centers, compliance) ────────────────────────
 export const almExtApi = {
   dashboard:       ()              => api.get('/alm/dashboard'),
   contracts:       ()              => api.get('/alm/contracts'),
-  createContract:  (data)          => api.post('/alm/contracts', data),
-  updateContract:  (id, data)      => api.patch(`/alm/contracts/${id}`, data),
-  deleteContract:  (id)            => api.delete(`/alm/contracts/${id}`),
+  createContract:  (data: Record<string, unknown>)          => api.post('/alm/contracts', data),
+  updateContract:  (id: any, data: Record<string, unknown>)      => api.patch(`/alm/contracts/${id}`, data),
+  deleteContract:  (id: any)            => api.delete(`/alm/contracts/${id}`),
   costCenters:     ()              => api.get('/alm/cost-centers'),
-  createCostCenter:(data)          => api.post('/alm/cost-centers', data),
-  updateCostCenter:(id, data)      => api.patch(`/alm/cost-centers/${id}`, data),
-  deleteCostCenter:(id)            => api.delete(`/alm/cost-centers/${id}`),
+  createCostCenter:(data: Record<string, unknown>)          => api.post('/alm/cost-centers', data),
+  updateCostCenter:(id: any, data: Record<string, unknown>)      => api.patch(`/alm/cost-centers/${id}`, data),
+  deleteCostCenter:(id: any)            => api.delete(`/alm/cost-centers/${id}`),
   compliance:      ()              => api.get('/alm/compliance'),
 }
 
@@ -971,187 +971,187 @@ export const almExtApi = {
 export const cabApi = {
   changes: ()             => api.get('/cab/changes'),
   windows: ()             => api.get('/cab/windows'),
-  vote:    (id, data)     => api.post(`/cab/changes/${id}/vote`, data),
-  close:   (id, data)     => api.post(`/cab/changes/${id}/close`, data),
+  vote:    (id: any, data: Record<string, unknown>)     => api.post(`/cab/changes/${id}/vote`, data),
+  close:   (id: any, data: Record<string, unknown>)     => api.post(`/cab/changes/${id}/close`, data),
 }
 
 // ── Project Change Requests ───────────────────────────────────────────────────
 export const projectChangesApi = {
-  list:       (projectId)           => api.get(`/changes/${projectId}`),
+  list:       (projectId: any)           => api.get(`/changes/${projectId}`),
   allPending: ()                    => api.get('/changes/all/pending'),
-  create:     (projectId, data)     => api.post(`/changes/${projectId}`, data),
-  update:     (projectId, id, data) => api.patch(`/changes/${projectId}/${id}`, data),
-  review:     (projectId, id, data) => api.post(`/changes/${projectId}/${id}/review`, data),
-  submit:     (projectId, id)       => api.post(`/changes/${projectId}/${id}/submit`),
-  implement:  (projectId, id)       => api.post(`/changes/${projectId}/${id}/implement`),
-  delete:     (projectId, id)       => api.delete(`/changes/${projectId}/${id}`),
+  create:     (projectId: any, data: Record<string, unknown>)     => api.post(`/changes/${projectId}`, data),
+  update:     (projectId: any, id: any, data: Record<string, unknown>) => api.patch(`/changes/${projectId}/${id}`, data),
+  review:     (projectId: any, id: any, data: Record<string, unknown>) => api.post(`/changes/${projectId}/${id}/review`, data),
+  submit:     (projectId: any, id: any)       => api.post(`/changes/${projectId}/${id}/submit`),
+  implement:  (projectId: any, id: any)       => api.post(`/changes/${projectId}/${id}/implement`),
+  delete:     (projectId: any, id: any)       => api.delete(`/changes/${projectId}/${id}`),
 }
 
 // ── NPS ───────────────────────────────────────────────────────────────────────
 export const npsApi = {
   leaderboard:    ()            => api.get('/nps/leaderboard'),
-  summary:        (id, days)    => api.get(`/nps/${id}/summary`, { params: { days } }),
-  health:         (id, limit)   => api.get(`/nps/${id}/health`, { params: { limit } }),
-  healthCompute:  (id)          => api.post(`/nps/${id}/health-compute`),
-  respond:        (id, data)    => api.post(`/nps/${id}/responses`, data),
+  summary:        (id: any, days: any)    => api.get(`/nps/${id}/summary`, { params: { days } }),
+  health:         (id: any, limit: any)   => api.get(`/nps/${id}/health`, { params: { limit } }),
+  healthCompute:  (id: any)          => api.post(`/nps/${id}/health-compute`),
+  respond:        (id: any, data: Record<string, unknown>)    => api.post(`/nps/${id}/responses`, data),
 }
 
 // ── Portfolios ────────────────────────────────────────────────────────────────
 export const portfolioApi = {
   list:          ()             => api.get('/portfolios'),
-  get:           (id)           => api.get(`/portfolios/${id}`),
-  dashboard:     (id)           => api.get(`/portfolios/${id}/dashboard`),
-  create:        (data)         => api.post('/portfolios', data),
-  update:        (id, data)     => api.patch(`/portfolios/${id}`, data),
-  delete:        (id)           => api.delete(`/portfolios/${id}`),
-  addProject:    (id, pid)      => api.post(`/portfolios/${id}/projects`, { project_id: pid }),
-  removeProject: (id, pid)      => api.delete(`/portfolios/${id}/projects/${pid}`),
+  get:           (id: any)           => api.get(`/portfolios/${id}`),
+  dashboard:     (id: any)           => api.get(`/portfolios/${id}/dashboard`),
+  create:        (data: Record<string, unknown>)         => api.post('/portfolios', data),
+  update:        (id: any, data: Record<string, unknown>)     => api.patch(`/portfolios/${id}`, data),
+  delete:        (id: any)           => api.delete(`/portfolios/${id}`),
+  addProject:    (id: any, pid: any)      => api.post(`/portfolios/${id}/projects`, { project_id: pid }),
+  removeProject: (id: any, pid: any)      => api.delete(`/portfolios/${id}/projects/${pid}`),
 }
 
 // ── Performance Reviews ───────────────────────────────────────────────────────
 export const performanceApi = {
   cycles:        ()             => api.get('/performance/cycles'),
   myReviews:     ()             => api.get('/performance/my-reviews'),
-  cycleReviews:  (id)           => api.get(`/performance/cycles/${id}/reviews`),
-  createCycle:   (data)         => api.post('/performance/cycles', data),
-  activateCycle: (id)           => api.post(`/performance/cycles/${id}/activate`),
-  closeCycle:    (id)           => api.post(`/performance/cycles/${id}/close`),
+  cycleReviews:  (id: any)           => api.get(`/performance/cycles/${id}/reviews`),
+  createCycle:   (data: Record<string, unknown>)         => api.post('/performance/cycles', data),
+  activateCycle: (id: any)           => api.post(`/performance/cycles/${id}/activate`),
+  closeCycle:    (id: any)           => api.post(`/performance/cycles/${id}/close`),
   // Asignar evaluación (qué evaluador evalúa a qué evaluado dentro de un ciclo)
-  createReview:  (cycleId, data) => api.post(`/performance/cycles/${cycleId}/reviews`, data),
-  updateReview:  (id, data)     => api.patch(`/performance/reviews/${id}`, data),
-  submitReview:  (id)           => api.post(`/performance/reviews/${id}/submit`),
-  userHistory:   (userId)       => api.get(`/performance/users/${userId}/history`),
+  createReview:  (cycleId: any, data: Record<string, unknown>) => api.post(`/performance/cycles/${cycleId}/reviews`, data),
+  updateReview:  (id: any, data: Record<string, unknown>)     => api.patch(`/performance/reviews/${id}`, data),
+  submitReview:  (id: any)           => api.post(`/performance/reviews/${id}/submit`),
+  userHistory:   (userId: any)       => api.get(`/performance/users/${userId}/history`),
   // Plantilla de preguntas por ciclo
-  listQuestions:    (cycleId)            => api.get(`/performance/cycles/${cycleId}/questions`),
-  addQuestion:      (cycleId, data)      => api.post(`/performance/cycles/${cycleId}/questions`, data),
-  updateQuestion:   (qId, data)          => api.patch(`/performance/questions/${qId}`, data),
-  deleteQuestion:   (qId)                => api.delete(`/performance/questions/${qId}`),
-  seedDefaultQuestions: (cycleId)        => api.post(`/performance/cycles/${cycleId}/questions/seed-default`),
-  cloneQuestions:   (cycleId, sourceId)  => api.post(`/performance/cycles/${cycleId}/clone-questions/${sourceId}`),
+  listQuestions:    (cycleId: any)            => api.get(`/performance/cycles/${cycleId}/questions`),
+  addQuestion:      (cycleId: any, data: Record<string, unknown>)      => api.post(`/performance/cycles/${cycleId}/questions`, data),
+  updateQuestion:   (qId: any, data: Record<string, unknown>)          => api.patch(`/performance/questions/${qId}`, data),
+  deleteQuestion:   (qId: any)                => api.delete(`/performance/questions/${qId}`),
+  seedDefaultQuestions: (cycleId: any)        => api.post(`/performance/cycles/${cycleId}/questions/seed-default`),
+  cloneQuestions:   (cycleId: any, sourceId: any)  => api.post(`/performance/cycles/${cycleId}/clone-questions/${sourceId}`),
   // Smart 360°: pool de evaluadores elegibles según tipo de revisión
-  eligibleReviewers: (cycleId, revieweeId, type) =>
+  eligibleReviewers: (cycleId: any, revieweeId: any, type: any) =>
     api.get(`/performance/cycles/${cycleId}/eligible-reviewers/${revieweeId}/${type}`),
   // Campañas 360° (subject + multi-evaluator + dashboard agregado anonimizado)
-  listCampaigns:    (cycleId)        => api.get(`/performance/cycles/${cycleId}/campaigns`),
-  createCampaign:   (cycleId, data)  => api.post(`/performance/cycles/${cycleId}/campaigns`, data),
-  closeCampaign:    (id)             => api.post(`/performance/campaigns/${id}/close`),
-  campaignDashboard:(id)             => api.get(`/performance/campaigns/${id}/dashboard`),
-  campaignDashboardPdf:(id)          => api.get(`/performance/campaigns/${id}/dashboard.pdf`,
+  listCampaigns:    (cycleId: any)        => api.get(`/performance/cycles/${cycleId}/campaigns`),
+  createCampaign:   (cycleId: any, data: Record<string, unknown>)  => api.post(`/performance/cycles/${cycleId}/campaigns`, data),
+  closeCampaign:    (id: any)             => api.post(`/performance/campaigns/${id}/close`),
+  campaignDashboard:(id: any)             => api.get(`/performance/campaigns/${id}/dashboard`),
+  campaignDashboardPdf:(id: any)          => api.get(`/performance/campaigns/${id}/dashboard.pdf`,
                                                 { responseType: 'blob' }),
-  campaignReviews:  (id)             => api.get(`/performance/campaigns/${id}/reviews`),
-  history360:       (userId)         => api.get(`/performance/users/${userId}/360-history`),
+  campaignReviews:  (id: any)             => api.get(`/performance/campaigns/${id}/reviews`),
+  history360:       (userId: any)         => api.get(`/performance/users/${userId}/360-history`),
   // KPIs operativos (HR)
   orgKpis:          ()               => api.get('/performance/kpis'),
-  cycleKpis:        (id)             => api.get(`/performance/cycles/${id}/kpis`),
+  cycleKpis:        (id: any)             => api.get(`/performance/cycles/${id}/kpis`),
   runReminders:     ()               => api.post('/performance/admin/run-reminders'),
   // Development plans
-  listUserPlans:    (userId)         => api.get(`/performance/users/${userId}/dev-plans`),
-  getPlan:          (id)             => api.get(`/performance/dev-plans/${id}`),
-  createPlan:       (data)           => api.post('/performance/dev-plans', data),
-  updatePlan:       (id, data)       => api.patch(`/performance/dev-plans/${id}`, data),
-  addGoal:          (planId, data)   => api.post(`/performance/dev-plans/${planId}/goals`, data),
-  updateGoal:       (id, data)       => api.patch(`/performance/dev-goals/${id}`, data),
-  deleteGoal:       (id)             => api.delete(`/performance/dev-goals/${id}`),
+  listUserPlans:    (userId: any)         => api.get(`/performance/users/${userId}/dev-plans`),
+  getPlan:          (id: any)             => api.get(`/performance/dev-plans/${id}`),
+  createPlan:       (data: Record<string, unknown>)           => api.post('/performance/dev-plans', data),
+  updatePlan:       (id: any, data: Record<string, unknown>)       => api.patch(`/performance/dev-plans/${id}`, data),
+  addGoal:          (planId: any, data: Record<string, unknown>)   => api.post(`/performance/dev-plans/${planId}/goals`, data),
+  updateGoal:       (id: any, data: Record<string, unknown>)       => api.patch(`/performance/dev-goals/${id}`, data),
+  deleteGoal:       (id: any)             => api.delete(`/performance/dev-goals/${id}`),
 }
 
 // ── Capacity Planning ─────────────────────────────────────────────────────────
 export const capacityApi = {
   board:       (params?: any)         => api.get('/capacity/board', { params }),
-  createPlan:  (data)           => api.post('/capacity/plans', data),
-  updatePlan:  (id, data)       => api.patch(`/capacity/plans/${id}`, data),
-  deletePlan:  (id)             => api.delete(`/capacity/plans/${id}`),
+  createPlan:  (data: Record<string, unknown>)           => api.post('/capacity/plans', data),
+  updatePlan:  (id: any, data: Record<string, unknown>)       => api.patch(`/capacity/plans/${id}`, data),
+  deletePlan:  (id: any)             => api.delete(`/capacity/plans/${id}`),
 }
 
 // ── Profitability ─────────────────────────────────────────────────────────────
 export const profitabilityApi = {
-  get:             (projectId)          => api.get(`/profitability/${projectId}`),
+  get:             (projectId: any)          => api.get(`/profitability/${projectId}`),
   summary:         (params?: any)             => api.get('/profitability/summary', { params }),
   projects:        (params?: any)             => api.get('/profitability/projects', { params }),
-  createMilestone: (projectId, data)    => api.post(`/profitability/${projectId}/milestones`, data),
-  updateMilestone: (projectId, id, data)=> api.patch(`/profitability/${projectId}/milestones/${id}`, data),
-  deleteMilestone: (projectId, id)      => api.delete(`/profitability/${projectId}/milestones/${id}`),
+  createMilestone: (projectId: any, data: Record<string, unknown>)    => api.post(`/profitability/${projectId}/milestones`, data),
+  updateMilestone: (projectId: any, id: any, data: Record<string, unknown>)=> api.patch(`/profitability/${projectId}/milestones/${id}`, data),
+  deleteMilestone: (projectId: any, id: any)      => api.delete(`/profitability/${projectId}/milestones/${id}`),
 }
 
 // ── BI Forecasting ────────────────────────────────────────────────────────────
 export const biForecastingApi = {
   getMetrics:     ()                   => api.get('/bi/forecast/metrics'),
   // The backend forecasts a single metric via POST /bi/forecast {metric, ...}.
-  forecast:       (metric, params?: any)     => api.post('/bi/forecast', { metric, ...(params || {}) }),
-  multiForecast:  (data)               => api.post('/bi/forecast/multi', data),
+  forecast:       (metric: any, params?: any)     => api.post('/bi/forecast', { metric, ...(params || {}) }),
+  multiForecast:  (data: Record<string, unknown>)               => api.post('/bi/forecast/multi', data),
   // Aliases kept for BiForecastingPanel (same canonical routes).
   listMetrics:    ()                   => api.get('/bi/forecast/metrics'),
-  run:            (data)               => api.post('/bi/forecast', data),
+  run:            (data: Record<string, unknown>)               => api.post('/bi/forecast', data),
 }
 
 // ── BI Anomaly / Churn ────────────────────────────────────────────────────────
 export const biAnomalyApi = {
   getInfo:        ()                   => api.get('/bi/anomaly/info'),
-  detect:         (data)               => api.post('/bi/anomaly/detect', data),
-  predictChurn:   (data)               => api.post('/bi/anomaly/churn', data),
-  churnPredict:   (data)               => api.post('/bi/churn/predict', data),
+  detect:         (data: Record<string, unknown>)               => api.post('/bi/anomaly/detect', data),
+  predictChurn:   (data: Record<string, unknown>)               => api.post('/bi/anomaly/churn', data),
+  churnPredict:   (data: Record<string, unknown>)               => api.post('/bi/churn/predict', data),
 }
 
 // ── BI GDPR ───────────────────────────────────────────────────────────────────
 export const biGdprApi = {
-  recordConsent:       (data)          => api.post('/bi/gdpr/consent', data),
+  recordConsent:       (data: Record<string, unknown>)          => api.post('/bi/gdpr/consent', data),
   getConsent:          (params?: any)        => api.get('/bi/gdpr/consent', { params }),
   listConsents:        ()              => api.get('/bi/gdpr/consents'),
-  getConsentHistory:   (userId)        => api.get(`/bi/gdpr/consent/${userId}/history`),
-  createDsr:           (data)          => api.post('/bi/gdpr/dsr', data),
-  getDsr:              (id)            => api.get(`/bi/gdpr/dsr/${id}`),
+  getConsentHistory:   (userId: any)        => api.get(`/bi/gdpr/consent/${userId}/history`),
+  createDsr:           (data: Record<string, unknown>)          => api.post('/bi/gdpr/dsr', data),
+  getDsr:              (id: any)            => api.get(`/bi/gdpr/dsr/${id}`),
   listDsr:             (params?: any)        => api.get('/bi/gdpr/dsr', { params }),
-  resolveDsr:          (id, data)      => api.patch(`/bi/gdpr/dsr/${id}/resolve`, data),
-  executeDsrErasure:   (id)            => api.post(`/bi/gdpr/dsr/${id}/erasure-execute`),
-  executeDsrPortability: (id)          => api.post(`/bi/gdpr/dsr/${id}/portability-export`),
-  setFieldMask:        (data)          => api.post('/bi/gdpr/field-masks', data),
+  resolveDsr:          (id: any, data: Record<string, unknown>)      => api.patch(`/bi/gdpr/dsr/${id}/resolve`, data),
+  executeDsrErasure:   (id: any)            => api.post(`/bi/gdpr/dsr/${id}/erasure-execute`),
+  executeDsrPortability: (id: any)          => api.post(`/bi/gdpr/dsr/${id}/portability-export`),
+  setFieldMask:        (data: Record<string, unknown>)          => api.post('/bi/gdpr/field-masks', data),
   getFieldMasks:       ()              => api.get('/bi/gdpr/field-masks'),
   getStats:            ()              => api.get('/bi/gdpr/stats'),
 }
 
 // ── BI Dashboard Collaboration ────────────────────────────────────────────────
 export const biDashboardCollabApi = {
-  addComment:     (data)               => api.post('/bi/collab/comments', data),
+  addComment:     (data: Record<string, unknown>)               => api.post('/bi/collab/comments', data),
   listComments:   (params?: any)             => api.get('/bi/collab/comments', { params }),
-  resolveComment: (id)                 => api.patch(`/bi/collab/comments/${id}/resolve`),
-  saveView:       (data)               => api.post('/bi/collab/views', data),
+  resolveComment: (id: any)                 => api.patch(`/bi/collab/comments/${id}/resolve`),
+  saveView:       (data: Record<string, unknown>)               => api.post('/bi/collab/views', data),
   listViews:      (params?: any)             => api.get('/bi/collab/views', { params }),
-  addReaction:    (data)               => api.post('/bi/collab/reactions', data),
+  addReaction:    (data: Record<string, unknown>)               => api.post('/bi/collab/reactions', data),
 }
 
 // ── BI Query Builder ──────────────────────────────────────────────────────────
 export const biQueryBuilderApi = {
   getSchema:      (params?: any)             => api.get('/bi/query-builder/schema', { params }),
-  previewQuery:   (data)               => api.post('/bi/query-builder/preview', data),
-  saveQuery:      (data)               => api.post('/bi/query-builder/queries', data),
+  previewQuery:   (data: Record<string, unknown>)               => api.post('/bi/query-builder/preview', data),
+  saveQuery:      (data: Record<string, unknown>)               => api.post('/bi/query-builder/queries', data),
   listQueries:    ()                   => api.get('/bi/query-builder/queries'),
-  executeQuery:   (id)                 => api.post(`/bi/query-builder/queries/${id}/execute`),
-  deleteQuery:    (id)                 => api.delete(`/bi/query-builder/queries/${id}`),
+  executeQuery:   (id: any)                 => api.post(`/bi/query-builder/queries/${id}/execute`),
+  deleteQuery:    (id: any)                 => api.delete(`/bi/query-builder/queries/${id}`),
 }
 
 // ── BI Conditional Delivery ───────────────────────────────────────────────────
 export const biConditionalDeliveryApi = {
-  createRule:     (data)               => api.post('/bi/delivery/rules', data),
+  createRule:     (data: Record<string, unknown>)               => api.post('/bi/delivery/rules', data),
   listRules:      ()                   => api.get('/bi/delivery/rules'),
-  updateRule:     (id, data)           => api.patch(`/bi/delivery/rules/${id}`, data),
-  deleteRule:     (id)                 => api.delete(`/bi/delivery/rules/${id}`),
-  evaluate:       (id, data = {})      => api.post(`/bi/delivery/rules/${id}/evaluate`, data),
+  updateRule:     (id: any, data: Record<string, unknown>)           => api.patch(`/bi/delivery/rules/${id}`, data),
+  deleteRule:     (id: any)                 => api.delete(`/bi/delivery/rules/${id}`),
+  evaluate:       (id: any, data: Record<string, unknown> = {})      => api.post(`/bi/delivery/rules/${id}/evaluate`, data),
 }
 
 // ── BI ETL Connectors ─────────────────────────────────────────────────────────
 export const biEtlApi = {
   listConnectors: ()                   => api.get('/bi/etl/connectors'),
-  getConnector:   (id)                 => api.get(`/bi/etl/connectors/${id}`),
-  triggerSync:    (id, data)           => api.post(`/bi/etl/connectors/${id}/sync`, data),
-  getLog:         (id)                 => api.get(`/bi/etl/connectors/${id}/log`),
-  getData:        (id, params?: any)         => api.get(`/bi/etl/data/${id}`, { params }),
+  getConnector:   (id: any)                 => api.get(`/bi/etl/connectors/${id}`),
+  triggerSync:    (id: any, data: Record<string, unknown>)           => api.post(`/bi/etl/connectors/${id}/sync`, data),
+  getLog:         (id: any)                 => api.get(`/bi/etl/connectors/${id}/log`),
+  getData:        (id: any, params?: any)         => api.get(`/bi/etl/data/${id}`, { params }),
 }
 
 // ── BI Office 365 ─────────────────────────────────────────────────────────────
 export const biO365Api = {
   getConfig:      ()                   => api.get('/bi/o365/config'),
-  saveConfig:     (data)               => api.put('/bi/o365/config', data),
-  triggerSync:    (data)               => api.post('/bi/o365/sync', data),
-  getReport:      (name, params?: any)       => api.get(`/bi/o365/reports/${name}`, { params }),
+  saveConfig:     (data: Record<string, unknown>)               => api.put('/bi/o365/config', data),
+  triggerSync:    (data: Record<string, unknown>)               => api.post('/bi/o365/sync', data),
+  getReport:      (name: any, params?: any)       => api.get(`/bi/o365/reports/${name}`, { params }),
   getAdoption:    ()                   => api.get('/bi/o365/adoption'),
   getSyncLog:     ()                   => api.get('/bi/o365/sync-log'),
 }
@@ -1159,40 +1159,40 @@ export const biO365Api = {
 // ── Voice Agent (IVR) ─────────────────────────────────────────────────────────
 export const voiceAgentApi = {
   getConfig:      ()                   => api.get('/sd/voice/config'),
-  updateConfig:   (data)               => api.put('/sd/voice/config', data),
-  createSession:  (data)               => api.post('/sd/voice/sessions', data),
+  updateConfig:   (data: Record<string, unknown>)               => api.put('/sd/voice/config', data),
+  createSession:  (data: Record<string, unknown>)               => api.post('/sd/voice/sessions', data),
   listSessions:   (params?: any)             => api.get('/sd/voice/sessions', { params }),
-  getSession:     (id)                 => api.get(`/sd/voice/sessions/${id}`),
-  addTurn:        (id, data)           => api.post(`/sd/voice/sessions/${id}/turn`, data),
-  closeSession:   (id, data)           => api.post(`/sd/voice/sessions/${id}/close`, data),
-  createTicket:   (id)                 => api.post(`/sd/voice/sessions/${id}/ticket`),
+  getSession:     (id: any)                 => api.get(`/sd/voice/sessions/${id}`),
+  addTurn:        (id: any, data: Record<string, unknown>)           => api.post(`/sd/voice/sessions/${id}/turn`, data),
+  closeSession:   (id: any, data: Record<string, unknown>)           => api.post(`/sd/voice/sessions/${id}/close`, data),
+  createTicket:   (id: any)                 => api.post(`/sd/voice/sessions/${id}/ticket`),
 }
 
 // ── Incident Assignment ML ────────────────────────────────────────────────────
 export const incidentAssignmentApi = {
-  recommend:      (ticketId, data)     => api.post(`/sd/tickets/${ticketId}/recommend-assignment`, data),
+  recommend:      (ticketId: any, data: Record<string, unknown>)     => api.post(`/sd/tickets/${ticketId}/recommend-assignment`, data),
   stats:          ()                   => api.get('/sd/assignment/stats'),
 }
 
 // ── Change Rollout ────────────────────────────────────────────────────────────
 export const changeRolloutApi = {
-  listPlans:      (changeId)           => api.get(`/sd/changes/${changeId}/rollout-plans`),
-  getPlan:        (id)                 => api.get(`/sd/changes/rollout-plans/${id}`),
-  createPlan:     (changeId, data)     => api.post(`/sd/changes/${changeId}/rollout-plans`, data),
-  approvePlan:    (id)                 => api.post(`/sd/changes/rollout-plans/${id}/approve`),
-  advancePhase:   (id, data)           => api.post(`/sd/changes/rollout-plans/${id}/advance-phase`, data),
-  simulate:       (data)               => api.post('/sd/changes/rollout-plans/simulate', data),
-  simulatePlan:   (changeId, planId)   => api.post(`/sd/changes/${changeId}/rollout-plans/${planId}/simulate`, {}),
-  rollback:       (changeId, data)     => api.post(`/sd/changes/${changeId}/rollback`, data),
+  listPlans:      (changeId: any)           => api.get(`/sd/changes/${changeId}/rollout-plans`),
+  getPlan:        (id: any)                 => api.get(`/sd/changes/rollout-plans/${id}`),
+  createPlan:     (changeId: any, data: Record<string, unknown>)     => api.post(`/sd/changes/${changeId}/rollout-plans`, data),
+  approvePlan:    (id: any)                 => api.post(`/sd/changes/rollout-plans/${id}/approve`),
+  advancePhase:   (id: any, data: Record<string, unknown>)           => api.post(`/sd/changes/rollout-plans/${id}/advance-phase`, data),
+  simulate:       (data: Record<string, unknown>)               => api.post('/sd/changes/rollout-plans/simulate', data),
+  simulatePlan:   (changeId: any, planId: any)   => api.post(`/sd/changes/${changeId}/rollout-plans/${planId}/simulate`, {}),
+  rollback:       (changeId: any, data: Record<string, unknown>)     => api.post(`/sd/changes/${changeId}/rollback`, data),
 }
 
 // ── CMDB 3D Graph ─────────────────────────────────────────────────────────────
 export const cmdb3dApi = {
   getGraph:       (params?: any)             => api.get('/sd/cmdb/3d-graph', { params }),
-  blastRadius:    (ciId)               => api.get(`/sd/cmdb/blast-radius/${ciId}`),
-  createLink:     (data)               => api.post('/sd/cmdb/asset-links', data),
+  blastRadius:    (ciId: any)               => api.get(`/sd/cmdb/blast-radius/${ciId}`),
+  createLink:     (data: Record<string, unknown>)               => api.post('/sd/cmdb/asset-links', data),
   listLinks:      (params?: any)             => api.get('/sd/cmdb/asset-links', { params }),
-  getImpact:      (assetId)            => api.get(`/sd/cmdb/asset-impact/${assetId}`),
+  getImpact:      (assetId: any)            => api.get(`/sd/cmdb/asset-impact/${assetId}`),
 }
 
 // ── WebSocket Ticket ──────────────────────────────────────────────────────────
@@ -1202,34 +1202,34 @@ export const wsApi = {
 
 // ── Sprint (project-scoped) ───────────────────────────────────────────────────
 export const projectSprintsApi = {
-  list:          (projectId)                    => api.get(`/sprints/${projectId}/sprints`),
-  create:        (projectId, data)              => api.post(`/sprints/${projectId}/sprints`, data),
-  update:        (projectId, id, data)          => api.patch(`/sprints/${projectId}/sprints/${id}`, data),
-  start:         (projectId, id)                => api.post(`/sprints/${projectId}/sprints/${id}/start`),
-  close:         (projectId, id)                => api.post(`/sprints/${projectId}/sprints/${id}/close`),
-  burndown:      (projectId, id)                => api.get(`/sprints/${projectId}/sprints/${id}/burndown`),
-  backlog:       (projectId)                    => api.get(`/sprints/${projectId}/backlog`),
-  velocity:      (projectId)                    => api.get(`/sprints/${projectId}/velocity`),
-  addTasks:      (projectId, sprintId, taskIds) => api.post(`/sprints/${projectId}/sprints/${sprintId}/tasks`, { task_ids: taskIds }),
-  removeTask:    (projectId, sprintId, taskId)  => api.delete(`/sprints/${projectId}/sprints/${sprintId}/tasks/${taskId}`),
-  retrospective:      (projectId, sprintId)       => api.get(`/projects/${projectId}/sprints/${sprintId}/retrospective`),
-  saveRetrospective:  (projectId, sprintId, data) => api.put(`/projects/${projectId}/sprints/${sprintId}/retrospective`, data),
-  burnup:             (projectId, sprintId)       => api.get(`/sprints/${projectId}/sprints/${sprintId}/burnup`),
+  list:          (projectId: any)                    => api.get(`/sprints/${projectId}/sprints`),
+  create:        (projectId: any, data: Record<string, unknown>)              => api.post(`/sprints/${projectId}/sprints`, data),
+  update:        (projectId: any, id: any, data: Record<string, unknown>)          => api.patch(`/sprints/${projectId}/sprints/${id}`, data),
+  start:         (projectId: any, id: any)                => api.post(`/sprints/${projectId}/sprints/${id}/start`),
+  close:         (projectId: any, id: any)                => api.post(`/sprints/${projectId}/sprints/${id}/close`),
+  burndown:      (projectId: any, id: any)                => api.get(`/sprints/${projectId}/sprints/${id}/burndown`),
+  backlog:       (projectId: any)                    => api.get(`/sprints/${projectId}/backlog`),
+  velocity:      (projectId: any)                    => api.get(`/sprints/${projectId}/velocity`),
+  addTasks:      (projectId: any, sprintId: any, taskIds: any) => api.post(`/sprints/${projectId}/sprints/${sprintId}/tasks`, { task_ids: taskIds }),
+  removeTask:    (projectId: any, sprintId: any, taskId: any)  => api.delete(`/sprints/${projectId}/sprints/${sprintId}/tasks/${taskId}`),
+  retrospective:      (projectId: any, sprintId: any)       => api.get(`/projects/${projectId}/sprints/${sprintId}/retrospective`),
+  saveRetrospective:  (projectId: any, sprintId: any, data: Record<string, unknown>) => api.put(`/projects/${projectId}/sprints/${sprintId}/retrospective`, data),
+  burnup:             (projectId: any, sprintId: any)       => api.get(`/sprints/${projectId}/sprints/${sprintId}/burnup`),
 }
 
 // ── Portal Clients ────────────────────────────────────────────────────────────
 export const portalClientsApi = {
   list:         (params?: any)   => api.get('/portal/clients', { params }),
-  create:       (data)     => api.post('/portal/clients', data),
-  update:       (id, data) => api.patch(`/portal/clients/${id}`, data),
+  create:       (data: Record<string, unknown>)     => api.post('/portal/clients', data),
+  update:       (id: any, data: Record<string, unknown>) => api.patch(`/portal/clients/${id}`, data),
   translations: ()         => api.get('/portal/translations'),
-  saveTranslations: (data) => api.post('/portal/translations', data),
+  saveTranslations: (data: Record<string, unknown>) => api.post('/portal/translations', data),
 }
 
 // ── Service Desk — Major Incidents ────────────────────────────────────────────
 export const majorIncidentsApi = {
   list:   ()      => api.get('/sd/major-incidents'),
-  create: (data)  => api.post('/sd/major-incidents', data),
+  create: (data: Record<string, unknown>)  => api.post('/sd/major-incidents', data),
 }
 
 
@@ -1237,49 +1237,49 @@ export const majorIncidentsApi = {
 export const settingsApi = {
   general:      ()      => api.get('/settings/general'),
   logLevel:     ()      => api.get('/settings/log-level'),
-  setLogLevel:  (data)  => api.post('/settings/log-level', data),
+  setLogLevel:  (data: Record<string, unknown>)  => api.post('/settings/log-level', data),
   // Runtime-flag groups (env → UI migration). See docs/CONFIG_MIGRATION_INVENTORY.md
-  runtimeGroup: (group) => api.get(`/settings/runtime/${group}`),
-  setRuntime:   (group, key, value) => api.put(`/settings/runtime/${group}/${key}`, { value: String(value) }),
+  runtimeGroup: (group: any) => api.get(`/settings/runtime/${group}`),
+  setRuntime:   (group: any, key: any, value: any) => api.put(`/settings/runtime/${group}/${key}`, { value: String(value) }),
 
   // Integration credentials (Phase 2 — encrypted per-org provider creds)
   integrations:        ()                     => api.get('/settings/integrations'),
-  integrationProvider: (provider)             => api.get(`/settings/integrations/${provider}`),
-  setIntegration:      (provider, key, value) => api.put(`/settings/integrations/${provider}/${key}`, { value: value == null ? '' : String(value) }),
-  testIntegration:     (provider)             => api.post(`/settings/integrations/${provider}/test`),
+  integrationProvider: (provider: any)             => api.get(`/settings/integrations/${provider}`),
+  setIntegration:      (provider: any, key: any, value: any) => api.put(`/settings/integrations/${provider}/${key}`, { value: value == null ? '' : String(value) }),
+  testIntegration:     (provider: any)             => api.post(`/settings/integrations/${provider}/test`),
 
   // Audit log (settings + credentials)
-  auditLog: (params = {}) => api.get('/settings/audit-log', { params }),
+  auditLog: (params: Record<string, unknown> = {}) => api.get('/settings/audit-log', { params }),
 }
 
 // ── Semantic ──────────────────────────────────────────────────────────────────
 export const semanticApi = {
-  suggestTask:        (data) => api.post('/semantic/suggest/task', data),
-  suggestTicket:      (data) => api.post('/semantic/suggest/ticket', data),
-  estimateEffort:     (data) => api.post('/semantic/estimate/effort', data),
-  estimateSprint:     (data) => api.post('/semantic/estimate/sprint-backlog', data),
+  suggestTask:        (data: Record<string, unknown>) => api.post('/semantic/suggest/task', data),
+  suggestTicket:      (data: Record<string, unknown>) => api.post('/semantic/suggest/ticket', data),
+  estimateEffort:     (data: Record<string, unknown>) => api.post('/semantic/estimate/effort', data),
+  estimateSprint:     (data: Record<string, unknown>) => api.post('/semantic/estimate/sprint-backlog', data),
   profiles:           () => api.get('/semantic/profiles'),
-  createProfile:      (data) => api.post('/semantic/profiles', data),
+  createProfile:      (data: Record<string, unknown>) => api.post('/semantic/profiles', data),
   config:             () => api.get('/semantic/config'),
-  updateConfig:       (data) => api.patch('/semantic/config', data),
+  updateConfig:       (data: Record<string, unknown>) => api.patch('/semantic/config', data),
   stats:              () => api.get('/semantic/stats'),
   autoGenerate:       () => api.post('/semantic/profiles/auto-generate'),
   rebuildEmbeddings:  () => api.post('/semantic/profiles/rebuild-embeddings'),
-  recordAssignment:   (data) => api.post('/semantic/record-assignment', data),
+  recordAssignment:   (data: Record<string, unknown>) => api.post('/semantic/record-assignment', data),
 }
 
 // ── GRC ───────────────────────────────────────────────────────────────────────
 export const grcApi = {
   permissions:      ()                           => api.get('/grc/permissions'),
   seedPermissions:  ()                           => api.post('/grc/permissions/seed'),
-  updatePermission: (role, module, action, data) => api.patch(`/grc/permissions/${role}/${module}/${action}`, data),
+  updatePermission: (role: any, module: any, action: any, data: Record<string, unknown>) => api.patch(`/grc/permissions/${role}/${module}/${action}`, data),
   sodRules:         ()                           => api.get('/grc/sod-rules'),
-  createSodRule:    (data)                       => api.post('/grc/sod-rules', data),
-  updateSodRule:    (id, data)                   => api.patch(`/grc/sod-rules/${id}`, data),
-  deleteSodRule:    (id)                         => api.delete(`/grc/sod-rules/${id}`),
+  createSodRule:    (data: Record<string, unknown>)                       => api.post('/grc/sod-rules', data),
+  updateSodRule:    (id: any, data: Record<string, unknown>)                   => api.patch(`/grc/sod-rules/${id}`, data),
+  deleteSodRule:    (id: any)                         => api.delete(`/grc/sod-rules/${id}`),
   sodCheck:         ()                           => api.get('/grc/sod-check'),
   violations:       (params?: any)                     => api.get('/grc/violations', { params }),
-  resolveViolation: (id, data)                   => api.patch(`/grc/violations/${id}/resolve`, data),
+  resolveViolation: (id: any, data: Record<string, unknown>)                   => api.patch(`/grc/violations/${id}/resolve`, data),
   auditLog:         (params?: any)                     => api.get('/grc/audit-log', { params }),
 }
 
@@ -1287,32 +1287,32 @@ export const grcApi = {
 export const automationsApi = {
   list:       ()         => api.get('/automations'),
   templates:  ()         => api.get('/automations/templates/list'),
-  create:     (data)     => api.post('/automations', data),
-  update:     (id, data) => api.patch(`/automations/${id}`, data),
-  delete:     (id)       => api.delete(`/automations/${id}`),
-  test:       (id)       => api.post(`/automations/${id}/test`),
-  executions: (id)       => api.get(`/automations/${id}/executions`),
+  create:     (data: Record<string, unknown>)     => api.post('/automations', data),
+  update:     (id: any, data: Record<string, unknown>) => api.patch(`/automations/${id}`, data),
+  delete:     (id: any)       => api.delete(`/automations/${id}`),
+  test:       (id: any)       => api.post(`/automations/${id}/test`),
+  executions: (id: any)       => api.get(`/automations/${id}/executions`),
 }
 
 export const autoWorkflowsApi = {
   list:   ()             => api.get('/automation-workflows'),
-  update: (id, data)     => api.patch(`/automation-workflows/${id}`, data),
-  delete: (id)           => api.delete(`/automation-workflows/${id}`),
+  update: (id: any, data: Record<string, unknown>)     => api.patch(`/automation-workflows/${id}`, data),
+  delete: (id: any)           => api.delete(`/automation-workflows/${id}`),
 }
 
 export const workflowsLegacyApi = {
   list:   ()         => api.get('/billing-reports/automation-workflows'),
-  create: (data)     => api.post('/billing-reports/automation-workflows', data),
-  update: (id, data) => api.patch(`/billing-reports/automation-workflows/${id}`, data),
+  create: (data: Record<string, unknown>)     => api.post('/billing-reports/automation-workflows', data),
+  update: (id: any, data: Record<string, unknown>) => api.patch(`/billing-reports/automation-workflows/${id}`, data),
 }
 
 // ── Scheduled Reports ─────────────────────────────────────────────────────────
 export const scheduledReportsApi = {
   list:   ()         => api.get('/billing-reports/scheduled-reports'),
-  create: (data)     => api.post('/billing-reports/scheduled-reports', data),
-  delete: (id)       => api.delete(`/billing-reports/scheduled-reports/${id}`),
-  run:    (id)       => api.post(`/billing-reports/scheduled-reports/${id}/run`),
-  toggle: (id, data) => api.patch(`/billing-reports/scheduled-reports/${id}`, data),
+  create: (data: Record<string, unknown>)     => api.post('/billing-reports/scheduled-reports', data),
+  delete: (id: any)       => api.delete(`/billing-reports/scheduled-reports/${id}`),
+  run:    (id: any)       => api.post(`/billing-reports/scheduled-reports/${id}/run`),
+  toggle: (id: any, data: Record<string, unknown>) => api.patch(`/billing-reports/scheduled-reports/${id}`, data),
 }
 
 // ── AI Providers ──────────────────────────────────────────────────────────────
@@ -1321,12 +1321,12 @@ export const aiProvidersApi = {
   catalog:     ()         => api.get('/ai-providers/catalog'),
   stats:       ()         => api.get('/ai-providers/stats'),
   diagnostics: ()         => api.get('/ai-providers/diagnostics'),
-  create:      (data)     => api.post('/ai-providers', data),
-  update:      (id, data) => api.patch(`/ai-providers/${id}`, data),
-  delete:      (id)       => api.delete(`/ai-providers/${id}`),
-  test:        (id)       => api.post(`/ai-providers/${id}/test`),
-  syncModels:  (id)       => api.post(`/ai-providers/${id}/sync-models`),
-  setDefault:  (id)       => api.post(`/ai-providers/${id}/set-default`),
+  create:      (data: Record<string, unknown>)     => api.post('/ai-providers', data),
+  update:      (id: any, data: Record<string, unknown>) => api.patch(`/ai-providers/${id}`, data),
+  delete:      (id: any)       => api.delete(`/ai-providers/${id}`),
+  test:        (id: any)       => api.post(`/ai-providers/${id}/test`),
+  syncModels:  (id: any)       => api.post(`/ai-providers/${id}/sync-models`),
+  setDefault:  (id: any)       => api.post(`/ai-providers/${id}/set-default`),
   syncAll:     ()         => api.post('/ai-providers/sync-models/all'),
 }
 
@@ -1339,224 +1339,224 @@ export const sdMetricsApi = {
 export const sdCatalogApi = {
   list:           ()         => api.get('/sd/catalog'),
   get:            ()         => api.get('/sd/catalog'),
-  createCategory: (data)     => api.post('/sd/catalog/categories', data),
-  updateCategory: (id, data) => api.patch(`/sd/catalog/categories/${id}`, data),
-  deleteCategory: (id)       => api.delete(`/sd/catalog/categories/${id}`),
-  createService:  (data)     => api.post('/sd/catalog/services', data),
-  updateService:  (id, data) => api.patch(`/sd/catalog/services/${id}`, data),
-  deleteService:  (id)       => api.delete(`/sd/catalog/services/${id}`),
+  createCategory: (data: Record<string, unknown>)     => api.post('/sd/catalog/categories', data),
+  updateCategory: (id: any, data: Record<string, unknown>) => api.patch(`/sd/catalog/categories/${id}`, data),
+  deleteCategory: (id: any)       => api.delete(`/sd/catalog/categories/${id}`),
+  createService:  (data: Record<string, unknown>)     => api.post('/sd/catalog/services', data),
+  updateService:  (id: any, data: Record<string, unknown>) => api.patch(`/sd/catalog/services/${id}`, data),
+  deleteService:  (id: any)       => api.delete(`/sd/catalog/services/${id}`),
 }
 
 export const sdSlaPoliciesApi = {
   list:   ()         => api.get('/sd/sla-policies'),
-  create: (data)     => api.post('/sd/sla-policies', data),
-  update: (id, data) => api.patch(`/sd/sla-policies/${id}`, data),
-  delete: (id)       => api.delete(`/sd/sla-policies/${id}`),
+  create: (data: Record<string, unknown>)     => api.post('/sd/sla-policies', data),
+  update: (id: any, data: Record<string, unknown>) => api.patch(`/sd/sla-policies/${id}`, data),
+  delete: (id: any)       => api.delete(`/sd/sla-policies/${id}`),
 }
 
 export const sdGroupsApi = {
   list:         ()         => api.get('/sd/groups'),
-  create:       (data)     => api.post('/sd/groups', data),
-  update:       (id, data) => api.patch(`/sd/groups/${id}`, data),
-  delete:       (id)       => api.delete(`/sd/groups/${id}`),
-  addMember:    (gid, uid) => api.post(`/sd/groups/${gid}/members/${uid}`),
-  removeMember: (gid, uid) => api.delete(`/sd/groups/${gid}/members/${uid}`),
+  create:       (data: Record<string, unknown>)     => api.post('/sd/groups', data),
+  update:       (id: any, data: Record<string, unknown>) => api.patch(`/sd/groups/${id}`, data),
+  delete:       (id: any)       => api.delete(`/sd/groups/${id}`),
+  addMember:    (gid: any, uid: any) => api.post(`/sd/groups/${gid}/members/${uid}`),
+  removeMember: (gid: any, uid: any) => api.delete(`/sd/groups/${gid}/members/${uid}`),
 }
 
 export const sdTemplatesApi = {
   list:   ()         => api.get('/sd/ticket-templates'),
-  create: (data)     => api.post('/sd/ticket-templates', data),
-  update: (id, data) => api.patch(`/sd/ticket-templates/${id}`, data),
-  delete: (id)       => api.delete(`/sd/ticket-templates/${id}`),
+  create: (data: Record<string, unknown>)     => api.post('/sd/ticket-templates', data),
+  update: (id: any, data: Record<string, unknown>) => api.patch(`/sd/ticket-templates/${id}`, data),
+  delete: (id: any)       => api.delete(`/sd/ticket-templates/${id}`),
 }
 
 export const sdCannedApi = {
   list:   (params?: any)   => api.get('/sd/canned-responses', { params }),
-  create: (data)     => api.post('/sd/canned-responses', data),
-  update: (id, data) => api.patch(`/sd/canned-responses/${id}`, data),
-  delete: (id)       => api.delete(`/sd/canned-responses/${id}`),
+  create: (data: Record<string, unknown>)     => api.post('/sd/canned-responses', data),
+  update: (id: any, data: Record<string, unknown>) => api.patch(`/sd/canned-responses/${id}`, data),
+  delete: (id: any)       => api.delete(`/sd/canned-responses/${id}`),
 }
 
 export const sdAnnouncementsApi = {
   list:   ()     => api.get('/sd/announcements'),
-  create: (data) => api.post('/sd/announcements', data),
-  delete: (id)   => api.delete(`/sd/announcements/${id}`),
+  create: (data: Record<string, unknown>) => api.post('/sd/announcements', data),
+  delete: (id: any)   => api.delete(`/sd/announcements/${id}`),
 }
 
 export const sdRoutingApi = {
   list:                ()         => api.get('/sd/routing-rules'),
-  create:              (data)     => api.post('/sd/routing-rules', data),
-  update:              (id, data) => api.patch(`/sd/routing-rules/${id}`, data),
-  delete:              (id)       => api.delete(`/sd/routing-rules/${id}`),
+  create:              (data: Record<string, unknown>)     => api.post('/sd/routing-rules', data),
+  update:              (id: any, data: Record<string, unknown>) => api.patch(`/sd/routing-rules/${id}`, data),
+  delete:              (id: any)       => api.delete(`/sd/routing-rules/${id}`),
   queue:               (params?: any)   => api.get('/sd/tickets/my-queue', { params }),
   tickets:             (params?: any)   => api.get('/sd/tickets', { params }),
   majorIncidents:      ()         => api.get('/sd/major-incidents'),
-  createMajorIncident: (data)     => api.post('/sd/major-incidents', data),
+  createMajorIncident: (data: Record<string, unknown>)     => api.post('/sd/major-incidents', data),
 }
 
 export const sdKbApi = {
   list:        (params?: any)   => api.get('/sd/kb', { params }),
-  create:      (data)     => api.post('/sd/kb', data),
-  update:      (id, data) => api.patch(`/sd/kb/${id}`, data),
-  delete:      (id)       => api.delete(`/sd/kb/${id}`),
+  create:      (data: Record<string, unknown>)     => api.post('/sd/kb', data),
+  update:      (id: any, data: Record<string, unknown>) => api.patch(`/sd/kb/${id}`, data),
+  delete:      (id: any)       => api.delete(`/sd/kb/${id}`),
   knownErrors:        ()     => api.get('/sd/known-errors'),
-  knownErrorTickets:  (id)   => api.get(`/sd/known-errors/${id}/tickets`),
+  knownErrorTickets:  (id: any)   => api.get(`/sd/known-errors/${id}/tickets`),
 }
 
 // ── Enterprise ────────────────────────────────────────────────────────────────
 export const webhooksApi = {
   list:   ()         => api.get('/webhooks'),
-  create: (data)     => api.post('/webhooks', data),
-  delete: (id)       => api.delete(`/webhooks/${id}`),
-  logs:   (id)       => api.get(`/webhooks/${id}/logs`),
+  create: (data: Record<string, unknown>)     => api.post('/webhooks', data),
+  delete: (id: any)       => api.delete(`/webhooks/${id}`),
+  logs:   (id: any)       => api.get(`/webhooks/${id}/logs`),
 }
 
 export const gdprApi = {
   list:    ()     => api.get('/gdpr/requests'),
-  create:  (data) => api.post('/gdpr/requests', data),
-  process: (id)   => api.post(`/gdpr/requests/${id}/process`),
+  create:  (data: Record<string, unknown>) => api.post('/gdpr/requests', data),
+  process: (id: any)   => api.post(`/gdpr/requests/${id}/process`),
 }
 
 export const emailApi = {
   catalog:        ()     => api.get('/email/templates'),
   logs:           ()     => api.get('/email/logs'),
-  send:           (data) => api.post('/email/send', data),
-  createTemplate: (data) => api.post('/email/templates', data),
+  send:           (data: Record<string, unknown>) => api.post('/email/send', data),
+  createTemplate: (data: Record<string, unknown>) => api.post('/email/templates', data),
 }
 
 export const oauthIntegrationsApi = {
   list:   ()             => api.get('/oauth-integrations'),
-  create: (data)         => api.post('/oauth-integrations', data),
-  delete: (id)           => api.delete(`/oauth-integrations/${id}`),
-  sync:   (id, data)     => api.post(`/oauth-integrations/${id}/sync`, data),
+  create: (data: Record<string, unknown>)         => api.post('/oauth-integrations', data),
+  delete: (id: any)           => api.delete(`/oauth-integrations/${id}`),
+  sync:   (id: any, data: Record<string, unknown>)     => api.post(`/oauth-integrations/${id}/sync`, data),
 }
 
 export const enterpriseApi = {
   auditLog:                (params?: any) => api.get('/enterprise/audit-log', { params }),
   ssoList:                 ()       => api.get('/enterprise/sso'),
-  ssoCreate:               (data)   => api.post('/enterprise/sso', data),
-  ssoDelete:               (id)     => api.delete(`/enterprise/sso/${id}`),
-  ssoTest:                 (id)     => api.post(`/enterprise/sso/${id}/test`),
+  ssoCreate:               (data: Record<string, unknown>)   => api.post('/enterprise/sso', data),
+  ssoDelete:               (id: any)     => api.delete(`/enterprise/sso/${id}`),
+  ssoTest:                 (id: any)     => api.post(`/enterprise/sso/${id}/test`),
   notifications:           (params?: any) => api.get('/enterprise/notifications', { params }),
-  markNotificationRead:    (id)     => api.post(`/enterprise/notifications/${id}/read`),
+  markNotificationRead:    (id: any)     => api.post(`/enterprise/notifications/${id}/read`),
   markAllNotificationsRead:()       => api.post('/enterprise/notifications/read-all'),
   clearOldNotifications:  (params?: any)  => api.delete('/enterprise/notifications/clear-old', { params }),
 }
 
 export const integrationsHubApi = {
-  testSlack:  (data) => api.post('/integrations-hub/slack/test', data),
-  testTeams:  (data) => api.post('/integrations-hub/teams/test', data),
-  testJira:   (data) => api.post('/integrations-hub/jira/test', data),
+  testSlack:  (data: Record<string, unknown>) => api.post('/integrations-hub/slack/test', data),
+  testTeams:  (data: Record<string, unknown>) => api.post('/integrations-hub/teams/test', data),
+  testJira:   (data: Record<string, unknown>) => api.post('/integrations-hub/jira/test', data),
 }
 
 export const apiKeysApi = {
   list:   ()         => api.get('/api-keys'),
-  create: (data)     => api.post('/api-keys', data),
-  delete: (id)       => api.delete(`/api-keys/${id}`),
+  create: (data: Record<string, unknown>)     => api.post('/api-keys', data),
+  delete: (id: any)       => api.delete(`/api-keys/${id}`),
 }
 
 // ── Client Portal ─────────────────────────────────────────────────────────────
 export const portalApi = {
   clients:              (params?: any)          => api.get('/portal/clients', { params }),
-  createClient:         (data)            => api.post('/portal/clients', data),
-  updateClient:         (id, data)        => api.patch(`/portal/clients/${id}`, data),
-  deleteClient:         (id)              => api.delete(`/portal/clients/${id}`),
+  createClient:         (data: Record<string, unknown>)            => api.post('/portal/clients', data),
+  updateClient:         (id: any, data: Record<string, unknown>)        => api.patch(`/portal/clients/${id}`, data),
+  deleteClient:         (id: any)              => api.delete(`/portal/clients/${id}`),
   uat:                  (params?: any)          => api.get('/portal/uat/team', { params }),
-  createUat:            (projectId, data) => api.post(`/portal/uat/${projectId}`, data),
-  addTestCase:          (id, data)        => api.post(`/portal/uat/${id}/test-cases`, data),
-  updateUatStatus:      (id, params?: any)      => api.patch(`/portal/uat/issues/${id}`, null, { params }),
+  createUat:            (projectId: any, data: Record<string, unknown>) => api.post(`/portal/uat/${projectId}`, data),
+  addTestCase:          (id: any, data: Record<string, unknown>)        => api.post(`/portal/uat/${id}/test-cases`, data),
+  updateUatStatus:      (id: any, params?: any)      => api.patch(`/portal/uat/issues/${id}`, null, { params }),
   featureRequests:      (params?: any)          => api.get('/portal/feature-requests/team', { params }),
-  respondFeatureRequest:(id, data)        => api.post(`/portal/feature-requests/${id}/respond`, data),
+  respondFeatureRequest:(id: any, data: Record<string, unknown>)        => api.post(`/portal/feature-requests/${id}/respond`, data),
   documents:            (params?: any)          => api.get('/portal/documents/team', { params }),
-  createDocument:       (projectId, data) => api.post('/portal/documents', data, { params: { project_id: projectId } }),
-  stats:                (projectId)       => api.get(`/portal/stats/${projectId}`),
+  createDocument:       (projectId: any, data: Record<string, unknown>) => api.post('/portal/documents', data, { params: { project_id: projectId } }),
+  stats:                (projectId: any)       => api.get(`/portal/stats/${projectId}`),
   translations:         ()               => api.get('/portal/translations'),
-  saveTranslations:     (data)           => api.post('/portal/translations', data),
+  saveTranslations:     (data: Record<string, unknown>)           => api.post('/portal/translations', data),
 }
 
 // ── Client Extensions ─────────────────────────────────────────────────────────
 export const clientExtApi = {
-  projects:           (cid)       => api.get(`/clients/${cid}/projects`),
-  availableProjects:  (cid)       => api.get(`/clients/${cid}/projects/available`),
-  linkProject:        (cid, pid)  => api.post(`/clients/${cid}/projects/${pid}/link`),
-  unlinkProject:      (cid, pid)  => api.delete(`/clients/${cid}/projects/${pid}/link`),
-  contacts:           (cid)       => api.get(`/clients/${cid}/contacts`),
-  createContact:      (cid, data) => api.post(`/clients/${cid}/contacts`, data),
-  deleteContact:      (cid, id)   => api.delete(`/clients/${cid}/contacts/${id}`),
-  licenses:           (cid)       => api.get(`/clients/${cid}/licenses`),
-  linkLicense:        (cid, data) => api.post(`/clients/${cid}/licenses`, data),
-  unlinkLicense:      (cid, id)   => api.delete(`/clients/${cid}/licenses/${id}`),
-  contracts:          (cid)       => api.get(`/clients/${cid}/contracts`),
-  linkContract:       (cid, data) => api.post(`/clients/${cid}/contracts`, data),
-  unlinkContract:     (cid, id)   => api.delete(`/clients/${cid}/contracts/${id}`),
-  portalConfig:       (cid)       => api.get(`/clients/${cid}/portal-config`),
-  updatePortalConfig: (cid, data) => api.patch(`/clients/${cid}/portal-config`, data),
+  projects:           (cid: any)       => api.get(`/clients/${cid}/projects`),
+  availableProjects:  (cid: any)       => api.get(`/clients/${cid}/projects/available`),
+  linkProject:        (cid: any, pid: any)  => api.post(`/clients/${cid}/projects/${pid}/link`),
+  unlinkProject:      (cid: any, pid: any)  => api.delete(`/clients/${cid}/projects/${pid}/link`),
+  contacts:           (cid: any)       => api.get(`/clients/${cid}/contacts`),
+  createContact:      (cid: any, data: Record<string, unknown>) => api.post(`/clients/${cid}/contacts`, data),
+  deleteContact:      (cid: any, id: any)   => api.delete(`/clients/${cid}/contacts/${id}`),
+  licenses:           (cid: any)       => api.get(`/clients/${cid}/licenses`),
+  linkLicense:        (cid: any, data: Record<string, unknown>) => api.post(`/clients/${cid}/licenses`, data),
+  unlinkLicense:      (cid: any, id: any)   => api.delete(`/clients/${cid}/licenses/${id}`),
+  contracts:          (cid: any)       => api.get(`/clients/${cid}/contracts`),
+  linkContract:       (cid: any, data: Record<string, unknown>) => api.post(`/clients/${cid}/contracts`, data),
+  unlinkContract:     (cid: any, id: any)   => api.delete(`/clients/${cid}/contracts/${id}`),
+  portalConfig:       (cid: any)       => api.get(`/clients/${cid}/portal-config`),
+  updatePortalConfig: (cid: any, data: Record<string, unknown>) => api.patch(`/clients/${cid}/portal-config`, data),
 }
 
 // ── SLA Calendars ─────────────────────────────────────────────────────────────
 export const slaCalendarsApi = {
   list:          () => api.get('/cmdb/sla-calendars'),
-  create:        (data) => api.post('/cmdb/sla-calendars', data),
-  update:        (id, data) => api.patch(`/cmdb/sla-calendars/${id}`, data),
-  delete:        (id) => api.delete(`/cmdb/sla-calendars/${id}`),
-  holidays:      (calId) => api.get(`/cmdb/sla-calendars/${calId}/holidays`),
-  createHoliday: (calId, data) => api.post(`/cmdb/sla-calendars/${calId}/holidays`, data),
-  updateHoliday: (calId, id, data) => api.patch(`/cmdb/sla-calendars/${calId}/holidays/${id}`, data),
-  deleteHoliday: (calId, id) => api.delete(`/cmdb/sla-calendars/${calId}/holidays/${id}`),
-  checkDate:     (calId, date) => api.get(`/cmdb/sla-calendars/${calId}/check-date?check_date=${date}`),
+  create:        (data: Record<string, unknown>) => api.post('/cmdb/sla-calendars', data),
+  update:        (id: any, data: Record<string, unknown>) => api.patch(`/cmdb/sla-calendars/${id}`, data),
+  delete:        (id: any) => api.delete(`/cmdb/sla-calendars/${id}`),
+  holidays:      (calId: any) => api.get(`/cmdb/sla-calendars/${calId}/holidays`),
+  createHoliday: (calId: any, data: Record<string, unknown>) => api.post(`/cmdb/sla-calendars/${calId}/holidays`, data),
+  updateHoliday: (calId: any, id: any, data: Record<string, unknown>) => api.patch(`/cmdb/sla-calendars/${calId}/holidays/${id}`, data),
+  deleteHoliday: (calId: any, id: any) => api.delete(`/cmdb/sla-calendars/${calId}/holidays/${id}`),
+  checkDate:     (calId: any, date: any) => api.get(`/cmdb/sla-calendars/${calId}/check-date?check_date=${date}`),
 }
 
 // ── Project Workflows ─────────────────────────────────────────────────────────
 export const projectWorkflowsApi = {
-  get:              (projectId) => api.get(`/project-workflows/${projectId}`),
-  init:             (projectId) => api.post(`/project-workflows/${projectId}/init`),
-  createState:      (projectId, data) => api.post(`/project-workflows/${projectId}/states`, data),
-  updateState:      (projectId, stateId, data) => api.patch(`/project-workflows/${projectId}/states/${stateId}`, data),
-  deleteState:      (projectId, stateId) => api.delete(`/project-workflows/${projectId}/states/${stateId}`),
-  createTransition: (projectId, data) => api.post(`/project-workflows/${projectId}/transitions`, data),
-  deleteTransition: (projectId, transId) => api.delete(`/project-workflows/${projectId}/transitions/${transId}`),
-  transitionTask:   (projectId, taskId, data) => api.post(`/project-workflows/${projectId}/tasks/${taskId}/transition`, data),
-  resetWorkflow:    (projectId) => api.delete(`/project-workflows/${projectId}/reset`),
+  get:              (projectId: any) => api.get(`/project-workflows/${projectId}`),
+  init:             (projectId: any) => api.post(`/project-workflows/${projectId}/init`),
+  createState:      (projectId: any, data: Record<string, unknown>) => api.post(`/project-workflows/${projectId}/states`, data),
+  updateState:      (projectId: any, stateId: any, data: Record<string, unknown>) => api.patch(`/project-workflows/${projectId}/states/${stateId}`, data),
+  deleteState:      (projectId: any, stateId: any) => api.delete(`/project-workflows/${projectId}/states/${stateId}`),
+  createTransition: (projectId: any, data: Record<string, unknown>) => api.post(`/project-workflows/${projectId}/transitions`, data),
+  deleteTransition: (projectId: any, transId: any) => api.delete(`/project-workflows/${projectId}/transitions/${transId}`),
+  transitionTask:   (projectId: any, taskId: any, data: Record<string, unknown>) => api.post(`/project-workflows/${projectId}/tasks/${taskId}/transition`, data),
+  resetWorkflow:    (projectId: any) => api.delete(`/project-workflows/${projectId}/reset`),
 }
 
 // ── Sprint Plans ──────────────────────────────────────────────────────────────
 export const sprintPlansApi = {
-  generate:     (data) => api.post('/cmdb/sprint-plans/generate', data),
-  get:          (projectId) => api.get(`/cmdb/sprint-plans/${projectId}`),
-  updateStatus: (id, status) => api.patch(`/cmdb/sprint-plans/${id}/status?status=${status}`),
-  delete:       (id) => api.delete(`/cmdb/sprint-plans/${id}`),
+  generate:     (data: Record<string, unknown>) => api.post('/cmdb/sprint-plans/generate', data),
+  get:          (projectId: any) => api.get(`/cmdb/sprint-plans/${projectId}`),
+  updateStatus: (id: any, status: any) => api.patch(`/cmdb/sprint-plans/${id}/status?status=${status}`),
+  delete:       (id: any) => api.delete(`/cmdb/sprint-plans/${id}`),
 }
 
 // ── Organizations ─────────────────────────────────────────────────────────────
 export const organizationsApi = {
   list:       () => api.get('/organizations'),
-  get:        (id) => api.get(`/organizations/${id}`),
-  create:     (data) => api.post('/organizations', data),
-  update:     (id, data) => api.patch(`/organizations/${id}`, data),
-  assignUser: (orgId, data) => api.post(`/organizations/${orgId}/assign-user`, data),
-  removeUser: (orgId, userId) => api.delete(`/organizations/${orgId}/remove-user/${userId}`),
+  get:        (id: any) => api.get(`/organizations/${id}`),
+  create:     (data: Record<string, unknown>) => api.post('/organizations', data),
+  update:     (id: any, data: Record<string, unknown>) => api.patch(`/organizations/${id}`, data),
+  assignUser: (orgId: any, data: Record<string, unknown>) => api.post(`/organizations/${orgId}/assign-user`, data),
+  removeUser: (orgId: any, userId: any) => api.delete(`/organizations/${orgId}/remove-user/${userId}`),
 }
 
 // ── Templates ─────────────────────────────────────────────────────────────────
 export const templatesApi = {
   list:        () => api.get('/billing-reports/templates'),
-  create:      (data) => api.post('/billing-reports/templates', data),
-  instantiate: (tplId, data) => api.post(`/billing-reports/templates/${tplId}/instantiate`, data),
+  create:      (data: Record<string, unknown>) => api.post('/billing-reports/templates', data),
+  instantiate: (tplId: any, data: Record<string, unknown>) => api.post(`/billing-reports/templates/${tplId}/instantiate`, data),
 }
 
 // ── Dependencies ──────────────────────────────────────────────────────────────
 export const dependenciesApi = {
-  get: (projectId) => api.get(`/dependencies/${projectId}`),
+  get: (projectId: any) => api.get(`/dependencies/${projectId}`),
 }
 
 // ── Jira Integration ─────────────────────────────────────────────────────────
 export const jiraApi = {
   config:     () => api.get('/jira/config'),
-  saveConfig: (data) => api.post('/jira/config', data),
+  saveConfig: (data: Record<string, unknown>) => api.post('/jira/config', data),
   issues:     () => api.get('/jira/issues'),
   linked:     () => api.get('/jira/linked'),
   test:       () => api.get('/jira/test'),
-  sync:       (data) => api.post('/jira/sync', data),
+  sync:       (data: Record<string, unknown>) => api.post('/jira/sync', data),
   push:       () => api.post('/jira/push'),
 }
 
@@ -1565,67 +1565,67 @@ export const sdWorkflowDesignerApi = {
   schema:         () => api.get('/sd/workflow-designer/schema'),
   templates:      () => api.get('/sd/workflow-designer/templates'),
   blueprints:     (params?: any) => api.get('/sd/workflow-designer/blueprints', { params }),
-  blueprint:      (id) => api.get(`/sd/workflow-designer/blueprints/${id}`),
-  createBlueprint:(data) => api.post('/sd/workflow-designer/blueprints', data),
-  createVersion:  (id, data) => api.post(`/sd/workflow-designer/blueprints/${id}/versions`, data),
-  publish:        (id, version) => api.post(`/sd/workflow-designer/blueprints/${id}/publish/${version}`),
-  validate:       (data) => api.post('/sd/workflow-designer/validate', data),
-  clone:          (id, data) => api.post(`/sd/workflow-designer/blueprints/${id}/clone`, data),
-  archive:        (id) => api.delete(`/sd/workflow-designer/blueprints/${id}`),
+  blueprint:      (id: any) => api.get(`/sd/workflow-designer/blueprints/${id}`),
+  createBlueprint:(data: Record<string, unknown>) => api.post('/sd/workflow-designer/blueprints', data),
+  createVersion:  (id: any, data: Record<string, unknown>) => api.post(`/sd/workflow-designer/blueprints/${id}/versions`, data),
+  publish:        (id: any, version: any) => api.post(`/sd/workflow-designer/blueprints/${id}/publish/${version}`),
+  validate:       (data: Record<string, unknown>) => api.post('/sd/workflow-designer/validate', data),
+  clone:          (id: any, data: Record<string, unknown>) => api.post(`/sd/workflow-designer/blueprints/${id}/clone`, data),
+  archive:        (id: any) => api.delete(`/sd/workflow-designer/blueprints/${id}`),
   // Runtime
-  startRun:       (id, data) => api.post(`/sd/workflow-designer/blueprints/${id}/runs`, data),
+  startRun:       (id: any, data: Record<string, unknown>) => api.post(`/sd/workflow-designer/blueprints/${id}/runs`, data),
   runs:           (params?: any) => api.get('/sd/workflow-designer/runs', { params }),
-  run:            (rid) => api.get(`/sd/workflow-designer/runs/${rid}`),
-  resumeRun:      (rid, data) => api.post(`/sd/workflow-designer/runs/${rid}/resume`, data),
-  cancelRun:      (rid, reason) => api.post(`/sd/workflow-designer/runs/${rid}/cancel`, { reason }),
+  run:            (rid: any) => api.get(`/sd/workflow-designer/runs/${rid}`),
+  resumeRun:      (rid: any, data: Record<string, unknown>) => api.post(`/sd/workflow-designer/runs/${rid}/resume`, data),
+  cancelRun:      (rid: any, reason: any) => api.post(`/sd/workflow-designer/runs/${rid}/cancel`, { reason }),
 }
 
 // ── Mentions & Comments ───────────────────────────────────────────────────────
 export const mentionsApi = {
-  comments:           (entityType, entityId) => api.get('/epics/comments', { params: { entity_type: entityType, entity_id: entityId } }),
-  createComment:      (entityType, entityId, data) => api.post('/epics/comments', data, { params: { entity_type: entityType, entity_id: entityId } }),
-  resolveComment:     (id) => api.patch(`/epics/comments/${id}/resolve`),
-  deleteComment:      (id) => api.delete(`/epics/comments/${id}`),
-  mentions:           (onlyUnread) => api.get('/activity/mentions/my', { params: { unread_only: onlyUnread } }),
-  markMentionRead:    (id) => api.post(`/activity/mentions/${id}/read`),
+  comments:           (entityType: any, entityId: any) => api.get('/epics/comments', { params: { entity_type: entityType, entity_id: entityId } }),
+  createComment:      (entityType: any, entityId: any, data: Record<string, unknown>) => api.post('/epics/comments', data, { params: { entity_type: entityType, entity_id: entityId } }),
+  resolveComment:     (id: any) => api.patch(`/epics/comments/${id}/resolve`),
+  deleteComment:      (id: any) => api.delete(`/epics/comments/${id}`),
+  mentions:           (onlyUnread: any) => api.get('/activity/mentions/my', { params: { unread_only: onlyUnread } }),
+  markMentionRead:    (id: any) => api.post(`/activity/mentions/${id}/read`),
   markAllMentionsRead:() => api.post('/epics/mentions/read-all'),
 }
 
 // ── Issue Types ───────────────────────────────────────────────────────────────
 export const issueTypesApi = {
-  list:   (projectId) => api.get(`/issue-types/${projectId}`),
-  create: (projectId, data) => api.post(`/issue-types/${projectId}`, data),
-  update: (projectId, id, data) => api.patch(`/issue-types/${projectId}/${id}`, data),
-  init:   (projectId) => api.post(`/issue-types/${projectId}/init`),
-  delete: (projectId, id) => api.delete(`/issue-types/${projectId}/${id}`),
+  list:   (projectId: any) => api.get(`/issue-types/${projectId}`),
+  create: (projectId: any, data: Record<string, unknown>) => api.post(`/issue-types/${projectId}`, data),
+  update: (projectId: any, id: any, data: Record<string, unknown>) => api.patch(`/issue-types/${projectId}/${id}`, data),
+  init:   (projectId: any) => api.post(`/issue-types/${projectId}/init`),
+  delete: (projectId: any, id: any) => api.delete(`/issue-types/${projectId}/${id}`),
 }
 
 // ── Project Permissions ───────────────────────────────────────────────────────
 export const permissionsApi = {
-  list:   (projectId) => api.get(`/permissions/${projectId}`),
-  create: (projectId, data) => api.post(`/permissions/${projectId}`, data),
-  update: (projectId, id, data) => api.patch(`/permissions/${projectId}/${id}`, data),
-  delete: (projectId, id) => api.delete(`/permissions/${projectId}/${id}`),
+  list:   (projectId: any) => api.get(`/permissions/${projectId}`),
+  create: (projectId: any, data: Record<string, unknown>) => api.post(`/permissions/${projectId}`, data),
+  update: (projectId: any, id: any, data: Record<string, unknown>) => api.patch(`/permissions/${projectId}/${id}`, data),
+  delete: (projectId: any, id: any) => api.delete(`/permissions/${projectId}/${id}`),
 }
 
 // ── eSign ─────────────────────────────────────────────────────────────────────
 export const esignApi = {
   list:        () => api.get('/esign'),
   stats:       () => api.get('/esign/summary/stats'),
-  create:      (data) => api.post('/esign', data),
-  delete:      (id) => api.delete(`/esign/${id}`),
-  sign:        (envelopeId, signerId) => api.patch(`/esign/${envelopeId}/signers/${signerId}/signed`),
+  create:      (data: Record<string, unknown>) => api.post('/esign', data),
+  delete:      (id: any) => api.delete(`/esign/${id}`),
+  sign:        (envelopeId: any, signerId: any) => api.patch(`/esign/${envelopeId}/signers/${signerId}/signed`),
   getConfig:   () => api.get('/esign/config'),
-  saveConfig:  (data) => api.patch('/esign/config', data),
+  saveConfig:  (data: Record<string, unknown>) => api.patch('/esign/config', data),
 }
 
 // ── Public Forms ──────────────────────────────────────────────────────────────
 export const formsApi = {
   list:        () => api.get('/forms'),
-  create:      (data) => api.post('/forms', data),
-  update:      (id, data) => api.patch(`/forms/${id}`, data),
-  submissions: (id) => api.get(`/forms/${id}/submissions`),
-  delete:      (id) => api.delete(`/forms/${id}`),
+  create:      (data: Record<string, unknown>) => api.post('/forms', data),
+  update:      (id: any, data: Record<string, unknown>) => api.patch(`/forms/${id}`, data),
+  submissions: (id: any) => api.get(`/forms/${id}/submissions`),
+  delete:      (id: any) => api.delete(`/forms/${id}`),
 }
 
 // ── Resource Scheduler ────────────────────────────────────────────────────────
@@ -1635,18 +1635,18 @@ export const resourceForecastApi = {
 
 export const bookingsApi = {
   list:   (params?: any) => api.get('/bookings', { params }),
-  create: (data) => api.post('/bookings', data),
-  update: (id, data) => api.patch(`/bookings/${id}`, data),
-  delete: (id) => api.delete(`/bookings/${id}`),
+  create: (data: Record<string, unknown>) => api.post('/bookings', data),
+  update: (id: any, data: Record<string, unknown>) => api.patch(`/bookings/${id}`, data),
+  delete: (id: any) => api.delete(`/bookings/${id}`),
 }
 
 // ── Scenarios ─────────────────────────────────────────────────────────────────
 export const scenariosApi = {
   list:    () => api.get('/scenarios'),
-  get:     (id) => api.get(`/scenarios/${id}`),
-  create:  (data) => api.post('/scenarios', data),
-  compute: (id) => api.post(`/scenarios/${id}/compute`),
-  delete:  (id) => api.delete(`/scenarios/${id}`),
+  get:     (id: any) => api.get(`/scenarios/${id}`),
+  create:  (data: Record<string, unknown>) => api.post('/scenarios', data),
+  compute: (id: any) => api.post(`/scenarios/${id}/compute`),
+  delete:  (id: any) => api.delete(`/scenarios/${id}`),
 }
 
 // ── Governance ────────────────────────────────────────────────────────────────
@@ -1654,77 +1654,77 @@ export const governanceApi = {
   config:  () => api.get('/governance/config'),
   stats:   () => api.get('/governance/stats'),
   logs:    () => api.get('/governance/logs?limit=100'),
-  update:  (module, data) => api.patch(`/governance/config/${module}`, data),
+  update:  (module: any, data: Record<string, unknown>) => api.patch(`/governance/config/${module}`, data),
 }
 
 // ── Epic Dependencies ─────────────────────────────────────────────────────────
 export const epicDependenciesApi = {
-  get:    (projectId) => api.get(`/epic-dependencies/${projectId}`),
-  create: (data) => api.post('/epic-dependencies', data),
-  delete: (id) => api.delete(`/epic-dependencies/${id}`),
+  get:    (projectId: any) => api.get(`/epic-dependencies/${projectId}`),
+  create: (data: Record<string, unknown>) => api.post('/epic-dependencies', data),
+  delete: (id: any) => api.delete(`/epic-dependencies/${id}`),
 }
 
 // ── Developer Apps ────────────────────────────────────────────────────────────
 export const developerAppsApi = {
   list:         () => api.get('/developer/apps'),
-  create:       (data) => api.post('/developer/apps', data),
-  update:       (id, data) => api.patch(`/developer/apps/${id}`, data),
-  rotateSecret: (id) => api.post(`/developer/apps/${id}/rotate-secret`),
-  delete:       (id) => api.delete(`/developer/apps/${id}`),
+  create:       (data: Record<string, unknown>) => api.post('/developer/apps', data),
+  update:       (id: any, data: Record<string, unknown>) => api.patch(`/developer/apps/${id}`, data),
+  rotateSecret: (id: any) => api.post(`/developer/apps/${id}/rotate-secret`),
+  delete:       (id: any) => api.delete(`/developer/apps/${id}`),
 }
 
 // ── Task Dependencies ─────────────────────────────────────────────────────────
 export const taskDependenciesApi = {
-  getByProject: (projectId) => api.get(`/tasks/dependencies/${projectId}`),
-  create:       (data) => api.post('/tasks/dependencies', data),
-  delete:       (id) => api.delete(`/tasks/dependencies/${id}`),
-  bulkDates:    (updates) => api.post('/tasks/bulk-dates', { updates }),
+  getByProject: (projectId: any) => api.get(`/tasks/dependencies/${projectId}`),
+  create:       (data: Record<string, unknown>) => api.post('/tasks/dependencies', data),
+  delete:       (id: any) => api.delete(`/tasks/dependencies/${id}`),
+  bulkDates:    (updates: Record<string, unknown>) => api.post('/tasks/bulk-dates', { updates }),
 }
 
 // ── Budgets ───────────────────────────────────────────────────────────────────
 export const budgetsApi = {
-  list:        (year) => api.get('/budgets', { params: { year } }),
-  summary:     (year) => api.get('/budgets/summary', { params: { year } }),
-  create:      (data) => api.post('/budgets', data),
-  updateEntry: (id, month, data) => api.patch(`/budgets/${id}/entry`, { month, ...data }),
-  approve:     (id) => api.post(`/budgets/${id}/approve`),
+  list:        (year: any) => api.get('/budgets', { params: { year } }),
+  summary:     (year: any) => api.get('/budgets/summary', { params: { year } }),
+  create:      (data: Record<string, unknown>) => api.post('/budgets', data),
+  updateEntry: (id: any, month: any, data: Record<string, unknown>) => api.patch(`/budgets/${id}/entry`, { month, ...data }),
+  approve:     (id: any) => api.post(`/budgets/${id}/approve`),
 }
 
 // ── SD Major Incidents ────────────────────────────────────────────────────────
 export const sdMajorIncidentsApi = {
   list:   () => api.get('/sd/major-incidents'),
-  create: (data) => api.post('/sd/major-incidents', data),
+  create: (data: Record<string, unknown>) => api.post('/sd/major-incidents', data),
 }
 
 // ── Risk Scores ───────────────────────────────────────────────────────────────
 export const riskScoresApi = {
   list:    (params?: any) => api.get('/risk-scores', { params }),
-  get:     (id) => api.get(`/risk-scores/${id}`),
+  get:     (id: any) => api.get(`/risk-scores/${id}`),
   refresh: () => api.get('/risk-scores', { params: { refresh: true } }),
 }
 
 // ── M365 ──────────────────────────────────────────────────────────────────────
 export const m365Api = {
   status:         () => api.get('/m365/status'),
-  syncCalendar:   (upn, days) => api.post('/m365/calendar/sync', null, { params: { user_upn: upn, days } }),
-  syncMilestones: (data) => api.post('/m365/calendar/sync-milestones', data),
-  teamsNotify:    (data) => api.post('/m365/teams/notify', data),
+  syncCalendar:   (upn: any, days: any) => api.post('/m365/calendar/sync', null, { params: { user_upn: upn, days } }),
+  syncMilestones: (data: Record<string, unknown>) => api.post('/m365/calendar/sync-milestones', data),
+  teamsNotify:    (data: Record<string, unknown>) => api.post('/m365/teams/notify', data),
 }
 
 // ── Meetings AI ───────────────────────────────────────────────────────────────
 export const meetingsAIApi = {
   list:        () => api.get('/ai-modules/meetings'),
-  get:         (id) => api.get(`/ai-modules/meetings/${id}`),
-  process:     (data) => api.post('/ai-modules/meetings/process', data),
-  createTasks: (id) => api.post(`/ai-modules/meetings/${id}/create-tasks`, {}),
+  get:         (id: any) => api.get(`/ai-modules/meetings/${id}`),
+  process:     (data: Record<string, unknown>) => api.post('/ai-modules/meetings/process', data),
+  createTasks: (id: any) => api.post(`/ai-modules/meetings/${id}/create-tasks`, {}),
 }
 
 // ── Contracts AI (H22) ────────────────────────────────────────────────────────
 export const contractsAIApi = {
   list:       (params?: any) => api.get('/ai-modules/contracts-ai', { params }),
-  get:        (id)     => api.get(`/ai-modules/contracts-ai/${id}`),
-  analyze:    (data)   => api.post('/ai-modules/contracts-ai/analyze', data),
-  analyzePdf: (formData) => api.post('/ai-modules/contracts-ai/analyze-pdf', formData, {
+  get:        (id: any)     => api.get(`/ai-modules/contracts-ai/${id}`),
+  analyze:    (data: Record<string, unknown>)   => api.post('/ai-modules/contracts-ai/analyze', data),
+  analyzePdf: (formData: Record<string, unknown>) => api.post('/ai-modules/contracts-ai/analyze-pdf', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
 }
@@ -1734,50 +1734,50 @@ export const contractsAIApi = {
 //                       entities, action, pending_action?}  (dry-run forzado)
 // /voice/command    → JSON {transcript, confirm: true} → ejecuta la acción
 export const voiceApi = {
-  transcribe: (formData) => api.post('/ai-modules/voice/transcribe', formData, {
+  transcribe: (formData: Record<string, unknown>) => api.post('/ai-modules/voice/transcribe', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
-  command:    (data) => api.post('/ai-modules/voice/command', data),
+  command:    (data: Record<string, unknown>) => api.post('/ai-modules/voice/command', data),
 }
 
 // ── Smart Schedule (I27) ──────────────────────────────────────────────────────
 // Devuelve sugerencias de planificación; aplicar selectivamente vía
 // taskDependenciesApi.bulkDates(updates) o tasksApi.bulkUpdate.
 export const smartScheduleApi = {
-  suggest: (data) => api.post('/ai-modules/smart-schedule', data),
+  suggest: (data: Record<string, unknown>) => api.post('/ai-modules/smart-schedule', data),
 }
 
 // ── MFA ───────────────────────────────────────────────────────────────────────
 export const mfaApi = {
   status: () => api.get('/mfa/status'),
   setup:  () => api.post('/mfa/setup'),
-  verify: (code) => api.post('/mfa/verify', { code }),
-  disable:(code) => api.delete('/mfa/disable', { data: { code } }),
+  verify: (code: any) => api.post('/mfa/verify', { code }),
+  disable:(code: any) => api.delete('/mfa/disable', { data: { code } }),
 }
 
 // ── Oracle Predictions ────────────────────────────────────────────────────────
 export const oracleApi = {
   predictions: (params?: any) => api.get('/oracle/predictions', { params }),
   run:         () => api.post('/oracle/run'),
-  acknowledge: (id) => api.post(`/oracle/predictions/${id}/acknowledge`),
+  acknowledge: (id: any) => api.post(`/oracle/predictions/${id}/acknowledge`),
 }
 
 // ── Import ────────────────────────────────────────────────────────────────────
 export const importApi = {
-  template: (entityType) => api.get(`/billing-reports/import/template/${entityType}`),
+  template: (entityType: any) => api.get(`/billing-reports/import/template/${entityType}`),
   jobs:     () => api.get('/billing-reports/import/jobs'),
-  validate: (entityType, fd) => api.post('/billing-reports/import/validate', fd, { params: { entity_type: entityType }, headers: { 'Content-Type': 'multipart/form-data' } }),
-  execute:  (entityType, fd) => api.post('/billing-reports/import/execute', fd, { params: { entity_type: entityType }, headers: { 'Content-Type': 'multipart/form-data' } }),
+  validate: (entityType: any, fd: Record<string, unknown>) => api.post('/billing-reports/import/validate', fd, { params: { entity_type: entityType }, headers: { 'Content-Type': 'multipart/form-data' } }),
+  execute:  (entityType: any, fd: Record<string, unknown>) => api.post('/billing-reports/import/execute', fd, { params: { entity_type: entityType }, headers: { 'Content-Type': 'multipart/form-data' } }),
 }
 
 // ── Report Builder ────────────────────────────────────────────────────────────
 export const reportBuilderApi = {
   schema:         () => api.get('/reports/schema'),
-  preview:        (data) => api.post('/reports/preview', data),
-  export:         (data, config) => api.post('/reports/export', data, config),
+  preview:        (data: Record<string, unknown>) => api.post('/reports/preview', data),
+  export:         (data: Record<string, unknown>, config: any) => api.post('/reports/export', data, config),
   templates:      () => api.get('/reports/templates'),
-  saveTemplate:   (data) => api.post('/reports/templates', data),
-  deleteTemplate: (id) => api.delete(`/reports/templates/${id}`),
+  saveTemplate:   (data: Record<string, unknown>) => api.post('/reports/templates', data),
+  deleteTemplate: (id: any) => api.delete(`/reports/templates/${id}`),
 }
 
 // ── Burnout Risk / Resources ──────────────────────────────────────────────────
@@ -1795,57 +1795,57 @@ export const gitApi = {
 // ── Settings Admin ────────────────────────────────────────────────────────────
 export const settingsAdminApi = {
   getLogLevel: () => api.get('/settings/log-level'),
-  setLogLevel: (data) => api.post('/settings/log-level', data),
+  setLogLevel: (data: Record<string, unknown>) => api.post('/settings/log-level', data),
   getOrgDefaults: () => api.get('/settings/org-defaults'),
 }
 
 // ── Billing Smart Match ───────────────────────────────────────────────────────
 export const billingSmartMatchApi = {
-  match: (data) => api.post('/billing-reports/smartmatch', data),
+  match: (data: Record<string, unknown>) => api.post('/billing-reports/smartmatch', data),
 }
 
 // ── User Costs (cost-per-hour, salary, employer cost) ────────────────────────
 export const userCostsApi = {
   // Country presets
   listCountries:    ()         => api.get('/user-costs/countries'),
-  upsertCountry:    (data)     => api.post('/user-costs/countries', data),
-  seedCountries:    (force)    => api.post('/user-costs/countries/seed', null, { params: { force: !!force } }),
-  updateCountry:    (id, d)    => api.patch(`/user-costs/countries/${id}`, d),
-  deleteCountry:    (id)       => api.delete(`/user-costs/countries/${id}`),
+  upsertCountry:    (data: Record<string, unknown>)     => api.post('/user-costs/countries', data),
+  seedCountries:    (force: any)    => api.post('/user-costs/countries/seed', null, { params: { force: !!force } }),
+  updateCountry:    (id: any, d: Record<string, unknown>)    => api.patch(`/user-costs/countries/${id}`, d),
+  deleteCountry:    (id: any)       => api.delete(`/user-costs/countries/${id}`),
   // User profiles
-  listProfiles:     (uid)      => api.get(`/user-costs/users/${uid}/profiles`),
-  createProfile:    (uid, d)   => api.post(`/user-costs/users/${uid}/profiles`, d),
-  active:           (uid, on)  => api.get(`/user-costs/users/${uid}/active`, { params: { on } }),
-  preview:          (uid, d)   => api.post(`/user-costs/users/${uid}/preview`, d),
-  updateProfile:    (id, d)    => api.patch(`/user-costs/profiles/${id}`, d),
-  deleteProfile:    (id)       => api.delete(`/user-costs/profiles/${id}`),
+  listProfiles:     (uid: any)      => api.get(`/user-costs/users/${uid}/profiles`),
+  createProfile:    (uid: any, d: Record<string, unknown>)   => api.post(`/user-costs/users/${uid}/profiles`, d),
+  active:           (uid: any, on: any)  => api.get(`/user-costs/users/${uid}/active`, { params: { on } }),
+  preview:          (uid: any, d: Record<string, unknown>)   => api.post(`/user-costs/users/${uid}/preview`, d),
+  updateProfile:    (id: any, d: Record<string, unknown>)    => api.patch(`/user-costs/profiles/${id}`, d),
+  deleteProfile:    (id: any)       => api.delete(`/user-costs/profiles/${id}`),
   // Bulk summary
-  summary:          (on)       => api.get('/user-costs/summary', { params: { on } }),
+  summary:          (on: any)       => api.get('/user-costs/summary', { params: { on } }),
 }
 
 // ── BPMN Processes ────────────────────────────────────────────────────────────
 export const bpmnProcessesApi = {
   list:        (params?: any)        => api.get('/bpmn-processes', { params }),
   catalogue:   ()              => api.get('/bpmn-processes/catalogue'),
-  seed:        (force = false) => api.post('/bpmn-processes/seed', { force }),
-  get:         (id)            => api.get(`/bpmn-processes/${id}`),
-  create:      (data)          => api.post('/bpmn-processes', data),
-  update:      (id, data)      => api.patch(`/bpmn-processes/${id}`, data),
-  delete:      (id)            => api.delete(`/bpmn-processes/${id}`),
-  duplicate:   (id, name)      => api.post(`/bpmn-processes/${id}/duplicate`, { new_name: name }),
-  saveVersion: (id, xml, n)    => api.post(`/bpmn-processes/${id}/versions`, { bpmn_xml: xml, notes: n }),
-  versions:    (id)            => api.get(`/bpmn-processes/${id}/versions`),
-  getVersion:  (id, v)         => api.get(`/bpmn-processes/${id}/versions/${v}`),
-  publish:     (id, v)         => api.post(`/bpmn-processes/${id}/versions/${v}/publish`),
+  seed:        (force: boolean = false) => api.post('/bpmn-processes/seed', { force }),
+  get:         (id: any)            => api.get(`/bpmn-processes/${id}`),
+  create:      (data: Record<string, unknown>)          => api.post('/bpmn-processes', data),
+  update:      (id: any, data: Record<string, unknown>)      => api.patch(`/bpmn-processes/${id}`, data),
+  delete:      (id: any)            => api.delete(`/bpmn-processes/${id}`),
+  duplicate:   (id: any, name: any)      => api.post(`/bpmn-processes/${id}/duplicate`, { new_name: name }),
+  saveVersion: (id: any, xml: any, n: any)    => api.post(`/bpmn-processes/${id}/versions`, { bpmn_xml: xml, notes: n }),
+  versions:    (id: any)            => api.get(`/bpmn-processes/${id}/versions`),
+  getVersion:  (id: any, v: any)         => api.get(`/bpmn-processes/${id}/versions/${v}`),
+  publish:     (id: any, v: any)         => api.post(`/bpmn-processes/${id}/versions/${v}/publish`),
 }
 
 // ── Nexus AI Agent ────────────────────────────────────────────────────────────
 export const nexusAgentApi = {
   history:              () => api.get('/ai/agent/history'),
-  run:                  (instruction, autoApprove = true) => api.post('/ai/agent', { instruction, auto_approve: autoApprove }),
-  chat:                 (data) => api.post('/ai/chat', data),
+  run:                  (instruction: any, autoApprove: boolean = true) => api.post('/ai/agent', { instruction, auto_approve: autoApprove }),
+  chat:                 (data: Record<string, unknown>) => api.post('/ai/chat', data),
   listConversations:    () => api.get('/ai/conversations'),
-  getConversation:      (id) => api.get(`/ai/conversations/${id}`),
+  getConversation:      (id: any) => api.get(`/ai/conversations/${id}`),
   deleteConversations:  () => api.delete('/ai/conversations'),
 }
 
@@ -1863,23 +1863,23 @@ export const searchApi = {
 // ── Onboarding ────────────────────────────────────────────────────────────────
 export const onboardingApi = {
   get:           () => api.get('/onboarding'),
-  completeStep:  (data) => api.post('/onboarding/complete-step', data),
+  completeStep:  (data: Record<string, unknown>) => api.post('/onboarding/complete-step', data),
   dismiss:       () => api.post('/onboarding/dismiss'),
 }
 
 // ── SLA Schedules ─────────────────────────────────────────────────────────────
 export const slaSchedulesApi = {
   list:   (params?: any) => api.get('/sla-schedules', { params }),
-  create: (data)   => api.post('/sla-schedules', data),
-  update: (id, data) => api.patch(`/sla-schedules/${id}`, data),
-  delete: (id)     => api.delete(`/sla-schedules/${id}`),
+  create: (data: Record<string, unknown>)   => api.post('/sla-schedules', data),
+  update: (id: any, data: Record<string, unknown>) => api.patch(`/sla-schedules/${id}`, data),
+  delete: (id: any)     => api.delete(`/sla-schedules/${id}`),
 }
 
 // ── Auto-Resolution ───────────────────────────────────────────────────────────
 export const autoResolutionApi = {
   getConfig:    ()          => api.get('/sd/auto-resolution/config'),
   getStats:     ()          => api.get('/sd/auto-resolution/stats'),
-  patchConfig:  (data)      => api.patch('/sd/auto-resolution/config', data),
+  patchConfig:  (data: Record<string, unknown>)      => api.patch('/sd/auto-resolution/config', data),
   runJob:       (params?: any)    => api.post('/sd/auto-resolution/run-job', null, { params }),
   runCloseJob:  ()          => api.post('/sd/auto-resolution/run-close-job'),
 }
@@ -1888,20 +1888,20 @@ export const autoResolutionApi = {
 export const alertClustersApi = {
   list:     ()      => api.get('/sd/alert-clusters'),
   stats:    ()      => api.get('/sd/alert-clusters/stats'),
-  merge:    (data)  => api.post('/sd/alert-clusters/merge', data),
+  merge:    (data: Record<string, unknown>)  => api.post('/sd/alert-clusters/merge', data),
   runScan:  ()      => api.post('/sd/alert-clusters/run-scan'),
 }
 
 // ── Portal Conversation Policies ──────────────────────────────────────────────
 export const portalConversationsApi = {
   getPolicies:    ()                      => api.get('/portal/conversations/team/policies'),
-  updatePolicy:   (topicType, data)       => api.put(`/portal/conversations/team/policies/${topicType}`, data),
-  reviewMessage:  (convId, msgId, data)   => api.post(`/portal/conversations/team/${convId}/messages/${msgId}/review`, data),
+  updatePolicy:   (topicType: any, data: Record<string, unknown>)       => api.put(`/portal/conversations/team/policies/${topicType}`, data),
+  reviewMessage:  (convId: any, msgId: any, data: Record<string, unknown>)   => api.post(`/portal/conversations/team/${convId}/messages/${msgId}/review`, data),
 }
 
 /** Normalise a Pydantic v2 / FastAPI error detail to a plain string.
  *  detail can be an array of {type,loc,msg,input,url} objects or a plain string. */
-export function apiErrorMsg(e, fallback = 'Error') {
+export function apiErrorMsg(e: any, fallback = 'Error') {
   const raw = e?.response?.data?.detail
   if (Array.isArray(raw)) return raw.map(d => d.msg).join(', ')
   return raw || e?.message || fallback
