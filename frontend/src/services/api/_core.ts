@@ -125,7 +125,7 @@ export const rateCardsApi = {
   deleteEntry:     (id,eid)   => api.delete(`/rate-cards/${id}/entries/${eid}`),
   addOverride:     (id, d)    => api.post(`/rate-cards/${id}/overrides`, d),
   deleteOverride:  (id,oid)   => api.delete(`/rate-cards/${id}/overrides/${oid}`),
-  effectiveRate:   (params)   => api.get('/rate-cards/effective', { params }),
+  effectiveRate:   (params?: any)   => api.get('/rate-cards/effective', { params }),
 }
 
 // ── Milestones (SOW flow) ─────────────────────────────────────────────────────
@@ -144,15 +144,15 @@ export const milestonesApi = {
 
 // ── Resource Forecast ─────────────────────────────────────────────────────────
 export const forecastApi = {
-  heatmap:      (params) => api.get('/resource-forecast/weeks',        { params }),
+  heatmap:      (params?: any) => api.get('/resource-forecast/weeks',        { params }),
   userDetail:   (uid, p) => api.get(`/resource-forecast/users/${uid}`, { params: p }),
-  availability: (params) => api.get('/resource-forecast/availability',  { params }),
-  summary:      (params) => api.get('/resource-forecast/summary',       { params }),
+  availability: (params?: any) => api.get('/resource-forecast/availability',  { params }),
+  summary:      (params?: any) => api.get('/resource-forecast/summary',       { params }),
 }
 
 // ── Approvals ─────────────────────────────────────────────────────────────────
 export const approvalsApi = {
-  listWorkflows:     (params)      => api.get('/approvals/workflows', { params }),
+  listWorkflows:     (params?: any)      => api.get('/approvals/workflows', { params }),
   listTemplates:     ()            => api.get('/approvals/workflow-templates'),
   getWorkflow:       (id)          => api.get(`/approvals/workflows/${id}`),
   createWorkflow:    (d)           => api.post('/approvals/workflows', d),
@@ -166,9 +166,9 @@ export const approvalsApi = {
   updateStep:        (wid, sid, d) => api.patch(`/approvals/workflows/${wid}/steps/${sid}`, d),
   deleteStep:        (wid, sid)    => api.delete(`/approvals/workflows/${wid}/steps/${sid}`),
   simulate:          (d)           => api.post('/approvals/simulate', d),
-  bottlenecks:       (params)      => api.get('/approvals/analytics/bottlenecks', { params }),
-  approverLoad:      (params)      => api.get('/approvals/analytics/approver-load', { params }),
-  listRequests:      (params)      => api.get('/approvals/requests', { params }),
+  bottlenecks:       (params?: any)      => api.get('/approvals/analytics/bottlenecks', { params }),
+  approverLoad:      (params?: any)      => api.get('/approvals/analytics/approver-load', { params }),
+  listRequests:      (params?: any)      => api.get('/approvals/requests', { params }),
   pendingMyAction:   ()            => api.get('/approvals/requests/pending-my-action'),
   createRequest:     (d)           => api.post('/approvals/requests', d),
   decide:            (id, d)       => api.post(`/approvals/requests/${id}/decide`, d),
@@ -183,7 +183,7 @@ export const approvalsApi = {
 }
 
 export const uatApi = {
-  list:   (projectId, params) => api.get(`/projects/${projectId}/uat`, { params }),
+  list:   (projectId, params?: any) => api.get(`/projects/${projectId}/uat`, { params }),
   create: (projectId, data)   => api.post(`/projects/${projectId}/uat`, data),
   update: (projectId, id, d)  => api.patch(`/projects/${projectId}/uat/${id}`, d),
   remove: (projectId, id)     => api.delete(`/projects/${projectId}/uat/${id}`),
@@ -240,15 +240,15 @@ export const authApi = {
 }
 
 export const usersApi = {
-  list:           (params) => api.get('/users', { params }),
+  list:           (params?: any) => api.get('/users', { params }),
   withRates:      () => api.get('/users/with-rates'),
-  load:           (params) => api.get('/users/load', { params }),
+  load:           (params?: any) => api.get('/users/load', { params }),
   get:            (id) => api.get(`/users/${id}`),
   create:         (data) => api.post('/users', data),
   update:         (id, data) => api.patch(`/users/${id}`, data),
   deactivate:     (id) => api.delete(`/users/${id}`),
   deletePermanent:(id) => api.delete(`/users/${id}/permanent`),
-  productivity:   (id, params) => api.get(`/users/${id}/productivity`, { params }),
+  productivity:   (id, params?: any) => api.get(`/users/${id}/productivity`, { params }),
   orgChart:       () => api.get('/users/org-chart'),
   updateManager:  (id, data) => api.patch(`/users/${id}/manager`, data),
   updateMe:       (data) => api.patch('/users/me', data),
@@ -257,7 +257,7 @@ export const usersApi = {
 }
 
 export const projectsApi = {
-  list:              (params)    => api.get('/projects', { params }),
+  list:              (params?: any)    => api.get('/projects', { params }),
   get:               (id)       => api.get(`/projects/${id}`),
   create:            (data)     => api.post('/projects', data),
   update:            (id, data) => api.patch(`/projects/${id}`, data),
@@ -267,8 +267,8 @@ export const projectsApi = {
   members:           (id)       => api.get(`/projects/${id}/members`),
   addMember:         (id, data) => api.post(`/projects/${id}/members`, data),
   removeMember:      (id, memberId) => api.delete(`/projects/${id}/members/${memberId}`),
-  milestones:        (params)   => api.get('/projects/milestones', { params }),
-  changelog:         (id, params) => api.get(`/projects/${id}/changelog`, { params }),
+  milestones:        (params?: any)   => api.get('/projects/milestones', { params }),
+  changelog:         (id, params?: any) => api.get(`/projects/${id}/changelog`, { params }),
   createChangelog:   (id, data) => api.post(`/projects/${id}/changelog`, data),
   generateChangelog: (id, data) => api.post(`/projects/${id}/changelog/generate`, data),
   deleteChangelog:   (id, entryId) => api.delete(`/projects/${id}/changelog/${entryId}`),
@@ -285,7 +285,7 @@ export const aiCopilotApi = {
 }
 
 export const tasksApi = {
-  list:        (params)    => api.get('/tasks', { params }),
+  list:        (params?: any)    => api.get('/tasks', { params }),
   kanban:      (projectId) => api.get(`/tasks/kanban/${projectId}`),
   get:         (id)        => api.get(`/tasks/${id}`),
   create:      (data)      => api.post('/tasks', data),
@@ -297,8 +297,8 @@ export const tasksApi = {
 }
 
 export const imputationsApi = {
-  list:           (params) => api.get('/imputations', { params }),
-  myWeek:         (params) => api.get('/imputations/my/week', { params }),
+  list:           (params?: any) => api.get('/imputations', { params }),
+  myWeek:         (params?: any) => api.get('/imputations/my/week', { params }),
   create:         (data) => api.post('/imputations', data),
   update:         (id, data) => api.patch(`/imputations/${id}`, data),
   delete:         (id) => api.delete(`/imputations/${id}`),
@@ -313,15 +313,15 @@ export const imputationsApi = {
 }
 
 export const analyticsApi = {
-  query:        (metricId, params) => api.get(`/analytics/query/${metricId}`, { params }),
+  query:        (metricId, params?: any) => api.get(`/analytics/query/${metricId}`, { params }),
   filterOptions: ()                => api.get('/analytics/filters/options'),
-  hoursWeek:    (params)           => api.get('/analytics/hours_by_week', { params }),
-  utilization:  (params)           => api.get('/analytics/utilization/advanced', { params }),
-  metricBreaches: (params)         => api.get('/analytics/alerts/metric-breaches', { params }),
+  hoursWeek:    (params?: any)           => api.get('/analytics/hours_by_week', { params }),
+  utilization:  (params?: any)           => api.get('/analytics/utilization/advanced', { params }),
+  metricBreaches: (params?: any)         => api.get('/analytics/alerts/metric-breaches', { params }),
   // BI / OLAP
-  narrative:       (params)        => api.get('/analytics/narrative', { params }),
+  narrative:       (params?: any)        => api.get('/analytics/narrative', { params }),
   ask:             (question)      => api.post('/analytics/ask', { question }),
-  olapKpis:        (params)        => api.get('/analytics/olap/kpis', { params }),
+  olapKpis:        (params?: any)        => api.get('/analytics/olap/kpis', { params }),
   olapFunnel:      ()              => api.get('/analytics/olap/pipeline-funnel'),
   olapPortfolio:   ()              => api.get('/analytics/olap/portfolio-health'),
   olapMargin:      (months)        => api.get('/analytics/olap/margin-evolution', { params: { months } }),
@@ -330,10 +330,10 @@ export const analyticsApi = {
 }
 
 export const biCollaborationApi = {
-  listComments:   (params)             => api.get('/bi/collaboration/comments', { params }),
+  listComments:   (params?: any)             => api.get('/bi/collaboration/comments', { params }),
   createComment:  (payload)            => api.post('/bi/collaboration/comments', payload),
   resolveComment: (commentId)          => api.patch(`/bi/collaboration/comments/${commentId}/resolve`),
-  listSharedViews: (params)            => api.get('/bi/collaboration/shared-views', { params }),
+  listSharedViews: (params?: any)            => api.get('/bi/collaboration/shared-views', { params }),
   createSharedView: (payload)          => api.post('/bi/collaboration/shared-views', payload),
   patchSharedView: (viewId, payload)   => api.patch(`/bi/collaboration/shared-views/${viewId}`, payload),
   governanceOverview: ()               => api.get('/bi/governance/overview'),
@@ -349,13 +349,13 @@ export const biCollaborationApi = {
   listDashboardVersions:  (key)              => api.get(`/bi/collaboration/dashboards/${key}/versions`),
   restoreDashboardVersion:(key, versionId)   => api.post(`/bi/collaboration/dashboards/${key}/versions/${versionId}/restore`),
   // Notifications
-  listNotifications:      (params)           => api.get('/bi/collaboration/notifications', { params }),
+  listNotifications:      (params?: any)           => api.get('/bi/collaboration/notifications', { params }),
   patchNotification:      (id, data)         => api.patch(`/bi/collaboration/notifications/${id}`, data),
 }
 
 export const biIntelligenceApi = {
-  revenueForecast: (params)            => api.get('/bi/intelligence/ml/forecast/revenue', { params }),
-  revenueAnomalies: (params)           => api.get('/bi/intelligence/ml/anomalies/revenue', { params }),
+  revenueForecast: (params?: any)            => api.get('/bi/intelligence/ml/forecast/revenue', { params }),
+  revenueAnomalies: (params?: any)           => api.get('/bi/intelligence/ml/anomalies/revenue', { params }),
   listConnectors: ()                   => api.get('/bi/intelligence/connectors'),
   patchConnector: (name, payload)      => api.patch(`/bi/intelligence/connectors/${name}`, payload),
   syncConnector: (name)                => api.post(`/bi/intelligence/connectors/${name}/sync`),
@@ -416,7 +416,7 @@ export const biBookmarksApi = {
 export const biGovernanceAuditApi = {
   // BI Governance — audit trail, data lineage, field sensitivity
   logAccessEvent: (payload)            => api.post('/bi/governance/audit/access', payload),
-  getAccessHistory: (params)           => api.get('/bi/governance/audit/access', { params }),
+  getAccessHistory: (params?: any)           => api.get('/bi/governance/audit/access', { params }),
   listLineage: (target_table)          => api.get('/bi/governance/lineage', { params: target_table ? { target_table } : undefined }),
   trackLineage: (payload)              => api.post('/bi/governance/lineage', payload),
   listFieldSensitivity: (dataset_id)   => api.get('/bi/governance/field-sensitivity', { params: dataset_id ? { dataset_id } : undefined }),
@@ -424,7 +424,7 @@ export const biGovernanceAuditApi = {
 }
 
 export const biReportBuilderV2Api = {
-  listPresets: (params)                => api.get('/bi/reports/v2/presets', { params }),
+  listPresets: (params?: any)                => api.get('/bi/reports/v2/presets', { params }),
   getPreset: (presetId)                => api.get(`/bi/reports/v2/presets/${presetId}`),
   categories: ()                       => api.get('/bi/reports/v2/categories'),
   customize: (presetId, payload)       => api.post(`/bi/reports/v2/presets/${presetId}/customize`, payload),
@@ -435,14 +435,14 @@ export const biReportBuilderV2Api = {
 
 export const dashboardApi = {
   kpis:           () => api.get('/dashboard/kpis'),
-  projectsHealth: (params) => api.get('/dashboard/projects-health', { params }),
-  resourceLoad:   (params) => api.get('/dashboard/resource-load', { params }),
-  profitability:  (params) => api.get('/dashboard/profitability', { params }),
-  teamProductivity: (params) => api.get('/dashboard/productivity/team', { params }),
+  projectsHealth: (params?: any) => api.get('/dashboard/projects-health', { params }),
+  resourceLoad:   (params?: any) => api.get('/dashboard/resource-load', { params }),
+  profitability:  (params?: any) => api.get('/dashboard/profitability', { params }),
+  teamProductivity: (params?: any) => api.get('/dashboard/productivity/team', { params }),
 }
 
 export const alertsApi = {
-  list:     (params) => api.get('/alerts', { params }),
+  list:     (params?: any) => api.get('/alerts', { params }),
   run:      () => api.post('/alerts/run'),
   read:     (id) => api.patch(`/alerts/${id}/read`),
   resolve:  (id) => api.patch(`/alerts/${id}/resolve`),
@@ -456,7 +456,7 @@ export const integrationsApi = {
 }
 
 export const clientsApi = {
-  list:         (params)     => api.get('/clients', { params }),
+  list:         (params?: any)     => api.get('/clients', { params }),
   get:          (id)         => api.get(`/clients/${id}`),
   create:       (data)       => api.post('/clients', data),
   update:       (id, data)   => api.patch(`/clients/${id}`, data),
@@ -469,7 +469,7 @@ export const clientsApi = {
 
 // ── Sprints ───────────────────────────────────────────────────────────────────
 export const sprintsApi = {
-  list:    (projectId, params) => api.get('/sprints', { params: { project_id: projectId, ...params } }),
+  list:    (projectId, params?: any) => api.get('/sprints', { params: { project_id: projectId, ...params } }),
   get:     (id)                => api.get(`/sprints/${id}`),
   create:  (data)              => api.post('/sprints', data),
   update:  (id, data)          => api.patch(`/sprints/${id}`, data),
@@ -490,14 +490,14 @@ export const epicsApi = {
   delete:          (id)        => api.delete(`/epics/${id}`),
   roadmap:         (projectId) => api.get('/roadmap', { params: { project_id: projectId } }),
   roadmapByProject:(projectId) => api.get('/epics/roadmap', { params: { project_id: projectId } }),
-  cfd:             (params)    => api.get('/epics/cfd', { params }),
+  cfd:             (params?: any)    => api.get('/epics/cfd', { params }),
   cfdSnapshot:     (projectId) => api.post('/epics/cfd/snapshot', null, { params: { project_id: projectId } }),
   nqlSearch:       (data)      => api.post('/epics/nql/search', data),
 }
 
 // ── Contracts ─────────────────────────────────────────────────────────────────
 export const contractsApi = {
-  list:                (params)           => api.get('/contracts', { params }),
+  list:                (params?: any)           => api.get('/contracts', { params }),
   get:                 (id)               => api.get(`/contracts/${id}`),
   create:              (data)             => api.post('/contracts', data),
   update:              (id, data)         => api.patch(`/contracts/${id}`, data),
@@ -509,10 +509,10 @@ export const contractsApi = {
 
 // ── Expenses ──────────────────────────────────────────────────────────────────
 export const expensesApi = {
-  list:      (params)    => api.get('/expenses', { params }),
-  my:        (params)    => api.get('/expenses/my', { params }),
+  list:      (params?: any)    => api.get('/expenses', { params }),
+  my:        (params?: any)    => api.get('/expenses/my', { params }),
   pending:   ()          => api.get('/expenses/pending'),
-  team:      (params)    => api.get('/expenses/team', { params }),
+  team:      (params?: any)    => api.get('/expenses/team', { params }),
   get:       (id)        => api.get(`/expenses/${id}`),
   create:    (data)      => api.post('/expenses', data),
   update:    (id, data)  => api.patch(`/expenses/${id}`, data),
@@ -530,7 +530,7 @@ export const expensesApi = {
 
 // ── Risks ─────────────────────────────────────────────────────────────────────
 export const risksApi = {
-  list:         (projectId, params) => api.get(`/risks/${projectId}`, { params }),
+  list:         (projectId, params?: any) => api.get(`/risks/${projectId}`, { params }),
   get:          (projectId, riskId) => api.get(`/risks/${projectId}/${riskId}`),
   create:       (projectId, data)   => api.post(`/risks/${projectId}`, data),
   update:       (projectId, riskId, data) => api.patch(`/risks/${projectId}/${riskId}`, data),
@@ -541,7 +541,7 @@ export const risksApi = {
 
 // ── OKRs ─────────────────────────────────────────────────────────────────────
 export const okrsApi = {
-  list:     (params)      => api.get('/okrs', { params }),
+  list:     (params?: any)      => api.get('/okrs', { params }),
   get:      (id)          => api.get(`/okrs/${id}`),
   create:   (data)        => api.post('/okrs', data),
   update:   (id, data)    => api.patch(`/okrs/${id}`, data),
@@ -554,7 +554,7 @@ export const okrsApi = {
 
 // ── Pipeline (opportunities) ──────────────────────────────────────────────────
 export const pipelineApi = {
-  list:       (params)    => api.get('/pipeline', { params }),
+  list:       (params?: any)    => api.get('/pipeline', { params }),
   get:        (id)        => api.get(`/pipeline/${id}`),
   create:     (data)      => api.post('/pipeline', data),
   update:     (id, data)  => api.patch(`/pipeline/${id}`, data),
@@ -587,39 +587,39 @@ export const deliverablesApi = {
 
 // ── Subcontractors ────────────────────────────────────────────────────────────
 export const subcontractorsApi = {
-  list:        (params)    => api.get('/subcontractors', { params }),
+  list:        (params?: any)    => api.get('/subcontractors', { params }),
   get:         (id)        => api.get(`/subcontractors/${id}`),
   create:      (data)      => api.post('/subcontractors', data),
   update:      (id, data)  => api.patch(`/subcontractors/${id}`, data),
   delete:      (id)        => api.delete(`/subcontractors/${id}`),
   assignments: (id)        => api.get(`/subcontractors/${id}/assignments`),
-  timelogs:    (id, params)=> api.get(`/subcontractors/${id}/timelogs`, { params }),
+  timelogs:    (id, params?: any)=> api.get(`/subcontractors/${id}/timelogs`, { params }),
   invoices:    (id)        => api.get(`/subcontractors/${id}/invoices`),
 }
 
 // ── Training ──────────────────────────────────────────────────────────────────
 export const trainingApi = {
-  courses:     (params)    => api.get('/training/courses', { params }),
+  courses:     (params?: any)    => api.get('/training/courses', { params }),
   course:      (id)        => api.get(`/training/courses/${id}`),
   createCourse:(data)      => api.post('/training/courses', data),
   updateCourse:(id, data)  => api.patch(`/training/courses/${id}`, data),
   deleteCourse:(id)        => api.delete(`/training/courses/${id}`),
-  certs:       (params)    => api.get('/training/certifications', { params }),
+  certs:       (params?: any)    => api.get('/training/certifications', { params }),
   cert:        (id)        => api.get(`/training/certifications/${id}`),
   createCert:  (data)      => api.post('/training/certifications', data),
   updateCert:  (id, data)  => api.patch(`/training/certifications/${id}`, data),
   deleteCert:  (id)        => api.delete(`/training/certifications/${id}`),
   enroll:      (data)      => api.post('/training/enrollments', data),
-  enrollments: (params)    => api.get('/training/enrollments', { params }),
+  enrollments: (params?: any)    => api.get('/training/enrollments', { params }),
 }
 
 // ── Absences ──────────────────────────────────────────────────────────────────
 export const absencesApi = {
-  list:           (params)    => api.get('/absences', { params }),
-  my:             (params)    => api.get('/absences/my', { params }),
+  list:           (params?: any)    => api.get('/absences', { params }),
+  my:             (params?: any)    => api.get('/absences/my', { params }),
   pending:        ()          => api.get('/absences/pending'),
-  team:           (params)    => api.get('/absences/team', { params }),
-  calendar:       (params)    => api.get('/absences/calendar', { params }),
+  team:           (params?: any)    => api.get('/absences/team', { params }),
+  calendar:       (params?: any)    => api.get('/absences/calendar', { params }),
   get:            (id)        => api.get(`/absences/${id}`),
   create:         (data)      => api.post('/absences', data),
   createMy:       (data)      => api.post('/absences/my', data),
@@ -630,14 +630,14 @@ export const absencesApi = {
   review:         (id, data)  => api.post(`/absences/${id}/review`, data),
   delete:         (id)        => api.delete(`/absences/${id}`),
   deleteMy:       (id)        => api.delete(`/absences/my/${id}`),
-  balance:        (params)    => api.get('/absences/balance', { params }),
+  balance:        (params?: any)    => api.get('/absences/balance', { params }),
   vacationBalance:()          => api.get('/absences/my/vacation-balance'),
   policies:       ()          => api.get('/absences/policies'),
 }
 
 // ── ALM — Assets, Licenses, Vendors ──────────────────────────────────────────
 export const assetsApi = {
-  list:    (params)   => api.get('/alm/assets', { params }),
+  list:    (params?: any)   => api.get('/alm/assets', { params }),
   get:     (id)       => api.get(`/alm/assets/${id}`),
   create:  (data)     => api.post('/alm/assets', data),
   update:  (id, data) => api.patch(`/alm/assets/${id}`, data),
@@ -646,7 +646,7 @@ export const assetsApi = {
 }
 
 export const licensesApi = {
-  list:    (params)   => api.get('/alm/licenses', { params }),
+  list:    (params?: any)   => api.get('/alm/licenses', { params }),
   get:     (id)       => api.get(`/alm/licenses/${id}`),
   create:  (data)     => api.post('/alm/licenses', data),
   update:  (id, data) => api.patch(`/alm/licenses/${id}`, data),
@@ -656,7 +656,7 @@ export const licensesApi = {
 }
 
 export const vendorsApi = {
-  list:   (params)   => api.get('/alm/vendors', { params }),
+  list:   (params?: any)   => api.get('/alm/vendors', { params }),
   get:    (id)       => api.get(`/alm/vendors/${id}`),
   create: (data)     => api.post('/alm/vendors', data),
   update: (id, data) => api.patch(`/alm/vendors/${id}`, data),
@@ -665,7 +665,7 @@ export const vendorsApi = {
 
 // ── Service Desk ──────────────────────────────────────────────────────────────
 export const ticketsApi = {
-  list:    (params)   => api.get('/sd/tickets', { params }),
+  list:    (params?: any)   => api.get('/sd/tickets', { params }),
   myQueue: ()         => api.get('/sd/tickets/my-queue'),
   get:     (id)       => api.get(`/sd/tickets/${id}`),
   create:  (data)     => api.post('/sd/tickets', data),
@@ -690,7 +690,7 @@ export const ticketsApi = {
 }
 
 export const problemsApi = {
-  list:   (params)   => api.get('/sd/problems', { params }),
+  list:   (params?: any)   => api.get('/sd/problems', { params }),
   get:    (id)       => api.get(`/sd/problems/${id}`),
   create: (data)     => api.post('/sd/problems', data),
   update: (id, data) => api.patch(`/sd/problems/${id}`, data),
@@ -705,7 +705,7 @@ export const problemsApi = {
 }
 
 export const changesApi = {
-  list:    (params)   => api.get('/sd/changes', { params }),
+  list:    (params?: any)   => api.get('/sd/changes', { params }),
   get:     (id)       => api.get(`/sd/changes/${id}`),
   create:  (data)     => api.post('/sd/changes', data),
   update:  (id, data) => api.patch(`/sd/changes/${id}`, data),
@@ -718,7 +718,7 @@ export const sdDynamicFormsApi = {
   save:          (data) => api.put('/sd/dynamic-forms', data),
   history:       () => api.get('/sd/dynamic-forms/history'),
   diff:          (data) => api.post('/sd/dynamic-forms/diff', data),
-  contextOptions:(params) => api.get('/sd/dynamic-forms/context-options', { params }),
+  contextOptions:(params?: any) => api.get('/sd/dynamic-forms/context-options', { params }),
   rollback:      (snapshot_id) => api.post('/sd/dynamic-forms/rollback', { snapshot_id }),
   importPreview: (data) => api.post('/sd/dynamic-forms/import/preview', data),
   importApply:   (data) => api.post('/sd/dynamic-forms/import/apply', data),
@@ -735,7 +735,7 @@ export const revenueApi = {
 
 // ── Invoices ──────────────────────────────────────────────────────────────────
 export const invoicesApi = {
-  list:          (params)          => api.get('/invoices', { params }),
+  list:          (params?: any)          => api.get('/invoices', { params }),
   get:           (id)              => api.get(`/invoices/${id}`),
   summary:       ()                => api.get('/invoices/summary'),
   create:        (data)            => api.post('/invoices', data),
@@ -783,16 +783,16 @@ const postWithFallback = async (paths, data, config = undefined) => {
 
 export const currencyApi = {
   // Canonical platform routes go first to avoid dev-console 404 noise from legacy probes.
-  rates:   (params)        => getWithFallback(['/currency/rates', '/currency-rates/currency/rates', '/bookings/currency/rates'], { params }),
+  rates:   (params?: any)        => getWithFallback(['/currency/rates', '/currency-rates/currency/rates', '/bookings/currency/rates'], { params }),
   upsert:  (data)          => postWithFallback(['/currency/rates', '/currency-rates/currency/rates', '/bookings/currency/rates'], data),
-  convert: (params)        => getWithFallback(['/currency/convert', '/currency-rates/currency/convert'], { params }),
-  report:  (params)        => getWithFallback(['/currency/report', '/currency-rates/currency/report'], { params }),
+  convert: (params?: any)        => getWithFallback(['/currency/convert', '/currency-rates/currency/convert'], { params }),
+  report:  (params?: any)        => getWithFallback(['/currency/report', '/currency-rates/currency/report'], { params }),
 }
 
 // ── Predictive Observability ──────────────────────────────────────────────────
 export const predictiveObservabilityApi = {
   status:        (orgId)   => api.get('/bi/predictive/observability/status', { params: orgId ? { organization_id: orgId } : {} }),
-  health:        (params)  => api.get('/bi/predictive/observability/health', { params }),
+  health:        (params?: any)  => api.get('/bi/predictive/observability/health', { params }),
   triggerRetrain:()        => api.post('/bi/predictive/observability/trigger-retrain'),
 }
 
@@ -802,13 +802,13 @@ export const predictionsApi = {
   portfolioRisk:  ()           => api.get('/predictions/portfolio-risk'),
   train:          ()           => api.post('/predictions/train'),
   models:         ()           => api.get('/predictions/models'),
-  logs:           (params)     => api.get('/predictions/logs', { params }),
+  logs:           (params?: any)     => api.get('/predictions/logs', { params }),
 }
 
 // ── Revenue Recognition (ASC 606) ─────────────────────────────────────────────
 export const revenueRecognitionApi = {
   dashboard:           (year, months) => api.get('/revenue-recognition/dashboard', { params: { year, months } }),
-  contracts:           (params)       => api.get('/revenue-recognition/contracts', { params }),
+  contracts:           (params?: any)       => api.get('/revenue-recognition/contracts', { params }),
   getContract:         (id)           => api.get(`/revenue-recognition/contracts/${id}`),
   createContract:      (data)         => api.post('/revenue-recognition/contracts', data),
   updateContract:      (id, data)     => api.patch(`/revenue-recognition/contracts/${id}`, data),
@@ -817,7 +817,7 @@ export const revenueRecognitionApi = {
   createObligation:    (contractId, d)=> api.post(`/revenue-recognition/contracts/${contractId}/obligations`, d),
   updateObligation:    (id, data)     => api.patch(`/revenue-recognition/obligations/${id}`, data),
   deleteObligation:    (id)           => api.delete(`/revenue-recognition/obligations/${id}`),
-  entries:             (params)       => api.get('/revenue-recognition/entries', { params }),
+  entries:             (params?: any)       => api.get('/revenue-recognition/entries', { params }),
   reverseEntry:        (id)           => api.post(`/revenue-recognition/entries/${id}/reverse`),
   periodCloses:        ()             => api.get('/revenue-recognition/period-closes'),
   closePeriod:         (data)         => api.post('/revenue-recognition/period-closes', data),
@@ -827,7 +827,7 @@ export const revenueRecognitionApi = {
 
 // ── CMDB ──────────────────────────────────────────────────────────────────────
 export const cmdbApi = {
-  items:          (params)   => api.get('/cmdb/items', { params }),
+  items:          (params?: any)   => api.get('/cmdb/items', { params }),
   getItem:        (id)       => api.get(`/cmdb/items/${id}`),
   createItem:     (data)     => api.post('/cmdb/items', data),
   updateItem:     (id, data) => api.patch(`/cmdb/items/${id}`, data),
@@ -840,7 +840,7 @@ export const cmdbApi = {
   topology:       (id, r)    => api.get(`/sd/cmdb/${id}/topology`, { params: { radius: r } }),
   topologyItems:  ()         => api.get('/sd/cmdb'),
   // SD CMDB
-  sdList:         (params)   => api.get('/sd/cmdb', { params }),
+  sdList:         (params?: any)   => api.get('/sd/cmdb', { params }),
   sdGet:          (id)       => api.get(`/sd/cmdb/${id}`),
   sdCreate:       (data)     => api.post('/sd/cmdb', data),
   sdUpdate:       (id, data) => api.patch(`/sd/cmdb/${id}`, data),
@@ -867,7 +867,7 @@ export const timesheetsApi = {
 
 // ── Documents ─────────────────────────────────────────────────────────────────
 export const documentsApi = {
-  list:      (params)   => api.get('/documents', { params }),
+  list:      (params?: any)   => api.get('/documents', { params }),
   get:       (id)       => api.get(`/documents/${id}`),
   upload:    (fd)       => api.post('/documents/upload', fd),
   update:    (id, data) => api.patch(`/documents/${id}`, data),
@@ -881,9 +881,9 @@ export const documentsApi = {
   grantPermission:   (id, data)        => api.post(`/documents/${id}/permissions`, data),
   revokePermission:  (id, permId)      => api.delete(`/documents/${id}/permissions/${permId}`),
   // By context
-  byTask:    (taskId, params)    => api.get(`/documents/by-task/${taskId}`, { params }),
-  byTicket:  (ticketId, params)  => api.get(`/documents/by-ticket/${ticketId}`, { params }),
-  byProject: (projectId, params) => api.get(`/documents/by-project/${projectId}`, { params }),
+  byTask:    (taskId, params?: any)    => api.get(`/documents/by-task/${taskId}`, { params }),
+  byTicket:  (ticketId, params?: any)  => api.get(`/documents/by-ticket/${ticketId}`, { params }),
+  byProject: (projectId, params?: any) => api.get(`/documents/by-project/${projectId}`, { params }),
 }
 
 // ── Custom Fields ─────────────────────────────────────────────────────────────
@@ -928,7 +928,7 @@ export const skillsApi = {
   addUserSkill:   (userId, data)   => api.post(`/skills/users/${userId}`, data),
   removeUserSkill:(userId, skillId)=> api.delete(`/skills/users/${userId}/${skillId}`),
   matrix:         ()               => api.get('/skills/matrix'),
-  search:         (params)         => api.get('/skills/search', { params }),
+  search:         (params?: any)         => api.get('/skills/search', { params }),
 }
 
 // ── Enterprise Subcontractors ─────────────────────────────────────────────────
@@ -1056,7 +1056,7 @@ export const performanceApi = {
 
 // ── Capacity Planning ─────────────────────────────────────────────────────────
 export const capacityApi = {
-  board:       (params)         => api.get('/capacity/board', { params }),
+  board:       (params?: any)         => api.get('/capacity/board', { params }),
   createPlan:  (data)           => api.post('/capacity/plans', data),
   updatePlan:  (id, data)       => api.patch(`/capacity/plans/${id}`, data),
   deletePlan:  (id)             => api.delete(`/capacity/plans/${id}`),
@@ -1065,8 +1065,8 @@ export const capacityApi = {
 // ── Profitability ─────────────────────────────────────────────────────────────
 export const profitabilityApi = {
   get:             (projectId)          => api.get(`/profitability/${projectId}`),
-  summary:         (params)             => api.get('/profitability/summary', { params }),
-  projects:        (params)             => api.get('/profitability/projects', { params }),
+  summary:         (params?: any)             => api.get('/profitability/summary', { params }),
+  projects:        (params?: any)             => api.get('/profitability/projects', { params }),
   createMilestone: (projectId, data)    => api.post(`/profitability/${projectId}/milestones`, data),
   updateMilestone: (projectId, id, data)=> api.patch(`/profitability/${projectId}/milestones/${id}`, data),
   deleteMilestone: (projectId, id)      => api.delete(`/profitability/${projectId}/milestones/${id}`),
@@ -1076,7 +1076,7 @@ export const profitabilityApi = {
 export const biForecastingApi = {
   getMetrics:     ()                   => api.get('/bi/forecast/metrics'),
   // The backend forecasts a single metric via POST /bi/forecast {metric, ...}.
-  forecast:       (metric, params)     => api.post('/bi/forecast', { metric, ...(params || {}) }),
+  forecast:       (metric, params?: any)     => api.post('/bi/forecast', { metric, ...(params || {}) }),
   multiForecast:  (data)               => api.post('/bi/forecast/multi', data),
   // Aliases kept for BiForecastingPanel (same canonical routes).
   listMetrics:    ()                   => api.get('/bi/forecast/metrics'),
@@ -1094,12 +1094,12 @@ export const biAnomalyApi = {
 // ── BI GDPR ───────────────────────────────────────────────────────────────────
 export const biGdprApi = {
   recordConsent:       (data)          => api.post('/bi/gdpr/consent', data),
-  getConsent:          (params)        => api.get('/bi/gdpr/consent', { params }),
+  getConsent:          (params?: any)        => api.get('/bi/gdpr/consent', { params }),
   listConsents:        ()              => api.get('/bi/gdpr/consents'),
   getConsentHistory:   (userId)        => api.get(`/bi/gdpr/consent/${userId}/history`),
   createDsr:           (data)          => api.post('/bi/gdpr/dsr', data),
   getDsr:              (id)            => api.get(`/bi/gdpr/dsr/${id}`),
-  listDsr:             (params)        => api.get('/bi/gdpr/dsr', { params }),
+  listDsr:             (params?: any)        => api.get('/bi/gdpr/dsr', { params }),
   resolveDsr:          (id, data)      => api.patch(`/bi/gdpr/dsr/${id}/resolve`, data),
   executeDsrErasure:   (id)            => api.post(`/bi/gdpr/dsr/${id}/erasure-execute`),
   executeDsrPortability: (id)          => api.post(`/bi/gdpr/dsr/${id}/portability-export`),
@@ -1111,16 +1111,16 @@ export const biGdprApi = {
 // ── BI Dashboard Collaboration ────────────────────────────────────────────────
 export const biDashboardCollabApi = {
   addComment:     (data)               => api.post('/bi/collab/comments', data),
-  listComments:   (params)             => api.get('/bi/collab/comments', { params }),
+  listComments:   (params?: any)             => api.get('/bi/collab/comments', { params }),
   resolveComment: (id)                 => api.patch(`/bi/collab/comments/${id}/resolve`),
   saveView:       (data)               => api.post('/bi/collab/views', data),
-  listViews:      (params)             => api.get('/bi/collab/views', { params }),
+  listViews:      (params?: any)             => api.get('/bi/collab/views', { params }),
   addReaction:    (data)               => api.post('/bi/collab/reactions', data),
 }
 
 // ── BI Query Builder ──────────────────────────────────────────────────────────
 export const biQueryBuilderApi = {
-  getSchema:      (params)             => api.get('/bi/query-builder/schema', { params }),
+  getSchema:      (params?: any)             => api.get('/bi/query-builder/schema', { params }),
   previewQuery:   (data)               => api.post('/bi/query-builder/preview', data),
   saveQuery:      (data)               => api.post('/bi/query-builder/queries', data),
   listQueries:    ()                   => api.get('/bi/query-builder/queries'),
@@ -1143,7 +1143,7 @@ export const biEtlApi = {
   getConnector:   (id)                 => api.get(`/bi/etl/connectors/${id}`),
   triggerSync:    (id, data)           => api.post(`/bi/etl/connectors/${id}/sync`, data),
   getLog:         (id)                 => api.get(`/bi/etl/connectors/${id}/log`),
-  getData:        (id, params)         => api.get(`/bi/etl/data/${id}`, { params }),
+  getData:        (id, params?: any)         => api.get(`/bi/etl/data/${id}`, { params }),
 }
 
 // ── BI Office 365 ─────────────────────────────────────────────────────────────
@@ -1151,7 +1151,7 @@ export const biO365Api = {
   getConfig:      ()                   => api.get('/bi/o365/config'),
   saveConfig:     (data)               => api.put('/bi/o365/config', data),
   triggerSync:    (data)               => api.post('/bi/o365/sync', data),
-  getReport:      (name, params)       => api.get(`/bi/o365/reports/${name}`, { params }),
+  getReport:      (name, params?: any)       => api.get(`/bi/o365/reports/${name}`, { params }),
   getAdoption:    ()                   => api.get('/bi/o365/adoption'),
   getSyncLog:     ()                   => api.get('/bi/o365/sync-log'),
 }
@@ -1161,7 +1161,7 @@ export const voiceAgentApi = {
   getConfig:      ()                   => api.get('/sd/voice/config'),
   updateConfig:   (data)               => api.put('/sd/voice/config', data),
   createSession:  (data)               => api.post('/sd/voice/sessions', data),
-  listSessions:   (params)             => api.get('/sd/voice/sessions', { params }),
+  listSessions:   (params?: any)             => api.get('/sd/voice/sessions', { params }),
   getSession:     (id)                 => api.get(`/sd/voice/sessions/${id}`),
   addTurn:        (id, data)           => api.post(`/sd/voice/sessions/${id}/turn`, data),
   closeSession:   (id, data)           => api.post(`/sd/voice/sessions/${id}/close`, data),
@@ -1188,10 +1188,10 @@ export const changeRolloutApi = {
 
 // ── CMDB 3D Graph ─────────────────────────────────────────────────────────────
 export const cmdb3dApi = {
-  getGraph:       (params)             => api.get('/sd/cmdb/3d-graph', { params }),
+  getGraph:       (params?: any)             => api.get('/sd/cmdb/3d-graph', { params }),
   blastRadius:    (ciId)               => api.get(`/sd/cmdb/blast-radius/${ciId}`),
   createLink:     (data)               => api.post('/sd/cmdb/asset-links', data),
-  listLinks:      (params)             => api.get('/sd/cmdb/asset-links', { params }),
+  listLinks:      (params?: any)             => api.get('/sd/cmdb/asset-links', { params }),
   getImpact:      (assetId)            => api.get(`/sd/cmdb/asset-impact/${assetId}`),
 }
 
@@ -1219,7 +1219,7 @@ export const projectSprintsApi = {
 
 // ── Portal Clients ────────────────────────────────────────────────────────────
 export const portalClientsApi = {
-  list:         (params)   => api.get('/portal/clients', { params }),
+  list:         (params?: any)   => api.get('/portal/clients', { params }),
   create:       (data)     => api.post('/portal/clients', data),
   update:       (id, data) => api.patch(`/portal/clients/${id}`, data),
   translations: ()         => api.get('/portal/translations'),
@@ -1278,9 +1278,9 @@ export const grcApi = {
   updateSodRule:    (id, data)                   => api.patch(`/grc/sod-rules/${id}`, data),
   deleteSodRule:    (id)                         => api.delete(`/grc/sod-rules/${id}`),
   sodCheck:         ()                           => api.get('/grc/sod-check'),
-  violations:       (params)                     => api.get('/grc/violations', { params }),
+  violations:       (params?: any)                     => api.get('/grc/violations', { params }),
   resolveViolation: (id, data)                   => api.patch(`/grc/violations/${id}/resolve`, data),
-  auditLog:         (params)                     => api.get('/grc/audit-log', { params }),
+  auditLog:         (params?: any)                     => api.get('/grc/audit-log', { params }),
 }
 
 // ── Automations ───────────────────────────────────────────────────────────────
@@ -1332,8 +1332,8 @@ export const aiProvidersApi = {
 
 // ── Service Desk Config ───────────────────────────────────────────────────────
 export const sdMetricsApi = {
-  itil:             (params) => api.get('/sd/metrics/itil', { params }),
-  agentPerformance: (params) => api.get('/sd/metrics/agent-performance', { params }),
+  itil:             (params?: any) => api.get('/sd/metrics/itil', { params }),
+  agentPerformance: (params?: any) => api.get('/sd/metrics/agent-performance', { params }),
 }
 
 export const sdCatalogApi = {
@@ -1371,7 +1371,7 @@ export const sdTemplatesApi = {
 }
 
 export const sdCannedApi = {
-  list:   (params)   => api.get('/sd/canned-responses', { params }),
+  list:   (params?: any)   => api.get('/sd/canned-responses', { params }),
   create: (data)     => api.post('/sd/canned-responses', data),
   update: (id, data) => api.patch(`/sd/canned-responses/${id}`, data),
   delete: (id)       => api.delete(`/sd/canned-responses/${id}`),
@@ -1388,14 +1388,14 @@ export const sdRoutingApi = {
   create:              (data)     => api.post('/sd/routing-rules', data),
   update:              (id, data) => api.patch(`/sd/routing-rules/${id}`, data),
   delete:              (id)       => api.delete(`/sd/routing-rules/${id}`),
-  queue:               (params)   => api.get('/sd/tickets/my-queue', { params }),
-  tickets:             (params)   => api.get('/sd/tickets', { params }),
+  queue:               (params?: any)   => api.get('/sd/tickets/my-queue', { params }),
+  tickets:             (params?: any)   => api.get('/sd/tickets', { params }),
   majorIncidents:      ()         => api.get('/sd/major-incidents'),
   createMajorIncident: (data)     => api.post('/sd/major-incidents', data),
 }
 
 export const sdKbApi = {
-  list:        (params)   => api.get('/sd/kb', { params }),
+  list:        (params?: any)   => api.get('/sd/kb', { params }),
   create:      (data)     => api.post('/sd/kb', data),
   update:      (id, data) => api.patch(`/sd/kb/${id}`, data),
   delete:      (id)       => api.delete(`/sd/kb/${id}`),
@@ -1432,15 +1432,15 @@ export const oauthIntegrationsApi = {
 }
 
 export const enterpriseApi = {
-  auditLog:                (params) => api.get('/enterprise/audit-log', { params }),
+  auditLog:                (params?: any) => api.get('/enterprise/audit-log', { params }),
   ssoList:                 ()       => api.get('/enterprise/sso'),
   ssoCreate:               (data)   => api.post('/enterprise/sso', data),
   ssoDelete:               (id)     => api.delete(`/enterprise/sso/${id}`),
   ssoTest:                 (id)     => api.post(`/enterprise/sso/${id}/test`),
-  notifications:           (params) => api.get('/enterprise/notifications', { params }),
+  notifications:           (params?: any) => api.get('/enterprise/notifications', { params }),
   markNotificationRead:    (id)     => api.post(`/enterprise/notifications/${id}/read`),
   markAllNotificationsRead:()       => api.post('/enterprise/notifications/read-all'),
-  clearOldNotifications:  (params)  => api.delete('/enterprise/notifications/clear-old', { params }),
+  clearOldNotifications:  (params?: any)  => api.delete('/enterprise/notifications/clear-old', { params }),
 }
 
 export const integrationsHubApi = {
@@ -1457,17 +1457,17 @@ export const apiKeysApi = {
 
 // ── Client Portal ─────────────────────────────────────────────────────────────
 export const portalApi = {
-  clients:              (params)          => api.get('/portal/clients', { params }),
+  clients:              (params?: any)          => api.get('/portal/clients', { params }),
   createClient:         (data)            => api.post('/portal/clients', data),
   updateClient:         (id, data)        => api.patch(`/portal/clients/${id}`, data),
   deleteClient:         (id)              => api.delete(`/portal/clients/${id}`),
-  uat:                  (params)          => api.get('/portal/uat/team', { params }),
+  uat:                  (params?: any)          => api.get('/portal/uat/team', { params }),
   createUat:            (projectId, data) => api.post(`/portal/uat/${projectId}`, data),
   addTestCase:          (id, data)        => api.post(`/portal/uat/${id}/test-cases`, data),
-  updateUatStatus:      (id, params)      => api.patch(`/portal/uat/issues/${id}`, null, { params }),
-  featureRequests:      (params)          => api.get('/portal/feature-requests/team', { params }),
+  updateUatStatus:      (id, params?: any)      => api.patch(`/portal/uat/issues/${id}`, null, { params }),
+  featureRequests:      (params?: any)          => api.get('/portal/feature-requests/team', { params }),
   respondFeatureRequest:(id, data)        => api.post(`/portal/feature-requests/${id}/respond`, data),
-  documents:            (params)          => api.get('/portal/documents/team', { params }),
+  documents:            (params?: any)          => api.get('/portal/documents/team', { params }),
   createDocument:       (projectId, data) => api.post('/portal/documents', data, { params: { project_id: projectId } }),
   stats:                (projectId)       => api.get(`/portal/stats/${projectId}`),
   translations:         ()               => api.get('/portal/translations'),
@@ -1564,7 +1564,7 @@ export const jiraApi = {
 export const sdWorkflowDesignerApi = {
   schema:         () => api.get('/sd/workflow-designer/schema'),
   templates:      () => api.get('/sd/workflow-designer/templates'),
-  blueprints:     (params) => api.get('/sd/workflow-designer/blueprints', { params }),
+  blueprints:     (params?: any) => api.get('/sd/workflow-designer/blueprints', { params }),
   blueprint:      (id) => api.get(`/sd/workflow-designer/blueprints/${id}`),
   createBlueprint:(data) => api.post('/sd/workflow-designer/blueprints', data),
   createVersion:  (id, data) => api.post(`/sd/workflow-designer/blueprints/${id}/versions`, data),
@@ -1574,7 +1574,7 @@ export const sdWorkflowDesignerApi = {
   archive:        (id) => api.delete(`/sd/workflow-designer/blueprints/${id}`),
   // Runtime
   startRun:       (id, data) => api.post(`/sd/workflow-designer/blueprints/${id}/runs`, data),
-  runs:           (params) => api.get('/sd/workflow-designer/runs', { params }),
+  runs:           (params?: any) => api.get('/sd/workflow-designer/runs', { params }),
   run:            (rid) => api.get(`/sd/workflow-designer/runs/${rid}`),
   resumeRun:      (rid, data) => api.post(`/sd/workflow-designer/runs/${rid}/resume`, data),
   cancelRun:      (rid, reason) => api.post(`/sd/workflow-designer/runs/${rid}/cancel`, { reason }),
@@ -1630,11 +1630,11 @@ export const formsApi = {
 
 // ── Resource Scheduler ────────────────────────────────────────────────────────
 export const resourceForecastApi = {
-  weeks: (params) => api.get('/resource-forecast/weeks', { params }),
+  weeks: (params?: any) => api.get('/resource-forecast/weeks', { params }),
 }
 
 export const bookingsApi = {
-  list:   (params) => api.get('/bookings', { params }),
+  list:   (params?: any) => api.get('/bookings', { params }),
   create: (data) => api.post('/bookings', data),
   update: (id, data) => api.patch(`/bookings/${id}`, data),
   delete: (id) => api.delete(`/bookings/${id}`),
@@ -1698,7 +1698,7 @@ export const sdMajorIncidentsApi = {
 
 // ── Risk Scores ───────────────────────────────────────────────────────────────
 export const riskScoresApi = {
-  list:    (params) => api.get('/risk-scores', { params }),
+  list:    (params?: any) => api.get('/risk-scores', { params }),
   get:     (id) => api.get(`/risk-scores/${id}`),
   refresh: () => api.get('/risk-scores', { params: { refresh: true } }),
 }
@@ -1721,7 +1721,7 @@ export const meetingsAIApi = {
 
 // ── Contracts AI (H22) ────────────────────────────────────────────────────────
 export const contractsAIApi = {
-  list:       (params) => api.get('/ai-modules/contracts-ai', { params }),
+  list:       (params?: any) => api.get('/ai-modules/contracts-ai', { params }),
   get:        (id)     => api.get(`/ai-modules/contracts-ai/${id}`),
   analyze:    (data)   => api.post('/ai-modules/contracts-ai/analyze', data),
   analyzePdf: (formData) => api.post('/ai-modules/contracts-ai/analyze-pdf', formData, {
@@ -1757,7 +1757,7 @@ export const mfaApi = {
 
 // ── Oracle Predictions ────────────────────────────────────────────────────────
 export const oracleApi = {
-  predictions: (params) => api.get('/oracle/predictions', { params }),
+  predictions: (params?: any) => api.get('/oracle/predictions', { params }),
   run:         () => api.post('/oracle/run'),
   acknowledge: (id) => api.post(`/oracle/predictions/${id}/acknowledge`),
 }
@@ -1782,7 +1782,7 @@ export const reportBuilderApi = {
 
 // ── Burnout Risk / Resources ──────────────────────────────────────────────────
 export const burnoutRiskApi = {
-  get:     (params) => api.get('/resources/burnout-risk', { params }),
+  get:     (params?: any) => api.get('/resources/burnout-risk', { params }),
   compute: () => api.post('/resources/burnout-risk/compute'),
 }
 
@@ -1825,7 +1825,7 @@ export const userCostsApi = {
 
 // ── BPMN Processes ────────────────────────────────────────────────────────────
 export const bpmnProcessesApi = {
-  list:        (params)        => api.get('/bpmn-processes', { params }),
+  list:        (params?: any)        => api.get('/bpmn-processes', { params }),
   catalogue:   ()              => api.get('/bpmn-processes/catalogue'),
   seed:        (force = false) => api.post('/bpmn-processes/seed', { force }),
   get:         (id)            => api.get(`/bpmn-processes/${id}`),
@@ -1851,13 +1851,13 @@ export const nexusAgentApi = {
 
 // ── Resources ─────────────────────────────────────────────────────────────────
 export const resourcesApi = {
-  loadScoring: (params) => api.get('/resources/load-scoring', { params }),
-  teamHealth:  (params) => api.get('/resources/team-health', { params }),
+  loadScoring: (params?: any) => api.get('/resources/load-scoring', { params }),
+  teamHealth:  (params?: any) => api.get('/resources/team-health', { params }),
 }
 
 // ── Global Search ─────────────────────────────────────────────────────────────
 export const searchApi = {
-  search: (params) => api.get('/global-search', { params }),
+  search: (params?: any) => api.get('/global-search', { params }),
 }
 
 // ── Onboarding ────────────────────────────────────────────────────────────────
@@ -1869,7 +1869,7 @@ export const onboardingApi = {
 
 // ── SLA Schedules ─────────────────────────────────────────────────────────────
 export const slaSchedulesApi = {
-  list:   (params) => api.get('/sla-schedules', { params }),
+  list:   (params?: any) => api.get('/sla-schedules', { params }),
   create: (data)   => api.post('/sla-schedules', data),
   update: (id, data) => api.patch(`/sla-schedules/${id}`, data),
   delete: (id)     => api.delete(`/sla-schedules/${id}`),
@@ -1880,7 +1880,7 @@ export const autoResolutionApi = {
   getConfig:    ()          => api.get('/sd/auto-resolution/config'),
   getStats:     ()          => api.get('/sd/auto-resolution/stats'),
   patchConfig:  (data)      => api.patch('/sd/auto-resolution/config', data),
-  runJob:       (params)    => api.post('/sd/auto-resolution/run-job', null, { params }),
+  runJob:       (params?: any)    => api.post('/sd/auto-resolution/run-job', null, { params }),
   runCloseJob:  ()          => api.post('/sd/auto-resolution/run-close-job'),
 }
 
