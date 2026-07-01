@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ClientPortalPage – Internal PM view for managing the client portal:
  * - Manage client users and their access
@@ -8,6 +7,7 @@
  * - View portal stats
  */
 import React, { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -77,19 +77,19 @@ const portalClientEditSchema = z.object({
 
 // STATUS_CFG y FR_STATUS_CFG centralizados en constants/sharedStatus.js
 
-function StatusBadge({ status, cfg }) {
+function StatusBadge({ status, cfg }: { status: any; cfg: any }) {
   const t = useAppT()
   const c = cfg[status] || { label: t('client_portal.unknown_status'), color: 'var(--text-2)' }
   return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: c.color + '20', color: c.color, border: `1px solid ${c.color}40`, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{c.label}</span>
 }
 
 // ── Client Users Management ───────────────────────────────────────────────────
-function ClientUsersTab({ projectId }) {
+function ClientUsersTab({ projectId }: { projectId: any }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showCreate, setShowCreate] = useState(false)
-  const [editingClient, setEditingClient] = useState(null)
+  const [editingClient, setEditingClient] = useState<any>(null)
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ['portal-clients', projectId],
     queryFn: () => portalApi.clients({ project_id: projectId }).then(r => r.data),
@@ -101,7 +101,7 @@ function ClientUsersTab({ projectId }) {
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   const { mutate: toggleActive } = useMutation({
-    mutationFn: ({ id, active }) => portalApi.updateClient(id, { is_active: active }),
+    mutationFn: ({ id, active }: any) => portalApi.updateClient(id, { is_active: active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -116,10 +116,10 @@ function ClientUsersTab({ projectId }) {
         <EmptyState svgIcon={<Users size={36} />} title={t('client_portal.empty_contacts_title')} description={t('client_portal.empty_contacts_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {clients.map(c => (
+          {clients.map((c: any) => (
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', background: 'var(--surface-2)', border: `1px solid ${c.is_active ? 'var(--surface-4)' : 'var(--danger-border)'}`, borderRadius: 12, opacity: c.is_active ? 1 : 0.6 }}>
               <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0 }}>
-                {c.full_name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                {c.full_name.split(' ').map((w: any) => w[0]).join('').slice(0, 2)}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{c.full_name}</div>
@@ -152,27 +152,27 @@ function ClientUsersTab({ projectId }) {
   )
 }
 
-function CreateClientModal({ projectId, onClose }) {
+function CreateClientModal({ projectId, onClose }: { projectId: any; onClose: any }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [form, setForm] = useState({ full_name: '', email: '', job_title: '', company: '', phone: '', password: '', can_approve_deliverables: true, can_request_changes: true, can_view_budget: true, can_view_team: false })
-  const [extraProjectIds, setExtraProjectIds] = useState([]) // additional projects beyond projectId
+  const [form, setForm] = useState<any>({ full_name: '', email: '', job_title: '', company: '', phone: '', password: '', can_approve_deliverables: true, can_request_changes: true, can_view_budget: true, can_view_team: false })
+  const [extraProjectIds, setExtraProjectIds] = useState<any[]>([]) // additional projects beyond projectId
   const validation = useFormValidation(portalClientCreateSchema)
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const set = k => e => {
-    setForm(f => ({ ...f, [k]: e.target.value }))
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const set = (k: any) => (e: any) => {
+    setForm((f: any) => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
 
   const { data: allProjects = [] } = useQuery({
     queryKey: ['projects-list'],
-    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : ((r.data as any)?.items || [])),
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => portalApi.createClient(data),
+    mutationFn: (data: any) => portalApi.createClient(data),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -210,7 +210,7 @@ function CreateClientModal({ projectId, onClose }) {
           <div style={{ gridColumn: '1/-1' }}>
             <label style={{ ...ls, marginBottom: 10 }}>{t('client_portal.additional_projects_access')}</label>
             <div style={{ maxHeight: 140, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-2) var(--space-3)' }}>
-              {allProjects.filter(p => p.id !== projectId).map(p => (
+              {allProjects.filter((p: any) => p.id !== projectId).map((p: any) => (
                 <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
                   <input type="checkbox" checked={extraProjectIds.includes(p.id)}
                     onChange={e => setExtraProjectIds(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))} />
@@ -226,7 +226,7 @@ function CreateClientModal({ projectId, onClose }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[['can_approve_deliverables', t('client_portal.perm_approve_desc')],['can_request_changes', t('client_portal.perm_request_desc')],['can_view_budget', t('client_portal.perm_budget_desc')],['can_view_team', t('client_portal.perm_team_desc')]].map(([k, label]) => (
               <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-                <input type="checkbox" checked={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} />
+                <input type="checkbox" checked={form[k]} onChange={e => setForm((f: any) => ({ ...f, [k]: e.target.checked }))} />
                 {label}
               </label>
             ))}
@@ -244,20 +244,20 @@ function CreateClientModal({ projectId, onClose }) {
 }
 
 // ── UAT Management ────────────────────────────────────────────────────────────
-function EditClientModal({ client, onClose, onSaved }) {
+function EditClientModal({ client, onClose, onSaved }: { client: any; onClose: any; onSaved: any }) {
   const t = useAppT()
   const { data: allProjects = [] } = useQuery({
     queryKey: ['projects-list'],
-    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : ((r.data as any)?.items || [])),
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => portalApi.updateClient(client.id, data),
+    mutationFn: (data: any) => portalApi.updateClient(client.id, data),
     onSuccess: onSaved,
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   const toast = useToast()
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<any>({
     full_name: client.full_name || '',
     email: client.email || '',
     job_title: client.job_title || '',
@@ -272,10 +272,10 @@ function EditClientModal({ client, onClose, onSaved }) {
   })
   const validation = useFormValidation(portalClientEditSchema)
 
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const set = k => e => {
-    setForm(f => ({ ...f, [k]: e.target.value }))
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const set = (k: any) => (e: any) => {
+    setForm((f: any) => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
 
@@ -308,9 +308,9 @@ function EditClientModal({ client, onClose, onSaved }) {
           <select
             multiple
             value={form.project_ids}
-            onChange={e => setForm(f => ({ ...f, project_ids: Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean) }))}
+            onChange={e => setForm((f: any) => ({ ...f, project_ids: Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean) }))}
             style={{ ...fs, height: 38 + Math.min(allProjects.length, 5) * 28 }}>
-            {allProjects.map(project => (
+            {allProjects.map((project: any) => (
               <option key={project.id} value={project.id}>{project.code} — {project.name}</option>
             ))}
           </select>
@@ -330,7 +330,7 @@ function EditClientModal({ client, onClose, onSaved }) {
               ['can_view_team', t('client_portal.perm_team_desc')],
             ].map(([k, label]) => (
               <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-                <input type="checkbox" checked={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} />
+                <input type="checkbox" checked={form[k]} onChange={e => setForm((f: any) => ({ ...f, [k]: e.target.checked }))} />
                 {label}
               </label>
             ))}
@@ -348,10 +348,10 @@ function EditClientModal({ client, onClose, onSaved }) {
 }
 
 
-function UATTab({ projectId }) {
+function UATTab({ projectId }: { projectId: any }) {
   const t = useAppT()
   const [showCreate, setShowCreate] = useState(false)
-  const [selectedId, setSelectedId] = useState(null)
+  const [selectedId, setSelectedId] = useState<any>(null)
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ['uat-team', projectId],
     queryFn: () => portalApi.uat({ project_id: projectId }).then(r => r.data),
@@ -363,7 +363,7 @@ function UATTab({ projectId }) {
     enabled: !!projectId,
   })
   // Always read live data so UATDetailModal reflects updates without reopening
-  const selectedSession = selectedId ? (sessions.find(s => s.id === selectedId) ?? null) : null
+  const selectedSession = selectedId ? (sessions.find((s: any) => s.id === selectedId) ?? null) : null
 
   return (
     <div>
@@ -375,7 +375,7 @@ function UATTab({ projectId }) {
         <EmptyState svgIcon={<FlaskConical size={36} />} title={t('client_portal.uat_empty_title')} description={t('client_portal.uat_empty_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {sessions.map(s => (
+          {sessions.map((s: any) => (
             <button key={s.id} type="button" style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${STATUS_CFG[s.status]?.color + '40' || 'var(--surface-4)'}`, borderRadius: 12, cursor: 'pointer', width:'100%', textAlign:'left', fontFamily:'inherit' }}
               onClick={() => setSelectedId(s.id)}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
@@ -401,7 +401,7 @@ function UATTab({ projectId }) {
               )}
               {s.issues.length > 0 && (
                 <div style={{ marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--danger)' }}>
-                  {`🐛 ${s.issues.filter(i => i.status === 'open').length} ${t('client_portal.uat_open_issues')}`}
+                  {`🐛 ${s.issues.filter((i: any) => i.status === 'open').length} ${t('client_portal.uat_open_issues')}`}
                 </div>
               )}
             </button>
@@ -414,24 +414,24 @@ function UATTab({ projectId }) {
   )
 }
 
-function CreateUATModal({ projectId, deliverables, onClose }) {
+function CreateUATModal({ projectId, deliverables, onClose }: { projectId: any; deliverables: any; onClose: any }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [form, setForm] = useState({ title: '', description: '', deliverable_id: '', test_environment: '', test_credentials: '', test_guide_url: '', available_from: '', deadline: '' })
-  const [testCases, setTestCases] = useState([{ title: '', steps: '', expected_result: '' }])
+  const [form, setForm] = useState<any>({ title: '', description: '', deliverable_id: '', test_environment: '', test_credentials: '', test_guide_url: '', available_from: '', deadline: '' })
+  const [testCases, setTestCases] = useState<any[]>([{ title: '', steps: '', expected_result: '' }])
   const validation = useFormValidation(uatSessionSchema)
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const set = k => e => {
-    setForm(f => ({ ...f, [k]: e.target.value }))
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const set = (k: any) => (e: any) => {
+    setForm((f: any) => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
 
   const { mutate, isPending } = useMutation({
-    mutationFn: async (data) => {
+    mutationFn: async (data: any) => {
       const res = await portalApi.createUat(projectId, data.form)
-      for (const tc of data.testCases.filter(t => t.title)) {
+      for (const tc of data.testCases.filter((t: any) => t.title)) {
         await portalApi.addTestCase(res.data.id, { title: tc.title, steps: tc.steps, expected_result: tc.expected_result, order: data.testCases.indexOf(tc) })
       }
       return res
@@ -458,7 +458,7 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
           <div><label style={ls}>{t('client_portal.uat_label_deliverable')}</label>
             <select value={form.deliverable_id} onChange={set('deliverable_id')} style={fs}>
               <option value="">{t('client_portal.uat_unlinked')}</option>
-              {deliverables.map(d => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
+              {deliverables.map((d: any) => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
             </select>
           </div>
         </div>
@@ -501,17 +501,17 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
   )
 }
 
-function UATDetailModal({ session: initialSession, onClose }) {
+function UATDetailModal({ session: initialSession, onClose }: { session: any; onClose: any }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const { mutate: updateIssue } = useMutation({
-    mutationFn: ({ id, status }) => portalApi.updateUatStatus(id, { status }),
+    mutationFn: ({ id, status }: any) => portalApi.updateUatStatus(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['uat-team'], exact: false }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const SEV_COLORS = { low: 'var(--success)', medium: 'var(--accent)', high: 'var(--warning)', blocker: 'var(--danger)' }
+  const SEV_COLORS: Record<string, string> = { low: 'var(--success)', medium: 'var(--accent)', high: 'var(--warning)', blocker: 'var(--danger)' }
 
   return (
     <Modal open title={`${initialSession.code} — ${initialSession.title}`} onClose={onClose} width={700}>
@@ -535,7 +535,7 @@ function UATDetailModal({ session: initialSession, onClose }) {
             {`${t('client_portal.uat_detail_cases_title')} (${initialSession.stats.passed}/${initialSession.stats.total} ${t('client_portal.uat_detail_approved')})`}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {initialSession.test_cases.map(tc => {
+            {initialSession.test_cases.map((tc: any) => {
               const color = tc.status === 'passed' ? 'var(--success)' : tc.status === 'failed' ? 'var(--danger)' : 'var(--text-2)'
               return (
                 <div key={tc.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${color}30`, borderRadius: 8 }}>
@@ -560,10 +560,10 @@ function UATDetailModal({ session: initialSession, onClose }) {
       {initialSession.issues.length > 0 && (
         <div>
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-            {`${t('client_portal.uat_issues_title')} (${initialSession.issues.filter(i => i.status === 'open').length} ${t('client_portal.uat_open')})`}
+            {`${t('client_portal.uat_issues_title')} (${initialSession.issues.filter((i: any) => i.status === 'open').length} ${t('client_portal.uat_open')})`}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {initialSession.issues.map(issue => {
+            {initialSession.issues.map((issue: any) => {
               const sevColor = SEV_COLORS[issue.severity] || 'var(--text-2)'
               return (
                 <div key={issue.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${issue.status === 'open' ? sevColor + '40' : 'var(--surface-4)'}`, borderRadius: 8 }}>
@@ -601,11 +601,11 @@ function UATDetailModal({ session: initialSession, onClose }) {
 }
 
 // ── Feature Requests Tab ──────────────────────────────────────────────────────
-function FeatureRequestsTab({ projectId }) {
+function FeatureRequestsTab({ projectId }: { projectId: any }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [responding, setResponding] = useState(null)
+  const [responding, setResponding] = useState<any>(null)
   const [responseForm, setResponseForm] = useState({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' })
 
   const { data: frs = [], isLoading } = useQuery({
@@ -615,19 +615,19 @@ function FeatureRequestsTab({ projectId }) {
   })
 
   const { mutate: respond, isPending } = useMutation({
-    mutationFn: ({ id, data }) => portalApi.respondFeatureRequest(id, data),
+    mutationFn: ({ id, data }: any) => portalApi.respondFeatureRequest(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs', projectId] }); setResponding(null) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status }) => portalApi.respondFeatureRequest(id, { status }),
+    mutationFn: ({ id, status }: any) => portalApi.respondFeatureRequest(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-frs', projectId] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   return (
     <div>
@@ -712,7 +712,7 @@ function FeatureRequestsTab({ projectId }) {
 }
 
 // ── Messages Tab ──────────────────────────────────────────────────────────────
-function MessagesTab({ projectId }) {
+function MessagesTab({ projectId }: { projectId: any }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <TeamGovernedConversationInbox
@@ -728,14 +728,14 @@ function MessagesTab({ projectId }) {
 }
 
 // ── Documents Tab ─────────────────────────────────────────────────────────────
-function DocumentsTab({ projectId }) {
+function DocumentsTab({ projectId }: { projectId: any }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
-  const [docForm, setDocForm] = useState({ title: '', description: '', category: 'deliverable', file_url: '', file_name: '', requires_signature: false })
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const [docForm, setDocForm] = useState<any>({ title: '', description: '', category: 'deliverable', file_url: '', file_name: '', requires_signature: false })
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ['portal-docs', projectId],
@@ -743,19 +743,19 @@ function DocumentsTab({ projectId }) {
     enabled: !!projectId,
   })
   const { mutate: addDoc } = useMutation({
-    mutationFn: (data) => portalApi.createDocument(projectId, data),
+    mutationFn: (data: any) => portalApi.createDocument(projectId, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-docs', projectId] }); setShowAdd(false) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const CAT_LABELS = {
+  const CAT_LABELS: Record<string, string> = {
     contract: `📋 ${t('client_portal.docs_contract')}`,
     deliverable: `📦 ${t('client_portal.docs_deliverable')}`,
     meeting_notes: `📝 ${t('client_portal.docs_meeting_notes')}`,
     report: `📊 ${t('client_portal.docs_report')}`,
     other: `📄 ${t('client_portal.docs_other')}`,
   }
-  const CAT_COLORS = { contract: 'var(--purple)', deliverable: 'var(--success)', meeting_notes: 'var(--accent)', report: 'var(--warning)', other: 'var(--text-2)' }
+  const CAT_COLORS: Record<string, string> = { contract: 'var(--purple)', deliverable: 'var(--success)', meeting_notes: 'var(--accent)', report: 'var(--warning)', other: 'var(--text-2)' }
 
   return (
     <div>
@@ -767,7 +767,7 @@ function DocumentsTab({ projectId }) {
         <EmptyState svgIcon={<FileText size={36} />} title={t('client_portal.docs_empty_title')} description={t('client_portal.docs_empty_desc')} />
       ) : (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
-          {docs.map((doc, i) => {
+          {docs.map((doc: any, i: number) => {
             const color = CAT_COLORS[doc.category] || 'var(--text-2)'
             return (
               <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: i < docs.length - 1 ? '1px solid var(--surface-4)30' : 'none' }}>
@@ -799,16 +799,16 @@ function DocumentsTab({ projectId }) {
       {showAdd && (
         <Modal open title={t('client_portal.docs_modal_title')} onClose={() => setShowAdd(false)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div><label style={ls}>{t('client_portal.docs_label_title')} *</label><input value={docForm.title} onChange={e => setDocForm(f => ({ ...f, title: e.target.value }))} style={fs} /></div>
+            <div><label style={ls}>{t('client_portal.docs_label_title')} *</label><input value={docForm.title} onChange={e => setDocForm((f: any) => ({ ...f, title: e.target.value }))} style={fs} /></div>
             <div><label style={ls}>{t('client_portal.docs_label_category')}</label>
-              <select value={docForm.category} onChange={e => setDocForm(f => ({ ...f, category: e.target.value }))} style={fs}>
+              <select value={docForm.category} onChange={e => setDocForm((f: any) => ({ ...f, category: e.target.value }))} style={fs}>
                 {Object.entries(CAT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
-            <div><label style={ls}>{t('client_portal.docs_label_file_url')}</label><input value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} style={fs} placeholder="https://..." /></div>
-            <div><label style={ls}>{t('client_portal.docs_label_file_name')}</label><input value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} style={fs} placeholder={t('client_portal.docs_placeholder_file_name')} /></div>
+            <div><label style={ls}>{t('client_portal.docs_label_file_url')}</label><input value={docForm.file_url} onChange={e => setDocForm((f: any) => ({ ...f, file_url: e.target.value }))} style={fs} placeholder="https://..." /></div>
+            <div><label style={ls}>{t('client_portal.docs_label_file_name')}</label><input value={docForm.file_name} onChange={e => setDocForm((f: any) => ({ ...f, file_name: e.target.value }))} style={fs} placeholder={t('client_portal.docs_placeholder_file_name')} /></div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-              <input type="checkbox" checked={docForm.requires_signature} onChange={e => setDocForm(f => ({ ...f, requires_signature: e.target.checked }))} />
+              <input type="checkbox" checked={docForm.requires_signature} onChange={e => setDocForm((f: any) => ({ ...f, requires_signature: e.target.checked }))} />
               {t('client_portal.docs_requires_signature')}
             </label>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -824,11 +824,11 @@ function DocumentsTab({ projectId }) {
 
 
 // ── Wiki Portal Tab (operador: controla qué páginas wiki ve el cliente) ───────
-function WikiPortalTab({ projectId }) {
+function WikiPortalTab({ projectId }: { projectId: any }) {
   const t = useAppT()
   const { data: spaces = [] } = useQuery({
     queryKey: ['wiki-spaces-portal', projectId],
-    queryFn: () => wikiApi.portalSpaces().then(r => r.data.filter(s => !projectId || s.project_id === projectId || !s.project_id)),
+    queryFn: () => wikiApi.portalSpaces().then(r => r.data.filter((s: any) => !projectId || s.project_id === projectId || !s.project_id)),
   })
   const [selectedSpace, setSelectedSpace] = React.useState('')
   const { data: pages = [], isLoading } = useQuery({
@@ -839,7 +839,7 @@ function WikiPortalTab({ projectId }) {
   const toast = useToast()
   const qc = useQueryClient()
   const { mutate: setVis } = useMutation({
-    mutationFn: ({ id, visibility }) => wikiApi.portalUpdatePage(id, { visibility }),
+    mutationFn: ({ id, visibility }: any) => wikiApi.portalUpdatePage(id, { visibility }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['wiki-pages-portal-op', selectedSpace] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -860,7 +860,7 @@ function WikiPortalTab({ projectId }) {
         <select value={selectedSpace} onChange={e => setSelectedSpace(e.target.value)}
           style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', flex: 1 }}>
           <option value="">{t('client_portal.wiki_select_space')}</option>
-          {spaces.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          {spaces.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
       </div>
       {isLoading && <Spinner />}
@@ -869,7 +869,7 @@ function WikiPortalTab({ projectId }) {
       )}
       {pages.length > 0 && (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
-          {pages.map((page, i) => (
+          {pages.map((page: any, i: number) => (
             <div key={page.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: i < pages.length - 1 ? '1px solid var(--surface-4)30' : 'none' }}>
               <span style={{ fontSize: "var(--text-lg)" }}>📄</span>
               <div style={{ flex: 1 }}>
@@ -893,7 +893,7 @@ function WikiPortalTab({ projectId }) {
 }
 
 // ── Stats panel ───────────────────────────────────────────────────────────────
-function StatsPanel({ projectId }) {
+function StatsPanel({ projectId }: { projectId: any }) {
   const t = useAppT()
   const { data: stats } = useQuery({
     queryKey: ['portal-stats', projectId],
@@ -930,7 +930,7 @@ export default function ClientPortalPage(): JSX.Element {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => Array.isArray(r.data) ? r.data : ((r.data as any)?.items || [])),
   })
 
   const TABS = [
@@ -952,7 +952,7 @@ export default function ClientPortalPage(): JSX.Element {
           className="ds-input"
           style={{ minWidth: 240 }}>
           <option value="">{t('client_portal.select_project')}</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+          {projects.map((p: any) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
       }
     >

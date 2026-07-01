@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { PROVIDER_META } from '../constants/api'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
@@ -11,8 +10,10 @@ import { Button, Spinner, Modal, Tabs, Page } from '../components/ui'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
 import { Cpu, X, Search, Plus, Activity } from 'lucide-react'
 
+const PMETA = PROVIDER_META as Record<string, { name: string; icon: string; color: string }>
+const PDOCS = PROVIDER_DOCS as Record<string, string>
 
-const getStatusCfg = (t) => ({
+const getStatusCfg = (t: (k: string) => string): Record<string, { label: string; color: string }> => ({
   active:   { label: t('ai.provider_status_active'), color: 'var(--success)' },
   inactive: { label: t('ai.provider_status_inactive'), color: 'var(--text-2)' },
   error:    { label: t('ai.provider_status_error'), color: 'var(--danger)' },
@@ -22,14 +23,14 @@ const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-
 const fs = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%' }
 const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
-function ProviderModal({ provider, catalog, onClose }) {
+function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog: any; onClose: () => void }) {
   const t = useAppT()
   const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!provider?.id
   const [providerType, setProviderType] = useState(provider?.provider || 'anthropic')
-  const [liveModels, setLiveModels] = useState(provider?.available_models || [])
+  const [liveModels, setLiveModels] = useState<any[]>(provider?.available_models || [])
   const [form, setForm] = useState({
     name: provider?.name || '',
     provider: provider?.provider || 'anthropic',
@@ -40,19 +41,19 @@ function ProviderModal({ provider, catalog, onClose }) {
     temperature: provider?.temperature || 0.7,
     is_default: provider?.is_default || false,
   })
-  const s = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const s = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const catEntry = catalog[providerType] || {}
   const catalogModels = catEntry.models || []
   const models = liveModels.length > 0
-    ? liveModels.map(id => {
-      const known = catalogModels.find(m => m.id === id)
+    ? liveModels.map((id: any) => {
+      const known = catalogModels.find((m: any) => m.id === id)
       return known || { id, name: id, cost_in: 0, cost_out: 0 }
     })
     : catalogModels
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? aiProvidersApi.update(provider.id, d) : aiProvidersApi.create(d),
+    mutationFn: (d: any) => isEdit ? aiProvidersApi.update(provider.id, d) : aiProvidersApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-providers'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.save_error'))),
   })
@@ -71,14 +72,14 @@ function ProviderModal({ provider, catalog, onClose }) {
     onError: e => toast.error(extractErr(e, 'No se pudieron sincronizar modelos del proveedor')),
   })
 
-  const handleProviderChange = (type) => {
+  const handleProviderChange = (type: any) => {
     setProviderType(type)
     setLiveModels([])
     const cat = catalog[type] || {}
     setForm(f => ({
       ...f,
       provider: type,
-      name: f.name || `${PROVIDER_META[type]?.name || type}`,
+      name: f.name || `${PMETA[type]?.name || type}`,
       api_base_url: cat.base_url || '',
       default_model: cat.models?.[0]?.id || '',
     }))
@@ -113,7 +114,7 @@ function ProviderModal({ provider, catalog, onClose }) {
         <div style={{ marginBottom: 20 }}>
           <label style={ls}>{t('ai.provider')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-            {Object.entries(PROVIDER_META).map(([key, meta]) => (
+            {Object.entries(PMETA).map(([key, meta]) => (
               <button key={key} type="button" aria-pressed={providerType === key} aria-label={`${t('ai.select_provider')} ${meta.name}`} onClick={() => handleProviderChange(key)}
                 style={{ padding: '10px 8px', borderRadius: 8, border: `2px solid ${providerType === key ? meta.color + '80' : 'var(--surface-4)'}`, background: providerType === key ? meta.color + '15' : 'transparent', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
                 <div style={{ fontSize: "var(--text-lg-em)", marginBottom: 4 }}>{meta.icon}</div>
@@ -160,7 +161,7 @@ function ProviderModal({ provider, catalog, onClose }) {
             <>
               <select
                 id={`${idPrefix}-default-model`}
-                value={models.some(m => m.id === form.default_model) ? form.default_model : '__custom__'}
+                value={models.some((m: any) => m.id === form.default_model) ? form.default_model : '__custom__'}
                 onChange={e => {
                   if (e.target.value === '__custom__') {
                     setForm(f => ({ ...f, default_model: '' }))
@@ -171,14 +172,14 @@ function ProviderModal({ provider, catalog, onClose }) {
                 style={fs}
               >
                 <option value="">{t('ai.select_option')}</option>
-                {models.map(m => (
+                {models.map((m: any) => (
                   <option key={m.id} value={m.id}>
                     {m.name} {m.cost_in > 0 ? `· $${m.cost_in}/M in` : '· Gratis'}
                   </option>
                 ))}
                 <option value="__custom__">✏️ {t('ai.custom_model')}</option>
               </select>
-              {!models.some(m => m.id === form.default_model) && (
+              {!models.some((m: any) => m.id === form.default_model) && (
                 <input
                   aria-label={t('ai.custom_model_id')}
                   value={form.default_model}
@@ -230,7 +231,7 @@ function ProviderModal({ provider, catalog, onClose }) {
         <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--text-1)' }}>{t('ai.available_models')}:</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 6, maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
-            {models.map(m => (
+            {models.map((m: any) => (
               <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-2)' }}>{m.name}</span>
                 <span style={{ color: m.cost_in === 0 ? 'var(--success)' : 'var(--warning)' }}>
@@ -258,9 +259,9 @@ function ProviderModal({ provider, catalog, onClose }) {
   )
 }
 
-function TestModal({ provider, onClose }) {
+function TestModal({ provider, onClose }: { provider: any; onClose: () => void }) {
   const t = useAppT()
-  const [result, setResult] = useState(null)
+  const [result, setResult] = useState<{ ok?: boolean; error?: string; response?: string; latency_ms?: number; model?: string } | null>(null)
   const [testing, setTesting] = useState(false)
 
   const runTest = async () => {
@@ -269,9 +270,10 @@ function TestModal({ provider, onClose }) {
     try {
       const res = await aiProvidersApi.test(provider.id)
       setResult(res.data)
-    } catch (e) {
-      const raw = e?.response?.data?.detail
-      setResult({ ok: false, error: Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || e.message) })
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: unknown } }; message?: string }
+      const raw = err?.response?.data?.detail
+      setResult({ ok: false, error: Array.isArray(raw) ? raw.map((d: any) => d.msg).join(', ') : ((raw as string) || err.message) })
     } finally {
       setTesting(false)
     }
@@ -373,7 +375,7 @@ function GovernanceTab() {
           </div>
         ) : (
           <div style={{ maxHeight: 240, overflowY: 'auto' }}>
-            {policies.map(p => (
+            {policies.map((p: any) => (
               <div key={p.id} style={{ padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-sm)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontWeight: 600 }}>{p.name}</span>
@@ -399,7 +401,7 @@ function GovernanceTab() {
           <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Sin actividad reciente</div>
         ) : (
           <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-            {auditLog.map(l => (
+            {auditLog.map((l: any) => (
               <div key={l.id} style={{ padding: '8px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-xs)', display: 'flex', gap: 12, alignItems: 'center' }}>
                 <span style={{ minWidth: 100, color: 'var(--text-3)' }}>{(l.evaluated_at || '').slice(0, 16)}</span>
                 <span style={{ minWidth: 80, fontWeight: 600 }}>{l.module || '—'}</span>
@@ -425,10 +427,10 @@ export default function AIHubPage(): JSX.Element {
   const statusCfg = getStatusCfg(t)
   const toast = useToast()
   const qc = useQueryClient()
-  const [modal, setModal] = useState(null)
-  const [testModal, setTestModal] = useState(null)
+  const [modal, setModal] = useState<any>(null)
+  const [testModal, setTestModal] = useState<any>(null)
   const [tab, setTab] = useState('providers')
-  const [diagResults, setDiagResults] = useState(null)
+  const [diagResults, setDiagResults] = useState<any>(null)
 
   const { data: providers = [], isLoading } = useQuery({
     queryKey: ['ai-providers'],
@@ -458,12 +460,12 @@ export default function AIHubPage(): JSX.Element {
   })
 
   const { mutate: setDefault } = useMutation({
-    mutationFn: id => aiProvidersApi.setDefault(id),
+    mutationFn: (id: any) => aiProvidersApi.setDefault(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-providers'] }),
     onError: e => toast.error(extractErr(e, t('ai.reset_error'))),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => aiProvidersApi.delete(id),
+    mutationFn: (id: any) => aiProvidersApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-providers'] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -498,7 +500,7 @@ export default function AIHubPage(): JSX.Element {
     onError: e => toast.error(extractErr(e, 'No se pudieron sincronizar los modelos de los proveedores')),
   })
 
-  const defaultProvider = providers.find(p => p.is_default)
+  const defaultProvider = providers.find((p: any) => p.is_default)
   const byModule = stats.by_module || []
   const moneyFmt = new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES', { style: 'currency', currency: 'USD', minimumFractionDigits: 4, maximumFractionDigits: 4 })
   const intFmt = new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES')
@@ -563,7 +565,7 @@ export default function AIHubPage(): JSX.Element {
                 <button onClick={() => setDiagResults(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: "var(--text-lg)" }}>✕</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {(diagResults.providers || []).map(pr => {
+                {(diagResults.providers || []).map((pr: any) => {
                   const dotKind = pr.status === 'ok' ? 'success' : pr.status === 'warning' ? 'warning' : 'danger'
                   return (
                     <div key={pr.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: "var(--text-base)" }}>
@@ -590,9 +592,9 @@ export default function AIHubPage(): JSX.Element {
 
           {/* Proveedor activo */}
           {defaultProvider && (
-            <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: PROVIDER_META[defaultProvider.provider]?.color + '50' || 'var(--surface-4)', background: PROVIDER_META[defaultProvider.provider]?.color + '08' || 'var(--surface-2)' }}>
+            <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: PMETA[defaultProvider.provider]?.color + '50' || 'var(--surface-4)', background: PMETA[defaultProvider.provider]?.color + '08' || 'var(--surface-2)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: "var(--text-3xl)" }}>{PROVIDER_META[defaultProvider.provider]?.icon}</span>
+                <span style={{ fontSize: "var(--text-3xl)" }}>{PMETA[defaultProvider.provider]?.icon}</span>
                 <div>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('ai.provider_active_default')}</div>
                   <div style={{ fontSize: "var(--text-lg)", fontWeight: 800 }}>{defaultProvider.name}</div>
@@ -613,8 +615,8 @@ export default function AIHubPage(): JSX.Element {
             </div>
           ) : (
             <div data-export-table="ai-providers-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
-              {providers.map(p => {
-                const meta = PROVIDER_META[p.provider] || { icon: '🤖', color: 'var(--text-2)' }
+              {providers.map((p: any) => {
+                const meta = PMETA[p.provider] || { icon: '🤖', color: 'var(--text-2)' }
                 const st   = statusCfg[p.status] || statusCfg.inactive
                 return (
                   <div key={p.id} style={{ ...card, padding: '18px 20px', borderColor: p.is_default ? meta.color + '50' : 'var(--surface-4)' }}>
@@ -692,7 +694,7 @@ export default function AIHubPage(): JSX.Element {
           {byModule.length > 0 && (
             <div style={card}>
               <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700, fontSize: "var(--text-md)" }}>{t('ai.module_usage')}</div>
-              {byModule.map(r => (
+              {byModule.map((r: any) => (
                 <div key={r.module} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)" }}>
                   <span style={{ fontWeight: 600 }}>{r.module}</span>
                   <div style={{ display: 'flex', gap: 20, color: 'var(--text-2)' }}>
@@ -801,14 +803,14 @@ export default function AIHubPage(): JSX.Element {
       {tab === 'guide' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           {[
-            { icon: '🟠', title: t('ai.guide_anthropic'), desc: t('ai.guide_anthropic_desc'), link: PROVIDER_DOCS.anthropic, hint: 'sk-ant-...' },
-            { icon: '🟢', title: t('ai.guide_openai'), desc: t('ai.guide_openai_desc'), link: PROVIDER_DOCS.openai, hint: 'sk-...' },
-            { icon: '🔵', title: t('ai.guide_gemini'), desc: t('ai.guide_gemini_desc'), link: PROVIDER_DOCS.gemini, hint: 'AIza...' },
-            { icon: '🐋', title: t('ai.guide_deepseek'), desc: t('ai.guide_deepseek_desc'), link: PROVIDER_DOCS.deepseek, hint: 'sk-...' },
-            { icon: '⚡', title: t('ai.guide_groq'), desc: t('ai.guide_groq_desc'), link: PROVIDER_DOCS.groq, hint: 'gsk_...' },
-            { icon: '🌪', title: t('ai.guide_mistral'), desc: t('ai.guide_mistral_desc'), link: PROVIDER_DOCS.mistral, hint: '...' },
-            { icon: '🦙', title: t('ai.guide_ollama'), desc: t('ai.guide_ollama_desc'), link: PROVIDER_DOCS.ollama, hint: t('ai.no_api_key') },
-            { icon: '☁️', title: t('ai.guide_azure'), desc: t('ai.guide_azure_desc'), link: PROVIDER_DOCS.azure, hint: `(${t('ai.azure_api_key_hint')})` },
+            { icon: '🟠', title: t('ai.guide_anthropic'), desc: t('ai.guide_anthropic_desc'), link: PDOCS.anthropic, hint: 'sk-ant-...' },
+            { icon: '🟢', title: t('ai.guide_openai'), desc: t('ai.guide_openai_desc'), link: PDOCS.openai, hint: 'sk-...' },
+            { icon: '🔵', title: t('ai.guide_gemini'), desc: t('ai.guide_gemini_desc'), link: PDOCS.gemini, hint: 'AIza...' },
+            { icon: '🐋', title: t('ai.guide_deepseek'), desc: t('ai.guide_deepseek_desc'), link: PDOCS.deepseek, hint: 'sk-...' },
+            { icon: '⚡', title: t('ai.guide_groq'), desc: t('ai.guide_groq_desc'), link: PDOCS.groq, hint: 'gsk_...' },
+            { icon: '🌪', title: t('ai.guide_mistral'), desc: t('ai.guide_mistral_desc'), link: PDOCS.mistral, hint: '...' },
+            { icon: '🦙', title: t('ai.guide_ollama'), desc: t('ai.guide_ollama_desc'), link: PDOCS.ollama, hint: t('ai.no_api_key') },
+            { icon: '☁️', title: t('ai.guide_azure'), desc: t('ai.guide_azure_desc'), link: PDOCS.azure, hint: `(${t('ai.azure_api_key_hint')})` },
           ].map(p => (
             <div key={p.title} style={{ ...card, padding: '18px 20px' }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>

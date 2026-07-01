@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * KanbanAdvancedPage v2 — Production-quality Kanban
  *
@@ -9,6 +8,7 @@
  *   card subtask count badge · assignee avatar · overdue indicator
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import { tasksApi, projectsApi, sprintsApi } from '../services/api'
@@ -19,7 +19,31 @@ import { useAppT } from '../i18n/AppLangContext'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-function getDefaultColumns(t) {
+type Translator = (k: string) => string
+
+type Task = {
+  [k: string]: unknown
+  id: string
+  status: string
+  title?: string
+  code?: string
+  priority?: string
+  due_date?: string
+  assignee_id?: string
+  assignee_name?: string
+  assignee?: { username?: string; full_name?: string }
+  assignee_name_full?: string
+  subtask_count?: number
+  done_subtask_count?: number
+  story_points?: number
+  sprint_id?: string
+  epic_id?: string
+  epic_name?: string
+}
+
+type Column = { id: string; label: string; color: string }
+
+function getDefaultColumns(t: Translator): Column[] {
   return [
     { id: 'backlog',     label: t('kanban.col_backlog'),       color: 'var(--text-3)' },
     { id: 'todo',        label: t('kanban.col_todo'),          color: 'var(--accent)' },
@@ -29,8 +53,8 @@ function getDefaultColumns(t) {
   ]
 }
 
-const PRIORITY_COLORS = { critical: '#f87171', high: 'var(--orange)', medium: '#f59e0b', low: '#34d399', none: 'var(--text-3)' }
-function getPriorityLabels(t) {
+const PRIORITY_COLORS: Record<string, string> = { critical: '#f87171', high: 'var(--orange)', medium: '#f59e0b', low: '#34d399', none: 'var(--text-3)' }
+function getPriorityLabels(t: Translator): Record<string, string> {
   return {
     critical: t('kanban.priority_critical'),
     high: t('kanban.priority_high'),
@@ -40,8 +64,8 @@ function getPriorityLabels(t) {
   }
 }
 
-function getPriority(t) { return t.priority || 'none' }
-function getAssigneeLabel(t) {
+function getPriority(t: Task): string { return t.priority || 'none' }
+function getAssigneeLabel(t: Task): string {
   return (
     t?.assignee?.username ||
     t?.assignee?.full_name ||
@@ -50,8 +74,8 @@ function getAssigneeLabel(t) {
     'Sin asignar'
   )
 }
-function fmtDate(s) { return s ? s.slice(0, 10) : '' }
-function isOverdue(t) {
+function fmtDate(s: string | undefined): string { return s ? s.slice(0, 10) : '' }
+function isOverdue(t: Task): boolean {
   if (!t.due_date) return false
   if (['done', 'closed', 'cancelled'].includes(t.status)) return false
   return new Date(t.due_date) < new Date()
@@ -59,7 +83,7 @@ function isOverdue(t) {
 
 // ── WIP gauge ────────────────────────────────────────────────────────────────
 
-function WipGauge({ count, limit }) {
+function WipGauge({ count, limit }: { count: number; limit: number | undefined }) {
   if (!limit) return null
   const ratio = Math.min(count / limit, 1)
   const color  = ratio >= 1 ? '#f87171' : ratio > 0.75 ? '#f59e0b' : '#34d399'
@@ -75,11 +99,16 @@ function WipGauge({ count, limit }) {
 
 // ── Kanban Card ───────────────────────────────────────────────────────────────
 
-function KanbanCard({ task, onDragStart, onClick, priorityLabels }) {
+function KanbanCard({ task, onDragStart, onClick, priorityLabels }: {
+  task: Task
+  onDragStart: (e: React.MouseEvent, task: Task, onDragStarted: () => void) => void
+  onClick: () => void
+  priorityLabels: Record<string, string>
+}) {
   const overdue    = isOverdue(task)
   const priColor   = PRIORITY_COLORS[getPriority(task)]
-  const subtasks   = task.subtask_count || 0
-  const done_sub   = task.done_subtask_count || 0
+  const subtasks   = (task.subtask_count as number) || 0
+  const done_sub   = (task.done_subtask_count as number) || 0
   const wasDragged = useRef(false)
 
   return (
@@ -123,7 +152,7 @@ function KanbanCard({ task, onDragStart, onClick, priorityLabels }) {
         </span>
 
         {/* Story points */}
-        {task.story_points > 0 && (
+        {(task.story_points ?? 0) > 0 && (
           <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'var(--surface-4)', borderRadius: 4, padding: '1px 5px' }}>
             {task.story_points}p
           </span>
@@ -167,10 +196,10 @@ function KanbanCard({ task, onDragStart, onClick, priorityLabels }) {
 
 // ── Quick-add inline form ────────────────────────────────────────────────────
 
-function QuickAdd({ status, projectId, onCreated }) {
+function QuickAdd({ status, projectId, onCreated }: { status: string; projectId: string; onCreated: () => void }) {
   const [open, setOpen]   = useState(false)
   const [title, setTitle] = useState('')
-  const inputRef          = useRef(null)
+  const inputRef          = useRef<HTMLInputElement | null>(null)
   const toast             = useToast()
   const t                 = useAppT()
 
@@ -179,12 +208,12 @@ function QuickAdd({ status, projectId, onCreated }) {
   const submit = async () => {
     if (!title.trim()) return
     try {
-      await tasksApi.create({ title: title.trim(), status, project_id: projectId || undefined })
+      await tasksApi.create({ title: title.trim(), status, project_id: projectId || undefined } as any)
       setTitle('')
       setOpen(false)
       onCreated()
-    } catch (e) {
-      toast.error(e?.response?.data?.detail || t('kanban.error_create_task'))
+    } catch (e: unknown) {
+      toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('kanban.error_create_task'))
     }
   }
 
@@ -223,7 +252,21 @@ function QuickAdd({ status, projectId, onCreated }) {
 
 // ── Column ───────────────────────────────────────────────────────────────────
 
-function KanbanColumn({ col, tasks, dragOver, wipLimit, projectId, onTaskDragStart, onColumnEnter, onColumnLeave, onTaskClick, onCreated, priorityLabels }) {
+type TaskDragStart = (e: React.MouseEvent, task: Task, onDragStarted: () => void) => void
+
+function KanbanColumn({ col, tasks, dragOver, wipLimit, projectId, onTaskDragStart, onColumnEnter, onColumnLeave, onTaskClick, onCreated, priorityLabels }: {
+  col: Column
+  tasks: Task[]
+  dragOver: boolean
+  wipLimit: number | undefined
+  projectId: string
+  onTaskDragStart: TaskDragStart
+  onColumnEnter: () => void
+  onColumnLeave: () => void
+  onTaskClick: (t: Task) => void
+  onCreated: () => void
+  priorityLabels: Record<string, string>
+}) {
   const count = tasks.length
   const over  = dragOver
 
@@ -255,7 +298,7 @@ function KanbanColumn({ col, tasks, dragOver, wipLimit, projectId, onTaskDragSta
 
       {/* Cards */}
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 40 }}>
-        {tasks.map(t => (
+        {tasks.map((t: Task) => (
           <KanbanCard key={t.id} task={t} onDragStart={onTaskDragStart} onClick={() => onTaskClick(t)} priorityLabels={priorityLabels} />
         ))}
       </div>
@@ -271,7 +314,21 @@ function KanbanColumn({ col, tasks, dragOver, wipLimit, projectId, onTaskDragSta
 // ── Swimlane row ─────────────────────────────────────────────────────────────
 
 function SwimlaneRow({ label, tasks, columns, dragOverCol, wipLimits, projectId, projectSuffix,
-  onTaskDragStart, onColumnEnter, onColumnLeave, onTaskClick, onCreated, priorityLabels }) {
+  onTaskDragStart, onColumnEnter, onColumnLeave, onTaskClick, onCreated, priorityLabels }: {
+  label: string
+  tasks: Task[]
+  columns: Column[]
+  dragOverCol: string | null
+  wipLimits: Record<string, number>
+  projectId: string
+  projectSuffix: string
+  onTaskDragStart: TaskDragStart
+  onColumnEnter: (colId: string, swLane: string) => void
+  onColumnLeave: () => void
+  onTaskClick: (t: Task) => void
+  onCreated: () => void
+  priorityLabels: Record<string, string>
+}) {
   return (
     <div style={{ marginBottom: 24 }}>
       <div style={{
@@ -281,11 +338,11 @@ function SwimlaneRow({ label, tasks, columns, dragOverCol, wipLimits, projectId,
         {label}
       </div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', overflowX: 'auto', paddingBottom: 4 }}>
-        {columns.map(col => (
+        {columns.map((col: Column) => (
           <KanbanColumn
             key={col.id}
             col={col}
-            tasks={tasks.filter(t => t.status === col.id)}
+            tasks={tasks.filter((t: Task) => t.status === col.id)}
             dragOver={dragOverCol === col.id}
             wipLimit={wipLimits[col.id]}
             projectId={projectId}
@@ -313,54 +370,54 @@ export default function KanbanAdvancedPage(): JSX.Element {
 
   const [projectId, setProjectId]       = useState('')
   const [search, setSearch]             = useState('')
-  const [filterPriority, setFilterPri]  = useState([])
-  const [filterAssignee, setFilterAss]  = useState([])
+  const [filterPriority, setFilterPri]  = useState<string[]>([])
+  const [filterAssignee, setFilterAss]  = useState<string[]>([])
   const [sprintId, setSprintId]         = useState('')
   const [swimlaneBy, setSwimlaneBy]     = useState('none')   // none | assignee | priority | epic
-  const [wipLimits, setWipLimits]       = useState({})
+  const [wipLimits, setWipLimits]       = useState<Record<string, number>>({})
   const [showSettings, setShowSettings] = useState(false)
-  const [selectedTask, setSelectedTask] = useState(null)   // task whose movement log is shown
-  const searchRef = useRef(null)
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)   // task whose movement log is shown
+  const searchRef = useRef<HTMLInputElement | null>(null)
 
   // drag state
-  const dragTask       = useRef(null)
-  const ghostRef       = useRef(null)
-  const dropTargetRef  = useRef(null)  // always-current ref companion to state
-  const [dropTarget, setDropTarget] = useState(null)  // { colId, swimlane }
+  const dragTask       = useRef<Task | null>(null)
+  const ghostRef       = useRef<HTMLDivElement | null>(null)
+  const dropTargetRef  = useRef<{ colId: string; swLane: string } | null>(null)  // always-current ref companion to state
+  const [dropTarget, setDropTarget] = useState<{ colId: string; swLane: string } | null>(null)  // { colId, swimlane }
 
   // ── data ──────────────────────────────────────────────────────────────────
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<any[]>({
     queryKey: ['projects'],
     queryFn:  () => projectsApi.list().then(r => r.data),
   })
 
-  const { data: rawTasks = [], isLoading } = useQuery({
+  const { data: rawTasks = [], isLoading } = useQuery<Task[]>({
     queryKey: ['kanban-tasks', projectId],
     queryFn:  () => tasksApi.list({ page_size: 500, ...(projectId ? { project_id: projectId } : {}) })
-      .then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+      .then(r => Array.isArray(r.data) ? r.data : ((r.data as any)?.items || [])),
     staleTime: 15000,
   })
 
-  const { data: sprints = [] } = useQuery({
+  const { data: sprints = [] } = useQuery<any[]>({
     queryKey: ['sprints', projectId],
     queryFn:  () => {
       if (!projectId) return []
-      return sprintsApi.list(projectId)
-        .then(r => Array.isArray(r.data) ? r.data : (r.data?.items || []))
+      return sprintsApi.list(projectId, undefined)
+        .then(r => Array.isArray(r.data) ? r.data : ((r.data as any)?.items || []))
         .catch(() => [])
     },
     staleTime: 30000,
   })
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status, move_reason }) =>
-      tasksApi.update(id, { status, ...(move_reason ? { move_reason } : {}) }),
+    mutationFn: ({ id, status, move_reason }: { id: string; status: string; move_reason?: string }) =>
+      tasksApi.update(id, { status, ...(move_reason ? { move_reason } : {}) } as any),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['kanban-tasks'] }),
-    onError:    (e) => toast.error(e?.response?.data?.detail || t('kanban.error_move_task')),
+    onError:    (e: unknown) => toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('kanban.error_move_task')),
   })
 
   const SENSITIVE_FROM = new Set(['done', 'cancelled'])
-  const requestStatusChange = useCallback((id, fromStatus, toStatus) => {
+  const requestStatusChange = useCallback((id: string, fromStatus: string, toStatus: string) => {
     if (fromStatus === toStatus) return
     let move_reason
     if (SENSITIVE_FROM.has(fromStatus)) {
@@ -384,8 +441,8 @@ export default function KanbanAdvancedPage(): JSX.Element {
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {
-    const handler = e => {
-      if (e.target.closest('input,textarea,select')) return
+    const handler = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).closest('input,textarea,select')) return
       if (e.key === '/' || e.key === 'f') { e.preventDefault(); searchRef.current?.focus() }
       if (e.key === 'Escape') { setDropTarget(null); cleanupGhost() }
     }
@@ -394,10 +451,10 @@ export default function KanbanAdvancedPage(): JSX.Element {
   }, [cleanupGhost])
 
   // ── Filtering ──────────────────────────────────────────────────────────────
-  const tasks = useMemo(() => rawTasks.filter(t => {
+  const tasks = useMemo(() => rawTasks.filter((t: Task) => {
     if (search && !t.title?.toLowerCase().includes(search.toLowerCase())) return false
     if (filterPriority.length && !filterPriority.includes(getPriority(t))) return false
-    if (filterAssignee.length && !filterAssignee.includes(t.assignee_id)) return false
+    if (filterAssignee.length && !filterAssignee.includes(t.assignee_id ?? '')) return false
     if (sprintId && t.sprint_id !== sprintId) return false
     return true
   }), [rawTasks, search, filterPriority, filterAssignee, sprintId])
@@ -411,10 +468,10 @@ export default function KanbanAdvancedPage(): JSX.Element {
   }, [rawTasks])
 
   // ── Swimlane grouping ──────────────────────────────────────────────────────
-  const swimlanes = useMemo(() => {
+  const swimlanes = useMemo((): { id: string; label: string; tasks: Task[] }[] => {
     if (swimlaneBy === 'none') return [{ id: 'all', label: 'all', tasks }]
     if (swimlaneBy === 'assignee') {
-      const groups = {}
+      const groups: Record<string, { id: string; label: string; tasks: Task[] }> = {}
       for (const t of tasks) {
         const key = t.assignee_id || '__unassigned'
         const lbl = t.assignee_id ? getAssigneeLabel(t) : 'Sin asignar'
@@ -425,7 +482,7 @@ export default function KanbanAdvancedPage(): JSX.Element {
     }
     if (swimlaneBy === 'priority') {
       const order = ['critical', 'high', 'medium', 'low', 'none']
-      const groups = {}
+      const groups: Record<string, { id: string; label: string; tasks: Task[] }> = {}
       for (const t of tasks) {
         const key = getPriority(t)
         if (!groups[key]) groups[key] = { id: key, label: priorityLabels[key], tasks: [] }
@@ -434,7 +491,7 @@ export default function KanbanAdvancedPage(): JSX.Element {
       return order.filter(k => groups[k]).map(k => groups[k])
     }
     if (swimlaneBy === 'epic') {
-      const groups = {}
+      const groups: Record<string, { id: string; label: string; tasks: Task[] }> = {}
       for (const t of tasks) {
         const key = t.epic_id || '__none'
         const lbl = t.epic_name || 'Sin épica'
@@ -446,12 +503,12 @@ export default function KanbanAdvancedPage(): JSX.Element {
     return [{ id: 'all', label: 'all', tasks }]
   }, [tasks, swimlaneBy, priorityLabels])
 
-  const handleTaskDragStart = useCallback((e, task, onDragStarted) => {
+  const handleTaskDragStart = useCallback((e: React.MouseEvent, task: Task, onDragStarted: () => void) => {
     const startX = e.clientX
     const startY = e.clientY
     let dragging = false
 
-    const onMove = ev => {
+    const onMove = (ev: MouseEvent) => {
       if (!dragging) {
         const dx = ev.clientX - startX
         const dy = ev.clientY - startY
@@ -462,7 +519,7 @@ export default function KanbanAdvancedPage(): JSX.Element {
         onDragStarted()
 
         const ghost = document.createElement('div')
-        ghost.textContent = task.title
+        ghost.textContent = task.title!
         Object.assign(ghost.style, {
           position: 'fixed', zIndex: 'var(--z-drag)', pointerEvents: 'none',
           background: 'var(--surface-1)', border: '1px solid var(--accent)',
@@ -506,7 +563,7 @@ export default function KanbanAdvancedPage(): JSX.Element {
     document.addEventListener('mouseup', onUp)
   }, [requestStatusChange, cleanupGhost])
 
-  const handleColumnEnter = useCallback((colId, swLane) => {
+  const handleColumnEnter = useCallback((colId: string, swLane: string) => {
     dropTargetRef.current = { colId, swLane }  // update ref synchronously
     setDropTarget({ colId, swLane })
   }, [])
@@ -681,7 +738,7 @@ export default function KanbanAdvancedPage(): JSX.Element {
                 label={lane.label}
                 tasks={lane.tasks}
                 columns={defaultColumns}
-                dragOverCol={dropTarget?.swimlane === lane.label + projectId ? dropTarget?.colId : null}
+                dragOverCol={(dropTarget as any)?.swimlane === lane.label + projectId ? (dropTarget?.colId ?? null) : null}
                 wipLimits={wipLimits}
                 projectId={projectId}
                 projectSuffix={projectId}
@@ -707,13 +764,13 @@ export default function KanbanAdvancedPage(): JSX.Element {
 
 // ── Movement Log Drawer ───────────────────────────────────────────────────────
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
   backlog: 'var(--text-3)', todo: 'var(--accent)', in_progress: '#4f8ef7',
   in_review: '#f59e0b', done: '#34d399', cancelled: '#f87171', blocked: '#fb923c',
 }
 
-function StatusBadge({ status }) {
-  const color = STATUS_COLORS[status] || 'var(--text-3)'
+function StatusBadge({ status }: { status: string | undefined }) {
+  const color = STATUS_COLORS[status || ''] || 'var(--text-3)'
   return (
     <span style={{
       display: 'inline-block', padding: '1px 8px', borderRadius: 10,
@@ -724,10 +781,10 @@ function StatusBadge({ status }) {
   )
 }
 
-function TaskMovementLogDrawer({ task, onClose }) {
-  const { data: log = [], isLoading } = useQuery({
+function TaskMovementLogDrawer({ task, onClose }: { task: Task; onClose: () => void }) {
+  const { data: log = [], isLoading } = useQuery<any[]>({
     queryKey: ['task-movement-log', task.id],
-    queryFn: () => tasksApi.movementLog(task.id).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => tasksApi.movementLog(task.id).then(r => (r.data as any)?.items ?? r.data ?? []),
     staleTime: 0,
     retry: false,
   })

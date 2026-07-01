@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
@@ -14,9 +14,9 @@ import { resolveWsBase } from '../../utils/wsUtils'
 import { PortalUsersTab } from './PortalUsersTab'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../../components/portal/GovernedConversations'
 
-const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
 const MODULES = [
   { id: 'dashboard',   icon: '📊', label: 'Dashboard' },
@@ -30,14 +30,14 @@ const MODULES = [
   { id: 'messages',    icon: '💬', label: 'Mensajes' },
 ]
 
-const SLA_COLOR = {
+const SLA_COLOR: Record<string, string> = {
   enterprise: 'var(--purple)',
   gold: 'var(--warning)',
   silver: 'var(--text-2)',
   bronze: 'var(--warning)',
 }
 
-export function ProjectsTab({ cid }) {
+export function ProjectsTab({ cid }: { cid: string }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [showLink, setShowLink] = useState(false)
@@ -59,21 +59,21 @@ export function ProjectsTab({ cid }) {
   })
 
   const { mutate: link } = useMutation({
-    mutationFn: pid => clientExtApi.linkProject(cid, pid).then(r => r.data),
+    mutationFn: (pid: string) => clientExtApi.linkProject(cid, pid).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-projects-linked', cid] }); qc.invalidateQueries({ queryKey: ['client-projects-available', cid] }); qc.invalidateQueries({ queryKey: ['client-detail'] }); qc.invalidateQueries({ queryKey: ['clients'] }) },
     onError: e => toast.error(extractErr(e, 'Error al vincular')),
   })
 
   const { mutate: unlink } = useMutation({
-    mutationFn: pid => clientExtApi.unlinkProject(cid, pid).then(r => r.data),
+    mutationFn: (pid: string) => clientExtApi.unlinkProject(cid, pid).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-projects-linked', cid] }); qc.invalidateQueries({ queryKey: ['client-projects-available', cid] }); qc.invalidateQueries({ queryKey: ['client-detail'] }); qc.invalidateQueries({ queryKey: ['clients'] }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const statusColor = { active: 'var(--success)', planning: 'var(--accent)', on_hold: 'var(--warning)', completed: 'var(--text-2)', cancelled: 'var(--danger)' }
-  const statusLabel = { active: 'Activo', planning: 'Planificación', on_hold: 'En espera', completed: 'Completado', cancelled: 'Cancelado' }
+  const statusColor: Record<string, string> = { active: 'var(--success)', planning: 'var(--accent)', on_hold: 'var(--warning)', completed: 'var(--text-2)', cancelled: 'var(--danger)' }
+  const statusLabel: Record<string, string> = { active: 'Activo', planning: 'Planificación', on_hold: 'En espera', completed: 'Completado', cancelled: 'Cancelado' }
 
-  const unlinked = available.filter(p => !p.is_linked)
+  const unlinked = available.filter((p: any) => !p.is_linked)
 
   return (
     <div>
@@ -94,7 +94,7 @@ export function ProjectsTab({ cid }) {
           {loadingAvail ? <Spinner /> : unlinked.length === 0 ? (
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', padding: '10px 0' }}>No hay proyectos disponibles sin cliente asignado.</div>
           ) : (
-            unlinked.map(p => (
+            unlinked.map((p: any) => (
               <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', marginBottom: 6, background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
                 <div>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)", color: 'var(--text-2)', marginRight: 8 }}>{p.code}</span>
@@ -115,7 +115,7 @@ export function ProjectsTab({ cid }) {
       {loadingLinked ? <Spinner /> : linked.length === 0 ? (
         <EmptyState icon="⬡" title="Sin proyectos vinculados" description="Vincula el primer proyecto a este cliente" />
       ) : (
-        linked.map(p => (
+        linked.map((p: any) => (
           <div key={p.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
@@ -141,7 +141,7 @@ export function ProjectsTab({ cid }) {
   )
 }
 
-export function ContactsTab({ cid }) {
+export function ContactsTab({ cid }: { cid: string }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [showAdd, setShowAdd] = useState(false)
@@ -152,12 +152,12 @@ export function ContactsTab({ cid }) {
     queryFn: () => clientExtApi.contacts(cid).then(r => r.data),
   })
   const { mutate: add } = useMutation({
-    mutationFn: d => clientExtApi.createContact(cid, d).then(r => r.data),
+    mutationFn: (d: any) => clientExtApi.createContact(cid, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-contacts', cid] }); setShowAdd(false); setForm({ full_name: '', email: '', phone: '', job_title: '', role: 'other', is_primary: false }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: remove } = useMutation({
-    mutationFn: id => clientExtApi.deleteContact(cid, id),
+    mutationFn: (id: string) => clientExtApi.deleteContact(cid, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['client-contacts', cid] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -167,7 +167,7 @@ export function ContactsTab({ cid }) {
     { id: 'technical', label: 'Técnico' }, { id: 'executive', label: 'Ejecutivo' },
     { id: 'support', label: 'Soporte' }, { id: 'other', label: 'Otro' },
   ]
-  const roleColor = { primary: 'var(--accent)', billing: 'var(--warning)', technical: 'var(--purple)', executive: 'var(--success)', support: 'var(--warning)', other: 'var(--text-2)' }
+  const roleColor: Record<string, string> = { primary: 'var(--accent)', billing: 'var(--warning)', technical: 'var(--purple)', executive: 'var(--success)', support: 'var(--warning)', other: 'var(--text-2)' }
 
   if (isLoading) return <Spinner />
   return (
@@ -178,7 +178,7 @@ export function ContactsTab({ cid }) {
       </div>
       {contacts.length === 0 ? (
         <EmptyState icon="👤" title="Sin contactos" description="Anade un contacto principal para este cliente" />
-      ) : contacts.map(ct => (
+      ) : contacts.map((ct: any) => (
         <div key={ct.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: (roleColor[ct.role] || 'var(--text-2)') + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg)", fontWeight: 800, color: roleColor[ct.role] || 'var(--text-2)' }}>
@@ -229,7 +229,7 @@ export function ContactsTab({ cid }) {
   )
 }
 
-export function LicensesTab({ cid }) {
+export function LicensesTab({ cid }: { cid: string }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [showLink, setShowLink] = useState(false)
@@ -237,22 +237,22 @@ export function LicensesTab({ cid }) {
   const [licNote, setLicNote] = useState('')
 
   const { data: linked = [] } = useQuery({ queryKey: ['client-licenses', cid], queryFn: () => clientExtApi.licenses(cid).then(r => r.data) })
-  const { data: allLics = [] } = useQuery({ queryKey: ['alm-licenses'], queryFn: () => licensesApi.list().then(r => r.data) })
+  const { data: allLics = [] } = useQuery({ queryKey: ['alm-licenses'], queryFn: () => licensesApi.list(undefined).then(r => r.data) })
 
   const { mutate: link } = useMutation({
-    mutationFn: d => clientExtApi.linkLicense(cid, d),
+    mutationFn: (d: any) => clientExtApi.linkLicense(cid, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-licenses', cid] }); qc.invalidateQueries({ queryKey: ['alm-licenses'] }); setShowLink(false); setSelectedLic(''); setLicNote('') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: unlink } = useMutation({
-    mutationFn: id => clientExtApi.unlinkLicense(cid, id),
+    mutationFn: (id: string) => clientExtApi.unlinkLicense(cid, id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-licenses', cid] }); qc.invalidateQueries({ queryKey: ['alm-licenses'] }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const linkedIds = linked.map(l => l.license_id)
-  const available = allLics.filter(l => !linkedIds.includes(l.id))
-  const statusCol = { active: 'var(--success)', expired: 'var(--danger)', cancelled: 'var(--text-2)' }
+  const linkedIds = linked.map((l: any) => l.license_id)
+  const available = allLics.filter((l: any) => !linkedIds.includes(l.id))
+  const statusCol: Record<string, string> = { active: 'var(--success)', expired: 'var(--danger)', cancelled: 'var(--text-2)' }
 
   return (
     <div>
@@ -262,7 +262,7 @@ export function LicensesTab({ cid }) {
       </div>
       {linked.length === 0 ? (
         <EmptyState icon="🔑" title="Sin licencias vinculadas" description="Vincula una licencia para este cliente" />
-      ) : linked.map(l => (
+      ) : linked.map((l: any) => (
         <div key={l.link_id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{l.name}</div>
@@ -285,7 +285,7 @@ export function LicensesTab({ cid }) {
             <label style={lbl}>Licencia</label>
             <select value={selectedLic} onChange={e => setSelectedLic(e.target.value)} style={inp}>
               <option value="">Seleccionar...</option>
-              {available.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              {available.map((l: any) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
           </div>
           <div style={{ marginBottom: 16 }}>
@@ -302,29 +302,29 @@ export function LicensesTab({ cid }) {
   )
 }
 
-export function ContractsTab({ cid }) {
+export function ContractsTab({ cid }: { cid: string }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [showLink, setShowLink] = useState(false)
   const [selectedCon, setSelectedCon] = useState('')
 
   const { data: linked = [] } = useQuery({ queryKey: ['client-contracts', cid], queryFn: () => clientExtApi.contracts(cid).then(r => r.data) })
-  const { data: allCons = [] } = useQuery({ queryKey: ['contracts'], queryFn: () => contractsApi.list().then(r => r.data?.items ?? r.data ?? []) })
+  const { data: allCons = [] } = useQuery({ queryKey: ['contracts'], queryFn: () => contractsApi.list(undefined).then(r => r.data?.items ?? r.data ?? []) })
 
   const { mutate: link } = useMutation({
-    mutationFn: d => clientExtApi.linkContract(cid, d),
+    mutationFn: (d: any) => clientExtApi.linkContract(cid, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-contracts', cid] }); qc.invalidateQueries({ queryKey: ['contracts'] }); qc.invalidateQueries({ queryKey: ['alm-contracts'] }); setShowLink(false); setSelectedCon('') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: unlink } = useMutation({
-    mutationFn: id => clientExtApi.unlinkContract(cid, id),
+    mutationFn: (id: string) => clientExtApi.unlinkContract(cid, id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-contracts', cid] }); qc.invalidateQueries({ queryKey: ['contracts'] }); qc.invalidateQueries({ queryKey: ['alm-contracts'] }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const linkedIds = linked.map(l => l.contract_id)
-  const available = allCons.filter(c => !linkedIds.includes(c.id))
-  const statusCol = { active: 'var(--success)', draft: 'var(--text-2)', completed: 'var(--accent)', cancelled: 'var(--danger)' }
+  const linkedIds = linked.map((l: any) => l.contract_id)
+  const available = allCons.filter((c: any) => !linkedIds.includes(c.id))
+  const statusCol: Record<string, string> = { active: 'var(--success)', draft: 'var(--text-2)', completed: 'var(--accent)', cancelled: 'var(--danger)' }
 
   return (
     <div>
@@ -334,7 +334,7 @@ export function ContractsTab({ cid }) {
       </div>
       {linked.length === 0 ? (
         <EmptyState icon="📄" title="Sin contratos vinculados" description="Asocia un contrato activo a este cliente" />
-      ) : linked.map(c => (
+      ) : linked.map((c: any) => (
         <div key={c.link_id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{c.title}</div>
@@ -356,7 +356,7 @@ export function ContractsTab({ cid }) {
             <label style={lbl}>Contrato</label>
             <select value={selectedCon} onChange={e => setSelectedCon(e.target.value)} style={inp}>
               <option value="">Seleccionar...</option>
-              {available.map(c => <option key={c.id} value={c.id}>{c.title || c.client_name} — {c.status}</option>)}
+              {available.map((c: any) => <option key={c.id} value={c.id}>{c.title || c.client_name} — {c.status}</option>)}
             </select>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -369,7 +369,7 @@ export function ContractsTab({ cid }) {
   )
 }
 
-export function PortalConfigTab({ cid, clientDetail }) {
+export function PortalConfigTab({ cid, clientDetail }: { cid: string; clientDetail?: any }) {
   const [sub, setSub] = useState('accesos')
 
   const subTabs = [
@@ -396,7 +396,7 @@ export function PortalConfigTab({ cid, clientDetail }) {
       </div>
 
       {sub === 'accesos' && <PortalUsersTab cid={cid} clientName={clientDetail?.name} />}
-      {sub === 'uat' && <PortalUATTab cid={cid} projects={clientDetail?.projects || []} />}
+      {sub === 'uat' && <PortalUATTab _cid={cid} projects={clientDetail?.projects || []} />}
       {sub === 'solicitudes' && <PortalSolicitudesTab cid={cid} projects={clientDetail?.projects || []} />}
       {sub === 'mensajes' && <PortalMensajesTab cid={cid} projects={clientDetail?.projects || []} />}
       {sub === 'documentos' && <PortalDocumentosTab cid={cid} projects={clientDetail?.projects || []} />}
@@ -405,7 +405,7 @@ export function PortalConfigTab({ cid, clientDetail }) {
   )
 }
 
-export function PortalUATTab({ _cid, projects }) {
+export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: any[] }) {
   const [selectedProject, setSelectedProject] = useState(projects[0]?.id || '')
 
   const { data: sessions = [], isLoading } = useQuery({
@@ -414,11 +414,11 @@ export function PortalUATTab({ _cid, projects }) {
     enabled: !!selectedProject,
   })
 
-  const statusColor = {
+  const statusColor: Record<string, string> = {
     pending: 'var(--text-2)', in_progress: 'var(--accent)', passed: 'var(--success)',
     failed: 'var(--danger)', conditional: 'var(--warning)',
   }
-  const statusLabel = {
+  const statusLabel: Record<string, string> = {
     pending: 'Pendiente', in_progress: 'En progreso', passed: 'Aprobado',
     failed: 'Rechazado', conditional: 'Con reservas',
   }
@@ -433,7 +433,7 @@ export function PortalUATTab({ _cid, projects }) {
             <div style={{ marginBottom: 16 }}>
               <label style={lbl}>Proyecto</label>
               <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={inp}>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                {projects.map((p: any) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </select>
             </div>
           )}
@@ -443,7 +443,7 @@ export function PortalUATTab({ _cid, projects }) {
           ) : isLoading ? <Spinner /> : sessions.length === 0 ? (
             <EmptyState icon="🧪" title="Sin sesiones UAT" description="Todavia no hay sesiones UAT disponibles para este proyecto" />
           ) : (
-            sessions.map(s => (
+            sessions.map((s: any) => (
               <div key={s.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                   <div>
@@ -482,7 +482,7 @@ export function PortalUATTab({ _cid, projects }) {
   )
 }
 
-export function PortalSolicitudesTab({ cid }) {
+export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] }) {
   const toast = useToast()
   const qc = useQueryClient()
   const { user, loading } = useAuth()
@@ -490,14 +490,14 @@ export function PortalSolicitudesTab({ cid }) {
   useEffect(() => {
     if (loading || !user) return undefined
 
-    let ws
-    let reconnectTimer
+    let ws: WebSocket | undefined
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined
     function connectWS() {
-      wsApi.ticket().then(res => {
+      wsApi.ticket().then((res: any) => {
         const ticket = res.data.ticket
         ws = new window.WebSocket(`${resolveWsBase()}/api/v1/ws/notifications?ticket=${ticket}`)
         ws.onclose = () => { reconnectTimer = setTimeout(connectWS, 5000) }
-        ws.onerror = () => { ws.close() }
+        ws.onerror = () => { ws!.close() }
         ws.onmessage = (ev) => {
           try {
             const msg = JSON.parse(ev.data)
@@ -515,9 +515,9 @@ export function PortalSolicitudesTab({ cid }) {
     return () => { if (ws) ws.close(); clearTimeout(reconnectTimer) }
   }, [cid, loading, qc, toast, user])
 
-  const [responding, setResponding] = useState(null)
+  const [responding, setResponding] = useState<any>(null)
   const [responseForm, setResponseForm] = useState({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' })
-  const [crDetail, setCrDetail] = useState(null)
+  const [crDetail, setCrDetail] = useState<any>(null)
   const [crFilter, setCrFilter] = useState('all')
 
   const { data: frs = [], isLoading } = useQuery({
@@ -527,22 +527,22 @@ export function PortalSolicitudesTab({ cid }) {
   })
 
   const { mutate: respond, isPending } = useMutation({
-    mutationFn: ({ id, data }) => portalApi.respondFeatureRequest(id, data),
+    mutationFn: ({ id, data }: { id: string; data: any }) => portalApi.respondFeatureRequest(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client', cid] }); setResponding(null) },
     onError: e => toast.error(extractErr(e, 'Error al responder')),
   })
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status }) => portalApi.respondFeatureRequest(id, { status }),
+    mutationFn: ({ id, status }: { id: string; status: string }) => portalApi.respondFeatureRequest(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-frs-client', cid] }),
     onError: e => toast.error(extractErr(e, 'Error al actualizar estado')),
   })
 
-  const statusColor = { new: 'var(--text-2)', reviewing: 'var(--accent)', estimated: 'var(--warning)', approved: 'var(--success)', rejected: 'var(--danger)', in_development: 'var(--purple)', done: 'var(--success)' }
-  const statusLabel = { new: 'Nueva', reviewing: 'En revisión', estimated: 'Presupuestada', approved: 'Aprobada', rejected: 'Rechazada', in_development: 'En desarrollo', done: 'Completada' }
-  const prioColor = { low: 'var(--text-2)', medium: 'var(--warning)', high: 'var(--warning)', critical: 'var(--danger)' }
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const statusColor: Record<string, string> = { new: 'var(--text-2)', reviewing: 'var(--accent)', estimated: 'var(--warning)', approved: 'var(--success)', rejected: 'var(--danger)', in_development: 'var(--purple)', done: 'var(--success)' }
+  const statusLabel: Record<string, string> = { new: 'Nueva', reviewing: 'En revisión', estimated: 'Presupuestada', approved: 'Aprobada', rejected: 'Rechazada', in_development: 'En desarrollo', done: 'Completada' }
+  const prioColor: Record<string, string> = { low: 'var(--text-2)', medium: 'var(--warning)', high: 'var(--warning)', critical: 'var(--danger)' }
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   if (isLoading) return <Spinner />
 
@@ -555,7 +555,7 @@ export function PortalSolicitudesTab({ cid }) {
     { value: 'rejected', label: 'CR Rechazada' },
     { value: 'implemented', label: 'CR Implementada' },
   ]
-  const filteredFrs = frs.filter(fr => {
+  const filteredFrs = frs.filter((fr: any) => {
     if (crFilter === 'all') return true
     if (crFilter === 'none') return !fr.cr_status
     return fr.cr_status === crFilter
@@ -571,7 +571,7 @@ export function PortalSolicitudesTab({ cid }) {
       </div>
       {filteredFrs.length === 0 ? (
         <EmptyState icon="💡" title="Sin solicitudes" description="No hay solicitudes funcionales del cliente" />
-      ) : filteredFrs.map(fr => (
+      ) : filteredFrs.map((fr: any) => (
         <div key={fr.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, borderLeft: fr.cr_status_color ? `6px solid ${fr.cr_status_color}` : '6px solid var(--text-3)', boxShadow: fr.cr_status ? '0 2px 8px #0001' : undefined, position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
             <div style={{ flex: 1 }}>
@@ -681,14 +681,14 @@ export function PortalSolicitudesTab({ cid }) {
   )
 }
 
-export function PortalMensajesTab({ cid, projects }) {
+export function PortalMensajesTab({ cid, projects }: { cid: string; projects: any[] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <TeamGovernedConversationInbox
         title="Conversaciones del cliente"
         emptyTitle="Sin conversaciones"
         emptyDescription="Todavía no hay conversaciones del portal para este cliente."
-        projectOptions={projects.map((project) => ({ id: project.id, name: project.name || project.code || project.id, code: project.code || '' }))}
+        projectOptions={projects.map((project: any) => ({ id: project.id, name: project.name || project.code || project.id, code: project.code || '' }))}
         initialProjectId={projects[0]?.id || ''}
         clientOrgId={cid}
       />
@@ -697,7 +697,7 @@ export function PortalMensajesTab({ cid, projects }) {
   )
 }
 
-export function PortalDocumentosTab({ cid, projects }) {
+export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: any[] }) {
   const [selectedProject, setSelectedProject] = useState(projects[0]?.id || '')
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ['portal-docs-team', cid, selectedProject],
@@ -706,7 +706,7 @@ export function PortalDocumentosTab({ cid, projects }) {
       : Promise.resolve([]),
     enabled: !!selectedProject,
   })
-  const catIcon = { general: '📄', contract: '📝', invoice: '🧾', report: '📊', specification: '📋', other: '📎' }
+  const catIcon: Record<string, string> = { general: '📄', contract: '📝', invoice: '🧾', report: '📊', specification: '📋', other: '📎' }
   if (isLoading) return <Spinner />
   return (
     <div>
@@ -714,7 +714,7 @@ export function PortalDocumentosTab({ cid, projects }) {
         <div style={{ marginBottom: 16 }}>
           <label style={lbl}>Proyecto</label>
           <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={inp}>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+            {projects.map((p: any) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
       )}
@@ -723,7 +723,7 @@ export function PortalDocumentosTab({ cid, projects }) {
         : <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>{docs.length} documento(s) compartido(s)</div>}
       {docs.length === 0
         ? <EmptyState icon="📄" title="Sin documentos" description="No hay documentos compartidos en el portal para este proyecto" />
-        : docs.map(d => (
+        : docs.map((d: any) => (
           <div key={d.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <span style={{ fontSize: "var(--text-2xl)" }}>{catIcon[d.category] || '📄'}</span>
@@ -746,14 +746,14 @@ export function PortalDocumentosTab({ cid, projects }) {
   )
 }
 
-export function PortalSettingsTab({ cid }) {
+export function PortalSettingsTab({ cid }: { cid: string }) {
   const toast = useToast()
   const qc = useQueryClient()
   const { data: cfg, isLoading } = useQuery({
     queryKey: ['client-portal-cfg', cid],
     queryFn: () => clientExtApi.portalConfig(cid).then(r => r.data),
   })
-  const [modules, setModules] = useState([])
+  const [modules, setModules] = useState<string[]>([])
   const [sdWithout, setSdWithout] = useState(true)
   const [slaTier, setSlaTier] = useState('')
   const [maxUsers, setMaxUsers] = useState(10)
@@ -774,12 +774,12 @@ export function PortalSettingsTab({ cid }) {
   }, [cfg])
 
   const { mutate: save, isPending: saving } = useMutation({
-    mutationFn: d => clientExtApi.updatePortalConfig(cid, d),
+    mutationFn: (d: any) => clientExtApi.updatePortalConfig(cid, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-portal-cfg', cid] }); toast.success('✅ Configuración guardada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const toggleModule = (mod) => setModules(m => m.includes(mod) ? m.filter(x => x !== mod) : [...m, mod])
+  const toggleModule = (mod: string) => setModules(m => m.includes(mod) ? m.filter(x => x !== mod) : [...m, mod])
 
   const languages = [
     { code: 'es', label: 'Español' }, { code: 'en', label: 'English' },

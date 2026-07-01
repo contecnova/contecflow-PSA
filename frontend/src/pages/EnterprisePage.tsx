@@ -1,8 +1,8 @@
-// @ts-nocheck
 /**
  * EnterprisePage v14 — Webhooks, GDPR, Email, Integraciones, SSO, Audit, API Keys
  */
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -17,15 +17,15 @@ import { useAppT } from '../i18n/AppLangContext'
 import { INTEGRATION_CATALOG } from '../constants/api'
 import { Building2 } from 'lucide-react'
 
-const fs = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
-const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
+const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
+const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
 function WebhooksTab() {
   const qc = useQueryClient()
   const toast = useToast()
   const [showCreate, setShowCreate] = useState(false)
-  const [showLogs, setShowLogs] = useState(null)
+  const [showLogs, setShowLogs] = useState<string|null>(null)
   const [form, setForm] = useState({ name:'', slug:'', workflow_id:'' })
 
   const { data: triggers = [], isLoading } = useQuery({ queryKey:['wh-triggers'], queryFn:() => webhooksApi.list().then(r => r.data?.items ?? r.data ?? []) })
@@ -33,12 +33,12 @@ function WebhooksTab() {
   const { data: logs = [] } = useQuery({ queryKey:['wh-logs', showLogs], queryFn:() => webhooksApi.logs(showLogs).then(r => r.data), enabled:!!showLogs })
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => webhooksApi.create(d),
+    mutationFn: (d: any) => webhooksApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['wh-triggers'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => webhooksApi.delete(id),
+    mutationFn: (id: string) => webhooksApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['wh-triggers'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -53,7 +53,7 @@ function WebhooksTab() {
       </div>
       {isLoading ? <Spinner /> : triggers.length === 0 ? (
         <EmptyState icon="🔗" title="Sin webhooks" description="Crea el primer webhook entrante para automatizaciones" />
-      ) : triggers.map(t => (
+      ) : triggers.map((t: any) => (
         <div key={t.id} style={{ ...card, padding:'14px 18px', marginBottom:10 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div>
@@ -71,7 +71,7 @@ function WebhooksTab() {
           {showLogs === t.id && (
             <div style={{ marginTop:10, borderTop:'.5px solid var(--surface-4)', paddingTop:8 }}>
               {logs.length === 0 ? <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>Sin llamadas aún</div> :
-                logs.slice(0,5).map(l => (
+                logs.slice(0,5).map((l: any) => (
                   <div key={l.id} style={{ fontSize: "var(--text-xs)", padding:'3px 0', borderBottom:'.5px solid var(--surface-4)', display:'flex', gap:10 }}>
                     <span style={{ color: l.status === 'ok' ? 'var(--success)' : 'var(--danger)' }}>{l.status}</span>
                     <span style={{ color:'var(--text-2)' }}>{l.received_at}</span>
@@ -91,7 +91,7 @@ function WebhooksTab() {
             <div><label style={ls}>Workflow</label>
               <select value={form.workflow_id} onChange={e => setForm(f => ({...f, workflow_id:e.target.value}))} style={fs}>
                 <option value="">Sin workflow</option>
-                {workflows.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                {workflows.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </div>
             <div style={{ background:'var(--surface-2)', borderRadius:8, padding:'8px 12px', fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
@@ -119,18 +119,18 @@ function GDPRTab() {
   const users = Array.isArray(usersRaw) ? usersRaw : []
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => gdprApi.create(d),
+    mutationFn: (d: any) => gdprApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['gdpr'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: process } = useMutation({
-    mutationFn: id => gdprApi.process(id),
+    mutationFn: (id: string) => gdprApi.process(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['gdpr'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const TYPE_LABELS = { erasure:'Derecho al olvido', portability:'Portabilidad', access:'Acceso', rectification:'Rectificación' }
-  const STATUS_COLORS = { pending:'var(--warning)', processing:'var(--accent)', completed:'var(--success)', rejected:'var(--danger)' }
+  const TYPE_LABELS: Record<string,string> = { erasure:'Derecho al olvido', portability:'Portabilidad', access:'Acceso', rectification:'Rectificación' }
+  const STATUS_COLORS: Record<string,string> = { pending:'var(--warning)', processing:'var(--accent)', completed:'var(--success)', rejected:'var(--danger)' }
 
   return (
     <div>
@@ -144,7 +144,7 @@ function GDPRTab() {
         <EmptyState icon="🔒" title="Sin solicitudes RGPD" description="No hay solicitudes de privacidad registradas" />
       ) : (
         <div style={{ ...card, overflow:'hidden' }}>
-          {requests.map(r => (
+          {requests.map((r: any) => (
             <div key={r.id} style={{ display:'grid', gridTemplateColumns:'150px 120px 1fr 100px auto', gap:12, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center' }}>
               <span style={{ fontSize: "var(--text-sm)", fontWeight:500 }}>{TYPE_LABELS[r.request_type] || r.request_type}</span>
               <span style={{ fontSize: "var(--text-sm)", fontWeight:500, color:STATUS_COLORS[r.status] || 'var(--text-2)' }}>{r.status}</span>
@@ -172,7 +172,7 @@ function GDPRTab() {
             <div><label style={ls}>Usuario</label>
               <select value={form.subject_user_id} onChange={e => setForm(f => ({...f, subject_user_id:e.target.value}))} style={fs}>
                 <option value="">Seleccionar...</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.full_name} — {u.email}</option>)}
+                {users.map((u: any) => <option key={u.id} value={u.id}>{u.full_name} — {u.email}</option>)}
               </select>
             </div>
             <div><label style={ls}>Email (si ya no existe)</label>
@@ -204,17 +204,17 @@ function EmailTab() {
   const { data: logs = [] } = useQuery({ queryKey:['email-logs'], queryFn:() => emailApi.logs().then(r => r.data) })
 
   const { mutate: send, isPending:sending } = useMutation({
-    mutationFn: d => emailApi.send({...d, to:[d.to]}),
+    mutationFn: (d: any) => emailApi.send({...d, to:[d.to]}),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['email-logs'] }); setShowSend(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: createTpl } = useMutation({
-    mutationFn: d => emailApi.createTemplate(d),
+    mutationFn: (d: any) => emailApi.createTemplate(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['email-tpl'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const allTpl = [...(catalog?.system || []), ...(catalog?.custom || [])]
+  const allTpl = [...(((catalog as any)?.system) || []), ...(((catalog as any)?.custom) || [])]
 
   return (
     <div>
@@ -227,7 +227,7 @@ function EmailTab() {
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
         <div>
           <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>Plantillas ({allTpl.length})</div>
-          {allTpl.map(t => (
+          {allTpl.map((t: any) => (
             <div key={t.id} style={{ ...card, padding:'12px 14px', marginBottom:8 }}>
               <div style={{ display:'flex', gap:6, marginBottom:4 }}>
                 <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>{t.category}</span>
@@ -242,7 +242,7 @@ function EmailTab() {
           <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>Historial de envíos</div>
           {logs.length === 0 ? <EmptyState icon="✉" title="Sin historial de envios" description="Todavia no se han enviado correos desde este modulo" /> : (
             <div style={{ ...card, overflow:'hidden' }}>
-              {logs.slice(0,15).map(l => (
+              {logs.slice(0,15).map((l: any) => (
                 <div key={l.id} style={{ display:'grid', gridTemplateColumns:'50px 1fr auto', gap:8, padding:'8px 14px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                   <span style={{ fontWeight:500, color: l.status === 'sent' ? 'var(--success)' : 'var(--danger)' }}>{l.status}</span>
                   <div>
@@ -263,7 +263,7 @@ function EmailTab() {
             <div><label style={ls}>Plantilla</label>
               <select value={sendForm.template_id} onChange={e => setSendForm(f => ({...f, template_id:e.target.value}))} style={fs}>
                 <option value="">Sin plantilla</option>
-                {allTpl.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {allTpl.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
             {!sendForm.template_id && <>
@@ -284,7 +284,7 @@ function EmailTab() {
             <div><label style={ls}>Asunto (usa {'{{variable}}'})</label><input value={newTpl.subject} onChange={e => setNewTpl(f => ({...f, subject:e.target.value}))} style={fs} /></div>
             <div><label style={ls}>Categoría</label>
               <select value={newTpl.category} onChange={e => setNewTpl(f => ({...f, category:e.target.value}))} style={fs}>
-                {['automation','alert','report','invoice'].map(c => <option key={c} value={c}>{c}</option>)}
+                {['automation','alert','report','invoice'].map((c: string) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div><label style={ls}>HTML del cuerpo</label><textarea value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} style={{...fs, resize:'vertical'}} /></div>
@@ -302,10 +302,10 @@ function EmailTab() {
 function IntegrationsTab() {
   const toast = useToast()
   const qc = useQueryClient()
-  const [configuring, setConfiguring] = useState(null)
-  const [testing, setTesting]         = useState(null)
-  const [testResult, setTestResult]   = useState(null)
-  const [form, setForm] = useState({ name:'', access_token:'', config:{} })
+  const [configuring, setConfiguring] = useState<any>(null)
+  const [testing, setTesting]         = useState<string|null>(null)
+  const [testResult, setTestResult]   = useState<{ok:boolean;message:string}|null>(null)
+  const [form, setForm] = useState<{name:string; access_token:string; config:Record<string,string>; integration_type?:string}>({ name:'', access_token:'', config:{} })
 
   const { data: integrations = [] } = useQuery({
     queryKey: ['integrations'],
@@ -313,25 +313,25 @@ function IntegrationsTab() {
   })
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => oauthIntegrationsApi.create(d),
+    mutationFn: (d: any) => oauthIntegrationsApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['integrations'] }); setConfiguring(null); toast.success('Integración guardada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: del } = useMutation({
-    mutationFn: id => oauthIntegrationsApi.delete(id),
+    mutationFn: (id: string) => oauthIntegrationsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success('Integración eliminada') },
 
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const { mutate: sync } = useMutation({
-    mutationFn: id => oauthIntegrationsApi.sync(id, {}),
+    mutationFn: (id: string) => oauthIntegrationsApi.sync(id, {}),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success('Sincronización completada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const testIntegration = async (integ) => {
+  const testIntegration = async (integ: any) => {
     setTesting(integ.id)
     setTestResult(null)
     try {
@@ -351,19 +351,19 @@ function IntegrationsTab() {
         const res = await oauthIntegrationsApi.sync(integ.id, {})
         setTestResult({ ok: true, message: `Sincronizados: ${res.data.synced} elementos` })
       }
-    } catch (e) {
-      const _raw1 = e?.response?.data?.detail
-      setTestResult({ ok: false, message: Array.isArray(_raw1) ? _raw1.map(d => d.msg).join(', ') : (_raw1 || 'Error de conexión') })
+    } catch (e: unknown) {
+      const _raw1 = (e as {response?:{data?:{detail?:unknown}}})?.response?.data?.detail
+      setTestResult({ ok: false, message: Array.isArray(_raw1) ? _raw1.map((d: any) => d.msg).join(', ') : ((_raw1 as string) || 'Error de conexión') })
     } finally {
       setTesting(null)
     }
   }
 
 
-  const CATALOG = INTEGRATION_CATALOG
+  const CATALOG: Array<{type:string; label:string; icon:string; desc?:string; fields?:Array<{key:string;label:string;type?:string;placeholder?:string}>}> = INTEGRATION_CATALOG as any
 
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
-  const is = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
+  const is: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 
   return (
     <div>
@@ -374,8 +374,8 @@ function IntegrationsTab() {
       {integrations.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Configuradas</div>
-          {integrations.map(integ => {
-            const cat = CATALOG.find(c => c.type === integ.integration_type) || { icon: '🔗', label: integ.integration_type }
+          {integrations.map((integ: any) => {
+            const cat = CATALOG.find((c) => c.type === integ.integration_type) || { icon: '🔗', label: integ.integration_type }
             return (
               <div key={integ.id} style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -419,8 +419,8 @@ function IntegrationsTab() {
         {integrations.length === 0 ? 'Disponibles' : 'Añadir otra'}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
-        {CATALOG.map(cat => (
-          <button key={cat.type} onClick={() => { setConfiguring(cat); setForm({ name: cat.label, integration_type: cat.type, config: {} }) }}
+        {CATALOG.map((cat) => (
+          <button key={cat.type} onClick={() => { setConfiguring(cat); setForm({ name: cat.label, integration_type: cat.type, config: {} } as any) }}
             type="button"
             style={{ background: 'var(--surface-1)', border: `1px solid ${configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
@@ -444,7 +444,7 @@ function IntegrationsTab() {
               <label style={ls}>Nombre de la integración</label>
               <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={is} />
             </div>
-            {configuring.fields?.map(field => (
+            {configuring.fields?.map((field: any) => (
               <div key={field.key}>
                 <label style={ls}>{field.label}</label>
                 <input
@@ -514,7 +514,7 @@ function AuditTab() {
           Eventos de recuperacion de contrasena
         </div>
         {passwordResetLogs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-sm)" }}>Sin eventos de recuperacion</div> :
-          passwordResetLogs.map((l, i) => (
+          passwordResetLogs.map((l: any, i: number) => (
             <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
               <span style={{ color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{(l.created_at||'').slice(0,16)}</span>
               <span style={{ fontWeight:600, color: l.action === 'PASSWORD_RESET_COMPLETE' ? 'var(--success)' : 'var(--accent)' }}>{l.action}</span>
@@ -530,7 +530,7 @@ function AuditTab() {
           Audit log general (ultimos 30)
         </div>
       {logs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-sm)" }}>Sin entradas en el audit log</div> :
-        logs.slice(0,30).map((l, i) => (
+        logs.slice(0,30).map((l: any, i: number) => (
           <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
             <span style={{ color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{(l.created_at||'').slice(0,16)}</span>
             <span style={{ fontWeight:500 }}>{l.action}</span>
@@ -548,17 +548,17 @@ function APIKeysTab() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [newKey, setNewKey] = useState(null)
+  const [newKey, setNewKey] = useState<any>(null)
   const [form, setForm] = useState({ name:'', rate_limit_per_hour:1000 })
 
   const { data: keys = [] } = useQuery({ queryKey:['api-keys'], queryFn:() => apiKeysApi.list().then(r => r.data) })
   const { mutate: create } = useMutation({
-    mutationFn: d => apiKeysApi.create({ ...d, scopes:['read'] }).then(r => r.data),
-    onSuccess: data => { qc.invalidateQueries({ queryKey: ['api-keys'] }); setNewKey(data); setShowCreate(false) },
+    mutationFn: (d: any) => apiKeysApi.create({ ...d, scopes:['read'] }).then(r => r.data),
+    onSuccess: (data: any) => { qc.invalidateQueries({ queryKey: ['api-keys'] }); setNewKey(data); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: revoke } = useMutation({
-    mutationFn: id => apiKeysApi.delete(id),
+    mutationFn: (id: string) => apiKeysApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['api-keys'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -577,7 +577,7 @@ function APIKeysTab() {
       )}
       {keys.length === 0 ? <EmptyState icon="🗝" title="Sin API keys" description="Genera una clave para integraciones externas" /> : (
         <div style={{ ...card, overflow:'hidden' }}>
-          {keys.map(k => (
+          {keys.map((k: any) => (
             <div key={k.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 130px 110px auto', gap:12, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center', fontSize: "var(--text-sm)" }}>
               <div>
                 <div style={{ fontWeight:500 }}>{k.name}</div>
@@ -611,43 +611,43 @@ function SSOTab() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [testResult, setTestResult] = useState(null)
+  const [testResult, setTestResult] = useState<{valid?:boolean; issues?:string[]}|null>(null)
   const [form, setForm] = useState({
     provider: 'azure_ad', name: '',
     oidc_client_id: '', oidc_client_secret: '',
     oidc_discovery_url: '', is_active: true,
   })
 
-  const { data: configs = [], _isLoading } = useQuery({
+  const { data: configs = [] } = useQuery({
     queryKey: ['sso-cfg'],
     queryFn: () => enterpriseApi.ssoList().then(r => r.data).catch(() => []),
   })
 
   const { mutate: create, isPending: creating } = useMutation({
-    mutationFn: d => enterpriseApi.ssoCreate(d),
+    mutationFn: (d: any) => enterpriseApi.ssoCreate(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sso-cfg'] }); setShowCreate(false); toast.success('SSO creado') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: del } = useMutation({
-    mutationFn: id => enterpriseApi.ssoDelete(id),
+    mutationFn: (id: string) => enterpriseApi.ssoDelete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sso-cfg'] }); toast.success('SSO eliminado') },
 
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
-  const testSSO = async (id) => {
+  const testSSO = async (id: string) => {
     try {
       const res = await enterpriseApi.ssoTest(id)
       setTestResult(res.data)
-    } catch (e) {
-      const _raw2 = e?.response?.data?.detail
-      const _msg2 = Array.isArray(_raw2) ? _raw2.map(d => d.msg).join(', ') : (_raw2 || 'Error de conexión')
+    } catch (e: unknown) {
+      const _raw2 = (e as {response?:{data?:{detail?:unknown}}})?.response?.data?.detail
+      const _msg2 = Array.isArray(_raw2) ? _raw2.map((d: any) => d.msg).join(', ') : ((_raw2 as string) || 'Error de conexión')
       setTestResult({ valid: false, issues: [_msg2] })
     }
   }
 
-  const PROVIDER_INFO = {
+  const PROVIDER_INFO: Record<string, { label:string; icon:string; discovery:string }> = {
     azure_ad: { label: 'Azure AD / Entra ID', icon: '🔵', discovery: 'https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration' },
     okta:     { label: 'Okta',                icon: '🟠', discovery: 'https://{your-domain}.okta.com/.well-known/openid-configuration' },
     google:   { label: 'Google Workspace',    icon: '🔴', discovery: 'https://accounts.google.com/.well-known/openid-configuration' },
@@ -655,9 +655,9 @@ function SSOTab() {
     saml:     { label: 'SAML 2.0',            icon: '🔐', discovery: '' },
   }
 
-  const cardStyle = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }
-  const inputStyle = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-  const labelStyle = { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
+  const cardStyle: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }
+  const inputStyle: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+  const labelStyle: CSSProperties = { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
 
   return (
     <div>
@@ -730,7 +730,7 @@ function SSOTab() {
           <div style={{ fontSize: "var(--text-sm)" }}>Añade Azure AD, Okta o Google para que los usuarios puedan acceder con su cuenta corporativa</div>
         </div>
       ) : (
-        configs.map(c => {
+        configs.map((c: any) => {
           const info = PROVIDER_INFO[c.provider] || { icon: '🔑', label: c.provider }
           return (
             <div key={c.id} style={cardStyle}>
@@ -768,9 +768,9 @@ function SSOTab() {
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: testResult.valid ? 'var(--success)' : 'var(--danger)', marginBottom: 8 }}>
             {testResult.valid ? '✅ Configuración válida' : '✗ Configuración incompleta'}
           </div>
-          {testResult.issues?.length > 0 && (
+          {(testResult.issues?.length ?? 0) > 0 && (
             <ul style={{ margin: 0, paddingLeft: 16 }}>
-              {testResult.issues.map((i, idx) => <li key={idx} style={{ fontSize: "var(--text-sm)", color: 'var(--danger)', marginBottom: 4 }}>{i}</li>)}
+              {testResult.issues!.map((i: string, idx: number) => <li key={idx} style={{ fontSize: "var(--text-sm)", color: 'var(--danger)', marginBottom: 4 }}>{i}</li>)}
             </ul>
           )}
           <button onClick={() => setTestResult(null)} style={{ marginTop: 8, background: 'transparent', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>Cerrar</button>

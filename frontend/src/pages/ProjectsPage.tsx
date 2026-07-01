@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState, useEffect, useMemo } from 'react'
+import type { CSSProperties } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -38,9 +38,9 @@ const PROJ_COLS = [
 ]
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
 const PROJECT_STATUSES = [
@@ -61,7 +61,7 @@ const RISK_LEVELS = [
   { value: 'critical', label: 'Crítico' },
 ]
 
-function makeProjectFormSchema(t) {
+function makeProjectFormSchema(t: any) {
   return z.object({
     name: z.string().min(1, t('projects.error_name_required')),
     project_type: z.string().min(1, t('projects.error_type_required')),
@@ -86,7 +86,7 @@ function makeProjectFormSchema(t) {
   })
 }
 
-function makeProjectMemberSchema(t) {
+function makeProjectMemberSchema(t: any) {
   return z.object({
     user_id: z.string().trim().min(1, t('projects.error_person_required')),
     role: z.string().trim().min(1, t('projects.error_role_required')),
@@ -97,9 +97,9 @@ function makeProjectMemberSchema(t) {
   })
 }
 
-function StatusDropdown({ project, onUpdate }) {
+function StatusDropdown({ project, onUpdate }: { project: any; onUpdate: (s: any) => void }) {
   const [open, setOpen] = useState(false)
-  const cfg = {
+  const cfg: Record<string, { color: string; icon: string }> = {
     planning:  { color: 'var(--text-2)', icon: '📋' },
     active:    { color: 'var(--accent)', icon: '🟢' },
     paused:    { color: 'var(--warning)', icon: '⏸' },
@@ -154,7 +154,7 @@ function StatusDropdown({ project, onUpdate }) {
   )
 }
 
-function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
+function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: any; onClick: (p: any) => void; onStatusChange: (id: any, s: any) => void; onEdit: (p: any) => void }) {
   return (
     <div className="ds-card"
       onPointerEnter={e => e.currentTarget.style.borderColor = 'var(--accent-border)'}
@@ -169,8 +169,8 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
           {project.client_name && <div className="ds-muted">Cliente: {project.client_name}</div>}
         </button>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-          <StatusDropdown project={project} onUpdate={(status) => onStatusChange(project.id, status)} />
-          <Badge label={project.risk_level} />
+          <StatusDropdown project={project} onUpdate={(status: any) => onStatusChange(project.id, status)} />
+          <Badge label={project.risk_level} display={undefined} _color={undefined} />
           <ProjectRiskBadge projectId={project.id} hasData={(project.task_count ?? project.team_size ?? 1) > 0} />
         </div>
       </div>
@@ -180,7 +180,7 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
           <span>{TYPE_LABELS[project.project_type] || project.project_type}</span>
           <span>{project.progress_pct?.toFixed(0) ?? 0}% completado</span>
         </div>
-        <LoadBar value={project.progress_pct ?? 0} />
+        <LoadBar value={project.progress_pct ?? 0} label={undefined} />
       </button>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--text-sm)' }}>
@@ -218,10 +218,10 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
   )
 }
 
-function ProjectFormModal({ open, onClose, project = null }) {
+function ProjectFormModal({ open, onClose, project = null }: { open: any; onClose: any; project?: any }) {
   const qc = useQueryClient()
   const toast = useToast()
-  const { _invalidate } = useInvalidate()
+  const { _invalidate } = useInvalidate() as any
   const t = useAppT()
   const isEdit = !!project
   const projectFormSchema = useMemo(() => makeProjectFormSchema(t), [t])
@@ -229,7 +229,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
   // Cargar datos completos del proyecto cuando se edita
   const { data: fullProject } = useQuery({
     queryKey: ['project', project?.id],
-    queryFn: () => projectsApi.get(project.id).then(r => r.data),
+    queryFn: () => projectsApi.get(project.id).then(r => (r.data as any)),
     enabled: !!project?.id,
   })
 
@@ -244,7 +244,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
     client_id: '', billing_type: '',
     retainer_amount: '', retainer_day: '',
   })
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Actualizar el form cuando lleguen los datos completos
   useEffect(() => {
@@ -271,12 +271,12 @@ function ProjectFormModal({ open, onClose, project = null }) {
 
   const { data: departments = [] } = useQuery({
     queryKey: ['departments-select'],
-    queryFn: () => settingsApi.getDepartments().then(r => r.data),
+    queryFn: () => settingsApi.getDepartments().then(r => (r.data as any[])),
   })
 
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => {
+    mutationFn: (data: any) => {
       if (isEdit) {
         // En edición: convertir strings vacíos a null para poder borrar valores,
         // pero mantener 0 y false como valores válidos
@@ -289,7 +289,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
         const clean = Object.fromEntries(
           Object.entries(data).filter(([, v]) => v !== '' && v !== null && v !== undefined)
         )
-        return projectsApi.create(clean)
+        return projectsApi.create(clean as any)
       }
     },
     onSuccess: (_saved) => {
@@ -311,14 +311,14 @@ function ProjectFormModal({ open, onClose, project = null }) {
     onError: e => toast.error(extractErr(e, 'Error al guardar el proyecto')),
   })
 
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
   const validateForm = () => {
     const parsed = projectFormSchema.safeParse(form)
     if (parsed.success) {
       setErrors({})
       return true
     }
-    const nextErrors = {}
+    const nextErrors: Record<string, string> = {}
     parsed.error.issues.forEach(issue => {
       const key = issue.path?.[0]
       if (key && !nextErrors[key]) nextErrors[key] = issue.message
@@ -326,8 +326,8 @@ function ProjectFormModal({ open, onClose, project = null }) {
     setErrors(nextErrors)
     return false
   }
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? `Editar — ${project.name}` : 'Nuevo Proyecto'} width={600}>
@@ -377,7 +377,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
           <label style={ls}>Tipo de facturación</label>
           <select value={form.billing_type} onChange={set('billing_type')} style={fs}>
             <option value="">Sin especificar</option>
-            {BILLING_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {(BILLING_TYPES as any[]).map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         <div>
@@ -423,13 +423,13 @@ function ProjectFormModal({ open, onClose, project = null }) {
   )
 }
 
-const MEMBER_ROLES = {
+const MEMBER_ROLES: Record<string, string> = {
   lead:'🎯 Tech Lead', developer:'💻 Desarrollador', designer:'🎨 Diseñador',
   qa:'🧪 QA', analyst:'📋 Analista', devops:'⚙️ DevOps',
   stakeholder:'👔 Stakeholder', other:'👤 Otro',
 }
 
-function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
+function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { project: any; detail: any; open: any; onClose: any; onEdit: (p: any) => void }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -441,12 +441,12 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
 
   const { data: members = [], isLoading: loadingMembers } = useQuery({
     queryKey: ['project-members', project?.id],
-    queryFn: () => projectsApi.members(project.id).then(r => r.data),
+    queryFn: () => projectsApi.members(project.id).then(r => (r.data as any[])),
     enabled: !!project?.id && tab === 'team',
   })
   const { data: allUsersRaw = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data),
+    queryFn: () => usersApi.list().then(r => (r.data as any[])),
     enabled: !!project?.id && tab === 'team',
   })
 
@@ -456,24 +456,24 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
 
   const { data: featureRequests = [], isLoading: loadingFRs } = useQuery({
     queryKey: ['project-feature-requests', project?.id],
-    queryFn: () => portalApi.featureRequests({ project_id: project.id }).then(r => r.data),
+    queryFn: () => portalApi.featureRequests({ project_id: project.id }).then(r => (r.data as any[])),
     enabled: !!project?.id && tab === 'requests',
   })
 
   const { mutate: respondFR, isPending: respondingFRPending } = useMutation({
-    mutationFn: ({ id, data }) => portalApi.respondFeatureRequest(id, data),
+    mutationFn: ({ id, data }: { id: any; data: any }) => portalApi.respondFeatureRequest(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-feature-requests', project?.id] }); setRespondingFr(null); setRespondForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) },
     onError: e => toast.error(extractErr(e, 'Error al responder')),
   })
   const allUsers = Array.isArray(allUsersRaw) ? allUsersRaw : []
 
   const { mutate: addMember, isPending: adding } = useMutation({
-    mutationFn: d => projectsApi.addMember(project.id, d),
+    mutationFn: (d: any) => projectsApi.addMember(project.id, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-members', project.id] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); setShowAdd(false); setAddForm({ user_id: '', role: 'developer', allocation_pct: 100, notes: '' }); addValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, 'Error al añadir miembro')),
   })
   const { mutate: removeMember } = useMutation({
-    mutationFn: memberId => projectsApi.removeMember(project.id, memberId),
+    mutationFn: (memberId: any) => projectsApi.removeMember(project.id, memberId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-members', project.id] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -491,7 +491,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
   const memberUserIds = new Set(members.map(m => m.user_id))
   const availableUsers = allUsers.filter(u => !memberUserIds.has(u.id))
 
-  const setAddField = (key) => (e) => {
+  const setAddField = (key: string) => (e: any) => {
     const value = key === 'allocation_pct' ? Number(e.target.value) : e.target.value
     setAddForm(current => ({ ...current, [key]: value }))
     addValidation.clearFieldError(key)
@@ -509,7 +509,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
     <Modal open={open} onClose={onClose} title={detail.name} width={720}>
       {/* Badges */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        <Badge label={detail.status} /><Badge label={detail.risk_level} /><Badge label={detail.project_type} />
+        <Badge label={detail.status} display={undefined} _color={undefined} /><Badge label={detail.risk_level} display={undefined} _color={undefined} /><Badge label={detail.project_type} display={undefined} _color={undefined} />
       </div>
 
       {/* Tab bar */}
@@ -637,7 +637,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
       {tab === 'phases' && (
         detail.phases?.length > 0 ? (
           <div>
-            {detail.phases.map(ph => (
+            {detail.phases.map((ph: any) => (
               <div key={ph.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, marginBottom: 8, fontSize: "var(--text-base)" }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>{ph.name}</div>
@@ -647,7 +647,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
                     </div>
                   )}
                 </div>
-                <Badge label={ph.status} />
+                <Badge label={ph.status} display={undefined} _color={undefined} />
               </div>
             ))}
           </div>
@@ -661,7 +661,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
 
       {/* DOCS TAB */}
       {tab === 'docs' && (
-        <DocumentsPanel projectId={project.id} />
+        <DocumentsPanel projectId={project.id} taskId={undefined} ticketId={undefined} />
       )}
 
       {/* FEATURE REQUESTS TAB */}
@@ -676,9 +676,9 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {featureRequests.map(fr => {
-                const statusColors = { new: 'var(--accent)', reviewing: 'var(--warning)', estimated: 'var(--orange)', approved: 'var(--success)', rejected: 'var(--danger)', in_development: 'var(--purple)', done: 'var(--success)' }
-                const priorityColors = { low: 'var(--text-2)', medium: 'var(--accent)', high: 'var(--warning)', critical: 'var(--danger)' }
-                const statusLabels = { new: 'Nueva', reviewing: 'Revisando', estimated: 'Estimada', approved: 'Aprobada', rejected: 'Rechazada', in_development: 'En desarrollo', done: 'Completada' }
+                const statusColors: Record<string, string> = { new: 'var(--accent)', reviewing: 'var(--warning)', estimated: 'var(--orange)', approved: 'var(--success)', rejected: 'var(--danger)', in_development: 'var(--purple)', done: 'var(--success)' }
+                const priorityColors: Record<string, string> = { low: 'var(--text-2)', medium: 'var(--accent)', high: 'var(--warning)', critical: 'var(--danger)' }
+                const statusLabels: Record<string, string> = { new: 'Nueva', reviewing: 'Revisando', estimated: 'Estimada', approved: 'Aprobada', rejected: 'Rechazada', in_development: 'En desarrollo', done: 'Completada' }
                 const isResponding = respondingFr === fr.id
                 const canRespond = ['new', 'reviewing', 'estimated'].includes(fr.status)
                 return (
@@ -776,20 +776,20 @@ function TemplatesTab() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [instantiating, setInstantiating] = useState(null)
-  const [instForm, setInstForm] = useState({ name:'', client_id:'', client_name:'', start_date: new Date().toISOString().slice(0,10), budget_amount:'' })
+  const [instantiating, setInstantiating] = useState<any>(null)
+  const [instForm, setInstForm] = useState<Record<string, any>>({ name:'', client_id:'', client_name:'', start_date: new Date().toISOString().slice(0,10), budget_amount:'' })
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['project-templates'],
-    queryFn: () => templatesApi.list().then(r => r.data),
+    queryFn: () => templatesApi.list().then(r => (r.data as any[])),
   })
-  const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
+  const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => (r.data as any[])) })
   const users = Array.isArray(usersRaw) ? usersRaw : []
   const pms = users.filter(u => ['admin','pm'].includes(u.role))
 
   const { mutate: instantiate, isPending: creating } = useMutation({
-    mutationFn: ({ tplId, data }) => templatesApi.instantiate(tplId, data).then(r => r.data),
-    onSuccess: (data) => {
+    mutationFn: ({ tplId, data }: { tplId: any; data: any }) => templatesApi.instantiate(tplId, data).then(r => (r.data as any)),
+    onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ['projects'] })
       toast.success(`✓ Proyecto creado: ${data.project_code} — ${data.project_name}\\n${data.phases_created} fases · ${data.tasks_created} tareas`)
       setInstantiating(null)
@@ -797,15 +797,15 @@ function TemplatesTab() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const [newTpl, setNewTpl] = useState({ name:'', description:'', project_type:'consulting', estimated_weeks:12, phases:[{name:'Fase 1',duration_weeks:4,tasks:[{title:'Tarea inicial',estimated_hours:8,priority:'medium'}]}] })
+  const [newTpl, setNewTpl] = useState<Record<string, any>>({ name:'', description:'', project_type:'consulting', estimated_weeks:12, phases:[{name:'Fase 1',duration_weeks:4,tasks:[{title:'Tarea inicial',estimated_hours:8,priority:'medium'}]}] })
 
   const { mutate: createTpl, isPending: creatingTpl } = useMutation({
-    mutationFn: d => templatesApi.create(d),
+    mutationFn: (d: any) => templatesApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-templates'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const TPL_ICONS = { consulting:'🏢', development:'💻', maintenance:'🔧', rd:'🔬', internal:'🏠' }
+  const TPL_ICONS: Record<string, string> = { consulting:'🏢', development:'💻', maintenance:'🔧', rd:'🔬', internal:'🏠' }
 
   return (
     <div>
@@ -833,7 +833,7 @@ function TemplatesTab() {
                 <span>📁 {t.phases?.length||0} fases</span>
               </div>
 
-              {t.phases?.slice(0,3).map((ph,i) => (
+              {t.phases?.slice(0,3).map((ph: any,i: number) => (
                 <div key={ph.id} style={{padding:'4px 0',borderBottom:'1px solid var(--surface-4)15',fontSize: "var(--text-sm)"}}>
                   <span style={{color:'var(--text-2)'}}>{i+1}.</span> <span style={{color:'var(--text-1)'}}>{ph.name}</span>
                   <span style={{color:'var(--text-3)',marginLeft:8}}>{ph.duration_weeks}w · {ph.tasks?.length||0} tareas</span>
@@ -854,7 +854,7 @@ function TemplatesTab() {
         <Modal open title={`Crear proyecto — ${instantiating.name}`} onClose={() => setInstantiating(null)} width={520}>
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
             <div style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border)',borderRadius:8,padding:'10px 14px',fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
-              Esta plantilla creará <strong style={{color:'var(--text-1)'}}>{instantiating.phases?.length||0} fases</strong> y aproximadamente <strong style={{color:'var(--text-1)'}}>{instantiating.phases?.reduce((s,p)=>s+(p.tasks?.length||0),0)||0} tareas</strong> automáticamente.
+              Esta plantilla creará <strong style={{color:'var(--text-1)'}}>{instantiating.phases?.length||0} fases</strong> y aproximadamente <strong style={{color:'var(--text-1)'}}>{instantiating.phases?.reduce((s: number, p: any)=>s+(p.tasks?.length||0),0)||0} tareas</strong> automáticamente.
             </div>
             <div><label style={ls}>Nombre del proyecto *</label><input value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
@@ -904,10 +904,10 @@ function TemplatesTab() {
 }
 
 // Wrapper that fetches dependencies and passes them to GanttChart
-function GanttWithDeps({ projectId, tasks }) {
+function GanttWithDeps({ projectId, tasks }: { projectId: any; tasks: any }) {
   const { data: depsRaw = [] } = useQuery({
     queryKey: ['task-deps', projectId],
-    queryFn: () => projectId ? dependenciesApi.get(projectId).then(r => r.data) : Promise.resolve([]),
+    queryFn: () => projectId ? dependenciesApi.get(projectId).then(r => (r.data as any[])) : Promise.resolve([]),
     enabled: !!projectId,
   })
   const deps = Array.isArray(depsRaw) ? depsRaw : []
@@ -925,30 +925,30 @@ export default function ProjectsPage() {
   const statusFilter = searchParams.get('status') || ''
   const typeFilter = searchParams.get('type') || ''
   const view = searchParams.get('view') || 'grid'
-  const setParam = (k, v) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set(k, v) : n.delete(k); return n }, { replace: true })
-  const setSearch = (v) => setParam('search', v)
-  const setStatusFilter = (v) => setParam('status', v)
-  const setTypeFilter = (v) => setParam('type', v)
-  const setView = (v) => setParam('view', v)
+  const setParam = (k: string, v: any) => setSearchParams((p: URLSearchParams) => { const n = new URLSearchParams(p); v ? n.set(k, v) : n.delete(k); return n }, { replace: true })
+  const setSearch = (v: any) => setParam('search', v)
+  const setStatusFilter = (v: any) => setParam('status', v)
+  const setTypeFilter = (v: any) => setParam('type', v)
+  const setView = (v: any) => setParam('view', v)
   const [showCreate, setShowCreate] = useState(false)
-  const [editTarget, setEditTarget] = useState(null)
-  const [selected, setSelected] = useState(null)
+  const [editTarget, setEditTarget] = useState<any>(null)
+  const [selected, setSelected] = useState<any>(null)
   const [ganttMode, setGanttMode] = useState('portfolio')  // portfolio | project
   const { visibleCols, colTemplate, ColToggle, visible: visCols } = useColVisibility(PROJ_COLS, 'projects')
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects', search, statusFilter],
-    queryFn: () => projectsApi.list({ search: search || undefined, status: statusFilter || undefined }).then(r => r.data),
+    queryFn: () => projectsApi.list({ search: search || undefined, status: statusFilter || undefined } as any).then(r => (r.data as any[])),
   })
 
   const { data: projectDetail } = useQuery({
     queryKey: ['project', selected?.id],
-    queryFn: () => projectsApi.get(selected.id).then(r => r.data),
+    queryFn: () => projectsApi.get(selected.id).then(r => (r.data as any)),
     enabled: !!selected,
   })
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status }) => projectsApi.update(id, { status }),
+    mutationFn: ({ id, status }: { id: any; status: any }) => projectsApi.update(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -1042,14 +1042,14 @@ export default function ProjectsPage() {
         <div className="ds-grid-cards">
           {sortedProjects.map(p => (
             <ProjectCard key={p.id} project={p} onClick={setSelected}
-              onStatusChange={(id, status) => updateStatus({ id, status })} onEdit={setEditTarget} />
+              onStatusChange={(id: any, status: any) => updateStatus({ id, status })} onEdit={setEditTarget} />
           ))}
         </div>
       ) : view === 'list' ? (
         <div data-export-table="projects-list" className="ds-card" style={{ padding: 0, overflowX: 'auto' }}>
           <div style={{ minWidth: 920 }}>
           <div style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
-            {visibleCols.map(c => (
+            {visibleCols.map((c: any) => (
               c.id === 'risk'
                 ? <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
                     <SortableTH col={c.sortKey} sort={projSort} onSort={setProjSort}>{c.label}</SortableTH>
@@ -1072,10 +1072,10 @@ export default function ProjectsPage() {
               )}
               {visCols.includes('type') && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{TYPE_LABELS[p.project_type] || p.project_type}</span>}
               {visCols.includes('pm') && <span style={{ fontSize: "var(--text-sm)" }}>{p.pm_name || '—'}</span>}
-              {visCols.includes('status') && <StatusDropdown project={p} onUpdate={(status) => updateStatus({ id: p.id, status })} />}
+              {visCols.includes('status') && <StatusDropdown project={p} onUpdate={(status: any) => updateStatus({ id: p.id, status })} />}
               {visCols.includes('budget') && <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: p.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)' }}>{p.budget_used_pct?.toFixed(0) ?? 0}%</span>}
               {visCols.includes('progress') && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{p.progress_pct?.toFixed(0) ?? 0}%</span>}
-              {visCols.includes('risk') && <Badge label={p.risk_level} />}
+              {visCols.includes('risk') && <Badge label={p.risk_level} display={undefined} _color={undefined} />}
             </div>
           ))}
           </div>
@@ -1115,7 +1115,7 @@ export default function ProjectsPage() {
           {ganttMode === 'project' && selected && projectDetail && (
             <GanttWithDeps
               projectId={selected.id}
-              tasks={(projectDetail.tasks || []).map(t => ({
+              tasks={(projectDetail.tasks || []).map((t: any) => ({
                 id: t.id, code: t.code, title: t.title,
                 status: t.status, priority: t.priority,
                 story_points: t.story_points,

@@ -1,11 +1,12 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { enterpriseSubsApi, projectsApi, skillsApi } from '../services/api'
+import type { ProjectListItem } from '../services/api/projects'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Users } from 'lucide-react'
@@ -13,20 +14,29 @@ import { Button, Modal, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { STALE_5_MIN_MS } from '../constants/timings'
-const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
-const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
-const STATUS_COLOR = { received: 'var(--warning)', approved: 'var(--accent)', paid: 'var(--success)', rejected: 'var(--danger)' }
-const STATUS_LABEL = {
+const STATUS_COLOR: Record<string, string> = { received: 'var(--warning)', approved: 'var(--accent)', paid: 'var(--success)', rejected: 'var(--danger)' }
+const STATUS_LABEL: Record<string, string> = {
   received: 'Recibida',
   approved: 'Aprobada',
   paid: 'Pagada',
   rejected: 'Rechazada'
 }
-const LEVEL_COLOR = { basic: 'var(--text-3)', intermediate: 'var(--accent)', advanced: 'var(--orange)', expert: 'var(--success)' }
+const LEVEL_COLOR: Record<string, string> = { basic: 'var(--text-3)', intermediate: 'var(--accent)', advanced: 'var(--orange)', expert: 'var(--success)' }
 
-function onKeyboardActivate(event, action) {
+type Skill = { [k: string]: unknown; id: string; name?: string; category?: string }
+type WorkerSkill = { skill_id: string; skill_name?: string; level: string; certified?: boolean }
+type Worker = { [k: string]: unknown; id: string; name?: string; role?: string; email?: string; phone?: string; currency?: string; notes?: string; is_active?: boolean; cost_rate?: number; sell_rate?: number; available_from?: string; available_until?: string; skills?: WorkerSkill[] }
+type Sub = { [k: string]: unknown; id: string; name?: string; code?: string; company?: string; email?: string; phone?: string; country?: string; currency?: string; vat_number?: string; notes?: string; is_active?: boolean; worker_count?: number; assignment_count?: number }
+type Assignment = { [k: string]: unknown; id: string; project_code?: string; project_name?: string; po_number?: string; po_amount?: number; hours_contracted?: number; hours_logged?: number; budget_used_pct?: number }
+type Timelog = { [k: string]: unknown; id: string; log_date?: string; hours: number; description?: string; task_reference?: string; cost_amount?: number; project_name?: string }
+type Invoice = { [k: string]: unknown; id: string; invoice_number?: string; issue_date?: string; amount: number; total: number; status?: string }
+type CredsInfo = { username?: string; password?: string }
+
+function onKeyboardActivate(event: ReactKeyboardEvent, action: () => void) {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     action()
@@ -34,7 +44,7 @@ function onKeyboardActivate(event, action) {
 }
 
 // ── Worker Modal ──────────────────────────────────────────────────────────────
-function WorkerModal({ subId, worker, onClose, onSaved }) {
+function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worker?: Worker; onClose: () => void; onSaved?: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
   const { currency: defaultCurrency } = useOrgSettings()
@@ -55,17 +65,17 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
   const [showSkillForm, setShowSkillForm] = useState(false)
 
   const t = useAppT()
-  const { data: skillCatalog = [] } = useQuery({
+  const { data: skillCatalog = [] } = useQuery<Skill[]>({
     queryKey: ['skills-catalog'],
     queryFn: () => skillsApi.catalog().then(r => r.data?.items ?? r.data ?? []),
     staleTime: STALE_5_MIN_MS,
   })
 
-  const [credsInfo, setCredsInfo] = useState(null)
+  const [credsInfo, setCredsInfo] = useState<CredsInfo | null>(null)
 
   const { mutate: save, isPending: saving } = useMutation({
-    mutationFn: d => isEdit
-      ? enterpriseSubsApi.updateWorker(worker.id, d)
+    mutationFn: (d: Record<string, unknown>) => isEdit
+      ? enterpriseSubsApi.updateWorker(worker!.id, d)
       : enterpriseSubsApi.createWorker(subId, d),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['sub-workers', subId] })
@@ -82,24 +92,24 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
   })
 
   const { mutate: addSkill, isPending: addingSkill } = useMutation({
-    mutationFn: d => enterpriseSubsApi.addWorkerSkill(worker?.id, d),
+    mutationFn: (d: Record<string, unknown>) => enterpriseSubsApi.addWorkerSkill(worker?.id, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sub-workers', subId] }); setShowSkillForm(false); setSkillForm({ skill_id: '', level: 'intermediate', years_experience: '', certified: false, cert_name: '' }); toast.success('Skill añadida') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: removeSkill } = useMutation({
-    mutationFn: skill_id => enterpriseSubsApi.removeWorkerSkill(worker?.id, skill_id),
+    mutationFn: (skill_id: string) => enterpriseSubsApi.removeWorkerSkill(worker?.id, skill_id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sub-workers', subId] }); toast.success('Skill eliminada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   // group skill catalog by category
-  const byCategory = skillCatalog.reduce((acc, s) => {
+  const byCategory = skillCatalog.reduce((acc: Record<string, Skill[]>, s: Skill) => {
     const cat = s.category || 'other'
     if (!acc[cat]) acc[cat] = []
     acc[cat].push(s)
     return acc
-  }, {})
+  }, {} as Record<string, Skill[]>)
 
   if (credsInfo) {
     return (
@@ -177,7 +187,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
 
           {/* Existing skills */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: showSkillForm ? 12 : 0 }}>
-            {(worker.skills || []).map(s => (
+            {(worker?.skills || []).map(s => (
               <span key={s.skill_id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: "var(--text-xs)", padding: '3px 8px', borderRadius: 20,
                 background: (LEVEL_COLOR[s.level] || 'var(--text-3)') + '18', color: LEVEL_COLOR[s.level] || 'var(--text-3)', border: `1px solid ${(LEVEL_COLOR[s.level] || 'var(--text-3)')}40` }}>
                 {s.skill_name}
@@ -242,20 +252,21 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
 }
 
 // ── Workers Panel ─────────────────────────────────────────────────────────────
-function WorkersPanel({ subId }) {
+function WorkersPanel({ subId }: { subId: string }) {
   const toast = useToast()
   const qc = useQueryClient()
+  const t = useAppT()
   const [showCreate, setShowCreate] = useState(false)
-  const [editWorker, setEditWorker] = useState(null)
-  const [deactivateTarget, setDeactivateTarget] = useState(null)
+  const [editWorker, setEditWorker] = useState<Worker | null>(null)
+  const [deactivateTarget, setDeactivateTarget] = useState<Worker | null>(null)
 
-  const { data: workers = [], isLoading } = useQuery({
+  const { data: workers = [], isLoading } = useQuery<Worker[]>({
     queryKey: ['sub-workers', subId],
     queryFn: () => enterpriseSubsApi.workers(subId).then(r => r.data),
   })
 
   const { mutate: deactivate } = useMutation({
-    mutationFn: id => enterpriseSubsApi.deleteWorker(id),
+    mutationFn: (id: string) => enterpriseSubsApi.deleteWorker(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sub-workers', subId] })
       qc.invalidateQueries({ queryKey: ['users'] })
@@ -347,11 +358,12 @@ function WorkersPanel({ subId }) {
     </div>
   )
 }
-function SubDetail({ sub, onBack }) {
+function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
+  const t = useAppT()
   const { currency } = useOrgSettings()
-  const fmtMoney = (n) => n?.toLocaleString('es-ES', { style: 'currency', currency })
+  const fmtMoney = (n?: number) => n?.toLocaleString('es-ES', { style: 'currency', currency })
   const [tab, setTab] = useState('workers')
   const [showTimelog, setShowTimelog] = useState(false)
   const [showInvoice, setShowInvoice] = useState(false)
@@ -360,50 +372,50 @@ function SubDetail({ sub, onBack }) {
   const [invForm, setInvForm] = useState({ invoice_number: '', issue_date: new Date().toISOString().slice(0,10), due_date: '', amount: '', tax_pct: 21, description: '' })
   const [asgForm, setAsgForm] = useState({ project_id: '', po_number: '', po_amount: '', hours_contracted: '', start_date: '', end_date: '', notes: '' })
 
-  const { data: assignments = [] } = useQuery({
+  const { data: assignments = [] } = useQuery<Assignment[]>({
     queryKey: ['sub-assignments', sub.id],
     queryFn: () => enterpriseSubsApi.assignments(sub.id).then(r => r.data),
   })
-  const { data: timelogs = [] } = useQuery({
+  const { data: timelogs = [] } = useQuery<Timelog[]>({
     queryKey: ['sub-timelogs', sub.id],
     queryFn: () => enterpriseSubsApi.timelogs(sub.id).then(r => r.data),
   })
-  const { data: invoices = [] } = useQuery({
+  const { data: invoices = [] } = useQuery<Invoice[]>({
     queryKey: ['sub-invoices', sub.id],
     queryFn: () => enterpriseSubsApi.invoices(sub.id).then(r => r.data),
   })
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectListItem[]>({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => (r.data?.items ?? r.data ?? []).filter(p => p.status === 'active')),
+    queryFn: () => projectsApi.list().then(r => ((r.data as { items?: ProjectListItem[] })?.items ?? r.data ?? []).filter((p: ProjectListItem) => p.status === 'active')),
   })
 
   const { mutate: logHours, isPending: logging } = useMutation({
-    mutationFn: d => enterpriseSubsApi.createTimelog(sub.id, d),
+    mutationFn: (d: Record<string, unknown>) => enterpriseSubsApi.createTimelog(sub.id, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sub-timelogs', sub.id] }); setShowTimelog(false); toast.success('Horas registradas') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: createInv, isPending: invoicing } = useMutation({
-    mutationFn: d => enterpriseSubsApi.createInvoice(sub.id, d),
+    mutationFn: (d: Record<string, unknown>) => enterpriseSubsApi.createInvoice(sub.id, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sub-invoices', sub.id] }); setShowInvoice(false); toast.success('Factura registrada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: createAssign, isPending: assigning } = useMutation({
-    mutationFn: d => enterpriseSubsApi.createAssignment(sub.id, d),
+    mutationFn: (d: Record<string, unknown>) => enterpriseSubsApi.createAssignment(sub.id, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sub-assignments', sub.id] }); setShowAssign(false); toast.success('Asignación creada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: updateInvStatus } = useMutation({
-    mutationFn: ({ id, status }) => enterpriseSubsApi.updateInvoice(sub.id, id, { status }),
+    mutationFn: ({ id, status }: { id: string; status: string }) => enterpriseSubsApi.updateInvoice(sub.id, id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sub-invoices', sub.id] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
-  const totalHours    = timelogs.reduce((s, l) => s + l.hours, 0)
-  const totalCost     = timelogs.reduce((s, l) => s + (l.cost_amount || 0), 0)
-  const pendingAmount = invoices.filter(i => i.status === 'received').reduce((s, i) => s + i.total, 0)
+  const totalHours    = timelogs.reduce((s: number, l: Timelog) => s + l.hours, 0)
+  const totalCost     = timelogs.reduce((s: number, l: Timelog) => s + (l.cost_amount || 0), 0)
+  const pendingAmount = invoices.filter((i: Invoice) => i.status === 'received').reduce((s: number, i: Invoice) => s + i.total, 0)
 
   return (
     <div>
@@ -544,8 +556,8 @@ function SubDetail({ sub, onBack }) {
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{inv.amount.toLocaleString('es-ES', {style:'currency',currency})}</td>
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-base)", fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{inv.total.toLocaleString('es-ES', {style:'currency',currency})}</td>
                       <td style={{ padding: '9px 14px' }}>
-                        <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: (STATUS_COLOR[inv.status] || 'var(--text-2)') + '20', color: STATUS_COLOR[inv.status] || 'var(--text-2)', fontWeight: 700 }}>
-                          {STATUS_LABEL[inv.status] || inv.status}
+                        <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: (STATUS_COLOR[inv.status || ''] || 'var(--text-2)') + '20', color: STATUS_COLOR[inv.status || ''] || 'var(--text-2)', fontWeight: 700 }}>
+                          {STATUS_LABEL[inv.status || ''] || inv.status}
                         </span>
                       </td>
                       <td style={{ padding: '9px 14px' }}>
@@ -683,27 +695,27 @@ export default function SubcontractorsPage() {
   const toast = useToast()
   const qc = useQueryClient()
   const { currency } = useOrgSettings()
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected] = useState<Sub | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ name: '', company: '', email: '', phone: '', country: 'España', currency: currency, vat_number: '', notes: '' })
 
-  const { data: dashboard } = useQuery({
+  const { data: dashboard } = useQuery<Record<string, unknown>>({
     queryKey: ['sub-dashboard'],
     queryFn: () => enterpriseSubsApi.dashboard().then(r => r.data),
   })
-  const { data: subs = [], isLoading } = useQuery({
+  const { data: subs = [], isLoading } = useQuery<Sub[]>({
     queryKey: ['subcontractors'],
     queryFn: () => enterpriseSubsApi.list().then(r => r.data),
   })
 
   const [showEdit, setShowEdit] = useState(false)
-  const [editTarget, setEditTarget] = useState(null)
-  const [editForm, setEditForm] = useState({})
+  const [editTarget, setEditTarget] = useState<Sub | null>(null)
+  const [editForm, setEditForm] = useState<Record<string, string>>({})
   const [view, setView] = useState('grid')
   const { sort: subSort, setSort: setSubSort, sortedData: sortedSubs } = useSort(subs, 'name')
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => enterpriseSubsApi.create(d),
+    mutationFn: (d: Record<string, unknown>) => enterpriseSubsApi.create(d),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['subcontractors'] })
       setShowCreate(false)
@@ -714,7 +726,7 @@ export default function SubcontractorsPage() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: update, isPending: updating } = useMutation({
-    mutationFn: ({id, ...d}) => enterpriseSubsApi.update(id, d),
+    mutationFn: ({ id, ...d }: { id: string; [k: string]: unknown }) => enterpriseSubsApi.update(id, d),
     onSuccess: (_res) => {
       qc.invalidateQueries({ queryKey: ['subcontractors'] })
       setShowEdit(false)
@@ -724,7 +736,7 @@ export default function SubcontractorsPage() {
     onError: e => toast.error(extractErr(e, t('common.error_update'))),
   })
   const { mutate: remove } = useMutation({
-    mutationFn: id => enterpriseSubsApi.delete(id),
+    mutationFn: (id: string) => enterpriseSubsApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['subcontractors'] })
       qc.invalidateQueries({ queryKey: ['sub-dashboard'] })
@@ -743,9 +755,9 @@ export default function SubcontractorsPage() {
       {dashboard && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
           {[
-            { label: 'Activos',           value: dashboard.total_active_subs,       color: 'var(--accent)' },
+            { label: 'Activos',           value: dashboard.total_active_subs as number,       color: 'var(--accent)' },
             { label: 'Horas registradas', value: `${dashboard.total_hours_logged}h`, color: 'var(--success)' },
-            { label: 'Facturas pendientes', value: dashboard.pending_invoices,       color: dashboard.pending_invoices > 0 ? 'var(--warning)' : 'var(--text-2)' },
+            { label: 'Facturas pendientes', value: dashboard.pending_invoices as number,       color: (dashboard.pending_invoices as number) > 0 ? 'var(--warning)' : 'var(--text-2)' },
           ].map(k => (
             <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
               <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>{k.value}</div>
@@ -789,7 +801,7 @@ export default function SubcontractorsPage() {
                 👥 {s.worker_count || 0} persona{(s.worker_count || 0) !== 1 ? 's' : ''} · {s.assignment_count} asignación{s.assignment_count !== 1 ? 'es' : ''}
               </div>
               <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
-                <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name, company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||currency, vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
+                <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name||'', company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||currency, vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
                   style={{ flex:1, padding: '4px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                   ✏ Editar
                 </button>
@@ -832,7 +844,7 @@ export default function SubcontractorsPage() {
                 {s.is_active ? 'Activo' : 'Inactivo'}
               </span>
               <div style={{ display: 'flex', gap: 4 }}>
-                <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name, company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||currency, vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
+                <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name||'', company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||currency, vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
                   style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏</button>
                 <button onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar a "${s.name}"?`,onConfirm:()=>remove(s.id),danger:true}) }}
                   style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>

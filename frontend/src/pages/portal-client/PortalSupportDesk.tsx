@@ -3,6 +3,7 @@
  * Tickets, KB y comunicados.
  */
 import { useMemo, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Headphones, Plus, Search, ArrowLeft, Megaphone, Bug, BookOpen,
@@ -15,37 +16,123 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { CHART } from '../../constants/theme'
 import { CLIENT_API, useLang } from './portalClientContext'
 import {
-  PortalPageHeader, PortalCard, PortalEmpty, PortalBadge,
-  PortalButton, PortalModal, PortalField, PortalInput, PortalSelect,
-  PortalTextarea, PortalBanner,
+  PortalPageHeader as PortalPageHeaderBase, PortalCard as PortalCardBase,
+  PortalEmpty as PortalEmptyBase, PortalBadge as PortalBadgeBase,
+  PortalButton as PortalButtonBase, PortalModal as PortalModalBase,
+  PortalField as PortalFieldBase, PortalInput as PortalInputBase,
+  PortalSelect as PortalSelectBase, PortalTextarea as PortalTextareaBase,
+  PortalBanner as PortalBannerBase,
 } from './PortalUI'
 
-const PRIORITY_TONE = {
+// PortalUI is untyped JS: alias each component to accept partial props so
+// optional props need not be passed explicitly (behavior unchanged).
+type AnyProps = Record<string, unknown>
+type AnyComp = (p: AnyProps) => JSX.Element
+const PortalPageHeader = PortalPageHeaderBase as unknown as AnyComp
+const PortalCard = PortalCardBase as unknown as AnyComp
+const PortalEmpty = PortalEmptyBase as unknown as AnyComp
+const PortalBadge = PortalBadgeBase as unknown as AnyComp
+const PortalButton = PortalButtonBase as unknown as AnyComp
+const PortalModal = PortalModalBase as unknown as AnyComp
+const PortalField = PortalFieldBase as unknown as AnyComp
+const PortalInput = PortalInputBase as unknown as AnyComp
+const PortalSelect = PortalSelectBase as unknown as AnyComp
+const PortalTextarea = PortalTextareaBase as unknown as AnyComp
+const PortalBanner = PortalBannerBase as unknown as AnyComp
+
+const PRIORITY_TONE: Record<string, string> = {
   p1_critical: 'danger',
   p2_high:     'warning',
   p3_medium:   'warning',
   p4_low:      'success',
 }
-const PRIORITY_COLORS = {
+const PRIORITY_COLORS: Record<string, string> = {
   p1_critical: 'var(--danger)',
   p2_high:     CHART?.orange || '#f97316',
   p3_medium:   'var(--warning)',
   p4_low:      'var(--success)',
 }
-const STATUS_TONE = {
+const STATUS_TONE: Record<string, string> = {
   new: 'default', assigned: 'accent', in_progress: 'accent',
   pending_client: 'warning', pending_third: 'warning',
   resolved: 'success', closed: 'default', cancelled: 'default',
 }
-const TYPE_ICON = {
+const TYPE_ICON: Record<string, typeof Bug> = {
   incident: Bug, service_request: ClipboardList, change: GitBranch, question: HelpCircle,
 }
+
+interface Ticket {
+  id: string
+  number?: string
+  title?: string
+  ticket_type?: string
+  status?: string
+  status_label?: string
+  priority?: string
+  priority_label?: string
+  created_at?: string
+  assigned_to_name?: string
+  csat_requested_at?: string
+  csat_score?: number
+}
+interface TicketComment {
+  id: string
+  author_type?: string
+  author_name?: string
+  created_at?: string
+  body?: string
+  is_public?: boolean
+}
+interface TicketHistory {
+  changed_at?: string
+  changed_by?: string
+  field?: string
+  old_value?: unknown
+  new_value?: unknown
+}
+interface TicketDetail extends Ticket {
+  client_name?: string
+  service_item_name?: string
+  ci_name?: string
+  description?: string
+  resolution?: string
+  sla_resolution_due?: string
+  dynamic_fields?: Record<string, unknown>
+  comments?: TicketComment[]
+  history?: TicketHistory[]
+}
+interface CatalogService { id: string; name?: string; sla_resolution_hours?: number }
+interface CatalogGroup { id: string; icon?: string; name?: string; services: CatalogService[] }
+interface KbArticle { id: string; title?: string; summary?: string; tags?: string; view_count?: number; helpful_count?: number }
+interface Announcement {
+  id: string
+  type?: string
+  title?: string
+  body?: string
+  show_to_clients?: boolean
+  starts_at?: string
+  ends_at?: string
+}
+interface ContextItem { id?: string; name?: string; code?: string; [k: string]: unknown }
+interface ContextOptions { clients: ContextItem[]; services: ContextItem[]; cis: ContextItem[] }
+interface DynamicField {
+  id: string
+  label?: string
+  type?: string
+  required?: boolean
+  options?: string[]
+  visible_when?: { field?: string; equals?: unknown; in?: unknown[] }
+  data_source?: string
+  data_attribute?: string
+}
+interface RoutingHint { when?: { field?: string; equals?: unknown; in?: unknown[] }; set?: Record<string, unknown> }
+interface DynamicRules { fields?: DynamicField[]; routing_hints?: RoutingHint[] }
 
 export function PortalSupportDesk() {
   const _t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const [selectedId, setSelectedId] = useState(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [searchKB, setSearchKB] = useState('')
   const [tab, setTab] = useState('tickets')
@@ -55,42 +142,42 @@ export function PortalSupportDesk() {
     urgency: 'medium', impact: 'user', service_item_id: '', ci_id: '',
   })
 
-  const { data: tickets = [] } = useQuery({
+  const { data: tickets = [] } = useQuery<Ticket[]>({
     queryKey: ['portal-sd-tickets'],
-    queryFn: () => CLIENT_API.get('/sd/tickets/client/my').then(r => r.data),
+    queryFn: () => CLIENT_API.get('/sd/tickets/client/my').then(r => r.data as Ticket[]),
   })
-  const { data: catalog = [] } = useQuery({
+  const { data: catalog = [] } = useQuery<CatalogGroup[]>({
     queryKey: ['portal-sd-catalog'],
-    queryFn: () => CLIENT_API.get('/sd/catalog?public_only=true').then(r => r.data),
+    queryFn: () => CLIENT_API.get('/sd/catalog?public_only=true').then(r => r.data as CatalogGroup[]),
   })
-  const { data: kbArticles = [] } = useQuery({
+  const { data: kbArticles = [] } = useQuery<KbArticle[]>({
     queryKey: ['portal-kb', searchKB],
-    queryFn: () => CLIENT_API.get('/sd/kb', { params: { public_only: true, search: searchKB || undefined } }).then(r => r.data),
+    queryFn: () => CLIENT_API.get('/sd/kb', { params: { public_only: true, search: searchKB || undefined } }).then(r => r.data as KbArticle[]),
   })
-  const { data: announcements = [] } = useQuery({
+  const { data: announcements = [] } = useQuery<Announcement[]>({
     queryKey: ['portal-sd-anns'],
-    queryFn: () => CLIENT_API.get('/sd/announcements').then(r => r.data),
+    queryFn: () => CLIENT_API.get('/sd/announcements').then(r => r.data as Announcement[]),
   })
-  const { data: ticketDetail } = useQuery({
+  const { data: ticketDetail } = useQuery<TicketDetail>({
     queryKey: ['portal-sd-ticket', selectedId],
-    queryFn: () => CLIENT_API.get(`/sd/tickets/client/${selectedId}`).then(r => r.data),
+    queryFn: () => CLIENT_API.get(`/sd/tickets/client/${selectedId}`).then(r => r.data as TicketDetail),
     enabled: !!selectedId,
   })
-  const { data: dynamicRules } = useQuery({
+  const { data: dynamicRules } = useQuery<DynamicRules>({
     queryKey: ['portal-sd-dynamic-forms'],
-    queryFn: () => CLIENT_API.get('/sd/dynamic-forms/public').then(r => r.data),
+    queryFn: () => CLIENT_API.get('/sd/dynamic-forms/public').then(r => r.data as DynamicRules),
   })
-  const { data: contextOptions = { clients: [], services: [], cis: [] } } = useQuery({
+  const { data: contextOptions = { clients: [], services: [], cis: [] } } = useQuery<ContextOptions>({
     queryKey: ['portal-sd-dynamic-forms-context', createForm.service_item_id],
     queryFn: () => CLIENT_API.get('/sd/dynamic-forms/public/context-options', {
       params: { service_item_id: createForm.service_item_id || undefined, limit: 60 },
-    }).then(r => r.data),
+    }).then(r => r.data as ContextOptions),
   })
 
-  const [dynamicValues, setDynamicValues] = useState({})
+  const [dynamicValues, setDynamicValues] = useState<Record<string, string>>({})
 
   const { mutate: createTicket, isPending: creatingTicket } = useMutation({
-    mutationFn: d => CLIENT_API.post('/sd/tickets/client', d),
+    mutationFn: (d: Record<string, unknown>) => CLIENT_API.post('/sd/tickets/client', d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-sd-tickets'] })
       setShowCreate(false)
@@ -98,26 +185,26 @@ export function PortalSupportDesk() {
       setDynamicValues({})
       toast.success('Ticket abierto')
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: addComment } = useMutation({
-    mutationFn: d => CLIENT_API.post(`/sd/tickets/${selectedId}/comments/client`, d),
+    mutationFn: (d: Record<string, unknown>) => CLIENT_API.post(`/sd/tickets/${selectedId}/comments/client`, d),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-sd-ticket', selectedId] }),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: submitCSAT } = useMutation({
-    mutationFn: d => CLIENT_API.post(`/sd/tickets/${selectedId}/csat`, d),
+    mutationFn: (d: Record<string, unknown>) => CLIENT_API.post(`/sd/tickets/${selectedId}/csat`, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-sd-ticket', selectedId] }); toast.success('Gracias por tu valoración') },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const pendingClient = tickets.filter(t => t.status === 'pending_client').length
-  const openTickets = tickets.filter(t => !['closed', 'cancelled', 'resolved'].includes(t.status)).length
+  const openTickets = tickets.filter(t => !['closed', 'cancelled', 'resolved'].includes(t.status || '')).length
 
   const visibleDynamicFields = useMemo(() => {
     const fields = dynamicRules?.fields || []
-    const source = { ...createForm, ...dynamicValues }
-    return fields.filter(f => {
+    const source: Record<string, unknown> = { ...createForm, ...dynamicValues }
+    return fields.filter((f: DynamicField) => {
       const cond = f?.visible_when
       if (!cond || !cond.field) return true
       const current = source[cond.field]
@@ -129,10 +216,11 @@ export function PortalSupportDesk() {
 
   const routingHint = useMemo(() => {
     const hints = dynamicRules?.routing_hints || []
+    const cf: Record<string, unknown> = createForm
     for (const h of hints) {
       const w = h?.when || {}
       if (!w.field) continue
-      const current = createForm[w.field]
+      const current = cf[w.field]
       if ((Object.prototype.hasOwnProperty.call(w, 'equals') && current === w.equals) ||
           (Array.isArray(w.in) && w.in.includes(current))) {
         return h?.set || null
@@ -143,24 +231,24 @@ export function PortalSupportDesk() {
 
   const upcomingEvents = useMemo(() => {
     return (announcements || [])
-      .filter(a => a.show_to_clients && a.starts_at)
-      .sort((a, b) => String(a.starts_at || '').localeCompare(String(b.starts_at || '')))
+      .filter((a: Announcement) => a.show_to_clients && a.starts_at)
+      .sort((a: Announcement, b: Announcement) => String(a.starts_at || '').localeCompare(String(b.starts_at || '')))
       .slice(0, 5)
   }, [announcements])
 
-  const contextSuggestionsForField = (f) => {
+  const contextSuggestionsForField = (f: DynamicField): string[] => {
     const source = f?.data_source || (f?.type || '').replace('context_', '')
     if (source === 'ci') {
       const attr = (f?.data_attribute || 'name').toLowerCase()
-      return (contextOptions.cis || []).map(ci => String(ci[attr] || ci.name || ci.code || ''))
+      return (contextOptions.cis || []).map((ci: ContextItem) => String(ci[attr] || ci.name || ci.code || ''))
     }
     if (source === 'service') {
       const attr = (f?.data_attribute || 'name').toLowerCase()
-      return (contextOptions.services || []).map(s => String(s[attr] || s.name || ''))
+      return (contextOptions.services || []).map((s: ContextItem) => String(s[attr] || s.name || ''))
     }
     if (source === 'client') {
       const attr = (f?.data_attribute || 'name').toLowerCase()
-      return (contextOptions.clients || []).map(c => String(c[attr] || c.name || ''))
+      return (contextOptions.clients || []).map((c: ContextItem) => String(c[attr] || c.name || ''))
     }
     return []
   }
@@ -195,8 +283,8 @@ export function PortalSupportDesk() {
         ) : (
           <>
             <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-              <PortalBadge tone={STATUS_TONE[ticketDetail.status] || 'default'}>{ticketDetail.status_label || ticketDetail.status}</PortalBadge>
-              <PortalBadge tone={PRIORITY_TONE[ticketDetail.priority] || 'default'}>{ticketDetail.priority_label}</PortalBadge>
+              <PortalBadge tone={STATUS_TONE[ticketDetail.status || ""] || 'default'}>{ticketDetail.status_label || ticketDetail.status}</PortalBadge>
+              <PortalBadge tone={PRIORITY_TONE[ticketDetail.priority || ""] || 'default'}>{ticketDetail.priority_label}</PortalBadge>
             </div>
 
             <PortalCard style={{ marginBottom: 14 }}>
@@ -326,10 +414,10 @@ export function PortalSupportDesk() {
               ))}
             </div>
 
-            {!['closed', 'cancelled'].includes(ticketDetail.status) && (
+            {!['closed', 'cancelled'].includes(ticketDetail.status || '') && (
               <PortalCard>
                 <PortalField label="Tu respuesta">
-                  <PortalTextarea rows={4} value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe tu respuesta..." />
+                  <PortalTextarea rows={4} value={newComment} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setNewComment(e.target.value)} placeholder="Escribe tu respuesta..." />
                 </PortalField>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
                   <PortalButton icon={<Send size={13} />} disabled={!newComment.trim()}
@@ -402,7 +490,7 @@ export function PortalSupportDesk() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {tickets.map(tk => {
-              const TypeIcon = TYPE_ICON[tk.ticket_type] || Headphones
+              const TypeIcon = TYPE_ICON[tk.ticket_type || ""] || Headphones
               return (
                 <PortalCard key={tk.id} onClick={() => setSelectedId(tk.id)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -420,9 +508,9 @@ export function PortalSupportDesk() {
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <span style={{
                         fontSize: 'var(--text-xs)', fontWeight: 700,
-                        color: PRIORITY_COLORS[tk.priority] || 'var(--text-2)',
+                        color: PRIORITY_COLORS[tk.priority || ""] || 'var(--text-2)',
                       }}>{tk.priority_label}</span>
-                      <PortalBadge tone={STATUS_TONE[tk.status] || 'default'}>{tk.status_label || tk.status}</PortalBadge>
+                      <PortalBadge tone={STATUS_TONE[tk.status || ""] || 'default'}>{tk.status_label || tk.status}</PortalBadge>
                     </div>
                   </div>
                   {tk.status === 'pending_client' && (
@@ -455,7 +543,7 @@ export function PortalSupportDesk() {
         <>
           <div style={{ marginBottom: 16, position: 'relative' }}>
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
-            <PortalInput value={searchKB} onChange={e => setSearchKB(e.target.value)} placeholder="Buscar artículo..."
+            <PortalInput value={searchKB} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setSearchKB(e.target.value)} placeholder="Buscar artículo..."
               style={{ paddingLeft: 34, fontSize: 'var(--text-md)', padding: '11px 12px 11px 34px' }} />
           </div>
           {kbArticles.length === 0 ? (
@@ -526,7 +614,7 @@ export function PortalSupportDesk() {
         {catalog.length > 0 && (
           <PortalField label="Servicio del catálogo">
             <PortalSelect value={createForm.service_item_id}
-              onChange={e => setCreateForm(f => ({ ...f, service_item_id: e.target.value }))}>
+              onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, service_item_id: e.target.value }))}>
               <option value="">Seleccionar...</option>
               {catalog.map(cat => (
                 <optgroup key={cat.id} label={`${cat.icon || ''} ${cat.name}`}>
@@ -539,7 +627,7 @@ export function PortalSupportDesk() {
         {(contextOptions.cis || []).length > 0 && (
           <PortalField label="CI afectado (opcional)">
             <PortalSelect value={createForm.ci_id || ''}
-              onChange={e => setCreateForm(f => ({ ...f, ci_id: e.target.value }))}>
+              onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, ci_id: e.target.value }))}>
               <option value="">Seleccionar...</option>
               {(contextOptions.cis || []).map(ci => (
                 <option key={ci.id} value={ci.id}>{ci.code ? `${ci.code} - ` : ''}{ci.name}</option>
@@ -550,11 +638,11 @@ export function PortalSupportDesk() {
         <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <PortalField label="Tipo de ticket">
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {[
+              {([
                 ['incident', 'Incidencia', Bug],
                 ['service_request', 'Solicitud', ClipboardList],
                 ['question', 'Consulta', HelpCircle],
-              ].map(([v, l, Icon]) => (
+              ] as [string, string, typeof Bug][]).map(([v, l, Icon]) => (
                 <button key={v} onClick={() => setCreateForm(f => ({ ...f, ticket_type: v }))} style={{
                   flex: 1, minWidth: 110,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -569,14 +657,14 @@ export function PortalSupportDesk() {
             </div>
           </PortalField>
           <PortalField label="Título" required>
-            <PortalInput value={createForm.title} onChange={e => setCreateForm(f => ({ ...f, title: e.target.value }))} placeholder="Resumen claro del problema" />
+            <PortalInput value={createForm.title} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, title: e.target.value }))} placeholder="Resumen claro del problema" />
           </PortalField>
           <PortalField label="Descripción" required hint="Cuanto más contexto añadas, antes te resolveremos">
-            <PortalTextarea rows={4} value={createForm.description} onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe el problema o solicitud..." />
+            <PortalTextarea rows={4} value={createForm.description} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe el problema o solicitud..." />
           </PortalField>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <PortalField label="Urgencia">
-              <PortalSelect value={createForm.urgency} onChange={e => setCreateForm(f => ({ ...f, urgency: e.target.value }))}>
+              <PortalSelect value={createForm.urgency} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, urgency: e.target.value }))}>
                 <option value="critical">Crítica — el negocio está parado</option>
                 <option value="high">Alta — funcionalidad importante no funciona</option>
                 <option value="medium">Media — hay un workaround</option>
@@ -584,7 +672,7 @@ export function PortalSupportDesk() {
               </PortalSelect>
             </PortalField>
             <PortalField label="Impacto">
-              <PortalSelect value={createForm.impact} onChange={e => setCreateForm(f => ({ ...f, impact: e.target.value }))}>
+              <PortalSelect value={createForm.impact} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, impact: e.target.value }))}>
                 <option value="enterprise">Toda la empresa</option>
                 <option value="department">Mi departamento</option>
                 <option value="user">Solo a mí</option>
@@ -607,7 +695,7 @@ export function PortalSupportDesk() {
               {f.type === 'select' ? (
                 <PortalSelect
                   value={dynamicValues[f.id] || ''}
-                  onChange={e => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
+                  onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 >
                   <option value="">Seleccionar...</option>
                   {(f.options || []).map(op => <option key={op} value={op}>{op}</option>)}
@@ -616,14 +704,14 @@ export function PortalSupportDesk() {
                 <PortalTextarea
                   rows={4}
                   value={dynamicValues[f.id] || ''}
-                  onChange={e => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
+                  onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 />
               ) : (f.type || '').startsWith('context_') ? (
                 <>
                   <PortalInput
                     list={`portal-dyn-${f.id}-options`}
                     value={dynamicValues[f.id] || ''}
-                    onChange={e => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
+                    onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                   />
                   <datalist id={`portal-dyn-${f.id}-options`}>
                     {contextSuggestionsForField(f).map((op, idx) => <option key={`${f.id}-${idx}`} value={op} />)}
@@ -633,7 +721,7 @@ export function PortalSupportDesk() {
                 <PortalInput
                   type={f.type === 'date' ? 'date' : 'text'}
                   value={dynamicValues[f.id] || ''}
-                  onChange={e => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
+                  onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 />
               )}
             </PortalField>

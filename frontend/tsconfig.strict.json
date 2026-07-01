@@ -58,6 +58,18 @@
     "src/pages/ImputarPage.tsx",
     "src/pages/AbsencesPage.tsx",
     "src/components/GanttChart.tsx",
-    "src/components/portal/GovernedConversations.tsx"
+    "src/components/portal/GovernedConversations.tsx",
+    "src/pages/portal-client/PortalSupportDesk.tsx",
+    "src/pages/ResourceSchedulerPage.tsx",
+    "src/pages/KanbanAdvancedPage.tsx",
+    "src/pages/EnterprisePage.tsx",
+    "src/pages/AIHubPage.tsx",
+    "src/pages/clients/ClientsPageTabs.tsx",
+    "src/components/servicedesk/VoiceAgentPanel.tsx",
+    "src/pages/SubcontractorsPage.tsx",
+    "src/pages/AutomationsPage.tsx",
+    "src/pages/portal-client/PortalUI.tsx",
+    "src/pages/ClientPortalPage.tsx",
+    "src/pages/ProjectsPage.tsx"
   ]
 }
