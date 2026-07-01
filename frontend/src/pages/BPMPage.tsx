@@ -1514,7 +1514,7 @@ export default function BPMPage(): JSX.Element {
   // NOTE (latent bug): the toast API exposes success/error/warning/info, not
   // `push`. Preserved as-is to avoid changing runtime behavior; cast so it
   // type-checks.
-  const { push }                              = useToast() as unknown as { push: (t: { type: string; message: string }) => void }
+  const toast                                 = useToast()
 
   // ── Load backend processes (custom + catalogue overrides) ────────────────
   const reloadBackend = async () => {
@@ -1612,9 +1612,9 @@ export default function BPMPage(): JSX.Element {
       setBackend(prev => ({ ...prev, xmlByKey: { ...prev.xmlByKey, [selectedProcess.id]: xml } }))
       await reloadBackend()
       setEditMode(false)
-      push({ type: 'success', message: 'Diseño guardado' })
+      toast.success('Diseño guardado')
     } catch (e) {
-      push({ type: 'error', message: apiErrorMsg(e, 'Error al guardar') })
+      toast.error(apiErrorMsg(e, 'Error al guardar'))
     } finally {
       setSaving(false)
     }
@@ -1664,9 +1664,9 @@ export default function BPMPage(): JSX.Element {
       setShowAddForm(false)
       setSelectedProcess(proc)
       setEditMode(true)
-      push({ type: 'success', message: 'Proceso creado' })
+      toast.success('Proceso creado')
     } catch (e) {
-      push({ type: 'error', message: apiErrorMsg(e, 'Error al crear proceso') })
+      toast.error(apiErrorMsg(e, 'Error al crear proceso'))
     } finally {
       setSaving(false)
     }
