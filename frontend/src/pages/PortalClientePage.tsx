@@ -28,8 +28,8 @@ import {
   PortalBadge as PortalBadgeRaw, PortalBanner as PortalBannerRaw,
 } from './portal-client/PortalUI'
 
-// PortalUI sigue bajo @ts-nocheck: sus props quedan inferidas como obligatorias.
-// Re-tipamos los componentes de forma permisiva (sin cambiar runtime).
+// PortalUI's inferred props are all-required; re-typed permissively here
+// (no runtime change).
 type AnyProps = Record<string, unknown>
 const PortalShell = PortalShellRaw as unknown as ComponentType<AnyProps>
 const PortalPageHeader = PortalPageHeaderRaw as unknown as ComponentType<AnyProps>
