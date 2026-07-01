@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type { CSSProperties, ReactNode } from 'react'
 import { Fragment, useState, useEffect } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -10,7 +10,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Card } from '../../components/ui'
 import { portalClientsApi, settingsApi } from '../../services/api'
 
-function Section({ icon, title, description, children }) {
+function Section({ icon, title, description, children }: { icon?: ReactNode; title?: ReactNode; description?: ReactNode; children?: ReactNode }) {
   return (
     <Card style={{ marginBottom: 24 }}>
       <div style={{ marginBottom: 20 }}>
@@ -25,37 +25,37 @@ function Section({ icon, title, description, children }) {
 export function IdiomasSection() {
   const toast = useToast()
   const qc = useQueryClient()
-  const { lang: operatorLang, setLang: setOperatorLang, t, _translations, setCustomTranslations, customTrans } = useAppLang()
+  const { lang: operatorLang, setLang: setOperatorLang, t, setCustomTranslations, customTrans } = useAppLang()
 
   const { data: _portalTrans = {} } = useQuery({
     queryKey: ['portal-translations'],
     queryFn: () => portalClientsApi.translations().then(r => r.data).catch(() => ({})),
   })
   const { mutate: savePortalTrans, isPending: savingPortal } = useMutation({
-    mutationFn: d => portalClientsApi.saveTranslations(d),
+    mutationFn: (d: any) => portalClientsApi.saveTranslations(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-translations'] }); toast.success(t('i18n.saved_ok')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: any) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const [activeTab, setActiveTab] = useState('operator')
   const [appLang, setAppLang] = useState('en')
-  const [appTranslations, setAppTranslations] = useState({})
+  const [appTranslations, setAppTranslations] = useState<Record<string, any>>({})
   const [loadingAppLang, setLoadingAppLang] = useState(true)
   const [portalLang, setPortalLang] = useState('en')
   const [searchKey, setSearchKey] = useState('')
   const [activeModule, setActiveModule] = useState('all')
-  const [appEdits, setAppEdits] = useState({})
-  const [portalEdits, setPortalEdits] = useState({})
+  const [appEdits, setAppEdits] = useState<Record<string, any>>({})
+  const [portalEdits, setPortalEdits] = useState<Record<string, any>>({})
   const [portalSearch, setPortalSearch] = useState('')
   const [hasUnsaved, setHasUnsaved] = useState(false)
 
-  const allKeys = getAllKeys(es)
-  const modules = ['all', ...new Set(allKeys.map(k => k.module))]
+  const allKeys: any[] = getAllKeys(es)
+  const modules = ['all', ...new Set(allKeys.map((k: any) => k.module))]
 
   useEffect(() => {
     let cancelled = false
     setLoadingAppLang(true)
-    loadLanguage(appLang).then(tr => {
+    loadLanguage(appLang).then((tr: any) => {
       if (!cancelled) {
         setAppTranslations(tr)
         setLoadingAppLang(false)
@@ -64,7 +64,7 @@ export function IdiomasSection() {
     return () => { cancelled = true }
   }, [appLang])
 
-  const filteredKeys = allKeys.filter(k => {
+  const filteredKeys = allKeys.filter((k: any) => {
     const matchMod = activeModule === 'all' || k.module === activeModule
     const matchSrc = !searchKey || k.key.includes(searchKey.toLowerCase()) ||
       k.base_es.toLowerCase().includes(searchKey.toLowerCase()) ||
@@ -72,14 +72,14 @@ export function IdiomasSection() {
     return matchMod && matchSrc
   })
 
-  const getAppVal = (lang, module, key) =>
+  const getAppVal = (lang: string, module: string, key: string) =>
     (lang === appLang ? (
       appEdits?.[module]?.[key] ??
-      customTrans?.[module]?.[key] ??
+      (customTrans as any)?.[module]?.[key] ??
       appTranslations?.[module]?.[key]
     ) : '') ?? ''
 
-  const setAppVal = (lang, module, key, val) => {
+  const setAppVal = (lang: string, module: string, key: string, val: string) => {
     if (lang !== appLang) return
     setAppEdits(prev => ({
       ...prev,
@@ -88,13 +88,13 @@ export function IdiomasSection() {
     setHasUnsaved(true)
   }
 
-  const importJSON = (e) => {
+  const importJSON = (e: any) => {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
     reader.onload = (ev) => {
       try {
-        const data = JSON.parse(ev.target.result)
+        const data = JSON.parse(String(ev.target?.result ?? ''))
         if (typeof data !== 'object' || !data[appLang]) {
           toast.error('El JSON no contiene traducciones para el idioma seleccionado.')
           return
@@ -110,7 +110,7 @@ export function IdiomasSection() {
   }
 
   const saveAppTrans = () => {
-    const merged = { ...customTrans }
+    const merged: Record<string, any> = { ...customTrans }
     merged[appLang] = { ...customTrans[appLang], ...appEdits }
     setCustomTranslations(merged)
     setAppEdits({})
@@ -127,8 +127,8 @@ export function IdiomasSection() {
     URL.revokeObjectURL(url)
   }
 
-  const fs = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit' }
-  const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit' }
+  const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
   if (loadingAppLang) return <div>Cargando traducciones...</div>
 
@@ -281,16 +281,16 @@ export function IdiomasSection() {
               <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 📤 Importar JSON
                 <input type="file" accept="application/json" style={{ display: 'none' }} onChange={e => {
-                  const file = e.target.files[0]
+                  const file = e.target.files?.[0]
                   if (!file) return
                   const reader = new FileReader()
                   reader.onload = evt => {
                     try {
-                      const data = JSON.parse(evt.target.result)
-                      setPortalEdits(prev => {
-                        const merged = { ...prev }
-                        for (const [lang, keys] of Object.entries(data)) {
-                          for (const [key, value] of Object.entries(keys)) {
+                      const data = JSON.parse(String(evt.target?.result ?? ''))
+                      setPortalEdits((prev: Record<string, any>) => {
+                        const merged: Record<string, any> = { ...prev }
+                        for (const [lang, keys] of Object.entries(data as Record<string, any>)) {
+                          for (const [key, value] of Object.entries(keys as Record<string, any>)) {
                             if (!merged[key]) merged[key] = {}
                             merged[key][lang] = value
                           }
@@ -321,7 +321,7 @@ export function IdiomasSection() {
                 base_es.toLowerCase().includes(portalSearch.toLowerCase()))
               .map(({ key, base_es }, idx) => {
                 const currentVal = portalEdits[key]?.[portalLang]
-                  ?? PORTAL_TRANSLATIONS[portalLang]?.[key] ?? ''
+                  ?? (PORTAL_TRANSLATIONS as any)[portalLang]?.[key] ?? ''
                 const isModified = portalEdits[key]?.[portalLang] !== undefined
                 return (
                   <div key={key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid var(--surface-4)20', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
@@ -330,7 +330,7 @@ export function IdiomasSection() {
                     <input
                       value={currentVal}
                       onChange={e => {
-                        setPortalEdits(prev => ({ ...prev, [key]: { ...(prev[key] || {}), [portalLang]: e.target.value } }))
+                        setPortalEdits((prev: Record<string, any>) => ({ ...prev, [key]: { ...(prev[key] || {}), [portalLang]: e.target.value } }))
                         setHasUnsaved(true)
                       }}
                       style={{ ...fs, padding: '4px 8px', borderColor: isModified ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)' }}
@@ -350,16 +350,16 @@ export function IdiomasSection() {
               <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 📤 Importar JSON
                 <input type="file" accept="application/json" style={{ display: 'none' }} onChange={e => {
-                  const file = e.target.files[0]
+                  const file = e.target.files?.[0]
                   if (!file) return
                   const reader = new FileReader()
                   reader.onload = evt => {
                     try {
-                      const data = JSON.parse(evt.target.result)
-                      setPortalEdits(prev => {
-                        const merged = { ...prev }
-                        for (const [lang, keys] of Object.entries(data)) {
-                          for (const [key, value] of Object.entries(keys)) {
+                      const data = JSON.parse(String(evt.target?.result ?? ''))
+                      setPortalEdits((prev: Record<string, any>) => {
+                        const merged: Record<string, any> = { ...prev }
+                        for (const [lang, keys] of Object.entries(data as Record<string, any>)) {
+                          for (const [key, value] of Object.entries(keys as Record<string, any>)) {
                             if (!merged[key]) merged[key] = {}
                             merged[key][lang] = value
                           }
@@ -385,9 +385,9 @@ export function IdiomasSection() {
                 📥 Exportar JSON
               </button>
               <button onClick={() => {
-                const stored = JSON.parse(localStorage.getItem('contecflow_portal_custom') || '{}')
+                const stored: Record<string, any> = JSON.parse(localStorage.getItem('contecflow_portal_custom') || '{}')
                 for (const [key, langs] of Object.entries(portalEdits)) {
-                  for (const [lang, val] of Object.entries(langs)) {
+                  for (const [lang, val] of Object.entries(langs as Record<string, any>)) {
                     if (!stored[lang]) stored[lang] = {}
                     stored[lang][key] = val
                   }
@@ -415,7 +415,7 @@ export function LogLevelSection() {
   )
   const qc = useQueryClient()
 
-  const { data: serverLevel, isLoading } = useQuery({
+  const { data: serverLevel, isLoading } = useQuery<any>({
     queryKey: ['log-level'],
     queryFn: () => settingsApi.logLevel().then(r => r.data),
   })
@@ -431,7 +431,7 @@ export function LogLevelSection() {
     try {
       const lvl = String(level).toUpperCase()
       setBackendLevel(lvl)
-      await settingsApi.setLogLevel({ level: lvl })
+      await settingsApi.setLogLevel({ level: lvl as any })
       toast.success(`Nivel backend cambiado a ${lvl}`)
       qc.invalidateQueries({ queryKey: ['log-level'] })
     } catch {
@@ -439,15 +439,15 @@ export function LogLevelSection() {
     }
   }
 
-  const handleSetFrontend = (level) => {
+  const handleSetFrontend = (level: string) => {
     setFrontendLevel(level)
     localStorage.setItem('contecflow_log_level', level)
-    if (window.__contecflowLogger) window.__contecflowLogger.setLevel(level)
+    if ((window as any).__contecflowLogger) (window as any).__contecflowLogger.setLevel(level)
     toast.success(`Nivel frontend cambiado a ${level.toUpperCase()} (activo hasta recarga)`)
   }
 
   const LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
-  const LEVEL_COLORS = { DEBUG: 'var(--text-2)', INFO: 'var(--accent)', WARNING: 'var(--warning)', ERROR: 'var(--danger)', CRITICAL: '#c0392b' }
+  const LEVEL_COLORS: Record<string, string> = { DEBUG: 'var(--text-2)', INFO: 'var(--accent)', WARNING: 'var(--warning)', ERROR: 'var(--danger)', CRITICAL: '#c0392b' }
 
   return (
     <Section icon="📋" title="Nivel de log" description="Controla la verbosidad del backend y frontend">
@@ -640,7 +640,7 @@ const SYSTEM_KEY_GROUPS = [
   },
 ]
 
-const isInternalKey = (key) => {
+const isInternalKey = (key: any) => {
   if (!key) return false
   const k = String(key).toLowerCase()
   if (k.includes('.')) return true
@@ -649,7 +649,7 @@ const isInternalKey = (key) => {
   return false
 }
 
-const groupForKey = (key) => {
+const groupForKey = (key: any) => {
   const k = String(key).toLowerCase()
   for (const g of SYSTEM_KEY_GROUPS) {
     if (g.prefixes.some(p => k.startsWith(p))) return g.label
@@ -657,8 +657,8 @@ const groupForKey = (key) => {
   return 'Otros'
 }
 
-const dedupeSettingsByKey = (rows) => {
-  const byKey = new Map()
+const dedupeSettingsByKey = (rows: any[]) => {
+  const byKey = new Map<string, any>()
   for (const row of rows || []) {
     const key = String(row?.key || '')
     if (!key) continue
@@ -684,7 +684,7 @@ const dedupeSettingsByKey = (rows) => {
   return Array.from(byKey.values())
 }
 
-function tryFormatValue(raw) {
+function tryFormatValue(raw: any) {
   if (raw == null || raw === '') return null
   if (typeof raw === 'object') {
     try { return JSON.stringify(raw, null, 2) } catch { return String(raw) }
@@ -701,7 +701,7 @@ function tryFormatValue(raw) {
   return raw
 }
 
-function SystemSettingItem({ setting }) {
+function SystemSettingItem({ setting }: { setting: any }) {
   const [expanded, setExpanded] = useState(false)
   const formatted = tryFormatValue(setting.value)
   const isJson = formatted && (formatted.startsWith('{') || formatted.startsWith('['))
@@ -756,14 +756,14 @@ function SystemSettingItem({ setting }) {
 }
 
 export function SystemStateSection() {
-  const { data: settings = [], isLoading } = useQuery({
+  const { data: settings = [], isLoading } = useQuery<any[]>({
     queryKey: ['settings-general'],
-    queryFn: () => settingsApi.general().then(r => r.data),
+    queryFn: () => settingsApi.general().then(r => r.data as any),
   })
 
-  const internal = dedupeSettingsByKey((settings || []).filter(s => isInternalKey(s.key)))
+  const internal = dedupeSettingsByKey((settings || []).filter((s: any) => isInternalKey(s.key)))
   // Agrupar por grupo lógico
-  const grouped = {}
+  const grouped: Record<string, any[]> = {}
   for (const s of internal) {
     const label = groupForKey(s.key)
     if (!grouped[label]) grouped[label] = []
@@ -820,7 +820,7 @@ export function SystemStateSection() {
                   }}>{items.length}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 10 }}>
-                  {items.map((s, idx) => {
+                  {items.map((s: any, idx: number) => {
                     const orgScope = s.organization_id ?? s.organizationId ?? 'global'
                     return <SystemSettingItem key={`${s.key}::${orgScope}::${idx}`} setting={s} />
                   })}
@@ -858,28 +858,28 @@ const RUNTIME_GROUPS = [
 ]
 
 
-function RuntimeGroupEditor({ groupId, description }) {
+function RuntimeGroupEditor({ groupId, description }: { groupId: string; description?: string }) {
   const toast = useToast()
   const qc = useQueryClient()
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error } = useQuery<any>({
     queryKey: ['runtime-flags', groupId],
     queryFn: () => settingsApi.runtimeGroup(groupId).then(r => r.data),
   })
 
   const { mutate: save, isPending } = useMutation({
-    mutationFn: ({ key, value }) => settingsApi.setRuntime(groupId, key, value),
+    mutationFn: ({ key, value }: { key: string; value: any }) => settingsApi.setRuntime(groupId, key, value),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['runtime-flags', groupId] })
       toast.success('Guardado')
     },
-    onError: (e) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: any) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const [draft, setDraft] = useState({})
+  const [draft, setDraft] = useState<Record<string, any>>({})
   useEffect(() => {
     if (data?.items) {
-      const next = {}
+      const next: Record<string, any> = {}
       for (const it of data.items) next[it.key] = it.value == null ? '' : String(it.value)
       setDraft(next)
     }
@@ -894,7 +894,7 @@ function RuntimeGroupEditor({ groupId, description }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{description}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 200px auto', gap: 10, alignItems: 'center' }}>
-        {items.map((it) => {
+        {items.map((it: any) => {
           const current = draft[it.key] ?? ''
           const isBool = it.type === 'bool'
           const dirty = String(it.value ?? '') !== String(current)
@@ -906,7 +906,7 @@ function RuntimeGroupEditor({ groupId, description }) {
               isBool={isBool}
               dirty={dirty}
               disabled={isPending}
-              onChange={(v) => setDraft({ ...draft, [it.key]: v })}
+              onChange={(v: any) => setDraft({ ...draft, [it.key]: v })}
               onSave={() => save({ key: it.key, value: isBool ? (current === 'true' || current === true) : current })}
             />
           )
@@ -920,8 +920,8 @@ function RuntimeGroupEditor({ groupId, description }) {
 }
 
 
-function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSave }) {
-  const inputStyle = {
+function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSave }: { item: any; current: any; isBool: boolean; dirty: boolean; disabled: boolean; onChange: (v: any) => void; onSave: () => void }) {
+  const inputStyle: CSSProperties = {
     width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
     borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-base)',
     outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
@@ -967,40 +967,40 @@ function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSa
 
 // ── Integration credentials (Phase 2: encrypted per-org provider creds) ─────
 
-function IntegrationProviderEditor({ provider, label }) {
+function IntegrationProviderEditor({ provider, label }: { provider: any; label?: string }) {
   const toast = useToast()
   const qc = useQueryClient()
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error } = useQuery<any>({
     queryKey: ['integration', provider],
     queryFn: () => settingsApi.integrationProvider(provider).then(r => r.data),
   })
   const { mutate: save, isPending } = useMutation({
-    mutationFn: ({ key, value }) => settingsApi.setIntegration(provider, key, value),
+    mutationFn: ({ key, value }: { key: string; value: any }) => settingsApi.setIntegration(provider, key, value),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['integration', provider] })
       toast.success('Guardado')
     },
-    onError: (e) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: any) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const [testResult, setTestResult] = useState(null)
+  const [testResult, setTestResult] = useState<any>(null)
   const { mutate: runTest, isPending: testing } = useMutation({
     mutationFn: () => settingsApi.testIntegration(provider).then(r => r.data),
-    onSuccess: (result) => {
+    onSuccess: (result: any) => {
       setTestResult(result)
       if (result?.ok) toast.success(result.detail || 'Conexión OK')
       else toast.error(result?.detail || 'Test de conexión falló')
     },
-    onError: (e) => {
+    onError: (e: any) => {
       setTestResult({ ok: false, detail: extractErr(e, GENERIC_ERROR_FALLBACK) })
       toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
     },
   })
 
-  const [draft, setDraft] = useState({})
+  const [draft, setDraft] = useState<Record<string, any>>({})
   useEffect(() => {
     if (data?.items) {
-      const next = {}
+      const next: Record<string, any> = {}
       // Secrets never echo back — start as empty so admin types the new value.
       for (const it of data.items) next[it.key] = it.is_secret ? '' : (it.value == null ? '' : String(it.value))
       setDraft(next)
@@ -1048,8 +1048,8 @@ function IntegrationProviderEditor({ provider, label }) {
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px auto auto', gap: 10, alignItems: 'center' }}>
-        {items.map(it => {
-          const inputStyle = {
+        {items.map((it: any) => {
+          const inputStyle: CSSProperties = {
             width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
             borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-base)',
             outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
@@ -1109,12 +1109,12 @@ function IntegrationProviderEditor({ provider, label }) {
 
 
 export function IntegrationCredentialsSection() {
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error } = useQuery<any>({
     queryKey: ['integration-providers'],
     queryFn: () => settingsApi.integrations().then(r => r.data),
   })
   const providers = data?.providers || []
-  const [active, setActive] = useState(null)
+  const [active, setActive] = useState<any>(null)
   useEffect(() => {
     if (!active && providers.length) setActive(providers[0].provider)
   }, [providers, active])
@@ -1122,7 +1122,7 @@ export function IntegrationCredentialsSection() {
   if (isLoading) return <Section icon="🔐" title="Credenciales de integración"><div style={{ padding: 12, color: 'var(--text-2)' }}>Cargando…</div></Section>
   if (isError)   return <Section icon="🔐" title="Credenciales de integración"><div style={{ padding: 12, color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div></Section>
 
-  const currentProvider = providers.find(p => p.provider === active)
+  const currentProvider = providers.find((p: any) => p.provider === active)
 
   return (
     <Section
@@ -1131,7 +1131,7 @@ export function IntegrationCredentialsSection() {
       description="SMTP, AWS S3, Microsoft Graph, Slack, Stripe, etc. Los secretos se cifran en reposo (Fernet/HKDF + opcional AWS KMS) y nunca se devuelven en las respuestas."
     >
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-        {providers.map(p => (
+        {providers.map((p: any) => (
           <button
             key={p.provider}
             onClick={() => setActive(p.provider)}

@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState, useMemo } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -26,19 +26,19 @@ import {
 const PALETTE = CHART_COLORS_EXTENDED
 
 // Shared style constants used across sub-components
-const _card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', cursor: 'pointer' }
-const ls = { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
-const STATUS_COLORS = {
+const _card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', cursor: 'pointer' }
+const ls: CSSProperties = { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const STATUS_COLORS: Record<string, string> = {
   ok: 'var(--success)', warning: 'var(--warning)', critical: 'var(--danger)',
   Crítico: 'var(--danger)', Alto: 'var(--warning)', Medio: 'var(--accent)', Bajo: 'var(--success)',
 }
-const CAT_ICONS = { Horas: '⏱️', Costes: '💸', Rentabilidad: '💰', Capacidad: '📅', Proyectos: '⬡', Negocio: '💼', RRHH: '👥', 'Service Desk': '🎫', Agilidad: '🏃', ALM: '🔑', IA: '🧠', Estrategia: '🎯', Bienestar: '🧘', OKR: '🎯', NPS: '⭐', Formación: '🎓', Git: '🔀', Ingresos: '📈', Gastos: '🧾', Sprints: '🏃', Tareas: '✅', Portfolio: '🗂️', Facturación: '🧾', Alertas: '🔔', Automatizaciones: '⚙️', CMDB: '🖥️' }
+const CAT_ICONS: Record<string, string> = { Horas: '⏱️', Costes: '💸', Rentabilidad: '💰', Capacidad: '📅', Proyectos: '⬡', Negocio: '💼', RRHH: '👥', 'Service Desk': '🎫', Agilidad: '🏃', ALM: '🔑', IA: '🧠', Estrategia: '🎯', Bienestar: '🧘', OKR: '🎯', NPS: '⭐', Formación: '🎓', Git: '🔀', Ingresos: '📈', Gastos: '🧾', Sprints: '🏃', Tareas: '✅', Portfolio: '🗂️', Facturación: '🧾', Alertas: '🔔', Automatizaciones: '⚙️', CMDB: '🖥️' }
 
 // ── Saved reports storage (using window var instead of localStorage per policy) ─
-const _savedStore = { reports: [] }
+const _savedStore: { reports: any[] } = { reports: [] }
 function getSaved() { return _savedStore.reports }
-function setSaved(r) { _savedStore.reports = r }
+function setSaved(r: any[]) { _savedStore.reports = r }
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 const PRESETS = [
@@ -198,9 +198,9 @@ const CHART_TYPES = [
 ]
 
 // ── Tooltip customizado ───────────────────────────────────────────────────────
-const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }) => {
+const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }: { active?: any; payload?: any; label?: any; isCurrency?: any; isPercent?: any }) => {
   if (!active || !payload?.length) return null
-  const fmt = (v) => {
+  const fmt = (v: any) => {
     if (v == null) return '—'
     if (isCurrency) return fmtCurrency(Number(v) || 0)
     if (isPercent) return `${Number(v) || 0}%`
@@ -209,7 +209,7 @@ const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }) => {
   return (
     <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-sm)" }}>
       <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text-1)' }}>{label}</div>
-      {payload.map((p, i) => (
+      {payload.map((p: any, i: number) => (
         <div key={i} style={{ color: p.color || 'var(--text-1)', marginBottom: 2 }}>
           {p.name}: <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{fmt(p.value)}</span>
         </div>
@@ -219,11 +219,11 @@ const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }) => {
 }
 
 // ── Heatmap component ─────────────────────────────────────────────────────────
-function HeatmapChart({ data, meta }) {
+function HeatmapChart({ data, meta }: { data: any[]; meta?: any }) {
   const weeks = meta?.weeks || []
   if (!data.length || !weeks.length) return <EmptyState svgIcon={<Grid3X3 size={36} />} title="Sin datos disponibles" />
-  const maxVal = Math.max(...data.flatMap(r => weeks.map(w => r[w] || 0)))
-  const getColor = (v) => {
+  const maxVal = Math.max(...data.flatMap((r: any) => weeks.map((w: any) => r[w] || 0)))
+  const getColor = (v: any) => {
     if (!v) return 'var(--surface-3)'
     const pct = v / maxVal
     if (pct > 0.75) return 'var(--danger)'
@@ -237,14 +237,14 @@ function HeatmapChart({ data, meta }) {
         <thead>
           <tr>
             <th style={{ padding: '4px 8px', color: 'var(--text-2)', textAlign: 'left', minWidth: 120 }}>Persona</th>
-            {weeks.map(w => <th key={w} style={{ padding: '4px 4px', color: 'var(--text-2)', textAlign: 'center', minWidth: 42 }}>{w}</th>)}
+            {weeks.map((w: any) => <th key={w} style={{ padding: '4px 4px', color: 'var(--text-2)', textAlign: 'center', minWidth: 42 }}>{w}</th>)}
           </tr>
         </thead>
         <tbody>
-          {data.map(row => (
+          {data.map((row: any) => (
             <tr key={row.label}>
               <td style={{ padding: '3px 8px', fontSize: "var(--text-sm)", color: 'var(--text-1)', fontWeight: 600 }}>{row.label}</td>
-              {weeks.map(w => {
+              {weeks.map((w: any) => {
                 const v = row[w] || 0
                 return (
                   <td key={w} title={`${row.label} · ${w}: ${v}h`} style={{ padding: 2 }}>
@@ -270,10 +270,10 @@ function HeatmapChart({ data, meta }) {
 }
 
 // ── Data table ────────────────────────────────────────────────────────────────
-function DataTable({ data, isCurrency, isPercent }) {
+function DataTable({ data, isCurrency, isPercent }: { data: any[]; isCurrency?: any; isPercent?: any }) {
   if (!data.length) return <EmptyState svgIcon={<TableIcon size={36} />} title="Sin datos disponibles" />
   const keys = Object.keys(data[0]).filter(k => k !== 'status')
-  const fmt = (v) => {
+  const fmt = (v: any) => {
     if (typeof v !== 'number') return v
     if (isCurrency) return fmtCurrency(v)
     if (isPercent) return `${v.toFixed(1)}%`
@@ -288,7 +288,7 @@ function DataTable({ data, isCurrency, isPercent }) {
           </tr>
         </thead>
         <tbody>
-          {data.map((row, i) => (
+          {data.map((row: any, i: number) => (
             <tr key={i} style={{ borderBottom: '1px solid var(--surface-4)30' }}>
               {keys.map(k => (
                 <td key={k} style={{ padding: '10px 12px', textAlign: k === 'label' ? 'left' : 'right', fontFamily: k !== 'label' ? 'var(--font-mono)' : 'inherit', fontWeight: k === 'value' ? 700 : 400, color: k === 'value' ? (row.status ? STATUS_COLORS[row.status] : 'var(--text-1)') : 'var(--text-1)' }}>
@@ -304,14 +304,14 @@ function DataTable({ data, isCurrency, isPercent }) {
 }
 
 // ── Chart renderer ────────────────────────────────────────────────────────────
-function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height = 320 }) {
+function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height = 320 }: { data: any[]; chartType?: any; meta?: any; color?: string; height?: number }) {
   if (!data || data.length === 0) return <EmptyState svgIcon={<BarChartBig size={36} />} title="Sin datos" description="No hay datos disponibles para este gráfico" />
 
   const isCurrency = meta?.y_label?.includes('€')
   const isPercent = meta?.y_label?.includes('%')
-  const fmtY = (v) => {
+  const fmtY = (v: any) => {
     const n = Number(v) || 0
-    return isCurrency ? `${(n / 1000).toFixed(0)}k€` : isPercent ? `${n}%` : n
+    return isCurrency ? `${(n / 1000).toFixed(0)}k€` : isPercent ? `${n}%` : String(n)
   }
 
   if (chartType === 'heatmap') return <HeatmapChart data={data} meta={meta} />
@@ -324,13 +324,13 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
           <Pie data={data} dataKey="value" nameKey="label" cx="50%" cy="50%"
             innerRadius={chartType === 'donut' ? 70 : 0} outerRadius={120}
             paddingAngle={2}>
-            {data.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
+            {data.map((_: any, i: number) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
           </Pie>
           <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
         </PieChart>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {data.map((row, i) => {
-            const total = data.reduce((s, r) => s + (r.value || 0), 0)
+          {data.map((row: any, i: number) => {
+            const total = data.reduce((s: number, r: any) => s + (r.value || 0), 0)
             const pct = total > 0 ? ((row.value / total) * 100).toFixed(1) : 0
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: "var(--text-base)" }}>
@@ -439,7 +439,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
         <YAxis tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} tickFormatter={fmtY} width={60} />
         <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
         <Bar dataKey="value" radius={[3, 3, 0, 0]}>
-          {data.map((row, i) => (
+          {data.map((row: any, i: number) => (
             <Cell key={i} fill={row.status ? STATUS_COLORS[row.status] || color : color} />
           ))}
         </Bar>
@@ -449,13 +449,13 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
 }
 
 // ── Summary bar ───────────────────────────────────────────────────────────────
-function SummaryBar({ summary, meta, prevSummary }) {
+function SummaryBar({ summary, meta, prevSummary }: { summary?: any; meta?: any; prevSummary?: any }) {
   if (!summary || !summary.total) return null
   const isCurrency = meta?.y_label?.includes('€')
   const isPercent  = meta?.y_label?.includes('%')
-  const fmt = (v) => isCurrency ? fmtCurrency(v) : isPercent ? `${v.toFixed(1)}%` : v.toLocaleString('es-ES', { maximumFractionDigits: 1 })
+  const fmt = (v: any) => isCurrency ? fmtCurrency(v) : isPercent ? `${v.toFixed(1)}%` : v.toLocaleString('es-ES', { maximumFractionDigits: 1 })
 
-  const trend = (curr, prev) => {
+  const trend = (curr: any, prev: any) => {
     if (!prev || prev === 0) return null
     const pct = ((curr - prev) / Math.abs(prev) * 100)
     const up  = pct >= 0
@@ -492,7 +492,7 @@ function SummaryBar({ summary, meta, prevSummary }) {
 }
 
 // ── Report panel ──────────────────────────────────────────────────────────────
-function ReportPanel({ initialMetric, initialChart, onSave }) {
+function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: any; initialChart?: any; onSave?: any }) {
   const today = new Date().toISOString().split('T')[0]
   const threeMonthsAgo = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
 
@@ -521,8 +521,8 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
   // Período anterior para comparativa en SummaryBar
   const prevDateFrom = useMemo(() => {
     if (!dateFrom || !dateTo) return null
-    const diff = new Date(dateTo) - new Date(dateFrom)
-    return new Date(new Date(dateFrom) - diff).toISOString().split('T')[0]
+    const diff = new Date(dateTo).getTime() - new Date(dateFrom).getTime()
+    return new Date(new Date(dateFrom).getTime() - diff).toISOString().split('T')[0]
   }, [dateFrom, dateTo])
   const prevDateTo = dateFrom
 
@@ -535,11 +535,11 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
   })
 
   // Auto-set chart type from metric default
-  const handleMetricChange = (m) => {
+  const handleMetricChange = (m: any) => {
     setMetric(m)
     if (catalogue) {
-      for (const cat of Object.values(catalogue)) {
-        const found = cat.find(item => item.id === m)
+      for (const cat of Object.values(catalogue) as any[]) {
+        const found = cat.find((item: any) => item.id === m)
         if (found) { setChartType(found.default_chart || 'bar'); break }
       }
     }
@@ -550,7 +550,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
     { label: '6m', days: 180 }, { label: '1a', days: 365 },
   ]
 
-  const setDatePreset = (days) => {
+  const setDatePreset = (days: any) => {
     const end = new Date()
     const start = new Date(Date.now() - days * 86400000)
     setDateFrom(start.toISOString().split('T')[0])
@@ -568,9 +568,9 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
             <label style={ls}>📊 Métrica</label>
             <select value={metric} onChange={e => handleMetricChange(e.target.value)} style={fs}>
               <option value="">Seleccionar métrica...</option>
-              {catalogue && Object.entries(catalogue).map(([cat, items]) => (
+              {catalogue && Object.entries(catalogue).map(([cat, items]: [string, any]) => (
                 <optgroup key={cat} label={`${CAT_ICONS[cat] || '📊'} ${cat}`}>
-                  {items.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+                  {items.map((item: any) => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </optgroup>
               ))}
             </select>
@@ -581,7 +581,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
             <label style={ls}>📁 Proyecto</label>
             <select value={projectId} onChange={e => setProjectId(e.target.value)} style={fs}>
               <option value="">Todos los proyectos</option>
-              {filters?.projects?.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+              {filters?.projects?.map((p: any) => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
           </div>
 
@@ -590,7 +590,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
             <label style={ls}>👤 Persona</label>
             <select value={userId} onChange={e => setUserId(e.target.value)} style={fs}>
               <option value="">Todas las personas</option>
-              {filters?.users?.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
+              {filters?.users?.map((u: any) => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
           </div>
 
@@ -599,7 +599,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
             <label style={ls}>🏢 Departamento</label>
             <select value={department} onChange={e => setDepartment(e.target.value)} style={fs}>
               <option value="">Todos</option>
-              {filters?.departments?.map(d => <option key={d} value={d}>{d}</option>)}
+              {filters?.departments?.map((d: any) => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
 
@@ -707,14 +707,14 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
                 </div>
               )}
               <button onClick={() => {
-                const csv = [Object.keys(result.rows[0] || {}).join(','), ...result.rows.map(r => Object.values(r).join(','))].join('\n')
+                const csv = [Object.keys(result.rows[0] || {}).join(','), ...result.rows.map((r: any) => Object.values(r).join(','))].join('\n')
                 const a = document.createElement('a'); a.href = 'data:text/csv,' + encodeURIComponent(csv); a.download = `${metric}.csv`; a.click()
               }} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '6px 12px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>⬇ CSV</button>
               <button onClick={() => {
                 const el = document.querySelector('.recharts-wrapper') || document.querySelector('[data-chart]')
-                if (!el) return toast.info('Selecciona un tipo de gráfico visual primero')
-                import('html2canvas').then(({ default: html2canvas }) => {
-                  html2canvas(el).then(canvas => {
+                if (!el) { toast.info('Selecciona un tipo de gráfico visual primero'); return }
+                import('html2canvas').then(({ default: html2canvas }: any) => {
+                  html2canvas(el as HTMLElement).then((canvas: any) => {
                     const a = document.createElement('a'); a.href = canvas.toDataURL(); a.download = `${metric}.png`; a.click()
                   })
                 }).catch(() => toast.error('Error al exportar imagen'))
@@ -745,13 +745,13 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
 }
 
 // ── Dashboard mode: multiple panels ──────────────────────────────────────────
-function ReportsDashboard({ saved, onRemove, onOpen }) {
+function ReportsDashboard({ saved, onRemove, onOpen }: { saved: any[]; onRemove?: any; onOpen?: any }) {
   const _today = new Date().toISOString().split('T')[0]
   const _d90 = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(480px, 1fr))', gap: 20 }}>
-      {saved.map(r => (
+      {saved.map((r: any) => (
         <Card key={r.id} style={{ padding: 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{r.name}</div>
@@ -767,7 +767,7 @@ function ReportsDashboard({ saved, onRemove, onOpen }) {
   )
 }
 
-function MiniPanel({ config }) {
+function MiniPanel({ config }: { config: any }) {
   const { data: result, isLoading } = useQuery({
     queryKey: ['analytics-mini', config.metric, config.dateFrom, config.dateTo, config.projectId, config.userId],
     queryFn: () => analyticsApi.query(config.metric, { date_from: config.dateFrom, date_to: config.dateTo, project_id: config.projectId || undefined, user_id: config.userId || undefined, top_n: 10 }).then(r => r.data).catch(() => null),
@@ -809,7 +809,7 @@ function ScheduledReportsTab() {
   })
 
   const { mutate: create, isPending: creating } = useMutation({
-    mutationFn: d => scheduledReportsApi.create(d),
+    mutationFn: (d: any) => scheduledReportsApi.create(d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['scheduled-reps'] })
       setShowCreate(false)
@@ -820,15 +820,15 @@ function ScheduledReportsTab() {
   })
 
   const { mutate: remove } = useMutation({
-    mutationFn: id => scheduledReportsApi.delete(id),
+    mutationFn: (id: any) => scheduledReportsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['scheduled-reps'] }); toast.success('Informe eliminado') },
 
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const { mutate: runNow, isPending: running } = useMutation({
-    mutationFn: id => scheduledReportsApi.run(id).then(r => r.data),
-    onSuccess: (data) => {
+    mutationFn: (id: any) => scheduledReportsApi.run(id).then(r => r.data),
+    onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ['scheduled-reps'] })
       const to = data.recipients?.join(', ') || '—'
       toast.success(`Informe enviado a: ${to}`)
@@ -837,13 +837,13 @@ function ScheduledReportsTab() {
   })
 
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ id, val }) => scheduledReportsApi.toggle(id, { is_active: val }),
+    mutationFn: ({ id, val }: { id: any; val: any }) => scheduledReportsApi.toggle(id, { is_active: val }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['scheduled-reps'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
-  const FREQ_LABELS = { daily: 'Diario', weekly: 'Semanal', monthly: 'Mensual' }
-  const FREQ_ICONS  = { daily: '📆', weekly: '📅', monthly: '🗓' }
+  const FREQ_LABELS: Record<string, string> = { daily: 'Diario', weekly: 'Semanal', monthly: 'Mensual' }
+  const FREQ_ICONS: Record<string, string>  = { daily: '📆', weekly: '📅', monthly: '🗓' }
 
   const METRICS = [
     { id: 'hours_by_month',        label: 'Horas por mes' },
@@ -856,9 +856,9 @@ function ScheduledReportsTab() {
     { id: 'cost_vs_budget',        label: 'Coste vs Presupuesto' },
   ]
 
-  const ps = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '18px 22px', marginBottom: 12 }
-  const is = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+  const ps: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '18px 22px', marginBottom: 12 }
+  const is: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
   const submitForm = () => {
     const data = {
@@ -957,7 +957,7 @@ function ScheduledReportsTab() {
           <div style={{ fontSize: "var(--text-sm)" }}>Crea informes para recibir datos automáticamente por email</div>
         </div>
       ) : (
-        scheduled.map(rep => (
+        scheduled.map((rep: any) => (
           <div key={rep.id} style={{ ...ps, opacity: rep.is_active ? 1 : 0.55 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1029,22 +1029,22 @@ function ScheduledReportsTab() {
 
 
 // ── PresetsTab ─────────────────────────────────────────────────────────────────
-function PresetsTab({ presets, supportedMetrics, onOpen }) {
-  const [filterCat, setFilterCat] = useState('all')
+function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: any[]; supportedMetrics?: any; onOpen?: any }) {
+  const [filterCat, setFilterCat] = useState<any>('all')
   const [searchQ, setSearchQ] = useState('')
   // When supportedMetrics is null the analytics catalogue is unavailable (e.g. 503).
   // In that case show all presets so the user can still browse and attempt to run them.
   const enabledPresets = supportedMetrics !== null
-    ? presets.filter(p => supportedMetrics.has(p.metric))
+    ? presets.filter((p: any) => supportedMetrics.has(p.metric))
     : presets
-  const cats = ['all', ...new Set(enabledPresets.map(p => p.cat).filter(Boolean))]
-  const byCat = filterCat === 'all' ? enabledPresets : enabledPresets.filter(p => p.cat === filterCat)
+  const cats = ['all', ...new Set(enabledPresets.map((p: any) => p.cat).filter(Boolean))]
+  const byCat = filterCat === 'all' ? enabledPresets : enabledPresets.filter((p: any) => p.cat === filterCat)
   const filtered = searchQ.trim().length < 2
     ? byCat
-    : byCat.filter(p => p.label.toLowerCase().includes(searchQ.toLowerCase()) || p.cat?.toLowerCase().includes(searchQ.toLowerCase()))
-  const catIcons = { Horas:'⏱️', Costes:'💸', Rentabilidad:'💰', Capacidad:'📅',
+    : byCat.filter((p: any) => p.label.toLowerCase().includes(searchQ.toLowerCase()) || p.cat?.toLowerCase().includes(searchQ.toLowerCase()))
+  const catIcons: Record<string, string> = { Horas:'⏱️', Costes:'💸', Rentabilidad:'💰', Capacidad:'📅',
     Proyectos:'⬡', Negocio:'💼', RRHH:'👥', 'Service Desk':'🎫', Agilidad:'🏃', ALM:'🔑', IA:'🧠' }
-  const chartLabels = { bar:'Barras', bar_grouped:'Agrupadas', bar_stacked:'Apiladas',
+  const chartLabels: Record<string, string> = { bar:'Barras', bar_grouped:'Agrupadas', bar_stacked:'Apiladas',
     line:'Línea', area:'Área', pie:'Tarta', donut:'Donut', heatmap:'Heatmap', table:'Tabla' }
 
   return (
@@ -1065,7 +1065,7 @@ function PresetsTab({ presets, supportedMetrics, onOpen }) {
         />
       </div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        {cats.map(c => (
+        {cats.map((c: any) => (
           <button key={c} onClick={() => setFilterCat(c)}
             style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${filterCat === c ? 'var(--accent)' : 'var(--surface-4)'}`,
               background: filterCat === c ? 'var(--accent-muted)' : 'transparent',
@@ -1081,7 +1081,7 @@ function PresetsTab({ presets, supportedMetrics, onOpen }) {
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-        {filtered.map(p => (
+        {filtered.map((p: any) => (
           <button key={p.id} type="button" onClick={() => onOpen(p)}
             style={{ background: 'var(--surface-2)', border: `1px solid ${p.color}25`, borderRadius: 12,
               padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s', width:'100%', textAlign:'left', fontFamily:'inherit' }}
@@ -1101,26 +1101,26 @@ function PresetsTab({ presets, supportedMetrics, onOpen }) {
 
 export default function ReportsPage() {
   const t = useAppT()
-  const { _user } = useAuth()
-  const [mode, setMode] = useState('explorer') // explorer | dashboard | presets
-  const [saved, setSavedState] = useState(() => getSaved())
-  const [editingReport, setEditingReport] = useState(null)
+  const { _user } = useAuth() as any
+  const [mode, setMode] = useState<any>('explorer') // explorer | dashboard | presets
+  const [saved, setSavedState] = useState<any[]>(() => getSaved())
+  const [editingReport, setEditingReport] = useState<any>(null)
 
-  const saveReport = (config) => {
-    const existing = saved.find(r => r.name === config.name)
+  const saveReport = (config: any) => {
+    const existing = saved.find((r: any) => r.name === config.name)
     const report = { ...config, id: existing?.id || Date.now().toString(), savedAt: new Date().toISOString() }
-    const next = existing ? saved.map(r => r.id === report.id ? report : r) : [...saved, report]
+    const next = existing ? saved.map((r: any) => r.id === report.id ? report : r) : [...saved, report]
     setSaved(next)
     setSavedState(next)
   }
 
-  const removeReport = (id) => {
-    const next = saved.filter(r => r.id !== id)
+  const removeReport = (id: any) => {
+    const next = saved.filter((r: any) => r.id !== id)
     setSaved(next)
     setSavedState(next)
   }
 
-  const openReport = (r) => { setEditingReport(r); setMode('explorer') }
+  const openReport = (r: any) => { setEditingReport(r); setMode('explorer') }
 
   const { data: catalogue } = useQuery({ queryKey: ['analytics-catalogue'], queryFn: () => analyticsApi.catalogue().then(r => r.data).catch(() => ({})) })
   const catalogueLoaded = catalogue !== undefined
@@ -1128,7 +1128,7 @@ export default function ReportsPage() {
   const totalMetrics = Object.values(catalogue || {}).flat().length
   // null means catalogue not yet loaded or unavailable — PresetsTab will show all presets
   const supportedMetrics = catalogueHasData
-    ? new Set(Object.values(catalogue).flat().map(m => m.id))
+    ? new Set((Object.values(catalogue).flat() as any[]).map((m: any) => m.id))
     : null
 
   const [_schedTab, _setSchedTab] = useState('main')
@@ -1160,7 +1160,7 @@ export default function ReportsPage() {
     >
 
       {/* Plantillas */}
-      {mode === 'presets' && <PresetsTab presets={PRESETS} supportedMetrics={supportedMetrics} onOpen={(p) => { setEditingReport({ metric: p.metric, chartType: p.chart, color: p.color }); setMode('explorer') }} />}
+      {mode === 'presets' && <PresetsTab presets={PRESETS} supportedMetrics={supportedMetrics} onOpen={(p: any) => { setEditingReport({ metric: p.metric, chartType: p.chart, color: p.color }); setMode('explorer') }} />}
 
       {/* Overview — todas las métricas organizadas por categoría */}
       {mode === 'overview' && (
@@ -1169,20 +1169,20 @@ export default function ReportsPage() {
             {totalMetrics} métricas disponibles en {Object.keys(catalogue || {}).length} categorías.
             Haz clic en cualquier métrica para abrirla en el Explorador.
           </p>
-          {catalogue && Object.entries(catalogue).map(([cat, items]) => (
+          {catalogue && Object.entries(catalogue).map(([cat, items]: [string, any]) => (
             <div key={cat} style={{ marginBottom: 28 }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>{CAT_ICONS[cat] || '📊'}</span> {cat}
                 <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontWeight: 400 }}>({items.length})</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {items.map(item => (
+                {items.map((item: any) => (
                   <button key={item.id} onClick={() => { setEditingReport({ metric: item.id, chartType: item.default_chart }); setMode('explorer') }}
                     style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.12s' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-muted)' }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.background = 'var(--surface-2)' }}>
                     <span style={{ marginRight: 6, fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>
-                      {{bar:'▬',bar_grouped:'▮▮',bar_stacked:'▰',line:'∿',area:'◭',pie:'◔',donut:'◎',heatmap:'▦'}[item.default_chart] || '📊'}
+                      {({bar:'▬',bar_grouped:'▮▮',bar_stacked:'▰',line:'∿',area:'◭',pie:'◔',donut:'◎',heatmap:'▦'} as Record<string, string>)[item.default_chart] || '📊'}
                     </span>
                     {item.label}
                   </button>

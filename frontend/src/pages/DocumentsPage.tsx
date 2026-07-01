@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * DocumentsPage — Rediseño completo del hub de gestión documental
  * Diseo integrado con el sistema visual de Contecflow (surface vars, accent, etc.)
@@ -6,6 +5,7 @@
  * acciones bulk, etiquetas, aprobaciones, historial de versiones, resmenes IA
  */
 import _React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import type { CSSProperties } from 'react';
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsApi, projectsApi, usersApi } from '../services/api';
@@ -20,19 +20,19 @@ import {
 import { Page, Button } from '../components/ui'
 
 // ── Utilidades ─────────────────────────────────────────
-function fmtBytes(b) {
+function fmtBytes(b: any) {
   if (!b) return '';
   if (b < 1024) return `${b} B`;
   if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`;
   return `${(b / 1048576).toFixed(1)} MB`;
 }
 
-function fmtDate(d) {
+function fmtDate(d: any) {
   if (!d) return '';
   return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function relTime(d) {
+function relTime(d: any) {
   if (!d) return '';
   const diff = Date.now() - new Date(d).getTime();
   const m = Math.floor(diff / 60000);
@@ -47,7 +47,7 @@ function relTime(d) {
   return `hace ${Math.floor(days / 30)}mes`;
 }
 
-const FILE_COLORS = {
+const FILE_COLORS: Record<string, { c: string; bg: string; label: string }> = {
   pdf:          { c: 'var(--danger)', bg: '#f8717118', label: 'PDF' },
   image:        { c: 'var(--accent)', bg: '#4f8ef718', label: 'IMG' },
   spreadsheet:  { c: 'var(--success)', bg: '#34d39918', label: 'XLS' },
@@ -58,7 +58,7 @@ const FILE_COLORS = {
   other:        { c: 'var(--text-3)', bg: '#6b728018', label: 'FILE' },
 };
 
-function detectFileType(mime, name) {
+function detectFileType(mime: any, name: any) {
   const ext = (name || '').split('.').pop()?.toLowerCase();
   if (mime?.startsWith('image/')) return 'image';
   if (mime === 'application/pdf' || ext === 'pdf') return 'pdf';
@@ -70,7 +70,7 @@ function detectFileType(mime, name) {
   return 'other';
 }
 
-function FileIcon({ mime, name, size = 36 }) {
+function FileIcon({ mime, name, size = 36 }: { mime?: any; name?: any; size?: number }) {
   const type = detectFileType(mime, name);
   const ft = FILE_COLORS[type];
   return (
@@ -86,7 +86,7 @@ function FileIcon({ mime, name, size = 36 }) {
   );
 }
 
-const CAT_STYLE = {
+const CAT_STYLE: Record<string, { c: string; bg: string }> = {
   contract:     { c: 'var(--accent)', bg: '#4f8ef715' },
   deliverable:  { c: 'var(--success)', bg: '#34d39915' },
   proposal:     { c: 'var(--purple)', bg: '#8b5cf615' },
@@ -98,13 +98,13 @@ const CAT_STYLE = {
   other:        { c: 'var(--text-3)', bg: '#6b728015' },
 };
 
-const APPROVAL_STYLE = {
+const APPROVAL_STYLE: Record<string, { c: string; bg: string; icon: string; label: string }> = {
   approved: { c: 'var(--success)', bg: '#34d39915', icon: '\u2713', label: 'Aprobado' },
   rejected: { c: 'var(--danger)', bg: '#f8717115', icon: '\u2715', label: 'Rechazado' },
   pending:  { c: '#f59e0b', bg: '#f59e0b15', icon: '\u25f7', label: 'Pendiente' },
 };
 
-function Chip({ text, color, bg }) {
+function Chip({ text, color, bg }: { text: any; color?: string; bg?: string }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center',
@@ -119,7 +119,7 @@ function Chip({ text, color, bg }) {
 
 // ── KPI card ─────────────────────────────────────────
 
-function KpiCard({ icon: Icon, label, value, color, sub }) {
+function KpiCard({ icon: Icon, label, value, color, sub }: { icon: any; label?: any; value?: any; color?: string; sub?: any }) {
   return (
     <div style={{
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
@@ -142,7 +142,7 @@ function KpiCard({ icon: Icon, label, value, color, sub }) {
 
 // ── Doc Card (Grid) ─────────────────────────────────────────
 
-function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }) {
+function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: { doc: any; onView: (id: any) => void; onDelete: (doc: any) => void; onSummary: (id: any) => void; selected: boolean; onToggleSelect: (id: any) => void }) {
   const [hover, setHover] = useState(false);
   const lv = doc.latest_version;
   const type = detectFileType(lv?.file_mime_type, lv?.file_name);
@@ -227,7 +227,7 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect })
         {/* Tags */}
         {doc.tags?.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-            {doc.tags.slice(0, 3).map(t => (
+            {doc.tags.slice(0, 3).map((t: any) => (
               <span key={t} style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--surface-3)', color: 'var(--text-3)' }}>
                 #{t}
               </span>
@@ -270,7 +270,7 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect })
 
 // ── Doc Row (Table) ─────────────────────────────────────────
 
-function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }) {
+function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: { doc: any; onView: (id: any) => void; onDelete: (doc: any) => void; onSummary: (id: any) => void; selected: boolean; onToggleSelect: (id: any) => void }) {
   const [hover, setHover] = useState(false);
   const lv = doc.latest_version;
   const catS = CAT_STYLE[doc.category] || CAT_STYLE.other;
@@ -351,24 +351,24 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }) 
 
 const CATS = ['contract','deliverable','proposal','sop','legal','requirements','report','presentation','other'];
 
-function UploadModal({ open, onClose, onSuccess }) {
+function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
   const toast = useToast();
-  const fileRef = useRef();
-  const [file, setFile] = useState(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [form, setForm] = useState({ title:'', description:'', category:'other', tags:'', requires_approval: false, project_id:'' });
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-minimal'],
-    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list().then((r: any) => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
     staleTime: 30000,
   });
 
   const uploadMutation = useMutation({
     mutationFn: () => {
       const fd = new FormData();
-      fd.append('file', file);
-      fd.append('title', form.title || file.name);
+      fd.append('file', file!);
+      fd.append('title', form.title || file!.name);
       if (form.description) fd.append('description', form.description);
       fd.append('category', form.category);
       if (form.tags) fd.append('tags', form.tags);
@@ -377,25 +377,25 @@ function UploadModal({ open, onClose, onSuccess }) {
       return documentsApi.upload(fd);
     },
     onSuccess: () => { toast.success('Documento subido correctamente'); onSuccess(); },
-    onError: e => toast.error(e.response?.data?.detail
-      ? (Array.isArray(e.response.data.detail)
-          ? e.response.data.detail.map(d => d.msg).join(' · ')
-          : e.response.data.detail)
+    onError: (e: unknown) => toast.error((e as any)?.response?.data?.detail
+      ? (Array.isArray((e as any).response.data.detail)
+          ? (e as any).response.data.detail.map((d: any) => d.msg).join(' · ')
+          : (e as any).response.data.detail)
       : 'Error al subir'),
   });
 
-  const onDrop = useCallback(e => {
+  const onDrop = useCallback((e: any) => {
     e.preventDefault(); setDragOver(false);
     const f = e.dataTransfer.files?.[0];
     if (f) { setFile(f); setForm(p => ({ ...p, title: p.title || f.name.replace(/\.[^.]+$/, '') })); }
   }, []);
 
-  const pickFile = f => { setFile(f); setForm(p => ({ ...p, title: p.title || f.name.replace(/\.[^.]+$/, '') })); };
+  const pickFile = (f: File) => { setFile(f); setForm(p => ({ ...p, title: p.title || f.name.replace(/\.[^.]+$/, '') })); };
 
   if (!open) return null;
 
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 };
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 };
   const fileType = file ? detectFileType(undefined, file.name) : null;
   const fileFt = fileType ? FILE_COLORS[fileType] : null;
 
@@ -482,7 +482,7 @@ function UploadModal({ open, onClose, onSuccess }) {
                 <label style={ls}>Proyecto</label>
                 <select value={form.project_id} onChange={e => setForm(p => ({ ...p, project_id: e.target.value }))} style={fs}>
                   <option value="">Sin proyecto</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ''}{p.name}</option>)}
+                  {projects.map((p: any) => <option key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ''}{p.name}</option>)}
                 </select>
               </div>
             </div>
@@ -523,7 +523,7 @@ const ACCESS_LEVELS = [
   { v: 'admin', l: 'Admin (gestionar permisos)' },
 ];
 
-function SharePanel({ documentId }) {
+function SharePanel({ documentId }: { documentId: any }) {
   const toast = useToast();
   const qc = useQueryClient();
   const [subjectType, setSubjectType] = useState('user'); // user | role | department
@@ -533,69 +533,69 @@ function SharePanel({ documentId }) {
   const [accessLevel, setAccessLevel] = useState('viewer');
   const [expiresAt, setExpiresAt] = useState('');
 
-  const { data: perms = [] } = useQuery({
+  const { data: perms = [] } = useQuery<any[]>({
     queryKey: ['document-permissions', documentId],
-    queryFn: () => documentsApi.listPermissions(documentId).then(r => r.data),
+    queryFn: () => documentsApi.listPermissions(documentId).then((r: any) => r.data),
   });
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<any[]>({
     queryKey: ['users-min'],
-    queryFn: () => usersApi.list().then(r => r.data),
+    queryFn: () => usersApi.list().then((r: any) => r.data),
     staleTime: 60_000,
   });
 
   const departments = useMemo(() => {
-    const s = new Set();
-    users.forEach(u => { if (u.department) s.add(u.department); });
+    const s = new Set<string>();
+    users.forEach((u: any) => { if (u.department) s.add(u.department); });
     return [...s].sort();
   }, [users]);
 
   const grantMutation = useMutation({
-    mutationFn: (payload) => documentsApi.grantPermission(documentId, payload),
+    mutationFn: (payload: any) => documentsApi.grantPermission(documentId, payload),
     onSuccess: () => {
       toast.success('Permiso concedido');
       qc.invalidateQueries({ queryKey: ['document-permissions', documentId] });
       qc.invalidateQueries({ queryKey: ['document', documentId] });
       setUserId(''); setDeptVal(''); setExpiresAt('');
     },
-    onError: e => toast.error(e.response?.data?.detail || 'No se pudo conceder el permiso'),
+    onError: (e: unknown) => toast.error((e as any)?.response?.data?.detail || 'No se pudo conceder el permiso'),
   });
 
   const revokeMutation = useMutation({
-    mutationFn: (permId) => documentsApi.revokePermission(documentId, permId),
+    mutationFn: (permId: any) => documentsApi.revokePermission(documentId, permId),
     onSuccess: () => {
       toast.success('Permiso revocado');
       qc.invalidateQueries({ queryKey: ['document-permissions', documentId] });
       qc.invalidateQueries({ queryKey: ['document', documentId] });
     },
-    onError: e => toast.error(e.response?.data?.detail || 'No se pudo revocar'),
+    onError: (e: unknown) => toast.error((e as any)?.response?.data?.detail || 'No se pudo revocar'),
   });
 
   const submitGrant = () => {
-    const payload = { access_level: accessLevel };
+    const payload: any = { access_level: accessLevel };
     if (expiresAt) payload.expires_at = new Date(expiresAt).toISOString();
     if (subjectType === 'user') {
-      if (!userId) return toast.error('Selecciona un usuario');
+      if (!userId) { toast.error('Selecciona un usuario'); return; }
       payload.user_id = userId;
     } else if (subjectType === 'role') {
       payload.role = roleVal;
     } else if (subjectType === 'department') {
       const d = (deptVal || '').trim();
-      if (!d) return toast.error('Indica un departamento');
+      if (!d) { toast.error('Indica un departamento'); return; }
       payload.department = d;
     }
     grantMutation.mutate(payload);
   };
 
-  const subjectLabel = (p) => {
+  const subjectLabel = (p: any) => {
     if (p.user_id) return `👤 ${p.user_name || p.user_id}`;
     if (p.role) return `🛡️ Rol: ${p.role}`;
     if (p.department) return `🏢 Departamento: ${p.department}`;
     return '—';
   };
 
-  const inputStyle = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' };
-  const labelStyle = { fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, display: 'block' };
+  const inputStyle: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' };
+  const labelStyle: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, display: 'block' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -633,7 +633,7 @@ function SharePanel({ documentId }) {
             <label style={labelStyle}>Usuario</label>
             <select value={userId} onChange={e => setUserId(e.target.value)} style={inputStyle}>
               <option value="">Selecciona un usuario…</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
+              {users.map((u: any) => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
             </select>
           </div>
         )}
@@ -652,7 +652,7 @@ function SharePanel({ documentId }) {
               list="departments-list" placeholder="ej. Finance"
               style={inputStyle} />
             <datalist id="departments-list">
-              {departments.map(d => <option key={d} value={d} />)}
+              {departments.map((d: any) => <option key={d} value={d} />)}
             </datalist>
           </div>
         )}
@@ -687,7 +687,7 @@ function SharePanel({ documentId }) {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {perms.map(p => (
+            {perms.map((p: any) => (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{subjectLabel(p)}</div>
@@ -710,40 +710,43 @@ function SharePanel({ documentId }) {
   );
 }
 
-function DocumentDrawer({ documentId, onClose, onRefresh }) {
+function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; onClose: () => void; onRefresh: () => void }) {
   const toast = useToast();
   const qc = useQueryClient();
-  const fileRef = useRef();
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const [tab, setTab] = useState('preview');  // preview | versions | meta
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState<File | null>(null);
   const [changeNote, setChangeNote] = useState('');
   const [showUploadVersion, setShowUploadVersion] = useState(false);
-  const [previewVersion, setPreviewVersion] = useState(null);
+  const [previewVersion, setPreviewVersion] = useState<any>(null);
   const [previewError, setPreviewError] = useState(false);
   const [isEditingMeta, setIsEditingMeta] = useState(false);
-  const [metaForm, setMetaForm] = useState(null);
+  const [metaForm, setMetaForm] = useState<any>(null);
 
-  const { data: doc, isLoading } = useQuery({
+  const { data: doc, isLoading } = useQuery<any>({
     queryKey: ['document', documentId],
     queryFn: async () => {
       const res = await documentsApi.get(documentId);
       const d = res.data;
-      if (d.versions) d.versions = d.versions.map(v => ({ ...v, download_url: v.download_url || v.s3_url }));
+      if (d.versions) d.versions = d.versions.map((v: any) => ({ ...v, download_url: v.download_url || v.s3_url }));
       return d;
     },
-    onSuccess: d => { if (d.versions?.length && !previewVersion) setPreviewVersion(d.versions[0]); },
   });
 
+  useEffect(() => {
+    if (doc?.versions?.length && !previewVersion) setPreviewVersion(doc.versions[0]);
+  }, [doc]);
+
   const approveMutation = useMutation({
-    mutationFn: ({ status, note }) => documentsApi.approve(documentId, { status, note }),
-    onSuccess: (_, { status }) => { toast.success(status === 'approved' ? 'Paso aprobado' : 'Documento rechazado'); qc.invalidateQueries({ queryKey: ['document', documentId] }); onRefresh(); },
-    onError: e => toast.error(e.response?.data?.detail || 'Error'),
+    mutationFn: ({ status, note }: { status: string; note?: string }) => documentsApi.approve(documentId, { status, note }),
+    onSuccess: (_: unknown, { status }: { status: string }) => { toast.success(status === 'approved' ? 'Paso aprobado' : 'Documento rechazado'); qc.invalidateQueries({ queryKey: ['document', documentId] }); onRefresh(); },
+    onError: (e: unknown) => toast.error((e as any)?.response?.data?.detail || 'Error'),
   });
 
   const submitApprovalMutation = useMutation({
     mutationFn: () => documentsApi.submitApproval(documentId),
     onSuccess: () => { toast.success('Solicitud de aprobación enviada'); qc.invalidateQueries({ queryKey: ['document', documentId] }); onRefresh(); },
-    onError: e => toast.error(e.response?.data?.detail || 'No hay ningún flujo de aprobación configurado para esta categoría'),
+    onError: (e: unknown) => toast.error((e as any)?.response?.data?.detail || 'No hay ningún flujo de aprobación configurado para esta categoría'),
   });
 
   const summaryMutation = useMutation({
@@ -753,22 +756,22 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
       qc.invalidateQueries({ queryKey: ['document', documentId] });
       setTab('meta');
     },
-    onError: e => toast.error(e.response?.data?.detail || 'Error IA'),
+    onError: (e: unknown) => toast.error((e as any)?.response?.data?.detail || 'Error IA'),
   });
 
   const versionMutation = useMutation({
     mutationFn: () => {
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', file!);
       if (changeNote) fd.append('change_note', changeNote);
       return documentsApi.addVersion(documentId, fd);
     },
     onSuccess: () => { toast.success('Nueva versión subida'); qc.invalidateQueries({ queryKey: ['document', documentId] }); setFile(null); setChangeNote(''); setShowUploadVersion(false); onRefresh(); },
-    onError: e => toast.error(e.response?.data?.detail || 'Error'),
+    onError: (e: unknown) => toast.error((e as any)?.response?.data?.detail || 'Error'),
   });
 
   const updateMetaMutation = useMutation({
-    mutationFn: data => documentsApi.update(documentId, data),
+    mutationFn: (data: any) => documentsApi.update(documentId, data),
     onSuccess: () => {
       toast.success('Metadatos actualizados');
       qc.invalidateQueries({ queryKey: ['document', documentId] });
@@ -776,7 +779,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
       setIsEditingMeta(false);
       onRefresh();
     },
-    onError: e => toast.error(e.response?.data?.detail || 'Error al guardar'),
+    onError: (e: unknown) => toast.error((e as any)?.response?.data?.detail || 'Error al guardar'),
   });
 
   const activeVer = previewVersion || doc?.versions?.[0] || null;
@@ -794,14 +797,14 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
       .catch(() => setPreviewError(true));
   }, [activeVer?.download_url]);
 
-  const tabBtnStyle = (id) => ({
+  const tabBtnStyle = (id: string): CSSProperties => ({
     padding: '6px 14px', borderRadius: 7, border: `1px solid ${tab === id ? 'var(--accent)40' : 'var(--surface-4)'}`,
     backgroundColor: tab === id ? 'var(--accent)15' : 'transparent',
     color: tab === id ? 'var(--accent)' : 'var(--text-2)',
     fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
   });
 
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
 
   return (
     <>
@@ -837,12 +840,12 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                    <Chip text={doc.category} color={catS.c} bg={catS.bg} />
+                    <Chip text={doc.category} color={catS!.c} bg={catS!.bg} />
                     {doc.requires_approval && (() => {
                       const a = APPROVAL_STYLE[doc.approval_status || 'pending'];
                       return <Chip text={`${a.icon} ${a.label}`} color={a.c} bg={a.bg} />;
                     })()}
-                    {doc.tags?.map(t => (
+                    {doc.tags?.map((t: any) => (
                       <span key={t} style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 10, backgroundColor: 'var(--surface-3)', color: 'var(--text-3)' }}>#{t}</span>
                     ))}
                   </div>
@@ -903,7 +906,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
               </button>
               <button style={tabBtnStyle('versions')} onClick={() => setTab('versions')}>
                 <History size={12} style={{ display: 'inline', marginRight: 4 }} />
-                Versiones {doc.versions?.length > 0 && `(${doc.versions.length})`}
+                Versiones {(doc.versions?.length ?? 0) > 0 && `(${doc.versions.length})`}
               </button>
               <button style={tabBtnStyle('meta')} onClick={() => setTab('meta')}>
                 <Info size={12} style={{ display: 'inline', marginRight: 4 }} /> Metadatos
@@ -965,7 +968,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
               {tab === 'versions' && (
                 <div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                    {(doc.versions || []).map((v, i) => (
+                    {(doc.versions || []).map((v: any, i: number) => (
                       <div key={v.id}
                         onClick={() => { setPreviewVersion(v); setTab('preview'); }}
                         role="button"
@@ -1013,7 +1016,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                       <div onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }} style={{ border: `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}`, borderRadius: 8, padding: '12px 16px', textAlign: 'center', cursor: 'pointer' }}>
                         {file ? <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
                           : <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}><Upload size={13} style={{ display: 'inline', marginRight: 4 }} />Clic para seleccionar archivo</span>}
-                        <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0])} />
+                        <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0] ?? null)} />
                       </div>
                       <input placeholder="Nota del cambio" value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} aria-label="Nota del cambio" />
                       <div style={{ display: 'flex', gap: 8 }}>
@@ -1053,7 +1056,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                       ['Estado aprob.', doc.approval_status || '—'],
                       doc.approved_by_name && ['Aprobado por', doc.approved_by_name],
                       doc.approved_at && ['Fecha aprob.', fmtDate(doc.approved_at)],
-                    ].filter(Boolean).map(([k, v]) => (
+                    ].filter(Boolean).map(([k, v]: any) => (
                       <div key={k} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px' }}>
                         <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>{k}</div>
                         <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{v}</div>
@@ -1065,11 +1068,11 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                         <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.5 }}>{doc.description}</div>
                       </div>
                     )}
-                    {doc.tags?.length > 0 && (
+                    {(doc.tags?.length ?? 0) > 0 && (
                       <div style={{ gridColumn: '1/-1', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px' }}>
                         <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Etiquetas</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {doc.tags.map(t => (
+                          {doc.tags.map((t: any) => (
                             <span key={t} style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 12, backgroundColor: 'var(--surface-3)', color: 'var(--text-2)' }}>#{t}</span>
                           ))}
                         </div>
@@ -1093,7 +1096,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                         </div>
                         {/* Step indicator */}
                         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 4 }}>
-                          {Array.from({ length: doc.approval_request.total_steps || 1 }, (_, i) => {
+                          {Array.from({ length: doc.approval_request.total_steps || 1 }, (_: unknown, i: number) => {
                             const stepNum = i + 1;
                             const isDone = stepNum < (doc.approval_request.current_step || 1);
                             const isCurrent = stepNum === (doc.approval_request.current_step || 1) && doc.approval_request.status === 'pending';
@@ -1133,10 +1136,10 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                           <div style={{ fontSize: "var(--text-sm)", color: 'var(--danger)', fontWeight: 700 }}>✗ Rechazado</div>
                         )}
                         {/* Decisions trail */}
-                        {doc.approval_request.decisions?.length > 0 && (
+                        {(doc.approval_request.decisions?.length ?? 0) > 0 && (
                           <div style={{ marginTop: 10, borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
                             <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Historial de decisiones</div>
-                            {doc.approval_request.decisions.map((d, idx) => (
+                            {doc.approval_request.decisions.map((d: any, idx: number) => (
                               <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                                 <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: d.decision === 'approved' ? '#34d39920' : '#f8717120', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                   <span style={{ fontSize: 10, color: d.decision === 'approved' ? 'var(--success)' : 'var(--danger)' }}>{d.decision === 'approved' ? '✓' : '✗'}</span>
@@ -1156,15 +1159,15 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div>
                     <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>Título *</label>
-                    <input value={metaForm.title} onChange={e => setMetaForm(f => ({ ...f, title: e.target.value }))} style={fs} />
+                    <input value={metaForm.title} onChange={e => setMetaForm((f: any) => ({ ...f, title: e.target.value }))} style={fs} />
                   </div>
                   <div>
                     <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>Descripción</label>
-                    <textarea value={metaForm.description} onChange={e => setMetaForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }} />
+                    <textarea value={metaForm.description} onChange={e => setMetaForm((f: any) => ({ ...f, description: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }} />
                   </div>
                   <div>
                     <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>Categoría</label>
-                    <select value={metaForm.category} onChange={e => setMetaForm(f => ({ ...f, category: e.target.value }))} style={fs}>
+                    <select value={metaForm.category} onChange={e => setMetaForm((f: any) => ({ ...f, category: e.target.value }))} style={fs}>
                       <option value="contract">Contrato</option>
                       <option value="deliverable">Entregable</option>
                       <option value="proposal">Propuesta</option>
@@ -1176,7 +1179,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                     </select>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <input type="checkbox" id="meta-req-approval" checked={metaForm.requires_approval} onChange={e => setMetaForm(f => ({ ...f, requires_approval: e.target.checked }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
+                    <input type="checkbox" id="meta-req-approval" checked={metaForm.requires_approval} onChange={e => setMetaForm((f: any) => ({ ...f, requires_approval: e.target.checked }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
                     <label htmlFor="meta-req-approval" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>Requiere aprobación</label>
                   </div>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 6, borderTop: '1px solid var(--surface-4)' }}>
@@ -1217,32 +1220,32 @@ export default function DocumentsPage(): JSX.Element {
   const [filterCat, setFilterCat] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [sortBy, setSortBy] = useState('date_desc');
-  const [activeTags, setActiveTags] = useState([]);
+  const [activeTags, setActiveTags] = useState<string[]>([]);
   const [showUpload, setShowUpload] = useState(false);
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [drawerDocId, setDrawerDocId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState<Set<any>>(new Set());
+  const [drawerDocId, setDrawerDocId] = useState<any>(null);
 
-  const { data: docsRaw = [], isLoading } = useQuery({
+  const { data: docsRaw = [], isLoading } = useQuery<any[]>({
     queryKey: ['documents', filterCat, filterStatus, search],
     queryFn: () => {
-      const p = { limit: 200 };
+      const p: any = { limit: 200 };
       if (filterCat) p.category = filterCat;
       if (search) p.search = search;
-      return documentsApi.list(p).then(r => Array.isArray(r.data) ? r.data : (r.data?.items ?? []));
+      return documentsApi.list(p).then((r: any) => Array.isArray(r.data) ? r.data : (r.data?.items ?? []));
     },
   });
 
   const docs = useMemo(() => {
     let d = [...docsRaw];
-    if (filterStatus === 'pending') d = d.filter(x => x.requires_approval && (x.approval_status === 'pending' || !x.approval_status));
-    else if (filterStatus === 'approved') d = d.filter(x => x.requires_approval && x.approval_status === 'approved');
-    else if (filterStatus === 'rejected') d = d.filter(x => x.requires_approval && x.approval_status === 'rejected');
-    else if (filterStatus === 'no_approval') d = d.filter(x => !x.requires_approval);
-    if (activeTags.length) d = d.filter(x => activeTags.every(t => x.tags?.includes(t)));
-    if (sortBy === 'date_desc') d.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    else if (sortBy === 'date_asc') d.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    else if (sortBy === 'title_asc') d.sort((a, b) => a.title.localeCompare(b.title));
-    else if (sortBy === 'size_desc') d.sort((a, b) => (b.latest_version?.file_size || 0) - (a.latest_version?.file_size || 0));
+    if (filterStatus === 'pending') d = d.filter((x: any) => x.requires_approval && (x.approval_status === 'pending' || !x.approval_status));
+    else if (filterStatus === 'approved') d = d.filter((x: any) => x.requires_approval && x.approval_status === 'approved');
+    else if (filterStatus === 'rejected') d = d.filter((x: any) => x.requires_approval && x.approval_status === 'rejected');
+    else if (filterStatus === 'no_approval') d = d.filter((x: any) => !x.requires_approval);
+    if (activeTags.length) d = d.filter((x: any) => activeTags.every((t: string) => x.tags?.includes(t)));
+    if (sortBy === 'date_desc') d.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    else if (sortBy === 'date_asc') d.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    else if (sortBy === 'title_asc') d.sort((a: any, b: any) => a.title.localeCompare(b.title));
+    else if (sortBy === 'size_desc') d.sort((a: any, b: any) => (b.latest_version?.file_size || 0) - (a.latest_version?.file_size || 0));
     return d;
   }, [docsRaw, filterStatus, activeTags, sortBy]);
 
@@ -1250,41 +1253,41 @@ export default function DocumentsPage(): JSX.Element {
     const weekAgo = Date.now() - 7 * 86400000;
     return {
       total: docsRaw.length,
-      pending: docsRaw.filter(d => d.requires_approval && (d.approval_status === 'pending' || !d.approval_status)).length,
-      approved: docsRaw.filter(d => d.requires_approval && d.approval_status === 'approved').length,
-      rejected: docsRaw.filter(d => d.requires_approval && d.approval_status === 'rejected').length,
-      noApproval: docsRaw.filter(d => !d.requires_approval).length,
-      thisWeek: docsRaw.filter(d => new Date(d.created_at).getTime() > weekAgo).length,
+      pending: docsRaw.filter((d: any) => d.requires_approval && (d.approval_status === 'pending' || !d.approval_status)).length,
+      approved: docsRaw.filter((d: any) => d.requires_approval && d.approval_status === 'approved').length,
+      rejected: docsRaw.filter((d: any) => d.requires_approval && d.approval_status === 'rejected').length,
+      noApproval: docsRaw.filter((d: any) => !d.requires_approval).length,
+      thisWeek: docsRaw.filter((d: any) => new Date(d.created_at).getTime() > weekAgo).length,
     };
   }, [docsRaw]);
 
   const allTags = useMemo(() => {
-    const s = new Set();
-    docsRaw.forEach(d => d.tags?.forEach(t => s.add(t)));
+    const s = new Set<string>();
+    docsRaw.forEach((d: any) => d.tags?.forEach((t: string) => s.add(t)));
     return [...s].slice(0, 24);
   }, [docsRaw]);
 
   const deleteMutation = useMutation({
-    mutationFn: id => documentsApi.delete(id),
+    mutationFn: (id: any) => documentsApi.delete(id),
     onSuccess: () => { toast.success('Documento eliminado'); qc.invalidateQueries({ queryKey: ['documents'] }); },
     onError: () => toast.error('Error al eliminar'),
   });
 
   const summaryMutation = useMutation({
-    mutationFn: id => documentsApi.aiSummary(id),
+    mutationFn: (id: any) => documentsApi.aiSummary(id),
     onSuccess: () => { toast.success('Resumen IA generado'); qc.invalidateQueries({ queryKey: ['documents'] }); },
-    onError: e => toast.error(e.response?.data?.detail || 'Error IA'),
+    onError: (e: unknown) => toast.error((e as any)?.response?.data?.detail || 'Error IA'),
   });
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: () => Promise.all([...selectedIds].map(id => documentsApi.delete(id))),
+    mutationFn: () => Promise.all([...selectedIds].map((id: any) => documentsApi.delete(id))),
     onSuccess: () => { toast.success(`${selectedIds.size} documento(s) eliminados`); setSelectedIds(new Set()); qc.invalidateQueries({ queryKey: ['documents'] }); },
     onError: () => toast.error('Error en operación masiva'),
   });
 
-  const toggleSelect = id => setSelectedIds(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const toggleTag = t => setActiveTags(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
-  const selectAll = () => setSelectedIds(docs.length === selectedIds.size ? new Set() : new Set(docs.map(d => d.id)));
+  const toggleSelect = (id: any) => setSelectedIds((p: Set<any>) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleTag = (t: string) => setActiveTags((p: string[]) => p.includes(t) ? p.filter((x: string) => x !== t) : [...p, t]);
+  const selectAll = () => setSelectedIds(docs.length === selectedIds.size ? new Set() : new Set(docs.map((d: any) => d.id)));
 
   return (
     <Page
@@ -1429,7 +1432,7 @@ export default function DocumentsPage(): JSX.Element {
           {docs.map(doc => (
             <DocCard key={doc.id} doc={doc}
               onView={setDrawerDocId}
-              onDelete={d => { openConfirmGlobal({ message: `¿Eliminar "${d.title}"?`, onConfirm: () => deleteMutation.mutate(d.id), danger: true }) }}
+              onDelete={(d: any) => { openConfirmGlobal({ message: `¿Eliminar "${d.title}"?`, onConfirm: () => deleteMutation.mutate(d.id), danger: true }) }}
               onSummary={summaryMutation.mutate}
               selected={selectedIds.has(doc.id)}
               onToggleSelect={toggleSelect}
@@ -1457,7 +1460,7 @@ export default function DocumentsPage(): JSX.Element {
               {docs.map(doc => (
                 <DocRow key={doc.id} doc={doc}
                   onView={setDrawerDocId}
-                  onDelete={d => { openConfirmGlobal({ message: `¿Eliminar "${d.title}"?`, onConfirm: () => deleteMutation.mutate(d.id), danger: true }) }}
+                  onDelete={(d: any) => { openConfirmGlobal({ message: `¿Eliminar "${d.title}"?`, onConfirm: () => deleteMutation.mutate(d.id), danger: true }) }}
                   onSummary={summaryMutation.mutate}
                   selected={selectedIds.has(doc.id)}
                   onToggleSelect={toggleSelect}

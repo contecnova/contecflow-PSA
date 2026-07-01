@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type { CSSProperties } from 'react'
 import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
@@ -16,11 +16,12 @@ import {
 import { Button, Modal, EmptyState, Tabs, Page } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
-const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
-const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
-const entityLabels = (t) => ({
+type EntityConfig = { label: string; icon: string; color: string }
+const entityLabels = (t: (k: string) => string): Record<string, EntityConfig> => ({
   document:      { label: 'Document',       icon: '📄', color: 'var(--accent)' },
   timesheet:     { label: t('approvals.entity_timesheet'),      icon: '🕐', color: 'var(--accent)' },
   expense:       { label: t('approvals.entity_expense'),        icon: '💶', color: 'var(--warning)' },
@@ -40,7 +41,7 @@ const entityLabels = (t) => ({
   price_change:  { label: 'Cambio Precio',  icon: '💲', color: 'var(--danger)' },
 })
 
-const approverTypeLabels = (t) => ({
+const approverTypeLabels = (t: (k: string) => string): Record<string, string> => ({
   user: t('approvals.approver_user'),
   role: t('approvals.approver_role'),
   manager: t('approvals.approver_manager'),
@@ -51,11 +52,11 @@ const approverTypeLabels = (t) => ({
 const ROLES = ['admin', 'pm', 'team_lead', 'hr', 'developer', 'designer', 'finance']
 
 // ── Modal de paso ─────────────────────────────────────────────────────────────
-function StepModal({ workflowId, step, onClose }) {
+function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; onClose: () => void }) {
   const t = useAppT()
   const idPrefix = useId()
   const toast = useToast()
-  const { _invalidate } = useInvalidate()
+  const _invalidate = useInvalidate()
   const qc = useQueryClient()
   const isEdit = !!step?.id
   const [form, setForm] = useState({
@@ -77,22 +78,22 @@ function StepModal({ workflowId, step, onClose }) {
     reminder_hours:      step?.reminder_hours      || '',
   })
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<any[]>({
     queryKey: ['users'],
     queryFn: () => usersApi.list().then(r => r.data),
   })
 
-  const { data: groups = [] } = useQuery({
+  const { data: groups = [] } = useQuery<any[]>({
     queryKey: ['approval-groups'],
     queryFn: () => approvalsApi.listGroups().then(r => r.data),
   })
-  const { data: depts = [] } = useQuery({
+  const { data: depts = [] } = useQuery<any[]>({
     queryKey: ['departments-select'],
     queryFn: () => settingsApi.getDepartments().then(r => r.data),
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit
+    mutationFn: (d: any) => isEdit
       ? approvalsApi.updateStep(workflowId, step.id, d)
       : approvalsApi.addStep(workflowId, d),
     onSuccess: () => {
@@ -231,33 +232,33 @@ function StepModal({ workflowId, step, onClose }) {
 }
 
 // ── Detalle de flujo ──────────────────────────────────────────────────────────
-function WorkflowDetail({ workflowId, onBack }) {
+function WorkflowDetail({ workflowId, onBack }: { workflowId: any; onBack: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showStep, setShowStep] = useState(false)
-  const [editStep, setEditStep] = useState(null)
+  const [editStep, setEditStep] = useState<any>(null)
 
-  const { data: wf } = useQuery({
+  const { data: wf } = useQuery<any>({
     queryKey: ['approval-workflow', workflowId],
     queryFn: () => approvalsApi.getWorkflow(workflowId).then(r => r.data),
   })
 
   const { mutate: delStep } = useMutation({
-    mutationFn: sid => approvalsApi.deleteStep(workflowId, sid),
+    mutationFn: (sid: any) => approvalsApi.deleteStep(workflowId, sid),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] }); toast.success(t('approvals.step_deleted')) },
 
     onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
   const { mutate: toggleActive } = useMutation({
-    mutationFn: val => approvalsApi.updateWorkflow(workflowId, { is_active: val }),
+    mutationFn: (val: any) => approvalsApi.updateWorkflow(workflowId, { is_active: val }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] }),
     onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
   const { mutate: updateCategory } = useMutation({
-    mutationFn: cat => approvalsApi.updateWorkflow(workflowId, {
+    mutationFn: (cat: any) => approvalsApi.updateWorkflow(workflowId, {
       trigger_conditions: cat ? JSON.stringify({ category: cat }) : '{}'
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] }); toast.success('Categoría actualizada') },
@@ -267,10 +268,10 @@ function WorkflowDetail({ workflowId, onBack }) {
   const [editingCategory, setEditingCategory] = useState(false)
 
   if (!wf) return null
-  const steps = [...(wf.steps || [])].sort((a, b) => a.step_order - b.step_order)
+  const steps = [...(wf.steps || [])].sort((a: any, b: any) => a.step_order - b.step_order)
   const entity = entityLabels(t)[wf.entity_type] || { label: wf.entity_type, icon: '○', color: 'var(--text-2)' }
 
-  let parsedConditions = {}
+  let parsedConditions: any = {}
   try { parsedConditions = JSON.parse(wf.trigger_conditions || '{}') } catch (_) {}
   const configuredCategory = parsedConditions.category || ''
 
@@ -408,11 +409,11 @@ function MyPendingTab() {
   const { user, loading } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
-  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<any>>(new Set())
   const [entityFilter, setEntityFilter] = useState('all')
   const [sortMode, setSortMode] = useState('oldest') // oldest | newest
 
-  const { data: pending = [], isLoading } = useQuery({
+  const { data: pending = [], isLoading } = useQuery<any[]>({
     queryKey: ['approvals-pending-me'],
     queryFn: () => approvalsApi.pendingMyAction().then(r => r.data),
     refetchInterval: 30000,
@@ -420,7 +421,7 @@ function MyPendingTab() {
   })
 
   const { mutate: decide, isPending: deciding } = useMutation({
-    mutationFn: ({ id, decision, note }) => approvalsApi.decide(id, { decision, note }),
+    mutationFn: ({ id, decision, note }: { id: any; decision: string; note?: string }) => approvalsApi.decide(id, { decision, note }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['approvals-pending-me'] })
       // Cascade to the affected entity caches (approval could be for timesheets, expenses, or absences)
@@ -458,25 +459,25 @@ function MyPendingTab() {
     }
   }
 
-  const toggleSelect = (id) => setSelectedIds(prev => {
+  const toggleSelect = (id: any) => setSelectedIds(prev => {
     const next = new Set(prev)
     next.has(id) ? next.delete(id) : next.add(id)
     return next
   })
 
   const toggleAll = () => setSelectedIds(prev =>
-    prev.size === queue.length ? new Set() : new Set(queue.map(r => r.id))
+    prev.size === queue.length ? new Set() : new Set(queue.map((r: any) => r.id))
   )
 
   const queue = pending
-    .filter(r => entityFilter === 'all' ? true : r.entity_type === entityFilter)
-    .sort((a, b) => {
+    .filter((r: any) => entityFilter === 'all' ? true : r.entity_type === entityFilter)
+    .sort((a: any, b: any) => {
       const ta = new Date(a.created_at || 0).getTime()
       const tb = new Date(b.created_at || 0).getTime()
       return sortMode === 'oldest' ? ta - tb : tb - ta
     })
 
-  const statsByEntity = pending.reduce((acc, r) => {
+  const statsByEntity: Record<string, number> = pending.reduce((acc: Record<string, number>, r: any) => {
     acc[r.entity_type] = (acc[r.entity_type] || 0) + 1
     return acc
   }, {})
@@ -547,7 +548,7 @@ function MyPendingTab() {
         )}
       </div>
       <div data-export-table="approvals-export" className="ds-stack-sm">
-        {queue.map(req => {
+        {queue.map((req: any) => {
           const entity = entityLabels(t)[req.entity_type] || { label: req.entity_type, icon: '○', color: 'var(--text-2)' }
           const ageHours = Math.max(0, Math.floor((Date.now() - new Date(req.created_at || Date.now()).getTime()) / 3600000))
           const isUrgent = ageHours >= 24
@@ -638,16 +639,16 @@ function WorkflowTemplatesTab() {
     ],
   })
 
-  const { data: templates = [], isLoading } = useQuery({
+  const { data: templates = [], isLoading } = useQuery<any[]>({
     queryKey: ['approval-workflow-templates'],
     queryFn: () => approvalsApi.listTemplates().then(r => r.data || []),
   })
-  const { data: depts = [] } = useQuery({
+  const { data: depts = [] } = useQuery<any[]>({
     queryKey: ['departments-select'],
     queryFn: () => settingsApi.getDepartments().then(r => r.data),
   })
   const { mutate: createFromTemplate, isPending } = useMutation({
-    mutationFn: (payload) => approvalsApi.createFromTemplate(payload),
+    mutationFn: (payload: any) => approvalsApi.createFromTemplate(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['approval-workflows'] })
       toast.success('Flujo creado desde plantilla')
@@ -656,7 +657,7 @@ function WorkflowTemplatesTab() {
   })
 
   const { mutate: createScratchWorkflow, isPending: isCreatingScratch } = useMutation({
-    mutationFn: async (payload) => {
+    mutationFn: async (payload: any) => {
       const triggerConditions = payload.entity_type === 'document' && payload.document_category
         ? JSON.stringify({ category: payload.document_category })
         : '{}'
@@ -671,8 +672,8 @@ function WorkflowTemplatesTab() {
 
       const workflowId = created?.data?.id
       const normalizedSteps = (payload.steps || [])
-        .filter(s => (s.name || '').trim())
-        .map((s, idx) => ({
+        .filter((s: any) => (s.name || '').trim())
+        .map((s: any, idx: number) => ({
           step_order: idx + 1,
           name: s.name.trim(),
           approver_type: s.approver_type,
@@ -733,21 +734,21 @@ function WorkflowTemplatesTab() {
     }))
   }
 
-  const updateScratchStep = (index, field, value) => {
+  const updateScratchStep = (index: number, field: string, value: any) => {
     setScratch(s => ({
       ...s,
       steps: s.steps.map((step, idx) => (idx === index ? { ...step, [field]: value } : step)),
     }))
   }
 
-  const removeScratchStep = (index) => {
+  const removeScratchStep = (index: number) => {
     setScratch(s => ({
       ...s,
       steps: s.steps.filter((_, idx) => idx !== index),
     }))
   }
 
-  const canCreateScratch = (scratch.name || '').trim().length > 0 && (scratch.steps || []).some(s => (s.name || '').trim().length > 0)
+  const canCreateScratch = (scratch.name || '').trim().length > 0 && (scratch.steps || []).some((s: any) => (s.name || '').trim().length > 0)
 
   return (
     <>
@@ -763,7 +764,7 @@ function WorkflowTemplatesTab() {
 
       {!isLoading && templates.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
-          {templates.map(tpl => (
+          {templates.map((tpl: any) => (
             <div key={tpl.id} style={{ ...panel, padding: '14px 16px' }}>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 800, marginBottom: 6 }}>{tpl.name}</div>
               <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>{tpl.description || 'Plantilla de flujo lista para usar.'}</div>
@@ -878,15 +879,15 @@ function WorkflowSimulatorTab() {
   const [department, setDepartment] = useState('')
   const [amount, setAmount] = useState('')
   const [requestedByUserId, setRequestedByUserId] = useState('')
-  const [result, setResult] = useState(null)
+  const [result, setResult] = useState<any>(null)
   const toast = useToast()
-  const { data: depts = [] } = useQuery({
+  const { data: depts = [] } = useQuery<any[]>({
     queryKey: ['departments-select'],
     queryFn: () => settingsApi.getDepartments().then(r => r.data),
   })
 
   const { mutate: simulate, isPending } = useMutation({
-    mutationFn: (payload) => approvalsApi.simulate(payload),
+    mutationFn: (payload: any) => approvalsApi.simulate(payload),
     onSuccess: (res) => setResult(res.data),
     onError: e => toast.error(extractErr(e, 'Error simulando flujo')),
   })
@@ -940,7 +941,7 @@ function WorkflowSimulatorTab() {
               <div style={{ fontSize: "var(--text-md)", fontWeight: 800, marginBottom: 6 }}>Flujo seleccionado: {result.workflow?.name}</div>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>SLA estimado total: {result.estimated_total_timeout_hours}h</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {(result.route || []).map(step => (
+                {(result.route || []).map((step: any) => (
                   <div key={step.step_order} style={{ border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', background: 'var(--surface-3)' }}>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 700 }}>Paso {step.step_order}: {step.step_name}</div>
                     <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>Aprobador: {step.resolved_approver || 'No resoluble'} · Timeout: {step.timeout_hours}h · On timeout: {step.on_timeout}</div>
@@ -955,9 +956,9 @@ function WorkflowSimulatorTab() {
   )
 }
 
-function exportBottlenecksCSV(items, recommendations, days, workflowFilterName) {
+function exportBottlenecksCSV(items: any[], recommendations: any[], days: number, workflowFilterName: string | null) {
   const header = ['Workflow', 'Paso', 'Step name', 'Decisiones', 'Avg h', 'Reject %', 'Pending', 'SLA risk %', 'Score']
-  const rows = items.map(it => [
+  const rows = items.map((it: any) => [
     it.workflow_name,
     it.step_order,
     it.step_name,
@@ -970,10 +971,10 @@ function exportBottlenecksCSV(items, recommendations, days, workflowFilterName) 
   ])
 
   const recHeader = ['Priority', 'Title', 'Action', 'Why']
-  const recRows = recommendations.map(r => [r.priority, r.title, r.action, r.why])
+  const recRows = recommendations.map((r: any) => [r.priority, r.title, r.action, r.why])
 
-  const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`
-  const toCSV = (hdr, data) => [hdr, ...data].map(r => r.map(escape).join(',')).join('\n')
+  const escape = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const toCSV = (hdr: any[], data: any[]) => [hdr, ...data].map((r: any) => r.map(escape).join(',')).join('\n')
 
   const label = workflowFilterName ? `Workflow: ${workflowFilterName}` : 'Todos los flujos'
   const content = [
@@ -999,27 +1000,27 @@ function WorkflowBottlenecksTab() {
   const [days, setDays] = useState(90)
   const [workflowFilter, setWorkflowFilter] = useState('')
 
-  const { data: workflowsData = [] } = useQuery({
+  const { data: workflowsData = [] } = useQuery<any[]>({
     queryKey: ['approval-workflows'],
-    queryFn: () => approvalsApi.listWorkflows().then(r => r.data),
+    queryFn: () => approvalsApi.listWorkflows(undefined).then(r => r.data),
   })
 
   const params = { days, ...(workflowFilter ? { workflow_id: workflowFilter } : {}) }
-  const { data, isLoading, refetch, isFetching } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery<any>({
     queryKey: ['approval-bottlenecks', days, workflowFilter],
     queryFn: () => approvalsApi.bottlenecks(params).then(r => r.data),
   })
 
-  const items = data?.items || []
+  const items: any[] = data?.items || []
   const summary = data?.summary || {
     steps_analyzed: items.length,
-    critical_steps: items.filter(it => it.sla_risk_pct >= 80 || it.pending_count >= 3 || it.rejection_rate_pct >= 25).length,
-    pending_total: items.reduce((acc, it) => acc + (it.pending_count || 0), 0),
-    avg_decision_time_hours: items.length ? Number((items.reduce((acc, it) => acc + (it.avg_decision_time_hours || 0), 0) / items.length).toFixed(2)) : 0,
+    critical_steps: items.filter((it: any) => it.sla_risk_pct >= 80 || it.pending_count >= 3 || it.rejection_rate_pct >= 25).length,
+    pending_total: items.reduce((acc: number, it: any) => acc + (it.pending_count || 0), 0),
+    avg_decision_time_hours: items.length ? Number((items.reduce((acc: number, it: any) => acc + (it.avg_decision_time_hours || 0), 0) / items.length).toFixed(2)) : 0,
   }
-  const topWorkflows = data?.top_workflows || []
-  const weeklyTrend = data?.weekly_trend || []
-  const recommendations = data?.recommendations || []
+  const topWorkflows: any[] = data?.top_workflows || []
+  const weeklyTrend: any[] = data?.weekly_trend || []
+  const recommendations: any[] = data?.recommendations || []
 
   const selectedWorkflowName = workflowFilter
     ? (workflowsData.find(w => w.id === workflowFilter)?.name || workflowFilter)
@@ -1160,20 +1161,20 @@ function WorkflowBottlenecksTab() {
 function ApprovalGroupsTab() {
   const qc = useQueryClient()
   const toast = useToast()
-  const { data: groups = [], isLoading } = useQuery({
+  const { data: groups = [], isLoading } = useQuery<any[]>({
     queryKey: ['approval-groups'],
     queryFn: () => approvalsApi.listGroups().then(r => r.data),
   })
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<any[]>({
     queryKey: ['users'],
     queryFn: () => usersApi.list().then(r => r.data),
   })
   const [showCreate, setShowCreate] = useState(false)
-  const [editGroup, setEditGroup] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', member_ids: [] })
+  const [editGroup, setEditGroup] = useState<any>(null)
+  const [form, setForm] = useState<{ name: string; description: string; member_ids: any[] }>({ name: '', description: '', member_ids: [] })
 
   const { mutate: save, isPending } = useMutation({
-    mutationFn: d => editGroup ? approvalsApi.updateGroup(editGroup.id, d) : approvalsApi.createGroup(d),
+    mutationFn: (d: any) => editGroup ? approvalsApi.updateGroup(editGroup.id, d) : approvalsApi.createGroup(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['approval-groups'] }); setShowCreate(false); setEditGroup(null); setForm({ name: '', description: '', member_ids: [] }); toast.success(editGroup ? 'Grupo actualizado' : 'Grupo creado') },
     onError: e => toast.error(extractErr(e, 'Error guardando grupo')),
   })
@@ -1183,16 +1184,16 @@ function ApprovalGroupsTab() {
     onError: e => toast.error(extractErr(e, 'Error eliminando grupo')),
   })
 
-  const openEdit = (g) => {
+  const openEdit = (g: any) => {
     setEditGroup(g)
     const members = (() => { try { return JSON.parse(g.member_ids || '[]') } catch { return [] } })()
     setForm({ name: g.name, description: g.description || '', member_ids: members })
     setShowCreate(true)
   }
 
-  const toggleMember = (uid) => setForm(f => ({
+  const toggleMember = (uid: any) => setForm(f => ({
     ...f,
-    member_ids: f.member_ids.includes(uid) ? f.member_ids.filter(x => x !== uid) : [...f.member_ids, uid],
+    member_ids: f.member_ids.includes(uid) ? f.member_ids.filter((x: any) => x !== uid) : [...f.member_ids, uid],
   }))
 
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Cargando grupos…</div>
@@ -1258,7 +1259,7 @@ function ApprovalGroupsTab() {
 // ── Carga de aprobadores ──────────────────────────────────────────────────────
 function ApproverLoadTab() {
   const [days, setDays] = useState(90)
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<any>({
     queryKey: ['approver-load', days],
     queryFn: () => approvalsApi.approverLoad({ days }).then(r => r.data),
   })
@@ -1294,7 +1295,7 @@ function ApproverLoadTab() {
                 </tr>
               </thead>
               <tbody>
-                {(data.load || []).map(row => (
+                {(data.load || []).map((row: any) => (
                   <tr key={row.user_id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
                     <td style={{ padding: '10px 12px', fontWeight: 600 }}>{row.user_name}</td>
                     <td style={{ padding: '10px 12px' }}>{row.pending_count}</td>
@@ -1320,12 +1321,12 @@ function ApproverLoadTab() {
 }
 
 // ── Matriz de aprobación ──────────────────────────────────────────────────────
-function ApprovalMatrixTab({ workflows = [] }) {
+function ApprovalMatrixTab({ workflows = [] }: { workflows?: any[] }) {
   const t = useAppT()
   const entityMap = entityLabels(t)
   const entityTypes = Object.keys(entityMap)
   // Collect all unique workflow names (across entity types)
-  const allWorkflowNames = [...new Set(workflows.map(w => w.name))]
+  const allWorkflowNames = [...new Set(workflows.map((w: any) => w.name))]
 
   return (
     <div>
@@ -1386,18 +1387,18 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
   const qc = useQueryClient()
   const isConfigMode = mode === 'config'
   const [tab, setTab]           = useState(isConfigMode ? 'workflows' : 'pending')
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected] = useState<any>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', entity_type: 'timesheet', is_default: false, document_category: '', chain_on_approval_workflow_id: '', sla_block_on_breach: false, auto_approval_rules: '' })
   const canQueryProtected = !loading && !!user
 
-  const { data: workflows = [], isLoading } = useQuery({
+  const { data: workflows = [], isLoading } = useQuery<any[]>({
     queryKey: ['approval-workflows'],
-    queryFn: () => approvalsApi.listWorkflows().then(r => r.data),
+    queryFn: () => approvalsApi.listWorkflows(undefined).then(r => r.data),
     enabled: canQueryProtected && tab === 'workflows',
   })
 
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<any>({
     queryKey: ['approval-stats'],
     queryFn: () => approvalsApi.stats().then(r => r.data),
     enabled: canQueryProtected && tab === 'workflows',
@@ -1421,7 +1422,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
     onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
-  const runValidate = async (e, workflowId) => {
+  const runValidate = async (e: any, workflowId: any) => {
     e.stopPropagation()
     try {
       const res = await approvalsApi.validateWorkflow(workflowId)
@@ -1435,7 +1436,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
     }
   }
 
-  const runPublish = async (e, workflowId) => {
+  const runPublish = async (e: any, workflowId: any) => {
     e.stopPropagation()
     try {
       await approvalsApi.publishWorkflow(workflowId)
@@ -1446,7 +1447,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
     }
   }
 
-  const runClone = async (e, workflowId) => {
+  const runClone = async (e: any, workflowId: any) => {
     e.stopPropagation()
     try {
       await approvalsApi.cloneVersion(workflowId, {})

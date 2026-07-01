@@ -74,6 +74,13 @@
     "src/pages/RevenuePage.tsx",
     "src/pages/portal-client/PortalDashboard.tsx",
     "src/pages/CMDBPage.tsx",
-    "src/features/bi/widgets.tsx"
+    "src/features/bi/widgets.tsx",
+    "src/pages/ApprovalsPage.tsx",
+    "src/pages/DocumentsPage.tsx",
+    "src/pages/TasksPage.tsx",
+    "src/pages/ALMPage.tsx",
+    "src/pages/ReportsPage.tsx",
+    "src/pages/settings-sections/SettingsAdvancedSections.tsx",
+    "src/components/layout/GlobalChatPanel.tsx"
   ]
 }
