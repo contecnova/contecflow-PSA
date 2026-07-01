@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ChatPage — Teams-like internal chat for Contecflow PSA.
  * Three-pane layout (sidebar / conversation / context panel) per
@@ -6,6 +5,7 @@
  *
  * Wired to /api/v1/collaboration endpoints + WebSocket realtime.
  */
+import type { CSSProperties, ReactNode, Dispatch, SetStateAction, DragEvent as ReactDragEvent, ClipboardEvent as ReactClipboardEvent } from 'react'
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -23,10 +23,19 @@ import { useChatRealtime } from '../context/ChatRealtimeContext'
 import { collabApi } from '../services/collaborationApi'
 import { registerCollabPush } from '../utils/collabPush'
 
+// ── Loose row/entity types ──────────────────────────────────────────────────
+// The collaboration API client returns `any`/`unknown[]`, so we describe the
+// shapes the UI reads with permissive index-signature types. These are type
+// annotations only — no runtime effect.
+type AnyRec = { [k: string]: any }
+type Conv = AnyRec
+type Msg = AnyRec
+type UserLike = AnyRec
+
 // ── Shared style constants (extracted from repeated inline styles) ──────────
 // Keep these read-only objects: never mutate, never assign per-render. They
 // reduce duplication without changing visuals.
-const styles = {
+const styles: Record<string, CSSProperties> = {
   modalOverlay: {
     position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
@@ -98,37 +107,37 @@ export default function ChatPage(): JSX.Element {
 
   const { data: conversations = [], isLoading: loadingConvs } = useQuery({
     queryKey: ['collab-conversations'],
-    queryFn:  () => collabApi.listConversations(),
+    queryFn:  () => collabApi.listConversations() as Promise<Conv[]>,
     refetchInterval: 30_000,
   })
 
   const { data: teams = [] } = useQuery({
     queryKey: ['collab-teams'],
-    queryFn:  () => collabApi.listTeams(),
+    queryFn:  () => collabApi.listTeams() as Promise<AnyRec[]>,
     staleTime: 60_000,
   })
 
   const { data: channels = [] } = useQuery({
     queryKey: ['collab-channels'],
-    queryFn:  () => collabApi.listChannels(),
+    queryFn:  () => collabApi.listChannels(undefined) as Promise<AnyRec[]>,
     staleTime: 60_000,
   })
 
   const { data: presence = [] } = useQuery({
     queryKey: ['collab-presence'],
-    queryFn:  () => collabApi.listPresence(),
+    queryFn:  () => collabApi.listPresence() as Promise<AnyRec[]>,
     refetchInterval: 60_000,
   })
 
   const { data: notifications = [] } = useQuery({
     queryKey: ['collab-notifications'],
-    queryFn:  () => collabApi.listNotifications(false),
+    queryFn:  () => collabApi.listNotifications(false) as Promise<AnyRec[]>,
     refetchInterval: 30_000,
   })
 
   const { data: bots = [] } = useQuery({
     queryKey: ['collab-bots'],
-    queryFn:  () => collabApi.listBots(),
+    queryFn:  () => collabApi.listBots() as Promise<AnyRec[]>,
     staleTime: 5 * 60_000,
   })
 
@@ -150,7 +159,7 @@ export default function ChatPage(): JSX.Element {
     }
   }, [urlConvId, activeConv?.id, setSearchParams])
 
-  const setActiveConv = (c) => {
+  const setActiveConv = (c: Conv | null) => {
     if (!c?.id) return
     setSearchParams({ conv: c.id }, { replace: false })
   }
@@ -166,7 +175,7 @@ export default function ChatPage(): JSX.Element {
   useEffect(() => {
     if (!user?.id) return
     let stopped = false
-    const setStatus = (status) => {
+    const setStatus = (status: string) => {
       if (stopped) return
       collabApi.setPresence({ status }).catch(() => {})
     }
@@ -202,7 +211,7 @@ export default function ChatPage(): JSX.Element {
 
   // Global keyboard shortcuts
   useEffect(() => {
-    const handler = (e) => {
+    const handler = (e: KeyboardEvent) => {
       const isMac = navigator.platform.toUpperCase().includes('MAC')
       const cmd = isMac ? e.metaKey : e.ctrlKey
       if (!cmd) return
@@ -211,7 +220,7 @@ export default function ChatPage(): JSX.Element {
         setSearchModalOpen(true)
       } else if (e.key === '/') {
         e.preventDefault()
-        const ta = document.querySelector('[data-chat-composer]')
+        const ta = document.querySelector('[data-chat-composer]') as HTMLTextAreaElement | null
         if (ta) { ta.focus(); ta.value = '/'; ta.dispatchEvent(new Event('input', { bubbles: true })) }
       } else if (e.shiftKey && e.key.toLowerCase() === 'a') {
         e.preventDefault()
@@ -255,12 +264,12 @@ export default function ChatPage(): JSX.Element {
         setShowSlashMenu={setShowSlashMenu}
       />
 
-      {activeConv && <ContextPanel conv={activeConv} />}
+      {activeConv ? <ContextPanel conv={activeConv} /> : null}
 
       {searchModalOpen && (
         <SearchModal
           onClose={() => setSearchModalOpen(false)}
-          onJump={(conversationId) => {
+          onJump={(conversationId: string) => {
             const c = conversations.find(c => c.id === conversationId)
             if (c) setActiveConv(c)
             setSearchModalOpen(false)
@@ -272,7 +281,7 @@ export default function ChatPage(): JSX.Element {
 }
 
 // ── Left rail ────────────────────────────────────────────────────────────────
-function NavRail({ activeTab, onTab, unreadNotifs }) {
+function NavRail({ activeTab, onTab, unreadNotifs }: { activeTab: string; onTab: (id: string) => void; unreadNotifs: number }) {
   const items = [
     { id: 'activity', label: 'Actividad', icon: Bell, badge: unreadNotifs },
     { id: 'chats',    label: 'Chat',      icon: MessageSquare },
@@ -303,13 +312,13 @@ function NavRail({ activeTab, onTab, unreadNotifs }) {
             }}>
             <Icon size={20} />
             <span style={{ fontSize: 'var(--text-xs)' }}>{it.label}</span>
-            {it.badge > 0 && (
+            {(it.badge ?? 0) > 0 && (
               <span style={{
                 position: 'absolute', top: 6, right: 8,
                 background: 'var(--danger)', color: '#fff',
                 fontSize: 9, fontWeight: 800, padding: '1px 5px',
                 borderRadius: 999, minWidth: 14, textAlign: 'center',
-              }}>{it.badge > 99 ? '99+' : it.badge}</span>
+              }}>{(it.badge ?? 0) > 99 ? '99+' : it.badge}</span>
             )}
           </button>
         )
@@ -319,18 +328,21 @@ function NavRail({ activeTab, onTab, unreadNotifs }) {
 }
 
 // ── Conversations sidebar (middle column) ────────────────────────────────────
-function ConversationsList({ activeTab, conversations, teams, channels, presence, loading, activeConv, onSelect }) {
+function ConversationsList({ activeTab, conversations, teams, channels, presence, loading, activeConv, onSelect }: {
+  activeTab: string; conversations: Conv[]; teams: AnyRec[]; channels: AnyRec[];
+  presence: AnyRec[]; loading: boolean; activeConv: Conv | null; onSelect: (c: Conv) => void
+}) {
   const [filter, setFilter] = useState('')
   const [openTeams, setOpenTeams] = useState(true)
 
   // Hooks must run unconditionally — compute always.
   const presenceMap = (() => {
-    const m = {}
+    const m: Record<string, string> = {}
     for (const p of presence) if (p.user_id) m[p.user_id] = p.status
     return m
   })()
   const channelsByTeam = (() => {
-    const map = {}
+    const map: Record<string, AnyRec[]> = {}
     for (const ch of channels) {
       map[ch.team_id] = map[ch.team_id] || []
       map[ch.team_id].push(ch)
@@ -343,7 +355,7 @@ function ConversationsList({ activeTab, conversations, teams, channels, presence
   const directs = conversations.filter(c => c.kind === 'direct')
   const groups = conversations.filter(c => c.kind === 'group')
 
-  const matches = (text) => !filter || (text || '').toLowerCase().includes(filter.toLowerCase())
+  const matches = (text: string | undefined | null) => !filter || (text || '').toLowerCase().includes(filter.toLowerCase())
 
   return (
     <div style={{
@@ -424,7 +436,9 @@ function ConversationsList({ activeTab, conversations, teams, channels, presence
   )
 }
 
-function SectionGroup({ title, count, children, collapsed, onToggle }) {
+function SectionGroup({ title, count, children, collapsed, onToggle }: {
+  title: string; count?: number; children?: ReactNode; collapsed?: boolean; onToggle?: () => void
+}) {
   return (
     <div style={{ marginBottom: 12 }}>
       <button onClick={onToggle} style={{
@@ -443,7 +457,9 @@ function SectionGroup({ title, count, children, collapsed, onToggle }) {
   )
 }
 
-function ConvRow({ c, active, onClick, presence, indent }) {
+function ConvRow({ c, active, onClick, presence, indent }: {
+  c: Conv; active: boolean; onClick: () => void; presence?: string | null; indent?: boolean
+}) {
   return (
     <button onClick={onClick} style={{
       display: 'flex', alignItems: 'center', gap: 10,
@@ -485,7 +501,7 @@ function ConvRow({ c, active, onClick, presence, indent }) {
   )
 }
 
-function NewConversationButton({ onCreated }) {
+function NewConversationButton({ onCreated }: { onCreated?: (c: Conv) => void }) {
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -504,7 +520,7 @@ function NewConversationButton({ onCreated }) {
   )
 }
 
-function NewConversationModal({ onClose, onCreated }) {
+function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (c: Conv) => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   // Estado del formulario agrupado: todos los campos cambian juntos al
@@ -512,11 +528,15 @@ function NewConversationModal({ onClose, onCreated }) {
   // vez al cerrar. Un único objeto reduce el ruido de useStates sin
   // alterar la lógica.
   const [tab, setTab] = useState('direct')  // direct | group | channel
+  type ModalForm = {
+    search: string; selectedUsers: UserLike[]; groupTitle: string;
+    channelName: string; channelType: string; selectedTeamId: string
+  }
   const [form, updateForm] = useReducer(
-    (s, patch) => ({ ...s, ...patch }),
+    (s: ModalForm, patch: Partial<ModalForm>) => ({ ...s, ...patch }),
     {
       search: '',
-      selectedUsers: [],
+      selectedUsers: [] as UserLike[],
       groupTitle: '',
       channelName: '',
       channelType: 'public',
@@ -527,18 +547,18 @@ function NewConversationModal({ onClose, onCreated }) {
 
   const { data: suggestions = { users: [], groups: [] } } = useQuery({
     queryKey: ['mention-suggestions-modal', search],
-    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: 12 }),
+    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: 12 }) as Promise<AnyRec>,
   })
   const { data: teams = [] } = useQuery({
     queryKey: ['collab-teams'],
-    queryFn: () => collabApi.listTeams(),
+    queryFn: () => collabApi.listTeams() as Promise<AnyRec[]>,
   })
 
   useEffect(() => {
     if (!selectedTeamId && teams.length > 0) updateForm({ selectedTeamId: teams[0].id })
   }, [teams, selectedTeamId])
 
-  const toggleUser = (u) => {
+  const toggleUser = (u: UserLike) => {
     updateForm({
       selectedUsers: selectedUsers.find(x => x.id === u.id)
         ? selectedUsers.filter(x => x.id !== u.id)
@@ -577,7 +597,7 @@ function NewConversationModal({ onClose, onCreated }) {
       onCreated?.({ id: data.conversation_id || data.id, kind: tab === 'channel' ? 'channel' : tab })
       toast.success(tab === 'direct' ? 'Chat abierto' : tab === 'group' ? 'Grupo creado' : 'Canal creado')
     },
-    onError: (e) => toast.error(e.message || e?.response?.data?.detail || 'Error'),
+    onError: (e: any) => toast.error(e.message || e?.response?.data?.detail || 'Error'),
   })
 
   return (
@@ -664,7 +684,7 @@ function NewConversationModal({ onClose, onCreated }) {
             </div>
           )}
           <div style={{ marginTop: 10, maxHeight: 240, overflowY: 'auto' }}>
-            {(suggestions.users || []).map(u => {
+            {((suggestions.users || []) as UserLike[]).map((u: UserLike) => {
               const sel = !!selectedUsers.find(x => x.id === u.id)
               return (
                 <button key={u.id} onClick={() => {
@@ -714,7 +734,7 @@ function NewConversationModal({ onClose, onCreated }) {
   )
 }
 
-const inputStyle = {
+const inputStyle: CSSProperties = {
   width: '100%', boxSizing: 'border-box', marginTop: 4,
   background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
   borderRadius: 8, padding: '8px 10px',
@@ -723,34 +743,36 @@ const inputStyle = {
 }
 
 // ── Modal: añadir miembros a un grupo existente ─────────────────────────────
-function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }) {
+function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
+  conv: Conv; existingUserIds?: string[]; onClose: () => void; onAdded?: () => void
+}) {
   const toast = useToast()
   const [search, setSearch] = useState('')
-  const [picked, setPicked] = useState([])
+  const [picked, setPicked] = useState<UserLike[]>([])
 
   const { data: suggestions = { users: [] } } = useQuery({
     queryKey: ['mention-suggestions-add-members', search],
-    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: 16 }),
+    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: 16 }) as Promise<AnyRec>,
   })
   // Si no nos pasan existingUserIds, los obtenemos del servidor para evitar
   // que el listado proponga gente ya dentro del grupo.
   const { data: serverMembers = [] } = useQuery({
     queryKey: ['collab-members-for-add', conv?.id],
-    queryFn: () => collabApi.listConversationMembers(conv.id),
+    queryFn: () => collabApi.listConversationMembers(conv.id) as Promise<AnyRec[]>,
     enabled: !existingUserIds && !!conv?.id,
   })
-  const dedupeIds = existingUserIds && existingUserIds.length
+  const dedupeIds: string[] = existingUserIds && existingUserIds.length
     ? existingUserIds
     : serverMembers.map(m => m.user_id).filter(Boolean)
-  const candidates = (suggestions.users || []).filter(u => !dedupeIds.includes(u.id))
+  const candidates = ((suggestions.users || []) as UserLike[]).filter(u => !dedupeIds.includes(u.id))
 
   const submit = useMutation({
     mutationFn: () => collabApi.addConversationMembers(conv.id, { user_ids: picked.map(u => u.id) }),
     onSuccess: () => onAdded?.(),
-    onError: (e) => toast.error(e?.response?.data?.detail || 'No se pudieron añadir'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'No se pudieron añadir'),
   })
 
-  const togglePick = (u) => {
+  const togglePick = (u: UserLike) => {
     setPicked(prev => prev.find(x => x.id === u.id) ? prev.filter(x => x.id !== u.id) : [...prev, u])
   }
 
@@ -836,15 +858,17 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }) {
 }
 
 // ── Header dropdown: "..." con acciones de la conversación ─────────────────
-function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }) {
+function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }: {
+  conv: Conv; currentUser: UserLike; onClose: () => void; onAddMembers: () => void
+}) {
   const qc = useQueryClient()
   const toast = useToast()
-  const ref = useRef(null)
+  const ref = useRef<HTMLDivElement>(null)
 
   // Click fuera + Esc cierran
   useEffect(() => {
-    const onDoc = (e) => { if (!ref.current?.contains(e.target)) onClose() }
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    const onDoc = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) onClose() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('mousedown', onDoc)
     document.addEventListener('keydown', onKey)
     return () => {
@@ -856,13 +880,13 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }) {
   // Reglas existentes para esta conv → permite alternar silencio
   const { data: rules = [] } = useQuery({
     queryKey: ['collab-rules'],
-    queryFn: () => collabApi.listRules(),
+    queryFn: () => collabApi.listRules() as Promise<AnyRec[]>,
   })
   const convRule = rules.find(r => r.scope === 'conversation' && r.target_id === conv.id)
   const muted = convRule?.notify_messages === 'none'
 
   const upsertMute = useMutation({
-    mutationFn: (toMute) => collabApi.upsertRule({
+    mutationFn: (toMute: boolean) => collabApi.upsertRule({
       scope: 'conversation', target_id: conv.id,
       notify_messages: toMute ? 'none' : 'all',
       desktop_push: !toMute, email_digest: 'weekly',
@@ -888,10 +912,10 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }) {
       toast.success('Has salido del grupo')
       onClose()
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error'),
   })
 
-  const item = (icon, label, onClick, danger = false) => (
+  const item = (icon: ReactNode, label: string, onClick: () => void, danger = false) => (
     <button onClick={onClick} style={{
       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
       padding: '8px 12px', border: 'none', background: 'transparent',
@@ -933,38 +957,43 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }) {
 }
 
 // ── Conversation pane ────────────────────────────────────────────────────────
-function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlashMenu, setShowSlashMenu }) {
+function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlashMenu, setShowSlashMenu }: {
+  conv: Conv | null; currentUser: UserLike | null; _bots: AnyRec[]; draft: string;
+  setDraft: Dispatch<SetStateAction<string>>; showSlashMenu: boolean;
+  setShowSlashMenu: (v: boolean) => void
+}) {
   const realtime = useChatRealtime()
   const qc = useQueryClient()
   const toast = useToast()
-  const fileRef = useRef(null)
-  const composerRef = useRef(null)
-  const messagesEndRef = useRef(null)
-  const [editing, setEditing] = useState(null) // { id, body }
-  const [mentionState, setMentionState] = useState(null) // { query, anchor, items }
-  const [activeThreadRoot, setActiveThreadRoot] = useState(null)
-  const [typingUsers, setTypingUsers] = useState({})  // { user_id: ts }
+  const fileRef = useRef<HTMLInputElement>(null)
+  const composerRef = useRef<HTMLTextAreaElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [editing, setEditing] = useState<AnyRec | null>(null) // { id, body }
+  const [mentionState, setMentionState] = useState<AnyRec | null>(null) // { query, anchor, items }
+  const [activeThreadRoot, setActiveThreadRoot] = useState<string | null>(null)
+  const [typingUsers, setTypingUsers] = useState<Record<string, number>>({})  // { user_id: ts }
   const [isDragging, setIsDragging] = useState(false)
   const dragCounterRef = useRef(0)
   // panelUi agrupa flags de UI puramente locales del pane (popovers/modales
   // disparados desde el header o desde una acción de mensaje). No interactúan
   // con el WebSocket; agruparlos reduce ruido sin tocar la lógica realtime.
+  type PanelUi = { headerMenuOpen: boolean; showAddMembers: boolean; linkPicker: AnyRec | null }
   const [panelUi, setPanelUi] = useReducer(
-    (s, patch) => ({ ...s, ...patch }),
-    { headerMenuOpen: false, showAddMembers: false, linkPicker: null },
+    (s: PanelUi, patch: Partial<PanelUi>) => ({ ...s, ...patch }),
+    { headerMenuOpen: false, showAddMembers: false, linkPicker: null } as PanelUi,
   )
   const { headerMenuOpen, showAddMembers, linkPicker } = panelUi
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['collab-messages', conv?.id],
-    queryFn:  () => collabApi.listMessages(conv.id, { limit: 50 }),
+    queryFn:  () => collabApi.listMessages(conv!.id, { limit: 50 }) as Promise<Msg[]>,
     enabled:  !!conv?.id,
     refetchInterval: 30_000, // fallback polling — WS invalida casi siempre
   })
 
   // Parse @mentions from raw text → { mention_user_ids, is_everyone }
-  const parseMentions = (text) => {
-    const ids = []
+  const parseMentions = (text: string) => {
+    const ids: string[] = []
     let everyone = false
     const re = /@([\w.-]+|\[[^\]]+\])/g
     let m
@@ -983,35 +1012,35 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
   }
 
   const send = useMutation({
-    mutationFn: (body) => {
+    mutationFn: (body: string) => {
       const mentions = parseMentions(body)
       return collabApi.sendMessage({
-        conversation_id: conv.id,
+        conversation_id: conv!.id,
         body,
         parent_message_id: activeThreadRoot,
         ...mentions,
       })
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['collab-messages', conv.id] })
+      qc.invalidateQueries({ queryKey: ['collab-messages', conv!.id] })
       qc.invalidateQueries({ queryKey: ['collab-conversations'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al enviar'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error al enviar'),
   })
 
   const editMsg = useMutation({
-    mutationFn: ({ id, body }) => collabApi.editMessage(id, { body }),
+    mutationFn: ({ id, body }: { id: string; body: string }) => collabApi.editMessage(id, { body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['collab-messages', conv?.id] }),
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al editar'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error al editar'),
   })
 
   const delMsg = useMutation({
-    mutationFn: (id) => collabApi.deleteMessage(id),
+    mutationFn: (id: string) => collabApi.deleteMessage(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['collab-messages', conv?.id] }),
   })
 
   const react = useMutation({
-    mutationFn: ({ id, emoji }) => collabApi.toggleReaction(id, emoji),
+    mutationFn: ({ id, emoji }: { id: string; emoji: string }) => collabApi.toggleReaction(id, emoji),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['collab-messages', conv?.id] }),
   })
 
@@ -1082,7 +1111,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
 
   // Listen to typing events from bus (delegated through window CustomEvent)
   useEffect(() => {
-    const handler = (e) => {
+    const handler = (e: any) => {
       const { conversation_id, payload } = e.detail || {}
       if (conversation_id !== conv?.id) return
       const uid = payload?.user_id
@@ -1104,7 +1133,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
     const id = setInterval(() => {
       setTypingUsers(prev => {
         const cutoff = Date.now() - 6000
-        const next = {}
+        const next: Record<string, number> = {}
         for (const [k, v] of Object.entries(prev)) if (v > cutoff) next[k] = v
         return next
       })
@@ -1112,9 +1141,9 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
     return () => clearInterval(id)
   }, [])
 
-  const insertMention = (item) => {
+  const insertMention = (item: AnyRec) => {
     const insert = item.is_group ? `@${item.username} ` : `@[${item.full_name}|${item.id}] `
-    const replaced = draft.replace(/(^|[\s])@([\w.-]{0,40})$/, (_m, p1) => `${p1}${insert}`)
+    const replaced = draft.replace(/(^|[\s])@([\w.-]{0,40})$/, (_m: string, p1: string) => `${p1}${insert}`)
     setDraft(replaced)
     setMentionState(null)
     composerRef.current?.focus()
@@ -1143,7 +1172,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
     setDraft('')
   }
 
-  const handleFile = async (file) => {
+  const handleFile = async (file: File) => {
     if (!file) return
     if (file.size > 500 * 1024 * 1024) {
       toast.error(`El archivo "${file.name}" excede el máximo de 500 MB`)
@@ -1163,7 +1192,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
       }
       // Reset input value para permitir subir el mismo nombre dos veces
       if (fileRef.current) fileRef.current.value = ''
-    } catch (e) {
+    } catch (e: any) {
       const detail = e?.response?.data?.detail
       toast.error(typeof detail === 'string' ? detail : `Error al subir ${file.name}`)
       if (fileRef.current) fileRef.current.value = ''
@@ -1171,31 +1200,31 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
   }
 
   // Drag-and-drop + paste files anywhere within the conversation pane
-  const onDragEnter = (e) => {
+  const onDragEnter = (e: ReactDragEvent) => {
     if (!e.dataTransfer?.types?.includes('Files')) return
     e.preventDefault()
     dragCounterRef.current += 1
     setIsDragging(true)
   }
-  const onDragOver = (e) => {
+  const onDragOver = (e: ReactDragEvent) => {
     if (!e.dataTransfer?.types?.includes('Files')) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'copy'
   }
-  const onDragLeave = (e) => {
+  const onDragLeave = (e: ReactDragEvent) => {
     if (!e.dataTransfer?.types?.includes('Files')) return
     e.preventDefault()
     dragCounterRef.current = Math.max(0, dragCounterRef.current - 1)
     if (dragCounterRef.current === 0) setIsDragging(false)
   }
-  const onDrop = (e) => {
+  const onDrop = (e: ReactDragEvent) => {
     if (!e.dataTransfer?.files?.length) return
     e.preventDefault()
     dragCounterRef.current = 0
     setIsDragging(false)
     for (const f of e.dataTransfer.files) handleFile(f)
   }
-  const onPaste = (e) => {
+  const onPaste = (e: ReactClipboardEvent) => {
     const items = e.clipboardData?.items
     if (!items) return
     for (const it of items) {
@@ -1206,7 +1235,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
     }
   }
 
-  const onCallStart = async (kind) => {
+  const onCallStart = async (kind: string) => {
     try {
       const c = await collabApi.startCall({ conversation_id: conv.id, kind })
       // Almacenar credenciales en sessionStorage para evitar exponerlas en la URL
@@ -1266,7 +1295,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
           {headerMenuOpen && (
             <ConvHeaderMenu
               conv={conv}
-              currentUser={currentUser}
+              currentUser={currentUser as UserLike}
               onClose={() => setPanelUi({ headerMenuOpen: false })}
               onAddMembers={() => setPanelUi({ headerMenuOpen: false, showAddMembers: true })}
             />
@@ -1292,7 +1321,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
         {isLoading && <Loader />}
         {messages.map((m, i) => {
           const prev = messages[i - 1]
-          const compact = prev && prev.user_id === m.user_id && (new Date(m.sent_at) - new Date(prev.sent_at)) < 5 * 60_000
+          const compact = prev && prev.user_id === m.user_id && (+new Date(m.sent_at) - +new Date(prev.sent_at)) < 5 * 60_000
           return (
             <MessageBubble key={m.id} msg={m} compact={compact}
               isMine={m.user_id === currentUser?.id}
@@ -1300,7 +1329,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
               onEdit={() => { setEditing({ id: m.id, body: m.body || '' }); setDraft(m.body || ''); composerRef.current?.focus() }}
               onDelete={() => { if (confirm('¿Borrar mensaje?')) delMsg.mutate(m.id) }}
               onPin={() => collabApi.pinMessage(conv.id, m.id).then(() => qc.invalidateQueries({ queryKey: ['collab-messages', conv.id] }))}
-              onSave={() => collabApi.saveMessage(m.id).then(() => toast.success('Guardado'))}
+              onSave={() => collabApi.saveMessage(m.id, undefined).then(() => toast.success('Guardado'))}
               onReplyThread={() => setActiveThreadRoot(m.id)}
               onLink={(kind) => setPanelUi({ linkPicker: { messageId: m.id, kind } })}
             />
@@ -1424,7 +1453,9 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
   )
 }
 
-function IconBtn({ children, onClick, title, style = {} }) {
+function IconBtn({ children, onClick, title, style = {} }: {
+  children: ReactNode; onClick?: () => void; title?: string; style?: CSSProperties
+}) {
   return (
     <button onClick={onClick} title={title} style={{
       width: 32, height: 32,
@@ -1440,7 +1471,11 @@ function IconBtn({ children, onClick, title, style = {} }) {
 }
 
 // ── Message bubble with hover actions ────────────────────────────────────────
-function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin, onSave, onReplyThread, onLink }) {
+function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin, onSave, onReplyThread, onLink }: {
+  msg: Msg; compact?: boolean; isMine: boolean; onReact: (emoji: string) => void;
+  onEdit: () => void; onDelete: () => void; onPin: () => void; onSave: () => void;
+  onReplyThread: () => void; onLink: (kind: string) => void
+}) {
   const [showActions, setShowActions] = useState(false)
   const author = msg.author_name || (msg.bot_id ? 'Bot' : 'Usuario')
 
@@ -1498,7 +1533,7 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
         )}
         {msg.attachments?.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-            {msg.attachments.map(a => <AttachmentChip key={a.id} att={a} />)}
+            {msg.attachments.map((a: AnyRec) => <AttachmentChip key={a.id} att={a} />)}
           </div>
         )}
         {msg.reactions?.length > 0 && (
@@ -1538,8 +1573,8 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
   )
 }
 
-function groupReactions(rs) {
-  const out = {}
+function groupReactions(rs: AnyRec[]) {
+  const out: Record<string, any[]> = {}
   for (const r of rs) {
     out[r.emoji] = out[r.emoji] || []
     out[r.emoji].push(r.user_id || r.client_user_id)
@@ -1548,7 +1583,7 @@ function groupReactions(rs) {
 }
 
 // ── Bot card renderers ───────────────────────────────────────────────────────
-function BotCard({ meta }) {
+function BotCard({ meta }: { meta: AnyRec }) {
   if (!meta?.card) return null
   if (meta.card === 'task') return <Card icon={ListChecks} accent="var(--success)" title="Tarea creada" body={`#${meta.task_id?.slice(0, 8) || ''}`} />
   if (meta.card === 'ticket' || meta.card === 'escalation') return <Card icon={Headphones} accent="var(--warning)" title="Ticket de soporte" body={`Nº ${meta.ticket?.number || meta.ticket?.id?.slice(0, 8)} → ${meta.ticket?.assignee || ''}`} />
@@ -1563,7 +1598,9 @@ function BotCard({ meta }) {
   return null
 }
 
-function Card({ icon: Icon, accent, title, body }) {
+function Card({ icon: Icon, accent, title, body }: {
+  icon: any; accent: string; title: ReactNode; body: ReactNode
+}) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10,
@@ -1584,11 +1621,11 @@ function Card({ icon: Icon, accent, title, body }) {
   )
 }
 
-function PollCard({ meta }) {
+function PollCard({ meta }: { meta: AnyRec }) {
   return (
     <div style={{ marginTop: 6, padding: '12px 14px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, maxWidth: 460 }}>
       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 8 }}>📊 {meta.question}</div>
-      {(meta.options || []).map((o, i) => (
+      {((meta.options || []) as AnyRec[]).map((o: AnyRec, i: number) => (
         <button key={i} style={{
           display: 'block', width: '100%', textAlign: 'left',
           padding: '6px 10px', marginBottom: 4,
@@ -1602,8 +1639,8 @@ function PollCard({ meta }) {
 }
 
 // ── Attachment chip ────────────────────────────────────────────────────────
-function AttachmentChip({ att }) {
-  const [meta, setMeta] = useState(att)
+function AttachmentChip({ att }: { att: AnyRec }) {
+  const [meta, setMeta] = useState<AnyRec>(att)
   // Si ya tenemos download_url usamos eso; si no, pedimos detalle al backend
   useEffect(() => {
     if (att.download_url || att.is_quarantined) return
@@ -1662,14 +1699,14 @@ function AttachmentChip({ att }) {
 }
 
 // ── Search modal (Cmd+K) ───────────────────────────────────────────────────
-function SearchModal({ onClose, onJump }) {
+function SearchModal({ onClose, onJump }: { onClose: () => void; onJump: (conversationId: string) => void }) {
   const [q, setQ] = useState('')
   const { data: result, isFetching } = useQuery({
     queryKey: ['collab-search', q],
-    queryFn: () => collabApi.search({ q, limit: 30 }),
+    queryFn: () => collabApi.search({ q, limit: 30 }) as Promise<AnyRec>,
     enabled: q.trim().length >= 2,
   })
-  const hits = result?.hits || []
+  const hits: AnyRec[] = result?.hits || []
   return (
     <div role="presentation" onClick={onClose} style={{
       ...styles.modalOverlay,
@@ -1727,8 +1764,8 @@ function SearchModal({ onClose, onJump }) {
 }
 
 // ── Linked entity chips ────────────────────────────────────────────────────
-function LinkedEntityChips({ msg }) {
-  const chips = []
+function LinkedEntityChips({ msg }: { msg: Msg }) {
+  const chips: AnyRec[] = []
   if (msg.linked_task_id) chips.push({ icon: ListChecks, label: 'Tarea', href: `/tasks?id=${msg.linked_task_id}`, color: 'var(--success)' })
   if (msg.linked_ticket_id) chips.push({ icon: Headphones, label: 'Ticket', href: `/service-desk?id=${msg.linked_ticket_id}`, color: 'var(--warning)' })
   if (msg.linked_deliverable_id) chips.push({ icon: FileText, label: 'Entregable', href: `/deliverables?id=${msg.linked_deliverable_id}`, color: 'var(--accent)' })
@@ -1753,14 +1790,16 @@ function LinkedEntityChips({ msg }) {
 }
 
 // ── Link picker modal ──────────────────────────────────────────────────────
-function LinkPickerModal({ messageId, kind, onClose, onPicked }) {
+function LinkPickerModal({ messageId, kind, onClose, onPicked }: {
+  messageId: string; kind: string; onClose: () => void; onPicked: () => void
+}) {
   const [q, setQ] = useState('')
   const { data: items = [] } = useQuery({
     queryKey: ['link-candidates', messageId, kind, q],
-    queryFn: () => collabApi.linkCandidates(messageId, { kind, q }),
+    queryFn: () => collabApi.linkCandidates(messageId, { kind, q }) as Promise<AnyRec[]>,
   })
   const link = useMutation({
-    mutationFn: (id) => collabApi.linkMessage(messageId, { kind, id }),
+    mutationFn: (id: string) => collabApi.linkMessage(messageId, { kind, id }),
     onSuccess: onPicked,
   })
   return (
@@ -1808,7 +1847,7 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }) {
 }
 
 // ── Mention menu ────────────────────────────────────────────────────────────
-function MentionMenu({ items, onPick }) {
+function MentionMenu({ items, onPick }: { items: AnyRec[]; onPick: (it: AnyRec) => void }) {
   return (
     <div style={styles.popoverMenu}>
       {items.map((it, i) => (
@@ -1833,12 +1872,12 @@ function MentionMenu({ items, onPick }) {
 }
 
 // ── Thread side panel ──────────────────────────────────────────────────────
-function ThreadPanel({ conv, rootId, onClose }) {
+function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: string; onClose: () => void }) {
   const qc = useQueryClient()
   const [reply, setReply] = useState('')
   const { data: thread = [] } = useQuery({
     queryKey: ['collab-thread', conv?.id, rootId],
-    queryFn: () => collabApi.listMessages(conv.id, { thread_root: rootId, limit: 200 }),
+    queryFn: () => collabApi.listMessages(conv.id, { thread_root: rootId, limit: 200 }) as Promise<Msg[]>,
     enabled: !!conv?.id && !!rootId,
     refetchInterval: 30_000,
   })
@@ -1885,14 +1924,14 @@ function ThreadPanel({ conv, rootId, onClose }) {
 }
 
 // ── Slash menu ──────────────────────────────────────────────────────────────
-function SlashMenu({ draft, onPick }) {
-  const { data: help = { commands: [] } } = useQuery({
+function SlashMenu({ draft, onPick }: { draft: string; onPick: (cmd: string) => void }) {
+  const { data: help = { commands: [] } } = useQuery<{ commands: AnyRec[] }>({
     queryKey: ['collab-slash-help'],
-    queryFn:  () => collabApi.slashHelp(),
+    queryFn:  () => collabApi.slashHelp() as Promise<{ commands: AnyRec[] }>,
     staleTime: 60 * 60_000,
   })
   const term = draft.replace('/', '').toLowerCase()
-  const cmds = help.commands.filter(c => c.name.replace('/', '').toLowerCase().startsWith(term))
+  const cmds = help.commands.filter((c: AnyRec) => c.name.replace('/', '').toLowerCase().startsWith(term))
   if (!cmds.length) return null
   return (
     <div style={styles.popoverMenu}>
@@ -1910,58 +1949,58 @@ function SlashMenu({ draft, onPick }) {
 }
 
 // ── Right context panel ─────────────────────────────────────────────────────
-function ContextPanel({ conv }) {
+function ContextPanel({ conv }: { conv: Conv }) {
   const qc = useQueryClient()
   const toast = useToast()
   const { user: me } = useAuth()
   const [showAddMember, setShowAddMember] = useState(false)
   const { data: pins = [] } = useQuery({
     queryKey: ['collab-pins', conv.id],
-    queryFn: () => collabApi.listPins(conv.id),
+    queryFn: () => collabApi.listPins(conv.id) as Promise<AnyRec[]>,
     enabled: !!conv?.id,
   })
   const { data: members = [] } = useQuery({
     queryKey: ['collab-members', conv?.id, conv?.kind],
-    queryFn: async () => {
+    queryFn: async (): Promise<AnyRec[]> => {
       if (conv?.kind === 'channel') {
-        const all = await collabApi.listChannels()
-        const ch = all.find(x => x.conversation_id === conv.id)
-        if (ch) return collabApi.listChannelMembers(ch.id)
+        const all = await collabApi.listChannels(undefined)
+        const ch = (all as AnyRec[]).find(x => x.conversation_id === conv.id)
+        if (ch) return collabApi.listChannelMembers(ch.id) as Promise<AnyRec[]>
         return []
       }
       if (conv?.kind === 'group') {
-        return collabApi.listConversationMembers(conv.id)
+        return collabApi.listConversationMembers(conv.id) as Promise<AnyRec[]>
       }
       return []
     },
     enabled: !!conv?.id,
   })
   const removeMember = useMutation({
-    mutationFn: (uid) => collabApi.removeConversationMember(conv.id, uid),
+    mutationFn: (uid: string) => collabApi.removeConversationMember(conv.id, uid),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['collab-members', conv.id] })
       qc.invalidateQueries({ queryKey: ['collab-conversations'] })
       toast.success('Miembro eliminado')
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'No se pudo eliminar'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'No se pudo eliminar'),
   })
   const { data: calls = [] } = useQuery({
     queryKey: ['collab-calls', conv.id],
-    queryFn: () => collabApi.listCalls(conv.id),
+    queryFn: () => collabApi.listCalls(conv.id) as Promise<AnyRec[]>,
     enabled: !!conv?.id,
   })
-  const { data: calendar } = useQuery({
+  const { data: calendar } = useQuery<AnyRec>({
     queryKey: ['collab-calendar'],
-    queryFn: () => collabApi.calendarEvents(7),
+    queryFn: () => collabApi.calendarEvents(7) as Promise<AnyRec>,
     refetchInterval: 5 * 60_000,
   })
   const { data: decisions = [] } = useQuery({
     queryKey: ['collab-decisions-context'],
-    queryFn: () => collabApi.listDecisions(5),
+    queryFn: () => collabApi.listDecisions(5) as Promise<AnyRec[]>,
   })
   const { data: presenceList = [] } = useQuery({
     queryKey: ['collab-presence'],
-    queryFn: () => collabApi.listPresence(),
+    queryFn: () => collabApi.listPresence() as Promise<AnyRec[]>,
     refetchInterval: 30_000,
   })
   const onlineUsers = presenceList.filter(p => p.user_id && p.status && p.status !== 'offline')
@@ -2065,7 +2104,7 @@ function ContextPanel({ conv }) {
       <Section title="Próximos eventos (7d)">
         {!calendar?.events?.length ? (
           <Empty>{calendar?.providers_connected?.length ? 'Sin eventos próximos' : 'Conecta Google/M365 para ver tu calendario'}</Empty>
-        ) : calendar.events.slice(0, 6).map(ev => (
+        ) : calendar.events.slice(0, 6).map((ev: AnyRec) => (
           <a key={ev.id} href={ev.link || '#'} target="_blank" rel="noopener noreferrer"
             style={{ display: 'block', padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)', textDecoration: 'none' }}>
             <div style={{ color: 'var(--text-1)', fontWeight: 600 }}>{ev.title}</div>
@@ -2086,7 +2125,7 @@ function ContextPanel({ conv }) {
   )
 }
 
-function Section({ title, children, right }) {
+function Section({ title, children, right }: { title: ReactNode; children?: ReactNode; right?: ReactNode }) {
   return (
     <div style={{ marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -2098,7 +2137,7 @@ function Section({ title, children, right }) {
   )
 }
 
-function Empty({ children }) { return <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-4)' }}>{children}</div> }
+function Empty({ children }: { children?: ReactNode }) { return <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-4)' }}>{children}</div> }
 
 function Loader() {
   return <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
@@ -2109,9 +2148,9 @@ function Loader() {
 
 // ── Activity tab ────────────────────────────────────────────────────────────
 function ActivityList() {
-  const { data: notifs = [] } = useQuery({ queryKey: ['collab-notifications'], queryFn: () => collabApi.listNotifications(false) })
-  const { data: mentions = [] } = useQuery({ queryKey: ['collab-mentions'], queryFn: () => collabApi.listMyMentions() })
-  const { data: saved = [] } = useQuery({ queryKey: ['collab-saved'], queryFn: () => collabApi.listSaved() })
+  const { data: notifs = [] } = useQuery({ queryKey: ['collab-notifications'], queryFn: () => collabApi.listNotifications(false) as Promise<AnyRec[]> })
+  const { data: mentions = [] } = useQuery({ queryKey: ['collab-mentions'], queryFn: () => collabApi.listMyMentions() as Promise<AnyRec[]> })
+  const { data: saved = [] } = useQuery({ queryKey: ['collab-saved'], queryFn: () => collabApi.listSaved() as Promise<AnyRec[]> })
   return (
     <div style={{ width: 360, background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)', overflowY: 'auto', padding: 16 }}>
       <Section title={`Notificaciones (${notifs.length})`}>

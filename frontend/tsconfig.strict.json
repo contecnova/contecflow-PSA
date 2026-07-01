@@ -81,6 +81,11 @@
     "src/pages/ALMPage.tsx",
     "src/pages/ReportsPage.tsx",
     "src/pages/settings-sections/SettingsAdvancedSections.tsx",
-    "src/components/layout/GlobalChatPanel.tsx"
+    "src/components/layout/GlobalChatPanel.tsx",
+    "src/pages/ChatPage.tsx",
+    "src/pages/PerformanceReviewsPage.tsx",
+    "src/pages/service-desk/WorkflowDesignerPage.tsx",
+    "src/pages/portal-client/PortalAdvancedSections.tsx",
+    "src/pages/SettingsPageSections.tsx"
   ]
 }
