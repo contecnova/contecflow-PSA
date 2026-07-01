@@ -7,7 +7,6 @@ v25 Models — Market-leader feature set expansion:
 """
 from sqlalchemy import Column, String, DateTime, Date, Text, Float, Boolean, Integer, ForeignKey, Enum
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from app.core.timeutil import utcnow
 import enum
 from uuid import uuid4

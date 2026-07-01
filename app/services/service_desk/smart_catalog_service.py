@@ -27,10 +27,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import (
-    ServiceCategory,
     ServiceItem,
     Ticket,
-    TicketType,
 )
 
 logger = logging.getLogger(__name__)

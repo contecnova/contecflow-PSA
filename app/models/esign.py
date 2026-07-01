@@ -7,7 +7,6 @@ The provider does all signing logic; we only store the result.
 """
 
 import enum
-from datetime import datetime
 from app.core.timeutil import utcnow
 from sqlalchemy import Column, Integer, String, Text, Enum as SAEnum, DateTime, ForeignKey, Boolean, JSON
 from sqlalchemy.orm import relationship

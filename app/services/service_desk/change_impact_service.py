@@ -29,8 +29,6 @@ from app.models.service_desk import (
     ChangeRisk,
     ChangeType,
     Ticket,
-    TicketStatus,
-    TicketPriority,
 )
 
 logger = logging.getLogger(__name__)

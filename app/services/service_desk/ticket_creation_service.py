@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.client_portal import ClientUser
-from app.models.service_desk import ServiceItem, Ticket, TicketStatus
+from app.models.service_desk import ServiceItem, Ticket
 from app.schemas.service_desk import TicketCreateIn
 from app.services.service_desk.routing_rule_service import apply_routing_rules
 from app.services.service_desk.scoping import resolve_sla_policy_for_ticket as _resolve_sla_policy_for_ticket

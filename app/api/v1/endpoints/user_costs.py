@@ -22,15 +22,15 @@ All endpoints require admin or hr role — this is confidential information.
 from datetime import date as Date
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, require_admin_or_hr
+from app.core.deps import require_admin_or_hr
 from app.db.session import get_db
 from app.models.user import User
-from app.models.user_cost import CountryEmployerCost, UserCostProfile
+from app.models.user_cost import CountryEmployerCost
 from app.core.responses import APIListResponse
 import app.services.cost_service as svc
 

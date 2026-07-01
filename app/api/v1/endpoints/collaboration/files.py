@@ -1,5 +1,4 @@
 """Attachment endpoints — upload, AV/DLP, signed download, preview."""
-from datetime import datetime
 from app.core.timeutil import utcnow
 from typing import Optional
 import re

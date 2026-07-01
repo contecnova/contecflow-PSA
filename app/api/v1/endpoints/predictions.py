@@ -12,7 +12,7 @@ Routes:
 """
 import logging
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 

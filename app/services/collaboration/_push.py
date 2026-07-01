@@ -43,7 +43,7 @@ def send(subscription: dict, payload: dict) -> bool:
     if not is_configured():
         return False
     try:
-        from pywebpush import WebPushException, webpush
+        from pywebpush import webpush
         webpush(
             subscription_info=subscription,
             data=json.dumps(payload),
@@ -80,7 +80,7 @@ def purge_stale_subscriptions(db: Session, *, days: int = 30) -> int:
     """Borra suscripciones `is_active=False` creadas hace más de `days` días.
     Las recientes se mantienen por si el usuario re-aprueba en el siguiente
     login (re-activa la fila). Retorna cuántas se eliminaron."""
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     from app.models.collaboration import CollaborationPushSubscription
     cutoff = utcnow() - timedelta(days=days)
     n = db.query(CollaborationPushSubscription).filter(

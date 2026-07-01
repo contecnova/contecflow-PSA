@@ -12,7 +12,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from app.models.cmdb import CMDBDiscoveryJob, CMDBDiscoveryProvider, CMDBItem
+from app.models.cmdb import CMDBDiscoveryJob, CMDBDiscoveryProvider
 from app.services.cmdb.parser import load_config, snmp_get_interfaces
 from app.services.cmdb.utils import (
     utcnow, PROVIDER_AWS, PROVIDER_K8S, PROVIDER_VSPHERE, PROVIDER_AZURE, PROVIDER_GCP, PROVIDER_SNMP

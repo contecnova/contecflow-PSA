@@ -15,11 +15,11 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.models.bi_collaboration import DashboardComment, DashboardVersion, DashboardShare
+from app.models.bi_collaboration import DashboardComment, DashboardVersion
 from app.models.settings import AppSetting
 
 _KEY_REACTIONS = "bi.collab.reactions"

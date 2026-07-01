@@ -289,7 +289,7 @@ def _serialize_approval_request(db, doc) -> Optional[dict]:
     if not getattr(doc, 'approval_request_id', None):
         return None
     try:
-        from app.models.billing_reports import ApprovalRequest, ApprovalDecision as ADec, ApprovalStep
+        from app.models.billing_reports import ApprovalRequest, ApprovalDecision as ADec
         ar = db.query(ApprovalRequest).filter(ApprovalRequest.id == doc.approval_request_id).first()
         if not ar:
             return None

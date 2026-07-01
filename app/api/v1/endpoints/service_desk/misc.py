@@ -13,13 +13,12 @@ from app.core.ratelimit import limiter
 from app.models.user import User
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.schemas.service_desk import (
-    ProblemIn, ProblemUpdateIn, ServiceCategoryIn, ServiceItemIn, ServiceItemUpdate,
-    AgentGroupIn, AnnouncementIn, AssetIn, AssetUpdate,
-    StatusComponentIn, StatusIncidentIn, StatusIncidentUpdateIn,
+    ProblemUpdateIn, ServiceCategoryIn, ServiceItemIn, ServiceItemUpdate, AgentGroupIn,
+    AnnouncementIn, AssetUpdate, StatusComponentIn, StatusIncidentIn,
+    StatusIncidentUpdateIn,
 )
 from app.services.service_desk.problem_service import (
-    list_problems_payload, create_problem_record, get_scoped_problem_or_404,
-    apply_problem_update, link_ticket_to_problem_record,
+    get_scoped_problem_or_404, apply_problem_update, link_ticket_to_problem_record,
 )
 from app.services.service_desk.catalog_service import (
     list_catalog_payload, create_category_record, update_category_record, deactivate_category_record,
@@ -55,9 +54,7 @@ from app.services.service_desk.major_incident_service import (
     update_major_incident_record, serialize_major_incident,
 )
 from app.services.service_desk.asset_service import (
-    asset_out as _asset_out, list_assets_payload, asset_stats_payload,
-    get_asset_detail_payload, create_asset_record, update_asset_record,
-    retire_asset_record, assign_asset_record,
+    asset_out as _asset_out, update_asset_record,
 )
 from app.services.service_desk.status_page_service import (
     build_public_status_page_payload, build_status_page_embed_script,

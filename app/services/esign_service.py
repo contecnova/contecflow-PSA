@@ -4,7 +4,7 @@ All db.query/add/commit/flush calls live here; the router only calls these funct
 """
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from app.core.timeutil import utcnow
 from typing import List, Optional
 

@@ -15,7 +15,7 @@ Endpoints:
   GET    /bpmn-processes/{id}/versions/{version}          — get a specific version XML
   POST   /bpmn-processes/{id}/versions/{version}/publish  — publish a version
 """
-from typing import Optional, List
+from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel

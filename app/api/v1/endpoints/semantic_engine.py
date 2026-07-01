@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from app.schemas.semantic_engine import SemConfigPatch
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_hr, require_any_manager
+from app.core.deps import get_current_user, require_admin_or_hr
 import app.services.semantic_engine_service as _svc
 
 router = APIRouter()

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Date
-from app.models.money import Money, Rate
+from app.models.money import Rate
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid

@@ -12,7 +12,6 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
-from typing import Optional
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User

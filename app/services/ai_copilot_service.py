@@ -6,7 +6,7 @@ detection and service-desk KB article recommendations.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from app.core.timeutil import utcnow
 from typing import Dict
 

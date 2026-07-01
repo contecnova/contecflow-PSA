@@ -4,18 +4,17 @@ CMDB Models & Reconciliation Logic — Data matching and transformation
 Funciones de matching, deduplicación, reportes de drift y gestión de agentes.
 """
 import hashlib
-import json
 import logging
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.models.cmdb import CMDBChangelog, CMDBDiscoveryJob, CMDBItem
+from app.models.cmdb import CMDBChangelog, CMDBItem
 from app.services.cmdb.parser import compute_config_hash, string_similarity
-from app.services.cmdb.utils import utcnow, AGENT_CI_TYPE_MAP, PROVIDER_AGENT
+from app.services.cmdb.utils import utcnow, PROVIDER_AGENT
 
 logger = logging.getLogger(__name__)
 

@@ -338,7 +338,7 @@ def _pg_pipeline_funnel(org_id: Optional[str]) -> list[dict]:
     try:
         from app.db.session import SessionLocal
         from app.models.pipeline import Opportunity
-        from sqlalchemy import func, case
+        from sqlalchemy import func
 
         db = SessionLocal()
         try:
@@ -392,7 +392,7 @@ def _pg_portfolio_health(org_id: Optional[str]) -> list[dict]:
     logger.info("OLAP unavailable — portfolio_health using PostgreSQL fallback")
     try:
         from app.db.session import SessionLocal
-        from app.models.project import Project, ProjectStatus
+        from app.models.project import Project
         from app.models.task import Task
         from app.models.imputation import Imputation
         from sqlalchemy import func

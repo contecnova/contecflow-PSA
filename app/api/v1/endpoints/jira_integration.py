@@ -18,8 +18,8 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Query, Request
-from pydantic import BaseModel, HttpUrl
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin_or_pm
@@ -27,7 +27,6 @@ from app.core.responses import APIListResponse
 from app.db.session import get_db
 from app.models.jira_integration import (
     JiraConfig,
-    JiraFieldMap,
     JiraSyncDirection,
     JiraSyncLog,
     JiraSyncMap,
@@ -38,7 +37,6 @@ from app.core.abac_enforce import enforce_abac
 from app.core.tenancy import org_scoped_or_404
 from app.services.service_desk.jira_sync_service import (
     apply_jira_update_to_ticket,
-    pull_jira_issue,
     push_ticket_to_jira,
     run_incremental_sync,
 )

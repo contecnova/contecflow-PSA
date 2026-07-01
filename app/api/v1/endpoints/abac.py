@@ -1,7 +1,7 @@
 """
 ABAC (Attribute-Based Access Control) API endpoints for policy and attribute management.
 """
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_user

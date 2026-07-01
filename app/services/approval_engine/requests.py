@@ -2,22 +2,15 @@
 
 from __future__ import annotations
 import json
-import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
-from collections import defaultdict
 from sqlalchemy.orm import Session, joinedload
 from app.models.user import User
-from app.models.billing_reports import FinancialApprovalAuditLog
 from app.models.billing_reports import ApprovalRequest
 from app.models.billing_reports import ApprovalWorkflow
 from app.models.billing_reports import ApprovalDecision
-from app.models.billing_reports import ApprovalStep
-from app.models.billing_reports import ApprovalGroup
-from datetime import timedelta
 from fastapi import HTTPException
-from sqlalchemy import func
 
 
 from app.services.approval_engine._base import _apply_entity_final_decision, _is_authorized, _notify_requester_approved, _record_sod_violation, find_default_workflow, log_financial_approval_event, logger, notify_approver, scope_request_query

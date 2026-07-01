@@ -24,8 +24,7 @@ from app.models.service_desk import (
     TicketPriority,
     TicketStatus,
 )
-from app.models.user import User
-from app.services.sla_service import SLA_HOURS, compute_sla_status
+from app.services.sla_service import SLA_HOURS
 
 logger = logging.getLogger(__name__)
 

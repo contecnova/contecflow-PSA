@@ -1,7 +1,7 @@
 """
 Expense tracking — project-linked expense management with approval workflow.
 """
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Enum, Date
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, Enum, Date
 from app.models.money import Money
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func

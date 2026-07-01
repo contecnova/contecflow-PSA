@@ -4,7 +4,7 @@ Entidad central que vincula proyectos, oportunidades y portal de acceso externo.
 """
 import uuid
 import enum
-from sqlalchemy import Column, String, Float, Boolean, DateTime, Text, ForeignKey, Enum, Integer
+from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey, Enum, Integer
 from app.models.money import Money
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func

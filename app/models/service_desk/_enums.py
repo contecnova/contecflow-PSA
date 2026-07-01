@@ -1,12 +1,5 @@
 """Service-desk enums — shared base for the service_desk model package."""
-import sqlalchemy as sa
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum, UniqueConstraint
-from sqlalchemy.orm import relationship, synonym
-from sqlalchemy.sql import func
 import enum
-import uuid
-from app.db.base import Base
-from app.core.config import settings
 
 
 class TicketType(str, enum.Enum):

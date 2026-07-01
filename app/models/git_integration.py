@@ -1,7 +1,6 @@
 """Git integration models — PR/Deploy events linked to tasks."""
 
 import enum
-from datetime import datetime
 from app.core.timeutil import utcnow
 from sqlalchemy import Column, Integer, String, Enum as SAEnum, DateTime, ForeignKey
 from sqlalchemy.orm import relationship

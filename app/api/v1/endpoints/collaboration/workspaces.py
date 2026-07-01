@@ -15,19 +15,18 @@ from app.models.collaboration import (
     CollaborationConversation,
     CollaborationDirectConversation, CollaborationGroupConversation,
     CollaborationConversationMember,
-    CollaborationDraft, CollaborationNotification, CollaborationNotificationRule,
-    CollaborationPresenceState, CollaborationTeam, CollaborationTeamMember,
+    CollaborationNotification, CollaborationNotificationRule, CollaborationPresenceState,
+    CollaborationTeam, CollaborationTeamMember,
 )
 from app.schemas.collaboration import (
     ChannelCreate, ChannelMemberOut, ChannelOut, ChannelUpdate,
     ConversationOut, DirectOpenIn, DraftIn,
-    GroupCreate, NotificationRuleIn, PresenceIn, PresenceOut,
-    SearchHit, SearchResponse,
-    TeamCreate, TeamMemberOut, TeamMemberUpsert, TeamOut, TeamUpdate,
-    WorkspaceOut, WorkspaceUpdate,
+    GroupCreate, NotificationRuleIn, PresenceIn, SearchHit,
+    SearchResponse, TeamCreate,
+    TeamMemberOut, TeamMemberUpsert, TeamOut, TeamUpdate, WorkspaceOut,
+    WorkspaceUpdate,
 )
 from app.services.collaboration import audit_log
-from app.services.collaboration._bus import bus, user_channel
 from app.services.collaboration._permissions import (
     _org, assert_team_access, is_team_member,
 )

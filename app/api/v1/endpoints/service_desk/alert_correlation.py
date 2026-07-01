@@ -53,7 +53,6 @@ def list_alert_clusters(
     from app.services.service_desk.alert_correlation_service import (
         cluster_open_alerts,
         _enrich_cluster_score,
-        _PRIORITY_NUM,
     )
     from app.models.service_desk import Ticket
 

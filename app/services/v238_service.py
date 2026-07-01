@@ -18,11 +18,10 @@ from fastapi import HTTPException
 from app.core.config import settings
 from app.models.user import User
 from app.models.bookings import ResourceBooking as Booking
-from app.models.pipeline import PipelineStageConfig, Opportunity
+from app.models.pipeline import PipelineStageConfig
 from app.models.billing_reports import Invoice
 from app.models.document_collab import DocumentCollabSnapshot
 from app.models.documents import Document
-from app.models.custom_fields import ProjectCustomField, ProjectCustomFieldValue
 from app.models.imputation import Imputation
 from app.models.service_desk import Ticket
 from app.models.task import Task

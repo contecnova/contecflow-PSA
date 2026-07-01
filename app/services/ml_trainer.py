@@ -25,7 +25,6 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 from app.models.ml_model import MLModel, MLModelType, MLPredictionLog
-from app.models.project import Project
 from app.services.ml_features import (
     FEATURE_COLUMNS, MIN_TRAINING_SAMPLES,
     extract_project_features, extract_training_dataset, feature_vector,
@@ -223,7 +222,6 @@ def predict_project(db: Session, project_id: str, organization_id: str,
     el modelo de su org podía aplicarlo a un proyecto de otra org silently.
     """
     from app.services.ai_modules_service import predict_overrun_ml, get_overrun_prediction_data
-    from app.models.project import Project as _Project
 
     # Extract EVM features
     try:

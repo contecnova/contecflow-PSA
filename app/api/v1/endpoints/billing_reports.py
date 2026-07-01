@@ -4,7 +4,7 @@ billing_reports — thin router delegating to app.services.billing_reports_servi
 import json
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body, Response
 from sqlalchemy.orm import Session
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional
 
 from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db

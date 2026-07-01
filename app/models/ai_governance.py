@@ -4,7 +4,6 @@ AI Governance DB models:
 - AIGuardrailAuditLog:    immutable audit of every guardrail evaluation
 """
 import uuid
-from datetime import datetime
 from app.core.timeutil import utcnow
 from sqlalchemy import (
     Column, String, Integer, Boolean, DateTime, Text, JSON,

@@ -182,7 +182,6 @@ def metric_pr_cycle_time(
     try:
         from app.models.git_integration import GitPullRequest
         from app.models.project import Project
-        from sqlalchemy import cast, Float
 
         prs = db.query(GitPullRequest).filter(
             GitPullRequest.merged_at.isnot(None),

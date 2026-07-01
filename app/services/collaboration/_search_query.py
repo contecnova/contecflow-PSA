@@ -17,7 +17,7 @@ El resto del texto es el query libre.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from app.core.timeutil import utcnow
 from typing import Optional

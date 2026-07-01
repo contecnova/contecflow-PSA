@@ -16,7 +16,6 @@ from app.services.service_desk.kb_service import (
     update_kb_helpful_vote, delete_kb_article as delete_kb_article_svc,
     list_kb_versions, serialize_kb_versions, rollback_kb_to_version,
 )
-from app.services.service_desk.known_error_service import get_known_errors, serialize_known_error
 
 router = APIRouter()
 

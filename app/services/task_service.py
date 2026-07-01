@@ -11,7 +11,6 @@ from __future__ import annotations
 # These imports make `from app.services.task_service import X` work even for
 # names that now live in the sub-package.
 from app.services.tasks.core import (
-    TaskService,
     validate_task_transition,
     apply_status_side_effects,
     _TASK_VALID_TRANSITIONS,

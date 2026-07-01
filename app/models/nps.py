@@ -1,7 +1,6 @@
 """NPS (Net Promoter Score) + Client Health models."""
 
 import enum
-from datetime import datetime
 from app.core.timeutil import utcnow
 
 from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text

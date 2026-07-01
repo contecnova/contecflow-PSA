@@ -2,22 +2,10 @@
 
 from __future__ import annotations
 import json
-import logging
 import uuid
-from datetime import datetime, timezone
 from typing import Optional
-from collections import defaultdict
-from sqlalchemy.orm import Session, joinedload
-from app.models.user import User
-from app.models.billing_reports import FinancialApprovalAuditLog
-from app.models.billing_reports import ApprovalRequest
-from app.models.billing_reports import ApprovalWorkflow
-from app.models.billing_reports import ApprovalDecision
-from app.models.billing_reports import ApprovalStep
+from sqlalchemy.orm import Session
 from app.models.billing_reports import ApprovalGroup
-from datetime import timedelta
-from fastapi import HTTPException
-from sqlalchemy import func
 
 
 def list_approval_groups(db: Session) -> list:

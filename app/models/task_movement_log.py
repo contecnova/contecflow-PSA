@@ -4,9 +4,8 @@ Almacena cada cambio de estado de una tarea: quién lo hizo, cuándo, desde qué
 columna, hacia qué columna y el motivo opcional.
 """
 import uuid
-import enum
 
-from sqlalchemy import Column, String, DateTime, Text, Enum, ForeignKey
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 

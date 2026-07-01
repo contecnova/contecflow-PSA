@@ -8,7 +8,6 @@ import json
 import logging
 import uuid as _uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -18,7 +17,7 @@ from app.models.alert import Alert
 from app.models.billing_reports import Invoice, ApprovalRequest
 from app.models.clients import Client
 from app.models.expenses import Expense
-from app.models.financial import ProjectMilestone, Timesheet, CapacityPlan
+from app.models.financial import ProjectMilestone, Timesheet
 from app.models.git_integration import GitPullRequest
 from app.models.imputation import Imputation
 from app.models.okrs import Objective, KeyResult
@@ -29,7 +28,6 @@ from app.models.service_desk import Ticket
 from app.models.sprints import Sprint
 from app.models.task import Task
 from app.models.user import User, UserRole
-from app.models.enterprise import Notification
 from app.services.ai_chat.context_service import build_tenant_context
 
 _logger = logging.getLogger("v16_core")

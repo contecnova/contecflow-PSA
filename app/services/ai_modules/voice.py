@@ -5,29 +5,17 @@ import json
 import time
 import logging
 from datetime import datetime, timedelta, date, timezone
-from app.core.timeutil import utcnow
-from typing import Optional
 
-from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.core.config import settings
-from app.services.ai_dispatch import call_ai
-from app.core.security import verify_client_token
 from app.models.ai_chat import (
-    AIActionLog, AIPrediction, AIVoiceCommand,
-    AIMeeting, AIMeetingAction, AIContract, AIContractClause,
-    AIKBArticle, AIClientChatSession, AIClientChatMessage,
-    AIAgentExecution as _ExecRecord,
+    AIVoiceCommand, AIAgentExecution as _ExecRecord,
 )
 from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.service_desk import Ticket
 from app.models.task import Task
-from app.models.user import User
 from app.worker import run_agent_task
-from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
 
 _log = logging.getLogger(__name__)
 

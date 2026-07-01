@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks, Response
-from sqlalchemy.orm import Session, joinedload
-from typing import Optional, List
+from sqlalchemy.orm import Session
+from typing import Optional
 from datetime import date
 import logging
 
@@ -10,8 +10,8 @@ from app.db.session import get_db
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.core.responses import APIListResponse
-from app.models.user import User, UserRole
-from app.models.task import Task, TaskStatus, TaskPriority
+from app.models.user import User
+from app.models.task import TaskStatus, TaskPriority
 from app.schemas import (
     TaskCreate, TaskUpdate, TaskOut, TaskCommentCreate, TaskCommentOut, BulkTaskUpdatePayload
 )
@@ -19,7 +19,6 @@ from app.schemas.tasks import TaskMovementLogOut
 from app.services.task_service import (
     cascade_reschedule as svc_cascade_reschedule,
     bulk_update_tasks as svc_bulk_update_tasks,
-    task_query_for_user,
     build_task_list_query,
     get_kanban_payload,
     get_task_record,

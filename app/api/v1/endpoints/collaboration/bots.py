@@ -1,7 +1,5 @@
 """Bots, slash commands, integrations, webhooks."""
-from datetime import datetime
 from app.core.timeutil import utcnow
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session

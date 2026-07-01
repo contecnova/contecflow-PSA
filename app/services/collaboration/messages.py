@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
@@ -30,8 +30,7 @@ from app.services.collaboration._bus import (
     conv_channel, user_channel, client_user_channel,
 )
 from app.services.collaboration._permissions import (
-    _org, assert_conversation_access, is_conversation_participant,
-    is_client_conversation_participant,
+    _org, assert_conversation_access,
 )
 from app.services.collaboration._search import search_engine
 from app.services.collaboration._storage import scan_dlp

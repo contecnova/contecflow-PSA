@@ -7,7 +7,6 @@ Models:
 - SecurityIncident: Aggregated incidents with MTTD/MTTR tracking
 - SecurityBaseline: Per-user/IP behavioral baselines for anomaly detection
 """
-from datetime import datetime
 from app.core.timeutil import utcnow
 from enum import Enum
 from sqlalchemy import (

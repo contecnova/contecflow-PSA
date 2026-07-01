@@ -1,10 +1,8 @@
 """service_desk.sla models — split from the former 1385-LOC god-file."""
 
-import sqlalchemy as sa
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum, UniqueConstraint
-from sqlalchemy.orm import relationship, synonym
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import enum
 import uuid
 from app.db.base import Base
 from app.core.config import settings

@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
 from app.core.timeutil import utcnow
 from typing import Optional
 
@@ -31,7 +30,6 @@ from app.models.collaboration import (
     CollaborationCall, CollaborationConversation, CollaborationMessage,
     CollaborationSlashCommandLog, CollaborationTranscript,
 )
-from app.models.user import User
 from app.services.collaboration._permissions import _org
 
 logger = logging.getLogger(__name__)
@@ -368,7 +366,6 @@ def _slash_onboard(db: Session, user, conversation_id: str, args: str) -> dict:
 
 def _slash_meet(db: Session, user, conversation_id: str, args: str) -> dict:
     """Inicia llamada inmediata."""
-    from app.services.collaboration.livekit import issue_access_token, url as lk_url
 
     # Pequeño helper que vivía en endpoints/collaboration/calls.py — inlined
     # aquí para romper la dependencia services → endpoints.

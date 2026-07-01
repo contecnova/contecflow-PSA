@@ -9,7 +9,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, Request
 from app.models.user import User
 from app.schemas.auth import ActiveSessionOut
-from app.services.session_security import parse_risk_reasons, revoke_session_by_jti
+from app.services.session_security import parse_risk_reasons
 from app.core.responses import APIListResponse
 
 import app.services.auth_service as _svc

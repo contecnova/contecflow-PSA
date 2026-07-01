@@ -17,7 +17,6 @@ from app.core.security import create_access_token
 from app.models.billing_reports import Invoice, InvoiceLine
 from app.models.billing_reports import AutomationWorkflow
 from app.models.billing_reports import WorkflowExecution
-from app.models.bookings import TaskDependency
 from app.models.bookings import ResourceBooking
 from app.models.bookings import BookingType
 from app.models.bookings import ExchangeRate
@@ -31,7 +30,6 @@ from app.models.enterprise import SSOConfig
 from app.models.pipeline import Opportunity, OpportunityStage
 from app.models.project import Project, ProjectStatus
 from app.models.service_desk import Ticket
-from app.models.task import Task
 from app.models.user import User
 from app.services.audit import audit_log as _audit
 from datetime import time as _time

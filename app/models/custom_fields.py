@@ -5,7 +5,7 @@ Contecflow v18 — Modelos adicionales para:
   3. Permisos granulares por proyecto (ya en enterprise.py — solo helpers aquí)
 """
 import uuid
-from sqlalchemy import Column, String, Boolean, Integer, Text, DateTime, ForeignKey, Index
+from sqlalchemy import Column, String, Boolean, Integer, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
