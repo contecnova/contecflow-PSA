@@ -95,6 +95,7 @@ const CAT_STYLE: Record<string, { c: string; bg: string }> = {
   requirements: { c: '#2dd4bf', bg: '#06b6d415' },
   report:       { c: 'var(--orange)', bg: '#f9731615' },
   presentation: { c: '#ec4899', bg: '#ec489915' },
+  meeting_notes:{ c: 'var(--sky-blue)', bg: '#0ea5e915' },
   other:        { c: 'var(--text-3)', bg: '#6b728015' },
 };
 
@@ -349,7 +350,7 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
 
 // ── Upload Modal ─────────────────────────────────────────
 
-const CATS = ['contract','deliverable','proposal','sop','legal','requirements','report','presentation','other'];
+const CATS = ['contract','deliverable','proposal','sop','legal','requirements','report','presentation','meeting_notes','other'];
 
 function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
   const toast = useToast();
@@ -1244,7 +1245,7 @@ export default function DocumentsPage(): JSX.Element {
     if (activeTags.length) d = d.filter((x: any) => activeTags.every((t: string) => x.tags?.includes(t)));
     if (sortBy === 'date_desc') d.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     else if (sortBy === 'date_asc') d.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    else if (sortBy === 'title_asc') d.sort((a: any, b: any) => a.title.localeCompare(b.title));
+    else if (sortBy === 'name_asc') d.sort((a: any, b: any) => (a.title || '').localeCompare(b.title || ''));
     else if (sortBy === 'size_desc') d.sort((a: any, b: any) => (b.latest_version?.file_size || 0) - (a.latest_version?.file_size || 0));
     return d;
   }, [docsRaw, filterStatus, activeTags, sortBy]);
