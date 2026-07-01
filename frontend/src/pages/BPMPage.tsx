@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState, useEffect, useRef, useMemo } from 'react'
+import type { CSSProperties, RefObject } from 'react'
 import { Button, Page } from '../components/ui'
 import { Network, Plus, X, ChevronLeft, Edit3, Download, Search } from 'lucide-react'
 import { bpmnProcessesApi, apiErrorMsg } from '../services/api'
@@ -34,20 +34,24 @@ const ROW_H  = 160
 const X0     = 80
 const Y0     = 140
 
-function xmlEsc(s) {
+type BpmnNode = { id: string; type: string; name: string; col?: number; row?: number }
+type BpmnConn = [string, string, string?, string?]
+type NodePos = { cx: number; cy: number; x: number; y: number; w: number; h: number }
+
+function xmlEsc(s: unknown): string {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
 }
 
-function buildBpmn(pid, pname, nodes, conns) {
-  const posOf = {}
+function buildBpmn(pid: string, pname: string, nodes: BpmnNode[], conns: BpmnConn[]): string {
+  const posOf: Record<string, NodePos> = {}
   nodes.forEach(n => {
-    const d   = DIMS[n.type] || DIMS.task
+    const d   = (DIMS as Record<string, { w: number; h: number }>)[n.type] || DIMS.task
     const cx  = X0 + (n.col ?? 0) * COL_W
     const cy  = Y0 + (n.row ?? 0) * ROW_H
     posOf[n.id] = { cx, cy, x: cx - d.w / 2, y: cy - d.h / 2, w: d.w, h: d.h }
   })
 
-  const inc = {}, out = {}
+  const inc: Record<string, string[]> = {}, out: Record<string, string[]> = {}
   conns.forEach(([fr, to,, fid]) => {
     const id = fid || `f_${fr}_${to}`
     ;(out[fr] = out[fr] || []).push(id)
@@ -1270,8 +1274,8 @@ const PROCESS_CATALOG = [
 ]
 
 // ─── BPMN VIEWER HOOK ────────────────────────────────────────────────────────
-function useBpmnViewer(containerRef, xml, editMode) {
-  const instanceRef = useRef(null)
+function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: string | null, editMode: boolean) {
+  const instanceRef = useRef<any>(null)
 
   useEffect(() => {
     if (!containerRef.current || !xml) return
@@ -1287,7 +1291,7 @@ function useBpmnViewer(containerRef, xml, editMode) {
       // JS module.
       await loadBpmnCssOnce()
 
-      let BpmnClass
+      let BpmnClass: any
       if (editMode) {
         const mod = await import('bpmn-js/lib/Modeler')
         BpmnClass = mod.default
@@ -1373,7 +1377,7 @@ const BLANK_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
-const card = {
+const card: CSSProperties = {
   background: 'var(--surface-2)',
   border: '1px solid var(--surface-4)',
   borderRadius: 12,
@@ -1381,7 +1385,7 @@ const card = {
   cursor: 'pointer',
   transition: 'border-color .15s, box-shadow .15s',
 }
-const tag = (color) => ({
+const tag = (color: string): CSSProperties => ({
   display: 'inline-block',
   fontSize: 'var(--text-xs)',
   fontWeight: 700,
@@ -1391,7 +1395,7 @@ const tag = (color) => ({
   color: color,
   border: `1px solid ${color}44`,
 })
-const inp = {
+const inp: CSSProperties = {
   width: '100%',
   background: 'var(--surface-3)',
   border: '1px solid var(--surface-4)',
@@ -1403,7 +1407,7 @@ const inp = {
   outline: 'none',
   boxSizing: 'border-box',
 }
-const lbl = {
+const lbl: CSSProperties = {
   fontSize: 'var(--text-xs)',
   fontWeight: 600,
   color: 'var(--text-2)',
@@ -1413,7 +1417,7 @@ const lbl = {
   marginBottom: 4,
 }
 // Shared ghost button (transparent bg, 1px surface border, muted text).
-const ghostBtn = {
+const ghostBtn: CSSProperties = {
   borderRadius: 8,
   border: '1px solid var(--surface-4)',
   background: 'none',
@@ -1425,7 +1429,7 @@ const ghostBtn = {
   gap: 4,
 }
 // Outlined accent button used for the "Editar" CTA.
-const outlineAccentBtn = {
+const outlineAccentBtn: CSSProperties = {
   padding: '6px 14px',
   borderRadius: 8,
   border: '1px solid var(--accent)',
@@ -1441,7 +1445,7 @@ const outlineAccentBtn = {
 }
 // Container that hosts the bpmn-js canvas. White background is required:
 // the diagram is rendered with dark strokes/labels.
-const diagramContainer = {
+const diagramContainer: CSSProperties = {
   width: '100%',
   height: '100%',
   border: '1px solid var(--surface-4)',
@@ -1450,7 +1454,7 @@ const diagramContainer = {
   overflow: 'hidden',
 }
 // Pill used for the "Modo edición" indicator overlaid on the diagram.
-const editModeBadge = {
+const editModeBadge: CSSProperties = {
   position: 'absolute',
   top: 8,
   left: 8,
@@ -1467,33 +1471,59 @@ const editModeBadge = {
   gap: 4,
 }
 // Meta-info row (Responsable / SLA / Description) below the detail header.
-const metaText = { fontSize: 'var(--text-xs)', color: 'var(--text-2)' }
+const metaText: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-2)' }
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+type BackendProcess = {
+  id: string
+  key: string
+  category: string
+  name: string
+  description?: string
+  latest_version?: number
+}
+type Process = {
+  id: string
+  category: string
+  name: string
+  description: string
+  owner?: string
+  sla?: string
+  steps?: string[]
+  bpmn: string
+  isCustom?: boolean
+  _backendId?: string
+  _version?: number
+}
+type NewProcess = { name: string; category: string; description: string; owner: string; sla: string }
+
 export default function BPMPage(): JSX.Element {
   const [selectedCat, setSelectedCat]         = useState('all')
-  const [selectedProcess, setSelectedProcess] = useState(null)
+  const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
   const [editMode, setEditMode]               = useState(false)
   const [showAddForm, setShowAddForm]         = useState(false)
   // Grouped backend data: list of records (custom + catalogue overrides) and
   // a key->latestXML map. They're updated together after reloadBackend(); the
   // XML map is also patched in-place when a process is saved or created.
-  const [backend, setBackend]                 = useState({ processes: [], xmlByKey: {} })
+  const [backend, setBackend]                 = useState<{ processes: BackendProcess[]; xmlByKey: Record<string, string> }>({ processes: [], xmlByKey: {} })
   const { processes: backendProcesses, xmlByKey: versionXmlByKey } = backend
-  const [newProcess, setNewProcess]           = useState({ name: '', category: 'proyectos', description: '', owner: '', sla: '' })
+  const [newProcess, setNewProcess]           = useState<NewProcess>({ name: '', category: 'proyectos', description: '', owner: '', sla: '' })
   const [search, setSearch]                   = useState('')
   const [saving, setSaving]                   = useState(false)
-  const containerRef                          = useRef(null)
-  const { push }                              = useToast()
+  const containerRef                          = useRef<HTMLDivElement>(null)
+  // NOTE (latent bug): the toast API exposes success/error/warning/info, not
+  // `push`. Preserved as-is to avoid changing runtime behavior; cast so it
+  // type-checks.
+  const { push }                              = useToast() as unknown as { push: (t: { type: string; message: string }) => void }
 
   // ── Load backend processes (custom + catalogue overrides) ────────────────
   const reloadBackend = async () => {
     try {
       const r = await bpmnProcessesApi.list({ include_inactive: false })
-      const list = r.data || []
+      const list: BackendProcess[] = r.data || []
       // Lazily fetch latest XML per process key (only ones we don't have yet)
-      const updates = {}
-      await Promise.all(list.map(async (p) => {
+      const updates: Record<string, string> = {}
+      await Promise.all(list.map(async (p: BackendProcess) => {
         try {
           const detail = await bpmnProcessesApi.get(p.id)
           const xml = detail.data?.latest?.bpmn_xml
@@ -1512,7 +1542,7 @@ export default function BPMPage(): JSX.Element {
   useEffect(() => { reloadBackend() }, [])
 
   // Merge: catalogue (with backend XML override if present) + custom backend processes
-  const allProcesses = useMemo(() => {
+  const allProcesses = useMemo<Process[]>(() => {
     const catalogIds = new Set(PROCESS_CATALOG.map(p => p.id))
     const overriddenCatalog = PROCESS_CATALOG.map(p => {
       const ov = backendProcesses.find(b => b.key === p.id)
@@ -1597,7 +1627,7 @@ export default function BPMPage(): JSX.Element {
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
     a.href     = url
-    a.download = `${selectedProcess.id}.bpmn`
+    a.download = `${selectedProcess?.id ?? 'process'}.bpmn`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -1648,7 +1678,7 @@ export default function BPMPage(): JSX.Element {
     <Page
       icon={<Network size={18} />}
       title="BPM — Procesos de Negocio"
-      subtitle={`${allProcesses.length} procesos · ${PROCESS_CATALOG.length} del sistema · ${allProcesses.filter(p => p.isCustom).length} personalizados`}
+      subtitle={`${allProcesses.length} procesos · ${PROCESS_CATALOG.length} del sistema · ${allProcesses.filter(p => (p as any).isCustom).length} personalizados`}
       rightActions={
         <Button onClick={() => { setShowAddForm(true); setSelectedProcess(null) }}>
           <Plus size={13} /> Nuevo proceso
@@ -1807,9 +1837,9 @@ export default function BPMPage(): JSX.Element {
               </div>
 
               {/* Steps summary */}
-              {selectedProcess.steps?.length > 0 && (
+              {(selectedProcess?.steps?.length ?? 0) > 0 && (
                 <div style={{ display: 'flex', gap: 0, marginBottom: 12, overflowX: 'auto', paddingBottom: 4, flexShrink: 0 }}>
-                  {selectedProcess.steps.map((step, i) => (
+                  {(selectedProcess?.steps || []).map((step, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
                       <div style={{
                         background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
@@ -1820,7 +1850,7 @@ export default function BPMPage(): JSX.Element {
                         <span style={{ color: catColor, fontWeight: 700, marginRight: 4 }}>{i + 1}.</span>
                         {step}
                       </div>
-                      {i < selectedProcess.steps.length - 1 && (
+                      {i < (selectedProcess?.steps?.length ?? 0) - 1 && (
                         <div style={{ color: 'var(--text-3)', padding: '0 3px', fontSize: 10 }}>›</div>
                       )}
                     </div>
@@ -1867,7 +1897,7 @@ export default function BPMPage(): JSX.Element {
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                           <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, lineHeight: 1.3 }}>{proc.name}</div>
-                          {proc.isCustom && <div style={{ ...tag('#f59e0b'), flexShrink: 0, marginLeft: 6 }}>Custom</div>}
+                          {(proc as any).isCustom && <div style={{ ...tag('#f59e0b'), flexShrink: 0, marginLeft: 6 }}>Custom</div>}
                         </div>
                         <div style={{ marginBottom: 8 }}>
                           <span style={tag(color)}>{catLabel}</span>
@@ -1880,7 +1910,7 @@ export default function BPMPage(): JSX.Element {
                         <div style={{ display: 'flex', gap: 12, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
                           {proc.owner && <span>👤 {proc.owner}</span>}
                           {proc.sla   && <span>⏱ {proc.sla}</span>}
-                          {proc.steps?.length > 0 && <span>📋 {proc.steps.length} pasos</span>}
+                          {(proc.steps?.length ?? 0) > 0 && <span>📋 {proc.steps!.length} pasos</span>}
                         </div>
                         <div style={{ marginTop: 10, fontSize: 'var(--text-xs)', color: color, fontWeight: 600 }}>
                           Ver diagrama BPMN →

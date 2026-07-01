@@ -86,6 +86,9 @@
     "src/pages/PerformanceReviewsPage.tsx",
     "src/pages/service-desk/WorkflowDesignerPage.tsx",
     "src/pages/portal-client/PortalAdvancedSections.tsx",
-    "src/pages/SettingsPageSections.tsx"
+    "src/pages/SettingsPageSections.tsx",
+    "src/pages/service-desk/ConfigTab.tsx",
+    "src/components/layout/Layout.tsx",
+    "src/pages/BPMPage.tsx"
   ]
 }
