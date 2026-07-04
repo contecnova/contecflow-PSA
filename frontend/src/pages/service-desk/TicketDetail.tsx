@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type { CSSProperties } from 'react'
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -6,22 +6,33 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, Spinner, Modal } from '../../components/ui'
-import AIInlineEditor from '../../components/AIInlineEditor'
-import DocumentsPanel from '../../components/DocumentsPanel'
+import AIInlineEditorRaw from '../../components/AIInlineEditor'
+import DocumentsPanelRaw from '../../components/DocumentsPanel'
 import { COLOR } from '../../constants/theme'
 import { sdCannedApi, ticketsApi, usersApi } from '../../services/api'
 import { PBadge, SBadge, fmtDate, fmtMinutes, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
 
+// Loosely-typed aliases: these components still infer their props as required.
+const AIInlineEditor = AIInlineEditorRaw as unknown as (props: Record<string, unknown>) => JSX.Element
+const DocumentsPanel = DocumentsPanelRaw as unknown as (props: Record<string, unknown>) => JSX.Element
+const IS_STYLE = INPUT_STYLE as CSSProperties
+const LS_STYLE = LABEL_STYLE as CSSProperties
+
+type TicketShape = { [k: string]: unknown; id: string; number?: string | number; title?: string; description?: string; status?: string }
+
 // ── CannedResponsePicker ──────────────────────────────────────────────────────
-function CannedResponsePicker({ onSelect, onClose }) {
+interface CannedResponse {
+  id: string; title?: string; body?: string; category?: string; shortcut?: string
+}
+function CannedResponsePicker({ onSelect, onClose }: { onSelect: (body: string) => void; onClose: () => void }) {
   const t = useAppT()
   const [search, setSearch] = useState('')
-  const { data: responses = [] } = useQuery({
+  const { data: responses = [] } = useQuery<CannedResponse[]>({
     queryKey: ['canned-responses', search],
-    queryFn: () => sdCannedApi.list(search ? { search } : {}).then(r => r.data).catch(() => []),
+    queryFn: () => sdCannedApi.list(search ? { search } : {}).then((r: { data: CannedResponse[] }) => r.data).catch(() => []),
     staleTime: 60000,
   })
-  const cats = [...new Set(responses.map(r => r.category || 'General'))].sort()
+  const cats: string[] = [...new Set(responses.map((r) => r.category || 'General'))].sort()
   return (
     <div style={{
       position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 4,
@@ -47,7 +58,7 @@ function CannedResponsePicker({ onSelect, onClose }) {
             <div key={cat}>
               <div style={{ padding: '6px 12px 2px', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{cat}</div>
               {catItems.map(r => (
-                <button key={r.id} onClick={() => { onSelect(r.body); onClose() }}
+                <button key={r.id} onClick={() => { onSelect(r.body || ''); onClose() }}
                   aria-label={r.title || t('service_desk.detail_send_comment')}
                   style={{ width: '100%', textAlign: 'left', padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--surface-4)', borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
@@ -71,7 +82,7 @@ function CannedResponsePicker({ onSelect, onClose }) {
 }
 
 // ── SplitTicketModal ──────────────────────────────────────────────────────────
-function SplitTicketModal({ ticket, onClose, onCreated }) {
+function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: TicketShape; onClose: () => void; onCreated?: (data: unknown) => void }) {
   const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState({
@@ -79,7 +90,7 @@ function SplitTicketModal({ ticket, onClose, onCreated }) {
     keep_original_description: ticket?.description || '', tags: '',
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: data => ticketsApi.split(ticket.id, data),
+    mutationFn: (data: Record<string, unknown>) => ticketsApi.split(ticket.id, data),
     onSuccess: res => {
       toast.success(`${t('service_desk.ticket_created_success')} ${res?.data?.child?.number || ''}`)
       onCreated?.(res?.data)
@@ -87,8 +98,8 @@ function SplitTicketModal({ ticket, onClose, onCreated }) {
     },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
-  const IS = INPUT_STYLE
-  const LS = LABEL_STYLE
+  const IS = IS_STYLE
+  const LS = LS_STYLE
   const handleSave = () => {
     if (!form.new_title.trim()) { toast.error(t('service_desk.zod_title_required')); return }
     mutate({
@@ -132,7 +143,7 @@ function SplitTicketModal({ ticket, onClose, onCreated }) {
 }
 
 // ── TicketEditModal ───────────────────────────────────────────────────────────
-function TicketEditModal({ ticket, onClose, onSaved }) {
+function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; onClose: () => void; onSaved: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const initialDynamic = useMemo(() => {
@@ -141,20 +152,20 @@ function TicketEditModal({ ticket, onClose, onSaved }) {
     try { return JSON.stringify(raw, null, 2) } catch { return '{}' }
   }, [ticket?.dynamic_fields])
   const [form, setForm] = useState({
-    title: ticket.title || '', description: ticket.description || '',
-    priority: ticket.priority || 'p3_medium', ticket_type: ticket.ticket_type || 'incident',
-    urgency: ticket.urgency || 'medium', impact: ticket.impact || 'user',
-    status: ticket.status || 'new', resolution: ticket.resolution || '', tags: ticket.tags || '',
+    title: (ticket.title as string) || '', description: (ticket.description as string) || '',
+    priority: (ticket.priority as string) || 'p3_medium', ticket_type: (ticket.ticket_type as string) || 'incident',
+    urgency: (ticket.urgency as string) || 'medium', impact: (ticket.impact as string) || 'user',
+    status: (ticket.status as string) || 'new', resolution: (ticket.resolution as string) || '', tags: (ticket.tags as string) || '',
   })
   const [dynamicFieldsText, setDynamicFieldsText] = useState(initialDynamic)
   const { mutate, isPending } = useMutation({
-    mutationFn: data => ticketsApi.update(ticket.id, data),
+    mutationFn: (data: Record<string, unknown>) => ticketsApi.update(ticket.id, data),
     onSuccess: onSaved,
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const IS = INPUT_STYLE
-  const LS = LABEL_STYLE
+  const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const IS = IS_STYLE
+  const LS = LS_STYLE
   return (
     <Modal open title={`${t('common.edit')} ${ticket.number}`} onClose={onClose} size="lg">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, maxHeight: '75vh', overflowY: 'auto', paddingRight: 4 }}>
@@ -201,7 +212,7 @@ function TicketEditModal({ ticket, onClose, onSaved }) {
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={LS}>{t('common.description')} *</label>
-          <AIInlineEditor value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={5} style={{ ...IS, resize: 'vertical' }} />
+          <AIInlineEditor value={form.description} onChange={(val: string) => set('description')({ target: { value: val } })} rows={5} style={{ ...IS, resize: 'vertical' }} />
         </div>
         {['resolved', 'closed'].includes(form.status) && (
           <div style={{ gridColumn: '1/-1' }}>
@@ -251,7 +262,7 @@ const qaBtnStyle = {
   cursor: 'pointer', fontFamily: 'inherit',
 }
 
-export default function TicketDetail({ ticketId, onClose, embedded = false }) {
+export default function TicketDetail({ ticketId, onClose, embedded = false }: { ticketId: string | null | undefined; onClose: () => void; embedded?: boolean }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -310,7 +321,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
     onError: e => toast.error(extractErr(e, 'Error al restaurar estado pendiente')),
   })
   const { mutate: updateTicket } = useMutation({
-    mutationFn: data => ticketsApi.update(ticketId, data),
+    mutationFn: (data: Record<string, unknown>) => ticketsApi.update(ticketId, data),
     onSuccess: () => { invalidate(); toast.success(t('service_desk.ticket_updated')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -332,7 +343,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
 
   if (!ticketId) return null
 
-  const IS = INPUT_STYLE
+  const IS = IS_STYLE
   const slaColor = ticket?.sla_resolution_status === 'breached' ? COLOR.danger
     : ticket?.sla_resolution_status === 'at_risk' ? COLOR.warning : COLOR.success
 
@@ -482,7 +493,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>
                 {t('service_desk.detail_linked')} ({links.length})
               </div>
-              {links.map(lk => (
+              {links.map((lk: any) => (
                 <div key={lk.link_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                   <span style={{ color: 'var(--text-3)', fontSize: "var(--text-2xs)", textTransform: 'uppercase', minWidth: 70 }}>{lk.link_type}</span>
                   <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{lk.ticket_number}</span>
@@ -513,7 +524,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
               {t('common.description')} ({(ticket.comments || []).length})
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-              {(ticket.comments || []).map(c => (
+              {(ticket.comments || []).map((c: any) => (
                 <div key={c.id} style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '12px 14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{c.author_name}</span>
@@ -554,7 +565,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
             <div>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase' }}>{t('service_desk.detail_history')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {ticket.history.slice(-8).reverse().map((h, i) => (
+                {ticket.history.slice(-8).reverse().map((h: any, i: number) => (
                   <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', padding: '5px 0', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between' }}>
                     <span>{h.change_description || `${h.field_name}: ${h.old_value} → ${h.new_value}`}</span>
                     <span style={{ color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: 10 }}>{fmtDate(h.changed_at)}</span>

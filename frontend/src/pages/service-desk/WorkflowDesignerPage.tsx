@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * WorkflowDesignerPage — diseñador visual de workflows para Service Desk.
  *
@@ -13,6 +12,7 @@
  * URL state: `/sd/workflow-designer?id=<blueprint_id>` selecciona el editor.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -30,7 +30,7 @@ import { useToast } from '../../context/ToastContext'
 import { Button, Spinner, Page, StatusBadge } from '../../components/ui'
 
 // ── Catálogo visual de los nodos (color + icono por tipo) ────────────────────
-const NODE_VISUAL = {
+const NODE_VISUAL: Record<string, { color: string; icon: string; label: string }> = {
   start:         { color: '#10b981', icon: '▶', label: 'Inicio' },
   end:           { color: '#ef4444', icon: '■', label: 'Fin' },
   state:         { color: '#3b82f6', icon: '●', label: 'Estado' },
@@ -42,24 +42,24 @@ const NODE_VISUAL = {
   create_ticket: { color: '#0ea5e9', icon: '🎫', label: 'Ticket' },
 }
 
-const PROCESS_LABEL = { ticket: 'Ticket', change: 'Cambio', approval: 'Aprobación' }
+const PROCESS_LABEL: Record<string, string> = { ticket: 'Ticket', change: 'Cambio', approval: 'Aprobación' }
 
 // Estilos compartidos
-const inputStyle = {
+const inputStyle: CSSProperties = {
   width: '100%', boxSizing: 'border-box',
   background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
   borderRadius: 8, padding: '8px 10px',
   color: 'var(--text-1)', fontSize: 'var(--text-sm)',
   outline: 'none', fontFamily: 'inherit',
 }
-const labelStyle = {
+const labelStyle: CSSProperties = {
   fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-2)',
   textTransform: 'uppercase', letterSpacing: '0.06em',
   display: 'block', marginBottom: 4,
 }
 
 // ── Custom node para ReactFlow ───────────────────────────────────────────────
-function WorkflowNode({ data, selected }) {
+function WorkflowNode({ data, selected }: { data: any; selected: boolean }) {
   const v = NODE_VISUAL[data.type] || NODE_VISUAL.state
   const showInput = data.type !== 'start'
   const showOutput = data.type !== 'end'
@@ -97,21 +97,21 @@ export default function WorkflowDesignerPage() {
     >
       {activeId
         ? <BlueprintEditor id={activeId} onBack={() => setSearchParams({})} />
-        : <BlueprintList onOpen={(id) => setSearchParams({ id })} />}
+        : <BlueprintList onOpen={(id: string) => setSearchParams({ id })} />}
     </Page>
   )
 }
 
 // ── Listado de blueprints ────────────────────────────────────────────────────
-function BlueprintList({ onOpen }) {
+function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
-  const [cloneTarget, setCloneTarget] = useState(null)   // { id, name } | null
-  const [archiveTarget, setArchiveTarget] = useState(null) // { id, name } | null
+  const [cloneTarget, setCloneTarget] = useState<any>(null)   // { id, name } | null
+  const [archiveTarget, setArchiveTarget] = useState<any>(null) // { id, name } | null
 
   const { data: blueprints = [], isLoading } = useQuery({
     queryKey: ['sd-wf-blueprints', filter],
@@ -119,28 +119,28 @@ function BlueprintList({ onOpen }) {
   })
 
   const archive = useMutation({
-    mutationFn: (id) => sdWorkflowDesignerApi.archive(id),
+    mutationFn: (id: string) => sdWorkflowDesignerApi.archive(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
       toast.success('Blueprint archivado')
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al archivar'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error al archivar'),
   })
 
   const clone = useMutation({
-    mutationFn: ({ id, name }) => sdWorkflowDesignerApi.clone(id, { name }),
-    onSuccess: (r) => {
+    mutationFn: ({ id, name }: { id: string; name: string }) => sdWorkflowDesignerApi.clone(id, { name }),
+    onSuccess: (r: any) => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
       toast.success('Blueprint clonado')
       onOpen(r.data.id)
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al clonar'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error al clonar'),
   })
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return blueprints
-    return blueprints.filter(b =>
+    return blueprints.filter((b: any) =>
       (b.name || '').toLowerCase().includes(q) ||
       (b.description || '').toLowerCase().includes(q),
     )
@@ -183,7 +183,7 @@ function BlueprintList({ onOpen }) {
         <EmptyState search={search} filter={filter} />
       ) : (
         <div className="ds-grid-cards">
-          {filtered.map(bp => (
+          {filtered.map((bp: any) => (
             <BlueprintCard key={bp.id} bp={bp}
               onOpen={() => onOpen(bp.id)}
               onClone={() => setCloneTarget({ id: bp.id, name: bp.name })}
@@ -196,20 +196,20 @@ function BlueprintList({ onOpen }) {
       {showCreate && (
         <CreateBlueprintModal
           onClose={() => setShowCreate(false)}
-          onCreated={(bp) => { setShowCreate(false); onOpen(bp.id) }}
+          onCreated={(bp: any) => { setShowCreate(false); onOpen(bp.id) }}
         />
       )}
       {showTemplates && (
         <TemplatePickerModal
           onClose={() => setShowTemplates(false)}
-          onPicked={(bp) => { setShowTemplates(false); onOpen(bp.id) }}
+          onPicked={(bp: any) => { setShowTemplates(false); onOpen(bp.id) }}
         />
       )}
       {cloneTarget && (
         <CloneBlueprintModal
           bp={cloneTarget}
           onClose={() => setCloneTarget(null)}
-          onConfirm={(name) => { setCloneTarget(null); clone.mutate({ id: cloneTarget.id, name }) }}
+          onConfirm={(name: string) => { setCloneTarget(null); clone.mutate({ id: cloneTarget.id, name }) }}
         />
       )}
       {archiveTarget && (
@@ -225,7 +225,7 @@ function BlueprintList({ onOpen }) {
   )
 }
 
-function EmptyState({ search, filter }) {
+function EmptyState({ search, filter }: { search: string; filter: string }) {
   return (
     <div className="ds-empty">
       <GitBranch size={36} className="ds-empty__icon" />
@@ -239,7 +239,7 @@ function EmptyState({ search, filter }) {
   )
 }
 
-function BlueprintCard({ bp, onOpen, onClone, onArchive }) {
+function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: any; onOpen: () => void; onClone: () => void; onArchive: () => void }) {
   const statusKind = bp.status === 'published' ? 'success'
                     : bp.status === 'draft' ? 'warning' : 'neutral'
   const statusLabel = bp.status === 'published' ? 'Publicado'
@@ -280,7 +280,7 @@ function BlueprintCard({ bp, onOpen, onClone, onArchive }) {
   )
 }
 
-function CloneBlueprintModal({ bp, onClose, onConfirm }) {
+function CloneBlueprintModal({ bp, onClose, onConfirm }: { bp: any; onClose: () => void; onConfirm: (name: string) => void }) {
   const [name, setName] = useState(`${bp.name} (copia)`)
   return (
     <Modal title="Clonar blueprint" onClose={onClose}>
@@ -298,7 +298,7 @@ function CloneBlueprintModal({ bp, onClose, onConfirm }) {
   )
 }
 
-function ConfirmModal({ title, message, confirmLabel = 'Confirmar', onClose, onConfirm }) {
+function ConfirmModal({ title, message, confirmLabel = 'Confirmar', onClose, onConfirm }: { title: string; message: string; confirmLabel?: string; onClose: () => void; onConfirm: () => void }) {
   return (
     <Modal title={title} onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -312,7 +312,7 @@ function ConfirmModal({ title, message, confirmLabel = 'Confirmar', onClose, onC
   )
 }
 
-function CreateBlueprintModal({ onClose, onCreated }) {
+function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (bp: any) => void }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [name, setName] = useState('')
@@ -329,12 +329,12 @@ function CreateBlueprintModal({ onClose, onCreated }) {
         edges: [{ id: 'e1', source: 'start_1', target: 'end_1', branch: 'next' }],
       },
     }),
-    onSuccess: (r) => {
+    onSuccess: (r: any) => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
       toast.success('Blueprint creado')
       onCreated?.(r.data)
     },
-    onError: (e) => toast.error(e?.response?.data?.detail?.message || e?.response?.data?.detail || 'Error'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail?.message || e?.response?.data?.detail || 'Error'),
   })
 
   return (
@@ -367,7 +367,7 @@ function CreateBlueprintModal({ onClose, onCreated }) {
   )
 }
 
-function TemplatePickerModal({ onClose, onPicked }) {
+function TemplatePickerModal({ onClose, onPicked }: { onClose: () => void; onPicked?: (bp: any) => void }) {
   const toast = useToast()
   const qc = useQueryClient()
   const { data: templates = [], isLoading } = useQuery({
@@ -376,23 +376,23 @@ function TemplatePickerModal({ onClose, onPicked }) {
   })
 
   const useTemplate = useMutation({
-    mutationFn: (tpl) => sdWorkflowDesignerApi.createBlueprint({
+    mutationFn: (tpl: any) => sdWorkflowDesignerApi.createBlueprint({
       name: tpl.name, process_type: tpl.process_type, description: tpl.description,
       graph: tpl.graph,
     }),
-    onSuccess: (r) => {
+    onSuccess: (r: any) => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
       toast.success('Blueprint creado desde plantilla')
       onPicked?.(r.data)
     },
-    onError: (e) => toast.error(e?.response?.data?.detail?.message || 'Error al crear'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail?.message || 'Error al crear'),
   })
 
   return (
     <Modal title="Elegir plantilla" onClose={onClose} width={620}>
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {templates.map(tpl => (
+          {templates.map((tpl: any) => (
             <button key={tpl.id} onClick={() => useTemplate.mutate(tpl)}
               style={{
                 textAlign: 'left', cursor: 'pointer',
@@ -421,7 +421,7 @@ function TemplatePickerModal({ onClose, onPicked }) {
 }
 
 // ── Editor ──────────────────────────────────────────────────────────────────
-function BlueprintEditor({ id, onBack }) {
+function BlueprintEditor({ id, onBack }: { id: string; onBack: () => void }) {
   return (
     <ReactFlowProvider>
       <BlueprintEditorInner id={id} onBack={onBack} />
@@ -429,7 +429,7 @@ function BlueprintEditor({ id, onBack }) {
   )
 }
 
-function BlueprintEditorInner({ id, onBack }) {
+function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const { fitView } = useReactFlow()
@@ -445,26 +445,26 @@ function BlueprintEditorInner({ id, onBack }) {
   const versions = detail?.versions || []
   const head = versions[0]  // Order by version desc en backend
 
-  const [nodes, setNodes, onNodesChange] = useNodesState([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState([])
-  const [selected, setSelected] = useState(null)
-  const [validation, setValidation] = useState(null)
+  const [nodes, setNodes, onNodesChange] = useNodesState<any>([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<any>([])
+  const [selected, setSelected] = useState<any>(null)
+  const [validation, setValidation] = useState<any>(null)
 
   // Carga inicial
   useEffect(() => {
     if (!head) return
     const g = head.graph || {}
-    const n = (g.nodes || []).map(node => ({
+    const n = (g.nodes || []).map((node: any) => ({
       ...node,
       type: 'wf',
       position: node.position || { x: 100, y: 100 },
       data: node.data || { label: node.label || node.type, type: node.type, config: node.config || {} },
     }))
     // Aseguramos que data.type siga existiendo (es el tipo lógico)
-    n.forEach(nn => {
-      if (!nn.data.type) nn.data.type = (g.nodes || []).find(o => o.id === nn.id)?.type || 'state'
+    n.forEach((nn: any) => {
+      if (!nn.data.type) nn.data.type = (g.nodes || []).find((o: any) => o.id === nn.id)?.type || 'state'
     })
-    const e = (g.edges || []).map(edge => ({
+    const e = (g.edges || []).map((edge: any) => ({
       ...edge,
       type: 'smoothstep',
       animated: true,
@@ -489,13 +489,13 @@ function BlueprintEditorInner({ id, onBack }) {
     return () => clearTimeout(t)
   }, [nodes, edges])
 
-  const onConnect = useCallback((params) => {
-    const sourceNode = nodes.find(n => n.id === params.source)
+  const onConnect = useCallback((params: any) => {
+    const sourceNode = nodes.find((n: any) => n.id === params.source)
     const branch = sourceNode?.data?.type === 'decision' ? 'true'
       : sourceNode?.data?.type === 'approval' ? 'approved'
       : sourceNode?.data?.type === 'http_call' ? 'success'
       : 'next'
-    setEdges(eds => addEdge({
+    setEdges((eds: any) => addEdge({
       ...params, type: 'smoothstep', animated: true, label: branch,
       data: { branch },
       markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--accent)' },
@@ -503,26 +503,26 @@ function BlueprintEditorInner({ id, onBack }) {
     }, eds))
   }, [nodes, setEdges])
 
-  const addNode = (type) => {
+  const addNode = (type: string) => {
     const id = `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
     const v = NODE_VISUAL[type]
-    setNodes(n => [...n, {
+    setNodes((n: any) => [...n, {
       id, type: 'wf',
       position: { x: 200 + Math.random() * 200, y: 200 + Math.random() * 80 },
       data: { label: v.label, type, config: {} },
     }])
   }
 
-  const updateSelectedNode = (patch) => {
+  const updateSelectedNode = (patch: any) => {
     if (!selected) return
-    setNodes(ns => ns.map(n => n.id === selected.id ? { ...n, data: { ...n.data, ...patch } } : n))
-    setSelected(s => s ? { ...s, data: { ...s.data, ...patch } } : s)
+    setNodes((ns: any) => ns.map((n: any) => n.id === selected.id ? { ...n, data: { ...n.data, ...patch } } : n))
+    setSelected((s: any) => s ? { ...s, data: { ...s.data, ...patch } } : s)
   }
 
   const deleteSelected = () => {
     if (!selected) return
-    setNodes(ns => ns.filter(n => n.id !== selected.id))
-    setEdges(es => es.filter(e => e.source !== selected.id && e.target !== selected.id))
+    setNodes((ns: any) => ns.filter((n: any) => n.id !== selected.id))
+    setEdges((es: any) => es.filter((e: any) => e.source !== selected.id && e.target !== selected.id))
     setSelected(null)
   }
 
@@ -533,7 +533,7 @@ function BlueprintEditorInner({ id, onBack }) {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
       toast.success('Versión guardada')
     },
-    onError: (e) => {
+    onError: (e: any) => {
       const detail = e?.response?.data?.detail
       const msg = detail?.errors?.length ? detail.errors.join(' · ') : (detail?.message || detail || 'Error al guardar')
       toast.error(msg)
@@ -639,7 +639,7 @@ function BlueprintEditorInner({ id, onBack }) {
             <Background gap={16} color="var(--surface-4)" />
             <Controls showInteractive={false} />
             <MiniMap pannable zoomable
-              nodeColor={(n) => NODE_VISUAL[n.data?.type]?.color || '#94a3b8'}
+              nodeColor={(n: any) => NODE_VISUAL[n.data?.type]?.color || '#94a3b8'}
               maskColor="rgba(0,0,0,0.45)" />
           </ReactFlow>
           {validation && (validation.errors?.length || validation.warnings?.length) ? (
@@ -658,10 +658,10 @@ function BlueprintEditorInner({ id, onBack }) {
 }
 
 // ── Runs tab ────────────────────────────────────────────────────────────────
-function RunsTab({ blueprintId }) {
+function RunsTab({ blueprintId }: { blueprintId: string }) {
   const qc = useQueryClient()
   const toast = useToast()
-  const [activeRunId, setActiveRunId] = useState(null)
+  const [activeRunId, setActiveRunId] = useState<any>(null)
 
   const { data: runs = [], isLoading } = useQuery({
     queryKey: ['sd-wf-runs', blueprintId],
@@ -676,16 +676,16 @@ function RunsTab({ blueprintId }) {
   })
 
   const resume = useMutation({
-    mutationFn: ({ runId, branch }) => sdWorkflowDesignerApi.resumeRun(runId, { branch }),
+    mutationFn: ({ runId, branch }: { runId: string; branch: string }) => sdWorkflowDesignerApi.resumeRun(runId, { branch }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-wf-runs', blueprintId] })
       qc.invalidateQueries({ queryKey: ['sd-wf-run', activeRunId] })
       toast.success('Ejecución reanudada')
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al reanudar'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error al reanudar'),
   })
   const cancel = useMutation({
-    mutationFn: (runId) => sdWorkflowDesignerApi.cancelRun(runId, 'cancelled by user'),
+    mutationFn: (runId: string) => sdWorkflowDesignerApi.cancelRun(runId, 'cancelled by user'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-wf-runs', blueprintId] })
       qc.invalidateQueries({ queryKey: ['sd-wf-run', activeRunId] })
@@ -693,11 +693,11 @@ function RunsTab({ blueprintId }) {
     },
   })
 
-  const fmtDate = (iso) => iso ? new Date(iso).toLocaleString() : ''
-  const statusColor = (s) => ({
+  const fmtDate = (iso: any) => iso ? new Date(iso).toLocaleString() : ''
+  const statusColor = (s: string): string => (({
     running: '#3b82f6', waiting: '#f59e0b', completed: '#10b981',
     cancelled: 'var(--text-3)', error: '#ef4444',
-  }[s] || 'var(--text-3)')
+  } as Record<string, string>)[s] || 'var(--text-3)')
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 12 }}>
@@ -727,7 +727,7 @@ function RunsTab({ blueprintId }) {
               </tr>
             </thead>
             <tbody>
-              {runs.map(r => (
+              {runs.map((r: any) => (
                 <tr key={r.id} onClick={() => setActiveRunId(r.id)}
                   style={{
                     cursor: 'pointer',
@@ -792,7 +792,7 @@ function RunsTab({ blueprintId }) {
             {runDetail.run.status === 'waiting' && (
               <ResumeBranchPicker
                 runDetail={runDetail}
-                onResume={(branch) => resume.mutate({ runId: runDetail.run.id, branch })}
+                onResume={(branch: string) => resume.mutate({ runId: runDetail.run.id, branch })}
                 pending={resume.isPending}
               />
             )}
@@ -803,7 +803,7 @@ function RunsTab({ blueprintId }) {
               </div>
               {runDetail.steps.length === 0 ? (
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Sin pasos aún.</div>
-              ) : runDetail.steps.map((s, i) => (
+              ) : runDetail.steps.map((s: any, i: number) => (
                 <div key={s.id} style={{
                   borderLeft: `2px solid ${NODE_VISUAL[s.node_type]?.color || 'var(--text-3)'}`,
                   paddingLeft: 10, marginBottom: 8,
@@ -840,15 +840,15 @@ function RunsTab({ blueprintId }) {
   )
 }
 
-function ResumeBranchPicker({ runDetail, onResume, pending }) {
+function ResumeBranchPicker({ runDetail, onResume, pending }: { runDetail: any; onResume: (branch: string) => void; pending: boolean }) {
   // Branch options según el tipo del nodo actual
-  const nodeType = runDetail.steps?.find(s => s.status === 'waiting')?.node_type || 'approval'
-  const branches = {
+  const nodeType = runDetail.steps?.find((s: any) => s.status === 'waiting')?.node_type || 'approval'
+  const branches: { b: string; label: string; color?: string }[] = ({
     approval: [{ b: 'approved', label: 'Aprobar', color: '#10b981' }, { b: 'rejected', label: 'Rechazar', color: '#ef4444' }],
     decision: [{ b: 'true', label: 'Verdadero' }, { b: 'false', label: 'Falso' }],
     wait: [{ b: 'next', label: 'Continuar' }],
     http_call: [{ b: 'success', label: 'Éxito' }, { b: 'failure', label: 'Fallo' }],
-  }[nodeType] || [{ b: 'next', label: 'Continuar' }]
+  } as Record<string, { b: string; label: string; color?: string }[]>)[nodeType] || [{ b: 'next', label: 'Continuar' }]
 
   return (
     <div style={{
@@ -875,7 +875,7 @@ function ResumeBranchPicker({ runDetail, onResume, pending }) {
   )
 }
 
-function StartRunModal({ blueprint, onClose, onStarted }) {
+function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: any; onClose: () => void; onStarted?: () => void }) {
   const toast = useToast()
   const [contextJson, setContextJson] = useState('{\n  "priority": "P3"\n}')
   const [targetType, setTargetType] = useState(blueprint.process_type || 'manual')
@@ -892,7 +892,7 @@ function StartRunModal({ blueprint, onClose, onStarted }) {
       })
     },
     onSuccess: () => { toast.success('Ejecución iniciada'); onStarted?.() },
-    onError: (e) => toast.error(e?.response?.data?.detail || e?.message || 'Error'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || e?.message || 'Error'),
   })
   return (
     <Modal title="Iniciar ejecución" onClose={onClose} width={520}>
@@ -927,7 +927,7 @@ function StartRunModal({ blueprint, onClose, onStarted }) {
 }
 
 // ── Sub-componentes del editor ───────────────────────────────────────────────
-function Palette({ onAdd }) {
+function Palette({ onAdd }: { onAdd: (type: string) => void }) {
   const items = [
     { type: 'start',         icon: <Sparkles size={14} /> },
     { type: 'state',         icon: <Layers size={14} /> },
@@ -969,7 +969,7 @@ function Palette({ onAdd }) {
   )
 }
 
-function PropertiesPanel({ node, onChange, onDelete }) {
+function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (patch: any) => void; onDelete: () => void }) {
   if (!node) {
     return (
       <div style={{
@@ -982,7 +982,7 @@ function PropertiesPanel({ node, onChange, onDelete }) {
   }
   const t = node.data.type
   const config = node.data.config || {}
-  const setConfig = (k, v) => onChange({ config: { ...config, [k]: v } })
+  const setConfig = (k: string, v: any) => onChange({ config: { ...config, [k]: v } })
 
   return (
     <div style={{
@@ -1045,7 +1045,7 @@ function PropertiesPanel({ node, onChange, onDelete }) {
   )
 }
 
-function FieldText({ label, value, onChange, placeholder }) {
+function FieldText({ label, value, onChange, placeholder }: { label: string; value: any; onChange: (v: any) => void; placeholder?: string }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
@@ -1053,7 +1053,7 @@ function FieldText({ label, value, onChange, placeholder }) {
     </div>
   )
 }
-function FieldNumber({ label, value, onChange }) {
+function FieldNumber({ label, value, onChange }: { label: string; value: any; onChange: (v: any) => void }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
@@ -1061,17 +1061,17 @@ function FieldNumber({ label, value, onChange }) {
     </div>
   )
 }
-function FieldSelect({ label, value, onChange, options }) {
+function FieldSelect({ label, value, onChange, options }: { label: string; value: any; onChange: (v: any) => void; options: { v: string; l: string }[] }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
       <select value={value || ''} onChange={e => onChange(e.target.value)} style={inputStyle}>
-        {options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+        {options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
       </select>
     </div>
   )
 }
-function FieldTextarea({ label, value, onChange }) {
+function FieldTextarea({ label, value, onChange }: { label: string; value: any; onChange: (v: any) => void }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
@@ -1080,7 +1080,7 @@ function FieldTextarea({ label, value, onChange }) {
   )
 }
 
-function ValidationBadge({ validation }) {
+function ValidationBadge({ validation }: { validation: any }) {
   if (!validation) return null
   const errs = validation.errors?.length || 0
   const warns = validation.warnings?.length || 0
@@ -1099,10 +1099,10 @@ function ValidationBadge({ validation }) {
   </span>
 }
 
-function ValidationBanner({ validation }) {
+function ValidationBanner({ validation }: { validation: any }) {
   const msgs = [
-    ...(validation.errors || []).map(m => ({ kind: 'error', text: m })),
-    ...(validation.warnings || []).map(m => ({ kind: 'warn', text: m })),
+    ...(validation.errors || []).map((m: any) => ({ kind: 'error', text: m })),
+    ...(validation.warnings || []).map((m: any) => ({ kind: 'warn', text: m })),
   ].slice(0, 4)
   return (
     <div style={{
@@ -1122,22 +1122,22 @@ function ValidationBanner({ validation }) {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-function serializeGraph(nodes, edges) {
+function serializeGraph(nodes: any, edges: any) {
   return {
-    nodes: nodes.map(n => ({
+    nodes: nodes.map((n: any) => ({
       id: n.id,
       type: n.data.type,
       position: n.position,
       data: { label: n.data.label, type: n.data.type, config: n.data.config || {} },
     })),
-    edges: edges.map(e => ({
+    edges: edges.map((e: any) => ({
       id: e.id, source: e.source, target: e.target,
       branch: e.data?.branch || e.label || 'next',
     })),
   }
 }
 
-function Modal({ title, onClose, width = 480, children }) {
+function Modal({ title, onClose, width = 480, children }: { title: ReactNode; onClose: () => void; width?: number; children?: ReactNode }) {
   return (
     <div role="presentation" onClick={onClose} style={{
       position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',

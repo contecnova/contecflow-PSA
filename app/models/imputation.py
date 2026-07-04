@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Date, Boolean, Integer, Index
+from app.models.money import Money, Rate
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -29,8 +30,8 @@ class Imputation(Base):
     hours = Column(Float, nullable=False)
 
     # Cost snapshot at time of imputation (denormalized for historical accuracy)
-    hourly_rate_snapshot = Column(Float, nullable=True)  # Rate at time of log
-    cost_amount = Column(Float, nullable=True)            # hours × rate
+    hourly_rate_snapshot = Column(Rate, nullable=True)   # Rate at time of log
+    cost_amount = Column(Money, nullable=True)            # hours × rate
 
     # Context
     description = Column(Text, nullable=True)

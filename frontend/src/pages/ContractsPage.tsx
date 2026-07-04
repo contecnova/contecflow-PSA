@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties, ChangeEvent } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
@@ -14,8 +14,47 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+
+// ── Contract / WorkOrder shapes ──────────────────────────────────────────────
+type WorkOrder = {
+  [key: string]: unknown
+  id: string
+  code?: string
+  name?: string
+  status?: string
+  amount?: number | null
+  hours?: number | null
+  start_date?: string | null
+  end_date?: string | null
+}
+type Contract = {
+  [key: string]: unknown
+  id: string
+  code?: string
+  name?: string
+  client_id?: string | number
+  client_name?: string
+  client_contact?: string
+  contract_type?: string
+  contract_type_label?: string
+  status?: string
+  total_amount?: number | null
+  hourly_rate?: number | null
+  hours_bag?: number | null
+  hours_used?: number | null
+  hours_pct?: number | null
+  monthly_retainer?: number | null
+  start_date?: string | null
+  end_date?: string | null
+  signed_date?: string | null
+  payment_terms?: string | null
+  notes?: string | null
+  project_id?: string | number
+  work_orders?: WorkOrder[]
+}
+type ApiErr = { response?: { data?: { detail?: string } } }
 
 
 const CONTRACT_TYPES = [
@@ -24,13 +63,13 @@ const CONTRACT_TYPES = [
   { value: 'retainer', label: 'Retainer mensual' },
   { value: 'hourly_bag', label: 'Bolsa de horas' },
 ]
-const STATUS_CFG = {
+const STATUS_CFG: Record<string, { label: string; color: string }> = {
   draft:     { label: 'Borrador',  color: 'var(--text-2)' },
   active:    { label: 'Activo',    color: 'var(--accent)' },
   expired:   { label: 'Expirado', color: 'var(--danger)' },
   cancelled: { label: 'Cancelado', color: 'var(--text-3)' },
 }
-const WO_STATUS = {
+const WO_STATUS: Record<string, { label: string; color: string }> = {
   open: { label: 'Abierta', color: 'var(--accent)' },
   in_progress: { label: 'En curso', color: 'var(--warning)' },
   completed: { label: 'Completada', color: 'var(--success)' },
@@ -89,12 +128,12 @@ const workOrderSchema = z.object({
   }
 })
 
-function ContractFormModal({ contract, onClose }) {
+function ContractFormModal({ contract, onClose }: { contract?: Contract | null; onClose: () => void }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!contract?.id
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []) })
+  const { data: projects = [] } = useQuery<Array<{ id: string; code?: string; name?: string }>>({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => ((r.data as { items?: unknown[] })?.items ?? (r.data as unknown[]) ?? []) as Array<{ id: string; code?: string; name?: string }>) })
   const [form, setForm] = useState({
     name: contract?.name || '',
     project_id: contract?.project_id || '',
@@ -114,23 +153,23 @@ function ContractFormModal({ contract, onClose }) {
     notes: contract?.notes || '',
   })
   const validation = useFormValidation(contractSchema)
-  const set = (k) => (e) => {
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => isEdit ? contractsApi.update(contract.id, data) : contractsApi.create(data),
-    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['contracts']); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['clients']); onClose() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (data: Record<string, unknown>) => isEdit ? contractsApi.update(contract!.id, data) : contractsApi.create(data),
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['contracts'] }); qc.invalidateQueries({ queryKey: ['client-detail'] }); qc.invalidateQueries({ queryKey: ['clients'] }); onClose() },
+    onError: (e: ApiErr) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const submit = () => {
     const result = validation.validateForm(form)
     if (!result.success) return
-    mutate(result.data)
+    mutate(result.data as Record<string, unknown>)
   }
 
   return (
@@ -152,7 +191,7 @@ function ContractFormModal({ contract, onClose }) {
         <div>
           <label style={ls}>Cliente *</label>
           <ClientSelect
-            value={form.client_id}
+            value={String(form.client_id)}
             onChange={(id, client) => {
               setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' }))
               validation.clearFieldError('client_id')
@@ -241,32 +280,32 @@ function ContractFormModal({ contract, onClose }) {
   )
 }
 
-function ContractDetail({ contract, onClose, onEdit }) {
+function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onClose: () => void; onEdit: (c: Contract) => void }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showWO, setShowWO] = useState(false)
-  const [woForm, setWoForm] = useState({ name: '', amount: '', hours: '', start_date: '', end_date: '' })
+  const [woForm, setWoForm] = useState<Record<string, string>>({ name: '', amount: '', hours: '', start_date: '', end_date: '' })
   const woValidation = useFormValidation(workOrderSchema)
-  const fs = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
+  const fs: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
 
   const { mutate: createWO } = useMutation({
-    mutationFn: (data) => contractsApi.createWorkOrder(contract.id, data),
-    onSuccess: () => { woValidation.setErrors({}); qc.invalidateQueries(['contracts']); setShowWO(false); setWoForm({ name: '', amount: '', hours: '', start_date: '', end_date: '' }) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (data: Record<string, unknown>) => contractsApi.createWorkOrder(contract.id, data),
+    onSuccess: () => { woValidation.setErrors({}); qc.invalidateQueries({ queryKey: ['contracts'] }); setShowWO(false); setWoForm({ name: '', amount: '', hours: '', start_date: '', end_date: '' }) },
+    onError: (e: ApiErr) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: updateWOStatus } = useMutation({
-    mutationFn: ({ woId, status }) => contractsApi.updateWorkOrderStatus(contract.id, woId, status),
-    onSuccess: () => qc.invalidateQueries(['contracts']),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: ({ woId, status }: { woId: string; status: string }) => contractsApi.updateWorkOrderStatus(contract.id, woId, status),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contracts'] }),
+    onError: (e: ApiErr) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const cfg = STATUS_CFG[contract.status] || STATUS_CFG.draft
+  const cfg = STATUS_CFG[contract.status || ''] || STATUS_CFG.draft
 
   const submitWO = () => {
     const result = woValidation.validateForm(woForm)
     if (!result.success) return
-    createWO(result.data)
+    createWO(result.data as Record<string, unknown>)
   }
 
   return (
@@ -303,8 +342,8 @@ function ContractDetail({ contract, onClose, onEdit }) {
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '16px 0' }}>Sin órdenes de trabajo</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {contract.work_orders.map(wo => {
-              const wocfg = WO_STATUS[wo.status] || WO_STATUS.open
+            {contract.work_orders!.map(wo => {
+              const wocfg = WO_STATUS[wo.status || ''] || WO_STATUS.open
               return (
                 <div key={wo.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
                   <div style={{ flex: 1 }}>
@@ -364,14 +403,14 @@ function ContractDetail({ contract, onClose, onEdit }) {
 export default function ContractsPage(): JSX.Element {
   const t = useAppT()
   const [showCreate, setShowCreate] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [detail, setDetail] = useState(null)
+  const [editing, setEditing] = useState<Contract | null>(null)
+  const [detail, setDetail] = useState<Contract | null>(null)
   const [statusFilter, setStatusFilter] = useState('')
   const [view, setView] = useState('list')
 
-  const { data: contracts = [], isLoading } = useQuery({
+  const { data: contracts = [], isLoading } = useQuery<Contract[]>({
     queryKey: ['contracts', statusFilter],
-    queryFn: () => contractsApi.list(statusFilter ? { status: statusFilter } : {}).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => contractsApi.list(statusFilter ? { status: statusFilter } : {}).then((r: { data: unknown }) => ((r.data as { items?: Contract[] })?.items ?? (r.data as Contract[]) ?? [])),
   })
 
   // Contratos que vencen en los próximos 90 días
@@ -379,10 +418,10 @@ export default function ContractsPage(): JSX.Element {
   const expiring = contracts.filter(c => {
     if (!c.end_date || c.status === 'cancelled' || c.status === 'expired') return false
     const end = new Date(c.end_date)
-    const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24))
+    const daysLeft = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
     return daysLeft >= 0 && daysLeft <= 90
   }).map(c => {
-    const daysLeft = Math.ceil((new Date(c.end_date) - today) / (1000 * 60 * 60 * 24))
+    const daysLeft = Math.ceil((new Date(c.end_date!).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
     return { ...c, daysLeft }
   }).sort((a, b) => a.daysLeft - b.daysLeft)
 
@@ -472,7 +511,7 @@ export default function ContractsPage(): JSX.Element {
             <span>Estado</span><span>OTs</span>
           </div>
           {sortedContracts.map(c => {
-            const cfg = STATUS_CFG[c.status] || STATUS_CFG.draft
+            const cfg = STATUS_CFG[c.status || ''] || STATUS_CFG.draft
             return (
               <button key={c.id} type="button" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', cursor: 'pointer', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
@@ -497,7 +536,7 @@ export default function ContractsPage(): JSX.Element {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
           {sortedContracts.map(c => {
-            const cfg = STATUS_CFG[c.status] || STATUS_CFG.draft
+            const cfg = STATUS_CFG[c.status || ''] || STATUS_CFG.draft
             return (
               <button key={c.id} type="button" onClick={() => setDetail(c)}
                 style={{ background: 'var(--surface-2)', border: `1px solid ${cfg.color}30`, borderRadius: 12, padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
@@ -518,7 +557,7 @@ export default function ContractsPage(): JSX.Element {
                 </div>
                 <div style={{ display: 'flex', gap: 12, fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 8 }}>
                   {c.contract_type_label && <span>📋 {c.contract_type_label}</span>}
-                  {c.work_orders?.length > 0 && <span>🔧 {c.work_orders.length} OT{c.work_orders.length !== 1 ? 's' : ''}</span>}
+                  {(c.work_orders?.length ?? 0) > 0 && <span>🔧 {c.work_orders!.length} OT{c.work_orders!.length !== 1 ? 's' : ''}</span>}
                 </div>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', borderTop: '1px solid var(--surface-4)', paddingTop: 8 }}>
                   {c.start_date ? fmtDate(c.start_date) : '—'} → {c.end_date ? <span style={{ color: new Date(c.end_date) < new Date() ? 'var(--danger)' : 'inherit' }}>{fmtDate(c.end_date)}</span> : '—'}

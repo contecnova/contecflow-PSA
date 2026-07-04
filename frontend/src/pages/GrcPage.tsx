@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * GrcPage — Governance, Risk & Compliance (backbone de seguridad)
  *
@@ -10,6 +9,7 @@
  *  5. Audit Log          — historial inmutable de eventos GRC
  */
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
@@ -43,7 +43,9 @@ const MODULES = [
 ]
 
 const ACTIONS = ['ver', 'crear', 'editar', 'eliminar', 'aprobar', 'exportar']
-const ACTION_LABEL = { ver: 'Ver', crear: 'Crear', editar: 'Editar', eliminar: 'Eliminar', aprobar: 'Aprobar', exportar: 'Exportar' }
+const ACTION_LABEL: Record<string, string> = { ver: 'Ver', crear: 'Crear', editar: 'Editar', eliminar: 'Eliminar', aprobar: 'Aprobar', exportar: 'Exportar' }
+
+type Role = { id: string; label: string; color: string }
 
 // ROLES se carga dinámicamente desde la API — ver useRoles() en GrcPage
 const FALLBACK_ROLES = [
@@ -55,42 +57,44 @@ const FALLBACK_ROLES = [
   { id: 'subcontractor', label: 'Subcontratado', color: '#f97316' },
 ]
 
-const RISK_COLOR = { critical: '#f87171', high: '#fb923c', medium: '#f59e0b', low: '#34d399' }
-const SEV_COLOR  = { critical: '#f87171', warning: '#f59e0b', info: '#60a5fa' }
+const RISK_COLOR: Record<string, string> = { critical: '#f87171', high: '#fb923c', medium: '#f59e0b', low: '#34d399' }
+const SEV_COLOR: Record<string, string>  = { critical: '#f87171', warning: '#f59e0b', info: '#60a5fa' }
 
 // ── Shared style atoms ────────────────────────────────────────────────────────
-const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. MATRIZ DE PERMISOS (wired to API)
 // ═══════════════════════════════════════════════════════════════════════════════
-function MatrixTab({ roles }) {
+type PermMatrix = Record<string, Record<string, Record<string, boolean>>>
+
+function MatrixTab({ roles }: { roles: Role[] }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [selRole, setSelRole] = useState('all')
-  const [saving, setSaving] = useState(null)
+  const [saving, setSaving] = useState<string | null>(null)
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch } = useQuery<PermMatrix>({
     queryKey: ['grc-permissions'],
     queryFn: () => grcApi.permissions().then(r => r.data.matrix),
   })
-  const matrix = data || {}
+  const matrix: PermMatrix = data || {}
 
   const { mutate: resetMatrix, isPending: resetting } = useMutation({
     mutationFn: () => grcApi.seedPermissions(),
-    onSuccess: () => { qc.invalidateQueries(['grc-permissions']); toast.success(t('grc.matrix_reset_success')) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grc-permissions'] }); toast.success(t('grc.matrix_reset_success')) },
     onError: e => toast.error(extractErr(e, t('grc.error'))),
   })
 
-  const togglePerm = async (role, module, action, current) => {
+  const togglePerm = async (role: string, module: string, action: string, current: boolean) => {
     const key = `${role}/${module}/${action}`
     setSaving(key)
     try {
       await grcApi.updatePermission(role, module, action, { allowed: !current })
-      qc.invalidateQueries(['grc-permissions'])
+      qc.invalidateQueries({ queryKey: ['grc-permissions'] })
     } catch (e) {
       toast.error(extractErr(e, t('grc.error_save_permission')))
     } finally {
@@ -98,7 +102,7 @@ function MatrixTab({ roles }) {
     }
   }
 
-  const displayRoles = selRole === 'all' ? roles : roles.filter(r => r.id === selRole)
+  const displayRoles = selRole === 'all' ? roles : roles.filter((r: Role) => r.id === selRole)
 
   if (isLoading) return <Spinner />
 
@@ -195,12 +199,37 @@ function MatrixTab({ roles }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 2. SEGREGACIÓN SoD (wired to API + CRUD)
 // ═══════════════════════════════════════════════════════════════════════════════
-function SodRuleModal({ rule, workflows, onClose, roles }) {
+type SodRule = {
+  [k: string]: unknown
+  id: string
+  module_a?: string
+  action_a?: string
+  module_b?: string
+  action_b?: string
+  risk?: string
+  description?: string
+  roles_conflict?: string[]
+  mitigated_by_workflow_id?: string | null
+  is_active?: boolean
+}
+type Workflow = {
+  [k: string]: unknown
+  id: string
+  name?: string
+  entity_type?: string
+  is_active?: boolean
+  steps?: { id: string; name?: string; approver_role?: string; approver_user_name?: string }[]
+}
+
+function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | null; workflows: Workflow[]; onClose: () => void; roles: Role[] }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!rule
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    module_a: string; action_a: string; module_b: string; action_b: string;
+    risk: string; description: string; roles_conflict: string[]; mitigated_by_workflow_id: string | null;
+  }>({
     module_a: rule?.module_a || 'invoices',
     action_a: rule?.action_a || 'crear',
     module_b: rule?.module_b || 'invoices',
@@ -212,14 +241,14 @@ function SodRuleModal({ rule, workflows, onClose, roles }) {
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? grcApi.updateSodRule(rule.id, d) : grcApi.createSodRule(d),
-    onSuccess: () => { qc.invalidateQueries(['grc-sod-rules']); qc.invalidateQueries(['grc-sod-check']); onClose() },
+    mutationFn: (d: typeof form) => isEdit ? grcApi.updateSodRule(rule!.id, d) : grcApi.createSodRule(d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grc-sod-rules'] }); qc.invalidateQueries({ queryKey: ['grc-sod-check'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const toggleRole = r => setForm(f => ({
+  const toggleRole = (r: string) => setForm(f => ({
     ...f,
-    roles_conflict: f.roles_conflict.includes(r) ? f.roles_conflict.filter(x => x !== r) : [...f.roles_conflict, r],
+    roles_conflict: f.roles_conflict.includes(r) ? f.roles_conflict.filter((x: string) => x !== r) : [...f.roles_conflict, r],
   }))
 
   return (
@@ -268,7 +297,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }) {
           </div>
           <div>
             <label style={ls}>{t('grc.mitigation_flow')}</label>
-            <select value={form.mitigated_by_workflow_id} onChange={e => setForm(f => ({ ...f, mitigated_by_workflow_id: e.target.value }))} style={fs}>
+            <select value={form.mitigated_by_workflow_id || ''} onChange={e => setForm(f => ({ ...f, mitigated_by_workflow_id: e.target.value }))} style={fs}>
               <option value="">{t('grc.no_mitigation')}</option>
               {(workflows || []).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
@@ -303,46 +332,58 @@ function SodRuleModal({ rule, workflows, onClose, roles }) {
   )
 }
 
-function SodTab({ roles }) {
+type SodViolation = {
+  [k: string]: unknown
+  id?: string
+  risk?: string
+  conflicting_role?: string
+  action_a?: string
+  module_a?: string
+  action_b?: string
+  module_b?: string
+  mitigated?: boolean
+}
+
+function SodTab({ roles }: { roles: Role[] }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showModal, setShowModal] = useState(false)
-  const [editingRule, setEditingRule] = useState(null)
+  const [editingRule, setEditingRule] = useState<SodRule | null>(null)
 
-  const { data: rules = [], isLoading } = useQuery({
+  const { data: rules = [], isLoading } = useQuery<SodRule[]>({
     queryKey: ['grc-sod-rules'],
     queryFn: () => grcApi.sodRules().then(r => r.data),
   })
-  const { data: checkData } = useQuery({
+  const { data: checkData } = useQuery<{ violations?: SodViolation[] }>({
     queryKey: ['grc-sod-check'],
     queryFn: () => grcApi.sodCheck().then(r => r.data),
     staleTime: 30000,
   })
-  const { data: workflows = [] } = useQuery({
+  const { data: workflows = [] } = useQuery<Workflow[]>({
     queryKey: ['approval-workflows-grc'],
-    queryFn: () => approvalsApi.listWorkflows().then(r => r.data),
+    queryFn: () => approvalsApi.listWorkflows(undefined).then(r => r.data),
   })
 
   const { mutate: del } = useMutation({
-    mutationFn: id => grcApi.deleteSodRule(id),
-    onSuccess: () => { qc.invalidateQueries(['grc-sod-rules']); qc.invalidateQueries(['grc-sod-check']) },
+    mutationFn: (id: string) => grcApi.deleteSodRule(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grc-sod-rules'] }); qc.invalidateQueries({ queryKey: ['grc-sod-check'] }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ id, active }) => grcApi.updateSodRule(id, { is_active: active }),
-    onSuccess: () => qc.invalidateQueries(['grc-sod-rules']),
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => grcApi.updateSodRule(id, { is_active: active }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['grc-sod-rules'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const violations = checkData?.violations || []
-  const criticalCount = violations.filter(v => v.risk === 'critical').length
+  const criticalCount = violations.filter((v: SodViolation) => v.risk === 'critical').length
 
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          { label: t('grc.active_sod_rules'), value: rules.filter(r => r.is_active).length, color: 'var(--accent)', icon: '⚠️' },
+          { label: t('grc.active_sod_rules'), value: rules.filter((r: SodRule) => r.is_active).length, color: 'var(--accent)', icon: '⚠️' },
           { label: t('grc.detected_conflicts'), value: violations.length, color: violations.length > 0 ? 'var(--warning)' : 'var(--success)', icon: '🔍' },
           { label: t('grc.critical_conflicts'), value: criticalCount, color: criticalCount > 0 ? 'var(--danger)' : 'var(--success)', icon: '🚨' },
         ].map(({ label, value, color, icon }) => (
@@ -358,9 +399,9 @@ function SodTab({ roles }) {
         <div style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid var(--danger-border)', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--danger)', marginBottom: 8 }}>🚨 {t('grc.sod_conflicts_detected')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {violations.map((v, i) => (
+            {violations.map((v: SodViolation, i: number) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: "var(--text-sm)" }}>
-                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${RISK_COLOR[v.risk]}20`, color: RISK_COLOR[v.risk], textTransform: 'uppercase', minWidth: 48, textAlign: 'center' }}>{v.risk}</span>
+                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${RISK_COLOR[v.risk || '']}20`, color: RISK_COLOR[v.risk || ''], textTransform: 'uppercase', minWidth: 48, textAlign: 'center' }}>{v.risk}</span>
                 <span style={{ color: 'var(--text-1)' }}><strong>{v.conflicting_role}</strong> {t('grc.can')} {v.action_a} <em>{v.module_a}</em> {t('grc.and')} {v.action_b} <em>{v.module_b}</em></span>
                 {v.mitigated && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--success)', background: 'rgba(0,229,160,0.1)', padding: '1px 6px', borderRadius: 4 }}>✓ {t('grc.mitigated')}</span>}
               </div>
@@ -377,8 +418,8 @@ function SodTab({ roles }) {
         <EmptyState icon="⚠️" title="Sin reglas SoD" description="Crea reglas para detectar conflictos de segregacion de funciones" />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {rules.map(rule => {
-            const rc = RISK_COLOR[rule.risk] || '#7a8aaa'
+          {rules.map((rule: SodRule) => {
+            const rc = RISK_COLOR[rule.risk || ''] || '#7a8aaa'
             const modA = MODULES.find(m => m.id === rule.module_a)
             const modB = MODULES.find(m => m.id === rule.module_b)
             return (
@@ -386,9 +427,9 @@ function SodTab({ roles }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, background: `${rc}20`, color: rc, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase' }}>{rule.risk}</span>
-                    <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{modA?.icon} {modA?.label} · {ACTION_LABEL[rule.action_a] || rule.action_a}</span>
+                    <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{modA?.icon} {modA?.label} · {ACTION_LABEL[rule.action_a || ''] || rule.action_a}</span>
                     <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>↔ conflicto con</span>
-                    <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{modB?.icon} {modB?.label} · {ACTION_LABEL[rule.action_b] || rule.action_b}</span>
+                    <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{modB?.icon} {modB?.label} · {ACTION_LABEL[rule.action_b || ''] || rule.action_b}</span>
                     {rule.mitigated_by_workflow_id && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'rgba(0,229,160,0.12)', color: 'var(--success)' }}>✓ Mitigado</span>}
                     {!rule.is_active && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-3)' }}>Inactiva</span>}
                   </div>
@@ -406,12 +447,12 @@ function SodTab({ roles }) {
                       style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 9px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                   </div>
                 </div>
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: rule.roles_conflict?.length > 0 ? 8 : 0 }}>{rule.description}</div>
-                {rule.roles_conflict?.length > 0 && (
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: (rule.roles_conflict?.length ?? 0) > 0 ? 8 : 0 }}>{rule.description}</div>
+                {(rule.roles_conflict?.length ?? 0) > 0 && (
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>Roles con conflicto:</span>
-                    {rule.roles_conflict.map(r => {
-                      const role = roles.find(x => x.id === r)
+                    {rule.roles_conflict?.map((r: string) => {
+                      const role = roles.find((x: Role) => x.id === r)
                       return role ? <span key={r} style={{ fontSize: "var(--text-xs)", background: `${role.color}20`, color: role.color, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{role.label}</span> : <span key={r} style={{ fontSize: "var(--text-xs)", background: 'var(--surface-3)', color: 'var(--text-2)', padding: '2px 8px', borderRadius: 4 }}>{r}</span>
                     })}
                   </div>
@@ -432,20 +473,33 @@ function SodTab({ roles }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 3. VIOLACIONES SoD
 // ═══════════════════════════════════════════════════════════════════════════════
+type ViolationRecord = {
+  [k: string]: unknown
+  id: string
+  resolved?: boolean
+  role?: string
+  user_name?: string
+  user_id?: string
+  context_type?: string
+  context_id?: string
+  detected_at?: string
+  resolution_note?: string
+}
+
 function ViolationsTab() {
   const toast = useToast()
   const qc = useQueryClient()
-  const [filter, setFilter] = useState(false)
+  const [filter, setFilter] = useState<boolean | null>(false)
 
-  const { data: violations = [], isLoading, refetch } = useQuery({
+  const { data: violations = [], isLoading, refetch } = useQuery<ViolationRecord[]>({
     queryKey: ['grc-violations', filter],
     queryFn: () => grcApi.violations(filter === null ? {} : { resolved: filter }).then(r => r.data),
     refetchInterval: 60000,
   })
 
   const { mutate: resolve } = useMutation({
-    mutationFn: ({ id, note }) => grcApi.resolveViolation(id, { resolution_note: note }),
-    onSuccess: () => { qc.invalidateQueries(['grc-violations']); toast.success('Violación marcada como resuelta') },
+    mutationFn: ({ id, note }: { id: string; note: string }) => grcApi.resolveViolation(id, { resolution_note: note }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grc-violations'] }); toast.success('Violación marcada como resuelta') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -456,7 +510,7 @@ function ViolationsTab() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        {[[false, 'Pendientes'], [null, 'Todas'], [true, 'Resueltas']].map(([val, label]) => (
+        {([[false, 'Pendientes'], [null, 'Todas'], [true, 'Resueltas']] as [boolean | null, string][]).map(([val, label]) => (
           <button key={String(val)} onClick={() => setFilter(val)}
             style={{ padding: '7px 16px', borderRadius: 6, border: `1px solid ${filter === val ? 'var(--accent)' : 'var(--surface-4)'}`, background: filter === val ? 'var(--accent-muted)' : 'transparent', color: filter === val ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
@@ -504,15 +558,27 @@ function ViolationsTab() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 4. AUDIT LOG GRC
 // ═══════════════════════════════════════════════════════════════════════════════
+type AuditEvent = {
+  [k: string]: unknown
+  id: string
+  severity?: string
+  action_type?: string
+  resource_type?: string
+  user_name?: string
+  ip_address?: string
+  timestamp?: string
+  detail?: Record<string, unknown> | null
+}
+
 function AuditLogTab() {
   const [severity, setSeverity] = useState('')
 
-  const { data: log = [], isLoading, refetch } = useQuery({
+  const { data: log = [], isLoading, refetch } = useQuery<AuditEvent[]>({
     queryKey: ['grc-audit-log', severity],
     queryFn: () => grcApi.auditLog(severity ? { severity } : {}).then(r => r.data),
   })
 
-  const ACTION_ICONS = {
+  const ACTION_ICONS: Record<string, string> = {
     permission_changed: '🔑', permission_matrix_reset: '♻️',
     sod_rule_created: '⚠️', sod_rule_updated: '✏️', sod_rule_deleted: '🗑',
     sod_violation_detected: '🚨', sod_violation_resolved: '✅', approval_override: '⚡',
@@ -539,13 +605,13 @@ function AuditLogTab() {
         <EmptyState icon="📋" title="Sin eventos de auditoria" description="Los eventos de seguridad apareceran aqui conforme se produzcan" />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 600, overflowY: 'auto', paddingRight: 4 }}>
-          {log.map(e => {
-            const sc = SEV_COLOR[e.severity] || 'var(--text-2)'
+          {log.map((e: AuditEvent) => {
+            const sc = SEV_COLOR[e.severity || ''] || 'var(--text-2)'
             return (
               <div key={e.id} style={{ ...card, padding: '10px 14px', borderLeft: `3px solid ${sc}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: "var(--text-md-em)" }}>{ACTION_ICONS[e.action_type] || '📋'}</span>
+                    <span style={{ fontSize: "var(--text-md-em)" }}>{ACTION_ICONS[e.action_type || ''] || '📋'}</span>
                     <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{(e.action_type || '').replace(/_/g, ' ')}</span>
                     {e.resource_type && <span style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', background: 'var(--surface-4)', color: 'var(--text-3)', borderRadius: 4 }}>{e.resource_type}</span>}
                     <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: sc, background: `${sc}15`, padding: '1px 6px', borderRadius: 4, textTransform: 'uppercase' }}>{e.severity}</span>
@@ -570,9 +636,9 @@ function AuditLogTab() {
 }
 
 function ApprovalsTab() {
-  const { data: workflows = [], isLoading } = useQuery({
+  const { data: workflows = [], isLoading } = useQuery<Workflow[]>({
     queryKey: ['approval-workflows-grc'],
-    queryFn: () => approvalsApi.listWorkflows().then(r => r.data),
+    queryFn: () => approvalsApi.listWorkflows(undefined).then(r => r.data),
   })
 
   return (
@@ -632,12 +698,12 @@ export default function GrcPage(): JSX.Element {
   const _t = useAppT()
   const [tab, setTab] = useState('matrix')
 
-  const { data: rawRoles = [] } = useQuery({
+  const { data: rawRoles = [] } = useQuery<{ name: string; description?: string; color: string }[]>({
     queryKey: ['custom-roles'],
     queryFn: () => advancedConfigApi.getRoles().then(r => r.data),
   })
-  const roles = rawRoles.length > 0
-    ? rawRoles.map(r => ({ id: r.name, label: r.description || r.name, color: r.color }))
+  const roles: Role[] = rawRoles.length > 0
+    ? rawRoles.map((r: { name: string; description?: string; color: string }) => ({ id: r.name, label: r.description || r.name, color: r.color }))
     : FALLBACK_ROLES
 
   const TABS = [

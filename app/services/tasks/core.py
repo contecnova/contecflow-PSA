@@ -9,11 +9,11 @@ Exports:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 
 from app.models.project import Project, ProjectMember
 from app.models.semantic_engine import SemConfig

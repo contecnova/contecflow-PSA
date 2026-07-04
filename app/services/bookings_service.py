@@ -17,7 +17,6 @@ from app.core.security import create_access_token
 from app.models.billing_reports import Invoice, InvoiceLine
 from app.models.billing_reports import AutomationWorkflow
 from app.models.billing_reports import WorkflowExecution
-from app.models.bookings import TaskDependency
 from app.models.bookings import ResourceBooking
 from app.models.bookings import BookingType
 from app.models.bookings import ExchangeRate
@@ -31,7 +30,6 @@ from app.models.enterprise import SSOConfig
 from app.models.pipeline import Opportunity, OpportunityStage
 from app.models.project import Project, ProjectStatus
 from app.models.service_desk import Ticket
-from app.models.task import Task
 from app.models.user import User
 from app.services.audit import audit_log as _audit
 from datetime import time as _time
@@ -138,61 +136,6 @@ def _verify_api_key(key: str, hashed: str) -> bool:
     except Exception:
         logger.warning("Bookings API key verification raised unexpectedly", exc_info=True)
         return False
-
-
-# ── Task Dependencies ─────────────────────────────────────────────────────────
-
-def get_project_dependencies(project_id: str, db) -> list:
-    tasks = db.query(Task).filter(Task.project_id == project_id).all()
-    task_ids = {t.id for t in tasks}
-    deps = db.query(TaskDependency).options(
-        joinedload(TaskDependency.predecessor),
-        joinedload(TaskDependency.successor),
-    ).filter(TaskDependency.predecessor_id.in_(task_ids)).all()
-    return [{
-        "id": d.id,
-        "predecessor_id": d.predecessor_id,
-        "predecessor_title": d.predecessor.title if d.predecessor else None,
-        "successor_id": d.successor_id,
-        "successor_title": d.successor.title if d.successor else None,
-        "dependency_type": d.dependency_type,
-        "lag_days": d.lag_days,
-    } for d in deps]
-
-
-def create_task_dependency(payload, created_by_id, db) -> dict:
-    if payload.predecessor_id == payload.successor_id:
-        raise HTTPException(400, "Una tarea no puede depender de sí misma")
-    if db.query(TaskDependency).filter(
-        TaskDependency.predecessor_id == payload.successor_id,
-        TaskDependency.successor_id == payload.predecessor_id,
-    ).first():
-        raise HTTPException(400, "Esta dependencia crearía un ciclo")
-    if db.query(TaskDependency).filter(
-        TaskDependency.predecessor_id == payload.predecessor_id,
-        TaskDependency.successor_id == payload.successor_id,
-    ).first():
-        raise HTTPException(400, "Esta dependencia ya existe")
-    dep = TaskDependency(
-        predecessor_id=payload.predecessor_id,
-        successor_id=payload.successor_id,
-        dependency_type=payload.dependency_type,
-        lag_days=payload.lag_days,
-        created_by=created_by_id,
-    )
-    db.add(dep); db.commit()
-    return {"ok": True, "id": dep.id}
-
-
-def delete_task_dependency(dep_id: str, db) -> dict:
-    dep = db.query(TaskDependency).filter(TaskDependency.id == dep_id).first()
-    if not dep: raise HTTPException(404)
-    db.delete(dep); db.commit()
-    return {"ok": True}
-
-
-# ── Resource Bookings ─────────────────────────────────────────────────────────
-
 def list_bookings_records(user_id, project_id, start_date, end_date, booking_type, org_id, db) -> list:
     q = db.query(ResourceBooking).options(
         joinedload(ResourceBooking.user),

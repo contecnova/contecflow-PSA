@@ -9,7 +9,6 @@ Exported functions:
 """
 from __future__ import annotations
 
-import base64
 from typing import List, Optional
 
 from fastapi import HTTPException

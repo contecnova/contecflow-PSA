@@ -1,5 +1,5 @@
 """Service layer for Salesforce sync operations."""
-from datetime import date, datetime
+from datetime import date
 from app.core.timeutil import utcnow
 from typing import List, Optional
 

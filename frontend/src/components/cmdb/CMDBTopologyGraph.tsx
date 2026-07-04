@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * CMDBTopologyGraph — 2D SVG radial + 3D Plotly scatter3d topology viewer.
  *
@@ -9,50 +8,82 @@
  *  - centerName: string
  */
 import { useMemo, useState, useCallback } from 'react'
+import type { CSSProperties } from 'react'
+// @ts-expect-error react-plotly.js ships no type declarations
 import Plot from 'react-plotly.js'
 
-const CI_ICONS = {
+interface RawNode {
+  [key: string]: unknown
+  id: string
+  name?: string
+  ci_type?: string
+  is_center?: boolean
+  is_root?: boolean
+  status?: string
+  criticality?: string
+  hostname?: string
+  depth?: number
+}
+interface GraphNode extends RawNode {
+  is_center: boolean
+  status: string
+}
+interface RawEdge {
+  [key: string]: unknown
+  source: string
+  target: string
+  rel_type?: string
+  relation_type?: string
+}
+interface GraphEdge extends RawEdge {
+  rel_type: string
+}
+type Pos2D = { x: number; y: number }
+type Pos3D = { x: number; y: number; z: number }
+type DistMap = Record<string, number>
+
+const CI_ICONS: Record<string, string> = {
   server: '🖥️', application: '📱', database: '🗄️', network: '🌐',
   service: '⚙️', container: '📦', cloud: '☁️', endpoint: '💻',
   storage: '💾', other: '📌',
 }
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
   active: '#34d399',
   maintenance: '#f59e0b',
   decommissioned: '#f87171',
 }
 
 // Color por criticidad (cuando el payload viene del endpoint SD CMDB)
-const CRITICALITY_COLORS = {
+const CRITICALITY_COLORS: Record<string, string> = {
   low:      '#34d399',
   medium:   '#f59e0b',
   high:     '#fb923c',
   critical: '#f87171',
 }
 
-function normalizeNode(n) {
+function normalizeNode(n: RawNode): GraphNode {
   return {
     ...n,
-    is_center: n.is_center ?? n.is_root ?? false,
-    status: n.status ?? n.criticality ?? 'active',
+    is_center: (n.is_center ?? n.is_root ?? false) as boolean,
+    status: (n.status ?? n.criticality ?? 'active') as string,
   }
 }
 
-function normalizeEdge(e) {
+function normalizeEdge(e: RawEdge): GraphEdge {
   return {
     ...e,
-    rel_type: e.rel_type ?? e.relation_type ?? 'depends_on',
+    rel_type: (e.rel_type ?? e.relation_type ?? 'depends_on') as string,
   }
 }
 
-function pickNodeColor(n) {
+function pickNodeColor(n: GraphNode): string {
   // Prioriza criticality si está presente; fallback a status
   if (n.criticality && CRITICALITY_COLORS[n.criticality]) return CRITICALITY_COLORS[n.criticality]
   return STATUS_COLORS[n.status] || STATUS_COLORS.active
 }
 
-const REL_COLORS = {
+const REL_COLORS: Record<string, string> = {
   depends_on: '#4f8ef7',
   runs_on: '#60a5fa',
   connects_to: '#a78bfa',
@@ -62,13 +93,13 @@ const REL_COLORS = {
 }
 
 // Impact coloring by BFS hop distance from selected source node
-const IMPACT_COLORS = {
+const IMPACT_COLORS: Record<number, string> = {
   0: '#a78bfa', // source — violet
   1: '#f87171', // hop 1 — red (direct impact)
   2: '#fb923c', // hop 2 — orange
   3: '#f59e0b', // hop 3 — yellow
 }
-const IMPACT_LABELS = {
+const IMPACT_LABELS: Record<number, string> = {
   0: 'Origen del impacto',
   1: 'Impacto directo (hop 1)',
   2: 'Impacto indirecto (hop 2)',
@@ -77,17 +108,17 @@ const IMPACT_LABELS = {
 
 // ─── BFS ─────────────────────────────────────────────────────────────────────
 
-function bfsDistances(nodes, edges, sourceId) {
-  const adj = {}
+function bfsDistances(nodes: GraphNode[], edges: GraphEdge[], sourceId: string): DistMap {
+  const adj: Record<string, string[]> = {}
   nodes.forEach(n => { adj[n.id] = [] })
   edges.forEach(e => {
     if (adj[e.source] !== undefined) adj[e.source].push(e.target)
     if (adj[e.target] !== undefined) adj[e.target].push(e.source)
   })
-  const dist = { [sourceId]: 0 }
-  const queue = [sourceId]
+  const dist: DistMap = { [sourceId]: 0 }
+  const queue: string[] = [sourceId]
   while (queue.length) {
-    const curr = queue.shift()
+    const curr = queue.shift() as string
     for (const nb of (adj[curr] || [])) {
       if (dist[nb] === undefined) {
         dist[nb] = dist[curr] + 1
@@ -100,19 +131,19 @@ function bfsDistances(nodes, edges, sourceId) {
 
 // ─── 2D LAYOUT (radial layered by BFS hop) ───────────────────────────────────
 
-function layoutNodes2D(nodes, edges, width, height) {
+function layoutNodes2D(nodes: GraphNode[], edges: GraphEdge[], width: number, height: number): Record<string, Pos2D> {
   const center = nodes.find(n => n.is_center) || nodes[0]
   if (!center) return {}
   const cx = width / 2
   const cy = height / 2
   const dist = bfsDistances(nodes, edges, center.id)
-  const layers = {}
+  const layers: Record<number, GraphNode[]> = {}
   nodes.forEach(n => {
     const d = dist[n.id] ?? 99
     if (!layers[d]) layers[d] = []
     layers[d].push(n)
   })
-  const positions = {}
+  const positions: Record<string, Pos2D> = {}
   Object.entries(layers).forEach(([dStr, layerNodes]) => {
     const d = Number(dStr)
     if (d === 0) { positions[center.id] = { x: cx, y: cy }; return }
@@ -127,11 +158,11 @@ function layoutNodes2D(nodes, edges, width, height) {
 
 // ─── 3D LAYOUT (fibonacci sphere per BFS layer) ──────────────────────────────
 
-function fibonacciSphere(n, R) {
+function fibonacciSphere(n: number, R: number): Array<[number, number, number]> {
   if (n === 0) return []
   if (n === 1) return [[R, 0, 0]]
   const phi = Math.PI * (3 - Math.sqrt(5))
-  return Array.from({ length: n }, (_, i) => {
+  return Array.from({ length: n }, (_, i): [number, number, number] => {
     const y = (1 - (i / (n - 1)) * 2) * R
     const r = Math.sqrt(Math.max(0, R * R - y * y))
     const theta = phi * i
@@ -139,17 +170,17 @@ function fibonacciSphere(n, R) {
   })
 }
 
-function layout3D(nodes, edges) {
+function layout3D(nodes: GraphNode[], edges: GraphEdge[]): Record<string, Pos3D> {
   if (!nodes.length) return {}
   const center = nodes.find(n => n.is_center) || nodes[0]
   const dist = bfsDistances(nodes, edges, center.id)
-  const layers = {}
+  const layers: Record<number, string[]> = {}
   nodes.forEach(n => {
     const d = dist[n.id] ?? 99
     if (!layers[d]) layers[d] = []
     layers[d].push(n.id)
   })
-  const positions = { [center.id]: { x: 0, y: 0, z: 0 } }
+  const positions: Record<string, Pos3D> = { [center.id]: { x: 0, y: 0, z: 0 } }
   Object.entries(layers).forEach(([dStr, ids]) => {
     const d = Number(dStr)
     if (d === 0) return
@@ -163,7 +194,7 @@ function layout3D(nodes, edges) {
 
 // ─── TOOLBAR BUTTON STYLE ────────────────────────────────────────────────────
 
-const tbBtn = (active) => ({
+const tbBtn = (active: boolean): CSSProperties => ({
   padding: '4px 12px', borderRadius: 6, fontSize: "var(--text-sm)", cursor: 'pointer',
   border: '1px solid var(--surface-4)', fontFamily: 'inherit',
   background: active ? 'var(--accent)' : 'var(--surface-3)',
@@ -172,13 +203,26 @@ const tbBtn = (active) => ({
 
 // ─── 2D SVG COMPONENT ────────────────────────────────────────────────────────
 
-function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpactSourceChange, hovered, setHovered }) {
+interface GraphViewProps {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  impactDist: DistMap | null
+  impactRadius: number
+  onNodeClick?: (node: GraphNode) => void
+  onImpactSourceChange: (nodeId: string) => void
+}
+interface Graph2DProps extends GraphViewProps {
+  hovered: string | null
+  setHovered: (id: string | null) => void
+}
+
+function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpactSourceChange, hovered, setHovered }: Graph2DProps) {
   const W = 700
   const H = 500
 
   const positions = useMemo(() => layoutNodes2D(nodes, edges, W, H), [nodes, edges])
 
-  const getColor = useCallback((node) => {
+  const getColor = useCallback((node: GraphNode) => {
     if (impactDist) {
       const d = impactDist[node.id]
       if (d === undefined || d > impactRadius) return '#334155'
@@ -187,7 +231,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
     return pickNodeColor(node)
   }, [impactDist, impactRadius])
 
-  const getEdgeOpacity = useCallback((e) => {
+  const getEdgeOpacity = useCallback((e: GraphEdge) => {
     if (!impactDist) return 0.45
     const sd = impactDist[e.source], td = impactDist[e.target]
     if (sd === undefined || td === undefined) return 0.1
@@ -277,7 +321,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
             <text textAnchor="middle" dominantBaseline="middle"
               fontSize={isCenter ? 18 : 14} style={{ userSelect: 'none' }}
               opacity={isOutside ? 0.25 : 1}>
-              {CI_ICONS[n.ci_type] || '📌'}
+              {CI_ICONS[n.ci_type || ''] || '📌'}
             </text>
             <text
               textAnchor="middle" y={r + 13} fontSize="10"
@@ -290,7 +334,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
             {isHov && (
               <foreignObject x={r + 6} y={-r} width="170" height="92">
                 <div
-                  xmlns="http://www.w3.org/1999/xhtml"
+                  {...{ xmlns: 'http://www.w3.org/1999/xhtml' }}
                   style={{
                     background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
                     borderRadius: 8, padding: '6px 10px', fontSize: "var(--text-xs)",
@@ -321,10 +365,10 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
 
 // ─── 3D PLOTLY COMPONENT ─────────────────────────────────────────────────────
 
-function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpactSourceChange }) {
+function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpactSourceChange }: GraphViewProps) {
   const positions = useMemo(() => layout3D(nodes, edges), [nodes, edges])
 
-  const getNodeColor = useCallback((n) => {
+  const getNodeColor = useCallback((n: GraphNode) => {
     if (impactDist) {
       const d = impactDist[n.id]
       if (d === undefined || d > impactRadius) return '#334155'
@@ -333,7 +377,7 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
     return pickNodeColor(n)
   }, [impactDist, impactRadius])
 
-  const edgeX = [], edgeY = [], edgeZ = []
+  const edgeX: Array<number | null> = [], edgeY: Array<number | null> = [], edgeZ: Array<number | null> = []
   edges.forEach(e => {
     const sp = positions[e.source], tp = positions[e.target]
     if (!sp || !tp) return
@@ -405,7 +449,7 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
         layout={layout}
         config={{ displayModeBar: false, responsive: true }}
         style={{ width: '100%', height: 500 }}
-        onClick={(event) => {
+        onClick={(event: { points?: Array<{ curveNumber: number; customdata: string }> }) => {
           if (!event.points?.length) return
           const pt = event.points[0]
           // curveNumber 1 = nodeTrace (edgeTrace is 0)
@@ -425,7 +469,7 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
 
 // ─── IMPACT LEGEND ───────────────────────────────────────────────────────────
 
-function ImpactLegend({ impactRadius, sourceName }) {
+function ImpactLegend({ impactRadius, sourceName }: { impactRadius: number; sourceName?: string }) {
   return (
     <div style={{
       display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
@@ -452,10 +496,15 @@ function ImpactLegend({ impactRadius, sourceName }) {
 
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
 
-export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdges = [], onNodeClick, centerName }) {
-  const [hovered, setHovered] = useState(null)
+export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdges = [], onNodeClick, centerName }: {
+  nodes?: RawNode[]
+  edges?: RawEdge[]
+  onNodeClick?: (node: GraphNode) => void
+  centerName?: string
+}) {
+  const [hovered, setHovered] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState('2d')
-  const [impactSource, setImpactSource] = useState(null)
+  const [impactSource, setImpactSource] = useState<string | null>(null)
   const [impactRadius, setImpactRadius] = useState(2)
 
   const nodes = useMemo(() => rawNodes.map(normalizeNode), [rawNodes])
@@ -468,7 +517,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
 
   const impactSourceNode = nodes.find(n => n.id === impactSource)
 
-  const handleImpactSource = useCallback((nodeId) => {
+  const handleImpactSource = useCallback((nodeId: string) => {
     setImpactSource(prev => prev === nodeId ? null : nodeId)
   }, [])
 

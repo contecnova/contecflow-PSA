@@ -23,7 +23,6 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import func, or_
@@ -32,7 +31,6 @@ from sqlalchemy.orm import Session
 from app.models.service_desk import (
     ITSMChangeRequest,
     ChangeType,
-    ChangeStatus,
     MajorIncident,
     Problem,
     ProblemStatus,

@@ -74,3 +74,4 @@ htmlcov/
 .playwright-mcp/
 
 remaining_failures.txt
+frontend/reports/

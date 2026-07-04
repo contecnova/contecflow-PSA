@@ -1,7 +1,6 @@
 """Retention policies, legal hold, audit, eDiscovery."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 from app.core.timeutil import utcnow
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session

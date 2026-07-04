@@ -207,7 +207,9 @@ async def ocr_receipt(image_bytes: bytes, content_type: str) -> dict:
     )
 
     payload = {
-        "model": "claude-3-5-sonnet-20241022",
+        # Use the org-configured AI model (vision-capable) instead of a pinned
+        # legacy model, consistent with the rest of the platform.
+        "model": settings.CONTECFLOW_AI_MODEL,
         "max_tokens": 500,
         "system": _SYSTEM,
         "messages": [{

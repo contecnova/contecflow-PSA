@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
@@ -404,7 +403,7 @@ export function GovernedConversationInbox({
   const portalClients: UserOption[] = portalClientsData || EMPTY_LIST
 
   const createConversation = useMutation({
-    mutationFn: async (payload) => {
+    mutationFn: async (payload: CreateConversationForm) => {
       const createResponse = await apiClient.post(listPath, {
         title: payload.title,
         topic_type: payload.topic_type,
@@ -453,7 +452,7 @@ export function GovernedConversationInbox({
   })
 
   const reviewMessage = useMutation({
-    mutationFn: ({ messageId, decision }) => portalConversationsApi.reviewMessage(selectedConversationId, messageId, { decision }),
+    mutationFn: ({ messageId, decision }: { messageId: string; decision: 'approved' | 'rejected' }) => portalConversationsApi.reviewMessage(selectedConversationId, messageId, { decision }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [queryPrefix] })
       toast.success('Revisión aplicada')
@@ -463,9 +462,9 @@ export function GovernedConversationInbox({
 
   useEffect(() => {
     if (!enableRealtime || !wsTicketPath || !wsEndpoint) return undefined
-    let socket = null
-    let pingInterval = null
-    let reconnectTimer = null
+    let socket: WebSocket | null = null
+    let pingInterval: number | null = null
+    let reconnectTimer: number | null = null
     let closed = false
     let attempt = 0
     const MAX_ATTEMPTS = 5
@@ -474,7 +473,7 @@ export function GovernedConversationInbox({
       if (closed || attempt >= MAX_ATTEMPTS) return
       attempt++
       try {
-        const response = await apiClient.get(wsTicketPath)
+        const response = await apiClient.get(wsTicketPath!)
         const ticket = response?.data?.ticket
         if (!ticket || closed) return
         const wsBase = resolveWsBase()
@@ -623,7 +622,7 @@ export function GovernedConversationInbox({
 export function ConversationPoliciesPanel() {
   const toast = useToast()
   const qc = useQueryClient()
-  const [drafts, setDrafts] = useState({})
+  const [drafts, setDrafts] = useState<Record<string, Record<string, any>>>({})
 
   const { data: agentGroupsData } = useQuery({
     queryKey: ['sd-agent-groups', 'portal-conversations'],
@@ -638,8 +637,8 @@ export function ConversationPoliciesPanel() {
   const policies = policiesData || EMPTY_LIST
 
   useEffect(() => {
-    const nextDrafts = {}
-    policies.forEach((policy) => {
+    const nextDrafts: Record<string, Record<string, any>> = {}
+    policies.forEach((policy: any) => {
       nextDrafts[policy.topic_type] = {
         requires_client_message_approval: policy.requires_client_message_approval,
         requires_team_message_approval: policy.requires_team_message_approval,
@@ -662,7 +661,7 @@ export function ConversationPoliciesPanel() {
   }, [policies])
 
   const savePolicy = useMutation({
-    mutationFn: ({ topicType, payload }) => portalConversationsApi.updatePolicy(topicType, payload),
+    mutationFn: ({ topicType, payload }: { topicType: string; payload: any }) => portalConversationsApi.updatePolicy(topicType, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-conversation-policies'] })
       toast.success('Política guardada')
@@ -674,7 +673,7 @@ export function ConversationPoliciesPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {policies.map((policy) => {
+      {policies.map((policy: any) => {
         const draft = drafts[policy.topic_type] || {}
         return (
           <div key={policy.id} style={{ ...cardStyle, padding: '16px 18px' }}>
@@ -703,7 +702,7 @@ export function ConversationPoliciesPanel() {
                 <label style={labelStyle}>Pool de asignación</label>
                 <select value={draft.default_group_id || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_group_id: event.target.value } }))} style={inputStyle}>
                   <option value="">Sin pool</option>
-                  {agentGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+                  {agentGroups.map((group: any) => <option key={group.id} value={group.id}>{group.name}</option>)}
                 </select>
               </div>
               <div>
@@ -768,7 +767,7 @@ export function ConversationPoliciesPanel() {
   )
 }
 
-export function TeamGovernedConversationInbox(props) {
+export function TeamGovernedConversationInbox(props: Partial<GovernedConversationInboxProps>) {
   return (
     <GovernedConversationInbox
       {...props}
@@ -782,7 +781,7 @@ export function TeamGovernedConversationInbox(props) {
   )
 }
 
-export function ClientGovernedConversationInbox(props) {
+export function ClientGovernedConversationInbox(props: Partial<GovernedConversationInboxProps>) {
   return (
     <GovernedConversationInbox
       {...props}

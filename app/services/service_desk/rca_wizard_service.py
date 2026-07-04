@@ -385,7 +385,6 @@ def ai_assist_step(db: Session, problem: Problem, step_num: int) -> dict[str, st
     The hint is persisted in the step's ai_hint field.
     Returns {"hint": str, "provider": str}.
     """
-    import json as _j
     from app.services.ai_provider_service import call_ai
 
     state = _load_state(problem)
@@ -518,7 +517,6 @@ def classify_from_wizard(
     Returns one of: hardware|software|process|human|network|unknown
     Falls back to 'unknown' on any AI error.
     """
-    import json as _j
     from app.services.ai_provider_service import call_ai
 
     if state is None:

@@ -1,5 +1,4 @@
 """Admin + OAuth + Push + Digest endpoints para collaboration."""
-from datetime import datetime
 from app.core.timeutil import utcnow
 from typing import Optional
 
@@ -129,11 +128,12 @@ async def calendar_events(
     db: Session = Depends(get_db),
 ):
     """Devuelve eventos próximos de cualquier integracion calendario activa."""
-    rows = db.query(CollaborationIntegration).filter(
+    from app.core.async_db import run_db
+    rows = await run_db(lambda: db.query(CollaborationIntegration).filter(
         CollaborationIntegration.organization_id == current_user.organization_id,
         CollaborationIntegration.is_enabled == True,  # noqa: E712
         CollaborationIntegration.kind.in_(["google_calendar", "microsoft_365"]),
-    ).all()
+    ).all())
     out = []
     for it in rows:
         try:
@@ -178,21 +178,32 @@ async def oauth_callback(
     integration_id, token_data, err = await handle_callback(state, code)
     if err or not integration_id:
         return HTMLResponse(f"<h2>OAuth error</h2><pre>{err}</pre>", status_code=400)
-    row = db.query(CollaborationIntegration).filter(CollaborationIntegration.id == integration_id).first()
-    if not row:
+
+    from app.core.async_db import run_db
+
+    def _persist_tokens():
+        row = db.query(CollaborationIntegration).filter(
+            CollaborationIntegration.id == integration_id
+        ).first()
+        if not row:
+            return None
+        row.access_token_enc = encrypt(token_data.get("access_token"))
+        row.refresh_token_enc = encrypt(token_data.get("refresh_token"))
+        expires_in = token_data.get("expires_in")
+        if expires_in:
+            from datetime import timedelta
+            row.token_expires_at = utcnow() + timedelta(seconds=int(expires_in))
+        cfg = dict(row.config or {})
+        # Persist additional provider-specific data (cloud_id Jira, etc.)
+        for k in ("cloud_id", "scope", "token_type", "id_token"):
+            if k in token_data:
+                cfg[k] = token_data[k]
+        row.config = cfg
+        row.is_enabled = True
+        db.commit()
+        return row.kind
+
+    kind = await run_db(_persist_tokens)
+    if kind is None:
         return HTMLResponse("<h2>Integración inexistente</h2>", status_code=404)
-    row.access_token_enc = encrypt(token_data.get("access_token"))
-    row.refresh_token_enc = encrypt(token_data.get("refresh_token"))
-    expires_in = token_data.get("expires_in")
-    if expires_in:
-        from datetime import timedelta
-        row.token_expires_at = utcnow() + timedelta(seconds=int(expires_in))
-    cfg = dict(row.config or {})
-    # Persist additional provider-specific data (cloud_id Jira, etc.)
-    for k in ("cloud_id", "scope", "token_type", "id_token"):
-        if k in token_data:
-            cfg[k] = token_data[k]
-    row.config = cfg
-    row.is_enabled = True
-    db.commit()
-    return HTMLResponse(f"<h2>OAuth completado para {row.kind} ✓</h2><p>Puedes cerrar esta ventana.</p>")
+    return HTMLResponse(f"<h2>OAuth completado para {kind} ✓</h2><p>Puedes cerrar esta ventana.</p>")

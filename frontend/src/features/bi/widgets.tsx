@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMemo, useState, type ReactNode, type ChangeEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -102,7 +101,7 @@ function KpiGridWidget({ filters }: WidgetFiltersProps) {
 
   const { data: kpis } = useQuery<DashRow | null>({
     queryKey: ['bi-kpis', filterParams],
-    queryFn: () => dashboardApi.kpis(filterParams).then((r: { data: DashRow }) => r.data).catch(() => ({})),
+    queryFn: () => (dashboardApi.kpis as (params?: unknown) => Promise<{ data: DashRow }>)(filterParams).then((r: { data: DashRow }) => r.data).catch(() => ({})),
   })
   const { data: health = [] } = useQuery<DashRow[]>({
     queryKey: ['bi-health', filterParams],
@@ -122,7 +121,7 @@ function KpiGridWidget({ filters }: WidgetFiltersProps) {
   const items = [
     { icon: '⬡', label: t('bi.active_projects'), value: health.length, color: BLUE, sub: `${onTrackPct}% ${t('bi.on_time_pct')}` },
     { icon: '▦', label: t('bi.overdue_tasks'), value: kpis?.tasks_overdue ?? 0, color: (kpis?.tasks_overdue ?? 0) > 0 ? RED : GREEN, sub: t('bi.need_attention') },
-    { icon: '💰', label: t('bi.budget_used'), value: kpis?.total_budget > 0 ? `${Math.round((kpis.total_spent / kpis.total_budget) * 100)}%` : '—', color: AMBER, sub: `${fmtCur(kpis?.total_spent ?? 0, lang, currency)} ${t('bi.spent_amount')}` },
+    { icon: '💰', label: t('bi.budget_used'), value: (kpis?.total_budget ?? 0) > 0 ? `${Math.round(((kpis?.total_spent ?? 0) / (kpis?.total_budget ?? 1)) * 100)}%` : '—', color: AMBER, sub: `${fmtCur(kpis?.total_spent ?? 0, lang, currency)} ${t('bi.spent_amount')}` },
     { icon: '🎫', label: t('bi.open_tickets'), value: kpis?.tasks_open ?? 0, color: PURPLE, sub: t('bi.service_desk_short') },
     { icon: '⏱', label: t('bi.hours_this_week'), value: kpis?.hours_logged_this_week?.toFixed(0) ?? '0', color: 'var(--sky-blue)', sub: `${deltaHours >= 0 ? '▲' : '▼'} ${Math.abs(deltaHours).toFixed(1)}% ${t('bi.previous_period')}` },
     { icon: '🚨', label: t('bi.critical_projects'), value: critProj, color: critProj > 0 ? RED : GREEN, sub: t('bi.out_of_time_budget') },
@@ -363,8 +362,8 @@ function TopClientsWidget({ filters, onFilterClient }: TopClientsProps) {
         byClient[cid].projects++
       })
       return Object.values(byClient)
-        .map((d: DashRow) => ({ ...d, avg_margin: Math.round(d.margin.reduce((a: number, b: number) => a + b, 0) / d.margin.length) }))
-        .sort((a, b) => b.revenue - a.revenue)
+        .map((d: DashRow): DashRow => ({ ...d, avg_margin: Math.round(d.margin.reduce((a: number, b: number) => a + b, 0) / d.margin.length) }))
+        .sort((a: DashRow, b: DashRow) => b.revenue - a.revenue)
         .slice(0, 8)
     }).catch(() => []),
   })

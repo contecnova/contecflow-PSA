@@ -1,7 +1,5 @@
 """Voice/video calls — LiveKit autohosteado."""
-from datetime import datetime
 from app.core.timeutil import utcnow
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -11,7 +9,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.models.collaboration import (
     CollaborationCall, CollaborationCallParticipant,
-    CollaborationConversation, CollaborationRecording, CollaborationTranscript,
+    CollaborationRecording, CollaborationTranscript,
 )
 from app.schemas.collaboration import CallStartIn, CallSummaryOut, CallTokenOut
 from app.services.collaboration import audit_log

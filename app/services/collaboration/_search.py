@@ -76,8 +76,7 @@ def _resolve_author(db: Session, value: str, organization_id: str) -> Optional[s
 
 def _apply_filters(q, db: Session, *, organization_id: str, parsed, conversation_ids, author_user_id, date_from, date_to):
     from app.models.collaboration import (
-        CollaborationAttachment, CollaborationMention, CollaborationMessage as M,
-        CollaborationPinnedMessage, CollaborationSavedMessage,
+        CollaborationMention, CollaborationMessage as M, CollaborationSavedMessage,
     )
 
     q = q.filter(M.organization_id == organization_id, M.status != "deleted")

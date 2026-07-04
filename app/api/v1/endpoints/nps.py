@@ -11,7 +11,7 @@ Routes:
   GET  /nps/leaderboard                    — top/bottom clients by health score
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from app.core.timeutil import utcnow
 from typing import Optional
 

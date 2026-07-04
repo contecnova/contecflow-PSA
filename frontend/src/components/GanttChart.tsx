@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useAppT } from '../i18n/AppLangContext'
 /**
  * GanttChart v2 — Production-quality Interactive Gantt
@@ -11,8 +10,50 @@ import { useAppT } from '../i18n/AppLangContext'
  */
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 
-const ZOOM_PRESETS = ['day', 'week', 'month', 'quarter']
-const DAY_PX = { day: 22, week: 12, month: 6, quarter: 3 }
+type Zoom = 'day' | 'week' | 'month' | 'quarter'
+
+interface GanttItem {
+  [k: string]: unknown
+  id: string
+  title?: string
+  name?: string
+  status?: string
+  start_date?: string
+  due_date?: string
+  end_date?: string
+  end_date_planned?: string
+  group_id?: string
+  is_group?: boolean
+  type?: string
+  is_milestone?: boolean
+  is_critical?: boolean
+  story_points?: number
+  assignee_name?: string
+  progress_pct?: number | null
+  baseline_start?: string
+  baseline_end?: string
+}
+
+interface GanttDep {
+  predecessor_id: string
+  successor_id: string
+  dependency_type?: string
+}
+
+interface AiSuggestion {
+  severity?: string
+  type?: string
+  message?: string
+  suggestions?: string[]
+}
+
+interface DragState { id: string; start: string; end: string; type: 'move' | 'resize' }
+interface DepDraw { fromId: string; fromX: number; fromY: number; toX: number; toY: number }
+interface RowLayout { item: GanttItem; y: number; h: number; isGroup: boolean }
+interface Tooltip { item: GanttItem; x: number; y: number }
+
+const ZOOM_PRESETS: Zoom[] = ['day', 'week', 'month', 'quarter']
+const DAY_PX: Record<Zoom, number> = { day: 22, week: 12, month: 6, quarter: 3 }
 const ROW_H    = 38
 const GROUP_H  = 28
 const HDR_TOP  = 28
@@ -22,7 +63,7 @@ const LABEL_W  = 252
 const BAR_PAD  = 7
 const MS_R     = 7
 
-const STATUS_COLOR = {
+const STATUS_COLOR: Record<string, string> = {
   todo: 'var(--text-3)',
   in_progress: 'var(--accent)',
   in_review: 'var(--warning)',
@@ -36,25 +77,27 @@ const STATUS_COLOR = {
   on_hold: 'var(--warning)',
 }
 
-function parseDate(s) {
+function parseDate(s: unknown): Date | null {
   if (!s) return null
   if (s instanceof Date) return s
   // Handle both 'YYYY-MM-DD' and 'YYYY-MM-DDTHH:mm:ss' formats
-  const d = new Date(s.length > 10 ? s : s + 'T00:00:00')
+  const str = String(s)
+  const d = new Date(str.length > 10 ? str : str + 'T00:00:00')
   return isNaN(d.getTime()) ? null : d
 }
-function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r }
-function daysBetween(a, b) { return Math.round((b - a) / 86400000) }
-function fmtDate(d) { return d ? d.toISOString().slice(0, 10) : '' }
-function weekNum(d) {
+function addDays(d: Date, n: number): Date { const r = new Date(d); r.setDate(r.getDate() + n); return r }
+function daysBetween(a: Date, b: Date): number { return Math.round((b.getTime() - a.getTime()) / 86400000) }
+function fmtDate(d: Date | null): string { return d ? d.toISOString().slice(0, 10) : '' }
+function weekNum(d: Date): number {
   const s = new Date(d.getFullYear(), 0, 1)
-  return Math.ceil(((d - s) / 86400000 + s.getDay() + 1) / 7)
+  return Math.ceil(((d.getTime() - s.getTime()) / 86400000 + s.getDay() + 1) / 7)
 }
-function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1) }
-function startOfQuarter(d) { return new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1) }
-function startOfMonday(d) { const r = new Date(d); const day = r.getDay(); r.setDate(r.getDate() - (day === 0 ? 6 : day - 1)); return r }
+function startOfMonth(d: Date): Date { return new Date(d.getFullYear(), d.getMonth(), 1) }
+function startOfQuarter(d: Date): Date { return new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1) }
+function startOfMonday(d: Date): Date { const r = new Date(d); const day = r.getDay(); r.setDate(r.getDate() - (day === 0 ? 6 : day - 1)); return r }
 
-function getTopTicks(zoom, minD, maxD) {
+interface Tick { d: Date; label: string }
+function getTopTicks(zoom: Zoom, minD: Date, maxD: Date): Tick[] {
   const ticks = []
   if (zoom === 'day' || zoom === 'week') {
     let d = startOfMonth(minD)
@@ -80,7 +123,7 @@ function getTopTicks(zoom, minD, maxD) {
   return ticks
 }
 
-function getBotTicks(zoom, minD, maxD) {
+function getBotTicks(zoom: Zoom, minD: Date, maxD: Date): Tick[] {
   const ticks = []
   if (zoom === 'day') {
     let d = new Date(minD)
@@ -112,7 +155,7 @@ function getBotTicks(zoom, minD, maxD) {
   return ticks
 }
 
-function getWeekends(zoom, minD, maxD, dateToX, dayPx) {
+function getWeekends(zoom: Zoom, minD: Date, maxD: Date, dateToX: (d: Date) => number, dayPx: number): { x: number; w: number }[] {
   if (zoom !== 'day' && zoom !== 'week') return []
   const result = []
   let d = new Date(minD)
@@ -121,6 +164,17 @@ function getWeekends(zoom, minD, maxD, dateToX, dayPx) {
     d = addDays(d, 1)
   }
   return result
+}
+
+interface GanttChartProps {
+  tasks?: GanttItem[]
+  projects?: GanttItem[]
+  mode?: 'project' | 'portfolio'
+  onTaskUpdate?: (update: { id: string; start: string; end: string; type: string }) => void
+  onDepCreate?: (dep: { predecessor_id: string; successor_id: string }) => void
+  showBaseline?: boolean
+  dependencies?: GanttDep[]
+  aiSuggestions?: Record<string, AiSuggestion>
 }
 
 export default function GanttChart({
@@ -132,23 +186,23 @@ export default function GanttChart({
   showBaseline = false,
   dependencies = [],
   aiSuggestions = {},
-}) {
+}: GanttChartProps) {
     const t = useAppT()
-  const [zoom, setZoom]           = useState('month')
-  const [dragState, setDragState] = useState(null)
-  const [depDraw, setDepDraw]     = useState(null)
-  const [collapsed, setCollapsed] = useState(new Set())
-  const [tooltip, setTooltip]     = useState(null)
-  const [hoveredDep, setHoveredDep] = useState(null)
+  const [zoom, setZoom]           = useState<Zoom>('month')
+  const [dragState, setDragState] = useState<DragState | null>(null)
+  const [depDraw, setDepDraw]     = useState<DepDraw | null>(null)
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [tooltip, setTooltip]     = useState<Tooltip | null>(null)
+  const [hoveredDep, setHoveredDep] = useState<number | null>(null)
 
-  const scrollRef = useRef(null)
-  const labelRef  = useRef(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const labelRef  = useRef<HTMLDivElement>(null)
   const dayPx = DAY_PX[zoom]
 
-  const allItems = mode === 'portfolio' ? projects : tasks
+  const allItems: GanttItem[] = mode === 'portfolio' ? projects : tasks
 
   const { minDate, maxDate } = useMemo(() => {
-    const dates = []
+    const dates: Date[] = []
     for (const item of allItems) {
       const s = parseDate(item.start_date)
       const e = parseDate(item.due_date || item.end_date_planned || item.end_date)
@@ -159,16 +213,17 @@ export default function GanttChart({
       const t = new Date()
       return { minDate: addDays(t, -30), maxDate: addDays(t, 60) }
     }
+    const times = dates.map(d => d.getTime())
     return {
-      minDate: addDays(new Date(Math.min(...dates)), -14),
-      maxDate: addDays(new Date(Math.max(...dates)), 21),
+      minDate: addDays(new Date(Math.min(...times)), -14),
+      maxDate: addDays(new Date(Math.max(...times)), 21),
     }
   }, [allItems])
 
   const totalDays = daysBetween(minDate, maxDate)
   const chartW    = Math.max(totalDays * dayPx, 600)
 
-  const dateToX = useCallback((d) => {
+  const dateToX = useCallback((d: Date | null) => {
     if (!d) return 0
     return daysBetween(minDate, d) * dayPx
   }, [minDate, dayPx])
@@ -180,15 +235,15 @@ export default function GanttChart({
   const today  = new Date()
   const todayX = dateToX(today)
 
-  const items = useMemo(() => allItems.filter(item => {
+  const items = useMemo<GanttItem[]>(() => allItems.filter(item => {
     if (!item.group_id) return true
     return !collapsed.has(item.group_id)
   }), [allItems, collapsed])
 
-  const rowsLayout = useMemo(() => {
-    const acc = { y: 0, rows: [] }
+  const rowsLayout = useMemo<RowLayout[]>(() => {
+    const acc: { y: number; rows: RowLayout[] } = { y: 0, rows: [] }
     for (const item of items) {
-      const isGroup = item.is_group || item.type === 'group' || item.type === 'phase'
+      const isGroup = !!(item.is_group || item.type === 'group' || item.type === 'phase')
       const h = isGroup ? GROUP_H : ROW_H
       acc.rows.push({ item, y: acc.y, h, isGroup })
       acc.y += h
@@ -200,22 +255,23 @@ export default function GanttChart({
   const svgHeight = HEADER_H + totalContentH + 16
 
   const itemYCenter = useMemo(() => {
-    const map = {}
+    const map: Record<string, number> = {}
     rowsLayout.forEach(({ item, y, h }) => { map[item.id] = HEADER_H + y + h / 2 })
     return map
   }, [rowsLayout])
 
-  const onRightScroll = useCallback((e) => {
-    if (labelRef.current) labelRef.current.scrollTop = e.target.scrollTop
+  const onRightScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    if (labelRef.current) labelRef.current.scrollTop = e.currentTarget.scrollTop
   }, [])
 
   useEffect(() => {
-    const handler = (e) => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as Element | null
       if (e.key === 'Escape') { setDragState(null); setDepDraw(null) }
-      if ((e.key === '+' || e.key === '=') && !e.target.closest('input,textarea')) {
+      if ((e.key === '+' || e.key === '=') && !target?.closest('input,textarea')) {
         setZoom(z => { const i = ZOOM_PRESETS.indexOf(z); return i > 0 ? ZOOM_PRESETS[i - 1] : z })
       }
-      if (e.key === '-' && !e.target.closest('input,textarea')) {
+      if (e.key === '-' && !target?.closest('input,textarea')) {
         setZoom(z => { const i = ZOOM_PRESETS.indexOf(z); return i < ZOOM_PRESETS.length - 1 ? ZOOM_PRESETS[i + 1] : z })
       }
     }
@@ -223,7 +279,7 @@ export default function GanttChart({
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  const startDrag = useCallback((e, item, type) => {
+  const startDrag = useCallback((e: React.MouseEvent, item: GanttItem, type: 'move' | 'resize') => {
     if (type === 'resize' && e.shiftKey && onDepCreate) {
       e.preventDefault(); e.stopPropagation()
       const svgR  = scrollRef.current?.getBoundingClientRect()
@@ -231,15 +287,15 @@ export default function GanttChart({
       const fromX = dateToX(parseDate(item.due_date || item.end_date_planned)) + 8
       const fromY = HEADER_H + (row?.y || 0) + (row?.h || ROW_H) / 2
       setDepDraw({ fromId: item.id, fromX, fromY, toX: fromX, toY: fromY })
-      const onMove = (me) => {
+      const onMove = (me: MouseEvent) => {
         const scrollX = scrollRef.current?.scrollLeft || 0
         const scrollY = scrollRef.current?.scrollTop  || 0
-        setDepDraw(d => ({ ...d,
+        setDepDraw(d => d && ({ ...d,
           toX: me.clientX - (svgR?.left || 0) + scrollX,
           toY: me.clientY - (svgR?.top  || 0) + scrollY,
         }))
       }
-      const onUp = (me) => {
+      const onUp = (me: MouseEvent) => {
         document.removeEventListener('mousemove', onMove)
         document.removeEventListener('mouseup', onUp)
         setDepDraw(null)
@@ -258,7 +314,7 @@ export default function GanttChart({
     const startX = e.clientX
     const origS  = parseDate(item.start_date)
     const origE  = parseDate(item.due_date || item.end_date_planned || item.end_date)
-    const onMove = (me) => {
+    const onMove = (me: MouseEvent) => {
       const dDays = Math.round((me.clientX - startX) / dayPx)
       if (type === 'move') {
         setDragState({ id: item.id, start: fmtDate(origS ? addDays(origS, dDays) : null), end: fmtDate(origE ? addDays(origE, dDays) : null), type: 'move' })
@@ -278,7 +334,7 @@ export default function GanttChart({
     document.addEventListener('mouseup', onUp)
   }, [dayPx, dateToX, onTaskUpdate, onDepCreate, rowsLayout])
 
-  const LBL_ZOOM = {
+  const LBL_ZOOM: Record<Zoom, string> = {
     day: t('gantt.view_day'),
     week: t('gantt.view_week'),
     month: t('gantt.view_month'),
@@ -315,7 +371,7 @@ export default function GanttChart({
           </button>
         ))}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, fontSize: "var(--text-xs)", color: 'var(--text-2)', alignItems: 'center', flexWrap: 'wrap' }}>
-          {[['var(--accent)', t('tasks.status_in_progress'), false], ['var(--success)', t('common.completed'), false], ['var(--danger)', t('tasks.status_blocked'), false], ['var(--purple)', t('gantt.milestone'), true]].map(([c, l, rot]) => (
+          {([['var(--accent)', t('tasks.status_in_progress'), false], ['var(--success)', t('common.completed'), false], ['var(--danger)', t('tasks.status_blocked'), false], ['var(--purple)', t('gantt.milestone'), true]] as [string, string, boolean][]).map(([c, l, rot]) => (
             <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <div style={{ width: 10, height: 10, background: c, borderRadius: rot ? 2 : 3, transform: rot ? 'rotate(45deg)' : 'none' }} />
               {l}
@@ -344,9 +400,10 @@ export default function GanttChart({
           </div>
           <div ref={labelRef} style={{ overflow: 'hidden', flex: 1 }}>
             {rowsLayout.map(({ item, h, isGroup }) => {
-              const isOverdue = !isGroup && item.due_date && parseDate(item.due_date) < today &&
-                !['done', 'closed', 'cancelled'].includes(item.status)
-              const dotColor = isOverdue ? 'var(--danger)' : (STATUS_COLOR[item.status] || 'var(--text-3)')
+              const dueD = parseDate(item.due_date)
+              const isOverdue = !isGroup && !!item.due_date && !!dueD && dueD < today &&
+                !['done', 'closed', 'cancelled'].includes(item.status || '')
+              const dotColor = isOverdue ? 'var(--danger)' : (STATUS_COLOR[item.status || ''] || 'var(--text-3)')
               return (
                 <div key={item.id} style={{
                   height: h, borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 60%, transparent)',
@@ -372,7 +429,7 @@ export default function GanttChart({
                       <span style={{ fontSize: "var(--text-sm)", color: isOverdue ? 'var(--danger)' : 'rgba(200,216,240,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                         {item.title || item.name}
                       </span>
-                      {item.story_points > 0 && (
+                      {(item.story_points ?? 0) > 0 && (
                         <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'var(--surface-4)', padding: '1px 4px', borderRadius: 4, flexShrink: 0 }}>
                           {item.story_points}p
                         </span>
@@ -451,8 +508,8 @@ export default function GanttChart({
                 : item
               const startD    = parseDate(eff.start_date)
               const endD      = parseDate(eff.due_date || eff.end_date_planned || eff.end_date)
-              const isOverdue = endD && endD < today && !['done', 'closed', 'cancelled'].includes(item.status)
-              const barColor  = isOverdue ? 'var(--danger)' : item.is_critical ? 'var(--orange)' : (STATUS_COLOR[item.status] || 'var(--text-3)')
+              const isOverdue = endD && endD < today && !['done', 'closed', 'cancelled'].includes(item.status || '')
+              const barColor  = isOverdue ? 'var(--danger)' : item.is_critical ? 'var(--orange)' : (STATUS_COLOR[item.status || ''] || 'var(--text-3)')
               const isDragging = dragState?.id === item.id
               const progress   = item.progress_pct != null ? item.progress_pct / 100
                 : item.status === 'done' ? 1 : item.status === 'in_progress' ? 0.4 : 0
@@ -542,7 +599,7 @@ export default function GanttChart({
                   {onTaskUpdate && (
                     <rect x={x1 + bW - 8} y={bY + 2} width={8} height={bH - 4} rx={2}
                       fill={barColor + '55'} style={{ cursor: 'ew-resize' }}
-                      title={onDepCreate ? 'Redimensionar · Shift+drag = crear dependencia' : 'Redimensionar'}
+                      {...{ title: onDepCreate ? 'Redimensionar · Shift+drag = crear dependencia' : 'Redimensionar' } as object}
                       onMouseDown={e => { e.stopPropagation(); startDrag(e, item, 'resize') }} />
                   )}
 
@@ -633,7 +690,7 @@ export default function GanttChart({
                   <text x={tx + 8} y={ty + 30} fontSize={10} fill="var(--text-3)" fontFamily="inherit">
                     {item.start_date || '?'} {'→'} {item.due_date || item.end_date_planned || '?'}
                   </text>
-                  <text x={tx + 8} y={ty + 44} fontSize={10} fill={STATUS_COLOR[item.status] || 'var(--text-3)'} fontFamily="inherit">
+                  <text x={tx + 8} y={ty + 44} fontSize={10} fill={STATUS_COLOR[item.status || ''] || 'var(--text-3)'} fontFamily="inherit">
                     {item.status}{item.progress_pct != null ? ` · ${item.progress_pct}%` : ''}{item.story_points ? ` · ${item.story_points}p` : ''}
                   </text>
                   {sug && (

@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -14,15 +14,17 @@ import { useAppT } from '../i18n/AppLangContext'
 import CMDBTopologyGraph from '../components/cmdb/CMDBTopologyGraph'
 import Cmdb3dGraph from '../components/servicedesk/Cmdb3dGraph'
 
-const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+
+type CI = { [k: string]: any; id: string; name?: string; ci_type?: string; status?: string; environment?: string; description?: string; attributes?: Record<string, any> }
 
 const CI_TYPES = ['server','application','database','network','service','container','cloud','endpoint','storage','other']
-const CI_TYPE_ICONS = {server:'🖥️',application:'📱',database:'🗄️',network:'🌐',service:'⚙️',container:'📦',cloud:'☁️',endpoint:'💻',storage:'💾',other:'📌'}
+const CI_TYPE_ICONS: Record<string, string> = {server:'🖥️',application:'📱',database:'🗄️',network:'🌐',service:'⚙️',container:'📦',cloud:'☁️',endpoint:'💻',storage:'💾',other:'📌'}
 
 // Campos específicos por tipo de CI
-const CI_TYPE_FIELDS = {
+const CI_TYPE_FIELDS: Record<string, {k:string;l:string;ph:string;type?:string}[]> = {
   server:      [{k:'hostname',l:'Hostname',ph:'web-01.interno.com'},{k:'ip_address',l:'IP Address',ph:'192.168.1.10'},{k:'os',l:'Sistema Operativo',ph:'Ubuntu 22.04'},{k:'cpu_cores',l:'CPU Cores',ph:'8',type:'number'},{k:'ram_gb',l:'RAM (GB)',ph:'32',type:'number'},{k:'serial_number',l:'Número de serie',ph:'SN12345'},{k:'location',l:'Ubicación física',ph:'CPD Rack A-12'}],
   application: [{k:'url',l:'URL',ph:'https://app.empresa.com'},{k:'version',l:'Versión',ph:'v2.4.1'},{k:'tech_stack',l:'Stack tecnológico',ph:'React / Python / PostgreSQL'},{k:'repo_url',l:'Repositorio',ph:'https://github.com/org/repo'},{k:'owner_team',l:'Equipo responsable',ph:'Equipo Plataforma'},{k:'sla_tier',l:'Tier SLA',ph:'Gold'}],
   database:    [{k:'db_engine',l:'Motor BD',ph:'PostgreSQL 15'},{k:'hostname',l:'Host',ph:'db-prod-01'},{k:'ip_address',l:'IP',ph:'10.0.1.5'},{k:'port',l:'Puerto',ph:'5432'},{k:'size_gb',l:'Tamaño (GB)',ph:'500',type:'number'},{k:'backup_schedule',l:'Backup',ph:'Diario 02:00h'}],
@@ -34,17 +36,17 @@ const CI_TYPE_FIELDS = {
   storage:     [{k:'hostname',l:'Host/NAS',ph:'nas-prod-01'},{k:'ip_address',l:'IP',ph:'10.0.2.10'},{k:'capacity_tb',l:'Capacidad (TB)',ph:'20',type:'number'},{k:'used_tb',l:'Usado (TB)',ph:'8',type:'number'},{k:'protocol',l:'Protocolo',ph:'NFS / iSCSI / SMB'},{k:'vendor',l:'Fabricante',ph:'NetApp'}],
   other:       [{k:'hostname',l:'Hostname',ph:''},{k:'ip_address',l:'IP',ph:''},{k:'version',l:'Versión',ph:''},{k:'serial_number',l:'Serie',ph:''},{k:'location',l:'Ubicación',ph:''}],
 }
-const STATUS_CFG = {active:{label:'Activo',color:'var(--success)'},maintenance:{label:'Mantenimiento',color:'var(--warning)'},decommissioned:{label:'Retirado',color:'var(--danger)'}}
-const ENV_CFG   = {production:{label:'Producción',color:'var(--danger)'},staging:{label:'Staging',color:'var(--warning)'},dev:{label:'Dev',color:'var(--accent)'}}
+const STATUS_CFG: Record<string, {label:string;color:string}> = {active:{label:'Activo',color:'var(--success)'},maintenance:{label:'Mantenimiento',color:'var(--warning)'},decommissioned:{label:'Retirado',color:'var(--danger)'}}
+const ENV_CFG: Record<string, {label:string;color:string}>   = {production:{label:'Producción',color:'var(--danger)'},staging:{label:'Staging',color:'var(--warning)'},dev:{label:'Dev',color:'var(--accent)'}}
 const REL_TYPES = ['depends_on','runs_on','connects_to','hosts','monitors','backs_up']
 
-function CMDBItemForm({ item, categories, onClose }) {
+function CMDBItemForm({ item, categories, onClose }: { item: CI | null; categories: CI[]; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!item?.id
   // Extraer campos específicos desde item.attributes al editar
   const existingAttrs = item?.attributes || {}
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Record<string, unknown>>({
     name:        item?.name        || '',
     ci_type:     item?.ci_type     || 'server',
     category_id: item?.category_id || '',
@@ -58,13 +60,13 @@ function CMDBItemForm({ item, categories, onClose }) {
     // Campos específicos por tipo — inicializados desde attributes
     ...existingAttrs,
   })
-  const set = k => v => setForm(f => ({...f, [k]: v}))
+  const set = (k: string) => (v: unknown) => setForm((f: Record<string, unknown>) => ({...f, [k]: v}))
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit
+    mutationFn: (d: Record<string, unknown>) => isEdit
       ? cmdbApi.updateItem(item.id, d).then(r => r.data)
       : cmdbApi.createItem(d).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['cmdb-items']); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cmdb-items'] }); onClose() },
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
 
@@ -74,11 +76,11 @@ function CMDBItemForm({ item, categories, onClose }) {
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
           <div>
             <label style={ls}>Nombre</label>
-            <input style={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder="Ej: Servidor Web 01" />
+            <input style={is} value={String(form.name ?? '')} onChange={e => set('name')(e.target.value)} placeholder="Ej: Servidor Web 01" />
           </div>
           <div>
             <label style={ls}>Tipo</label>
-            <select style={is} value={form.ci_type} onChange={e => set('ci_type')(e.target.value)}>
+            <select style={is} value={String(form.ci_type ?? '')} onChange={e => set('ci_type')(e.target.value)}>
               {CI_TYPES.map(t => <option key={t} value={t}>{CI_TYPE_ICONS[t]} {t}</option>)}
             </select>
           </div>
@@ -86,38 +88,38 @@ function CMDBItemForm({ item, categories, onClose }) {
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
           <div>
             <label style={ls}>Estado</label>
-            <select style={is} value={form.status} onChange={e => set('status')(e.target.value)}>
+            <select style={is} value={String(form.status ?? '')} onChange={e => set('status')(e.target.value)}>
               {Object.entries(STATUS_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
           <div>
             <label style={ls}>Entorno</label>
-            <select style={is} value={form.environment} onChange={e => set('environment')(e.target.value)}>
+            <select style={is} value={String(form.environment ?? '')} onChange={e => set('environment')(e.target.value)}>
               {Object.entries(ENV_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
           <div>
             <label style={ls}>Categoría</label>
-            <select style={is} value={form.category_id} onChange={e => set('category_id')(e.target.value)}>
+            <select style={is} value={String(form.category_id ?? '')} onChange={e => set('category_id')(e.target.value)}>
               <option value="">Sin categoría</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {categories.map((c: CI) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
         </div>
         {/* Campos específicos por tipo */}
-        {(CI_TYPE_FIELDS[form.ci_type] || CI_TYPE_FIELDS.other).length > 0 && (
+        {(CI_TYPE_FIELDS[String(form.ci_type ?? '')] || CI_TYPE_FIELDS.other).length > 0 && (
           <div>
             <div style={{fontSize: "var(--text-xs)",fontWeight:700,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10}}>
-              {CI_TYPE_ICONS[form.ci_type]} Campos específicos — {form.ci_type}
+              {CI_TYPE_ICONS[String(form.ci_type ?? '')]} Campos específicos — {String(form.ci_type ?? '')}
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-              {(CI_TYPE_FIELDS[form.ci_type] || CI_TYPE_FIELDS.other).map(field => (
+              {(CI_TYPE_FIELDS[String(form.ci_type ?? '')] || CI_TYPE_FIELDS.other).map((field: {k:string;l:string;ph:string;type?:string}) => (
                 <div key={field.k}>
                   <label style={ls}>{field.l}</label>
                   <input
                     style={is}
                     type={field.type || 'text'}
-                    value={form[field.k] || ''}
+                    value={String(form[field.k] ?? '')}
                     onChange={e => set(field.k)(e.target.value)}
                     placeholder={field.ph || ''}
                   />
@@ -128,11 +130,11 @@ function CMDBItemForm({ item, categories, onClose }) {
         )}
         <div>
           <label style={ls}>Descripción</label>
-          <textarea style={{...is, height:70, resize:'vertical'}} value={form.description} onChange={e => set('description')(e.target.value)} />
+          <textarea style={{...is, height:70, resize:'vertical'}} value={String(form.description ?? '')} onChange={e => set('description')(e.target.value)} />
         </div>
         <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending || !form.name.trim()} loading={isPending}>
+          <Button onClick={() => mutate(form)} disabled={isPending || !String(form.name ?? '').trim()} loading={isPending}>
             {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear activo'}
           </Button>
         </div>
@@ -141,27 +143,29 @@ function CMDBItemForm({ item, categories, onClose }) {
   )
 }
 
-function RelationsModal({ item, allItems, onClose }) {
+type Rel = { id: string; rel_type?: string; to_item?: CI; from_item?: CI }
+
+function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[]; onClose: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [fromId, _setFromId] = useState(item.id)
   const [toId, setToId] = useState('')
   const [relType, setRelType] = useState('depends_on')
 
-  const { data: rels, isLoading } = useQuery({
+  const { data: rels, isLoading } = useQuery<{ outgoing: Rel[]; incoming: Rel[] }>({
     queryKey: ['item-rels', item.id],
     queryFn: () => cmdbApi.relations(item.id).then(r => r.data).catch(() => ({outgoing:[],incoming:[]})),
   })
 
   const { mutate: createRel, isPending } = useMutation({
     mutationFn: () => cmdbApi.createRelation({from_item_id: fromId, to_item_id: toId, rel_type: relType}).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['item-rels', item.id]); setToId('') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['item-rels', item.id] }); setToId('') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: deleteRel } = useMutation({
-    mutationFn: id => cmdbApi.deleteRelation(id),
-    onSuccess: () => qc.invalidateQueries(['item-rels', item.id]),
+    mutationFn: (id: string) => cmdbApi.deleteRelation(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['item-rels', item.id] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -173,9 +177,9 @@ function RelationsModal({ item, allItems, onClose }) {
             {(rels?.outgoing||[]).length > 0 && (
               <div style={{marginBottom:16}}>
                 <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Sale de este activo</div>
-                {rels.outgoing.map(r => (
+                {(rels?.outgoing||[]).map((r: Rel) => (
                   <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:6,marginBottom:4,fontSize: "var(--text-sm)"}}>
-                    <span style={{color:'var(--accent)'}}>{CI_TYPE_ICONS[r.to_item?.ci_type]||'📌'} {r.to_item?.name}</span>
+                    <span style={{color:'var(--accent)'}}>{CI_TYPE_ICONS[r.to_item?.ci_type ?? '']||'📌'} {r.to_item?.name}</span>
                     <span style={{color:'var(--text-3)',margin:'0 6px'}}>←</span>
                     <span style={{color:'var(--text-2)'}}>{r.rel_type}</span>
                     <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta relación?', onConfirm: () => deleteRel(r.id), danger: true }) }} style={{marginLeft:'auto',background:'none',border:'none',color:'var(--danger)',cursor:'pointer'}}>✕</button>
@@ -186,9 +190,9 @@ function RelationsModal({ item, allItems, onClose }) {
             {(rels?.incoming||[]).length > 0 && (
               <div style={{marginBottom:16}}>
                 <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Apunta a este activo</div>
-                {rels.incoming.map(r => (
+                {(rels?.incoming||[]).map((r: Rel) => (
                   <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:6,marginBottom:4,fontSize: "var(--text-sm)"}}>
-                    <span style={{color:'var(--warning)'}}>{CI_TYPE_ICONS[r.from_item?.ci_type]||'📌'} {r.from_item?.name}</span>
+                    <span style={{color:'var(--warning)'}}>{CI_TYPE_ICONS[r.from_item?.ci_type ?? '']||'📌'} {r.from_item?.name}</span>
                     <span style={{color:'var(--text-3)',margin:'0 6px'}}>→</span>
                     <span style={{color:'var(--text-2)'}}>{r.rel_type}</span>
                   </div>
@@ -205,8 +209,8 @@ function RelationsModal({ item, allItems, onClose }) {
           <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:8,alignItems:'center'}}>
             <select style={is} value={toId} onChange={e => setToId(e.target.value)}>
               <option value="">Activo destino...</option>
-              {allItems.filter(i => i.id !== item.id).map(i => (
-                <option key={i.id} value={i.id}>{CI_TYPE_ICONS[i.ci_type]||'📌'} {i.name}</option>
+              {allItems.filter((i: CI) => i.id !== item.id).map((i: CI) => (
+                <option key={i.id} value={i.id}>{CI_TYPE_ICONS[i.ci_type ?? '']||'📌'} {i.name}</option>
               ))}
             </select>
             <select style={{...is,width:140}} value={relType} onChange={e => setRelType(e.target.value)}>
@@ -227,14 +231,16 @@ function RelationsModal({ item, allItems, onClose }) {
   )
 }
 
-function ChangelogModal({ item, onClose }) {
-  const { data: entries = [], isLoading } = useQuery({
+type ChangelogEntry = { id: string; action?: string; created_at?: string; user_name?: string; summary?: string; field?: string; old_value?: string; new_value?: string }
+
+function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
+  const { data: entries = [], isLoading } = useQuery<ChangelogEntry[]>({
     queryKey: ['cmdb-changelog', item.id],
     queryFn: () => cmdbApi.changelog(item.id).then(r => r.data).catch(() => []),
   })
 
-  const ACTION_COLOR = { created: 'var(--success)', updated: 'var(--accent)', deleted: 'var(--danger)' }
-  const ACTION_LABEL = { created: 'Creado', updated: 'Actualizado', deleted: 'Eliminado' }
+  const ACTION_COLOR: Record<string, string> = { created: 'var(--success)', updated: 'var(--accent)', deleted: 'var(--danger)' }
+  const ACTION_LABEL: Record<string, string> = { created: 'Creado', updated: 'Actualizado', deleted: 'Eliminado' }
 
   return (
     <Modal open onClose={onClose} title={`Historial — ${item.name}`} width={580}>
@@ -244,20 +250,20 @@ function ChangelogModal({ item, onClose }) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 480, overflowY: 'auto' }}>
-          {entries.map(e => (
+          {entries.map((e: ChangelogEntry) => (
             <div key={e.id} style={{ display: 'flex', gap: 14, padding: '10px 14px',
               background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
               {/* Línea de tiempo */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-                  background: ACTION_COLOR[e.action] || 'var(--text-3)' }} />
+                  background: ACTION_COLOR[e.action ?? ''] || 'var(--text-3)' }} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '1px 7px', borderRadius: 20,
-                    background: `${ACTION_COLOR[e.action] || 'var(--text-3)'}20`,
-                    color: ACTION_COLOR[e.action] || 'var(--text-3)' }}>
-                    {ACTION_LABEL[e.action] || e.action}
+                    background: `${ACTION_COLOR[e.action ?? ''] || 'var(--text-3)'}20`,
+                    color: ACTION_COLOR[e.action ?? ''] || 'var(--text-3)' }}>
+                    {ACTION_LABEL[e.action ?? ''] || e.action}
                   </span>
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{e.created_at?.slice(0, 16)}</span>
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>por {e.user_name}</span>
@@ -281,8 +287,8 @@ function ChangelogModal({ item, onClose }) {
 
 
 // ── Linked assets for a CI (drill-down panel) ────────────────────────────────
-function CILinkedAssets({ ciId }) {
-  const { data: assets, isLoading } = useQuery({
+function CILinkedAssets({ ciId }: { ciId: string }) {
+  const { data: assets, isLoading } = useQuery<CI[]>({
     queryKey: ['ci-assets', ciId],
     queryFn: () => cmdbApi.assetsByCI(ciId).then(r => r.data?.assets || []).catch(() => []),
     staleTime: 30000,
@@ -300,14 +306,14 @@ function CILinkedAssets({ ciId }) {
         Activos vinculados ({assets.length})
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {assets.map(a => (
+        {assets.map((a: CI) => (
           <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-4)', borderRadius: 6, padding: '6px 10px' }}>
-            <span style={{ fontSize: "var(--text-base)" }}>{CI_TYPE_ICONS[a.asset_type] || '📦'}</span>
+            <span style={{ fontSize: "var(--text-base)" }}>{CI_TYPE_ICONS[String(a.asset_type ?? '')] || '📦'}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
-              {a.serial_number && <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>S/N: {a.serial_number}</div>}
+              {a.serial_number ? <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>S/N: {String(a.serial_number)}</div> : null}
             </div>
-            <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'var(--surface-3)', padding: '2px 6px', borderRadius: 3, whiteSpace: 'nowrap' }}>{a.status || 'activo'}</span>
+            <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'var(--surface-3)', padding: '2px 6px', borderRadius: 3, whiteSpace: 'nowrap' }}>{String(a.status || 'activo')}</span>
           </div>
         ))}
       </div>
@@ -321,9 +327,9 @@ function CMDBAgentsTab() {
   const qc = useQueryClient()
   const [agentName, setAgentName] = useState('')
   const [platform, setPlatform] = useState('linux')
-  const [newToken, setNewToken] = useState(null)
+  const [newToken, setNewToken] = useState<string | null>(null)
 
-  const { data: agentsData, isLoading } = useQuery({
+  const { data: agentsData, isLoading } = useQuery<any>({
     queryKey: ['cmdb-agents'],
     queryFn: () => api.get('/sd/cmdb/agents').then(r => r.data).catch(() => []),
     refetchInterval: 15000,
@@ -344,13 +350,13 @@ function CMDBAgentsTab() {
   })
 
   const { mutate: deleteAgent } = useMutation({
-    mutationFn: (id) => api.delete(`/sd/cmdb/agents/${id}`),
+    mutationFn: (id: string) => api.delete(`/sd/cmdb/agents/${id}`),
     onSuccess: () => { toast.success('Agente eliminado'); qc.invalidateQueries({ queryKey: ['cmdb-agents'] }) },
     onError: () => toast.error('Error al eliminar agente'),
   })
 
-  const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const labelStyle = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', display: 'block', marginBottom: 5 }
+  const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', display: 'block', marginBottom: 5 }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -416,7 +422,7 @@ function CMDBAgentsTab() {
                </tr>
              </thead>
              <tbody>
-               {agents.map(ag => (
+               {agents.map((ag: any) => (
                  <tr key={ag.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
                    <td style={{ padding: '10px 10px', fontWeight: 600, color: 'var(--text-1)' }}>{ag.name}</td>
                    <td style={{ padding: '10px 10px', color: 'var(--text-2)' }}>
@@ -452,26 +458,26 @@ export default function CMDBPage(): JSX.Element {
   const toast = useToast()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [relItem, setRelItem] = useState(null)
-  const [historyItem, setHistoryItem] = useState(null)
+  const [editing, setEditing] = useState<CI | null>(null)
+  const [relItem, setRelItem] = useState<CI | null>(null)
+  const [historyItem, setHistoryItem] = useState<CI | null>(null)
   const [filterType, setFilterType] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [searchQ, setSearchQ] = useState('')
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState('asc')
   const [tab, setTab] = useState('list')  // 'list' | 'topology'
-  const [topoCI, setTopoCI] = useState(null)  // CI selected for topology
+  const [topoCI, setTopoCI] = useState<CI | null>(null)  // CI selected for topology
   const [topoRadius, setTopoRadius] = useState(2)
-  const [drillCI, setDrillCI] = useState(null)  // CI selected for drill-down panel
+  const [drillCI, setDrillCI] = useState<CI | null>(null)  // CI selected for drill-down panel
 
-  const toggleSort = (key) => {
+  const toggleSort = (key: string) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('asc') }
   }
 
   // ─── Drill-down: relations data for the panel ──────────────────────────────
-  const { data: drillRels } = useQuery({
+  const { data: drillRels } = useQuery<{ outgoing: Rel[]; incoming: Rel[] }>({
     queryKey: ['item-rels', drillCI?.id],
     queryFn: () => drillCI
       ? cmdbApi.relations(drillCI.id).then(r => r.data).catch(() => ({ outgoing: [], incoming: [] }))
@@ -479,14 +485,14 @@ export default function CMDBPage(): JSX.Element {
     enabled: !!drillCI,
   })
 
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [] } = useQuery<CI[]>({
     queryKey: ['cmdb-categories'],
     queryFn: () => cmdbApi.categories().then(r => r.data?.items ?? r.data ?? []).catch(() => []),
   })
-  const { data: items = [], isLoading } = useQuery({
+  const { data: items = [], isLoading } = useQuery<CI[]>({
     queryKey: ['cmdb-items', filterType, filterStatus, searchQ],
     queryFn: () => {
-      const p = {}
+      const p: Record<string, string> = {}
       if (filterType)   p.ci_type = filterType
       if (filterStatus) p.status  = filterStatus
       if (searchQ)      p.q       = searchQ
@@ -494,28 +500,28 @@ export default function CMDBPage(): JSX.Element {
     },
   })
 
-  const { data: sdTopologyItems = [] } = useQuery({
+  const { data: sdTopologyItems = [] } = useQuery<CI[]>({
     queryKey: ['sd-cmdb-topology-items'],
     queryFn: () => cmdbApi.topologyItems().then(r => r.data).catch(() => []),
     enabled: tab === 'topology',
   })
 
   const { mutate: deleteItem } = useMutation({
-    mutationFn: id => cmdbApi.deleteItem(id),
-    onSuccess: () => qc.invalidateQueries(['cmdb-items']),
+    mutationFn: (id: string) => cmdbApi.deleteItem(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['cmdb-items'] }),
     onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
-  const typeCounts = CI_TYPES.reduce((acc, t) => ({...acc, [t]: items.filter(i => i.ci_type === t).length}), {})
+  const typeCounts = CI_TYPES.reduce((acc: Record<string, number>, t) => ({...acc, [t]: items.filter((i: CI) => i.ci_type === t).length}), {})
 
-  const sortedItems = [...items].sort((a, b) => {
+  const sortedItems = [...items].sort((a: CI, b: CI) => {
     const va = a[sortKey] ?? ''
     const vb = b[sortKey] ?? ''
-    const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb))
+    const cmp = typeof va === 'number' ? va - (vb as number) : String(va).localeCompare(String(vb))
     return sortDir === 'asc' ? cmp : -cmp
   })
 
-  const { data: topoData, isFetching: topoLoading } = useQuery({
+  const { data: topoData, isFetching: topoLoading } = useQuery<{ nodes: any[]; edges: any[] }>({
     queryKey: ['cmdb-topology', topoCI?.id, topoRadius],
     queryFn: () => topoCI
       ? cmdbApi.topology(topoCI.id, topoRadius).then(r => r.data).catch(() => ({ nodes: [], edges: [] }))
@@ -550,12 +556,12 @@ export default function CMDBPage(): JSX.Element {
               <div style={{flex:'1 1 280px'}}>
                 <label style={ls}>CI central</label>
                 <select style={is} value={topoCI?.id || ''} onChange={e => {
-                  const ci = sdTopologyItems.find(i => i.id === e.target.value)
+                  const ci = sdTopologyItems.find((i: CI) => i.id === e.target.value)
                   setTopoCI(ci || null)
                   setDrillCI(null)
                 }}>
                   <option value="">Seleccionar CI…</option>
-                  {sdTopologyItems.map(ci => <option key={ci.id} value={ci.id}>{CI_TYPE_ICONS[ci.ci_type]||'📌'} {ci.name}</option>)}
+                  {sdTopologyItems.map((ci: CI) => <option key={ci.id} value={ci.id}>{CI_TYPE_ICONS[ci.ci_type ?? '']||'📌'} {ci.name}</option>)}
                 </select>
               </div>
               <div>
@@ -578,8 +584,8 @@ export default function CMDBPage(): JSX.Element {
                   nodes={topoData?.nodes || []}
                   edges={topoData?.edges || []}
                   centerName={topoCI?.name}
-                  onNodeClick={n => {
-                    const ci = sdTopologyItems.find(i => i.id === n.id) || n
+                  onNodeClick={(n: CI) => {
+                    const ci = sdTopologyItems.find((i: CI) => i.id === n.id) || n
                     setDrillCI(ci)
                   }}
                 />
@@ -597,7 +603,7 @@ export default function CMDBPage(): JSX.Element {
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: "var(--text-xl-em)" }}>{CI_TYPE_ICONS[drillCI.ci_type] || '📌'}</span>
+                  <span style={{ fontSize: "var(--text-xl-em)" }}>{CI_TYPE_ICONS[drillCI.ci_type ?? ''] || '📌'}</span>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: "var(--text-md)", color: 'var(--text-1)' }}>{drillCI.name}</div>
                     <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{drillCI.ci_type}</div>
@@ -615,19 +621,19 @@ export default function CMDBPage(): JSX.Element {
                 {drillCI.status && (
                   <span style={{
                     fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20,
-                    background: (STATUS_CFG[drillCI.status]?.color || 'var(--text-3)') + '20',
-                    color: STATUS_CFG[drillCI.status]?.color || 'var(--text-3)',
+                    background: (STATUS_CFG[drillCI.status ?? '']?.color || 'var(--text-3)') + '20',
+                    color: STATUS_CFG[drillCI.status ?? '']?.color || 'var(--text-3)',
                   }}>
-                    {STATUS_CFG[drillCI.status]?.label || drillCI.status}
+                    {STATUS_CFG[drillCI.status ?? '']?.label || drillCI.status}
                   </span>
                 )}
                 {drillCI.environment && (
                   <span style={{
                     fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20,
-                    background: (ENV_CFG[drillCI.environment]?.color || 'var(--text-3)') + '20',
-                    color: ENV_CFG[drillCI.environment]?.color || 'var(--text-3)',
+                    background: (ENV_CFG[drillCI.environment ?? '']?.color || 'var(--text-3)') + '20',
+                    color: ENV_CFG[drillCI.environment ?? '']?.color || 'var(--text-3)',
                   }}>
-                    {ENV_CFG[drillCI.environment]?.label || drillCI.environment}
+                    {ENV_CFG[drillCI.environment ?? '']?.label || drillCI.environment}
                   </span>
                 )}
               </div>
@@ -659,9 +665,9 @@ export default function CMDBPage(): JSX.Element {
                     ['RAM (GB)', drillCI.attributes?.ram_gb],
                     ['CPU cores', drillCI.attributes?.cpu_cores],
                   ].filter(([, v]) => v).map(([label, value]) => (
-                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: "var(--text-sm)" }}>
-                      <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>{label}</span>
-                      <span style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={String(value)}>{value}</span>
+                    <div key={String(label)} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: "var(--text-sm)" }}>
+                      <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>{String(label)}</span>
+                      <span style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={String(value)}>{String(value)}</span>
                     </div>
                   ))}
                 </div>
@@ -673,7 +679,7 @@ export default function CMDBPage(): JSX.Element {
                   <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
                     Relaciones
                   </div>
-                  {(drillRels.outgoing || []).map(r => (
+                  {(drillRels.outgoing || []).map((r: Rel) => (
                     <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: "var(--text-xs)", marginBottom: 4 }}>
                       <span style={{ color: 'var(--accent)' }}>↗</span>
                       <span style={{ color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -681,7 +687,7 @@ export default function CMDBPage(): JSX.Element {
                       </span>
                     </div>
                   ))}
-                  {(drillRels.incoming || []).map(r => (
+                  {(drillRels.incoming || []).map((r: Rel) => (
                     <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: "var(--text-xs)", marginBottom: 4 }}>
                       <span style={{ color: 'var(--warning)' }}>↙</span>
                       <span style={{ color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -699,7 +705,7 @@ export default function CMDBPage(): JSX.Element {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
                 <Button
                   onClick={() => {
-                    const ci = sdTopologyItems.find(i => i.id === drillCI.id) || drillCI
+                    const ci = sdTopologyItems.find((i: CI) => i.id === drillCI.id) || drillCI
                     setTopoCI(ci)
                     setDrillCI(null)
                   }}
@@ -722,12 +728,12 @@ export default function CMDBPage(): JSX.Element {
       {tab === 'list' && <>
       {/* KPIs */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
-        {[
+        {([
           ['Total activos', items.length, 'var(--text-1)'],
-          ['Activos', items.filter(i=>i.status==='active').length, 'var(--success)'],
-          ['Mantenimiento', items.filter(i=>i.status==='maintenance').length, 'var(--warning)'],
-          ['Retirados', items.filter(i=>i.status==='decommissioned').length, 'var(--danger)'],
-        ].map(([label,val,color]) => (
+          ['Activos', items.filter((i: CI)=>i.status==='active').length, 'var(--success)'],
+          ['Mantenimiento', items.filter((i: CI)=>i.status==='maintenance').length, 'var(--warning)'],
+          ['Retirados', items.filter((i: CI)=>i.status==='decommissioned').length, 'var(--danger)'],
+        ] as [string, number, string][]).map(([label,val,color]) => (
           <div key={label} style={{...ps,padding:'14px 16px'}}>
             <div style={{fontSize: "var(--text-2xl)",fontWeight:700,color}}>{val}</div>
             <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{label}</div>
@@ -790,14 +796,14 @@ export default function CMDBPage(): JSX.Element {
               </tr>
             </thead>
             <tbody>
-              {sortedItems.map((item, i) => {
-                const sc = STATUS_CFG[item.status] || STATUS_CFG.active
-                const ec = ENV_CFG[item.environment] || ENV_CFG.production
+              {sortedItems.map((item: CI, i: number) => {
+                const sc = STATUS_CFG[item.status ?? ''] || STATUS_CFG.active
+                const ec = ENV_CFG[item.environment ?? ''] || ENV_CFG.production
                 return (
                   <tr key={item.id} style={{borderBottom:'1px solid var(--surface-4)',background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
-                        <span style={{fontSize: "var(--text-lg)"}}>{CI_TYPE_ICONS[item.ci_type]||'📌'}</span>
+                        <span style={{fontSize: "var(--text-lg)"}}>{CI_TYPE_ICONS[item.ci_type ?? '']||'📌'}</span>
                         <div>
                           <div style={{fontWeight:600}}>{item.name}</div>
                           {item.description && <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:200}}>{item.description}</div>}

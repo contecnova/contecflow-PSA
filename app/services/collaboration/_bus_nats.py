@@ -12,7 +12,6 @@ import asyncio
 import json
 import logging
 import os
-from collections import defaultdict
 from typing import Any, Iterable
 
 from app.services.collaboration._bus import EventBus, Subscription

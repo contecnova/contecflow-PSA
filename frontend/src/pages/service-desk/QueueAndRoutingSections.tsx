@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useMemo, useState, useId } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../../context/ToastContext'
 import { sdRoutingApi, sdGroupsApi, sdSlaPoliciesApi, usersApi } from '../../services/api'
@@ -9,21 +9,21 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
-const PRIORITY_COLOR = {
+const PRIORITY_COLOR: Record<string, string> = {
   p1_critical: COLOR.danger,
   p2_high: 'var(--orange)',
   p3_medium: COLOR.warning,
   p4_low: COLOR.text2,
 }
 
-const PRIORITY_LABEL = {
+const PRIORITY_LABEL: Record<string, string> = {
   p1_critical: 'P1 Crítico',
   p2_high: 'P2 Alto',
   p3_medium: 'P3 Medio',
   p4_low: 'P4 Bajo',
 }
 
-const STATUS_COLOR = {
+const STATUS_COLOR: Record<string, string> = {
   new: COLOR.accent,
   assigned: COLOR.accent,
   in_progress: 'var(--sky-blue)',
@@ -34,19 +34,19 @@ const STATUS_COLOR = {
   cancelled: COLOR.text3,
 }
 
-function PBadge({ v }) {
-  const color = PRIORITY_COLOR[v] || COLOR.text2
+function PBadge({ v }: { v?: string }) {
+  const color = PRIORITY_COLOR[v || ''] || COLOR.text2
   return (
     <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color, padding: '2px 7px',
       borderRadius: 4, border: `1px solid ${color}30`, background: `${color}12`,
       whiteSpace: 'nowrap' }}>
-      {PRIORITY_LABEL[v] || v}
+      {PRIORITY_LABEL[v || ''] || v}
     </span>
   )
 }
 
-function SBadge({ v }) {
-  const color = STATUS_COLOR[v] || COLOR.text2
+function SBadge({ v }: { v?: string }) {
+  const color = STATUS_COLOR[v || ''] || COLOR.text2
   const label = v?.replace(/_/g, ' ')
   return (
     <span style={{ fontSize: "var(--text-2xs)", fontWeight: 600, color, padding: '2px 8px',
@@ -56,16 +56,29 @@ function SBadge({ v }) {
   )
 }
 
-function fmtDate(d) {
+function fmtDate(d?: string | Date | null) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-function TRow({ t: ticket, onClick }) {
+type Ticket = {
+  [k: string]: unknown
+  id: string
+  number?: string
+  title?: string
+  priority?: string
+  status?: string
+  ticket_type?: string
+  requester_name?: string
+  sla_resolution_due?: string
+  assigned_to?: { full_name?: string } | null
+}
+
+function TRow({ t: ticket, onClick }: { t: Ticket; onClick: () => void }) {
   const tr = useAppT()
   const now = new Date()
   const due = ticket.sla_resolution_due ? new Date(ticket.sla_resolution_due) : null
-  const overdue = due && due < now && !['resolved', 'closed'].includes(ticket.status)
+  const overdue = due && due < now && !['resolved', 'closed'].includes(ticket.status || '')
   return (
     <tr onClick={onClick} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }} aria-label={`${ticket.number} ${ticket.title}`}
       style={{ cursor: 'pointer', borderBottom: '1px solid var(--surface-4)' }}
@@ -89,18 +102,18 @@ function TRow({ t: ticket, onClick }) {
   )
 }
 
-export function TicketList({ queueOnly, onSelect }) {
+export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSelect: (tk: Ticket) => void }) {
   const t = useAppT()
   const [search, setSearch] = useState('')
   const [filterPrio, setFilterPrio] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterType, setFilterType] = useState('')
 
-  const { data: tickets = [], isLoading } = useQuery({
+  const { data: tickets = [], isLoading } = useQuery<Ticket[]>({
     queryKey: ['sd-tickets', queueOnly, filterPrio, filterStatus, filterType],
     queryFn: () => {
       if (queueOnly) {
-        return sdRoutingApi.queue().then(r => r.data)
+        return sdRoutingApi.queue(undefined).then(r => r.data)
       }
       return sdRoutingApi.tickets({
         priority: filterPrio || undefined,
@@ -188,7 +201,8 @@ export function MajorIncidents() {
   const toast = useToast()
   const [showDeclare, setShowDeclare] = useState(false)
 
-  const { data: mis = [], isLoading } = useQuery({
+  type MI = { [k: string]: unknown; id: string; number?: string; title?: string; severity?: string; status?: string; commander?: string; declared_at?: string; resolved_at?: string }
+  const { data: mis = [], isLoading } = useQuery<MI[]>({
     queryKey: ['sd-major-incidents'],
     queryFn: () => sdRoutingApi.majorIncidents().then(r => r.data),
     refetchInterval: 30000,
@@ -276,21 +290,21 @@ export function MajorIncidents() {
   )
 }
 
-function DeclareMIModal({ onClose, onSaved }) {
+function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const idPrefix = useId()
   const [form, setForm] = useState({ title: '', severity: 'P1', impact_statement: '' })
   const { mutate, isPending } = useMutation({
-    mutationFn: data => sdRoutingApi.createMajorIncident(data),
+    mutationFn: (data: Record<string, unknown>) => sdRoutingApi.createMajorIncident(data),
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+  const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const IS: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
     borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)",
     outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block',
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block',
     marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   return (
@@ -324,27 +338,37 @@ function DeclareMIModal({ onClose, onSaved }) {
   )
 }
 
+type Rule = {
+  [k: string]: unknown
+  id: string
+  name?: string
+  priority?: number
+  is_active?: boolean
+  conditions?: string
+  actions?: string
+}
+
 export function RoutingRules() {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
-  const [editingRule, setEditingRule] = useState(null)
+  const [editingRule, setEditingRule] = useState<Rule | null>(null)
 
-  const { data: rules = [], isLoading } = useQuery({
+  const { data: rules = [], isLoading } = useQuery<Rule[]>({
     queryKey: ['sd-routing-rules'],
     queryFn: () => sdRoutingApi.list().then(r => r.data),
   })
 
   const { mutate: toggleRule } = useMutation({
-    mutationFn: ({ id, is_active }) => sdRoutingApi.update(id, { is_active }),
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) => sdRoutingApi.update(id, { is_active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sd-routing-rules'] }),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteRule } = useMutation({
-    mutationFn: id => sdRoutingApi.delete(id),
+    mutationFn: (id: string) => sdRoutingApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-routing-rules'] }); toast.success(t('service_desk.routing_rule_deleted')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -360,7 +384,7 @@ export function RoutingRules() {
        rules.length === 0 ? <EmptyState icon="⚡" title={t('service_desk.routing_no_rules')} description={t('service_desk.routing_no_rules_desc')} /> :
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rules.map((rule, _i) => {
-          let conds = {}, acts = {}
+          let conds: Record<string, unknown> = {}, acts: Record<string, unknown> = {}
           try { conds = JSON.parse(rule.conditions || '{}'); acts = JSON.parse(rule.actions || '{}') } catch { /* noop */ }
           return (
             <div key={rule.id} style={{ background: 'var(--surface-2)', border: `1px solid ${rule.is_active ? 'var(--surface-4)' : 'var(--surface-3)'}`,
@@ -397,7 +421,7 @@ export function RoutingRules() {
                   {Object.entries(conds).map(([k, v]) => (
                     <span key={k} style={{ background: 'var(--surface-4)', borderRadius: 4,
                       padding: '2px 8px', marginRight: 6, color: 'var(--text-2)' }}>
-                      {k}: {Array.isArray(v) ? v.join(', ') : v}
+                      {k}: {Array.isArray(v) ? v.join(', ') : String(v)}
                     </span>
                   ))}
                 </div>
@@ -406,7 +430,7 @@ export function RoutingRules() {
                   {Object.entries(acts).map(([k, v]) => (
                     <span key={k} style={{ background: `${COLOR.accent}15`, borderRadius: 4,
                       padding: '2px 8px', marginRight: 6, color: COLOR.accent }}>
-                      {k}: {v}
+                      {k}: {String(v)}
                     </span>
                   ))}
                 </div>
@@ -430,49 +454,50 @@ export function RoutingRules() {
   )
 }
 
-function NewRoutingRuleModal({ onClose, onSaved, rule }) {
+type Entry = { key: string; value: string }
+function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; onSaved: () => void; rule?: Rule }) {
   const t = useAppT()
   const toast = useToast()
   const isEdit = !!rule
 
-  const parseEntries = (jsonStr) => {
+  const parseEntries = (jsonStr: unknown): Entry[] => {
     try {
       const obj = typeof jsonStr === 'string' ? JSON.parse(jsonStr || '{}') : (jsonStr || {})
       return Object.entries(obj).map(([key, value]) => ({ key, value: Array.isArray(value) ? value.join(',') : String(value) }))
     } catch { return [] }
   }
 
-  const [form, setForm] = useState(isEdit ? { name: rule.name, priority: rule.priority } : { name: '', priority: 100 })
-  const [conditions, setConditions] = useState(isEdit ? parseEntries(rule.conditions) : [])
-  const [actions, setActions] = useState(isEdit ? parseEntries(rule.actions) : [{ key: 'assign_group', value: '' }])
+  const [form, setForm] = useState<{ name: string; priority: number | string }>(isEdit ? { name: rule!.name || '', priority: rule!.priority ?? 100 } : { name: '', priority: 100 })
+  const [conditions, setConditions] = useState<Entry[]>(isEdit ? parseEntries(rule!.conditions) : [])
+  const [actions, setActions] = useState<Entry[]>(isEdit ? parseEntries(rule!.actions) : [{ key: 'assign_group', value: '' }])
 
-  const { data: groups = [] } = useQuery({
+  const { data: groups = [] } = useQuery<Array<{ id?: string; name?: string }>>({
     queryKey: ['sd-groups'],
     queryFn: () => sdGroupsApi.list().then(r => r.data),
   })
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<Array<{ id?: string; full_name?: string }>>({
     queryKey: ['users'],
     queryFn: () => usersApi.list().then(r => r.data),
   })
-  const { data: slaPolices = [] } = useQuery({
+  const { data: slaPolices = [] } = useQuery<Array<{ id?: string; name?: string }>>({
     queryKey: ['sd-sla-policies'],
     queryFn: () => sdSlaPoliciesApi.list().then(r => r.data).catch(() => []),
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: data => isEdit
-      ? sdRoutingApi.update(rule.id, data)
+    mutationFn: (data: Record<string, unknown>) => isEdit
+      ? sdRoutingApi.update(rule!.id, data)
       : sdRoutingApi.create(data),
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const IS = {
+  const IS: CSSProperties = {
     width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
     borderRadius: 8, padding: '8px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)",
     outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
   }
-  const LS = {
+  const LS: CSSProperties = {
     fontSize: "var(--text-2xs)", fontWeight: 600, color: 'var(--text-3)', display: 'block',
     marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em',
   }
@@ -501,19 +526,19 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
     const next = availCondTypes[0]
     if (next) setConditions(prev => [...prev, { key: next.key, value: '' }])
   }
-  const removeCondition = i => setConditions(prev => prev.filter((_, idx) => idx !== i))
-  const updateCond = (i, patch) => setConditions(prev => prev.map((c, idx) => idx === i ? { ...c, ...patch } : c))
+  const removeCondition = (i: number) => setConditions(prev => prev.filter((_, idx) => idx !== i))
+  const updateCond = (i: number, patch: Partial<Entry>) => setConditions(prev => prev.map((c, idx) => idx === i ? { ...c, ...patch } : c))
 
   const addAction = () => {
     const usedActKeys = actions.map(a => a.key)
     const next = ACT_TYPES.find(type => !usedActKeys.includes(type.key))
     if (next) setActions(prev => [...prev, { key: next.key, value: '' }])
   }
-  const removeAction = i => setActions(prev => prev.filter((_, idx) => idx !== i))
-  const updateAct = (i, patch) => setActions(prev => prev.map((a, idx) => idx === i ? { ...a, ...patch } : a))
+  const removeAction = (i: number) => setActions(prev => prev.filter((_, idx) => idx !== i))
+  const updateAct = (i: number, patch: Partial<Entry>) => setActions(prev => prev.map((a, idx) => idx === i ? { ...a, ...patch } : a))
 
-  const renderCondValue = (cond, i) => {
-    const upd = v => updateCond(i, { value: v })
+  const renderCondValue = (cond: Entry, i: number) => {
+    const upd = (v: string) => updateCond(i, { value: v })
     if (cond.key === 'ticket_type') return (
       <select value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
         <option value="">{t('service_desk.cond_any_type')}</option>
@@ -566,8 +591,8 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
     )
   }
 
-  const renderActValue = (act, i) => {
-    const upd = v => updateAct(i, { value: v })
+  const renderActValue = (act: Entry, i: number) => {
+    const upd = (v: string) => updateAct(i, { value: v })
     if (act.key === 'assign_group') return (
       <select value={act.value} onChange={e => upd(e.target.value)} style={IS}>
         <option value="">{t('service_desk.act_no_group')}</option>
@@ -597,7 +622,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
 
   const handleSave = () => {
     if (!form.name.trim()) { toast.error(t('service_desk.routing_name_required')); return }
-    const condObj = {}
+    const condObj: Record<string, string | string[]> = {}
     for (const c of conditions) {
       if (!c.value) continue
       if (c.key === 'priority' || c.key === 'day_of_week') {
@@ -606,7 +631,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
         condObj[c.key] = c.value
       }
     }
-    const actObj = {}
+    const actObj: Record<string, string> = {}
     for (const a of actions) {
       if (a.value) actObj[a.key] = a.value
     }

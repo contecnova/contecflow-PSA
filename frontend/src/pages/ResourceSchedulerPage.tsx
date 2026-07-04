@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ResourceSchedulerPage — visual resource scheduler (Runn/Parallax-style)
  *
@@ -10,7 +9,7 @@
  * - Inline panel to set project + hours_per_day on new/edit booking
  * - Keyboard: Esc cancels drag · Delete removes selected booking
  */
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect, type MouseEvent as ReactMouseEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import api, { projectsApi, unwrapList } from '../services/api'
@@ -41,44 +40,55 @@ const PROJECT_PALETTE = [
   'var(--sky-blue)','var(--orange)','var(--success)','#c084fc','var(--coral)',
 ]
 
-function utilColor(pct) {
+function utilColor(pct: number) {
   for (const [lo, hi, c] of UTIL_COLORS) {
-    if (pct >= lo && pct < hi) return c
+    if (pct >= (lo as number) && pct < (hi as number)) return c
   }
   return UTIL_COLORS[UTIL_COLORS.length - 1][2]
 }
 
-function monday(d) {
+function monday(d: Date | string) {
   const r = new Date(d)
   r.setDate(r.getDate() - ((r.getDay() + 6) % 7))
   r.setHours(0, 0, 0, 0)
   return r
 }
-function addWeeks(d, n) { const r = new Date(d); r.setDate(r.getDate() + n * 7); return r }
-function fmtISO(d) { return d.toISOString().slice(0, 10) }
-function weekLabel(d) {
+function addWeeks(d: Date | string, n: number) { const r = new Date(d); r.setDate(r.getDate() + n * 7); return r }
+function fmtISO(d: Date) { return d.toISOString().slice(0, 10) }
+function weekLabel(d: Date) {
   return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}`
 }
 
 // ── Project color map ─────────────────────────────────────────────────────────
 
-function useProjectColorMap(projects) {
+function useProjectColorMap(projects: any[]) {
   return useMemo(() => {
-    const m = {}
-    projects.forEach((p, i) => { m[p.id] = PROJECT_PALETTE[i % PROJECT_PALETTE.length] })
+    const m: Record<string, string> = {}
+    projects.forEach((p: any, i: number) => { m[p.id] = PROJECT_PALETTE[i % PROJECT_PALETTE.length] })
     return m
   }, [projects])
 }
 
 // ── Booking bar ──────────────────────────────────────────────────────────────
 
-function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseDown, onClick, t }) {
+interface BookingBarProps {
+  booking: any
+  weekStart: Date
+  weekCount: number
+  color: string
+  isSelected: boolean
+  onMouseDown: (e: ReactMouseEvent) => void
+  onClick: () => void
+  t: (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
+}
+
+function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseDown, onClick, t }: BookingBarProps) {
   const bStart = new Date(booking.start_date + 'T00:00:00')
   const bEnd   = new Date(booking.end_date   + 'T00:00:00')
   const gridStart = weekStart
 
-  const startWeek = Math.max(0, Math.round((monday(bStart) - monday(gridStart)) / 604800000))
-  const endWeek   = Math.min(weekCount - 1, Math.round((monday(bEnd) - monday(gridStart)) / 604800000))
+  const startWeek = Math.max(0, Math.round((+monday(bStart) - +monday(gridStart)) / 604800000))
+  const endWeek   = Math.min(weekCount - 1, Math.round((+monday(bEnd) - +monday(gridStart)) / 604800000))
 
   if (startWeek > weekCount || endWeek < 0) return null
 
@@ -115,7 +125,18 @@ function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseD
 
 // ── Booking panel (create/edit) ───────────────────────────────────────────────
 
-function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, t }) {
+interface BookingPanelProps {
+  booking: any
+  position: { x: number; y: number }
+  projects: any[]
+  onSave: (data: any) => void
+  onDelete: () => void
+  onClose: () => void
+  projectColorMap?: Record<string, string>
+  t: (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
+}
+
+function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, t }: BookingPanelProps) {
   const [projectId, setProjectId] = useState(booking.project_id || '')
   const [hoursPerDay, setHours]   = useState(booking.hours_per_day || 8)
   const [bookingType, setType]    = useState(booking.booking_type || 'soft')
@@ -143,7 +164,7 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
         fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', marginBottom: 10,
       }}>
         <option value="">{t('resource_scheduler.no_project')}</option>
-        {projects.map(p => (
+        {projects.map((p: any) => (
           <option key={p.id} value={p.id}>{p.code} – {p.name}</option>
         ))}
       </select>
@@ -201,25 +222,25 @@ export default function ResourceSchedulerPage() {
   const [weeks, setWeeks]             = useState(12)
   const [department, setDepartment]   = useState('')
   const [viewMode, setViewMode]       = useState('scheduler')  // 'scheduler' | 'assign'
-  const [selectedBooking, setSelected] = useState(null)
-  const [panel, setPanel]             = useState(null)  // { booking, position, userId, startDate, endDate }
-  const [dragState, setDragState]     = useState(null)  // { userId, startCol }
+  const [selectedBooking, setSelected] = useState<any>(null)
+  const [panel, setPanel]             = useState<{ booking: any; position: { x: number; y: number }; isNew: boolean } | null>(null)  // { booking, position, userId, startDate, endDate }
+  const [dragState, setDragState]     = useState<{ userId: string; startCol: number; endCol: number } | null>(null)  // { userId, startCol }
 
-  const gridRef       = useRef(null)
+  const gridRef       = useRef<HTMLDivElement | null>(null)
   // assign-mode drag refs
-  const assignDragUser    = useRef(null)
-  const assignGhostRef    = useRef(null)
-  const assignDropProject = useRef(null)
+  const assignDragUser    = useRef<any>(null)
+  const assignGhostRef    = useRef<HTMLDivElement | null>(null)
+  const assignDropProject = useRef<string | null>(null)
   const today   = monday(new Date())
   const weekDates = useMemo(() => Array.from({ length: weeks }, (_, i) => addWeeks(today, i)), [today, weeks])
 
   // ── Data ──────────────────────────────────────────────────────────────────
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<any[]>({
     queryKey: ['projects'],
     queryFn:  () => projectsApi.list().then(r => r.data),
   })
 
-  const { data: forecastData, isLoading } = useQuery({
+  const { data: forecastData, isLoading } = useQuery<any>({
     queryKey: ['resource-forecast', weeks, department],
     queryFn:  () => {
       const params = { weeks, ...(department ? { department } : {}) }
@@ -228,55 +249,55 @@ export default function ResourceSchedulerPage() {
     staleTime: 30000,
   })
 
-  const { data: bookingsData = [] } = useQuery({
+  const { data: bookingsData = [] } = useQuery<any[]>({
     queryKey: ['bookings'],
     queryFn:  () => api.get('/bookings', { params: { page_size: 500 } }).then(unwrapList),
     staleTime: 15000,
   })
 
   const { mutate: createBooking } = useMutation({
-    mutationFn: b => api.post('/bookings', b),
+    mutationFn: (b: any) => api.post('/bookings', b),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bookings'] }); qc.invalidateQueries({ queryKey: ['resource-forecast'] }); toast.success(t('resource_scheduler.booking_created')) },
-    onError: e => toast.error(e?.response?.data?.detail || t('resource_scheduler.create_error')),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || t('resource_scheduler.create_error')),
   })
 
   const { mutate: updateBooking } = useMutation({
-    mutationFn: ({ id, ...data }) => api.patch(`/bookings/${id}`, data),
+    mutationFn: ({ id, ...data }: { id: string; [k: string]: any }) => api.patch(`/bookings/${id}`, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bookings'] }); qc.invalidateQueries({ queryKey: ['resource-forecast'] }); toast.success(t('resource_scheduler.booking_updated')) },
-    onError: e => toast.error(e?.response?.data?.detail || t('resource_scheduler.update_error')),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || t('resource_scheduler.update_error')),
   })
 
   const { mutate: deleteBooking } = useMutation({
-    mutationFn: id => api.delete(`/bookings/${id}`),
+    mutationFn: (id: string) => api.delete(`/bookings/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bookings'] }); qc.invalidateQueries({ queryKey: ['resource-forecast'] }); toast.success(t('resource_scheduler.booking_deleted')) },
-    onError: e => toast.error(e?.response?.data?.detail || t('resource_scheduler.delete_error')),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || t('resource_scheduler.delete_error')),
   })
 
   const projectColorMap = useProjectColorMap(projects)
 
   // Build project name map
   const projNameMap = useMemo(() => {
-    const m = {}
-    projects.forEach(p => { m[p.id] = p.name })
+    const m: Record<string, string> = {}
+    projects.forEach((p: any) => { m[p.id] = p.name })
     return m
   }, [projects])
 
   // Enrich bookings with project names
-  const bookings = useMemo(() => bookingsData.map(b => ({
+  const bookings = useMemo(() => bookingsData.map((b: any) => ({
     ...b,
     project_name: projNameMap[b.project_id] || null,
   })), [bookingsData, projNameMap])
 
   // Build department list
   const departments = useMemo(() => {
-    const s = new Set()
-    ;(forecastData?.users || []).forEach(u => { if (u.department) s.add(u.department) })
+    const s = new Set<string>()
+    ;(forecastData?.users || []).forEach((u: any) => { if (u.department) s.add(u.department) })
     return [...s]
   }, [forecastData])
 
   // ── Keyboard ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    const handler = e => {
+    const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { setPanel(null); setDragState(null); setSelected(null) }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBooking) {
         setPanel(null)
@@ -293,13 +314,13 @@ export default function ResourceSchedulerPage() {
   }, [selectedBooking, deleteBooking])
 
   // ── Drag to create booking ────────────────────────────────────────────────
-  const handleCellMouseDown = useCallback((e, userId, colIndex) => {
+  const handleCellMouseDown = useCallback((e: { preventDefault: () => void }, userId: string, colIndex: number) => {
     if (panel) { setPanel(null); return }
     e.preventDefault()
     const startCol = colIndex
     setDragState({ userId, startCol, endCol: colIndex })
 
-    const onMove = (me) => {
+    const onMove = (me: MouseEvent) => {
       const gridLeft = gridRef.current?.getBoundingClientRect().left || 0
       const scrollLeft = gridRef.current?.scrollLeft || 0
       const relX = me.clientX - gridLeft + scrollLeft - LABEL_W
@@ -307,7 +328,7 @@ export default function ResourceSchedulerPage() {
       setDragState(prev => prev ? { ...prev, endCol: col } : null)
     }
 
-    const onUp = (me) => {
+    const onUp = (me: MouseEvent) => {
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
       setDragState(prev => {
@@ -330,15 +351,15 @@ export default function ResourceSchedulerPage() {
   }, [panel, weekDates, weeks])
 
   // ── Drag to move booking ──────────────────────────────────────────────────
-  const handleBookingMouseDown = useCallback((e, booking) => {
+  const handleBookingMouseDown = useCallback((e: ReactMouseEvent, booking: any) => {
     e.preventDefault()
     const origStart  = new Date(booking.start_date + 'T00:00:00')
     const origEnd    = new Date(booking.end_date   + 'T00:00:00')
     const startX     = e.clientX
-    let ghost = null
+    let ghost: HTMLDivElement | null = null
     let lastDWeeks = 0
 
-    const onMove = (me) => {
+    const onMove = (me: MouseEvent) => {
       const dx     = me.clientX - startX
       const dWeeks = Math.round(dx / CELL_W)
 
@@ -359,7 +380,7 @@ export default function ResourceSchedulerPage() {
       }
     }
 
-    const onUp = (me) => {
+    const onUp = (me: MouseEvent) => {
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
       if (ghost) { ghost.remove(); ghost = null }
@@ -378,13 +399,13 @@ export default function ResourceSchedulerPage() {
   }, [updateBooking])
 
   // ── Assign-mode: drag person chip onto project row ────────────────────────
-  const handlePersonDragStart = useCallback((e, user) => {
+  const handlePersonDragStart = useCallback((e: ReactMouseEvent, user: any) => {
     if (e.button !== 0) return
     const startX = e.clientX
     const startY = e.clientY
     let dragging = false
 
-    const onMove = ev => {
+    const onMove = (ev: MouseEvent) => {
       if (!dragging) {
         const dx = ev.clientX - startX, dy = ev.clientY - startY
         if (Math.sqrt(dx * dx + dy * dy) < 5) return
@@ -409,7 +430,7 @@ export default function ResourceSchedulerPage() {
       }
     }
 
-    const onUp = ev => {
+    const onUp = (ev: MouseEvent) => {
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
       if (assignGhostRef.current) { assignGhostRef.current.remove(); assignGhostRef.current = null }
@@ -513,7 +534,7 @@ export default function ResourceSchedulerPage() {
             <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>
               {t('resource_scheduler.people')}
             </div>
-            {users.map(u => (
+            {users.map((u: any) => (
               <div
                 key={u.user_id}
                 onMouseDown={e => handlePersonDragStart(e, u)}
@@ -663,8 +684,8 @@ export default function ResourceSchedulerPage() {
             </div>
 
             {/* User rows */}
-            {users.map(user => {
-              const userBookings = bookings.filter(b => b.user_id === user.user_id)
+            {users.map((user: any) => {
+              const userBookings = bookings.filter((b: any) => b.user_id === user.user_id)
 
               return (
                 <div key={user.user_id} style={{ display: 'contents' }}>
@@ -693,8 +714,8 @@ export default function ResourceSchedulerPage() {
                       const weekData   = user.weeks?.[colIdx]
                       const loadPct    = weekData?.load_pct || 0
                       const isDrag     = dragState?.userId === user.user_id &&
-                        colIdx >= Math.min(dragState.startCol, dragState.endCol) &&
-                        colIdx <= Math.max(dragState.startCol, dragState.endCol)
+                        colIdx >= Math.min(dragState!.startCol, dragState!.endCol) &&
+                        colIdx <= Math.max(dragState!.startCol, dragState!.endCol)
                       return (
                         <div
                           key={colIdx}

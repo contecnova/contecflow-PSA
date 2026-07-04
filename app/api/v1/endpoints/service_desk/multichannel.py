@@ -4,7 +4,7 @@ Inbound webhooks (email, SMS), outbound notifications, and channel configuration
 """
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Header, Query, Request
+from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 

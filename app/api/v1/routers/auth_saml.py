@@ -1,7 +1,7 @@
 """
 Auth SAML Router — SAML 2.0 service provider endpoints.
 """
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db

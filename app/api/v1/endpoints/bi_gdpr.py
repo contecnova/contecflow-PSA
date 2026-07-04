@@ -25,7 +25,10 @@ from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_gdpr_service as svc
 
+import logging
+
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class ConsentIn(BaseModel):
@@ -256,8 +259,9 @@ def execute_erasure(
     # intentional: chained re-raise preserves context
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+    except Exception:
+        logger.exception("GDPR erasure execution failed for dsr=%s", dsr_id)
+        raise HTTPException(status_code=500, detail="Error executing erasure pipeline")
 
 
 @router.post("/bi/gdpr/dsr/{dsr_id}/portability-export", summary="Generar export de datos para DSR de portabilidad")

@@ -1,7 +1,7 @@
 """
 Auth MFA Router — Two-factor authentication: TOTP setup/verify and WebAuthn (passkeys).
 """
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Body, Request
+from fastapi import APIRouter, Depends, HTTPException, Response, Body, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import json
@@ -13,7 +13,6 @@ from app.core.config import settings
 from app.core.ratelimit import limiter
 from app.core.encryption import encrypt_value, decrypt_value
 from app.models.user import User
-from app.schemas.users import UserPublic
 from app.schemas.auth_payloads import (
     MfaCodeIn, MfaValidateIn,
     WebAuthnRegisterFinishIn, WebAuthnAuthStartIn, WebAuthnAuthFinishIn,

@@ -7,7 +7,7 @@ The provider does all signing logic; we only store the result.
 """
 
 import enum
-from datetime import datetime
+from app.core.timeutil import utcnow
 from sqlalchemy import Column, Integer, String, Text, Enum as SAEnum, DateTime, ForeignKey, Boolean, JSON
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -48,8 +48,8 @@ class ESignEnvelope(Base):
     sent_at         = Column(DateTime, nullable=True)
     completed_at    = Column(DateTime, nullable=True)
     expires_at      = Column(DateTime, nullable=True)
-    created_at      = Column(DateTime, default=datetime.utcnow)
-    updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at      = Column(DateTime, default=utcnow)
+    updated_at      = Column(DateTime, default=utcnow, onupdate=utcnow)
     is_active       = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
     document    = relationship("Document",       back_populates=None, foreign_keys=[document_id])
@@ -72,7 +72,7 @@ class ESignSigner(Base):
     signed_at       = Column(DateTime, nullable=True)
     signing_url     = Column(String(1024), nullable=True)  # per-signer embedded URL
     provider_recipient_id = Column(String(256), nullable=True)
-    created_at      = Column(DateTime, default=datetime.utcnow)
+    created_at      = Column(DateTime, default=utcnow)
 
     envelope = relationship("ESignEnvelope", back_populates="signers")
     user     = relationship("User", back_populates=None, foreign_keys=[user_id])

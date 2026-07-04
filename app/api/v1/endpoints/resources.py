@@ -5,7 +5,7 @@ Availability matrices, load scoring, skill matching, alerts, and utilization his
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
-from typing import List, Optional, Dict
+from typing import Optional, Dict
 import logging
 
 from app.core.deps import get_db, get_current_user, require_any_manager

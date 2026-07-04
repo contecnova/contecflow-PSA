@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
@@ -12,6 +12,19 @@ import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedAp
 import { PRIORITY_LABEL, PBadge } from './sdUtils'
 import { RoutingRules } from './QueueAndRoutingSections'
 
+// ── Local types ─────────────────────────────────────────────────────────────
+type Svc = { [k: string]: unknown; id: string; name: string; category_id?: string; ticket_type?: string; default_priority?: string; sla_response_hours?: number; sla_resolution_hours?: number; requires_approval?: boolean; is_visible_to_clients?: boolean }
+type Cat = { [k: string]: unknown; id: string; name: string; description?: string; icon?: string; color?: string; services?: Svc[] }
+type Policy = { [k: string]: unknown; id: string; name: string; description?: string; is_default?: boolean; business_hours_only?: boolean }
+type Member = { [k: string]: unknown; id: string; full_name?: string; is_lead?: boolean }
+type Group = { [k: string]: unknown; id: string; name: string; description?: string; support_level?: string; members?: Member[] }
+type User = { [k: string]: unknown; id: string; full_name?: string }
+type Template = { [k: string]: unknown; id: string; name: string; ticket_type?: string; default_priority?: string; description_template?: string; is_active?: boolean }
+type Canned = { [k: string]: unknown; id: string; title?: string; body?: string; category?: string; shortcut?: string }
+type CannedForm = { title: string; body: string; category: string; shortcut: string }
+type Ann = { [k: string]: unknown; id: string; title?: string; body?: string; type?: string; show_to_clients?: boolean; starts_at?: string; ends_at?: string }
+const PRIORITY_LABEL_MAP = PRIORITY_LABEL as Record<string, string>
+
 // ── Catalog Config ────────────────────────────────────────────────────────────
 function CatalogConfig() {
   const t = useAppT()
@@ -20,49 +33,49 @@ function CatalogConfig() {
   const [showNewCat, setShowNewCat] = useState(false)
   const [showNewSvc, setShowNewSvc] = useState(false)
 
-  const { data: catalog = [], isLoading } = useQuery({
+  const { data: catalog = [], isLoading } = useQuery<Cat[]>({
     queryKey: ['sd-catalog'],
     queryFn: () => sdCatalogApi.get().then(r => r.data),
   })
 
-  const [editingCat, setEditingCat] = useState(null)
-  const [editingSvc, setEditingSvc] = useState(null)
+  const [editingCat, setEditingCat] = useState<Cat | null>(null)
+  const [editingSvc, setEditingSvc] = useState<Svc | null>(null)
 
   const { mutate: createCat, isPending: creatingCat } = useMutation({
-    mutationFn: d => sdCatalogApi.createCategory(d),
+    mutationFn: (d: Record<string, unknown>) => sdCatalogApi.createCategory(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewCat(false); toast.success(t('service_desk.cat_new_title')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: updateCat } = useMutation({
-    mutationFn: ({id, ...d}) => sdCatalogApi.updateCategory(id, d),
+    mutationFn: ({id, ...d}: { id: string } & Record<string, unknown>) => sdCatalogApi.updateCategory(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingCat(null); toast.success(t('service_desk.cat_edit_title')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteCat } = useMutation({
-    mutationFn: id => sdCatalogApi.deleteCategory(id),
+    mutationFn: (id: string) => sdCatalogApi.deleteCategory(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success(t('common.delete')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: createSvc, isPending: creatingSvc } = useMutation({
-    mutationFn: d => sdCatalogApi.createService(d),
+    mutationFn: (d: Record<string, unknown>) => sdCatalogApi.createService(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewSvc(false); toast.success(t('service_desk.svc_new_title')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: updateSvc } = useMutation({
-    mutationFn: ({id, ...d}) => sdCatalogApi.updateService(id, d),
+    mutationFn: ({id, ...d}: { id: string } & Record<string, unknown>) => sdCatalogApi.updateService(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingSvc(null); toast.success(t('service_desk.svc_edit_title')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteSvc } = useMutation({
-    mutationFn: id => sdCatalogApi.deleteService(id),
+    mutationFn: (id: string) => sdCatalogApi.deleteService(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success(t('common.delete')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
+  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
     borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block',
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block',
     marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
 
   return (
@@ -78,7 +91,7 @@ function CatalogConfig() {
       {isLoading ? <Spinner /> :
        catalog.length === 0 ? <EmptyState icon="📋" title={t('service_desk.catalog_empty')} description={t('service_desk.catalog_empty_desc')} /> :
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-        {catalog.map(cat => (
+        {catalog.map((cat: Cat) => (
           <div key={cat.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, overflow:'hidden' }}>
             <div style={{ padding:'14px 18px', background:'var(--surface-1)', borderBottom:'1px solid var(--surface-4)',
               display:'flex', alignItems:'center', gap:10 }}>
@@ -93,10 +106,10 @@ function CatalogConfig() {
                   style={{ padding:'3px 8px', borderRadius:5, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
               </div>
             </div>
-            {cat.services?.length > 0 && (
+            {(cat.services?.length ?? 0) > 0 && (
               <table style={{ width:'100%', borderCollapse:'collapse' }}>
                 <tbody>
-                  {cat.services.map(svc => (
+                  {(cat.services ?? []).map((svc: Svc) => (
                     <tr key={svc.id} style={{ borderBottom:'1px solid var(--surface-4)' }}>
                       <td style={{ padding:'10px 18px', fontSize: "var(--text-base)", color:'var(--text-1)', fontWeight:500 }}>{svc.name}</td>
                       <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{svc.ticket_type?.replace(/_/g,' ')}</td>
@@ -146,13 +159,13 @@ function CatalogConfig() {
   )
 }
 
-function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }) {
+function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: CSSProperties; LS: CSSProperties; initial?: Cat | null }) {
   const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', description: initial?.description || '',
     icon: initial?.icon || '📁', color: initial?.color || '#4f8ef7'
   })
-  const set = k => e => setForm(f => ({...f, [k]: e.target.value}))
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement>) => setForm(f => ({...f, [k]: e.target.value}))
   return (
     <Modal open title={initial ? t('service_desk.cat_edit_title') : t('service_desk.cat_new_title')} onClose={onClose}>
       <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
@@ -170,7 +183,7 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }) {
   )
 }
 
-function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial }) {
+function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial }: { catalog: Cat[]; onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: CSSProperties; LS: CSSProperties; initial?: Svc | null }) {
   const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '',
@@ -182,7 +195,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
     requires_approval: initial?.requires_approval || false,
     is_visible_to_clients: initial?.is_visible_to_clients ?? true,
   })
-  const set = k => e => setForm(f => ({...f, [k]: e.target.type==='checkbox' ? e.target.checked : e.target.value}))
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({...f, [k]: (e.target as HTMLInputElement).type==='checkbox' ? (e.target as HTMLInputElement).checked : e.target.value}))
   return (
     <Modal open title={initial ? t('service_desk.svc_edit_title') : t('service_desk.svc_new_title')} onClose={onClose}>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
@@ -190,7 +203,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
         <div>
           <label style={LS}>{t('service_desk.svc_ticket_type')}</label>
           <select value={form.category_id} onChange={set('category_id')} style={IS}>
-            {catalog.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {catalog.map((c: Cat) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div>
@@ -202,7 +215,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
         <div>
           <label style={LS}>{t('service_desk.svc_default_priority')}</label>
           <select value={form.default_priority} onChange={set('default_priority')} style={IS}>
-            {['p1_critical','p2_high','p3_medium','p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
+            {['p1_critical','p2_high','p3_medium','p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL_MAP[p]}</option>)}
           </select>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
@@ -229,31 +242,31 @@ function SLAConfig() {
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
 
-  const { data: policies = [], isLoading } = useQuery({
+  const { data: policies = [], isLoading } = useQuery<Policy[]>({
     queryKey: ['sd-sla-policies'],
     queryFn: () => sdSlaPoliciesApi.list().then(r => r.data),
   })
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState<Policy | null>(null)
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => sdSlaPoliciesApi.create(d),
+    mutationFn: (d: Record<string, unknown>) => sdSlaPoliciesApi.create(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setShowNew(false); toast.success(t('service_desk.sla_created')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: update } = useMutation({
-    mutationFn: ({id, ...d}) => sdSlaPoliciesApi.update(id, d),
+    mutationFn: ({id, ...d}: { id: string } & Record<string, unknown>) => sdSlaPoliciesApi.update(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setEditing(null); toast.success(t('service_desk.sla_updated')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: remove } = useMutation({
-    mutationFn: id => sdSlaPoliciesApi.delete(id),
+    mutationFn: (id: string) => sdSlaPoliciesApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); toast.success(t('service_desk.sla_deleted')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
+  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
     borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
 
   return (
     <div>
@@ -265,7 +278,7 @@ function SLAConfig() {
       {isLoading ? <Spinner /> :
        policies.length === 0 ? <EmptyState icon="⏱" title={t('service_desk.sla_empty')} description={t('service_desk.sla_empty_desc')} /> :
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-        {policies.map(p => (
+        {policies.map((p: Policy) => (
           <div key={p.id} style={{ background:'var(--surface-2)', border:`1px solid ${p.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius:12, padding:20 }}>
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
               <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>{p.name}</span>
@@ -283,8 +296,8 @@ function SLAConfig() {
                 <div key={key} style={{ background:'var(--surface-1)', borderRadius:8, padding:12, borderTop:`3px solid ${color}` }}>
                   <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color, marginBottom:8 }}>{label}</div>
                   <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
-                    <div>Resp: <strong style={{ color:'var(--text-1)' }}>{p[`${key}_response_hours`]}h</strong></div>
-                    <div>Res: <strong style={{ color:'var(--text-1)' }}>{p[`${key}_resolution_hours`]}h</strong></div>
+                    <div>Resp: <strong style={{ color:'var(--text-1)' }}>{p[`${key}_response_hours`] as number}h</strong></div>
+                    <div>Res: <strong style={{ color:'var(--text-1)' }}>{p[`${key}_resolution_hours`] as number}h</strong></div>
                   </div>
                 </div>
               ))}
@@ -309,7 +322,7 @@ function SLAConfig() {
   )
 }
 
-function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }) {
+function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSProperties; LS: CSSProperties; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Policy | null }) {
   const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', description: initial?.description || '',
@@ -319,7 +332,8 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }) {
     p3_response_hours: initial?.p3_response_hours ?? 8, p3_resolution_hours: initial?.p3_resolution_hours ?? 24,
     p4_response_hours: initial?.p4_response_hours ?? 24, p4_resolution_hours: initial?.p4_resolution_hours ?? 72,
   })
-  const set = k => e => setForm(f => ({...f, [k]: e.target.type==='checkbox' ? e.target.checked : e.target.value}))
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement>) => setForm(f => ({...f, [k]: e.target.type==='checkbox' ? e.target.checked : e.target.value}))
+  const formRec = form as Record<string, unknown>
   return (
     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
       <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
@@ -327,8 +341,8 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }) {
         <div key={key} style={{ background:'var(--surface-1)', borderRadius:10, padding:14 }}>
           <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--text-2)', marginBottom:10 }}>{label}</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-            <div><label style={LS}>{t('service_desk.sla_response_h')}</label><input type="number" value={form[`${key}_response_hours`]} onChange={set(`${key}_response_hours`)} style={IS} /></div>
-            <div><label style={LS}>{t('service_desk.sla_resolution_h')}</label><input type="number" value={form[`${key}_resolution_hours`]} onChange={set(`${key}_resolution_hours`)} style={IS} /></div>
+            <div><label style={LS}>{t('service_desk.sla_response_h')}</label><input type="number" value={formRec[`${key}_response_hours`] as number} onChange={set(`${key}_response_hours`)} style={IS} /></div>
+            <div><label style={LS}>{t('service_desk.sla_resolution_h')}</label><input type="number" value={formRec[`${key}_resolution_hours`] as number} onChange={set(`${key}_resolution_hours`)} style={IS} /></div>
           </div>
         </div>
       ))}
@@ -357,45 +371,45 @@ function GroupsConfig() {
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
 
-  const { data: groups = [], isLoading } = useQuery({
+  const { data: groups = [], isLoading } = useQuery<Group[]>({
     queryKey: ['sd-groups'],
     queryFn: () => sdGroupsApi.list().then(r => r.data),
   })
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<User[]>({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data),
+    queryFn: () => usersApi.list().then(r => r.data as unknown as User[]),
   })
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState<Group | null>(null)
   const { mutate: createGroup, isPending } = useMutation({
-    mutationFn: d => sdGroupsApi.create(d),
+    mutationFn: (d: Record<string, unknown>) => sdGroupsApi.create(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); setShowNew(false); toast.success(t('service_desk.groups_created')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: updateGroup } = useMutation({
-    mutationFn: ({id, ...d}) => sdGroupsApi.update(id, d),
+    mutationFn: ({id, ...d}: { id: string } & Record<string, unknown>) => sdGroupsApi.update(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); setEditing(null); toast.success(t('service_desk.groups_updated')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteGroup } = useMutation({
-    mutationFn: id => sdGroupsApi.delete(id),
+    mutationFn: (id: string) => sdGroupsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); toast.success(t('service_desk.groups_deleted')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: addMember } = useMutation({
-    mutationFn: ({gid, uid}) => sdGroupsApi.addMember(gid, uid),
+    mutationFn: ({gid, uid}: { gid: string; uid: string }) => sdGroupsApi.addMember(gid, uid),
     onSuccess: () => qc.invalidateQueries({queryKey:['sd-groups']}),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: removeMember } = useMutation({
-    mutationFn: ({gid, uid}) => sdGroupsApi.removeMember(gid, uid),
+    mutationFn: ({gid, uid}: { gid: string; uid: string }) => sdGroupsApi.removeMember(gid, uid),
     onSuccess: () => qc.invalidateQueries({queryKey:['sd-groups']}),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
+  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
     borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
 
   return (
     <div>
@@ -407,9 +421,9 @@ function GroupsConfig() {
       {isLoading ? <Spinner /> :
        groups.length === 0 ? <EmptyState icon="👥" title={t('service_desk.groups_empty')} description={t('service_desk.groups_empty_desc')} /> :
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-        {groups.map(g => {
-          const memberIds = new Set((g.members || []).map(m => m.id))
-          const available = (users || []).filter(u => !memberIds.has(u.id))
+        {groups.map((g: Group) => {
+          const memberIds = new Set((g.members || []).map((m: Member) => m.id))
+          const available = (users || []).filter((u: User) => !memberIds.has(u.id))
           return (
             <div key={g.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:20 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
@@ -433,7 +447,7 @@ function GroupsConfig() {
               </div>
               {g.description && <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', marginBottom:12 }}>{g.description}</div>}
               <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                {(g.members || []).map(m => (
+                {(g.members || []).map((m: Member) => (
                   <div key={m.id} style={{ display:'flex', alignItems:'center', gap:6, background:'var(--surface-1)',
                     border:'1px solid var(--surface-4)', borderRadius:20, padding:'4px 12px' }}>
                     <span style={{ fontSize: "var(--text-sm)", color:'var(--text-1)' }}>{m.full_name}</span>
@@ -471,13 +485,13 @@ function GroupsConfig() {
   )
 }
 
-function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }) {
+function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSProperties; LS: CSSProperties; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Group | null }) {
   const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', description: initial?.description || '',
     support_level: initial?.support_level || 'l1'
   })
-  const set = k => e => setForm(f => ({...f, [k]: e.target.value}))
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({...f, [k]: e.target.value}))
   return (
     <>
       <div><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
@@ -503,36 +517,36 @@ function TemplatesConfig() {
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
 
-  const { data: templates = [], isLoading } = useQuery({
+  const { data: templates = [], isLoading } = useQuery<Template[]>({
     queryKey: ['sd-templates'],
     queryFn: () => sdTemplatesApi.list().then(r => r.data),
   })
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState<Template | null>(null)
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => sdTemplatesApi.create(d),
+    mutationFn: (d: Record<string, unknown>) => sdTemplatesApi.create(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); setShowNew(false); toast.success(t('service_desk.templates_created')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: update } = useMutation({
-    mutationFn: ({id, ...d}) => sdTemplatesApi.update(id, d),
+    mutationFn: ({id, ...d}: { id: string } & Record<string, unknown>) => sdTemplatesApi.update(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); setEditing(null); toast.success(t('service_desk.templates_updated')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: toggle } = useMutation({
-    mutationFn: ({id, is_active}) => sdTemplatesApi.update(id, {is_active}),
+    mutationFn: ({id, is_active}: { id: string; is_active: boolean }) => sdTemplatesApi.update(id, {is_active}),
     onSuccess: () => qc.invalidateQueries({queryKey:['sd-templates']}),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: remove } = useMutation({
-    mutationFn: id => sdTemplatesApi.delete(id),
+    mutationFn: (id: string) => sdTemplatesApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); toast.success(t('service_desk.templates_deleted')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
+  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
     borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
 
   return (
     <div>
@@ -544,7 +558,7 @@ function TemplatesConfig() {
       {isLoading ? <Spinner /> :
        templates.length === 0 ? <EmptyState icon="📝" title={t('service_desk.templates_empty')} description={t('service_desk.templates_empty_desc')} /> :
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px,1fr))', gap:12 }}>
-        {templates.map(tmpl => (
+        {templates.map((tmpl: Template) => (
           <div key={tmpl.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
             borderRadius:12, padding:16, opacity: tmpl.is_active ? 1 : 0.55 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
@@ -596,14 +610,14 @@ function TemplatesConfig() {
   )
 }
 
-function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }) {
+function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSProperties; LS: CSSProperties; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Template | null }) {
   const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', ticket_type: initial?.ticket_type || 'service_request',
     default_priority: initial?.default_priority || 'p3_medium',
     description_template: initial?.description_template || '',
   })
-  const set = k => e => setForm(f => ({...f, [k]: e.target.value}))
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({...f, [k]: e.target.value}))
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
       <div><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
@@ -619,7 +633,7 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }) {
           <label style={LS}>{t('service_desk.templates_priority')}</label>
           <select value={form.default_priority} onChange={set('default_priority')} style={IS}>
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p =>
-              <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
+              <option key={p} value={p}>{PRIORITY_LABEL_MAP[p]}</option>)}
           </select>
         </div>
       </div>
@@ -641,34 +655,34 @@ function CannedResponsesManager() {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
-  const [form, setForm] = useState({ title: '', body: '', category: '', shortcut: '' })
-  const [editing, setEditing] = useState(null)
-  const [editForm, setEditForm] = useState({})
+  const [form, setForm] = useState<CannedForm>({ title: '', body: '', category: '', shortcut: '' })
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<Partial<CannedForm>>({})
 
-  const { data: responses = [], isLoading } = useQuery({
+  const { data: responses = [], isLoading } = useQuery<Canned[]>({
     queryKey: ['canned-responses-all'],
-    queryFn: () => sdCannedApi.list().then(r => r.data).catch(() => []),
+    queryFn: () => sdCannedApi.list(undefined).then(r => r.data).catch(() => []),
   })
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8,
+  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8,
     padding:'8px 12px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit',
     boxSizing:'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase',
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase',
     letterSpacing:'0.06em', display:'block', marginBottom:4 }
 
   const { mutate: create } = useMutation({
-    mutationFn: d => sdCannedApi.create(d),
+    mutationFn: (d: Record<string, unknown>) => sdCannedApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['canned-responses-all'] }); setForm({ title:'', body:'', category:'', shortcut:'' }) },
-    onError: e => toast.error(e?.response?.data?.detail || 'Error'),
+    onError: (e: unknown) => toast.error((e as {response?:{data?:{detail?:string}}})?.response?.data?.detail || 'Error'),
   })
   const { mutate: update } = useMutation({
-    mutationFn: ({ id, data }) => sdCannedApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<CannedForm> }) => sdCannedApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['canned-responses-all'] }); setEditing(null) },
-    onError: e => toast.error(e?.response?.data?.detail || 'Error'),
+    onError: (e: unknown) => toast.error((e as {response?:{data?:{detail?:string}}})?.response?.data?.detail || 'Error'),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => sdCannedApi.delete(id),
+    mutationFn: (id: string) => sdCannedApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['canned-responses-all'] }),
-    onError: e => toast.error(e?.response?.data?.detail || 'Error'),
+    onError: (e: unknown) => toast.error((e as {response?:{data?:{detail?:string}}})?.response?.data?.detail || 'Error'),
   })
 
   return (
@@ -679,7 +693,7 @@ function CannedResponsesManager() {
 
       {isLoading ? <div style={{textAlign:'center',padding:20}}><Spinner /></div> : (
         <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:20 }}>
-          {responses.map(r => editing === r.id ? (
+          {responses.map((r: Canned) => editing === r.id ? (
             <div key={r.id} style={{ padding:'12px 14px', background:'var(--accent-muted)',
               border:'1px solid var(--accent-glow)', borderRadius:10 }}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
@@ -756,23 +770,23 @@ export function AnnouncementsConfig() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' })
 
-  const IS = { background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize: "var(--text-sm)", outline:'none', fontFamily:'inherit', width:'100%', boxSizing:'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }
-  const TYPE_COLOR = { info:'var(--accent)', warning:'var(--warning)', outage:'var(--danger)', maintenance:'var(--purple)' }
+  const IS: CSSProperties = { background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize: "var(--text-sm)", outline:'none', fontFamily:'inherit', width:'100%', boxSizing:'border-box' }
+  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }
+  const TYPE_COLOR: Record<string, string> = { info:'var(--accent)', warning:'var(--warning)', outage:'var(--danger)', maintenance:'var(--purple)' }
 
-  const { data: anns = [], isLoading } = useQuery({
+  const { data: anns = [], isLoading } = useQuery<Ann[]>({
     queryKey: ['sd-announcements'],
     queryFn: () => sdAnnouncementsApi.list().then(r => r.data),
   })
   const { mutate: create, isPending: creating } = useMutation({
-    mutationFn: d => sdAnnouncementsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['sd-announcements']); setShowCreate(false); setForm({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' }); toast.success(t('service_desk.ann_published')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (d: Record<string, unknown>) => sdAnnouncementsApi.create(d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-announcements'] }); setShowCreate(false); setForm({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' }); toast.success(t('service_desk.ann_published')) },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => sdAnnouncementsApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries(['sd-announcements']); toast.success(t('service_desk.ann_deactivated')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string) => sdAnnouncementsApi.delete(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-announcements'] }); toast.success(t('service_desk.ann_deactivated')) },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -785,12 +799,12 @@ export function AnnouncementsConfig() {
           ? <EmptyState icon="📢" title={t('service_desk.ann_empty')} description={t('service_desk.ann_empty_desc')} />
           : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              {anns.map(a => (
-                <div key={a.id} style={{ display:'flex', gap:14, padding:'12px 16px', background:'var(--surface-2)', border:`1px solid ${(TYPE_COLOR[a.type]||'var(--accent)')}30`, borderRadius:10, alignItems:'flex-start' }}>
-                  <div style={{ width:4, alignSelf:'stretch', borderRadius:4, background:TYPE_COLOR[a.type]||'var(--accent)', flexShrink:0 }} />
+              {anns.map((a: Ann) => (
+                <div key={a.id} style={{ display:'flex', gap:14, padding:'12px 16px', background:'var(--surface-2)', border:`1px solid ${(TYPE_COLOR[a.type||'']||'var(--accent)')}30`, borderRadius:10, alignItems:'flex-start' }}>
+                  <div style={{ width:4, alignSelf:'stretch', borderRadius:4, background:TYPE_COLOR[a.type||'']||'var(--accent)', flexShrink:0 }} />
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize: "var(--text-base)", fontWeight:700, marginBottom:4 }}>{a.title}
-                      <span style={{ fontSize: "var(--text-2xs)", padding:'2px 7px', marginLeft:8, borderRadius:20, background:(TYPE_COLOR[a.type]||'var(--accent)')+'20', color:TYPE_COLOR[a.type]||'var(--accent)', fontWeight:700, textTransform:'uppercase' }}>{a.type}</span>
+                      <span style={{ fontSize: "var(--text-2xs)", padding:'2px 7px', marginLeft:8, borderRadius:20, background:(TYPE_COLOR[a.type||'']||'var(--accent)')+'20', color:TYPE_COLOR[a.type||'']||'var(--accent)', fontWeight:700, textTransform:'uppercase' }}>{a.type}</span>
                       {a.show_to_clients && <span style={{ fontSize: "var(--text-2xs)", marginLeft:6, color:'var(--text-3)' }}>👁 {t('service_desk.ann_visible_clients')}</span>}
                     </div>
                     <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', lineHeight:1.5 }}>{a.body}</div>

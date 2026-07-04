@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -166,7 +165,7 @@ const QUICK_ACCESS: Record<string, string[]> = {
 }
 
 const NAV_WORKSPACE_KEY = 'contecflow_nav_workspace'
-const WORKSPACE_GROUPS = {
+const WORKSPACE_GROUPS: Record<string, string[]> = {
   all: ['trabajo', 'proyectos', 'equipo', 'negocio', 'soporte', 'analisis', 'ia', 'configuracion'],
   work: ['trabajo'],
   projects: ['proyectos'],
@@ -265,7 +264,7 @@ const LAYOUT_TEXT: Record<string, Record<string, string>> = {
   },
 }
 
-const NAV_GROUPS = [
+const NAV_GROUPS: NavGroupConfig[] = [
   { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr'], items: [
     { to: '/work-dashboard',  icon: <LayoutGrid size={SZ} />,   label: 'Mi día',       roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/inbox',           icon: <Inbox size={SZ} />,        label: 'Bandeja de entrada', roles: ['admin','pm','team_lead','employee','hr'] },
@@ -506,8 +505,8 @@ function ShortcutsModal({ onClose, text }: { onClose: () => void; text: Record<s
 
 // TODO type: nav item config — defined as plain object literal in NAV_GROUPS
 interface NavItemConfig {
-  to: string
-  icon: React.ReactNode
+  to?: string
+  icon?: React.ReactNode
   label?: string
   roles?: string[]
   divider?: boolean
@@ -520,26 +519,26 @@ interface NavItemProps {
   approvalCount?: number
   t?: TFn | null
   pinned?: string[]
-  onPin: (to: string) => void
+  onPin?: (to: string) => void
   text?: Record<string, string>
 }
 
 function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin, text = {} }: NavItemProps) {
   const { unread: chatUnread } = useChatRealtime()
-  const badge = item.to === '/alerts' ? alertCount
+  const badge = (item.to === '/alerts' ? alertCount
               : item.to === '/approvals' ? approvalCount
               : item.to === '/chat' ? chatUnread
-              : 0
+              : 0) ?? 0
   const badgeColor = item.to === '/approvals' ? 'var(--warning)'
                    : item.to === '/chat' ? 'var(--accent)'
                    : 'var(--danger)'
-  const displayLabel = getNavLabel(item.to, item.label, t)
-  const isPinned = pinned?.includes(item.to)
+  const displayLabel = getNavLabel(item.to || '', item.label, t)
+  const isPinned = pinned?.includes(item.to || '')
   const [hover, setHover] = useState<boolean>(false)
 
   return (
     <div style={{ position: 'relative' }}>
-      <NavLink to={item.to} title={displayLabel} aria-label={displayLabel}
+      <NavLink to={item.to || '#'} title={displayLabel} aria-label={displayLabel}
         style={({ isActive }) => ({
           display: 'flex', alignItems: 'center', gap: 8,
           paddingTop: collapsed ? 7 : 5,
@@ -571,7 +570,7 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
       </NavLink>
       {!collapsed && hover && onPin && (
         <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPin(item.to) }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPin(item.to || '') }}
           aria-label={isPinned ? text.remove_favorite : text.add_favorite}
           title={isPinned ? text.remove_favorite : text.add_favorite}
           style={{
@@ -591,6 +590,7 @@ interface NavGroupConfig {
   label: string
   groupKey?: string
   icon?: React.ReactNode
+  roles?: string[]
   items: NavItemConfig[]
   single?: boolean
 }
@@ -659,9 +659,9 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
           >
             <div className="nav-hover-title">{groupLabel}</div>
             {realVisible.map(item => {
-              const itemLabel = getNavLabel(item.to, item.label, t)
+              const itemLabel = getNavLabel(item.to || '', item.label, t)
               return (
-              <NavLink key={item.to} to={item.to} onClick={() => setHoverOpen(false)}
+              <NavLink key={item.to} to={item.to || '#'} onClick={() => setHoverOpen(false)}
                 style={({ isActive }) => ({
                   display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 6,
                   textDecoration: 'none', fontSize: "var(--text-sm-h)", fontWeight: 500,
@@ -737,7 +737,7 @@ interface FavoritesSectionProps {
 }
 
 function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount, t, allNavItems, quickItems, text }: FavoritesSectionProps) {
-  const pinnedItems = pinned.map(path => allNavItems.find(i => i.to === path)).filter(Boolean)
+  const pinnedItems = pinned.map(path => allNavItems.find(i => i.to === path)).filter((i): i is NavItemConfig => Boolean(i))
   const showQuick   = pinnedItems.length === 0
   const displayItems = showQuick ? quickItems : pinnedItems
   if (displayItems.length === 0) return null
@@ -769,6 +769,10 @@ interface ActiveTimer {
   task_id?: string | number
   project_name?: string
   task_name?: string
+  started_at?: string
+  paused_at?: string | null
+  paused_duration_secs?: number
+  total_elapsed_seconds?: number | null
   [key: string]: unknown
 }
 
@@ -821,39 +825,39 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
 
   const section = getSectionLabel(location.pathname, t) || ROUTE_SECTION[location.pathname]
   const currentNavItem = allNavItems
-    .filter(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/'))
-    .sort((a, b) => b.to.length - a.to.length)[0]
+    .filter(i => location.pathname === i.to || location.pathname.startsWith((i.to || '') + '/'))
+    .sort((a, b) => (b.to || '').length - (a.to || '').length)[0]
 
   // Resolve project name for /projects/:id breadcrumb
   const projectIdMatch = location.pathname.match(/^\/projects\/([^/]+)$/)
   const projectId = projectIdMatch?.[1]
   const { data: breadcrumbProject } = useQuery({
     queryKey: ['breadcrumb-project', projectId],
-    queryFn: () => projectsApi.get(projectId).then(r => r.data),
+    queryFn: () => projectsApi.get(projectId as string).then(r => r.data),
     enabled: !!projectId,
     staleTime: 300_000,
   })
 
   const { data: timerProject } = useQuery({
     queryKey: ['topbar-timer-project', activeTimer?.project_id],
-    queryFn: () => projectsApi.get(activeTimer.project_id).then(r => r.data),
+    queryFn: () => projectsApi.get(activeTimer?.project_id as string).then(r => r.data),
     enabled: !!activeTimer?.project_id && !activeTimer?.project_name,
     staleTime: 300_000,
   })
 
   const { data: timerTask } = useQuery({
     queryKey: ['topbar-timer-task', activeTimer?.task_id],
-    queryFn: () => tasksApi.get(activeTimer.task_id).then(r => r.data),
+    queryFn: () => tasksApi.get(activeTimer?.task_id as string).then(r => r.data),
     enabled: !!activeTimer?.task_id && !activeTimer?.task_name,
     staleTime: 300_000,
   })
 
   const topbarProjectLabel = activeTimer?.project_name || timerProject?.name || (activeTimer?.project_id ? `Proyecto #${activeTimer.project_id}` : null)
-  const topbarTaskLabel = activeTimer?.task_name || timerTask?.title || timerTask?.name || (activeTimer?.task_id ? `Tarea #${activeTimer.task_id}` : null)
+  const topbarTaskLabel = activeTimer?.task_name || timerTask?.title || (timerTask as any)?.name || (activeTimer?.task_id ? `Tarea #${activeTimer.task_id}` : null)
   const topbarTimerSubtitle = topbarTaskLabel ? `${topbarProjectLabel} · ${topbarTaskLabel}` : topbarProjectLabel
 
   const breadcrumbs = useMemo(() => {
-    const items = []
+    const items: { label: string; to: string | null }[] = []
     const pathname = location.pathname || '/'
     const segments = pathname.split('/').filter(Boolean)
 
@@ -862,14 +866,14 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
     }
 
     if (currentNavItem) {
-      const baseLabel = getNavLabel(currentNavItem.to, currentNavItem.label, t)
+      const baseLabel = getNavLabel(currentNavItem.to || '', currentNavItem.label, t)
       const isExactBase = pathname === currentNavItem.to
-      items.push({ label: baseLabel, to: isExactBase ? null : currentNavItem.to })
+      items.push({ label: baseLabel, to: isExactBase ? null : (currentNavItem.to ?? null) })
 
       if (!isExactBase) {
-        const baseSegments = currentNavItem.to.split('/').filter(Boolean)
+        const baseSegments = (currentNavItem.to || '').split('/').filter(Boolean)
         const extraSegments = segments.slice(baseSegments.length)
-        let accPath = currentNavItem.to
+        let accPath = currentNavItem.to || ''
 
         extraSegments.forEach((seg, idx) => {
           accPath += `/${seg}`
@@ -905,7 +909,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
 
   return (
     <div className="app-topbar" role="banner">
-      <Breadcrumbs items={breadcrumbs} />
+      <Breadcrumbs items={breadcrumbs as any} />
       <div className="app-topbar-center">
         <button onClick={onSearchOpen} title={text.global_search_title}
           aria-label={text.open_global_search}
@@ -1029,7 +1033,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         {(() => {
           const total = (alertCount || 0) + (approvalCount || 0)
           if (total === 0) return null
-          const tone = alertCount > 0 ? 'danger' : 'warning'
+          const tone = (alertCount || 0) > 0 ? 'danger' : 'warning'
           const bg = tone === 'danger' ? 'var(--danger-bg)' : 'var(--warning-bg)'
           const border = tone === 'danger' ? 'var(--danger-border)' : 'var(--warning-border)'
           const color = tone === 'danger' ? 'var(--danger)' : 'var(--warning)'
@@ -1055,7 +1059,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0,
                 display: 'flex', alignItems: 'center', gap: 7 }}
             >
-              <Avatar name={user.full_name} size={24} />
+              <Avatar name={user.full_name} size={24} url={undefined} />
               <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)',
                 maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user.full_name}
@@ -1135,8 +1139,8 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
   const q = query.toLowerCase().trim()
   const matches = allItems.filter(i => {
     if (i.roles && !i.roles.some(r => hasRole(r))) return false
-    const translatedLabel = getNavLabel(i.to, i.label, t)
-    const fallbackLabel = ROUTE_LABELS[i.to] || i.label
+    const translatedLabel = getNavLabel(i.to || '', i.label, t)
+    const fallbackLabel = ROUTE_LABELS[i.to || ''] || i.label || ''
     return translatedLabel.toLowerCase().includes(q) || fallbackLabel.toLowerCase().includes(q)
   })
   if (matches.length === 0) {
@@ -1145,11 +1149,11 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '3px 4px' }}>
       {matches.map(item => {
-        const badge = item.to === '/alerts' ? alertCount : item.to === '/approvals' ? approvalCount : 0
+        const badge = (item.to === '/alerts' ? alertCount : item.to === '/approvals' ? approvalCount : 0) ?? 0
         const badgeColor = item.to === '/approvals' ? 'var(--warning)' : 'var(--danger)'
-        const itemLabel = getNavLabel(item.to, item.label, t)
+        const itemLabel = getNavLabel(item.to || '', item.label, t)
         return (
-          <NavLink key={item.to} to={item.to} onClick={onNavigate}
+          <NavLink key={item.to} to={item.to || ''} onClick={onNavigate}
             aria-label={itemLabel}
             style={({ isActive }) => ({
               display: 'flex', alignItems: 'center', gap: 8,
@@ -1206,7 +1210,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const quickItems = useMemo(() => {
     const role = user?.role || 'employee'
     const paths = QUICK_ACCESS[role] || QUICK_ACCESS.employee
-    return paths.map(p => allNavItems.find(i => i.to === p)).filter(Boolean)
+    return paths.map(p => allNavItems.find(i => i.to === p)).filter((i): i is NavItemConfig => Boolean(i))
   }, [user?.role, allNavItems])
 
   const togglePin = useCallback((path: string) => {
@@ -1248,7 +1252,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       setTimerElapsed(activeTimer?.total_elapsed_seconds ?? 0)
       return undefined
     }
-    const tick = () => setTimerElapsed(computeTimerElapsed(activeTimer))
+    const tick = () => setTimerElapsed(computeTimerElapsed(activeTimer as TimerState))
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
@@ -1288,9 +1292,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   }, [isOverlayNav, mobileOpen])
 
   useEffect(() => {
-    const handler = (e) => {
-      const tag = e.target?.tagName
-      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement | null)?.isContentEditable
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setSearchOpen(o => !o); return }
       if ((e.metaKey || e.ctrlKey) && e.key === 'i') { e.preventDefault(); setAiOpen(o => !o); return }
       if ((e.metaKey || e.ctrlKey) && e.key === 'b') { e.preventDefault(); setCollapsed(c => !c); return }
@@ -1302,7 +1306,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   }, [])
 
   const _currentDensity = prefs?.ui_density || 'normal'
-  const _setDensity = (d) => save({ ui_density: d })
+  const _setDensity = (d: string) => save({ ui_density: d })
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--surface-0)' }}>
@@ -1417,7 +1421,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           {NAV_GROUPS.map(group => {
             const visible = group.items.some(i => !i.divider && (!i.roles || i.roles.some(r => hasRole(r))))
             if (!visible) return null
-            if (!group.single && workspace !== 'all' && !WORKSPACE_GROUPS[workspace]?.includes(group.id)) return null
+            if (!group.single && workspace !== 'all' && !WORKSPACE_GROUPS[workspace]?.includes(group.id || '')) return null
             if (group.single) {
               const item = group.items[0]
               if (!item.roles || item.roles.some(r => hasRole(r))) {
@@ -1522,7 +1526,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           onChatToggle={() => setChatOpen(o => !o)}
           chatOpen={chatOpen}
           chatUnread={chatUnread}
-          user={user}
+          user={user as AuthUser | null}
           onProfileOpen={() => setProfileOpen(true)}
           onLogout={logout}
           alertCount={alertCount}

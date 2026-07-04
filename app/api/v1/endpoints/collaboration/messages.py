@@ -1,6 +1,5 @@
 """Messages, threads, reactions, mentions, reads, pins, saved."""
-from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -11,7 +10,6 @@ from app.db.session import get_db
 from app.models.user import User
 from app.models.collaboration import (
     CollaborationMention, CollaborationMessage,
-    CollaborationMessageVersion,
 )
 from app.schemas.collaboration import (
     MessageCreate, MessageOut, MessageUpdate, MessageVersionOut,

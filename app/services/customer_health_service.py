@@ -6,7 +6,7 @@ performance, budget adherence, ticket resolution and portal activity.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from app.core.timeutil import utcnow
 from typing import Any, Dict
 
@@ -14,7 +14,6 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models.clients import Client
 from app.models.nps import ClientNPS
-from app.core.config import settings
 from app.services.settings_service import get_runtime_namespace
 
 _HEALTH_KEYS = {

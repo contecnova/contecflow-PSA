@@ -37,11 +37,9 @@ from sqlalchemy.orm import Session
 from app.models.service_desk import (
     Ticket,
     TicketHistory,
-    TicketPriority,
     TicketStatus,
 )
 from app.services.service_desk.incident_intelligence_service import (
-    AUTO_RESOLVE_CONFIDENCE_THRESHOLD,
     score_auto_resolution,
 )
 

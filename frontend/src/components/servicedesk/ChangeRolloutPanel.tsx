@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ChangeRolloutPanel.jsx — Advanced change rollout management UI.
  *
@@ -21,20 +20,25 @@ import { useToast } from '../../context/ToastContext'
 
 // TODO type: changeRolloutApi rollout plan/phase payloads — needs shared types
 interface RolloutPhase {
+  id?: string | number
   name: string
   description?: string
   target_pct: number
   duration_minutes?: number
   gate_criteria?: string[]
+  status?: string
 }
 
 interface RolloutPlan {
   id: string | number
   name?: string
+  title?: string
   change_request_id: string
   strategy: string
   status?: string
   risk_level?: string
+  current_phase_index?: number
+  created_at?: string
   rollout_phases?: RolloutPhase[]
 }
 
@@ -44,6 +48,19 @@ interface RolloutForm {
   phases: number
   name: string
 }
+
+// TODO type: simulate response — needs shared type
+type SimulateResult = {
+  [k: string]: unknown
+  risk_label?: string
+  risk_score?: number
+  estimated_duration_minutes?: number
+  recommended_window?: string
+  rollback_readiness?: string
+  recommendations?: string[]
+}
+
+type ApiError = { response?: { data?: { detail?: string } } }
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   draft:        { label: 'Borrador',   color: 'var(--text-3)' },
@@ -153,8 +170,7 @@ export default function ChangeRolloutPanel() {
   const [showCreate, setShowCreate] = useState<boolean>(false)
   const [changeRequestFilter, setChangeRequestFilter] = useState<string>('')
   const [form, setForm] = useState<RolloutForm>({ change_request_id: '', strategy: 'canary', phases: 3, name: '' })
-  // TODO type: simulate response — needs shared type
-  const [simulate, setSimulate] = useState<Record<string, unknown> | null>(null)
+  const [simulate, setSimulate] = useState<SimulateResult | null>(null)
 
   const { data: plansData, isLoading } = useQuery<{ items?: RolloutPlan[] }>({
     queryKey: ['change-rollout-plans', changeRequestFilter],
@@ -185,54 +201,54 @@ export default function ChangeRolloutPanel() {
       setShowCreate(false)
       setForm({ change_request_id: '', strategy: 'canary', phases: 3, name: '' })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al crear el plan'),
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al crear el plan'),
   })
 
   const approveMutation = useMutation({
-    mutationFn: (id) => changeRolloutApi.approvePlan(id).then(r => r.data),
+    mutationFn: (id: string | number) => changeRolloutApi.approvePlan(id).then(r => r.data),
     onSuccess: () => {
       toast.success('Plan aprobado')
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al aprobar el plan'),
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al aprobar el plan'),
   })
 
   const advanceMutation = useMutation({
-    mutationFn: ({ id, notes }) =>
+    mutationFn: ({ id, notes }: { id: string | number; notes: string }) =>
       changeRolloutApi.advancePhase(id, { phase_notes: notes || null }).then(r => r.data),
-    onSuccess: (data) => {
+    onSuccess: (data: { status?: string }) => {
       const status = data?.status || 'in_progress'
       toast.success(status === 'completed' ? 'Rollout completado 🎉' : 'Fase avanzada')
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al avanzar de fase'),
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al avanzar de fase'),
   })
 
   const rollbackMutation = useMutation({
-    mutationFn: ({ changeId, reason }) =>
+    mutationFn: ({ changeId, reason }: { changeId: string; reason: string }) =>
       changeRolloutApi.rollback(changeId, { reason }).then(r => r.data),
     onSuccess: () => {
       toast.success('Rollback ejecutado')
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al ejecutar rollback'),
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al ejecutar rollback'),
   })
 
-  const handleSimulate = async (plan) => {
+  const handleSimulate = async (plan: RolloutPlan) => {
     try {
       const res = await changeRolloutApi.simulatePlan(plan.change_request_id, plan.id)
       setSimulate(res.data?.simulation ?? res.data?.impact ?? res.data)
-    } catch (e) {
-      toast.error(e?.response?.data?.detail || 'Error al simular')
+    } catch (e: unknown) {
+      toast.error((e as ApiError)?.response?.data?.detail || 'Error al simular')
     }
   }
 
-  const handleAdvance = (id) => {
+  const handleAdvance = (id: string | number) => {
     const notes = window.prompt('Notas opcionales para esta fase:', '') ?? ''
     advanceMutation.mutate({ id, notes: notes.trim() })
   }
 
-  const handleRollback = (changeId) => {
+  const handleRollback = (changeId: string) => {
     const reason = window.prompt('Motivo del rollback (queda registrado):', '')
     if (!reason || !reason.trim()) return
     rollbackMutation.mutate({ changeId, reason: reason.trim() })
@@ -335,7 +351,7 @@ export default function ChangeRolloutPanel() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {plans.map(plan => {
-                const meta = STATUS_META[plan.status] ?? STATUS_META.draft
+                const meta = STATUS_META[plan.status || ''] ?? STATUS_META.draft
                 const isSel = selectedId === plan.id
                 const totalPhases = plan.rollout_phases?.length ?? 0
                 return (
@@ -399,7 +415,7 @@ export default function ChangeRolloutPanel() {
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Sin fases definidas</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {selectedPlan.rollout_phases.map((phase, i) => {
+                  {(selectedPlan.rollout_phases || []).map((phase, i) => {
                     const cur = selectedPlan.current_phase_index ?? 0
                     const phaseStatus = phase.status || (i < cur ? 'completed' : i === cur ? 'ready' : 'pending')
                     const color = phaseStatus === 'completed' ? 'var(--success)'
@@ -461,7 +477,7 @@ export default function ChangeRolloutPanel() {
                   icon={<ChevronRight size={13} />}
                 >Avanzar fase</Button>
               )}
-              {['approved', 'in_progress'].includes(selectedPlan.status) && (
+              {['approved', 'in_progress'].includes(selectedPlan.status || '') && (
                 <Button
                   size="sm"
                   variant="danger"

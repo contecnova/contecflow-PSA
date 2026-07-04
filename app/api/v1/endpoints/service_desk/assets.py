@@ -4,7 +4,7 @@ Hardware lifecycle, software licenses, and asset audit endpoints.
 """
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 

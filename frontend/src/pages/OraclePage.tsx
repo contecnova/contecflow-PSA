@@ -49,14 +49,14 @@ export default function OraclePage() {
   const { mutate: runOracle, isPending: running } = useMutation({
     mutationFn: () => oracleApi.run().then(r => r.data),
     onSuccess: data => {
-      qc.invalidateQueries(['oracle-preds'])
+      qc.invalidateQueries({ queryKey: ['oracle-preds'] })
       setAnalysis(data)
     },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: ack } = useMutation({
     mutationFn: id => oracleApi.acknowledge(id),
-    onSuccess: () => qc.invalidateQueries(['oracle-preds']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['oracle-preds'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 

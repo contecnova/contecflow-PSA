@@ -1419,5 +1419,51 @@ git_integration: {
   errors: {
     generic: 'Errore imprevisto',
   },
+
+  // TODO: i18n translation review
+  offline_indicator: {
+    synced_partial: '⚠ Sincronizzati {synced}, falliti {failed} — {at}',
+    synced_ok: '✅ {synced} imputazioni sincronizzate — {at}',
+    online: 'Online',
+    offline: 'Offline',
+    pending: 'Sincronizzazione in sospeso',
+    pending_label: '{count} in sospeso',
+    sync_now: '⚡ Sincronizza',
+    syncing: '🔄 Sincronizzazione…',
+    banner_offline: 'Nessuna connessione — modalità offline',
+    banner_pending: '({count} operazioni in sospeso)',
+    conflicts_pending: '{count} conflitto/i in attesa di revisione',
+    pending_operations: 'Operazioni in sospeso:',
+    pending_conflicts: 'Conflitti in sospeso:',
+    resolved_conflicts: 'Conflitti risolti:',
+    last_sync: 'Ultima sincronizzazione:',
+    synced_count: '✓ Sincronizzati: {count}',
+    failed_count: '✗ Falliti: {count}',
+    conflicts_count: '⚠ Conflitti: {count}',
+    sync_now_btn: '🔄 Sincronizza ora',
+    syncing_now: '⏳ Sincronizzazione…',
+    all_synced: '✓ Tutto sincronizzato',
+  },
+
+  // TODO: i18n translation review
+  offline_conflicts: {
+    aria_history: 'Cronologia dei conflitti offline',
+    aria_conflicts: 'Conflitti di sincronizzazione offline',
+    title_history: 'Cronologia conflitti',
+    title_count: '{count} conflitti',
+    btn_pending: 'In sospeso',
+    btn_history: 'Cronologia',
+    no_history: 'Nessuna cronologia dei conflitti al momento.',
+    conflict_num: 'Conflitto n. {id}',
+    operation: 'Operazione: {opId}',
+    resolution: 'Risoluzione: {resolution}',
+    back_to_list: '← Torna alla lista',
+    local_value: 'Valore locale:',
+    server_value: 'Valore del server:',
+    accept_server: 'Accetta server',
+    keep_local: 'Mantieni locale',
+    resolving: '…',
+    strategy: 'Strategia: {strategy}',
+  },
 };
 export default it;

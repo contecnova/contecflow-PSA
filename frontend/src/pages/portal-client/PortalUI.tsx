@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * PortalUI – diseño compartido del portal cliente, alineado con el backoffice.
  *
@@ -20,6 +19,7 @@
  * autocontenido para no acoplar el portal al AuthContext del operador.
  */
 import { useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import {
   LayoutDashboard, FlaskConical, Lightbulb, Map, BookOpen, FileText,
   Receipt, Headphones, MessageSquare, Settings, LogOut, Search,
@@ -68,15 +68,15 @@ export const PORTAL_NAV_GROUPS = [
   },
 ]
 
-const SECTION_INDEX = (() => {
-  const out = {}
+const SECTION_INDEX: Record<string, any> = (() => {
+  const out: Record<string, any> = {}
   for (const g of PORTAL_NAV_GROUPS) for (const it of g.items) out[it.id] = { ...it, group: g.label }
   return out
 })()
 
 // ── Shell ────────────────────────────────────────────────────────────────────
-export function PortalShell({ section, onSection, branding, badges, children }) {
-  const { client, logout } = useClientAuth()
+export function PortalShell({ section, onSection, branding, badges, children }: any) {
+  const { client, logout } = useClientAuth() as any
   const t = useLang()
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('portal_sidebar_collapsed') === '1')
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -87,7 +87,7 @@ export function PortalShell({ section, onSection, branding, badges, children }) 
 
   // Atajo de teclado: ⌘+Shift+N / Ctrl+Shift+N abre el menú quick-create (igual que backoffice)
   useEffect(() => {
-    const onKey = (e) => {
+    const onKey = (e: any) => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'n' || e.key === 'N')) {
         e.preventDefault()
         setQuickOpen(o => !o)
@@ -100,7 +100,7 @@ export function PortalShell({ section, onSection, branding, badges, children }) 
   const projectsCount = (client?.projects?.length || client?.project_ids?.length || 0)
   const sectionCfg = SECTION_INDEX[section] || SECTION_INDEX.dashboard
 
-  const tr = (key, fallback) => {
+  const tr = (key: string, fallback: string) => {
     const v = t(key)
     return (v && v !== key) ? v : fallback
   }
@@ -425,7 +425,7 @@ export function PortalShell({ section, onSection, branding, badges, children }) 
 }
 
 // ── Page Header ──────────────────────────────────────────────────────────────
-export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, breadcrumb }) {
+export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, breadcrumb }: any) {
   return (
     <div style={{
       marginBottom: 24,
@@ -434,7 +434,7 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
     }}>
       {breadcrumb && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-          {breadcrumb.map((c, i) => (
+          {breadcrumb.map((c: any, i: number) => (
             <span key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {i > 0 && <span style={{ color: 'var(--text-4)', fontSize: 'var(--text-xs)' }}>›</span>}
               {c.onClick ? (
@@ -484,7 +484,7 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
           )}
           {meta && meta.length > 0 && (
             <div style={{ display: 'flex', gap: 14, marginTop: 10, flexWrap: 'wrap', paddingLeft: Icon ? 50 : 0 }}>
-              {meta.map((m, i) => (
+              {meta.map((m: any, i: number) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
                   {m.icon && <span style={{ opacity: 0.7, display: 'inline-flex' }}>{m.icon}</span>}
                   <span style={{ color: m.color || 'var(--text-2)' }}>{m.value}</span>
@@ -505,8 +505,8 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
 }
 
 // ── Card ─────────────────────────────────────────────────────────────────────
-export function PortalCard({ children, style = {}, accent, padding = 20, onClick }) {
-  const base = {
+export function PortalCard({ children, style = {}, accent, padding = 20, onClick }: any) {
+  const base: CSSProperties = {
     background: 'var(--surface-2)',
     border: `1px solid ${accent ? 'var(--accent-border, rgba(79,142,247,0.25))' : 'var(--surface-4)'}`,
     borderRadius: 'var(--radius-lg, 12px)',
@@ -531,15 +531,15 @@ export function PortalCard({ children, style = {}, accent, padding = 20, onClick
 }
 
 // ── KPI ──────────────────────────────────────────────────────────────────────
-export function PortalKpi({ icon: Icon, label, value, sub, tone = 'default', trend, footer, big = false }) {
-  const toneColor = {
+export function PortalKpi({ icon: Icon, label, value, sub, tone = 'default', trend, footer, big = false }: any) {
+  const toneColor = ({
     default: 'var(--text-1)',
     accent:  'var(--accent)',
     success: 'var(--success, #10b981)',
     warning: 'var(--warning, #f59e0b)',
     danger:  'var(--danger, #ef4444)',
     purple:  'var(--purple, #7c3aed)',
-  }[tone] || 'var(--text-1)'
+  } as Record<string, string>)[tone] || 'var(--text-1)'
   const trendColor = trend > 0 ? 'var(--success)' : trend < 0 ? 'var(--danger)' : 'var(--text-3)'
   return (
     <PortalCard padding={big ? 22 : 18} style={{ minHeight: big ? 132 : 116, display: 'flex', flexDirection: 'column' }}>
@@ -571,7 +571,7 @@ export function PortalKpi({ icon: Icon, label, value, sub, tone = 'default', tre
 }
 
 // ── Section heading ──────────────────────────────────────────────────────────
-export function PortalSection({ title, hint, action, children, style = {} }) {
+export function PortalSection({ title, hint, action, children, style = {} }: any) {
   return (
     <div style={{ marginBottom: 22, ...style }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
@@ -587,12 +587,12 @@ export function PortalSection({ title, hint, action, children, style = {} }) {
 }
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
-export function PortalTabs({ tabs, value, onChange, ariaLabel }) {
+export function PortalTabs({ tabs, value, onChange, ariaLabel }: any) {
   return (
     <div role="tablist" aria-label={ariaLabel} style={{
       display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 20, flexWrap: 'wrap',
     }}>
-      {tabs.map(tab => {
+      {tabs.map((tab: any) => {
         const active = value === tab.id
         return (
           <button
@@ -624,7 +624,7 @@ export function PortalTabs({ tabs, value, onChange, ariaLabel }) {
 }
 
 // ── Empty state ──────────────────────────────────────────────────────────────
-export function PortalEmpty({ icon: Icon, title, description, action }) {
+export function PortalEmpty({ icon: Icon, title, description, action }: any) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -650,7 +650,7 @@ export function PortalEmpty({ icon: Icon, title, description, action }) {
 }
 
 // ── Progress ─────────────────────────────────────────────────────────────────
-export function PortalProgress({ value, max = 100, color, height = 6, showLabel = false }) {
+export function PortalProgress({ value, max = 100, color, height = 6, showLabel = false }: any) {
   const pct = max ? Math.min((value / max) * 100, 100) : 0
   const c = color || (pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warning)' : 'var(--success)')
   return (
@@ -668,8 +668,8 @@ export function PortalProgress({ value, max = 100, color, height = 6, showLabel 
 }
 
 // ── Badge ────────────────────────────────────────────────────────────────────
-export function PortalBadge({ children, tone = 'default', icon }) {
-  const tones = {
+export function PortalBadge({ children, tone = 'default', icon }: any) {
+  const tones: Record<string, any> = {
     default: { bg: 'var(--surface-3)', fg: 'var(--text-2)', bd: 'var(--surface-4)' },
     accent:  { bg: 'var(--accent-muted)', fg: 'var(--accent)', bd: 'var(--accent-border, rgba(79,142,247,0.25))' },
     success: { bg: 'var(--success-bg, rgba(16,185,129,0.12))', fg: 'var(--success)', bd: 'var(--success-border, rgba(16,185,129,0.3))' },
@@ -693,19 +693,19 @@ export function PortalBadge({ children, tone = 'default', icon }) {
 }
 
 // ── Button ───────────────────────────────────────────────────────────────────
-export function PortalButton({ children, onClick, variant = 'primary', size = 'md', disabled, loading, icon, type = 'button', style = {} }) {
-  const v = {
+export function PortalButton({ children, onClick, variant = 'primary', size = 'md', disabled, loading, icon, type = 'button', style = {} }: any) {
+  const v = ({
     primary:   { background: 'var(--accent)', color: '#fff', border: '1px solid var(--accent)' },
     secondary: { background: 'var(--surface-3)', color: 'var(--text-1)', border: '1px solid var(--surface-4)' },
     danger:    { background: 'var(--danger-bg, rgba(239,68,68,0.12))', color: 'var(--danger)', border: '1px solid var(--danger-border, rgba(239,68,68,0.3))' },
     ghost:     { background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border, rgba(79,142,247,0.25))' },
     subtle:    { background: 'var(--accent-muted)', color: 'var(--accent)', border: '1px solid transparent' },
-  }[variant] || {}
-  const s = {
+  } as Record<string, any>)[variant] || {}
+  const s = ({
     sm: { fontSize: 'var(--text-sm)', padding: '6px 12px', gap: 5 },
     md: { fontSize: 'var(--text-sm)', padding: '8px 16px', gap: 6 },
     lg: { fontSize: 'var(--text-base)', padding: '10px 22px', gap: 7 },
-  }[size] || {}
+  } as Record<string, any>)[size] || {}
   const dis = disabled || loading
   return (
     <button
@@ -734,7 +734,7 @@ export function PortalButton({ children, onClick, variant = 'primary', size = 'm
 }
 
 // ── Input / Select / Textarea ────────────────────────────────────────────────
-const fieldBase = {
+const fieldBase: CSSProperties = {
   width: '100%', boxSizing: 'border-box',
   background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
   borderRadius: 'var(--radius-md, 8px)', padding: '9px 13px',
@@ -742,7 +742,7 @@ const fieldBase = {
   fontFamily: 'inherit', transition: 'border-color 0.15s, box-shadow 0.15s',
 }
 
-export function PortalField({ label, hint, required, children }) {
+export function PortalField({ label, hint, required, children }: any) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
       {label && (
@@ -759,7 +759,7 @@ export function PortalField({ label, hint, required, children }) {
   )
 }
 
-export function PortalInput(props) {
+export function PortalInput(props: any) {
   return (
     <input
       {...props}
@@ -770,7 +770,7 @@ export function PortalInput(props) {
   )
 }
 
-export function PortalSelect(props) {
+export function PortalSelect(props: any) {
   return (
     <select {...props} style={{ ...fieldBase, ...(props.style || {}) }}>
       {props.children}
@@ -778,14 +778,14 @@ export function PortalSelect(props) {
   )
 }
 
-export function PortalTextarea(props) {
+export function PortalTextarea(props: any) {
   return (
     <textarea {...props} style={{ ...fieldBase, resize: 'vertical', ...(props.style || {}) }} />
   )
 }
 
 // ── Modal ────────────────────────────────────────────────────────────────────
-export function PortalModal({ open, onClose, title, subtitle, width = 560, children, footer }) {
+export function PortalModal({ open, onClose, title, subtitle, width = 560, children, footer }: any) {
   if (!open) return null
   return (
     <div role="presentation" onMouseDown={onClose} style={{
@@ -822,8 +822,8 @@ export function PortalModal({ open, onClose, title, subtitle, width = 560, child
 }
 
 // ── Banner ───────────────────────────────────────────────────────────────────
-export function PortalBanner({ tone = 'info', icon, title, body, action }) {
-  const tones = {
+export function PortalBanner({ tone = 'info', icon, title, body, action }: any) {
+  const tones: Record<string, any> = {
     info:    { bg: 'var(--accent-muted)', bd: 'var(--accent-border, rgba(79,142,247,0.25))', fg: 'var(--accent)' },
     warning: { bg: 'var(--warning-bg, rgba(245,158,11,0.12))', bd: 'var(--warning-border, rgba(245,158,11,0.3))', fg: 'var(--warning)' },
     danger:  { bg: 'var(--danger-bg, rgba(239,68,68,0.12))',  bd: 'var(--danger-border, rgba(239,68,68,0.3))',  fg: 'var(--danger)' },
@@ -847,16 +847,16 @@ export function PortalBanner({ tone = 'info', icon, title, body, action }) {
 }
 
 // ── Donut chart (lightweight SVG) ────────────────────────────────────────────
-export function PortalDonut({ size = 110, stroke = 12, segments = [], centerTop, centerBottom }) {
+export function PortalDonut({ size = 110, stroke = 12, segments = [], centerTop, centerBottom }: any) {
   const radius = size / 2 - stroke / 2
   const circ = 2 * Math.PI * radius
-  const total = segments.reduce((s, x) => s + Math.max(0, x.value || 0), 0)
+  const total = segments.reduce((s: number, x: any) => s + Math.max(0, x.value || 0), 0)
   let offset = 0
   return (
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} role="img" aria-label="distribución">
         <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--surface-4)" strokeWidth={stroke} />
-        {total > 0 && segments.map((seg, i) => {
+        {total > 0 && segments.map((seg: any, i: number) => {
           const len = (Math.max(0, seg.value || 0) / total) * circ
           const dasharray = `${len} ${circ - len}`
           const dashoffset = -offset
@@ -879,14 +879,14 @@ export function PortalDonut({ size = 110, stroke = 12, segments = [], centerTop,
 }
 
 // ── Sparkline ────────────────────────────────────────────────────────────────
-export function PortalSpark({ values = [], width = 110, height = 32, color = 'var(--accent)' }) {
+export function PortalSpark({ values = [], width = 110, height = 32, color = 'var(--accent)' }: any) {
   if (!values.length) return null
   const min = Math.min(...values, 0)
   const max = Math.max(...values, 1)
   const span = max - min || 1
   const stepX = values.length > 1 ? width / (values.length - 1) : width
   const path = values
-    .map((v, i) => {
+    .map((v: number, i: number) => {
       const x = i * stepX
       const y = height - ((v - min) / span) * height
       return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`
@@ -902,11 +902,11 @@ export function PortalSpark({ values = [], width = 110, height = 32, color = 'va
 }
 
 // ── Horizontal bars (distribution) ──────────────────────────────────────────
-export function PortalBars({ items = [] }) {
-  const max = Math.max(1, ...items.map(i => i.value || 0))
+export function PortalBars({ items = [] }: any) {
+  const max = Math.max(1, ...items.map((i: any) => i.value || 0))
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {items.map((it, idx) => (
+      {items.map((it: any, idx: number) => (
         <div key={idx}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', marginBottom: 4 }}>
             <span style={{ color: 'var(--text-2)', fontWeight: 600 }}>{it.label}</span>
@@ -925,7 +925,7 @@ export function PortalBars({ items = [] }) {
 export const PORTAL_API = CLIENT_API
 export { useLang as usePortalLang }
 
-export function formatDuration(minutes) {
+export function formatDuration(minutes: any) {
   if (minutes == null || Number.isNaN(Number(minutes))) return '—'
   const m = Math.round(Number(minutes))
   if (m < 60) return `${m} min`
@@ -934,13 +934,13 @@ export function formatDuration(minutes) {
   return r ? `${h}h ${r}min` : `${h}h`
 }
 
-export function formatMoney(value, currency = 'EUR') {
+export function formatMoney(value: any, currency = 'EUR') {
   const n = Number(value || 0)
   try { return n.toLocaleString('es-ES', { style: 'currency', currency }) }
   catch { return `${n.toLocaleString('es-ES')} ${currency}` }
 }
 
-export function relativeDate(iso) {
+export function relativeDate(iso: any) {
   if (!iso) return '—'
   try {
     const d = new Date(iso)
@@ -953,7 +953,7 @@ export function relativeDate(iso) {
   } catch { return iso }
 }
 
-export function useDebounced(value, delay = 250) {
+export function useDebounced(value: any, delay = 250) {
   const [v, setV] = useState(value)
   useEffect(() => {
     const t = setTimeout(() => setV(value), delay)

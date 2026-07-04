@@ -54,19 +54,19 @@ export default function AlertsPage(): JSX.Element {
 
   const { mutate: runEngine, isPending: running } = useMutation({
     mutationFn: () => alertsApi.run(),
-    onSuccess: () => qc.invalidateQueries(['alerts-page']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['alerts-page'] }),
     onError: e => toast.error(extractErr(e, t('alerts.generic_error'))),
   })
 
   const { mutate: resolve } = useMutation({
     mutationFn: (id) => alertsApi.resolve(id),
-    onSuccess: () => qc.invalidateQueries(['alerts-page']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['alerts-page'] }),
     onError: e => toast.error(extractErr(e, t('alerts.generic_error'))),
   })
 
   const { mutate: markRead } = useMutation({
     mutationFn: (id) => alertsApi.read(id),
-    onSuccess: () => qc.invalidateQueries(['alerts-page']),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['alerts-page'] }),
     onError: e => toast.error(extractErr(e, t('alerts.generic_error'))),
   })
 

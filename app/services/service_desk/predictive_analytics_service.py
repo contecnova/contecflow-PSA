@@ -30,7 +30,6 @@ from app.models.service_desk import (
     Ticket,
     TicketPriority,
     TicketStatus,
-    TicketType,
 )
 from app.models.user import User
 

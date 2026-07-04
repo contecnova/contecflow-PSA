@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { sdMetricsApi } from '../../services/api'
 import { Spinner, useSort, SortableTH } from '../../components/ui'
@@ -7,7 +7,7 @@ import { COLOR } from '../../constants/theme'
 import PageShell from '../../components/layout/PageShell'
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
-function fmtMinutes(m) {
+function fmtMinutes(m: number | null | undefined) {
   if (m == null || m === 0) return '—'
   if (m < 60) return `${Math.round(m)}m`
   const h = Math.floor(m / 60)
@@ -15,14 +15,14 @@ function fmtMinutes(m) {
   return min > 0 ? `${h}h ${min}m` : `${h}h`
 }
 
-function dateRange(days) {
+function dateRange(days: number) {
   const d_to = new Date().toISOString().slice(0, 10)
   const d_from = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10)
   return { d_from, d_to }
 }
 
 /* ── Design tokens (inline so no external CSS needed) ────────────────────── */
-const S = {
+const S: Record<string, CSSProperties> = {
   card: {
     background: 'var(--surface-2)',
     border: '1px solid var(--surface-4)',
@@ -40,7 +40,7 @@ const S = {
   },
 }
 
-const PRIORITY_META = {
+const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
   p1_critical: { label: 'P1 Crítico',  color: COLOR.danger,  bg: COLOR.dangerBg },
   p2_high:     { label: 'P2 Alto',     color: 'var(--orange)',     bg: 'rgba(251,146,60,0.08)' },
   p3_medium:   { label: 'P3 Medio',    color: COLOR.warning, bg: COLOR.warningBg },
@@ -48,7 +48,7 @@ const PRIORITY_META = {
 }
 
 /* ── Sub-components ───────────────────────────────────────────────────────── */
-function PeriodButton({ active, label, onClick }) {
+function PeriodButton({ active, label, onClick }: { active: boolean; label: ReactNode; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
@@ -70,7 +70,7 @@ function PeriodButton({ active, label, onClick }) {
   )
 }
 
-function KpiCard({ label, value, sub, color, icon, accentBar }) {
+function KpiCard({ label, value, sub, color, icon, accentBar }: { label?: ReactNode; value?: ReactNode; sub?: ReactNode; color?: string; icon?: ReactNode; accentBar?: string }) {
   const bar = accentBar ?? color ?? COLOR.accent
   return (
     <div style={{ ...S.card, display: 'flex', flexDirection: 'column' }}>
@@ -115,7 +115,7 @@ function KpiCard({ label, value, sub, color, icon, accentBar }) {
   )
 }
 
-function BarRow({ label, count, total, color }) {
+function BarRow({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
     <div style={{ marginBottom: 14 }}>
@@ -157,7 +157,7 @@ function BarRow({ label, count, total, color }) {
   )
 }
 
-function RingGauge({ value, color, size = 64 }) {
+function RingGauge({ value, color, size = 64 }: { value?: number | null; color?: string; size?: number }) {
   const r = (size - 8) / 2
   const circ = 2 * Math.PI * r
   const progress = Math.min(Math.max(value ?? 0, 0), 100) / 100
@@ -175,7 +175,7 @@ function RingGauge({ value, color, size = 64 }) {
   )
 }
 
-function GaugeCard({ label, value, color, suffix = '%', sub }) {
+function GaugeCard({ label, value, color, suffix = '%', sub }: { label?: ReactNode; value?: number | null; color?: string; suffix?: string; sub?: ReactNode }) {
   return (
     <div style={{ ...S.card, ...S.cardPad, display: 'flex', alignItems: 'center', gap: 16 }}>
       <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -206,11 +206,11 @@ function GaugeCard({ label, value, color, suffix = '%', sub }) {
   )
 }
 
-function AgentAvatar({ name }) {
+function AgentAvatar({ name }: { name?: string }) {
   const initials = (name || '?')
     .split(' ')
     .slice(0, 2)
-    .map(w => w[0])
+    .map((w: string) => w[0])
     .join('')
     .toUpperCase()
   const colors = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, '#2dd4bf', 'var(--orange)']
@@ -235,7 +235,7 @@ function AgentAvatar({ name }) {
   )
 }
 
-function ResolutionBar({ resolved, total }) {
+function ResolutionBar({ resolved, total }: { resolved: number; total: number }) {
   const pct = total > 0 ? Math.round((resolved / total) * 100) : 0
   const color = pct >= 80 ? COLOR.success : pct >= 60 ? COLOR.warning : COLOR.danger
   return (
@@ -254,7 +254,7 @@ function ResolutionBar({ resolved, total }) {
   )
 }
 
-function StarRating({ value }) {
+function StarRating({ value }: { value: number | null }) {
   if (value == null) return <span style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>—</span>
   const filled = Math.round(value)
   const color = value >= 4 ? COLOR.success : value >= 3 ? COLOR.warning : COLOR.danger
@@ -295,10 +295,31 @@ function EmptyState() {
 }
 
 /* ── Main component ───────────────────────────────────────────────────────── */
+type ItilMetrics = {
+  sla_compliance_pct?: number
+  fcr_percent?: number
+  mttr_minutes?: number | null
+  avg_csat?: number
+  by_type?: Record<string, number>
+  by_priority?: Record<string, number>
+  volume?: { total?: number; open?: number; resolved?: number; breached_sla?: number }
+}
+
+type AgentPerf = {
+  [k: string]: unknown
+  agent_id: string
+  agent_name?: string
+  total: number
+  resolved: number
+  mttr_minutes?: number | null
+  avg_csat?: number | null
+  sla_breaches: number
+}
+
 export default function MetricsDashboardTab() {
   const [days, setDays] = useState(30)
 
-  const { data: metrics, isLoading } = useQuery({
+  const { data: metrics, isLoading } = useQuery<ItilMetrics>({
     queryKey: ['sd-itil-metrics', days],
     queryFn: () => {
       const { d_from, d_to } = dateRange(days)
@@ -307,7 +328,7 @@ export default function MetricsDashboardTab() {
     staleTime: 60_000,
   })
 
-  const { data: agents } = useQuery({
+  const { data: agents } = useQuery<AgentPerf[]>({
     queryKey: ['sd-agent-perf', days],
     queryFn: () => {
       const { d_from, d_to } = dateRange(days)
@@ -417,7 +438,7 @@ export default function MetricsDashboardTab() {
           icon="⭐"
           label="CSAT medio"
           value={metrics.avg_csat ? `${Number(metrics.avg_csat).toFixed(1)}/5` : '—'}
-          color={metrics.avg_csat >= 4 ? COLOR.success : metrics.avg_csat >= 3 ? COLOR.warning : COLOR.danger}
+          color={(metrics.avg_csat ?? 0) >= 4 ? COLOR.success : (metrics.avg_csat ?? 0) >= 3 ? COLOR.warning : COLOR.danger}
           accentBar={COLOR.warning}
         />
         <KpiCard
@@ -440,7 +461,7 @@ export default function MetricsDashboardTab() {
           label="Cumplimiento SLA"
           value={metrics.sla_compliance_pct}
           color={slaColor}
-          sub={metrics.sla_compliance_pct >= 95 ? 'Excelente' : metrics.sla_compliance_pct >= 80 ? 'Aceptable' : 'Por debajo del objetivo'}
+          sub={(metrics.sla_compliance_pct ?? 0) >= 95 ? 'Excelente' : (metrics.sla_compliance_pct ?? 0) >= 80 ? 'Aceptable' : 'Por debajo del objetivo'}
         />
         <GaugeCard
           label="FCR — 1er contacto"

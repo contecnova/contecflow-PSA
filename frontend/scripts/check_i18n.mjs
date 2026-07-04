@@ -1,4 +1,4 @@
-import { APP_TRANSLATIONS, getAllKeys } from '../src/i18n/appTranslations.js'
+import { APP_TRANSLATIONS, getAllKeys } from '../src/i18n/appTranslations.mjs'
 
 const allLanguages = Object.keys(APP_TRANSLATIONS)
 const allKeys = getAllKeys()

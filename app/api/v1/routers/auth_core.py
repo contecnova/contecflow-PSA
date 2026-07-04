@@ -49,7 +49,6 @@ from app.services.auth_service import (
     login_bucket as _login_bucket,
     password_reset_bucket as _password_reset_bucket,
     register_password_reset_request as _register_password_reset_request,
-    create_ephemeral_token as _create_ephemeral_token,
     read_ephemeral_token as _read_ephemeral_token,
     issue_password_reset_token as _issue_password_reset_token,
     consume_password_reset_token as _consume_password_reset_token,

@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import date as Date
 from typing import Iterable, Optional
 
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.user import User

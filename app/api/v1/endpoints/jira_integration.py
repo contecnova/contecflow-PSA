@@ -18,8 +18,8 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Query, Request
-from pydantic import BaseModel, HttpUrl
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin_or_pm
@@ -27,7 +27,6 @@ from app.core.responses import APIListResponse
 from app.db.session import get_db
 from app.models.jira_integration import (
     JiraConfig,
-    JiraFieldMap,
     JiraSyncDirection,
     JiraSyncLog,
     JiraSyncMap,
@@ -38,7 +37,6 @@ from app.core.abac_enforce import enforce_abac
 from app.core.tenancy import org_scoped_or_404
 from app.services.service_desk.jira_sync_service import (
     apply_jira_update_to_ticket,
-    pull_jira_issue,
     push_ticket_to_jira,
     run_incremental_sync,
 )
@@ -339,20 +337,24 @@ async def receive_jira_webhook(
     except (ValueError, TypeError):
         raise HTTPException(400, "Invalid JSON payload")
 
-    event = payload.get("webhookEvent", "")
     issue = payload.get("issue") or {}
     issue_key = issue.get("key") or payload.get("issueKey") or ""
 
     if not issue_key:
         return {"ok": True, "skipped": "no issue key"}
 
-    # Find all sync maps matching this issue key
+    # The handler is async (it awaits the raw body for auth), so the blocking
+    # ORM work is offloaded to the threadpool to avoid stalling the event loop.
+    from app.core.async_db import run_db
+    return await run_db(_process_jira_webhook_sync, db, issue, issue_key)
+
+
+def _process_jira_webhook_sync(db: Session, issue: dict, issue_key: str) -> dict:
     maps: list[JiraSyncMap] = (
         db.query(JiraSyncMap)
         .filter(JiraSyncMap.jira_issue_key == issue_key)
         .all()
     )
-
     if not maps:
         return {"ok": True, "skipped": "no mapping found"}
 
@@ -367,9 +369,7 @@ async def receive_jira_webhook(
             JiraSyncDirection.jira_to_contecflow,
         ):
             continue
-
-        jira_fields = issue.get("fields", {})
-        apply_jira_update_to_ticket(db, config, sm, jira_fields)
+        apply_jira_update_to_ticket(db, config, sm, issue.get("fields", {}))
 
     db.commit()
     return {"ok": True, "processed": len(maps)}

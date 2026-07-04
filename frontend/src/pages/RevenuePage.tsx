@@ -1,9 +1,8 @@
-// @ts-nocheck
 /**
  * RevenuePage — Reconocimiento de ingresos ASC 606 / IFRS 15
  * Configura el método por proyecto y registra entradas mensuales
  */
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -18,12 +17,14 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 
-const fs = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
-const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
+const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
+const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
+
+type MethodCfg = { label: string; desc?: string; icon: string }
 
 // Methods for existing rules (legacy engine)
-const METHOD_CFG = {
+const METHOD_CFG: Record<string, MethodCfg> = {
   percentage_complete: { label:'% Completado',        desc:'Reconoce proporcionalmente al avance de tareas', icon:'📊' },
   time_and_material:   { label:'T&M',                 desc:'Reconoce al registrar horas facturables', icon:'⏱' },
   straight_line:       { label:'Línea recta',          desc:'Distribuye el contrato en partes iguales por mes', icon:'📈' },
@@ -32,7 +33,7 @@ const METHOD_CFG = {
 }
 
 // Methods for new ASC 606 engine
-const ASC_METHOD_CFG = {
+const ASC_METHOD_CFG: Record<string, MethodCfg> = {
   over_time:    { label:'T&M / Tiempo',    desc:'Proporcional a horas aprobadas en el período', icon:'⏱' },
   milestone:    { label:'Por hito',        desc:'Al completar hitos ligados a obligaciones', icon:'🎯' },
   consumption:  { label:'Bolsa de horas',  desc:'Al consumir horas de la bolsa contratada', icon:'🗂' },
@@ -42,14 +43,14 @@ const ASC_METHOD_CFG = {
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 // ── Obligations panel (per-contract) ─────────────────────────────────────────
-function ObligationsPanel({ contractId, onClose, currency }) {
+function ObligationsPanel({ contractId, onClose, currency }: { contractId: string; onClose: () => void; currency?: string }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState<any>(null)
   const [form, setForm] = useState({ name:'', method:'over_time', standalone_price:'', notes:'' })
 
-  const { data: obs = [], isLoading } = useQuery({
+  const { data: obs = [], isLoading } = useQuery<any[]>({
     queryKey: ['asc606-obligations', contractId],
     queryFn: () => revenueRecognitionApi.obligations(contractId).then(r => r.data),
   })
@@ -57,16 +58,16 @@ function ObligationsPanel({ contractId, onClose, currency }) {
   const reset = () => { setForm({ name:'', method:'over_time', standalone_price:'', notes:'' }); setEditing(null); setShowForm(false) }
 
   const { mutate: save, isPending: saving } = useMutation({
-    mutationFn: d => editing
+    mutationFn: (d: any) => editing
       ? revenueRecognitionApi.updateObligation(editing.id, d).then(r => r.data)
       : revenueRecognitionApi.createObligation(contractId, d).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['asc606-obligations', contractId]); reset() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-obligations', contractId] }); reset() },
     onError: e => toast.error(extractErr(e, 'Error al guardar obligación')),
   })
 
   const { mutate: del } = useMutation({
-    mutationFn: id => revenueRecognitionApi.deleteObligation(id),
-    onSuccess: () => qc.invalidateQueries(['asc606-obligations', contractId]),
+    mutationFn: (id: string) => revenueRecognitionApi.deleteObligation(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['asc606-obligations', contractId] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -77,7 +78,7 @@ function ObligationsPanel({ contractId, onClose, currency }) {
           <EmptyState icon="📋" title="Sin obligaciones" description="Añade las obligaciones de desempeño de este contrato" />
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {obs.map(ob => {
+            {obs.map((ob: any) => {
               const mCfg = ASC_METHOD_CFG[ob.method] || { label: ob.method, icon:'•' }
               return (
                 <div key={ob.id} style={{ background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'10px 14px', display:'flex', alignItems:'center', gap:12 }}>
@@ -134,7 +135,7 @@ function ObligationsPanel({ contractId, onClose, currency }) {
   )
 }
 
-function fmtEur(n, currency) {
+function fmtEur(n: number | null | undefined, currency?: string) {
   if (!n && n !== 0) return '—'
   if (!currency) return new Intl.NumberFormat('es-ES', { minimumFractionDigits:0, maximumFractionDigits:0 }).format(n)
   return new Intl.NumberFormat('es-ES', { style:'currency', currency, minimumFractionDigits:0, maximumFractionDigits:0 }).format(n)
@@ -145,10 +146,10 @@ export default function RevenuePage() {
   const qc = useQueryClient()
   const toast = useToast()
   const { currency } = useOrgSettings()
-  const fmt = (n) => fmtEur(n, currency)
+  const fmt = (n: number | null | undefined) => fmtEur(n, currency)
   const [tab, setTab] = useState('summary')
   const [showCreate, setShowCreate] = useState(false)
-  const [showCompute, setShowCompute] = useState(null)
+  const [showCompute, setShowCompute] = useState<any>(null)
   const [form, setForm] = useState({ project_id:'', method:'percentage_complete', contract_value:'', start_date:'', end_date:'', notes:'' })
   const [computePeriod, setComputePeriod] = useState(new Date().toISOString().slice(0,7) + '-01')
 
@@ -158,37 +159,37 @@ export default function RevenuePage() {
   const [dashYear, setDashYear] = useState(currentYear)
   const [showCreateContract, setShowCreateContract] = useState(false)
   const [showCloseModal, setShowCloseModal] = useState(false)
-  const [obligationsFor, setObligationsFor] = useState(null)
+  const [obligationsFor, setObligationsFor] = useState<string | null>(null)
   const [entryFilter, setEntryFilter] = useState({ contract_id: '', year: '', month: '' })
   const [closePeriod, setClosePeriod] = useState({ year: currentYear, month: currentMonth, notes: '' })
   const [contractForm, setContractForm] = useState({ project_id:'', name:'', method:'over_time', contract_value:'', currency, start_date:'', end_date:'', duration_months:'', notes:'' })
 
   // ── Existing queries ───────────────────────────────────────────────────────
-  const { data: rules = [], isLoading } = useQuery({ queryKey:['rev-rules'], queryFn:() => revenueApi.rules().then(r=>r.data) })
-  const { data: summary } = useQuery({ queryKey:['rev-summary'], queryFn:() => revenueApi.summary().then(r=>r.data) })
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []) })
+  const { data: rules = [], isLoading } = useQuery<any[]>({ queryKey:['rev-rules'], queryFn:() => revenueApi.rules().then(r=>r.data) })
+  const { data: summary } = useQuery<any>({ queryKey:['rev-summary'], queryFn:() => revenueApi.summary().then(r=>r.data) })
+  const { data: projects = [] } = useQuery<any[]>({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => (r.data as any)?.items ?? r.data ?? []) })
 
   // ── New ASC 606 queries ────────────────────────────────────────────────────
-  const { data: asc606Dashboard } = useQuery({
+  const { data: asc606Dashboard } = useQuery<any>({
     queryKey: ['asc606-dashboard', dashYear],
-    queryFn: () => revenueRecognitionApi.dashboard(dashYear).then(r => r.data),
+    queryFn: () => revenueRecognitionApi.dashboard(dashYear, undefined).then(r => r.data),
     enabled: tab === 'asc606',
   })
-  const { data: contracts = [], isLoading: contractsLoading } = useQuery({
+  const { data: contracts = [], isLoading: contractsLoading } = useQuery<any[]>({
     queryKey: ['asc606-contracts'],
-    queryFn: () => revenueRecognitionApi.contracts().then(r => r.data),
+    queryFn: () => revenueRecognitionApi.contracts(undefined).then(r => r.data),
     enabled: tab === 'asc606',
   })
-  const { data: periodCloses = [] } = useQuery({
+  const { data: periodCloses = [] } = useQuery<any[]>({
     queryKey: ['asc606-period-closes'],
     queryFn: () => revenueRecognitionApi.periodCloses().then(r => r.data),
     enabled: tab === 'asc606',
   })
 
-  const { data: entries = [], isLoading: entriesLoading } = useQuery({
+  const { data: entries = [], isLoading: entriesLoading } = useQuery<any[]>({
     queryKey: ['asc606-entries', entryFilter],
     queryFn: () => {
-      const p = {}
+      const p: Record<string, any> = {}
       if (entryFilter.contract_id) p.contract_id = entryFilter.contract_id
       if (entryFilter.year)        p.year         = entryFilter.year
       if (entryFilter.month)       p.month        = entryFilter.month
@@ -197,60 +198,60 @@ export default function RevenuePage() {
     enabled: tab === 'entries',
   })
   const { mutate: reverseEntry } = useMutation({
-    mutationFn: id => revenueRecognitionApi.reverseEntry(id),
-    onSuccess: () => { qc.invalidateQueries(['asc606-entries']); toast.success('Entrada revertida') },
+    mutationFn: (id: string) => revenueRecognitionApi.reverseEntry(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-entries'] }); toast.success('Entrada revertida') },
     onError: e => toast.error(extractErr(e, 'Error al revertir')),
   })
 
   // ── Existing mutations ─────────────────────────────────────────────────────
   const { mutate: createRule, isPending:creating } = useMutation({
-    mutationFn: d => revenueApi.createRule(d),
-    onSuccess: () => { qc.invalidateQueries(['rev-rules']); setShowCreate(false) },
+    mutationFn: (d: any) => revenueApi.createRule(d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rev-rules'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: _autoCompute, isPending: _autoComputing } = useMutation({
     mutationFn: () => revenueApi.autoCompute(computePeriod),
     onSuccess: (res) => {
-      qc.invalidateQueries(['revenue-rules'])
+      qc.invalidateQueries({ queryKey: ['revenue-rules'] })
       toast.success(`Auto-compute: ${res.data.total_recognised?.toLocaleString('es-ES', {style:'currency',currency})} reconocidos`)
     },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: compute, isPending:computing } = useMutation({
-    mutationFn: ({ id, period }) => revenueApi.compute(id, period),
-    onSuccess: () => { qc.invalidateQueries(['rev-rules']); qc.invalidateQueries(['rev-summary']); setShowCompute(null) },
+    mutationFn: ({ id, period }: { id: string; period: string }) => revenueApi.compute(id, period),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rev-rules'] }); qc.invalidateQueries({ queryKey: ['rev-summary'] }); setShowCompute(null) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   // ── New ASC 606 mutations ──────────────────────────────────────────────────
   const { mutate: createContract, isPending: creatingContract } = useMutation({
-    mutationFn: d => revenueRecognitionApi.createContract(d),
+    mutationFn: (d: any) => revenueRecognitionApi.createContract(d),
     onSuccess: () => {
-      qc.invalidateQueries(['asc606-contracts'])
-      qc.invalidateQueries(['asc606-dashboard', dashYear])
+      qc.invalidateQueries({ queryKey: ['asc606-contracts'] })
+      qc.invalidateQueries({ queryKey: ['asc606-dashboard', dashYear] })
       setShowCreateContract(false)
       toast.success('Contrato creado')
     },
     onError: e => toast.error(extractErr(e, 'Error al crear contrato')),
   })
   const { mutate: closePeriodMut, isPending: closingPeriod } = useMutation({
-    mutationFn: d => revenueRecognitionApi.closePeriod(d),
+    mutationFn: (d: any) => revenueRecognitionApi.closePeriod(d),
     onSuccess: () => {
-      qc.invalidateQueries(['asc606-period-closes'])
+      qc.invalidateQueries({ queryKey: ['asc606-period-closes'] })
       setShowCloseModal(false)
       toast.success(`Período ${closePeriod.year}-${String(closePeriod.month).padStart(2,'0')} cerrado`)
     },
     onError: e => toast.error(extractErr(e, 'Error al cerrar período')),
   })
   const { mutate: reopenPeriodMut } = useMutation({
-    mutationFn: ({ year, month }) => revenueRecognitionApi.reopenPeriod(year, month),
-    onSuccess: () => { qc.invalidateQueries(['asc606-period-closes']); toast.success('Período reabierto') },
+    mutationFn: ({ year, month }: { year: number; month: number }) => revenueRecognitionApi.reopenPeriod(year, month),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-period-closes'] }); toast.success('Período reabierto') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: runMonthly, isPending: runningMonthly } = useMutation({
-    mutationFn: d => revenueRecognitionApi.runMonthly(d),
+    mutationFn: (d: any) => revenueRecognitionApi.runMonthly(d),
     onSuccess: (res) => {
-      qc.invalidateQueries(['asc606-dashboard', dashYear])
+      qc.invalidateQueries({ queryKey: ['asc606-dashboard', dashYear] })
       const r = res.data.recognized
       toast.success(`Reconocimiento completado: T&M ${fmt(r?.over_time)}, Línea recta ${fmt(r?.straight_line)}`)
     },
@@ -259,13 +260,13 @@ export default function RevenuePage() {
 
   // ── Chart data ─────────────────────────────────────────────────────────────
   const byMonth = summary?.by_month || []
-  const chartData = byMonth.slice(-12).map(m => ({
+  const chartData = byMonth.slice(-12).map((m: any) => ({
     mes: (m.month || '').slice(0, 7),
     Reconocido: Math.round(Number(m.recognised) || 0),
     Diferido:   Math.round(Number(m.deferred) || 0),
   }))
 
-  const asc606ChartData = (asc606Dashboard?.by_month || []).map(m => ({
+  const asc606ChartData = (asc606Dashboard?.by_month || []).map((m: any) => ({
     mes: MONTHS[m.month - 1],
     Reconocido: Math.round(Number(m.recognized) || 0),
     Diferido:   Math.round(Number(m.deferred) || 0),
@@ -322,7 +323,7 @@ export default function RevenuePage() {
                 <BarChart data={chartData}>
                   <XAxis dataKey="mes" tick={{ fontSize: "var(--text-xs)" }} />
                   <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize: "var(--text-xs)" }} />
-                  <Tooltip formatter={(v,n) => [fmt(v), n]} />
+                  <Tooltip formatter={(v: any, n: any) => [fmt(v), n]} />
                   <Legend />
                   <Bar dataKey="Reconocido" fill="var(--success)" radius={[3,3,0,0]} />
                   <Bar dataKey="Diferido"   fill="var(--warning)" radius={[3,3,0,0]} />
@@ -428,7 +429,7 @@ export default function RevenuePage() {
                 <BarChart data={asc606ChartData}>
                   <XAxis dataKey="mes" tick={{ fontSize: "var(--text-xs)" }} />
                   <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize: "var(--text-xs)" }} />
-                  <Tooltip formatter={(v,n) => [fmt(v), n]} />
+                  <Tooltip formatter={(v: any, n: any) => [fmt(v), n]} />
                   <Legend />
                   <Bar dataKey="Reconocido" fill="var(--success)" radius={[3,3,0,0]} />
                   <Bar dataKey="Diferido"   fill="var(--warning)" radius={[3,3,0,0]} />

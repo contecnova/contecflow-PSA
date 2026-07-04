@@ -190,7 +190,6 @@ async def twilio_ivr_webhook(
     import hmac
     import hashlib
     import base64
-    from urllib.parse import urlencode
 
     from app.services.service_desk.voice_agent_service import get_config
 

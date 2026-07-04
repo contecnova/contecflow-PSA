@@ -3,11 +3,10 @@ ai_core_service — Core AI chat functions: action logging, demo responses, chat
 """
 import json
 import logging
-from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from app.models.ai_chat import AIActionLog, AIMessage, AIConversation
+from app.models.ai_chat import AIActionLog, AIMessage
 from app.schemas.ai_chat import (
     serialize_tool_calls,
     serialize_tool_results,

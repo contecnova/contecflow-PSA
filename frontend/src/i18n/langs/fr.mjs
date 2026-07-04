@@ -1419,5 +1419,51 @@ sprint_planning: {
   errors: {
     generic: 'Erreur inattendue',
   },
+
+  // TODO: i18n translation review
+  offline_indicator: {
+    synced_partial: '⚠ Synchronisés {synced}, échoués {failed} — {at}',
+    synced_ok: '✅ {synced} imputations synchronisées — {at}',
+    online: 'En ligne',
+    offline: 'Hors ligne',
+    pending: 'Synchronisation en attente',
+    pending_label: '{count} en attente',
+    sync_now: '⚡ Synchroniser',
+    syncing: '🔄 Synchronisation…',
+    banner_offline: 'Pas de connexion — mode hors ligne',
+    banner_pending: '({count} opérations en attente)',
+    conflicts_pending: '{count} conflit(s) en attente de révision',
+    pending_operations: 'Opérations en attente :',
+    pending_conflicts: 'Conflits en attente :',
+    resolved_conflicts: 'Conflits résolus :',
+    last_sync: 'Dernière synchronisation :',
+    synced_count: '✓ Synchronisés : {count}',
+    failed_count: '✗ Échoués : {count}',
+    conflicts_count: '⚠ Conflits : {count}',
+    sync_now_btn: '🔄 Synchroniser maintenant',
+    syncing_now: '⏳ Synchronisation…',
+    all_synced: '✓ Tout est synchronisé',
+  },
+
+  // TODO: i18n translation review
+  offline_conflicts: {
+    aria_history: 'Historique des conflits hors ligne',
+    aria_conflicts: 'Conflits de synchronisation hors ligne',
+    title_history: 'Historique des conflits',
+    title_count: '{count} conflits',
+    btn_pending: 'En attente',
+    btn_history: 'Historique',
+    no_history: 'Aucun historique de conflits pour le moment.',
+    conflict_num: 'Conflit n° {id}',
+    operation: 'Opération : {opId}',
+    resolution: 'Résolution : {resolution}',
+    back_to_list: '← Retour à la liste',
+    local_value: 'Valeur locale :',
+    server_value: 'Valeur du serveur :',
+    accept_server: 'Accepter le serveur',
+    keep_local: 'Conserver le local',
+    resolving: '…',
+    strategy: 'Stratégie : {strategy}',
+  },
 };
 export default fr;

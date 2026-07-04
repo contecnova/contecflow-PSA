@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * PortalDashboard – pizarra del cliente totalmente rediseñada.
  *
@@ -6,7 +5,7 @@
  * realmente importan al cliente: salud del proyecto, progreso, presupuesto,
  * calidad (UAT), service desk + SLA, factura­ción y acciones pendientes.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type FC } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Activity, Clock, CheckCircle2, AlertTriangle,
@@ -18,18 +17,43 @@ import {
   CLIENT_API, useLang, useClientAuth,
 } from './portalClientContext'
 import {
-  PortalPageHeader, PortalCard, PortalKpi, PortalSection, PortalEmpty,
-  PortalProgress, PortalBadge, PortalButton, PortalBanner,
-  PortalDonut, PortalSpark, PortalBars,
+  PortalPageHeader as PortalPageHeaderRaw,
+  PortalCard as PortalCardRaw,
+  PortalKpi as PortalKpiRaw,
+  PortalSection as PortalSectionRaw,
+  PortalEmpty as PortalEmptyRaw,
+  PortalProgress as PortalProgressRaw,
+  PortalBadge as PortalBadgeRaw,
+  PortalButton as PortalButtonRaw,
+  PortalBanner as PortalBannerRaw,
+  PortalDonut as PortalDonutRaw,
+  PortalSpark as PortalSparkRaw,
+  PortalBars as PortalBarsRaw,
   formatDuration, formatMoney,
 } from './PortalUI'
 
+// PortalUI components have loosely-typed (`any`) props; re-alias as permissive
+// components so callers don't need to pass every inferred-required prop.
+type AnyFC = FC<any>
+const PortalPageHeader = PortalPageHeaderRaw as AnyFC
+const PortalCard = PortalCardRaw as AnyFC
+const PortalKpi = PortalKpiRaw as AnyFC
+const PortalSection = PortalSectionRaw as AnyFC
+const PortalEmpty = PortalEmptyRaw as AnyFC
+const PortalProgress = PortalProgressRaw as AnyFC
+const PortalBadge = PortalBadgeRaw as AnyFC
+const PortalButton = PortalButtonRaw as AnyFC
+const PortalBanner = PortalBannerRaw as AnyFC
+const PortalDonut = PortalDonutRaw as AnyFC
+const PortalSpark = PortalSparkRaw as AnyFC
+const PortalBars = PortalBarsRaw as AnyFC
+
 const SECTION_GAP = 24
 
-export function PortalDashboard({ onNavigate }) {
+export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string) => void }) {
   const _t = useLang()
-  const { client, isReady } = useClientAuth()
-  const [selectedProjectId, setSelectedProjectId] = useState(
+  const { client, isReady } = (useClientAuth() ?? {}) as { client?: any; isReady?: boolean }
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     () => localStorage.getItem('portal_selected_project') || null
   )
 
@@ -47,14 +71,14 @@ export function PortalDashboard({ onNavigate }) {
 
   const params = effectiveProjectId ? { project_id: effectiveProjectId } : {}
 
-  const { data: dash, isLoading } = useQuery({
+  const { data: dash, isLoading } = useQuery<any>({
     queryKey: ['portal-dashboard', effectiveProjectId],
     enabled: isReady,
     queryFn: async () => {
       try {
         const r = await CLIENT_API.get('/portal/dashboard', { params })
         return r.data
-      } catch (e) {
+      } catch (e: any) {
         if (e?.response?.status === 403 && effectiveProjectId) {
           localStorage.removeItem('portal_selected_project')
           setSelectedProjectId(null)
@@ -64,48 +88,48 @@ export function PortalDashboard({ onNavigate }) {
         throw e
       }
     },
-    retry: (n, e) => e?.response?.status !== 403 && n < 2,
+    retry: (n, e: any) => e?.response?.status !== 403 && n < 2,
     refetchOnWindowFocus: false,
   })
 
   // Datos auxiliares (sólo si tenemos proyecto)
   const projReady = !!dash?.project?.id
-  const { data: projectFull } = useQuery({
+  const { data: projectFull } = useQuery<any>({
     queryKey: ['portal-dashboard-project'],
     queryFn: () => CLIENT_API.get('/portal/project').then(r => r.data),
     enabled: projReady, staleTime: 30000,
   })
-  const { data: invoices = [] } = useQuery({
+  const { data: invoices = [] } = useQuery<any[]>({
     queryKey: ['portal-dashboard-invoices'],
     queryFn: () => CLIENT_API.get('/portal/invoices').then(r => r.data),
     enabled: projReady, staleTime: 30000,
   })
-  const { data: tickets = [] } = useQuery({
+  const { data: tickets = [] } = useQuery<any[]>({
     queryKey: ['portal-dashboard-tickets'],
     queryFn: () => CLIENT_API.get('/sd/tickets/client/my').then(r => r.data),
     enabled: projReady, staleTime: 30000,
   })
-  const { data: uats = [] } = useQuery({
+  const { data: uats = [] } = useQuery<any[]>({
     queryKey: ['portal-dashboard-uat'],
     queryFn: () => CLIENT_API.get('/portal/uat').then(r => r.data),
     enabled: projReady, staleTime: 30000,
   })
-  const { data: frs = [] } = useQuery({
+  const { data: frs = [] } = useQuery<any[]>({
     queryKey: ['portal-dashboard-frs'],
     queryFn: () => CLIENT_API.get('/portal/feature-requests').then(r => r.data),
     enabled: projReady, staleTime: 30000,
   })
-  const { data: docs = [] } = useQuery({
+  const { data: docs = [] } = useQuery<any[]>({
     queryKey: ['portal-dashboard-docs'],
     queryFn: () => CLIENT_API.get('/portal/documents').then(r => r.data),
     enabled: projReady, staleTime: 30000,
   })
-  const { data: announcements = [] } = useQuery({
+  const { data: announcements = [] } = useQuery<any[]>({
     queryKey: ['portal-dashboard-anns'],
     queryFn: () => CLIENT_API.get('/sd/announcements').then(r => r.data),
     enabled: projReady, staleTime: 60000,
   })
-  const { data: surveys = [] } = useQuery({
+  const { data: surveys = [] } = useQuery<any[]>({
     queryKey: ['portal-dashboard-surveys'],
     queryFn: () => CLIENT_API.get('/portal/surveys').then(r => r.data),
     enabled: projReady, staleTime: 60000,
@@ -136,7 +160,7 @@ export function PortalDashboard({ onNavigate }) {
           icon={FolderOpen}
         />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-          {(dash.projects || []).map(p => (
+          {(dash.projects || []).map((p: any) => (
             <PortalCard key={p.id} onClick={() => { setSelectedProjectId(p.id); localStorage.setItem('portal_selected_project', p.id) }}>
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'var(--font-mono)' }}>{p.code}</div>
               <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 8 }}>{p.name}</div>
@@ -165,15 +189,15 @@ export function PortalDashboard({ onNavigate }) {
   const project = dash.project
   const kpis = dash.kpis || {}
   const sd = dash.service_desk || {}
-  const milestones = projectFull?.milestones || []
-  const deliverables = projectFull?.deliverables || []
+  const milestones: any[] = projectFull?.milestones || []
+  const deliverables: any[] = projectFull?.deliverables || []
 
   const today = new Date()
   const startDate = project.start_date ? new Date(project.start_date) : null
   const endDate = project.end_date_planned ? new Date(project.end_date_planned) : null
-  const totalDays = (startDate && endDate) ? Math.max(1, Math.round((endDate - startDate) / 86400000)) : null
-  const elapsedDays = startDate ? Math.max(0, Math.round((today - startDate) / 86400000)) : 0
-  const remainingDays = endDate ? Math.round((endDate - today) / 86400000) : null
+  const totalDays = (startDate && endDate) ? Math.max(1, Math.round((+endDate - +startDate) / 86400000)) : null
+  const elapsedDays = startDate ? Math.max(0, Math.round((+today - +startDate) / 86400000)) : 0
+  const remainingDays = endDate ? Math.round((+endDate - +today) / 86400000) : null
   const timePct = totalDays ? Math.min(100, Math.round((elapsedDays / totalDays) * 100)) : 0
 
   const budgetPct = kpis.budget_total > 0 ? Math.round((kpis.budget_spent / kpis.budget_total) * 100) : 0
@@ -192,7 +216,7 @@ export function PortalDashboard({ onNavigate }) {
   // Próximos hitos en 30 días
   const upcomingMilestones = milestones
     .filter(m => !m.is_completed && m.due_date)
-    .map(m => ({ ...m, days: Math.round((new Date(m.due_date) - today) / 86400000) }))
+    .map((m: any) => ({ ...m, days: Math.round((+new Date(m.due_date) - +today) / 86400000) }))
     .filter(m => m.days <= 60)
     .sort((a, b) => a.days - b.days)
     .slice(0, 4)
@@ -211,7 +235,7 @@ export function PortalDashboard({ onNavigate }) {
   const uatPending = uats.filter(u => ['pending', 'in_progress'].includes(u.status)).length
   const uatPassPct = uatTotal ? Math.round((uatPassed / uatTotal) * 100) : 0
   const uatOverdue = uats.filter(u => u.overdue).length
-  const uatIssues = uats.reduce((s, u) => s + (u.issues?.filter(i => i.status === 'open')?.length || 0), 0)
+  const uatIssues = uats.reduce((s: number, u: any) => s + (u.issues?.filter((i: any) => i.status === 'open')?.length || 0), 0)
 
   // Tickets distribution & SLA
   const ticketsOpen = tickets.filter(t => !['closed', 'cancelled', 'resolved'].includes(t.status)).length
@@ -236,10 +260,10 @@ export function PortalDashboard({ onNavigate }) {
     const buckets = Array(12).fill(0)
     const cutoff = new Date(today)
     cutoff.setDate(cutoff.getDate() - 7 * 12)
-    tickets.forEach(tk => {
+    tickets.forEach((tk: any) => {
       const d = tk.created_at ? new Date(tk.created_at) : null
       if (!d || d < cutoff) return
-      const weekIdx = 11 - Math.floor((today - d) / (7 * 86400000))
+      const weekIdx = 11 - Math.floor((+today - +d) / (7 * 86400000))
       if (weekIdx >= 0 && weekIdx < 12) buckets[weekIdx]++
     })
     return buckets
@@ -265,7 +289,7 @@ export function PortalDashboard({ onNavigate }) {
   const pendingSurveys = surveys.filter(s => s.status === 'pending').length
   const invoicesToReview = invoicesAwaiting.length
 
-  const actionItems = [
+  const actionItems = ([
     docsToSign.length          && { count: docsToSign.length, label: 'documento(s) por firmar', icon: FileSignature, target: 'documents', tone: 'warning' },
     frsAwaitDecision.length    && { count: frsAwaitDecision.length, label: 'solicitud(es) con presupuesto que aprobar', icon: Lightbulb, target: 'requests', tone: 'warning' },
     invoicesToReview           && { count: invoicesToReview, label: 'factura(s) pendiente(s) de aprobación', icon: Receipt, target: 'invoices', tone: 'warning' },
@@ -273,18 +297,18 @@ export function PortalDashboard({ onNavigate }) {
     ticketsPendingClient       && { count: ticketsPendingClient, label: 'ticket(s) esperan tu respuesta', icon: Headphones, target: 'support', tone: 'warning' },
     ticketsCSATPending         && { count: ticketsCSATPending, label: 'ticket(s) con encuesta pendiente', icon: ThumbsUp, target: 'support', tone: 'accent' },
     pendingSurveys             && { count: pendingSurveys, label: 'encuesta(s) de satisfacción', icon: Sparkles, target: 'surveys', tone: 'accent' },
-  ].filter(Boolean)
+  ].filter(Boolean)) as Array<{ count: number; label: string; icon: any; target: string; tone: string }>
 
-  const totalActions = actionItems.reduce((s, a) => s + a.count, 0)
+  const totalActions = actionItems.reduce((s: number, a) => s + a.count, 0)
 
   // Recent activity (combinar varios)
   const activity = [...(dash.recent_activity || [])].slice(0, 6)
 
   // Helper navigation
-  const go = (s) => onNavigate?.(s)
+  const go = (s: string) => onNavigate?.(s)
 
   // Active outage banners
-  const outages = announcements.filter(a => a.show_to_clients && a.type === 'outage')
+  const outages = announcements.filter((a: any) => a.show_to_clients && a.type === 'outage')
 
   // Multi-project switcher
   const showProjectSwitcher = (client?.projects?.length > 1 || client?.project_ids?.length > 1)
@@ -690,8 +714,8 @@ export function PortalDashboard({ onNavigate }) {
               <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>Sin actividad reciente.</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {activity.map((it, i) => {
-                  const ICONS = { deliverable: CheckCircle2, message: Headphones, uat: FlaskConical, fr: Lightbulb }
+                {activity.map((it: any, i: number) => {
+                  const ICONS: Record<string, any> = { deliverable: CheckCircle2, message: Headphones, uat: FlaskConical, fr: Lightbulb }
                   const Icon = ICONS[it.type] || Activity
                   return (
                     <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: i < activity.length - 1 ? '1px solid var(--surface-4)' : 'none' }}>
@@ -730,7 +754,7 @@ export function PortalDashboard({ onNavigate }) {
 }
 
 // ── Helpers locales ──────────────────────────────────────────────────────────
-function DataRow({ label, value, tone = 'default', hint }) {
+function DataRow({ label, value, tone = 'default', hint }: { label: any; value: any; tone?: string; hint?: any }) {
   const color = tone === 'success' ? 'var(--success)'
     : tone === 'warning' ? 'var(--warning)'
     : tone === 'danger'  ? 'var(--danger)'
@@ -747,7 +771,7 @@ function DataRow({ label, value, tone = 'default', hint }) {
   )
 }
 
-function MetricBlock({ icon: Icon, label, value, tone }) {
+function MetricBlock({ icon: Icon, label, value, tone }: { icon: any; label: any; value: any; tone?: string }) {
   const color = tone === 'success' ? 'var(--success)' : tone === 'accent' ? 'var(--accent)' : 'var(--text-1)'
   return (
     <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '10px 12px' }}>
@@ -759,7 +783,7 @@ function MetricBlock({ icon: Icon, label, value, tone }) {
   )
 }
 
-function QuickLink({ icon: Icon, label, hint, onClick }) {
+function QuickLink({ icon: Icon, label, hint, onClick }: { icon: any; label: any; hint?: any; onClick?: () => void }) {
   return (
     <button onClick={onClick} style={{
       display: 'flex', alignItems: 'center', gap: 12,

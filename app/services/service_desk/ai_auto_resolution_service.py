@@ -16,13 +16,11 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import Ticket, TicketStatus, KBArticle, KBStatus
 from app.services.ai_provider_service import call_ai
-from app.core.config import settings
 
 _logger = logging.getLogger("ai_auto_resolution")
 

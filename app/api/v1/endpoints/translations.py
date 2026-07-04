@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, Query
 from app.core.deps import get_current_user
 from app.models.user import User
 import json
-import os
 from pathlib import Path
 
 router = APIRouter()

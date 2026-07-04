@@ -401,5 +401,51 @@ const pl = {
   errors: {
     generic: 'Nieoczekiwany błąd',
   },
+
+  // TODO: i18n translation review
+  offline_indicator: {
+    synced_partial: '⚠ Zsynchronizowano {synced}, nie powiodło się {failed} — {at}',
+    synced_ok: '✅ Zsynchronizowano {synced} wpisów — {at}',
+    online: 'Online',
+    offline: 'Offline',
+    pending: 'Synchronizacja oczekuje',
+    pending_label: '{count} oczekujących',
+    sync_now: '⚡ Synchronizuj',
+    syncing: '🔄 Synchronizowanie…',
+    banner_offline: 'Brak połączenia — tryb offline',
+    banner_pending: '({count} oczekujących operacji)',
+    conflicts_pending: '{count} konflikt(ów) do przeglądu',
+    pending_operations: 'Oczekujące operacje:',
+    pending_conflicts: 'Oczekujące konflikty:',
+    resolved_conflicts: 'Rozwiązane konflikty:',
+    last_sync: 'Ostatnia synchronizacja:',
+    synced_count: '✓ Zsynchronizowano: {count}',
+    failed_count: '✗ Niepowodzenia: {count}',
+    conflicts_count: '⚠ Konflikty: {count}',
+    sync_now_btn: '🔄 Synchronizuj teraz',
+    syncing_now: '⏳ Synchronizowanie…',
+    all_synced: '✓ Wszystko zsynchronizowane',
+  },
+
+  // TODO: i18n translation review
+  offline_conflicts: {
+    aria_history: 'Historia konfliktów offline',
+    aria_conflicts: 'Konflikty synchronizacji offline',
+    title_history: 'Historia konfliktów',
+    title_count: '{count} konfliktów',
+    btn_pending: 'Oczekujące',
+    btn_history: 'Historia',
+    no_history: 'Brak historii konfliktów.',
+    conflict_num: 'Konflikt nr {id}',
+    operation: 'Operacja: {opId}',
+    resolution: 'Rozwiązanie: {resolution}',
+    back_to_list: '← Powrót do listy',
+    local_value: 'Wartość lokalna:',
+    server_value: 'Wartość serwera:',
+    accept_server: 'Akceptuj serwer',
+    keep_local: 'Zachowaj lokalne',
+    resolving: '…',
+    strategy: 'Strategia: {strategy}',
+  },
 };
 export default pl;

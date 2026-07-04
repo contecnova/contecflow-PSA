@@ -13,8 +13,10 @@ import {
   resolveConflict,
   getConflictHistory,
 } from '../services/offlineSync'
+import { useAppT } from '../i18n/AppLangContext'
 
 export default function OfflineConflictResolver() {
+  const t = useAppT()
   const [conflicts, setConflicts] = useState([])
   const [selectedConflict, setSelectedConflict] = useState(null)
   const [resolving, setResolving] = useState(false)
@@ -78,6 +80,8 @@ export default function OfflineConflictResolver() {
 
   return (
     <div
+      role="region"
+      aria-label={showHistory ? t('offline_conflicts.aria_history') : t('offline_conflicts.aria_conflicts')}
       style={{
         position: 'fixed',
         bottom: 20,
@@ -107,7 +111,7 @@ export default function OfflineConflictResolver() {
         }}
       >
         <span style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-1)' }}>
-          {showHistory ? 'Conflict History' : `${conflicts.length} Conflicts`}
+          {showHistory ? t('offline_conflicts.title_history') : t('offline_conflicts.title_count', { count: conflicts.length })}
         </span>
         <button
           onClick={handleShowHistory}
@@ -121,7 +125,7 @@ export default function OfflineConflictResolver() {
             cursor: 'pointer',
           }}
         >
-          {showHistory ? 'Pending' : 'History'}
+          {showHistory ? t('offline_conflicts.btn_pending') : t('offline_conflicts.btn_history')}
         </button>
       </div>
 
@@ -129,7 +133,7 @@ export default function OfflineConflictResolver() {
       {showHistory && (
         <div style={{ padding: 12 }}>
           {history.length === 0 ? (
-            <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', margin: 0 }}>No conflict history yet.</p>
+            <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', margin: 0 }}>{t('offline_conflicts.no_history')}</p>
           ) : (
             history.map((item) => (
               <div
@@ -144,10 +148,10 @@ export default function OfflineConflictResolver() {
                 }}
               >
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  Conflict #{item.id}
+                  {t('offline_conflicts.conflict_num', { id: item.id })}
                 </div>
-                <div>Operation: {item.opId}</div>
-                <div>Resolution: {item.resolution}</div>
+                <div>{t('offline_conflicts.operation', { opId: item.opId })}</div>
+                <div>{t('offline_conflicts.resolution', { resolution: item.resolution })}</div>
                 <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 4 }}>
                   {new Date(item.resolvedAt).toLocaleTimeString()}
                 </div>
@@ -174,21 +178,21 @@ export default function OfflineConflictResolver() {
                   padding: 0,
                 }}
               >
-                ← Back to list
+                {t('offline_conflicts.back_to_list')}
               </button>
 
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 8 }}>
-                  Conflict #{selectedConflict.id}
+                  {t('offline_conflicts.conflict_num', { id: selectedConflict.id })}
                 </div>
 
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>
-                  Operation: {selectedConflict.opId}
+                  {t('offline_conflicts.operation', { opId: selectedConflict.opId })}
                 </div>
 
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: "var(--text-xs)", fontWeight: 500, color: 'var(--text-1)', marginBottom: 4 }}>
-                    Local value:
+                    {t('offline_conflicts.local_value')}
                   </div>
                   <pre
                     style={{
@@ -209,7 +213,7 @@ export default function OfflineConflictResolver() {
 
                 <div>
                   <div style={{ fontSize: "var(--text-xs)", fontWeight: 500, color: 'var(--text-1)', marginBottom: 4 }}>
-                    Server value:
+                    {t('offline_conflicts.server_value')}
                   </div>
                   <pre
                     style={{
@@ -247,7 +251,7 @@ export default function OfflineConflictResolver() {
                     opacity: resolving ? 0.6 : 1,
                   }}
                 >
-                  {resolving ? '...' : 'Accept Server'}
+                  {resolving ? t('offline_conflicts.resolving') : t('offline_conflicts.accept_server')}
                 </button>
                 <button
                   onClick={() => handleResolve(selectedConflict, 'local')}
@@ -265,7 +269,7 @@ export default function OfflineConflictResolver() {
                     opacity: resolving ? 0.6 : 1,
                   }}
                 >
-                  {resolving ? '...' : 'Keep Local'}
+                  {resolving ? t('offline_conflicts.resolving') : t('offline_conflicts.keep_local')}
                 </button>
               </div>
             </div>
@@ -292,13 +296,13 @@ export default function OfflineConflictResolver() {
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--surface-5)')}
                 >
                   <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>
-                    Conflict #{conflict.id}
+                    {t('offline_conflicts.conflict_num', { id: conflict.id })}
                   </div>
                   <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>
                     {conflict.opId}
                   </div>
                   <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', marginTop: 4 }}>
-                    Strategy: {conflict.strategy}
+                    {t('offline_conflicts.strategy', { strategy: conflict.strategy })}
                   </div>
                 </button>
               ))}

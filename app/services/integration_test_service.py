@@ -15,7 +15,7 @@ Probes must never raise — wrap the underlying call in try/except.
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 from sqlalchemy.orm import Session
 
@@ -61,7 +61,6 @@ def _test_smtp(cfg: dict, db: Session) -> dict:
 def _test_aws_s3(cfg: dict, db: Session) -> dict:
     try:
         import boto3
-        from botocore.exceptions import ClientError
         bucket = cfg.get("bucket")
         if not bucket:
             return {"ok": False, "detail": "Bucket no configurado"}

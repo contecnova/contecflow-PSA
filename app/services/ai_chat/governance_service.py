@@ -6,7 +6,6 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.ai_chat import AIActionLog, AIGovernanceConfig

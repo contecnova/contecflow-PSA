@@ -1,14 +1,14 @@
-// @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from 'react'
+import type { CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksApi, projectsApi, customFieldsApi, semanticApi, projectWorkflowsApi } from '../services/api'
-import { Badge, Button, Modal, EmptyState, Avatar, useSort, SortableTH, Tabs } from '../components/ui'
+import { Badge as _Badge, Button, Modal, EmptyState, Avatar as _Avatar, useSort, SortableTH, Tabs } from '../components/ui'
 import { SkeletonTable } from '../components/ui/Skeletons'
-import VirtualList from '../components/ui/VirtualList'
+import _VirtualList from '../components/ui/VirtualList'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import {
@@ -18,15 +18,23 @@ import SmartScheduleModal from '../components/SmartScheduleModal'
 import { fmtDate, STATUS_LABELS, PRIORITY_LABELS, extractErr} from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
-import DocumentsPanel from '../components/DocumentsPanel'
-import AIInlineEditor from '../components/AIInlineEditor'
+import _DocumentsPanel from '../components/DocumentsPanel'
+import _AIInlineEditor from '../components/AIInlineEditor'
 import { useAppT } from '../i18n/AppLangContext'
+
+// Type-relaxed aliases for legacy JS-inferred components (runtime unchanged)
+const Badge: any = _Badge
+const Avatar: any = _Avatar
+const VirtualList: any = _VirtualList
+const DocumentsPanel: any = _DocumentsPanel
+const AIInlineEditor: any = _AIInlineEditor
+const STATUS_LABELS_MAP: Record<string, string> = STATUS_LABELS as any
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-function onKeyboardActivate(event, action) {
+function onKeyboardActivate(event: React.KeyboardEvent, action: () => void) {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     action()
@@ -40,16 +48,16 @@ const _STATUS_ICONS = { todo: '○', in_progress: '◑', blocked: '✕', in_revi
 const PRIORITIES = Object.entries(PRIORITY_LABELS).map(([v, l]) => ({ value: v, label: l }))
 const TASK_STATUSES = [
   { value: 'open', label: 'Abiertas' },
-  ...STATUSES.map(v => ({ value: v, label: STATUS_LABELS[v] })),
+  ...STATUSES.map(v => ({ value: v, label: STATUS_LABELS_MAP[v] })),
 ]
 
-function TaskKanbanCard({ task, onTaskClick, onTaskDragStart }) {
+function TaskKanbanCard({ task, onTaskClick, onTaskDragStart }: { task: any; onTaskClick: (t: any) => void; onTaskDragStart?: (e: any, task: any, onStarted: () => void) => void }) {
   const wasDragged = useRef(false)
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${task.title} — ${STATUS_LABELS[task.status] || task.status}`}
+      aria-label={`${task.title} — ${STATUS_LABELS_MAP[task.status] || task.status}`}
       onMouseDown={e => {
         if (e.button !== 0) return
         wasDragged.current = false
@@ -77,7 +85,7 @@ function TaskKanbanCard({ task, onTaskClick, onTaskDragStart }) {
           </div>
         ) : <span />}
         {task.estimated_hours && (
-          <span style={{ fontSize: "var(--text-xs)", color: task.real_hours > task.estimated_hours ? 'var(--danger)' : 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
+          <span style={{ fontSize: "var(--text-xs)", color: (task.real_hours ?? 0) > (task.estimated_hours ?? 0) ? 'var(--danger)' : 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
             {task.real_hours?.toFixed(1) ?? 0}h / {task.estimated_hours}h
           </span>
         )}
@@ -91,8 +99,8 @@ function TaskKanbanCard({ task, onTaskClick, onTaskDragStart }) {
   )
 }
 
-function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnter, onColumnLeave, dragOver }) {
-  const colors = { todo: 'var(--text-2)', in_progress: 'var(--accent)', blocked: 'var(--danger)', in_review: 'var(--warning)', done: 'var(--success)' }
+function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnter, onColumnLeave, dragOver }: { status: string; tasks: any[]; onTaskClick: (t: any) => void; onTaskDragStart?: any; onColumnEnter?: any; onColumnLeave?: any; dragOver?: boolean }) {
+  const colors: Record<string, string> = { todo: 'var(--text-2)', in_progress: 'var(--accent)', blocked: 'var(--danger)', in_review: 'var(--warning)', done: 'var(--success)' }
   const color = colors[status]
   return (
     <div
@@ -107,14 +115,14 @@ function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnt
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '0 4px' }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
         <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-          {STATUS_LABELS[status]}
+          {STATUS_LABELS_MAP[status]}
         </span>
         <span style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", background: 'var(--surface-4)', color: 'var(--text-2)', borderRadius: 10, padding: '1px 7px' }}>
           {tasks.length}
         </span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {tasks.map(task => (
+        {tasks.map((task: any) => (
           <TaskKanbanCard
             key={task.id}
             task={task}
@@ -127,19 +135,19 @@ function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnt
   )
 }
 
-function useWorkflowStatusOptions(projectId, t) {
-  const { data } = useQuery({
+function useWorkflowStatusOptions(projectId: any, t: any) {
+  const { data } = useQuery<any>({
     queryKey: ['project-workflow', projectId],
     queryFn: () => projectWorkflowsApi.get(projectId).then(r => r.data).catch(() => null),
     enabled: !!projectId,
     staleTime: 60000,
     retry: false,
   })
-  if (data?.states?.length > 0) {
+  if ((data?.states?.length ?? 0) > 0) {
     return data.states
       .slice()
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      .map(s => ({ value: s.value, icon: s.icon || '○', label: s.name }))
+      .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      .map((s: any) => ({ value: s.value, icon: s.icon || '○', label: s.name }))
   }
   return [
     { value: 'backlog',     icon: '○', label: t('tasks.status_backlog')     },
@@ -152,17 +160,17 @@ function useWorkflowStatusOptions(projectId, t) {
   ]
 }
 
-function TaskDetailModal({ task, open, onClose }) {
+function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; onClose: () => void }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
-  const { _invalidate } = useInvalidate()
+  const { invalidate: _invalidate } = useInvalidate()
   const [tab, setTab]         = useState('detail')  // detail | comments | docs
   const [isEditing, setIsEditing] = useState(false)
   const [comment, setComment] = useState('')
-  const [form, setForm]       = useState(null)
-  const [semSuggestion, setSemSuggestion] = useState(null)
-  const [semEffort, setSemEffort]         = useState(null)
+  const [form, setForm]       = useState<any>(null)
+  const [semSuggestion, setSemSuggestion] = useState<any>(null)
+  const [semEffort, setSemEffort]         = useState<any>(null)
   const [suggesting, setSuggesting]       = useState(false)
 
   // Reset editing mode and form whenever the task changes or modal opens
@@ -184,54 +192,54 @@ function TaskDetailModal({ task, open, onClose }) {
     }
   }, [task])
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<any[]>({
     queryKey: ['users'],
     queryFn: () => import('../services/api').then(m => m.usersApi.list().then(r => r.data)),
   })
 
   const statusOptions = useWorkflowStatusOptions(task?.project_id, t)
 
-  const { data: customFields = [] } = useQuery({
+  const { data: customFields = [] } = useQuery<any[]>({
     queryKey: ['custom-fields', task?.project_id],
     queryFn: () => customFieldsApi.list(task.project_id).then(r => r.data).catch(() => []),
     enabled: !!task?.project_id,
     retry: false,
   })
-  const { data: rawCustomValues } = useQuery({
+  const { data: rawCustomValues } = useQuery<any[]>({
     queryKey: ['custom-field-values', task?.id],
     queryFn: () => customFieldsApi.getValues(task.project_id, task.id).then(r => r.data).catch(() => []),
     enabled: !!task?.id && !!task?.project_id,
     retry: false,
   })
-  const [customValues, setCustomValues] = useState({})
+  const [customValues, setCustomValues] = useState<Record<string, any>>({})
   useEffect(() => {
-    const map = {}
-    ;(rawCustomValues ?? []).forEach(v => { map[v.field_id] = v.value ?? '' })
+    const map: Record<string, any> = {}
+    ;(rawCustomValues ?? []).forEach((v: any) => { map[v.field_id] = v.value ?? '' })
     setCustomValues(map)
   }, [rawCustomValues])
 
   const { mutate: saveTask, isPending: saving } = useMutation({
-    mutationFn: async ({ taskData, cfValues, cfFields, taskId, projectId }) => {
+    mutationFn: async ({ taskData, cfValues, cfFields, taskId, projectId }: any) => {
       await tasksApi.update(taskId, taskData)
       if (cfFields.length > 0) {
-        const payload = cfFields.map(f => ({ field_id: f.id, value: cfValues[f.id] ?? null }))
+        const payload = cfFields.map((f: any) => ({ field_id: f.id, value: cfValues[f.id] ?? null }))
         await customFieldsApi.setValues(projectId, taskId, payload)
       }
     },
-    onSuccess: () => { qc.invalidateQueries(['tasks']); qc.invalidateQueries(['dash-my-tasks']); qc.invalidateQueries(['dash-overdue-tasks']); qc.invalidateQueries(['cal-tasks']); qc.invalidateQueries(['kanban-board']); setIsEditing(false); onClose() },
-    onError: e => toast.error(extractErr(e, t('common.error'))),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); qc.invalidateQueries({ queryKey: ['dash-my-tasks'] }); qc.invalidateQueries({ queryKey: ['dash-overdue-tasks'] }); qc.invalidateQueries({ queryKey: ['cal-tasks'] }); qc.invalidateQueries({ queryKey: ['kanban-board'] }); setIsEditing(false); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, t('common.error'))),
   })
 
   const { mutate: deleteTask, isPending: deleting } = useMutation({
     mutationFn: () => tasksApi.delete(task.id),
-    onSuccess: () => { qc.invalidateQueries(['tasks']); qc.invalidateQueries(['dash-my-tasks']); qc.invalidateQueries(['dash-overdue-tasks']); qc.invalidateQueries(['cal-tasks']); qc.invalidateQueries(['kanban-board']); onClose() },
-    onError: e => toast.error(extractErr(e, t('common.error'))),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); qc.invalidateQueries({ queryKey: ['dash-my-tasks'] }); qc.invalidateQueries({ queryKey: ['dash-overdue-tasks'] }); qc.invalidateQueries({ queryKey: ['cal-tasks'] }); qc.invalidateQueries({ queryKey: ['kanban-board'] }); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, t('common.error'))),
   })
 
   const { mutate: addComment, isPending: commenting } = useMutation({
-    mutationFn: ({ id, content }) => tasksApi.comment(id, { content }),
-    onSuccess: () => { qc.invalidateQueries(['tasks']); setComment('') },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: ({ id, content }: any) => tasksApi.comment(id, { content } as any),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); setComment('') },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const analyzeWithAI = async () => {
@@ -248,7 +256,7 @@ function TaskDetailModal({ task, open, onClose }) {
 
   const acceptSuggestion = () => {
     if (semSuggestion?.suggested_user_id) {
-      setForm(f => ({ ...f, assignee_id: semSuggestion.suggested_user_id }))
+      setForm((f: any) => ({ ...f, assignee_id: semSuggestion.suggested_user_id }))
       // Persist SemAssignment so the feedback loop has a base row for this task
       semanticApi.recordAssignment({
         item_type: 'task',
@@ -264,7 +272,7 @@ function TaskDetailModal({ task, open, onClose }) {
       }).catch(() => { /* non-blocking */ })
     }
     if (semEffort?.base_hours && !form.estimated_hours)
-      setForm(f => ({ ...f, estimated_hours: String(semEffort.base_hours) }))
+      setForm((f: any) => ({ ...f, estimated_hours: String(semEffort.base_hours) }))
     setSemSuggestion(null); setSemEffort(null)
   }
 
@@ -286,15 +294,15 @@ function TaskDetailModal({ task, open, onClose }) {
     setIsEditing(false)
   }
 
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const fs  = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls  = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
-  const COMPLEXITY_COLORS = { simple: 'var(--success)', medium: 'var(--warning)', complex: 'var(--danger)' }
-  const STATUS_LABEL_MAP = { backlog: t('tasks.status_backlog'), todo: t('tasks.status_todo'), in_progress: t('tasks.status_in_progress'), in_review: t('tasks.status_review'), blocked: t('tasks.status_blocked'), done: t('tasks.status_done'), cancelled: t('tasks.status_cancelled') }
-  const PRIORITY_COLOR   = { critical: 'var(--danger)', high: 'var(--warning)', medium: 'var(--accent)', low: 'var(--text-2)' }
-  const STATUS_COLOR     = { done: 'var(--success)', blocked: 'var(--danger)', in_progress: 'var(--accent)', in_review: 'var(--warning)', todo: 'var(--text-2)', backlog: 'var(--text-3)', cancelled: 'var(--text-3)' }
+  const set = (k: string) => (e: any) => setForm((f: any) => ({ ...f, [k]: e.target.value }))
+  const fs: CSSProperties  = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties  = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
+  const COMPLEXITY_COLORS: Record<string, string> = { simple: 'var(--success)', medium: 'var(--warning)', complex: 'var(--danger)' }
+  const STATUS_LABEL_MAP: Record<string, string> = { backlog: t('tasks.status_backlog'), todo: t('tasks.status_todo'), in_progress: t('tasks.status_in_progress'), in_review: t('tasks.status_review'), blocked: t('tasks.status_blocked'), done: t('tasks.status_done'), cancelled: t('tasks.status_cancelled') }
+  const PRIORITY_COLOR: Record<string, string>   = { critical: 'var(--danger)', high: 'var(--warning)', medium: 'var(--accent)', low: 'var(--text-2)' }
+  const STATUS_COLOR: Record<string, string>     = { done: 'var(--success)', blocked: 'var(--danger)', in_progress: 'var(--accent)', in_review: 'var(--warning)', todo: 'var(--text-2)', backlog: 'var(--text-3)', cancelled: 'var(--text-3)' }
   const bodyPad = '20px 20px 24px'
-  const tabPanelStyle = { paddingTop: 8 }
+  const tabPanelStyle: CSSProperties = { paddingTop: 8 }
 
   if (!open || !task || !form) return null
 
@@ -348,7 +356,7 @@ function TaskDetailModal({ task, open, onClose }) {
             </span>
             <span style={{ fontSize: "var(--text-sm)", padding: '3px 12px', borderRadius: 20, fontWeight: 700,
               background: PRIORITY_COLOR[task.priority] + '20', color: PRIORITY_COLOR[task.priority] }}>
-              {PRIORITY_LABELS[task.priority] || task.priority}
+              {(PRIORITY_LABELS as any)[task.priority] || task.priority}
             </span>
           </div>
 
@@ -415,11 +423,11 @@ function TaskDetailModal({ task, open, onClose }) {
           )}
 
           {/* Custom fields (read-only) */}
-          {customFields.length > 0 && rawCustomValues.length > 0 && (
+          {customFields.length > 0 && (rawCustomValues?.length ?? 0) > 0 && (
             <div style={{ marginBottom: 14, borderTop: '1px solid var(--surface-4)', paddingTop: 14 }}>
               <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{t('tasks.custom_fields_label')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {customFields.map(f => {
+                {customFields.map((f: any) => {
                   const val = customValues[f.id]
                   if (!val && val !== 0) return null
                   return (
@@ -458,7 +466,7 @@ function TaskDetailModal({ task, open, onClose }) {
           <div>
             <label style={ls}>{t('common.status')}</label>
             <select value={form.status} onChange={set('status')} style={fs}>
-              {statusOptions.map(o => (
+              {statusOptions.map((o: any) => (
                 <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
               ))}
             </select>
@@ -484,7 +492,7 @@ function TaskDetailModal({ task, open, onClose }) {
             </div>
             <select value={form.assignee_id} onChange={set('assignee_id')} style={fs}>
               <option value="">{t('tasks.no_assignee')}</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+              {users.map((u: any) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </select>
             {(semSuggestion || semEffort) && !semSuggestion?.error && (
               <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
@@ -532,7 +540,7 @@ function TaskDetailModal({ task, open, onClose }) {
           {/* Descripción */}
           <div style={{ gridColumn: '1/-1' }}>
             <label style={ls}>{t('common.description')} <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontWeight: 400 }}>{t('tasks.description_hint')}</span></label>
-            <AIInlineEditor value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={4} style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }} />
+            <AIInlineEditor value={form.description} onChange={(val: any) => set('description')({ target: { value: val } })} rows={4} style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }} />
           </div>
 
           {/* Motivo bloqueo */}
@@ -555,24 +563,24 @@ function TaskDetailModal({ task, open, onClose }) {
             <div style={{ gridColumn: '1/-1', borderTop: '1px solid var(--surface-4)', paddingTop: 14 }}>
               <label style={{ ...ls, marginBottom: 10 }}>{t('tasks.custom_fields_label')}</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                {customFields.map(f => (
+                {customFields.map((f: any) => (
                   <div key={f.id} style={(f.field_type === 'text' || f.field_type === 'url') ? { gridColumn: '1/-1' } : {}}>
                     <label style={ls}>{f.name}{f.is_required ? ' *' : ''}</label>
                     {f.field_type === 'select' ? (
-                      <select value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} style={fs}>
+                      <select value={customValues[f.id] ?? ''} onChange={e => setCustomValues((v: any) => ({ ...v, [f.id]: e.target.value }))} style={fs}>
                         <option value="">{t('tasks.select_option')}</option>
-                        {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                        {(f.options || []).map((o: any) => <option key={o} value={o}>{o}</option>)}
                       </select>
                     ) : f.field_type === 'boolean' ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
-                        <input type="checkbox" checked={customValues[f.id] === 'true'} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.checked ? 'true' : 'false' }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
+                        <input type="checkbox" checked={customValues[f.id] === 'true'} onChange={e => setCustomValues((v: any) => ({ ...v, [f.id]: e.target.checked ? 'true' : 'false' }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
                         <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{customValues[f.id] === 'true' ? t('common.yes') : t('common.no')}</span>
                       </div>
                     ) : (
                       <input
                         type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : f.field_type === 'url' ? 'url' : 'text'}
                         value={customValues[f.id] ?? ''}
-                        onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
+                        onChange={e => setCustomValues((v: any) => ({ ...v, [f.id]: e.target.value }))}
                         style={fs}
                       />
                     )}
@@ -612,7 +620,7 @@ function TaskDetailModal({ task, open, onClose }) {
             <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 16 }}>{t('tasks.no_comments')}</p>
           ) : (
             <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {task.comments.map(c => (
+              {task.comments.map((c: any) => (
                 <div key={c.id} style={{ display: 'flex', gap: 10 }}>
                   <Avatar name={c.author?.full_name || '?'} size={28} />
                   <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '8px 12px', flex: 1 }}>
@@ -656,26 +664,26 @@ export default function TasksPage() {
   const toast = useToast()
   const qc = useQueryClient()
   // ── Kanban drag-and-drop state ────────────────────────────────────────────
-  const dragTask      = useRef(null)
-  const ghostRef      = useRef(null)
-  const dropTargetRef = useRef(null)
-  const [dropTarget, setDropTarget] = useState(null)
+  const dragTask      = useRef<any>(null)
+  const ghostRef      = useRef<any>(null)
+  const dropTargetRef = useRef<any>(null)
+  const [dropTarget, setDropTarget] = useState<any>(null)
 
   const cleanupGhost = useCallback(() => {
     if (ghostRef.current) { ghostRef.current.remove(); ghostRef.current = null }
   }, [])
 
   const { mutate: moveTaskStatus } = useMutation({
-    mutationFn: ({ id, status, move_reason }) =>
+    mutationFn: ({ id, status, move_reason }: any) =>
       tasksApi.update(id, { status, ...(move_reason ? { move_reason } : {}) }),
     onSuccess: () => {
-      qc.invalidateQueries(['tasks'])
-      qc.invalidateQueries(['kanban-board'])
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+      qc.invalidateQueries({ queryKey: ['kanban-board'] })
     },
-    onError: e => toast.error(e?.response?.data?.detail || 'Error al mover tarea'),
+    onError: (e: unknown) => toast.error((e as any)?.response?.data?.detail || 'Error al mover tarea'),
   })
 
-  const requestMoveTask = useCallback((id, fromStatus, toStatus) => {
+  const requestMoveTask = useCallback((id: any, fromStatus: any, toStatus: any) => {
     if (fromStatus === toStatus) return
     let move_reason
     if (fromStatus === 'done' || fromStatus === 'cancelled') {
@@ -689,12 +697,12 @@ export default function TasksPage() {
     moveTaskStatus({ id, status: toStatus, move_reason })
   }, [moveTaskStatus])
 
-  const handleTaskDragStart = useCallback((e, task, onDragStarted) => {
+  const handleTaskDragStart = useCallback((e: any, task: any, onDragStarted: () => void) => {
     const startX = e.clientX
     const startY = e.clientY
     let dragging = false
 
-    const onMove = ev => {
+    const onMove = (ev: any) => {
       if (!dragging) {
         const dx = ev.clientX - startX
         const dy = ev.clientY - startY
@@ -711,7 +719,7 @@ export default function TasksPage() {
           color: 'var(--text-1)', fontSize: '12px', fontFamily: 'var(--font-sans)',
           maxWidth: '220px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
           opacity: '0.9', left: ev.clientX + 12 + 'px', top: ev.clientY + 12 + 'px',
-        })
+        } as any)
         document.body.appendChild(ghost)
         ghostRef.current = ghost
       } else if (ghostRef.current) {
@@ -739,7 +747,7 @@ export default function TasksPage() {
     document.addEventListener('mouseup', onUp)
   }, [moveTaskStatus, cleanupGhost])
 
-  const handleColumnEnter = useCallback((status) => {
+  const handleColumnEnter = useCallback((status: any) => {
     dropTargetRef.current = status
     setDropTarget(status)
   }, [])
@@ -753,13 +761,13 @@ export default function TasksPage() {
   const assigneeFilter = searchParams.get('assignee') || ''
   const overdueOnly    = searchParams.get('overdue') === '1'
   const mineOnly       = searchParams.get('mine') === '1'
-  const setTaskParam = (k, v) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set(k, v) : n.delete(k); return n }, { replace: true })
-  const setView           = (v) => setTaskParam('view', v === 'kanban' ? '' : v)
-  const setProjectFilter  = (v) => setTaskParam('project_id', v)
-  const setStatusFilter   = (v) => setTaskParam('status', v)
-  const setSearch         = (v) => setTaskParam('search', v)
-  const setPriorityFilter = (v) => setTaskParam('priority', v)
-  const setAssigneeFilter = (v) => setTaskParam('assignee', v)
+  const setTaskParam = (k: string, v: string) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set(k, v) : n.delete(k); return n }, { replace: true })
+  const setView           = (v: string) => setTaskParam('view', v === 'kanban' ? '' : v)
+  const setProjectFilter  = (v: string) => setTaskParam('project_id', v)
+  const setStatusFilter   = (v: string) => setTaskParam('status', v)
+  const setSearch         = (v: string) => setTaskParam('search', v)
+  const setPriorityFilter = (v: string) => setTaskParam('priority', v)
+  const setAssigneeFilter = (v: string) => setTaskParam('assignee', v)
   const clearQuickFilters = () => setSearchParams(p => {
     const n = new URLSearchParams(p)
     n.delete('mine')
@@ -772,10 +780,10 @@ export default function TasksPage() {
     overdueOnly ? { key: 'overdue', label: 'Solo vencidas', onClear: () => setTaskParam('overdue', '') } : null,
     statusFilter === 'open' ? { key: 'open', label: 'Estado: abiertas', onClear: () => setTaskParam('status', '') } : null,
   ].filter(Boolean)
-  const [selectedTask, setSelectedTask] = useState(null)
+  const [selectedTask, setSelectedTask] = useState<any>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [smartScheduleOpen, setSmartScheduleOpen] = useState(false)
-  const [selected, setSelected] = useState(new Set())  // bulk selection
+  const [selected, setSelected] = useState<Set<string>>(new Set())  // bulk selection
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
 
   useEffect(() => {
@@ -792,12 +800,12 @@ export default function TasksPage() {
   const [bulkAssignee, setBulkAssignee] = useState('')
   const [bulkPriority, setBulkPriority] = useState('')
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<any[]>({
     queryKey: ['projects'],
     queryFn: () => projectsApi.list().then(r => r.data),
   })
 
-  const { data: tasksData, isLoading } = useQuery({
+  const { data: tasksData, isLoading } = useQuery<any>({
     queryKey: ['tasks', projectFilter, statusFilter, view, search, priorityFilter, assigneeFilter, overdueOnly, mineOnly],
     queryFn: () => {
       const effectiveStatus = statusFilter === 'open'
@@ -814,17 +822,17 @@ export default function TasksPage() {
         assignee_id: assigneeFilter || undefined,
         overdue_only: overdueOnly || undefined,
         assigned_to_me: mineOnly || undefined,
-      }).then(r => {
-        const d = r.data
+      } as any).then(r => {
+        const d: any = r.data
         // Tolerate canonical wrapper {items, meta} during transition
         if (d && !Array.isArray(d) && Array.isArray(d.items)) return d.items
         return d
       })
     },
-    keepPreviousData: true,
+    placeholderData: (prev: any) => prev,
   })
 
-  const projectOptions = projects.map(p => ({ value: p.id, label: `${p.code} — ${p.name}` }))
+  const projectOptions = projects.map((p: any) => ({ value: p.id, label: `${p.code} — ${p.name}` }))
 
   // flatTasks: en lista y en kanban-sin-proyecto tasksData es array; en kanban-con-proyecto es objeto {status:[]}
   const flatTasks = Array.isArray(tasksData)
@@ -833,46 +841,46 @@ export default function TasksPage() {
 
   const { sort: taskSort, setSort: setTaskSort, sortedData: sortedTasks } = useSort(flatTasks, 'title')
 
-  const kanbanColumns = view === 'kanban' && tasksData && !Array.isArray(tasksData)
+  const kanbanColumns: any = view === 'kanban' && tasksData && !Array.isArray(tasksData)
     ? tasksData
-    : STATUSES.reduce((a, s) => ({ ...a, [s]: [] }), {})
+    : STATUSES.reduce((a: any, s) => ({ ...a, [s]: [] }), {})
 
   // ── Bulk operations ──────────────────────────────────────────────────────
-  const { data: allUsers = [] } = useQuery({
+  const { data: allUsers = [] } = useQuery<any[]>({
     queryKey: ['users'],
     queryFn: () => import('../services/api').then(m => m.usersApi.list().then(r => r.data)),
     staleTime: 120000,
   })
 
   const { mutate: bulkMutate, isPending: bulkPending } = useMutation({
-    mutationFn: (payload) => tasksApi.bulkUpdate(payload),
-    onSuccess: (res) => {
-      qc.invalidateQueries(['tasks'])
-      qc.invalidateQueries(['dash-my-tasks'])
-      qc.invalidateQueries(['dash-overdue-tasks'])
-      qc.invalidateQueries(['cal-tasks'])
-      qc.invalidateQueries(['kanban-board'])
-      const data = res.data
+    mutationFn: (payload: any) => tasksApi.bulkUpdate(payload),
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+      qc.invalidateQueries({ queryKey: ['dash-my-tasks'] })
+      qc.invalidateQueries({ queryKey: ['dash-overdue-tasks'] })
+      qc.invalidateQueries({ queryKey: ['cal-tasks'] })
+      qc.invalidateQueries({ queryKey: ['kanban-board'] })
+      const data: any = res.data
       const n = data?.updated ?? 0
       const s = data?.skipped?.length ?? 0
       toast.success(`${n} tarea${n !== 1 ? 's' : ''} actualizad${n !== 1 ? 'as' : 'a'}${s > 0 ? ` · ${s} omitid${s !== 1 ? 'as' : 'a'}` : ''}`)
       setSelected(new Set())
       setBulkStatus(''); setBulkAssignee(''); setBulkPriority('')
     },
-    onError: e => toast.error(extractErr(e, 'Error en actualización masiva')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error en actualización masiva')),
   })
 
-  const toggleSelect = (id) => setSelected(prev => {
+  const toggleSelect = (id: string) => setSelected(prev => {
     const next = new Set(prev)
     next.has(id) ? next.delete(id) : next.add(id)
     return next
   })
   const toggleAll = () => setSelected(prev =>
-    prev.size === flatTasks.length ? new Set() : new Set(flatTasks.map(t => t.id))
+    prev.size === flatTasks.length ? new Set<string>() : new Set<string>(flatTasks.map((t: any) => t.id))
   )
   const applyBulk = () => {
     if (selected.size === 0) return
-    const payload = { task_ids: [...selected] }
+    const payload: any = { task_ids: [...selected] }
     if (bulkStatus)   payload.status = bulkStatus
     if (bulkAssignee) payload.assignee_id = bulkAssignee
     if (bulkPriority) payload.priority = bulkPriority
@@ -923,7 +931,7 @@ export default function TasksPage() {
       {/* Quick filter pills */}
       {quickFilterPills.length > 0 && (
         <div className="ds-row-wrap" style={{ marginBottom: 'var(--space-3)' }}>
-          {quickFilterPills.map(pill => (
+          {quickFilterPills.map((pill: any) => (
             <span key={pill.key} className="ds-pill ds-pill--accent">
               {pill.label}
               <button type="button" onClick={pill.onClear} aria-label={`Quitar filtro ${pill.label}`}
@@ -1034,7 +1042,7 @@ export default function TasksPage() {
               <KanbanColumn
                 key={status}
                 status={status}
-                tasks={(kanbanColumns[status] || []).filter(t =>
+                tasks={(kanbanColumns[status] || []).filter((t: any) =>
                   (!search || t.title?.toLowerCase().includes(search.toLowerCase())) &&
                   (!priorityFilter || t.priority === priorityFilter)
                 )}
@@ -1155,7 +1163,7 @@ export default function TasksPage() {
               items={sortedTasks}
               rowHeight={52}
               height={Math.min(flatTasks.length * 52, 600)}
-              renderRow={(t) => (
+              renderRow={(t: any) => (
                 <div
                   onClick={() => setSelectedTask(t)}
                   onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(t))}
@@ -1197,25 +1205,25 @@ export default function TasksPage() {
   )
 }
 
-function CreateTaskModal({ open, onClose, projects }) {
+function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: () => void; projects: any[] }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<any[]>({
     queryKey: ['users'],
     queryFn: () => import('../services/api').then(m => m.usersApi.list().then(r => r.data)),
   })
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<any>({
     title: '', project_id: '', status: 'todo', priority: 'medium',
     estimated_hours: '', start_date: '', due_date: '', description: '', assignee_id: '',
   })
-  const [semSuggestion, setSemSuggestion] = useState(null)
-  const [semEffort, setSemEffort] = useState(null)
+  const [semSuggestion, setSemSuggestion] = useState<any>(null)
+  const [semEffort, setSemEffort] = useState<any>(null)
   const [suggesting, setSuggesting] = useState(false)
-  const [pendingSuggestion, setPendingSuggestion] = useState(null)
-  const [customValues, setCustomValues] = useState({})
+  const [pendingSuggestion, setPendingSuggestion] = useState<any>(null)
+  const [customValues, setCustomValues] = useState<Record<string, any>>({})
 
-  const { data: customFields = [] } = useQuery({
+  const { data: customFields = [] } = useQuery<any[]>({
     queryKey: ['custom-fields', form.project_id],
     queryFn: () => customFieldsApi.list(form.project_id).then(r => r.data).catch(() => []),
     enabled: !!form.project_id,
@@ -1225,16 +1233,16 @@ function CreateTaskModal({ open, onClose, projects }) {
   const statusOptions = useWorkflowStatusOptions(form.project_id, t)
 
   const { mutate, isPending } = useMutation({
-    mutationFn: async ({ taskData, cfValues, cfFields }) => {
+    mutationFn: async ({ taskData, cfValues, cfFields }: any) => {
       const res = await tasksApi.create(taskData)
       const task = res.data
       if (cfFields.length > 0 && task?.id) {
-        const payload = cfFields.map(f => ({ field_id: f.id, value: cfValues[f.id] ?? null }))
+        const payload = cfFields.map((f: any) => ({ field_id: f.id, value: cfValues[f.id] ?? null }))
         await customFieldsApi.setValues(task.project_id, task.id, payload)
       }
       return task
     },
-    onSuccess: (newTask) => {
+    onSuccess: (newTask: any) => {
       if (pendingSuggestion?.suggested_user_id && newTask?.id) {
         semanticApi.recordAssignment({
           item_type: 'task',
@@ -1249,21 +1257,21 @@ function CreateTaskModal({ open, onClose, projects }) {
           reasoning: pendingSuggestion.reasoning,
         }).catch(() => { /* non-blocking */ })
       }
-      qc.invalidateQueries(['tasks'])
-      qc.invalidateQueries(['dash-my-tasks'])
-      qc.invalidateQueries(['dash-overdue-tasks'])
-      qc.invalidateQueries(['cal-tasks'])
-      qc.invalidateQueries(['kanban-board'])
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+      qc.invalidateQueries({ queryKey: ['dash-my-tasks'] })
+      qc.invalidateQueries({ queryKey: ['dash-overdue-tasks'] })
+      qc.invalidateQueries({ queryKey: ['cal-tasks'] })
+      qc.invalidateQueries({ queryKey: ['kanban-board'] })
       onClose()
       setForm({ title: '', project_id: '', status: 'todo', priority: 'medium', estimated_hours: '', start_date: '', due_date: '', description: '', assignee_id: '' })
       setCustomValues({})
       setSemSuggestion(null); setSemEffort(null); setPendingSuggestion(null)
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
+  const set = (k: string) => (e: any) => setForm((f: any) => ({ ...f, [k]: e.target.value }))
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls: CSSProperties = { fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
   const analyzeWithAI = async () => {
     if (!form.title) return
@@ -1276,22 +1284,22 @@ function CreateTaskModal({ open, onClose, projects }) {
       ])
       setSemSuggestion(sugRes.data)
       setSemEffort(effortRes.data)
-    } catch (e) { setSemSuggestion({ error: e?.response?.data?.detail || 'Error' }) }
+    } catch (e) { setSemSuggestion({ error: (e as any)?.response?.data?.detail || 'Error' }) }
     finally { setSuggesting(false) }
   }
 
   const acceptSuggestion = () => {
     if (semSuggestion?.suggested_user_id) {
-      setForm(f => ({ ...f, assignee_id: semSuggestion.suggested_user_id }))
+      setForm((f: any) => ({ ...f, assignee_id: semSuggestion.suggested_user_id }))
       // Store suggestion so we can persist SemAssignment once the task is created (task.id is known)
       setPendingSuggestion({ ...semSuggestion })
     }
     if (semEffort?.base_hours && !form.estimated_hours)
-      setForm(f => ({ ...f, estimated_hours: String(semEffort.base_hours) }))
+      setForm((f: any) => ({ ...f, estimated_hours: String(semEffort.base_hours) }))
     setSemSuggestion(null); setSemEffort(null)
   }
 
-  const COMPLEXITY_COLORS = { simple: 'var(--success)', medium: 'var(--warning)', complex: 'var(--danger)' }
+  const COMPLEXITY_COLORS: Record<string, string> = { simple: 'var(--success)', medium: 'var(--warning)', complex: 'var(--danger)' }
 
   return (
     <Modal open={open} onClose={onClose} title={t('tasks.new_task')} width={580}>
@@ -1304,13 +1312,13 @@ function CreateTaskModal({ open, onClose, projects }) {
           <label style={ls}>{t('tasks.project_required')}</label>
           <select value={form.project_id} onChange={set('project_id')} style={fs}>
             <option value="">{t('tasks.select_project_option')}</option>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+            {projects.map((p: any) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
         <div>
           <label style={ls}>{t('common.status')}</label>
           <select value={form.status} onChange={set('status')} style={fs}>
-            {statusOptions.map(o => (
+            {statusOptions.map((o: any) => (
               <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
             ))}
           </select>
@@ -1335,7 +1343,7 @@ function CreateTaskModal({ open, onClose, projects }) {
           </div>
           <select value={form.assignee_id} onChange={set('assignee_id')} style={fs}>
             <option value="">{t('tasks.no_assignee')}</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            {users.map((u: any) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
         </div>
         {/* Banner de sugerencia IA */}
@@ -1389,31 +1397,31 @@ function CreateTaskModal({ open, onClose, projects }) {
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={ls}>{t('common.description')} <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontWeight: 400 }}>{t('tasks.description_hint')}</span></label>
-          <AIInlineEditor value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={3} placeholder={t('common.description')} style={{ ...fs, resize: 'vertical' }} />
+          <AIInlineEditor value={form.description} onChange={(val: any) => set('description')({ target: { value: val } })} rows={3} placeholder={t('common.description')} style={{ ...fs, resize: 'vertical' }} />
         </div>
         {/* Campos personalizados del proyecto */}
         {customFields.length > 0 && (
           <div style={{ gridColumn: '1/-1', borderTop: '1px solid var(--surface-4)', paddingTop: 14 }}>
             <label style={{ ...ls, marginBottom: 10 }}>{t('tasks.custom_fields_label')}</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {customFields.map(f => (
+              {customFields.map((f: any) => (
                 <div key={f.id} style={(f.field_type === 'text' || f.field_type === 'url') ? { gridColumn: '1/-1' } : {}}>
                   <label style={ls}>{f.name}{f.is_required ? ' *' : ''}</label>
                   {f.field_type === 'select' ? (
-                    <select value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} style={fs}>
+                    <select value={customValues[f.id] ?? ''} onChange={e => setCustomValues((v: any) => ({ ...v, [f.id]: e.target.value }))} style={fs}>
                       <option value="">{t('tasks.select_option')}</option>
-                      {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                      {(f.options || []).map((o: any) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   ) : f.field_type === 'boolean' ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
-                      <input type="checkbox" checked={customValues[f.id] === 'true'} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.checked ? 'true' : 'false' }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
+                      <input type="checkbox" checked={customValues[f.id] === 'true'} onChange={e => setCustomValues((v: any) => ({ ...v, [f.id]: e.target.checked ? 'true' : 'false' }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
                       <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{customValues[f.id] === 'true' ? t('common.yes') : t('common.no')}</span>
                     </div>
                   ) : (
                     <input
                       type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : f.field_type === 'url' ? 'url' : 'text'}
                       value={customValues[f.id] ?? ''}
-                      onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
+                      onChange={e => setCustomValues((v: any) => ({ ...v, [f.id]: e.target.value }))}
                       style={fs}
                     />
                   )}

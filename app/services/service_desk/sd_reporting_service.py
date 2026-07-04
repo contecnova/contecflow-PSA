@@ -11,9 +11,9 @@ import io
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Optional
 
-from sqlalchemy import func, and_
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ def _ticket_volume_report(db: Session, filters: dict, date_from: str, date_to: s
 
 
 def _sla_compliance_report(db: Session, filters: dict, date_from: str, date_to: str) -> list[dict]:
-    from app.models.service_desk import Ticket
+    pass
 
     q = _build_ticket_query(db, filters, date_from, date_to)
     tickets = q.all()

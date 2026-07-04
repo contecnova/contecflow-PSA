@@ -6,7 +6,6 @@ profile on `d_to` is used (current snapshot). Historical drift uses end-of-month
 samples.
 """
 from datetime import date, timedelta
-from typing import Optional
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session

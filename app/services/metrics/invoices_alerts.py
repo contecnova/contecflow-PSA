@@ -99,7 +99,6 @@ def metric_invoice_amount_by_client(
     """Total facturado por cliente en el período."""
     try:
         from app.models.billing_reports import Invoice
-        from app.models.clients import Client
 
         q = db.query(
             Invoice.client_id,

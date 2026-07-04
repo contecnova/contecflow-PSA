@@ -1,11 +1,11 @@
-// @ts-nocheck
 /**
  * AutomationsPage — Visual no-code rule builder + Workflows multi-paso + RPA
  * SI [trigger] [condiciones] ENTONCES [acciones]
  */
 import { useId, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, fmtDate } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -20,7 +20,7 @@ import { useAppT } from '../i18n/AppLangContext'
 
 // ── Triggers — exhaustive catalog ────────────────────────────────────────────
 // Todas las categorías y labels se traducen en tiempo de renderizado usando t() y claves de traducción.
-const TRIGGERS = {
+const TRIGGERS: Record<string, { icon: string; category: string; label?: string }> = {
   task_status_changed:      { icon: '🔄', category: 'tasks' },
   task_created:             { icon: '🆕', category: 'tasks' },
   task_deleted:             { icon: '🗑️', category: 'tasks' },
@@ -90,7 +90,7 @@ const TRIGGERS = {
 
 
 // Todas las categorías y labels se traducen en tiempo de renderizado usando t() y claves de traducción.
-const ACTIONS = {
+const ACTIONS: Record<string, { icon: string; category: string; label?: string }> = {
   create_alert:           { icon: '🔔', category: 'notifications' },
   notify_role:            { icon: '👥', category: 'notifications' },
   notify_user:            { icon: '👤', category: 'notifications' },
@@ -117,7 +117,7 @@ const ACTIONS = {
 }
 
 // All operator labels are now translated at render time using t() and translation keys.
-const OPERATORS = [
+const OPERATORS: Array<{ value: string; label?: string }> = [
   { value: 'equals' },
   { value: 'not_equals' },
   { value: 'greater_than' },
@@ -125,7 +125,7 @@ const OPERATORS = [
   { value: 'contains' },
 ]
 
-const TRIGGER_FIELDS = {
+const TRIGGER_FIELDS: Record<string, string[]> = {
   task_status_changed:    ['status', 'priority', 'project_id'],
   budget_threshold:       ['budget_pct', 'project_id'],
   risk_score_high:        ['risk_score', 'project_id'],
@@ -134,7 +134,7 @@ const TRIGGER_FIELDS = {
 }
 
 // All param labels are now translated at render time using t() and translation keys.
-const ACTION_PARAMS = {
+const ACTION_PARAMS: Record<string, Array<{ key: string; type: string; options?: string[]; label?: string }>> = {
   create_alert:         [{ key: 'message', type: 'text' }, { key: 'severity', type: 'select', options: ['info','warning','critical'] }],
   notify_role:          [{ key: 'role', type: 'select', options: ['admin','pm','employee','hr','team_lead'] }, { key: 'message', type: 'text' }, { key: 'severity', type: 'select', options: ['info','warning','critical'] }],
   notify_user:          [{ key: 'message', type: 'text' }],
@@ -164,15 +164,15 @@ const ACTION_PARAMS = {
 const TRIGGER_CATEGORIES = [...new Set(Object.values(TRIGGERS).map(t => t.category))]
 const ACTION_CATEGORIES  = [...new Set(Object.values(ACTIONS).map(a => a.category))]
 
-const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-function escapeRegExp(value) {
+function escapeRegExp(value: any) {
   return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function highlightText(text, term) {
+function highlightText(text: any, term: any) {
   const value = String(text || '')
   const q = String(term || '').trim()
   if (!q || !value) return value
@@ -197,7 +197,7 @@ function highlightText(text, term) {
 }
 
 // ── Rule card ─────────────────────────────────────────────────────────────────
-function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, highlightTerm }) {
+function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, highlightTerm }: { rule: any; onEdit: (r: any) => void; onDelete: (id: any) => void; onTest: (r: any) => void; onToggle: (r: any) => void; highlightTerm: any }) {
   const t = useAppT()
   const trigger = TRIGGERS[rule.trigger_type] || { label: rule.trigger_type, icon: '⚙️' }
   const actions = Array.isArray(rule.actions) ? rule.actions : []
@@ -243,7 +243,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, highlightTerm }) {
         </div>
         <span style={{ fontSize: "var(--text-lg-em)", color: 'var(--text-3)' }}>→</span>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {actions.map((a, i) => {
+          {actions.map((a: any, i: number) => {
             const aCfg = ACTIONS[a.type] || { label: a.type, icon: '⚙️' }
             return (
               <div key={i} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 8, padding: '6px 12px', fontSize: "var(--text-sm)" }}>
@@ -266,7 +266,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, highlightTerm }) {
 }
 
 // ── Rule editor modal ─────────────────────────────────────────────────────────
-function RuleModal({ rule, onClose }) {
+function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
   const t = useAppT()
   const idPrefix = useId()
   const qc = useQueryClient()
@@ -284,18 +284,18 @@ function RuleModal({ rule, onClose }) {
   const [hasCondition, setHasCondition] = useState(!!rule?.trigger_conditions)
   const [condition, setCondition] = useState(rule?.trigger_conditions || { field: '', operator: 'equals', value: '' })
 
-  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data?.items ?? r.data ?? []) })
+  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => (r.data as any)?.items ?? r.data ?? []) })
   const projects = Array.isArray(projRaw) ? projRaw : []
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? automationsApi.update(rule.id, d) : automationsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['automations']); onClose() },
+    mutationFn: (d: any) => isEdit ? automationsApi.update(rule.id, d) : automationsApi.create(d as any),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['automations'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
 
   const addAction = () => setForm(f => ({ ...f, actions: [...f.actions, { type: 'create_alert', params: { message: '', severity: 'info' } }] }))
-  const removeAction = i => setForm(f => ({ ...f, actions: f.actions.filter((_, idx) => idx !== i) }))
-  const updateAction = (i, field, value) => setForm(f => {
+  const removeAction = (i: number) => setForm(f => ({ ...f, actions: f.actions.filter((_: any, idx: number) => idx !== i) }))
+  const updateAction = (i: number, field: any, value: any) => setForm(f => {
     const actions = [...f.actions]
     if (field === 'type') actions[i] = { type: value, params: {} }
     else {
@@ -311,7 +311,7 @@ function RuleModal({ rule, onClose }) {
       ...form,
       trigger_conditions: hasCondition && condition.field ? condition : null,
     }
-    mutate(payload)
+    mutate(payload as any)
   }
 
   return (
@@ -366,9 +366,9 @@ function RuleModal({ rule, onClose }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, padding: '10px 14px', background: 'var(--surface-3)', borderRadius: 8 }}>
                 <div>
                   <label htmlFor={`${idPrefix}-condition-field`} style={ls}>{t('automations.field_lbl')}</label>
-                  <select id={`${idPrefix}-condition-field`} value={condition.field} onChange={e => setCondition(c => ({ ...c, field: e.target.value }))} style={fs}>
+                  <select id={`${idPrefix}-condition-field`} value={condition.field} onChange={e => setCondition((c: any) => ({ ...c, field: e.target.value }))} style={fs}>
                     <option value="">{t('automations.select_lbl')}</option>
-                    {fields.map(f => <option key={f} value={f}>{f}</option>)}
+                    {fields.map((f: string) => <option key={f} value={f}>{f}</option>)}
                     <option value="budget_pct">budget_pct (%)</option>
                     <option value="risk_score">risk_score</option>
                     <option value="priority">priority</option>
@@ -377,13 +377,13 @@ function RuleModal({ rule, onClose }) {
                 </div>
                 <div>
                   <label htmlFor={`${idPrefix}-condition-operator`} style={ls}>{t('automations.operator_lbl')}</label>
-                  <select id={`${idPrefix}-condition-operator`} value={condition.operator} onChange={e => setCondition(c => ({ ...c, operator: e.target.value }))} style={fs}>
+                  <select id={`${idPrefix}-condition-operator`} value={condition.operator} onChange={e => setCondition((c: any) => ({ ...c, operator: e.target.value }))} style={fs}>
                     {OPERATORS.map(o => <option key={o.value} value={o.value}>{t('automations.op_' + o.value, o.label)}</option>)}
                   </select>
                 </div>
                 <div>
                   <label htmlFor={`${idPrefix}-condition-value`} style={ls}>{t('automations.value_lbl')}</label>
-                  <input id={`${idPrefix}-condition-value`} value={condition.value} onChange={e => setCondition(c => ({ ...c, value: e.target.value }))} style={fs} placeholder={t('automations.value_lbl')} />
+                  <input id={`${idPrefix}-condition-value`} value={condition.value} onChange={e => setCondition((c: any) => ({ ...c, value: e.target.value }))} style={fs} placeholder={t('automations.value_lbl')} />
                 </div>
               </div>
             )}
@@ -395,7 +395,7 @@ function RuleModal({ rule, onClose }) {
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             {t('automations.entonces_label')}
           </div>
-          {form.actions.map((action, i) => {
+          {form.actions.map((action: any, i: number) => {
             const paramDefs = ACTION_PARAMS[action.type] || []
             return (
               <div key={i} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
@@ -425,7 +425,7 @@ function RuleModal({ rule, onClose }) {
                         {param.type === 'select' ? (
                           <select value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} style={fs}>
                             <option value="">{t('automations.select_lbl')}</option>
-                            {param.options.map(o => <option key={o} value={o}>{o}</option>)}
+                            {param.options?.map((o: string) => <option key={o} value={o}>{o}</option>)}
                           </select>
                         ) : (
                           <input value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} style={fs} placeholder={t('automations.param_' + param.key, param.label)} />
@@ -456,7 +456,7 @@ function RuleModal({ rule, onClose }) {
 }
 
 // ── Executions modal ──────────────────────────────────────────────────────────
-function ExecutionsModal({ rule, onClose }) {
+function ExecutionsModal({ rule, onClose }: { rule: any; onClose: () => void }) {
   const t = useAppT()
   const { data, isLoading } = useQuery({
     queryKey: ['automation_executions', rule.id],
@@ -476,9 +476,9 @@ function ExecutionsModal({ rule, onClose }) {
               </tr>
             </thead>
             <tbody>
-              {data?.map(exec => (
+              {data?.map((exec: any) => (
                 <tr key={exec.id}>
-                  <td>{formatDate(exec.created_at)}</td>
+                  <td>{fmtDate(exec.created_at)}</td>
                   <td>{t('automations.exec_status_' + exec.status, exec.status)}</td>
                   <td>{exec.result}</td>
                 </tr>
@@ -492,9 +492,9 @@ function ExecutionsModal({ rule, onClose }) {
 }
 
 // ── WorkflowModal (create + edit) ─────────────────────────────────────────────
-const STEP_ICONS = { action:'⚡', condition:'🔀', wait:'⏱', webhook:'🔗', notify:'🔔', rpa:'🤖' }
+const STEP_ICONS: Record<string, string> = { action:'⚡', condition:'🔀', wait:'⏱', webhook:'🔗', notify:'🔔', rpa:'🤖' }
 
-function StepConfig({ step, onChange }) {
+function StepConfig({ step, onChange }: { step: any; onChange: (field: any, value: any) => void }) {
   const t = useAppT()
   const paramDefs = ACTION_PARAMS[step.type] || []
   return (
@@ -505,7 +505,7 @@ function StepConfig({ step, onChange }) {
           {param.type === 'select' ? (
             <select value={step.params?.[param.key] || ''} onChange={e => onChange(param.key, e.target.value)} style={fs}>
               <option value="">{t('automations.select_lbl')}</option>
-              {param.options.map(o => <option key={o} value={o}>{o}</option>)}
+              {param.options?.map((o: string) => <option key={o} value={o}>{o}</option>)}
             </select>
           ) : (
             <input value={step.params?.[param.key] || ''} onChange={e => onChange(param.key, e.target.value)} style={fs} placeholder={t('automations.param_' + param.key, param.label)} />
@@ -516,7 +516,7 @@ function StepConfig({ step, onChange }) {
   )
 }
 
-function WorkflowModal({ workflow, onClose }) {
+function WorkflowModal({ workflow, onClose }: { workflow?: any; onClose: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const isEdit = !!workflow
@@ -526,13 +526,13 @@ function WorkflowModal({ workflow, onClose }) {
     steps: workflow?.steps || [{ type: 'create_alert', params: { message: '', severity: 'warning' } }],
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? workflowsLegacyApi.update(workflow.id, d) : workflowsLegacyApi.create(d),
+    mutationFn: (d: any) => isEdit ? workflowsLegacyApi.update(workflow.id, d) : workflowsLegacyApi.create(d as any),
     onSuccess: onClose,
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
   const addStep = () => setForm(f => ({ ...f, steps: [...f.steps, { type: 'create_alert', params: { message: '', severity: 'info' } }] }))
-  const removeStep = i => setForm(f => ({ ...f, steps: f.steps.filter((_, idx) => idx !== i) }))
-  const updateStep = (i, field, value) => setForm(f => {
+  const removeStep = (i: number) => setForm(f => ({ ...f, steps: f.steps.filter((_: any, idx: number) => idx !== i) }))
+  const updateStep = (i: number, field: any, value: any) => setForm(f => {
     const steps = [...f.steps]
     if (field === 'type') steps[i] = { type: value, params: {} }
     else {
@@ -540,7 +540,7 @@ function WorkflowModal({ workflow, onClose }) {
     }
     return { ...f, steps }
   })
-  const handleSave = () => mutate(form)
+  const handleSave = () => mutate(form as any)
   return (
     <Modal open title={isEdit ? t('automations.edit_workflow_title') : t('automations.new_workflow_title')} onClose={onClose} width={680}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -558,7 +558,7 @@ function WorkflowModal({ workflow, onClose }) {
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             {t('automations.steps_label')}
           </div>
-          {form.steps.map((step, i) => (
+          {form.steps.map((step: any, i: number) => (
             <div key={i} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, marginBottom: 10 }}>
                 <div>
@@ -612,21 +612,21 @@ function WorkflowsTab() {
   })
 
   const { mutate: update } = useMutation({
-    mutationFn: ({ id, data }) => autoWorkflowsApi.update(id, data),
-    onSuccess: () => qc.invalidateQueries(['workflows']),
+    mutationFn: ({ id, data }: { id: any; data: any }) => autoWorkflowsApi.update(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['workflows'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => autoWorkflowsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries(['workflows']),
+    mutationFn: (id: any) => autoWorkflowsApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['workflows'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const searchedWorkflows = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
     if (!q) return workflows
-    return workflows.filter((wf) => {
-      const inSteps = (Array.isArray(wf.steps) ? wf.steps : []).some((s) => (
+    return workflows.filter((wf: any) => {
+      const inSteps = (Array.isArray(wf.steps) ? wf.steps : []).some((s: any) => (
         String(s?.name || '').toLowerCase().includes(q) ||
         String(s?.step_type || '').toLowerCase().includes(q)
       ))
@@ -640,7 +640,7 @@ function WorkflowsTab() {
     })
   }, [workflows, searchTerm])
 
-  const STATUS_CFG = { draft:{ label:'Borrador', color:'var(--text-2)' }, active:{ label:'Activo', color:'var(--success)' }, paused:{ label:'Pausado', color:'var(--warning)' }, archived:{ label:'Archivado', color:'var(--text-3)' } }
+  const STATUS_CFG: Record<string, { label: string; color: string }> = { draft:{ label:'Borrador', color:'var(--text-2)' }, active:{ label:'Activo', color:'var(--success)' }, paused:{ label:'Pausado', color:'var(--warning)' }, archived:{ label:'Archivado', color:'var(--text-3)' } }
 
   return (
     <div>
@@ -648,8 +648,8 @@ function WorkflowsTab() {
         <div style={{ fontWeight: 700, color: 'var(--purple)', marginBottom: 4 }}>⚡ {t('automations.workflows_rpa_title')}</div>
         <div style={{ color: 'var(--text-2)' }}>
           {t('automations.workflows_rpa_desc', {
-            strong: (chunks) => <strong style={{ color: 'var(--text-1)' }}>{chunks}</strong>,
-            em: (chunks) => <em>{chunks}</em>,
+            strong: (chunks: any) => <strong style={{ color: 'var(--text-1)' }}>{chunks}</strong>,
+            em: (chunks: any) => <em>{chunks}</em>,
           })}
         </div>
       </div>
@@ -671,7 +671,7 @@ function WorkflowsTab() {
         <EmptyState svgIcon={<Zap size={36} />} title={t('automations.no_workflows_title')} description={t('automations.no_workflows_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {searchedWorkflows.map(wf => {
+          {searchedWorkflows.map((wf: any) => {
             const cfg = STATUS_CFG[wf.status] || { label: wf.status, color: 'var(--text-2)' }
             const triggerCfg = TRIGGERS[wf.trigger_type] || { icon: '⚙️', label: wf.trigger_type }
             return (
@@ -702,7 +702,7 @@ function WorkflowsTab() {
 
                 {/* Steps visual */}
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
-                  {wf.steps?.map((s, i) => (
+                  {wf.steps?.map((s: any, i: number) => (
                     <div key={s.id || i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <div style={{ background: 'var(--surface-4)', borderRadius: 6, padding: '4px 10px', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
                         {STEP_ICONS[s.step_type] || '⚡'} {highlightText(s.name || s.step_type, searchTerm)}
@@ -733,13 +733,13 @@ export default function AutomationsPage(): JSX.Element {
   const [showCreate, setShowCreate] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
   const [execHistory, setExecHistory] = useState(null)
-  const [filterActive, setFilterActive] = useState(null)
+  const [filterActive, setFilterActive] = useState<boolean | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [testResult, setTestResult] = useState(null)
+  const [testResult, setTestResult] = useState<any>(null)
 
   const { data: raw = [], isLoading } = useQuery({
     queryKey: ['automations'],
-    queryFn: () => automationsApi.list().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => automationsApi.list().then(r => (r.data as any)?.items ?? r.data ?? []),
     refetchInterval: 60000,
   })
   const rules = Array.isArray(raw) ? raw : []
@@ -751,38 +751,38 @@ export default function AutomationsPage(): JSX.Element {
   })
 
   const { mutate: del } = useMutation({
-    mutationFn: id => automationsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries(['automations']),
+    mutationFn: (id: any) => automationsApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['automations'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ id, active }) => automationsApi.update(id, { is_active: active }),
-    onSuccess: () => qc.invalidateQueries(['automations']),
+    mutationFn: ({ id, active }: { id: any; active: boolean }) => automationsApi.update(id, { is_active: active } as any),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['automations'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: test } = useMutation({
-    mutationFn: id => automationsApi.test(id).then(r => r.data),
+    mutationFn: (id: any) => automationsApi.test(id).then(r => r.data),
     onSuccess: (data) => setTestResult(data),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: createFromTemplate } = useMutation({
-    mutationFn: tpl => automationsApi.create({
+    mutationFn: (tpl: any) => automationsApi.create({
       name: tpl.name,
       trigger_type: tpl.trigger_type,
       trigger_conditions: tpl.trigger_conditions,
       actions: tpl.actions,
       is_global: true,
-    }),
-    onSuccess: () => { qc.invalidateQueries(['automations']); setShowTemplates(false) },
+    } as any),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['automations'] }); setShowTemplates(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const filtered = filterActive === null ? rules : rules.filter(r => r.is_active === filterActive)
+  const filtered = filterActive === null ? rules : rules.filter((r: any) => r.is_active === filterActive)
   const searched = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
     if (!q) return filtered
-    return filtered.filter((rule) => {
-      const inActions = (Array.isArray(rule.actions) ? rule.actions : []).some((a) =>
+    return filtered.filter((rule: any) => {
+      const inActions = (Array.isArray(rule.actions) ? rule.actions : []).some((a: any) =>
         String(a?.type || '').toLowerCase().includes(q)
       )
       return (
@@ -794,7 +794,7 @@ export default function AutomationsPage(): JSX.Element {
       )
     })
   }, [filtered, searchTerm])
-  const active = rules.filter(r => r.is_active).length
+  const active = rules.filter((r: any) => r.is_active).length
 
   return (
     <Page
@@ -832,7 +832,7 @@ export default function AutomationsPage(): JSX.Element {
         {[
           { label: t('automations.stats_active'),      value: active,                                              color: 'var(--accent)',  Icon: Zap },
           { label: t('automations.stats_paused'),      value: rules.length - active,                               color: 'var(--text-2)',  Icon: Pause },
-          { label: t('automations.stats_total_exec'),  value: rules.reduce((s, r) => s + (r.run_count || 0), 0),    color: 'var(--success)', Icon: Play },
+          { label: t('automations.stats_total_exec'),  value: rules.reduce((s: number, r: any) => s + (r.run_count || 0), 0),    color: 'var(--success)', Icon: Play },
           { label: t('automations.stats_total_rules'), value: rules.length,                                        color: 'var(--purple)',  Icon: SettingsIcon },
         ].map(({ label, value, color, Icon }) => (
           <div key={label} className="ds-card" style={{ padding: '14px 16px', gap: 4 }}>
@@ -867,7 +867,7 @@ export default function AutomationsPage(): JSX.Element {
           ].map(([val, label]) => (
             <button key={String(val)} type="button"
               aria-pressed={filterActive === val}
-              onClick={() => setFilterActive(val)}>
+              onClick={() => setFilterActive(val as boolean | null)}>
               {label}
             </button>
           ))}
@@ -884,7 +884,7 @@ export default function AutomationsPage(): JSX.Element {
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {searched.map(rule => (
+          {searched.map((rule: any) => (
             <RuleCard key={rule.id} rule={rule}
               onEdit={r => setEditing(r)}
               onDelete={id => del(id)}
@@ -907,7 +907,7 @@ export default function AutomationsPage(): JSX.Element {
           <div style={{ padding: 4 }}>
             <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--success)', marginBottom: 12 }}>✓ {t('automations.test_rule_success')}</div>
             <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 14 }}>
-              {(testResult.results || []).map((r, i) => (
+              {(testResult.results || []).map((r: any, i: number) => (
                 <div key={i} style={{ fontSize: "var(--text-sm)", padding: '4px 0', borderBottom: '1px solid var(--surface-4)30', color: r.ok ? 'var(--success)' : 'var(--danger)' }}>
                   {r.ok ? '✓' : '✗'} {r.action}: {r.ok ? t('automations.executed') : r.error}
                 </div>
@@ -924,7 +924,7 @@ export default function AutomationsPage(): JSX.Element {
       {showTemplates && (
         <Modal open title={t('automations.templates_title')} onClose={() => setShowTemplates(false)} width={680}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {templates.map(tpl => {
+            {templates.map((tpl: any) => {
               const trigger = TRIGGERS[tpl.trigger_type] || { icon: '⚙️', label: tpl.trigger_type }
               return (
                 <div key={tpl.id} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
@@ -934,7 +934,7 @@ export default function AutomationsPage(): JSX.Element {
                     {tpl.trigger_conditions && ` · ${tpl.trigger_conditions.field} ${tpl.trigger_conditions.operator} ${tpl.trigger_conditions.value}`}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                    {tpl.actions.map((a, i) => {
+                    {tpl.actions.map((a: any, i: number) => {
                       const aCfg = ACTIONS[a.type] || { icon: '⚙️', label: a.type }
                       return <span key={i} style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{aCfg.icon} {t('automations.act_' + a.type, aCfg.label)}</span>
                     })}

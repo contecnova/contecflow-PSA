@@ -17,7 +17,7 @@ from typing import Optional, TYPE_CHECKING
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.project import Project
-from app.models.task import Task, TaskComment, TaskStatus
+from app.models.task import Task, TaskStatus
 
 if TYPE_CHECKING:
     pass

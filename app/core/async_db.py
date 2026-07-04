@@ -25,7 +25,7 @@ Uso típico::
 """
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, TypeVar
+from typing import Any, Callable, TypeVar
 
 from starlette.concurrency import run_in_threadpool
 

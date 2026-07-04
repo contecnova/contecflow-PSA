@@ -258,7 +258,7 @@ def advance(db: Session, run: WorkflowRun) -> WorkflowRun:
         ntype = _node_type(node)
         config = _node_config(node)
         try:
-            branch, payload, wait_seconds = _execute_node(ntype, config, run)
+            branch, payload, wait_seconds = _execute_node(ntype, config, run, db)
         except Exception as exc:
             _record_error(db, run, f"executor {ntype} falló: {exc}")
             return run
@@ -408,7 +408,17 @@ def tick_waiting(db: Session) -> int:
 
 
 # ── Internal: executors por tipo ────────────────────────────────────────────
-def _execute_node(ntype: str, config: dict, run: WorkflowRun) -> tuple[str, dict, int]:
+def _render_template(text: Optional[str], ctx: dict) -> str:
+    """Best-effort {var} substitution from the run context; never raises."""
+    if not text:
+        return ""
+    try:
+        return text.format(**ctx)
+    except (KeyError, IndexError, ValueError):
+        return text
+
+
+def _execute_node(ntype: str, config: dict, run: WorkflowRun, db: "Session") -> tuple[str, dict, int]:
     """Devuelve (branch_taken, payload_dict, wait_seconds_if_wait)."""
     ctx = dict(run.context_json or {})
 
@@ -444,15 +454,30 @@ def _execute_node(ntype: str, config: dict, run: WorkflowRun) -> tuple[str, dict
         return WAIT, {"wait_minutes": config.get("wait_minutes"), "until_field": config.get("until_field")}, seconds
 
     if ntype == "notify":
-        # Best-effort: registramos quién/qué; la integración real con
-        # email/slack se hace bajo `app.services.notifications` cuando esté.
-        # Aquí dejamos trazabilidad para que el step quede legible.
+        # Real in-app notification via app.services.notifications. `recipients`
+        # may be a role name (notify_role) or a list of user ids (notify_user).
+        from app.services.notifications import notify_role, notify_user  # noqa: PLC0415
+
+        title = _render_template(config.get("title") or config.get("template_id") or "Workflow notification", ctx)
+        body = _render_template(config.get("body") or config.get("message"), ctx)
+        recipients = config.get("recipients") or config.get("role")
+        resource_id = run.target_entity_id
+        resource = run.target_entity_type or "workflow"
+        delivered = 0
+        try:
+            if isinstance(recipients, str):
+                delivered = notify_role(db, recipients, "workflow", title, body, resource=resource, resource_id=resource_id)
+            elif isinstance(recipients, (list, tuple)):
+                for uid in recipients:
+                    notify_user(db, str(uid), "workflow", title, body, resource=resource, resource_id=resource_id)
+                    delivered += 1
+        except Exception as exc:
+            return "failure", {"channel": config.get("channel"), "error": str(exc)[:300], "delivered": 0}, 0
         return "next", {
             "channel": config.get("channel"),
-            "template_id": config.get("template_id"),
-            "recipients": config.get("recipients"),
-            "delivered": False,
-            "note": "stub: integración real pendiente",
+            "recipients": recipients,
+            "delivered": True,
+            "notified_count": delivered,
         }, 0
 
     if ntype == "http_call":
@@ -477,14 +502,39 @@ def _execute_node(ntype: str, config: dict, run: WorkflowRun) -> tuple[str, dict
             return "failure", {"method": method, "url": url, "error": str(exc)[:500]}, 0
 
     if ntype == "create_ticket":
-        # Stub: marca intención. La creación real se integra con app.models.Ticket
-        # cuando esté el módulo correspondiente.
+        # Real ticket creation. Inherits the run's organization for tenant
+        # isolation; ticket number is allocated via the canonical generator.
+        from app.models.service_desk import Ticket, TicketType, TicketPriority  # noqa: PLC0415
+        from app.services.sla_service import next_ticket_number  # noqa: PLC0415
+
+        title = _render_template(config.get("title_template") or config.get("title") or "Workflow-created ticket", ctx)
+        try:
+            ttype = TicketType(config.get("ticket_type") or "incident")
+        except ValueError:
+            ttype = TicketType.incident
+        try:
+            priority = TicketPriority(config.get("priority") or "p3_medium")
+        except ValueError:
+            priority = TicketPriority.p3_medium
+        try:
+            ticket = Ticket(
+                number=next_ticket_number(ttype.value, db),
+                ticket_type=ttype,
+                title=title[:500],
+                description=_render_template(config.get("description_template") or config.get("description"), ctx) or None,
+                priority=priority,
+                organization_id=run.organization_id,
+                source="workflow",
+            )
+            db.add(ticket)
+            db.flush()
+        except Exception as exc:
+            return "failure", {"queue": config.get("queue"), "error": str(exc)[:300], "created": False}, 0
         return "next", {
             "queue": config.get("queue"),
-            "title_template": config.get("title_template"),
-            "priority": config.get("priority"),
-            "created": False,
-            "note": "stub: integración con tickets pendiente",
+            "created": True,
+            "ticket_id": ticket.id,
+            "ticket_number": ticket.number,
         }, 0
 
     raise ValueError(f"tipo de nodo no soportado por el motor: {ntype}")

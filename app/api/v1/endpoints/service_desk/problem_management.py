@@ -395,7 +395,6 @@ def update_rca_template(
     current_user: User = Depends(get_current_user),
 ):
     """Update a non-system custom RCA template."""
-    from app.models.service_desk import ProblemRcaTemplate
 
     tpl = svc.get_rca_template(db, template_id=template_id)
     if not tpl:

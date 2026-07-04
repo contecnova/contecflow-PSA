@@ -13,12 +13,11 @@ Endpoints:
   POST /portal/collaboration/notifications/mark-all-read
   GET  /portal/collaboration/search
 """
-from datetime import datetime
 from app.core.timeutil import utcnow
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_, and_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -35,9 +34,9 @@ from app.schemas.collaboration import (
     MessageCreate, MessageOut, ReactionToggle, ReadUpdate,
     SearchHit, SearchResponse,
 )
-from app.services.collaboration import audit_log, bus
+from app.services.collaboration import audit_log
 from app.services.collaboration._bus import (
-    client_user_channel, conv_channel,
+    conv_channel,
 )
 from app.services.collaboration._permissions import is_client_conversation_participant
 from app.services.traffic_control_service import consume_quota

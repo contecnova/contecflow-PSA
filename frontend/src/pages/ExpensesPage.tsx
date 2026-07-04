@@ -1,9 +1,9 @@
-// @ts-nocheck
 /**
  * ExpensesPage — gestión completa de gastos con flujo de aprobación
  * Vistas: Mis gastos | Pendientes aprobación | Equipo | Resumen por proyecto
  */
 import { useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -24,7 +24,7 @@ import {
 } from 'recharts'
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const CATEGORIES = {
+const CATEGORIES: Record<string, { label: string; icon: string; color: string }> = {
   travel:        { label: 'Viajes',          icon: '✈️',  color: 'var(--accent)' },
   accommodation: { label: 'Alojamiento',     icon: '🏨',  color: 'var(--purple)' },
   meals:         { label: 'Dietas',          icon: '🍽️',  color: 'var(--warning)' },
@@ -34,7 +34,7 @@ const CATEGORIES = {
   subcontract:   { label: 'Subcontratación', icon: '🤝',  color: 'var(--purple)' },
   other:         { label: 'Otros',           icon: '📦',  color: 'var(--text-2)' },
 }
-const STATUSES = {
+const STATUSES: Record<string, { label: string; color: string }> = {
   draft:      { label: 'Borrador',    color: 'var(--text-2)' },
   submitted:  { label: 'Enviado',     color: 'var(--warning)' },
   approved:   { label: 'Aprobado',    color: 'var(--success)' },
@@ -42,11 +42,11 @@ const STATUSES = {
   reimbursed: { label: 'Reembolsado', color: 'var(--accent)' },
 }
 
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
-function StatusBadge({ status }) {
+function StatusBadge({ status }: { status: string }) {
   const cfg = STATUSES[status] || { label: status, color: 'var(--text-2)' }
   return (
     <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, whiteSpace: 'nowrap' }}>
@@ -55,7 +55,7 @@ function StatusBadge({ status }) {
   )
 }
 
-function CatBadge({ cat }) {
+function CatBadge({ cat }: { cat: string }) {
   const cfg = CATEGORIES[cat] || { label: cat, icon: '📦', color: 'var(--text-2)' }
   return (
     <span style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 6, background: cfg.color + '15', color: cfg.color }}>
@@ -64,18 +64,41 @@ function CatBadge({ cat }) {
   )
 }
 
-function fmt(amount, currency) {
+function fmt(amount: unknown, currency?: string) {
   const v = Number(amount)
   if (!currency) return `${v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   return `${v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
 }
 
 // ── Expense row ───────────────────────────────────────────────────────────────
-function ExpenseRow({ expense, onAction, isManager }) {
+type Expense = {
+  [k: string]: unknown
+  id: string
+  code?: string
+  category?: string
+  description?: string
+  amount?: unknown
+  currency?: string
+  status?: string
+  expense_date?: string
+  project_id?: string
+  project_name?: string
+  user_name?: string
+  notes?: string
+  receipt_url?: string
+  is_billable?: boolean
+  submitted_at?: string
+  reviewed_by_name?: string
+  rejection_reason?: string
+  reimbursed_at?: string
+  requester_name?: string
+}
+
+function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onAction?: (exp: Expense) => ReactNode; isManager?: boolean }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', alignItems: 'center' }}>
       <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{expense.code}</span>
-      <CatBadge cat={expense.category} />
+      <CatBadge cat={expense.category || ''} />
       <div>
         <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{expense.description}</div>
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
@@ -94,7 +117,7 @@ function ExpenseRow({ expense, onAction, isManager }) {
         {fmt(expense.amount, expense.currency)}
         {expense.is_billable && <span style={{ fontSize: "var(--text-2xs)", color: 'rgba(52,211,153,0.50)', display: 'block' }}>facturable</span>}
       </span>
-      <StatusBadge status={expense.status} />
+      <StatusBadge status={expense.status || ''} />
       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
         {expense.status === 'submitted' && expense.submitted_at && `Enviado ${expense.submitted_at.slice(0, 10)}`}
         {expense.status === 'approved' && expense.reviewed_by_name && `✓ ${expense.reviewed_by_name}`}
@@ -109,33 +132,36 @@ function ExpenseRow({ expense, onAction, isManager }) {
 }
 
 // ── Create/Edit expense modal ─────────────────────────────────────────────────
-function ExpenseModal({ expense, onClose }) {
+function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
-  const { _invalidate } = useInvalidate()
+  const { invalidate: _invalidate } = useInvalidate()
   const { currency: defaultCurrency } = useOrgSettings()
   const isEdit = !!expense
   const [ocrLoading, setOcrLoading] = useState(false)
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    project_id: string; category: string; description: string; amount: string | number;
+    currency: string; expense_date: string; is_billable: boolean; notes: string; receipt_url: string
+  }>({
     project_id:  expense?.project_id  || '',
     category:    expense?.category    || 'travel',
     description: expense?.description || '',
-    amount:      expense?.amount      || '',
+    amount:      (expense?.amount as string | number) || '',
     currency:    expense?.currency    || defaultCurrency,
     expense_date: expense?.expense_date || new Date().toISOString().slice(0, 10),
     is_billable: expense?.is_billable ?? true,
     notes:       expense?.notes       || '',
     receipt_url: expense?.receipt_url || '',
   })
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
-  const projects = Array.isArray(projRaw) ? projRaw : []
+  const projects: Array<{ id?: string; code?: string; name?: string }> = Array.isArray(projRaw) ? projRaw : []
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? expensesApi.updateMy(expense.id, d) : expensesApi.create(d),
-    onSuccess: () => { qc.invalidateQueries(['expenses-my']); qc.invalidateQueries(['expenses-pending']); onClose() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (d: Record<string, unknown>) => isEdit ? expensesApi.updateMy(expense!.id, d) : expensesApi.create(d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -247,14 +273,14 @@ function ExpenseModal({ expense, onClose }) {
 }
 
 // ── Review modal ──────────────────────────────────────────────────────────────
-function ReviewModal({ expense, onClose }) {
+function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [reason, setReason] = useState('')
   const { mutate, isPending } = useMutation({
-    mutationFn: d => expensesApi.review(expense.id, d),
-    onSuccess: () => { qc.invalidateQueries(['expenses-pending']); qc.invalidateQueries(['expenses-team']); onClose() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (d: Record<string, unknown>) => expensesApi.review(expense.id, d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-pending'] }); qc.invalidateQueries({ queryKey: ['expenses-team'] }); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (
     <Modal open title={`Revisar gasto — ${expense.code}`} onClose={onClose} width={480}>
@@ -262,7 +288,7 @@ function ReviewModal({ expense, onClose }) {
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{expense.description}</div>
         <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
           <span>👤 {expense.user_name}</span>
-          <span><CatBadge cat={expense.category} /></span>
+          <span><CatBadge cat={expense.category || ''} /></span>
           <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{fmt(expense.amount, expense.currency)}</span>
         </div>
         {expense.notes && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 8 }}>{expense.notes}</div>}
@@ -280,11 +306,11 @@ function ReviewModal({ expense, onClose }) {
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
         <button onClick={() => mutate({ approved: false, rejection_reason: reason })} disabled={isPending || !reason}
-          style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '9px 18px', color: 'var(--danger)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }} loading={isPending}>
+          style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '9px 18px', color: 'var(--danger)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }} {...({ loading: isPending } as object)}>
           ✗ Rechazar
         </button>
         <button onClick={() => mutate({ approved: true })} disabled={isPending}
-          style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '9px 18px', color: 'var(--success)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }} loading={isPending}>
+          style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '9px 18px', color: 'var(--success)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }} {...({ loading: isPending } as object)}>
           ✓ Aprobar
         </button>
       </div>
@@ -297,18 +323,18 @@ function MyExpenses() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState<Expense | null>(null)
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
 
-  const { data: raw = [], isLoading } = useQuery({
+  const { data: raw = [], isLoading } = useQuery<Expense[]>({
     queryKey: ['expenses-my', statusFilter],
     queryFn: () => expensesApi.my({ status: statusFilter || undefined }).then(r => r.data?.items ?? r.data ?? []),
   })
-  const expenses = Array.isArray(raw) ? raw : []
+  const expenses: Expense[] = Array.isArray(raw) ? raw : []
   const filteredExpenses = expenses.filter(e => {
     if (search) {
       const q = search.toLowerCase()
@@ -321,23 +347,23 @@ function MyExpenses() {
     return true
   })
   const { sort: expSort, setSort: setExpSort, sortedData: sortedExpenses } = useSort(filteredExpenses, 'expense_date', 'desc')
-  const dateInput = (val) => ({ background: val ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${val ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: val ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' })
+  const dateInput = (val: string): CSSProperties => ({ background: val ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${val ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: val ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' })
   const hasFilter = search || statusFilter || catFilter || dateFrom || dateTo
 
   const { mutate: submit, isPending: saving } = useMutation({
-    mutationFn: id => expensesApi.submitMy(id),
-    onSuccess: () => { qc.invalidateQueries(['expenses-my']); qc.invalidateQueries(['expenses-pending']); },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string) => expensesApi.submitMy(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }); },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: recall } = useMutation({
-    mutationFn: id => expensesApi.recall(id),
-    onSuccess: () => { qc.invalidateQueries(['expenses-my']); qc.invalidateQueries(['expenses-pending']); },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string) => expensesApi.recall(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }); },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => expensesApi.deleteMy(id),
-    onSuccess: () => qc.invalidateQueries(['expenses-my']),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string) => expensesApi.deleteMy(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses-my'] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const total = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
@@ -395,7 +421,7 @@ function MyExpenses() {
                   <button onClick={() => setEditing(exp)} title="Editar gasto" aria-label="Editar gasto"
                     style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏</button>
                   <button onClick={() => submit(exp.id)} title="Enviar gasto" aria-label="Enviar gasto"
-                    style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-sm)" }} loading={saving}>↑ Enviar</button>
+                    style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-sm)" }} {...({ loading: saving } as object)}>↑ Enviar</button>
                   <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este gasto?', onConfirm: () => del(exp.id), danger: true }) }} title="Eliminar gasto" aria-label="Eliminar gasto"
                     style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
                 </>}
@@ -422,14 +448,14 @@ function MyExpenses() {
 function PendingApproval() {
   const toast = useToast()
   const qc = useQueryClient()
-  const [reviewing, setReviewing] = useState(null)
+  const [reviewing, setReviewing] = useState<Expense | null>(null)
 
-  const { data: raw = [], isLoading } = useQuery({
+  const { data: raw = [], isLoading } = useQuery<Expense[]>({
     queryKey: ['expenses-pending'],
     queryFn: () => expensesApi.pending().then(r => r.data),
     refetchInterval: 30000,
   })
-  const expenses = Array.isArray(raw) ? raw : []
+  const expenses: Expense[] = Array.isArray(raw) ? raw : []
   const [pendSearch, setPendSearch] = useState('')
   const [pendCat, setPendCat] = useState('')
   const [pendFrom, setPendFrom] = useState('')
@@ -446,13 +472,13 @@ function PendingApproval() {
     return true
   })
   const { sort: pendSort, setSort: setPendSort, sortedData: sortedPending } = useSort(filteredPending, 'expense_date', 'desc')
-  const dateInput = (val) => ({ background: val ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${val ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: val ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' })
+  const dateInput = (val: string): CSSProperties => ({ background: val ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${val ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: val ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' })
   const hasFilter = pendSearch || pendCat || pendFrom || pendTo
 
   const { mutate: _reimburse } = useMutation({
-    mutationFn: id => expensesApi.reimburse(id),
-    onSuccess: () => qc.invalidateQueries(['expenses-pending']),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string) => expensesApi.reimburse(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses-pending'] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
@@ -512,18 +538,19 @@ function TeamExpenses() {
   const [_period, _setPeriod] = useState('')
 
   const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
-  const projects = Array.isArray(projRaw) ? projRaw : []
+  const projects: Array<{ id?: string; code?: string; name?: string }> = Array.isArray(projRaw) ? projRaw : []
 
-  const { data: raw, isLoading } = useQuery({
+  type TeamData = { expenses?: Expense[]; total?: number; billable_total?: number; by_category?: Record<string, number> }
+  const { data: raw, isLoading } = useQuery<TeamData>({
     queryKey: ['expenses-team', projectFilter, statusFilter],
     queryFn: () => expensesApi.team({ project_id: projectFilter || undefined, status: statusFilter || undefined }).then(r => r.data),
   })
 
-  const expenses = raw?.expenses || []
+  const expenses: Expense[] = raw?.expenses || []
   const { sort: teamSort, setSort: setTeamSort, sortedData: sortedTeam } = useSort(expenses, 'expense_date', 'desc')
   const total = raw?.total || 0
   const billable = raw?.billable_total || 0
-  const byCat = raw?.by_category || {}
+  const byCat: Record<string, number> = raw?.by_category || {}
 
   const catChartData = Object.entries(byCat).map(([k, v]) => ({
     name: CATEGORIES[k]?.label || k,
@@ -533,9 +560,9 @@ function TeamExpenses() {
 
   const qcTeam = useQueryClient()
   const { mutate: reimburse } = useMutation({
-    mutationFn: id => expensesApi.reimburse(id),
-    onSuccess: () => qcTeam.invalidateQueries(['expenses-team']),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string) => expensesApi.reimburse(id),
+    onSuccess: () => qcTeam.invalidateQueries({ queryKey: ['expenses-team'] }),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (

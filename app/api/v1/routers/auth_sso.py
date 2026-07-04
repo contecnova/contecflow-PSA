@@ -1,9 +1,8 @@
 """
 Auth SSO Router — OAuth2 / OIDC single sign-on providers (Google, Azure AD, Okta, generic OIDC).
 """
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Body, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, Response, Body, Request, Query
 from sqlalchemy.orm import Session
-from typing import Optional
 
 from app.schemas.auth_payloads import SSOCallbackIn
 import logging
@@ -19,13 +18,10 @@ from app.db.session import get_db
 from app.core.config import settings
 from app.core.encryption import decrypt_value
 from app.core.security import create_access_token, create_refresh_token
-from app.models.user import User
 from app.services.session_security import register_or_rotate_user_session
 
 import app.services.auth_service as _svc
 from app.services.auth_service import (
-    client_ip as _client_ip,
-    soc_svc as _soc_svc,
     issue_mfa_challenge as _issue_mfa_challenge,
     register_sso_state as _register_sso_state,
     consume_sso_state as _consume_sso_state,

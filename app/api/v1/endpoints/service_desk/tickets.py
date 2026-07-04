@@ -44,7 +44,7 @@ from app.services.service_desk.merge_split_service import (
     merge_ticket_command, split_ticket_command, list_ticket_merges_payload,
 )
 from app.services.service_desk.ai_suggest_service import build_ai_ticket_suggestion
-from app.services.service_desk.workload_service import auto_assign_ticket_command, score_agent_for_ticket, auto_assign_ticket_ml_command
+from app.services.service_desk.workload_service import score_agent_for_ticket, auto_assign_ticket_ml_command
 from app.services.service_desk.incident_intelligence_service import score_auto_resolution
 from app.services.service_desk.kb_service import create_kb_from_ticket
 from app.services.service_desk.portal_auth_service import require_portal_client

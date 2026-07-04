@@ -15,20 +15,19 @@ from __future__ import annotations
 import io
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 # ── ReportLab palette ─────────────────────────────────────────────────────────
 try:
     from reportlab.lib import colors as _rl_colors
-    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import cm
     from reportlab.platypus import (
         SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-        HRFlowable, KeepTogether,
+        HRFlowable,
     )
     _REPORTLAB = True
 except ImportError:
@@ -313,7 +312,11 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
     when OLAP is unavailable.
     """
     if not _REPORTLAB:
-        return b"%PDF-placeholder-reportlab-not-installed"
+        # Never hand back a corrupt 1-byte "PDF"; fail loudly so the caller
+        # surfaces a real error instead of delivering an unreadable file.
+        raise RuntimeError(
+            "PDF generation requires the 'reportlab' package, which is not installed."
+        )
 
     report_type = getattr(report, "report_type", None) or "custom"
     include_narrative = getattr(report, "include_narrative", False)

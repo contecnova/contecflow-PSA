@@ -263,7 +263,6 @@ def _load_fact_projects(db, conn) -> int:
 
 def _load_fact_pipeline(db, conn) -> int:
     from app.models.pipeline import Opportunity
-    from datetime import datetime, timezone
 
     rows = db.query(Opportunity).all()
     dates: list[date] = []

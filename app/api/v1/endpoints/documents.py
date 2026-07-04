@@ -6,7 +6,7 @@ Works with both S3 (when configured) and local filesystem storage.
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body, Form, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Optional
 import logging
 import mimetypes
 

@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Date, Integer, Enum, Boolean
+from app.models.money import Money, Rate
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -56,8 +57,8 @@ class Opportunity(Base):
     # Pipeline
     stage = Column(Enum(OpportunityStage), default=OpportunityStage.lead, nullable=False, index=True)
     probability = Column(Float, default=50)           # 0-100%
-    expected_revenue = Column(Float, nullable=True)   # €
-    expected_margin_pct = Column(Float, nullable=True) # %
+    expected_revenue = Column(Money, nullable=True)   # €
+    expected_margin_pct = Column(Float, nullable=True) # % (ratio)
     expected_hours = Column(Float, nullable=True)
 
     # Dates
@@ -70,7 +71,7 @@ class Opportunity(Base):
     team_required = Column(Text, nullable=True)  # JSON description of team needed
 
     # Billing details (used on convert → RevenueContract)
-    hourly_rate     = Column(Float, nullable=True)
+    hourly_rate     = Column(Rate, nullable=True)
     contract_type   = Column(String(30), nullable=True)   # fixed_price | time_material | retainer | hourly_bag
 
     # Link to project if won
@@ -145,11 +146,11 @@ class Contract(Base):
     contract_type = Column(Enum(ContractType), nullable=False)
     status = Column(Enum(ContractStatus), default=ContractStatus.draft, nullable=False, index=True)
     is_active = Column(Boolean, default=True)
-    total_amount = Column(Float, nullable=True)          # € total
-    hourly_rate = Column(Float, nullable=True)           # For T&M
-    hours_bag = Column(Float, nullable=True)             # For hourly bag
-    hours_used = Column(Float, default=0)                # Tracked automatically
-    monthly_retainer = Column(Float, nullable=True)      # For retainer
+    total_amount = Column(Money, nullable=True)          # € total
+    hourly_rate = Column(Rate, nullable=True)            # For T&M
+    hours_bag = Column(Float, nullable=True)             # For hourly bag (hours)
+    hours_used = Column(Float, default=0)                # Tracked automatically (hours)
+    monthly_retainer = Column(Money, nullable=True)      # For retainer
 
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
@@ -182,7 +183,7 @@ class WorkOrder(Base):
 
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    amount = Column(Float, nullable=True)
+    amount = Column(Money, nullable=True)
     hours = Column(Float, nullable=True)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
@@ -255,8 +256,8 @@ class Risk(Base):
     closed_date = Column(Date, nullable=True)
 
     # Financial impact estimate
-    cost_impact_min = Column(Float, nullable=True)
-    cost_impact_max = Column(Float, nullable=True)
+    cost_impact_min = Column(Money, nullable=True)
+    cost_impact_max = Column(Money, nullable=True)
     schedule_impact_days = Column(Integer, nullable=True)
 
     notes = Column(Text, nullable=True)

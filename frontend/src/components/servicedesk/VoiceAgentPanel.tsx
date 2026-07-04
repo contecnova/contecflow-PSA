@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * VoiceAgentPanel.jsx — IVR / Voice Agent management for Service Desk.
  *
@@ -21,6 +20,7 @@
  *   6. La configuración es por organización (greeting, idioma, menú DTMF, keywords de intent).
  */
 import React, { useState, useEffect, useMemo } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { voiceAgentApi } from '../../services/api'
@@ -36,6 +36,14 @@ interface VoiceTurn {
   text?: string
   intent?: string
   created_at?: string
+  ts?: string
+  [k: string]: unknown
+}
+
+interface VoiceEntities {
+  email?: string
+  ticket_ref?: string
+  urgency_words?: string[]
   [k: string]: unknown
 }
 
@@ -46,18 +54,27 @@ interface VoiceSession {
   channel?: string
   status?: string
   created_at?: string
+  closed_at?: string
   ticket_id?: string | number | null
   ticket_number?: string | null
   turns?: VoiceTurn[]
+  transcript?: VoiceTurn[]
+  entities?: VoiceEntities
+  intent?: string
   resolution?: string
   [k: string]: unknown
+}
+
+interface DtmfEntry {
+  intent: string
+  label: string
 }
 
 interface VoiceAgentConfig {
   greeting?: string
   language?: string
   max_silence_seconds?: number
-  dtmf_menu?: Record<string, string>
+  dtmf_menu?: Record<string, DtmfEntry>
   intent_keywords?: Record<string, string[]>
 }
 
@@ -69,26 +86,26 @@ const INTENT_COLORS: Record<string, string> = {
   unknown:  'var(--text-3)',
 }
 
-const RESOLUTION_LABEL = {
+const RESOLUTION_LABEL: Record<string, string> = {
   resolved:    'Resuelta',
   transferred: 'Transferida',
   abandoned:   'Abandonada',
   voicemail:   'Buzón de voz',
 }
 
-const RESOLUTION_COLOR = {
+const RESOLUTION_COLOR: Record<string, string> = {
   resolved:    'var(--success)',
   transferred: 'var(--accent)',
   abandoned:   'var(--text-3)',
   voicemail:   'var(--purple)',
 }
 
-const STATUS_COLOR = {
+const STATUS_COLOR: Record<string, string> = {
   active: 'var(--success)',
   closed: 'var(--text-3)',
 }
 
-const fieldLabel = {
+const fieldLabel: CSSProperties = {
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   color: 'var(--text-3)',
@@ -96,7 +113,7 @@ const fieldLabel = {
   letterSpacing: '0.06em',
   marginBottom: 6,
 }
-const inputBase = {
+const inputBase: CSSProperties = {
   width: '100%',
   background: 'var(--surface-3)',
   border: '1px solid var(--surface-4)',
@@ -108,7 +125,7 @@ const inputBase = {
   outline: 'none',
   boxSizing: 'border-box',
 }
-const chip = (color) => ({
+const chip = (color: string): CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
   textTransform: 'uppercase',
@@ -139,8 +156,8 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
   const [resolution, setResolution] = useState<string>('resolved')
   const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false)
 
-  const transcript = session.transcript || []
-  const entities = session.entities || {}
+  const transcript: VoiceTurn[] = session.transcript || []
+  const entities: VoiceEntities = session.entities || {}
   const hasEntities = entities.email || entities.ticket_ref || entities.urgency_words?.length
 
   return (
@@ -158,7 +175,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
           <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>
             {session.caller_id}
           </span>
-          <span style={chip(STATUS_COLOR[session.status] || 'var(--text-3)')}>{session.status}</span>
+          <span style={chip(STATUS_COLOR[session.status || ''] || 'var(--text-3)')}>{session.status}</span>
           {session.intent && (
             <span style={chip(INTENT_COLORS[session.intent] || INTENT_COLORS.unknown)}>{session.intent}</span>
           )}
@@ -172,7 +189,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
               size="sm"
               variant="ghost"
               icon={<ExternalLink size={13} />}
-              onClick={() => openTicket(session.ticket_id)}
+              onClick={() => openTicket(session.ticket_id!)}
             >Ver ticket</Button>
           ) : (
             <Button
@@ -342,38 +359,38 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
 
   if (!draft) return <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
 
-  const setField = (k, v) => setDraft(d => ({ ...d, [k]: v }))
+  const setField = (k: string, v: unknown) => setDraft(d => ({ ...(d as VoiceAgentConfig), [k]: v }))
 
   const addDtmf = () => {
     if (!newKey.trim() || !newLabel.trim()) return
     setDraft(d => ({
-      ...d,
-      dtmf_menu: { ...d.dtmf_menu, [newKey.trim()]: { intent: newIntent, label: newLabel.trim() } }
+      ...(d as VoiceAgentConfig),
+      dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [newKey.trim()]: { intent: newIntent, label: newLabel.trim() } }
     }))
     setNewKey(''); setNewLabel(''); setNewIntent('incident')
   }
-  const removeDtmf = (key) => {
+  const removeDtmf = (key: string) => {
     setDraft(d => {
-      const { [key]: _, ...rest } = d.dtmf_menu
-      return { ...d, dtmf_menu: rest }
+      const { [key]: _, ...rest } = (d as VoiceAgentConfig).dtmf_menu || {}
+      return { ...(d as VoiceAgentConfig), dtmf_menu: rest }
     })
   }
-  const addKeyword = (intent) => {
+  const addKeyword = (intent: string) => {
     if (!newKw.trim()) return
     const kw = newKw.trim().toLowerCase()
     setDraft(d => ({
-      ...d,
+      ...(d as VoiceAgentConfig),
       intent_keywords: {
-        ...d.intent_keywords,
-        [intent]: [...new Set([...(d.intent_keywords[intent] || []), kw])],
+        ...(d as VoiceAgentConfig).intent_keywords,
+        [intent]: [...new Set([...(((d as VoiceAgentConfig).intent_keywords || {})[intent] || []), kw])],
       }
     }))
     setNewKw('')
   }
-  const removeKeyword = (intent, kw) => {
+  const removeKeyword = (intent: string, kw: string) => {
     setDraft(d => ({
-      ...d,
-      intent_keywords: { ...d.intent_keywords, [intent]: (d.intent_keywords[intent] || []).filter(k => k !== kw) }
+      ...(d as VoiceAgentConfig),
+      intent_keywords: { ...(d as VoiceAgentConfig).intent_keywords, [intent]: (((d as VoiceAgentConfig).intent_keywords || {})[intent] || []).filter(k => k !== kw) }
     }))
   }
 
@@ -418,10 +435,10 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
       <div>
         <div style={fieldLabel}>{t('sd.voice.dtmf_menu', 'Menú DTMF (tonos del teclado)')}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
-          {Object.entries(draft.dtmf_menu).length === 0 && (
+          {Object.entries(draft.dtmf_menu || {}).length === 0 && (
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Sin opciones DTMF configuradas</div>
           )}
-          {Object.entries(draft.dtmf_menu).map(([key, val]) => (
+          {Object.entries(draft.dtmf_menu || {}).map(([key, val]) => (
             <div key={key} style={{
               display: 'flex', alignItems: 'center', gap: 10,
               padding: '8px 12px',
@@ -439,12 +456,12 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
               <input
                 type="text"
                 value={val.label}
-                onChange={e => setDraft(d => ({ ...d, dtmf_menu: { ...d.dtmf_menu, [key]: { ...val, label: e.target.value } } }))}
+                onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, label: e.target.value } } }))}
                 style={{ ...inputBase, flex: 1 }}
               />
               <select
                 value={val.intent}
-                onChange={e => setDraft(d => ({ ...d, dtmf_menu: { ...d.dtmf_menu, [key]: { ...val, intent: e.target.value } } }))}
+                onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, intent: e.target.value } } }))}
                 style={{ ...inputBase, width: 130 }}
               >
                 {intentList.map(i => <option key={i} value={i}>{i}</option>)}
@@ -495,7 +512,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {intentList.map(intent => {
-            const kws = draft.intent_keywords[intent] || []
+            const kws = (draft.intent_keywords || {})[intent] || []
             const isEditing = editingIntent === intent
             const color = INTENT_COLORS[intent]
             return (
@@ -565,13 +582,13 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
 
 function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSession | null; onClose: () => void; openTicket: (id: string | number) => void }) {
   if (!session) return null
-  const transcript = session.transcript || []
-  const entities = session.entities || {}
+  const transcript: VoiceTurn[] = session.transcript || []
+  const entities: VoiceEntities = session.entities || {}
   return (
     <Modal open title={`Sesión ${session.caller_id}`} onClose={onClose} width={620}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          <span style={chip(STATUS_COLOR[session.status] || 'var(--text-3)')}>{session.status}</span>
+          <span style={chip(STATUS_COLOR[session.status || ''] || 'var(--text-3)')}>{session.status}</span>
           {session.intent && <span style={chip(INTENT_COLORS[session.intent] || INTENT_COLORS.unknown)}>{session.intent}</span>}
           {session.resolution && (
             <span style={chip(RESOLUTION_COLOR[session.resolution] || 'var(--text-3)')}>
@@ -586,7 +603,7 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
           {session.ticket_id && (
             <button
               type="button"
-              onClick={() => openTicket(session.ticket_id)}
+              onClick={() => openTicket(session.ticket_id!)}
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: 0, fontFamily: 'inherit', textDecoration: 'underline', fontSize: 'var(--text-xs)' }}
             >Ver ticket vinculado ↗</button>
           )}
@@ -673,58 +690,61 @@ export default function VoiceAgentPanel() {
     enabled: tab === 'config',
   })
 
-  const sessions = sessionsData?.sessions ?? []
+  const sessions: VoiceSession[] = (sessionsData as { sessions?: VoiceSession[] } | undefined)?.sessions ?? []
   const activeSession = useMemo(
-    () => sessions.find(s => s.id === activeSessionId),
+    () => sessions.find((s: VoiceSession) => s.id === activeSessionId),
     [sessions, activeSessionId],
   )
 
+  const errDetail = (e: unknown): string | undefined =>
+    (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+
   const createSessionMutation = useMutation({
-    mutationFn: (payload) => voiceAgentApi.createSession(payload).then(r => r.data),
-    onSuccess: (data) => {
-      setActiveSessionId(data.session?.id)
+    mutationFn: (payload: { caller_id: string; channel: string }) => voiceAgentApi.createSession(payload).then(r => r.data),
+    onSuccess: (data: { session?: VoiceSession; greeting?: string }) => {
+      setActiveSessionId(data.session?.id ?? null)
       toast.success(`Sesión iniciada · greeting: "${(data.greeting || '').slice(0, 60)}..."`)
       qc.invalidateQueries({ queryKey: ['voice-sessions'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al iniciar sesión'),
+    onError: (e: unknown) => toast.error(errDetail(e) || 'Error al iniciar sesión'),
   })
 
   const addTurnMutation = useMutation({
-    mutationFn: ({ id, text }) => voiceAgentApi.addTurn(id, { speaker: 'user', text }).then(r => r.data),
+    mutationFn: ({ id, text }: { id: string | number; text: string }) => voiceAgentApi.addTurn(id, { speaker: 'user', text }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['voice-sessions'] }),
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al añadir turno'),
+    onError: (e: unknown) => toast.error(errDetail(e) || 'Error al añadir turno'),
   })
 
   const closeMutation = useMutation({
-    mutationFn: ({ id, resolution }) => voiceAgentApi.closeSession(id, { resolution }).then(r => r.data),
-    onSuccess: (data) => {
-      const r = data?.resolution
+    mutationFn: ({ id, resolution }: { id: string | number; resolution: string }) => voiceAgentApi.closeSession(id, { resolution }).then(r => r.data),
+    onSuccess: (data: { resolution?: string }) => {
+      const r = data?.resolution || ''
       toast.success(`Sesión cerrada · ${RESOLUTION_LABEL[r] || r}`)
       setActiveSessionId(null)
       qc.invalidateQueries({ queryKey: ['voice-sessions'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al cerrar sesión'),
+    onError: (e: unknown) => toast.error(errDetail(e) || 'Error al cerrar sesión'),
   })
 
   const createTicketMutation = useMutation({
-    mutationFn: (id) => voiceAgentApi.createTicket(id).then(r => r.data),
-    onSuccess: (data) => {
+    mutationFn: (id: string | number) => voiceAgentApi.createTicket(id).then(r => r.data),
+    onSuccess: (data: { number?: string }) => {
       toast.success(`Ticket ${data.number} creado desde la sesión`)
       qc.invalidateQueries({ queryKey: ['voice-sessions'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al crear ticket'),
+    onError: (e: unknown) => toast.error(errDetail(e) || 'Error al crear ticket'),
   })
 
   const saveConfigMutation = useMutation({
-    mutationFn: (cfg) => voiceAgentApi.updateConfig(cfg).then(r => r.data),
+    mutationFn: (cfg: VoiceAgentConfig) => voiceAgentApi.updateConfig(cfg).then(r => r.data),
     onSuccess: () => {
       toast.success('Configuración guardada')
       qc.invalidateQueries({ queryKey: ['voice-config'] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al guardar configuración'),
+    onError: (e: unknown) => toast.error(errDetail(e) || 'Error al guardar configuración'),
   })
 
-  const openTicket = (ticketId) => navigate(`/service-desk?ticket=${ticketId}`)
+  const openTicket = (ticketId: string | number) => navigate(`/service-desk?ticket=${ticketId}`)
 
   return (
     <Card style={{ padding: '20px 22px' }}>
@@ -736,8 +756,8 @@ export default function VoiceAgentPanel() {
           </h2>
         </div>
         <div style={{ display: 'flex', gap: 6, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-          <span style={chip('var(--accent)')}>{sessions.filter(s => s.status === 'active').length} activas</span>
-          <span style={chip('var(--text-3)')}>{sessions.filter(s => s.status === 'closed').length} cerradas</span>
+          <span style={chip('var(--accent)')}>{sessions.filter((s: VoiceSession) => s.status === 'active').length} activas</span>
+          <span style={chip('var(--text-3)')}>{sessions.filter((s: VoiceSession) => s.status === 'closed').length} cerradas</span>
         </div>
       </div>
 
@@ -824,7 +844,7 @@ export default function VoiceAgentPanel() {
             <EmptyState icon="📞" title={t('sd.voice.no_sessions', 'Sin sesiones')} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {sessions.filter(s => s.id !== activeSessionId).slice(0, 30).map(s => (
+              {sessions.filter((s: VoiceSession) => s.id !== activeSessionId).slice(0, 30).map((s: VoiceSession) => (
                 <button
                   key={s.id}
                   type="button"
@@ -870,7 +890,7 @@ export default function VoiceAgentPanel() {
                         {RESOLUTION_LABEL[s.resolution] || s.resolution}
                       </span>
                     )}
-                    <span style={chip(STATUS_COLOR[s.status] || 'var(--text-3)')}>{s.status}</span>
+                    <span style={chip(STATUS_COLOR[s.status || ''] || 'var(--text-3)')}>{s.status}</span>
                     {s.ticket_id && <span style={chip('var(--accent)')}>ticket ✓</span>}
                   </div>
                 </button>
@@ -882,8 +902,8 @@ export default function VoiceAgentPanel() {
 
       {tab === 'config' && (
         <ConfigEditor
-          config={config}
-          onSave={(draft) => saveConfigMutation.mutate(draft)}
+          config={config as VoiceAgentConfig | undefined}
+          onSave={(draft: VoiceAgentConfig) => saveConfigMutation.mutate(draft)}
           saving={saveConfigMutation.isPending}
         />
       )}

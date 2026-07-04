@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useMemo, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Megaphone, Plus, Trash2, ExternalLink, FileText, Send, Briefcase, ChevronRight } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
@@ -17,7 +17,28 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 
 const STAGES = ['lead', 'qualification', 'proposal', 'negotiation', 'won', 'lost', 'cancelled']
 
-const STAGE_TRANSLATION_KEYS = {
+type Opp = {
+  [extra: string]: unknown
+  id: string
+  name?: string
+  client_name?: string
+  code?: string
+  owner_id?: string
+  owner_name?: string
+  stage?: string
+  proposal_status?: string
+  proposal_generated_at?: string
+  proposal_sent_at?: string
+  project_id?: string
+  contract_type?: string
+  description?: string
+  probability?: number
+  expected_revenue?: number
+  weighted_revenue?: number
+  expected_close_date?: string
+}
+
+const STAGE_TRANSLATION_KEYS: Record<string, string> = {
   lead: 'pipeline.stage_lead',
   qualification: 'pipeline.stage_qualified',
   proposal: 'pipeline.stage_proposal',
@@ -27,7 +48,7 @@ const STAGE_TRANSLATION_KEYS = {
   cancelled: 'common.cancel',
 }
 
-const STAGE_COLORS = {
+const STAGE_COLORS: Record<string, string> = {
   lead: 'var(--accent)',
   qualification: '#55c2ff',
   proposal: 'var(--warning)',
@@ -37,7 +58,7 @@ const STAGE_COLORS = {
   cancelled: 'var(--text-3)',
 }
 
-const STAGE_TRANSITIONS = {
+const STAGE_TRANSITIONS: Record<string, string[]> = {
   lead: ['qualification', 'proposal', 'lost', 'cancelled'],
   qualification: ['lead', 'proposal', 'lost', 'cancelled'],
   proposal: ['qualification', 'negotiation', 'lost', 'cancelled'],
@@ -47,19 +68,19 @@ const STAGE_TRANSITIONS = {
   cancelled: [],
 }
 
-const PROPOSAL_STATUS_COLORS = {
+const PROPOSAL_STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
   none:      { bg: 'var(--surface-3)', color: 'var(--text-3)', label: 'Sin propuesta' },
   generated: { bg: 'var(--warning-bg)', color: 'var(--warning)', label: 'Propuesta generada' },
   sent:      { bg: 'var(--success-bg)', color: 'var(--success)', label: 'Propuesta enviada' },
 }
 
-const panelStyle = {
+const panelStyle: CSSProperties = {
   background: 'var(--surface-2)',
   border: '1px solid var(--surface-4)',
   borderRadius: 16,
 }
 
-const fieldLabelStyle = {
+const fieldLabelStyle: CSSProperties = {
   fontSize: "var(--text-xs)",
   fontWeight: 700,
   color: 'var(--text-2)',
@@ -69,7 +90,7 @@ const fieldLabelStyle = {
   display: 'block',
 }
 
-const fieldStyle = {
+const fieldStyle: CSSProperties = {
   width: '100%',
   boxSizing: 'border-box',
   background: 'var(--surface-3)',
@@ -82,7 +103,11 @@ const fieldStyle = {
   outline: 'none',
 }
 
-function emptyForm() {
+type OppForm = {
+  name: string; client_name: string; stage: string; probability: number | string;
+  expected_revenue: number | string; expected_close_date: string; description: string
+}
+function emptyForm(): OppForm {
   return {
     name: '',
     client_name: '',
@@ -94,7 +119,7 @@ function emptyForm() {
   }
 }
 
-function ProposalStatusBadge({ status }) {
+function ProposalStatusBadge({ status }: { status: string }) {
   const cfg = PROPOSAL_STATUS_COLORS[status] || PROPOSAL_STATUS_COLORS.none
   return (
     <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 6, background: cfg.bg, color: cfg.color, fontWeight: 600 }}>
@@ -103,7 +128,7 @@ function ProposalStatusBadge({ status }) {
   )
 }
 
-function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }) {
+function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }: { label: ReactNode; value: ReactNode; tone?: string; subvalue?: ReactNode }) {
   return (
     <Card style={{ minWidth: 180, padding: 18 }}>
       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
@@ -117,9 +142,11 @@ function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }) {
   )
 }
 
-function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }) {
+type ConvertResult = { project_code?: string; message?: string; rev_contract_id?: string }
+
+function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: Opp; onClose: () => void; stageLabels: Record<string, string>; onUpdate: () => void }) {
   const toast = useToast()
-  const [convertResult, setConvertResult] = useState(null)
+  const [convertResult, setConvertResult] = useState<ConvertResult | null>(null)
   const [showProposal, setShowProposal] = useState(false)
 
   const generateProposal = useGenerateProposal()
@@ -127,7 +154,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }) {
   const convertToProject = useConvertToProject()
 
   // Fetch proposal content on demand
-  const { data: proposalData, refetch: refetchProposal, isFetching: fetchingProposal } = useQuery({
+  const { data: proposalData, refetch: refetchProposal, isFetching: fetchingProposal } = useQuery<{ proposal_content?: string }>({
     queryKey: ['pipeline-proposal', opp.id],
     queryFn: () => pipelineApi.getProposal(opp.id).then(r => r.data),
     enabled: false,
@@ -164,7 +191,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }) {
 
   async function doConvert() {
     try {
-      const res = await convertToProject.mutateAsync(opp.id)
+      const res = (await convertToProject.mutateAsync(opp.id)) as { data: ConvertResult }
       setConvertResult(res.data)
       toast.success(`Proyecto ${res.data.project_code} creado correctamente`)
       onUpdate()
@@ -196,7 +223,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }) {
               { label: 'Valor esperado', value: fmtCurrency(opp.expected_revenue) },
               { label: 'Probabilidad', value: fmtPct(opp.probability) },
               { label: 'Ponderado', value: fmtCurrency(opp.weighted_revenue) },
-              { label: 'Etapa', value: stageLabels[opp.stage] || opp.stage },
+              { label: 'Etapa', value: stageLabels[opp.stage || ''] || opp.stage },
               { label: 'Cierre estimado', value: fmtDate(opp.expected_close_date) },
               { label: 'Tipo contrato', value: opp.contract_type || '—' },
             ].map(({ label, value }) => (
@@ -331,14 +358,15 @@ export default function PipelinePage() {
   const [ownerFilter, setOwnerFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(() => emptyForm())
-  const [detailOpp, setDetailOpp] = useState(null)
+  const [detailOpp, setDetailOpp] = useState<Opp | null>(null)
 
-  const { data = [], isLoading, isError, error, refetch, isFetching } = usePipeline()
+  const { data: rawData, isLoading, isError, error, refetch, isFetching } = usePipeline()
+  const data: Opp[] = Array.isArray(rawData) ? (rawData as Opp[]) : []
   const createOpportunity = useCreateOpportunity()
   const updateOpportunity = useUpdateOpportunity()
   const deleteOpportunity = useDeleteOpportunity()
 
-  const stageLabels = useMemo(() => ({
+  const stageLabels = useMemo<Record<string, string>>(() => ({
     lead: t(STAGE_TRANSLATION_KEYS.lead),
     qualification: t(STAGE_TRANSLATION_KEYS.qualification),
     proposal: t(STAGE_TRANSLATION_KEYS.proposal),
@@ -349,7 +377,7 @@ export default function PipelinePage() {
   }), [t])
 
   const owners = useMemo(() => {
-    const seen = new Map()
+    const seen = new Map<string, string>()
     data.forEach((opportunity) => {
       if (opportunity.owner_id && !seen.has(opportunity.owner_id)) {
         seen.set(opportunity.owner_id, opportunity.owner_name || 'Sin asignar')
@@ -373,17 +401,17 @@ export default function PipelinePage() {
   }, [data, ownerFilter, search])
 
   const grouped = useMemo(() => {
-    const buckets = Object.fromEntries(STAGES.map((stage) => [stage, []]))
+    const buckets: Record<string, Opp[]> = Object.fromEntries(STAGES.map((stage) => [stage, [] as Opp[]]))
     filtered.forEach((opportunity) => {
-      const stage = STAGES.includes(opportunity.stage) ? opportunity.stage : 'lead'
+      const stage = opportunity.stage && STAGES.includes(opportunity.stage) ? opportunity.stage : 'lead'
       buckets[stage].push(opportunity)
     })
     return buckets
   }, [filtered])
 
   const summary = useMemo(() => {
-    const open = filtered.filter((item) => !['won', 'lost', 'cancelled'].includes(item.stage))
-    const closed = filtered.filter((item) => ['won', 'lost'].includes(item.stage))
+    const open = filtered.filter((item) => !['won', 'lost', 'cancelled'].includes(item.stage || ''))
+    const closed = filtered.filter((item) => ['won', 'lost'].includes(item.stage || ''))
     const won = filtered.filter((item) => item.stage === 'won')
     return {
       totalRevenue: filtered.reduce((acc, item) => acc + (item.expected_revenue || 0), 0),
@@ -398,7 +426,7 @@ export default function PipelinePage() {
     ? (data.find(o => o.id === detailOpp.id) || detailOpp)
     : null
 
-  async function handleCreate(event) {
+  async function handleCreate(event: { preventDefault: () => void }) {
     event.preventDefault()
     if (!form.name.trim() || !form.client_name.trim()) {
       toast.error('Nombre y cliente son obligatorios')
@@ -423,18 +451,18 @@ export default function PipelinePage() {
     }
   }
 
-  async function handleStageChange(opportunity, nextStage, selectElement) {
+  async function handleStageChange(opportunity: Opp, nextStage: string, selectElement: HTMLSelectElement | null) {
     if (!nextStage || nextStage === opportunity.stage) return
     try {
       await updateOpportunity.mutateAsync({ id: opportunity.id, data: { stage: nextStage } })
       toast.success(`Etapa actualizada a ${stageLabels[nextStage] || nextStage}`)
     } catch (mutationError) {
-      if (selectElement) selectElement.value = opportunity.stage
+      if (selectElement) selectElement.value = opportunity.stage || ''
       toast.error(extractErr(mutationError, 'No se pudo actualizar la etapa'))
     }
   }
 
-  function handleDelete(opportunity) {
+  function handleDelete(opportunity: Opp) {
     openConfirmGlobal({
       message: `¿Eliminar la oportunidad "${opportunity.name}"? Esta acción no se puede deshacer.`,
       danger: true,
@@ -471,14 +499,16 @@ export default function PipelinePage() {
         <Input
           label="Buscar"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event: { target: { value: string } }) => setSearch(event.target.value)}
           placeholder="Nombre, cliente, código o responsable"
           style={{ flex: '1 1 260px' }}
+          required={undefined}
+          hint={undefined}
         />
         <Select
           label="Responsable"
           value={ownerFilter}
-          onChange={(event) => setOwnerFilter(event.target.value)}
+          onChange={(event: { target: { value: string } }) => setOwnerFilter(event.target.value)}
           options={owners}
           style={{ width: 240 }}
         />
@@ -532,7 +562,7 @@ export default function PipelinePage() {
                       {opportunities.length} oportunidad(es) · {fmtCurrency(totalStageRevenue)}
                     </div>
                   </div>
-                  <Badge label={stage} display={opportunities.length} />
+                  <Badge label={stage} display={opportunities.length} _color={undefined} />
                 </div>
 
                 <div style={{ display: 'grid', gap: 10 }}>
@@ -541,7 +571,7 @@ export default function PipelinePage() {
                       Sin oportunidades en esta etapa
                     </div>
                   ) : opportunities.map((opportunity) => {
-                    const allowedStages = [opportunity.stage, ...STAGE_TRANSITIONS[opportunity.stage]]
+                    const allowedStages = [opportunity.stage, ...(STAGE_TRANSITIONS[opportunity.stage || ''] || [])]
                     const proposalStatus = opportunity.proposal_status || 'none'
                     const psCfg = PROPOSAL_STATUS_COLORS[proposalStatus]
                     return (
@@ -612,8 +642,8 @@ export default function PipelinePage() {
                               disabled={updateOpportunity.isPending}
                             >
                               {allowedStages.map((allowedStage) => (
-                                <option key={allowedStage} value={allowedStage}>
-                                  {stageLabels[allowedStage] || allowedStage}
+                                <option key={allowedStage || ''} value={allowedStage || ''}>
+                                  {stageLabels[allowedStage || ''] || allowedStage}
                                 </option>
                               ))}
                             </select>
@@ -642,38 +672,51 @@ export default function PipelinePage() {
             <Input
               label={t('pipeline.opportunity_name')}
               value={form.name}
-              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+              onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, name: event.target.value }))}
               required
+              placeholder={undefined}
+              hint={undefined}
             />
             <Input
               label={t('pipeline.client_name')}
               value={form.client_name}
-              onChange={(event) => setForm((current) => ({ ...current, client_name: event.target.value }))}
+              onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, client_name: event.target.value }))}
               required
+              placeholder={undefined}
+              hint={undefined}
             />
             <Input
               label={t('pipeline.value')}
               type="number"
               value={form.expected_revenue}
-              onChange={(event) => setForm((current) => ({ ...current, expected_revenue: event.target.value }))}
+              onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, expected_revenue: event.target.value }))}
+              placeholder={undefined}
+              required={undefined}
+              hint={undefined}
             />
             <Input
               label={t('pipeline.probability')}
               type="number"
               value={form.probability}
-              onChange={(event) => setForm((current) => ({ ...current, probability: event.target.value }))}
+              onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, probability: event.target.value }))}
+              placeholder={undefined}
+              required={undefined}
+              hint={undefined}
             />
             <Select
               label={t('pipeline.stage')}
               value={form.stage}
-              onChange={(event) => setForm((current) => ({ ...current, stage: event.target.value }))}
+              onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, stage: event.target.value }))}
               options={STAGES.map((stage) => ({ value: stage, label: stageLabels[stage] || stage }))}
             />
             <Input
               label={t('pipeline.expected_close')}
               type="date"
               value={form.expected_close_date}
-              onChange={(event) => setForm((current) => ({ ...current, expected_close_date: event.target.value }))}
+              onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, expected_close_date: event.target.value }))}
+              placeholder={undefined}
+              required={undefined}
+              hint={undefined}
             />
           </div>
 

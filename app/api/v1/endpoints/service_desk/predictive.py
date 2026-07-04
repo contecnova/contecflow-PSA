@@ -2,10 +2,8 @@
 
 Severity prediction, resolution time estimation, and SLA breach probability.
 """
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
@@ -76,8 +74,7 @@ def predictive_stats(
     current_user: User = Depends(get_current_user),
 ):
     """Aggregate stats on escalation risk and SLA breach across open tickets."""
-    from app.models.service_desk import Ticket, TicketStatus
-    from sqlalchemy import func
+    from app.models.service_desk import Ticket
 
     open_tickets = (
         db.query(Ticket)

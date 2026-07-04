@@ -9,11 +9,6 @@ from app.api.v1.routers.auth_mfa import router as auth_mfa_router
 from app.api.v1.routers.auth_sso import router as auth_sso_router
 from app.api.v1.routers.auth_saml import router as auth_saml_router
 from app.api.v1.routers.auth_sessions import router as auth_sessions_router
-from app.services.auth_service import (
-	issue_password_reset_token as _issue_password_reset_token,
-	resolve_sso_organization_id as _resolve_sso_organization_id,
-	validate_https_discovery_url as _validate_https_discovery_url,
-)
 
 router = APIRouter()
 

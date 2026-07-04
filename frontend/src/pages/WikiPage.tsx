@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { CHART } from '../constants/theme'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
@@ -13,10 +12,17 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BookOpen } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import type { CSSProperties } from 'react'
 
-const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+type Block = { type: string; content?: string }
+type WikiPageT = { [k: string]: unknown; id: string; title?: string; slug?: string; content?: Block[]; visibility?: string; updated_at?: string; children?: WikiPageT[] }
+type Space = { [k: string]: unknown; id: string; name?: string; slug?: string; description?: string; page_count?: number }
+type Tag = { [k: string]: unknown; id: string; name?: string; color?: string; pages_count?: number }
+type Version = { [k: string]: unknown; id: string; version_num?: number; title?: string; change_note?: string; created_at?: string }
+
+const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const BLOCK_TYPES = [
   {type:'paragraph',icon:'¶',label:'Texto'},
@@ -63,21 +69,21 @@ const TEMPLATES = [
   { id:'blank', name:'📄 Página en blanco', blocks:[{type:'paragraph',content:''}] },
 ]
 
-function onKeyboardActivate(event, action) {
+function onKeyboardActivate(event: { key: string; preventDefault: () => void }, action: () => void) {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     action()
   }
 }
 
-function BlockEditor({ blocks, onChange }) {
-  const update = (i, k, v) => { const n=[...blocks]; n[i]={...n[i],[k]:v}; onChange(n) }
-  const add    = (after, type='paragraph') => { const n=[...blocks]; n.splice(after+1,0,{type,content:''}); onChange(n) }
-  const remove = (i) => { if(blocks.length>1) onChange(blocks.filter((_,x)=>x!==i)) }
-  const move   = (i, d) => { const n=[...blocks]; const t=i+d; if(t<0||t>=n.length) return; [n[i],n[t]]=[n[t],n[i]]; onChange(n) }
+function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Block[]) => void }) {
+  const update = (i: number, k: string, v: string) => { const n=[...blocks]; n[i]={...n[i],[k]:v}; onChange(n) }
+  const add    = (after: number, type='paragraph') => { const n=[...blocks]; n.splice(after+1,0,{type,content:''}); onChange(n) }
+  const remove = (i: number) => { if(blocks.length>1) onChange(blocks.filter((_,x)=>x!==i)) }
+  const move   = (i: number, d: number) => { const n=[...blocks]; const t=i+d; if(t<0||t>=n.length) return; [n[i],n[t]]=[n[t],n[i]]; onChange(n) }
 
-  const styleForType = (type) => {
-    const base = {width:'100%',background:'transparent',border:'none',outline:'none',color:'var(--text-1)',fontFamily:'inherit',resize:'none',lineHeight:1.7,padding:'2px 0'}
+  const styleForType = (type: string): CSSProperties => {
+    const base: CSSProperties = {width:'100%',background:'transparent',border:'none',outline:'none',color:'var(--text-1)',fontFamily:'inherit',resize:'none',lineHeight:1.7,padding:'2px 0'}
     if(type==='heading1') return {...base,fontSize: "var(--text-2xl)",fontWeight:800}
     if(type==='heading2') return {...base,fontSize: "var(--text-lg-em)",fontWeight:700}
     if(type==='heading3') return {...base,fontSize: "var(--text-md-em)",fontWeight:700}
@@ -91,8 +97,8 @@ function BlockEditor({ blocks, onChange }) {
     <div style={{display:'flex',flexDirection:'column',gap:4}}>
       {blocks.map((block,i) => (
         <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',padding:'2px 0'}}
-          onPointerEnter={e=>e.currentTarget.querySelector('.bc').style.opacity='1'}
-          onPointerLeave={e=>e.currentTarget.querySelector('.bc').style.opacity='0'}>
+          onPointerEnter={e=>{const el=e.currentTarget.querySelector('.bc') as HTMLElement|null; if(el)el.style.opacity='1'}}
+          onPointerLeave={e=>{const el=e.currentTarget.querySelector('.bc') as HTMLElement|null; if(el)el.style.opacity='0'}}>
           <div className="bc" style={{display:'flex',flexDirection:'column',gap:2,opacity:0,transition:'opacity .15s',flexShrink:0,paddingTop:4}}>
             <button onClick={()=>move(i,-1)} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize: "var(--text-2xs)",padding:'1px 4px'}}>▲</button>
             <button onClick={()=>move(i, 1)} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize: "var(--text-2xs)",padding:'1px 4px'}}>▼</button>
@@ -117,7 +123,7 @@ function BlockEditor({ blocks, onChange }) {
                           <button key={label}
                             onMouseDown={e=>{
                               e.preventDefault()
-                              const ta = e.currentTarget.closest('div').querySelector('textarea')
+                              const ta = e.currentTarget.closest('div')?.querySelector('textarea')
                               if(!ta) return
                               const s=ta.selectionStart,en=ta.selectionEnd,sel=ta.value.slice(s,en)||label
                               const rep=wrap[0]+(sel===label?'texto':sel)+wrap[1]
@@ -176,7 +182,7 @@ function BlockEditor({ blocks, onChange }) {
   )
 }
 
-function renderBlocks(blocks) {
+function renderBlocks(blocks: Block[]) {
   return (blocks||[]).map((b,i)=>{
     const text = b.content||''
     const st = {margin:'4px 0',lineHeight:1.7}
@@ -196,14 +202,14 @@ function renderBlocks(blocks) {
   })
 }
 
-function PageModal({ spaceId, parentId, editPage, onClose }) {
+function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string; parentId?: string | null; editPage?: WikiPageT | null; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!editPage
-  const autoSlug = t => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
+  const autoSlug = (t: string) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
   const [title,      setTitle]     = useState(editPage?.title || '')
   const [slug,       setSlug]      = useState(editPage?.slug  || '')
-  const [blocks,     setBlocks]    = useState(editPage?.content || [{type:'paragraph',content:''}])
+  const [blocks,     setBlocks]    = useState<Block[]>(editPage?.content || [{type:'paragraph',content:''}])
   const [visibility, setVisibility]= useState(editPage?.visibility || 'team')
   const [tplStep,    setTplStep]   = useState(!isEdit)
   const applyingRemoteRef = useRef(false)
@@ -212,7 +218,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
     editPage?.id,
     (remoteBlocks) => {
       applyingRemoteRef.current = true
-      setBlocks(Array.isArray(remoteBlocks) ? remoteBlocks : [{ type: 'paragraph', content: '' }])
+      setBlocks(Array.isArray(remoteBlocks) ? (remoteBlocks as Block[]) : [{ type: 'paragraph', content: '' }])
     }
   )
 
@@ -231,11 +237,11 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
   ]
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit
-      ? wikiApi.updatePage(editPage.id, d).then(r=>r.data)
+    mutationFn: (d: Record<string, unknown>) => isEdit
+      ? wikiApi.updatePage(editPage!.id, d).then(r=>r.data)
       : wikiApi.createPage(spaceId, d).then(r=>r.data),
-    onSuccess: () => { qc.invalidateQueries(['wiki-pages', spaceId]); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wiki-pages', spaceId] }); onClose() },
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
   })
 
   return (
@@ -300,7 +306,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
   )
 }
 
-function PageTree({ pages, selectedId, onSelect, onNew, level=0 }) {
+function PageTree({ pages, selectedId, onSelect, onNew, level=0 }: { pages: WikiPageT[]; selectedId?: string; onSelect: (p: WikiPageT) => void; onNew: (pid: string) => void; level?: number }) {
   return (
     <div style={{display:'flex',flexDirection:'column',gap:1}}>
       {pages.map(p=>(
@@ -316,7 +322,7 @@ function PageTree({ pages, selectedId, onSelect, onNew, level=0 }) {
             {p.visibility === 'public' && <span title="Visible publicamente" style={{fontSize: "var(--text-2xs)",color:'var(--success)'}}>🌍</span>}
             <button onClick={e=>{e.stopPropagation();onNew(p.id)}} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize: "var(--text-md)",padding:'0 2px'}}>+</button>
           </div>
-          {p.children?.length>0 && <PageTree pages={p.children} selectedId={selectedId} onSelect={onSelect} onNew={onNew} level={level+1}/>}
+          {(p.children?.length ?? 0)>0 && <PageTree pages={p.children || []} selectedId={selectedId} onSelect={onSelect} onNew={onNew} level={level+1}/>}
         </div>
       ))}
     </div>
@@ -324,7 +330,7 @@ function PageTree({ pages, selectedId, onSelect, onNew, level=0 }) {
 }
 
 // ── Wiki Tags (integrado en WikiPage) ─────────────────────────────────────────
-function CollabIndicator({ docId }) {
+function CollabIndicator({ docId }: { docId: string }) {
   const { connected, peers } = useDocCollab(docId)
   if (!connected) return null
   return (
@@ -343,34 +349,34 @@ function WikiTagsInline() {
   const qc = useQueryClient()
   const [space, setSpace] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState<Tag | null>(null)
   const [form, setForm] = useState({ name: '', color: 'var(--accent)' })
 
-  const { data: spaces = [] } = useQuery({
+  const { data: spaces = [] } = useQuery<Space[]>({
     queryKey: ['wiki-spaces-tags'],
     queryFn: () => wikiApi.spaces().then(r => r.data).catch(() => []),
   })
-  const { data: tags = [], isLoading } = useQuery({
+  const { data: tags = [], isLoading } = useQuery<Tag[]>({
     queryKey: ['wiki-tags-inline', space],
     queryFn: () => space ? wikiApi.tags(space).then(r => r.data).catch(() => []) : [],
     enabled: !!space,
   })
 
   const { mutate: save, isPending } = useMutation({
-    mutationFn: d => editing
+    mutationFn: (d: Record<string, unknown>) => editing
       ? wikiApi.updateTag(editing.id, d).then(r => r.data)
       : wikiApi.createTag(space, d).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries(['wiki-tags-inline', space])
+      qc.invalidateQueries({ queryKey: ['wiki-tags-inline', space] })
       setShowForm(false); setEditing(null); setForm({ name: '', color: 'var(--accent)' })
       toast.success(editing ? 'Etiqueta actualizada' : 'Etiqueta creada')
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => wikiApi.deleteTag(id),
-    onSuccess: () => { qc.invalidateQueries(['wiki-tags-inline', space]); toast.success('Etiqueta eliminada') },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (id: string) => wikiApi.deleteTag(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wiki-tags-inline', space] }); toast.success('Etiqueta eliminada') },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const COLORS = ['var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--purple)','var(--warning)','var(--accent)',CHART.pink]
@@ -433,7 +439,7 @@ function WikiTagsInline() {
               <div style={{width:10,height:10,borderRadius:'50%',background:tag.color||'var(--text-2)',flexShrink:0}}/>
               <span style={{fontSize: "var(--text-base)",fontWeight:600,color:'var(--text-1)'}}>{tag.name}</span>
               <span style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{tag.pages_count||0} páginas</span>
-              <button onClick={()=>{setEditing(tag);setForm({name:tag.name,color:tag.color||'var(--accent)'});setShowForm(true)}}
+              <button onClick={()=>{setEditing(tag);setForm({name:tag.name||'',color:tag.color||'var(--accent)'});setShowForm(true)}}
                 style={{background:'none',border:'none',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)",padding:'0 2px'}}>✎</button>
               <button onClick={()=>{ openConfirmGlobal({ message: '¿Eliminar etiqueta?', onConfirm: () => del(tag.id), danger: true }) }}
                 style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-sm)",padding:'0 2px'}}>🗑</button>
@@ -452,53 +458,53 @@ export default function WikiPage() {
   const [wikiMode, setWikiMode] = useState('wiki') // 'wiki' | 'tags'
 
   const qc = useQueryClient()
-  const [space,      setSpace]     = useState(null)
-  const [page,       setPage]      = useState(null)
+  const [space,      setSpace]     = useState<Space | null>(null)
+  const [page,       setPage]      = useState<WikiPageT | null>(null)
   const [pageModal,  setPageModal] = useState(false)
-  const [editPage,   setEditPage]  = useState(null)
-  const [parentId,   setParentId]  = useState(null)
+  const [editPage,   setEditPage]  = useState<WikiPageT | null>(null)
+  const [parentId,   setParentId]  = useState<string | null>(null)
   const [presentMode, setPresentMode] = useState(false)
   const [spaceModal, setSpaceModal]= useState(false)
   const [searchQ,    setSearchQ]   = useState('')
-  const [searchRes,  setSearchRes] = useState(null)
+  const [searchRes,  setSearchRes] = useState<WikiPageT[] | null>(null)
   const [spaceForm,  setSpaceForm] = useState({name:'',slug:'',description:'',project_id:'',is_public:false})
   const [showHistory, setShowHistory] = useState(false)
 
-  const { data:projects=[] } = useQuery({queryKey:['projects'],queryFn:()=>projectsApi.list().then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
-  const { data:versions=[], isLoading:lVer } = useQuery({
+  const { data:projects=[] } = useQuery<Array<{ id?: string; name?: string }>>({queryKey:['projects'],queryFn:()=>projectsApi.list().then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
+  const { data:versions=[], isLoading:lVer } = useQuery<Version[]>({
     queryKey:['wiki-versions', page?.id],
-    queryFn:()=>wikiApi.versions(page.id).then(r=>r.data).catch(()=>[]),
+    queryFn:()=>wikiApi.versions(page!.id).then(r=>r.data).catch(()=>[]),
     enabled:!!page?.id && showHistory,
   })
 
-    const { data:spaces=[],isLoading:lSpaces } = useQuery({queryKey:['wiki-spaces'],queryFn:()=>wikiApi.spaces().then(r=>r.data).catch(()=>[])})
-  const { data:pages=[],isLoading:lPages }   = useQuery({queryKey:['wiki-pages',space?.id],queryFn:()=>wikiApi.pages(space.id).then(r=>r.data).catch(()=>[]),enabled:!!space})
+    const { data:spaces=[],isLoading:lSpaces } = useQuery<Space[]>({queryKey:['wiki-spaces'],queryFn:()=>wikiApi.spaces().then(r=>r.data).catch(()=>[])})
+  const { data:pages=[],isLoading:lPages }   = useQuery<WikiPageT[]>({queryKey:['wiki-pages',space?.id],queryFn:()=>wikiApi.pages(space!.id).then(r=>r.data).catch(()=>[]),enabled:!!space})
 
   const { mutate:createSpace,isPending:cSpace } = useMutation({
-    mutationFn: d=>wikiApi.createSpace(d).then(r=>r.data),
-    onSuccess: ()=>{qc.invalidateQueries(['wiki-spaces']);setSpaceModal(false);setSpaceForm({name:'',slug:'',description:'',project_id:'',is_public:false})},
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: (d: Record<string, unknown>)=>wikiApi.createSpace(d).then(r=>r.data),
+    onSuccess: ()=>{qc.invalidateQueries({ queryKey: ['wiki-spaces'] });setSpaceModal(false);setSpaceForm({name:'',slug:'',description:'',project_id:'',is_public:false})},
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate:restoreVersion, isPending:restoring } = useMutation({
-    mutationFn: (vn)=>wikiApi.restorePage(page.id, vn).then(r=>r.data),
-    onSuccess: (d)=>{
-      qc.invalidateQueries(['wiki-pages', space?.id])
-      qc.invalidateQueries(['wiki-versions', page?.id])
+    mutationFn: (vn: number)=>wikiApi.restorePage(page!.id, vn).then(r=>r.data),
+    onSuccess: (d: { restored_to?: number; new_version?: number })=>{
+      qc.invalidateQueries({ queryKey: ['wiki-pages', space?.id] })
+      qc.invalidateQueries({ queryKey: ['wiki-versions', page?.id] })
       setShowHistory(false)
       toast.info(`Restaurado a versión ${d.restored_to}. Nueva versión: ${d.new_version}`)
       // Recargar página actual
-      wikiApi.getPage(page.id).then(r=>setPage(r.data)).catch(()=>{})
+      if (page) wikiApi.getPage(page.id).then(r=>setPage(r.data)).catch(()=>{})
     },
-    onError: e => toast.error(extractErr(e, 'Error al restaurar')),
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al restaurar')),
   })
 
     const { mutate:deletePage } = useMutation({
-    mutationFn: id=>wikiApi.deletePage(id),
-    onSuccess: ()=>{qc.invalidateQueries(['wiki-pages',space?.id]);setPage(null)},
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    mutationFn: (id: string)=>wikiApi.deletePage(id),
+    onSuccess: ()=>{qc.invalidateQueries({ queryKey: ['wiki-pages',space?.id] });setPage(null)},
+    onError: (e: unknown) => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
-  const openPage = async (p) => {
+  const openPage = async (p: WikiPageT) => {
     const full = await wikiApi.getPage(p.id).then(r=>r.data).catch(()=>p)
     setPage(full)
   }
@@ -509,7 +515,7 @@ export default function WikiPage() {
     setSearchRes(r.data)
   }
 
-  const autoSlug = t => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
+  const autoSlug = (t: string) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
 
   return (
     <PageShell>
@@ -675,7 +681,7 @@ export default function WikiPage() {
                 </div>
                 {i===0
                   ? <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,background:'var(--accent-muted)',color:'var(--accent)'}}>Actual</span>
-                  : <button onClick={()=>{ openConfirmGlobal({ message: `¿Restaurar a versión ${v.version_num}? Esto creará una nueva versión con el contenido anterior.`, onConfirm: () => restoreVersion(v.version_num), danger: true }) }}
+                  : <button onClick={()=>{ openConfirmGlobal({ message: `¿Restaurar a versión ${v.version_num}? Esto creará una nueva versión con el contenido anterior.`, onConfirm: () => restoreVersion(v.version_num ?? 0), danger: true }) }}
                       disabled={restoring}
                       style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>
                       {restoring?'...':'Restaurar'}

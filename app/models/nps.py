@@ -1,7 +1,7 @@
 """NPS (Net Promoter Score) + Client Health models."""
 
 import enum
-from datetime import datetime
+from app.core.timeutil import utcnow
 
 from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
@@ -27,7 +27,7 @@ class ClientNPS(Base):
     comment    = Column(Text, nullable=True)
     respondent = Column(String(200), nullable=True)         # name of the person who replied
     source     = Column(String(50),  default="manual")      # manual | email | portal
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, index=True)
+    created_at = Column(DateTime(timezone=True), default=utcnow, index=True)
 
     client = relationship("Client", backref="nps_responses")
 
@@ -50,7 +50,7 @@ class ClientHealthSnapshot(Base):
     budget_component   = Column(Float, nullable=True)      # budget under-spend ratio
     activity_component = Column(Float, nullable=True)      # recent tickets / interactions
     note             = Column(Text, nullable=True)
-    snapshot_at      = Column(DateTime(timezone=True), default=datetime.utcnow, index=True)
+    snapshot_at      = Column(DateTime(timezone=True), default=utcnow, index=True)
 
     client = relationship("Client", backref="health_snapshots")
 

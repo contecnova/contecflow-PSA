@@ -4,7 +4,7 @@ ML-enhanced recommendations, dynamic form prefill, and provisioning automation.
 """
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 

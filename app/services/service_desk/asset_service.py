@@ -287,7 +287,6 @@ def assign_asset_record(db: Session, asset_id: str, user_id: str, changed_by: st
 # ── Phase 2 — Asset Lifecycle ─────────────────────────────────────────────────
 
 from datetime import datetime, timezone  # noqa: E402 (added here to avoid changing top imports)
-from uuid import uuid4
 
 
 def _days_until(date_str: Optional[str]) -> Optional[int]:

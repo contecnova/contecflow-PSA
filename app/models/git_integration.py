@@ -1,7 +1,7 @@
 """Git integration models — PR/Deploy events linked to tasks."""
 
 import enum
-from datetime import datetime
+from app.core.timeutil import utcnow
 from sqlalchemy import Column, Integer, String, Enum as SAEnum, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -46,8 +46,8 @@ class GitPullRequest(Base):
     status         = Column(SAEnum(PRStatus), default=PRStatus.open)
     merged_at      = Column(DateTime(timezone=True), nullable=True)
     closed_at      = Column(DateTime(timezone=True), nullable=True)
-    created_at     = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at     = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at     = Column(DateTime(timezone=True), default=utcnow)
+    updated_at     = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     task    = relationship("Task",    back_populates=None, foreign_keys=[task_id])
     project = relationship("Project", back_populates=None, foreign_keys=[project_id])
@@ -68,8 +68,8 @@ class GitDeployment(Base):
     status         = Column(SAEnum(DeployStatus), default=DeployStatus.pending)
     sha            = Column(String(64))
     deployed_at    = Column(DateTime(timezone=True), nullable=True)
-    created_at     = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at     = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at     = Column(DateTime(timezone=True), default=utcnow)
+    updated_at     = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     task    = relationship("Task",           back_populates=None, foreign_keys=[task_id])
     project = relationship("Project",        back_populates=None, foreign_keys=[project_id])

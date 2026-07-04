@@ -431,7 +431,6 @@ def _is_cooldown_active(rule: dict[str, Any]) -> bool:
     if not last:
         return False
     cooldown = int(rule.get("cooldown_minutes", 60))
-    from datetime import timedelta
     last_dt = datetime.fromisoformat(last)
     now = datetime.now(timezone.utc)
     if last_dt.tzinfo is None:
@@ -580,7 +579,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                        "expenses_draft_count","expenses_submitted_count",
                        "expenses_approved_count","expenses_rejected_count"):
         try:
-            from app.models.expenses import Expense, ExpenseCategory, ExpenseStatus
+            from app.models.expenses import Expense
             rows = db.query(Expense.expense_date, Expense.amount, Expense.category, Expense.status).filter(
                 Expense.expense_date >= start_date
             ).all()
@@ -873,7 +872,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
     if metric_key in ("absence_days","absence_vacation_days","absence_sick_days",
                        "absence_training_days","absence_pending_count"):
         try:
-            from app.models.resources import Absence, AbsenceType, AbsenceStatus
+            from app.models.resources import Absence
             rows = db.query(Absence.start_date, Absence.working_days, Absence.type, Absence.status).filter(
                 Absence.start_date >= start_date
             ).all()
@@ -1107,7 +1106,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                        "sla_response_breached","sla_resolution_breached",
                        "auto_resolved_count","ticket_time_spent_total"):
         try:
-            from app.models.service_desk import Ticket, TicketPriority
+            from app.models.service_desk import Ticket
             rows = db.query(Ticket.created_at, Ticket.status, Ticket.priority,
                             Ticket.first_response_minutes, Ticket.resolution_minutes,
                             Ticket.csat_score, Ticket.sla_response_breached,
@@ -1339,7 +1338,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
     # ── Imports & Data ────────────────────────────────────────────────────────
     if metric_key in ("imports_completed_count","imports_failed_count","imports_success_rate"):
         try:
-            from app.models.billing_reports import ImportJob, ImportStatus
+            from app.models.billing_reports import ImportJob
             rows = db.query(ImportJob.completed_at, ImportJob.status,
                             ImportJob.succeeded, ImportJob.total_rows).filter(
                 ImportJob.completed_at >= start_date

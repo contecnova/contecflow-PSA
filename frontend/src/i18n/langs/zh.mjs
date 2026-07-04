@@ -379,5 +379,51 @@ const zh = {
     generic: '意外错误',
   },
 
+
+  // TODO: i18n translation review
+  offline_indicator: {
+    synced_partial: '⚠ 已同步 {synced}，失败 {failed} — {at}',
+    synced_ok: '✅ 已同步 {synced} 条记录 — {at}',
+    online: '在线',
+    offline: '离线',
+    pending: '等待同步',
+    pending_label: '{count} 项待处理',
+    sync_now: '⚡ 同步',
+    syncing: '🔄 同步中…',
+    banner_offline: '无连接 — 离线模式运行',
+    banner_pending: '（{count} 项待处理操作）',
+    conflicts_pending: '{count} 个冲突待审核',
+    pending_operations: '待处理操作：',
+    pending_conflicts: '待处理冲突：',
+    resolved_conflicts: '已解决冲突：',
+    last_sync: '上次同步：',
+    synced_count: '✓ 已同步：{count}',
+    failed_count: '✗ 失败：{count}',
+    conflicts_count: '⚠ 冲突：{count}',
+    sync_now_btn: '🔄 立即同步',
+    syncing_now: '⏳ 同步中…',
+    all_synced: '✓ 全部已同步',
+  },
+
+  // TODO: i18n translation review
+  offline_conflicts: {
+    aria_history: '离线冲突历史',
+    aria_conflicts: '离线同步冲突',
+    title_history: '冲突历史',
+    title_count: '{count} 个冲突',
+    btn_pending: '待处理',
+    btn_history: '历史',
+    no_history: '暂无冲突历史。',
+    conflict_num: '冲突 #{id}',
+    operation: '操作：{opId}',
+    resolution: '解决方式：{resolution}',
+    back_to_list: '← 返回列表',
+    local_value: '本地值：',
+    server_value: '服务器值：',
+    accept_server: '接受服务器',
+    keep_local: '保留本地',
+    resolving: '…',
+    strategy: '策略：{strategy}',
+  },
 };
 export default zh;

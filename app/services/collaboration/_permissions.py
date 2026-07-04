@@ -52,8 +52,7 @@ def invalidate_membership(user_id: str) -> None:
 from app.models.collaboration import (
     CollaborationChannel, CollaborationChannelMember,
     CollaborationConversation, CollaborationConversationMember,
-    CollaborationDirectConversation, CollaborationGroupConversation,
-    CollaborationTeamMember,
+    CollaborationDirectConversation, CollaborationTeamMember,
 )
 
 

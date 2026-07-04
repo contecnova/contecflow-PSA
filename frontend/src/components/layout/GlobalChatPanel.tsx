@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MessageSquare, Search, Send, X, ExternalLink, Plus, User, Minus, Maximize2, Volume2, VolumeX } from 'lucide-react'
@@ -29,7 +28,54 @@ interface Conversation {
   id: string
   title?: string
   kind?: 'direct' | 'channel' | string
+  unread_count?: number
+  unread?: number
+  last_message_id?: string
   [key: string]: unknown
+}
+
+interface ChatMessage {
+  id: string
+  author_id?: string
+  author_name?: string
+  body?: string
+  [key: string]: unknown
+}
+
+interface ConversationMember {
+  user_id?: string
+  user_name?: string
+  full_name?: string
+  [key: string]: unknown
+}
+
+interface NotificationRule {
+  scope?: string
+  target_id?: string | null
+  notify_messages?: string
+  do_not_disturb_from?: string | null
+  do_not_disturb_to?: string | null
+  [key: string]: unknown
+}
+
+interface RulePayload {
+  scope: string
+  notify_messages: string
+  desktop_push: boolean
+  email_digest: string
+  do_not_disturb_from: string | null
+  do_not_disturb_to: string | null
+}
+
+interface UserSuggestion {
+  id: string
+  full_name?: string
+  username?: string
+  [key: string]: unknown
+}
+
+interface ApiError {
+  response?: { data?: { detail?: string } }
 }
 
 function labelForConversation(c: Conversation | null | undefined): string {
@@ -80,8 +126,8 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
   const [newDirectOpen, setNewDirectOpen] = useState<boolean>(false)
   const [userSearch, setUserSearch] = useState<string>('')
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => safeLsGet(LS_SOUND_KEY, '1') !== '0')
-  const [typingUsers, setTypingUsers] = useState<Record<string, unknown>>({})
-  const [clearedUnreadMap, setClearedUnreadMap] = useState<Record<string, number>>({})
+  const [typingUsers, setTypingUsers] = useState<Record<string, number>>({})
+  const [clearedUnreadMap, setClearedUnreadMap] = useState<Record<string, boolean>>({})
   const [panelBadgeVisible, setPanelBadgeVisible] = useState<boolean>(unread > 0)
   const [panelBadgeCount, setPanelBadgeCount] = useState<number>(unread)
   const [notifyMode, setNotifyMode] = useState<string>('all')
@@ -125,7 +171,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
     const prev = Number(safeLsGet('chat_global_prev_unread', '0')) || 0
     if (unread > prev && (minimized || document.visibilityState !== 'visible')) {
       try {
-        const Ctx = window.AudioContext || window.webkitAudioContext
+        const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
         if (Ctx) {
           const ctx = new Ctx()
           const osc = ctx.createOscillator()
@@ -164,7 +210,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
   useEffect(() => {
     if (!open) return undefined
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose?.()
     }
     window.addEventListener('keydown', onKey)
@@ -181,9 +227,9 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
     if (activeConvId) safeLsSet(LS_LAST_CONV_KEY, activeConvId)
   }, [open, activeConvId])
 
-  const { data: conversations = [] } = useQuery({
+  const { data: conversations = [] } = useQuery<Conversation[]>({
     queryKey: ['collab-conversations'],
-    queryFn: () => collabApi.listConversations(),
+    queryFn: () => collabApi.listConversations() as Promise<Conversation[]>,
     enabled: open,
     refetchInterval: open ? 30_000 : false,
   })
@@ -202,7 +248,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
   const activeConv = conversations.find(c => c.id === activeConvId) || null
 
-  const markConversationAsReadNow = (conv) => {
+  const markConversationAsReadNow = (conv: Conversation) => {
     if (!conv?.id) return
     const unreadCount = Number(conv.unread_count || conv.unread || 0)
     if (unreadCount <= 0) return
@@ -214,20 +260,20 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
       collabApi.markRead(conv.id, conv.last_message_id)
         .catch(() => {})
         .finally(() => {
-          qc.invalidateQueries(['collab-conversations'])
-          qc.invalidateQueries(['collab-notifications'])
+          qc.invalidateQueries({ queryKey: ['collab-conversations'] })
+          qc.invalidateQueries({ queryKey: ['collab-notifications'] })
           realtime.refresh()
         })
     } else {
-      qc.invalidateQueries(['collab-conversations'])
-      qc.invalidateQueries(['collab-notifications'])
+      qc.invalidateQueries({ queryKey: ['collab-conversations'] })
+      qc.invalidateQueries({ queryKey: ['collab-notifications'] })
       realtime.refresh()
     }
   }
 
-  const { data: rules = [] } = useQuery({
+  const { data: rules = [] } = useQuery<NotificationRule[]>({
     queryKey: ['collab-notification-rules'],
-    queryFn: () => collabApi.listRules(),
+    queryFn: () => collabApi.listRules() as Promise<NotificationRule[]>,
     enabled: open,
     staleTime: 60_000,
   })
@@ -244,12 +290,12 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
   }, [rules])
 
   const saveRule = useMutation({
-    mutationFn: (payload) => collabApi.upsertRule(payload),
-    onSuccess: () => qc.invalidateQueries(['collab-notification-rules']),
+    mutationFn: (payload: RulePayload) => collabApi.upsertRule(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['collab-notification-rules'] }),
     onError: () => toast.error('No se pudieron guardar preferencias de notificación'),
   })
 
-  const updateNotifyMode = (value) => {
+  const updateNotifyMode = (value: string) => {
     setNotifyMode(value)
     saveRule.mutate({
       scope: 'global',
@@ -261,7 +307,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
     })
   }
 
-  const updateDnd = (enabled) => {
+  const updateDnd = (enabled: boolean) => {
     setDndEnabled(enabled)
     saveRule.mutate({
       scope: 'global',
@@ -273,22 +319,22 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
     })
   }
 
-  const { data: messages = [] } = useQuery({
+  const { data: messages = [] } = useQuery<ChatMessage[]>({
     queryKey: ['collab-messages', activeConvId],
-    queryFn: () => collabApi.listMessages(activeConvId, { limit: 50 }),
+    queryFn: () => collabApi.listMessages(activeConvId, { limit: 50 }) as Promise<ChatMessage[]>,
     enabled: open && !!activeConvId,
     refetchInterval: open && activeConvId ? 20_000 : false,
   })
 
-  const { data: members = [] } = useQuery({
+  const { data: members = [] } = useQuery<ConversationMember[]>({
     queryKey: ['collab-conversation-members', activeConvId],
-    queryFn: () => collabApi.listConversationMembers(activeConvId),
+    queryFn: () => collabApi.listConversationMembers(activeConvId) as Promise<ConversationMember[]>,
     enabled: open && !!activeConvId,
     staleTime: 60_000,
   })
 
   const memberNames = useMemo(() => {
-    const m = {}
+    const m: Record<string, string> = {}
     for (const item of members || []) {
       if (item?.user_id) m[item.user_id] = item.user_name || item.full_name || 'Usuario'
     }
@@ -296,8 +342,8 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
   }, [members])
 
   useEffect(() => {
-    const handler = (e) => {
-      const ev = e?.detail || {}
+    const handler = (e: Event) => {
+      const ev = (e as CustomEvent)?.detail || {}
       if (!ev?.conversation_id || ev.conversation_id !== activeConvId) return
       const uid = ev?.payload?.user_id
       const active = !!ev?.payload?.active
@@ -317,7 +363,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
     const id = setInterval(() => {
       const cutoff = Date.now() - 6000
       setTypingUsers(prev => {
-        const next = {}
+        const next: Record<string, number> = {}
         for (const [uid, ts] of Object.entries(prev)) {
           if (ts > cutoff) next[uid] = ts
         }
@@ -366,8 +412,8 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
     collabApi.markAllRead()
       .catch(() => {})
       .finally(() => {
-        qc.invalidateQueries(['collab-notifications'])
-        qc.invalidateQueries(['collab-conversations'])
+        qc.invalidateQueries({ queryKey: ['collab-notifications'] })
+        qc.invalidateQueries({ queryKey: ['collab-conversations'] })
         realtime.refresh()
       })
   }, [open, minimized, qc, realtime])
@@ -376,30 +422,30 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
     mutationFn: () => collabApi.sendMessage({ conversation_id: activeConvId, body: draft.trim() }),
     onSuccess: () => {
       setDraft('')
-      qc.invalidateQueries(['collab-messages', activeConvId])
-      qc.invalidateQueries(['collab-conversations'])
+      qc.invalidateQueries({ queryKey: ['collab-messages', activeConvId] })
+      qc.invalidateQueries({ queryKey: ['collab-conversations'] })
     },
-    onError: (e) => {
+    onError: (e: ApiError) => {
       toast.error(e?.response?.data?.detail || 'No se pudo enviar el mensaje')
     },
   })
 
-  const { data: suggestions = { users: [] } } = useQuery({
+  const { data: suggestions = { users: [] } } = useQuery<{ users: UserSuggestion[] }>({
     queryKey: ['chat-global-user-suggestions', userSearch],
-    queryFn: () => collabApi.mentionSuggestions({ q: userSearch, limit: 8 }),
+    queryFn: () => collabApi.mentionSuggestions({ q: userSearch, limit: 8 }) as Promise<{ users: UserSuggestion[] }>,
     enabled: open && newDirectOpen,
   })
 
   const openDirect = useMutation({
-    mutationFn: (userId) => collabApi.openDirect({ user_id: userId }),
-    onSuccess: (c) => {
-      qc.invalidateQueries(['collab-conversations'])
+    mutationFn: (userId: string) => collabApi.openDirect({ user_id: userId }),
+    onSuccess: (c: { conversation_id?: string; id?: string }) => {
+      qc.invalidateQueries({ queryKey: ['collab-conversations'] })
       setNewDirectOpen(false)
       setUserSearch('')
-      setActiveConvId(c.conversation_id || c.id)
+      setActiveConvId(c.conversation_id || c.id || '')
       window.dispatchEvent(new CustomEvent('collab:resync'))
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'No se pudo abrir el chat directo'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'No se pudo abrir el chat directo'),
   })
 
   if (!open) return null
@@ -455,7 +501,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
     )
   }
 
-  const panelStyle = {
+  const panelStyle: React.CSSProperties = {
     position: 'fixed',
     top: isMobile ? 0 : 56,
     right: isMobile ? 0 : 12,

@@ -28,7 +28,7 @@ from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services.ai_dispatch import call_ai, get_default_provider
-from app.services.ai_governance import check_prompt, check_output
+from app.services.ai_governance import check_prompt
 
 router = APIRouter()
 

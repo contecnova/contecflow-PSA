@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import os
 import smtplib
-from datetime import datetime, timedelta
+from datetime import timedelta
 from app.core.timeutil import utcnow
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText

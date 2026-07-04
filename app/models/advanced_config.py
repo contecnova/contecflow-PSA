@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Date
+from app.models.money import Rate
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -187,8 +188,8 @@ class RateEntry(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     table_id     = Column(String(36), ForeignKey("rate_tables.id", ondelete="CASCADE"), nullable=False)
     label        = Column(String(100), nullable=False)   # nombre del rol/perfil
-    cost_rate    = Column(Float, nullable=True)          # coste interno €/h
-    billing_rate = Column(Float, nullable=True)          # tarifa cliente €/h
+    cost_rate    = Column(Rate, nullable=True)           # coste interno €/h
+    billing_rate = Column(Rate, nullable=True)           # tarifa cliente €/h
     currency     = Column(String(3), default=settings.DEFAULT_CURRENCY)
     valid_from   = Column(Date, nullable=True)
     valid_to     = Column(Date, nullable=True)
@@ -209,7 +210,7 @@ class RateOverride(Base):
     client_id    = Column(String(36), ForeignKey("clients.id",  ondelete="CASCADE"), nullable=True)
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
     role_label   = Column(String(100), nullable=False)   # debe coincidir con RateEntry.label
-    billing_rate = Column(Float, nullable=False)
+    billing_rate = Column(Rate, nullable=False)
     valid_from   = Column(Date, nullable=True)
     valid_to     = Column(Date, nullable=True)
     notes        = Column(String(255), nullable=True)

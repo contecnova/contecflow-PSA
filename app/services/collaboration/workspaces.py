@@ -22,8 +22,8 @@ from app.models.collaboration import (
 from app.models.user import User
 from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import (
-    _org, assert_team_access, assert_workspace,
-    invalidate_membership, is_team_member,
+    _org, assert_team_access, invalidate_membership,
+    is_team_member,
 )
 
 
