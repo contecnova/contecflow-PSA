@@ -107,7 +107,7 @@ export default function IncidentAssignmentPanel() {
 
   const candidates = stats?.agent_loads ?? []
 
-  const recommendMutation = useMutation({
+  const recommendMutation = useMutation<Recommendation, unknown, string>({
     mutationFn: (id) => {
       const candidate_agents = candidates.map((a) => ({
         user_id: String(a.user_id ?? a.agent_id),
@@ -123,7 +123,7 @@ export default function IncidentAssignmentPanel() {
         priority,
         ticket_type: 'incident',
         candidate_agents,
-      }).then(r => r.data)
+      }).then(r => r.data as Recommendation)
     },
     onSuccess: (data) => {
       setRecommendation(data)
@@ -132,7 +132,7 @@ export default function IncidentAssignmentPanel() {
     },
   })
 
-  const applyMutation = useMutation({
+  const applyMutation = useMutation<unknown, unknown, { ticketId: string; userId: string | number | undefined }>({
     mutationFn: ({ ticketId, userId }) =>
       ticketsApi.update(ticketId, { assigned_to_user_id: userId }),
     onSuccess: () => {
@@ -272,7 +272,7 @@ export default function IncidentAssignmentPanel() {
                     )}
                     {applyMutation.isError && (
                       <div style={{ marginTop: 6, fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>
-                        {applyMutation.error?.response?.data?.detail || 'Error al aplicar asignación'}
+                        {(applyMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al aplicar asignación'}
                       </div>
                     )}
                   </div>
@@ -344,7 +344,7 @@ export default function IncidentAssignmentPanel() {
               border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)',
               borderRadius: 8, padding: '8px 12px',
             }}>
-              {recommendMutation.error?.response?.data?.detail || 'Error al obtener recomendación'}
+              {(recommendMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al obtener recomendación'}
             </div>
           )}
         </div>

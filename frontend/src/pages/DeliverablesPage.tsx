@@ -77,7 +77,7 @@ const STATUS_CFG = {
 
 function StatusDropdown({ del, onUpdate }: { del: DeliverableItem; onUpdate: (status: string) => void }) {
   const [open, setOpen] = useState(false)
-  const cfg = STATUS_CFG[del.status] || STATUS_CFG.planned
+  const cfg = STATUS_CFG[del.status as keyof typeof STATUS_CFG] || STATUS_CFG.planned
   return (
     <div style={{ position: 'relative' }}>
       <button onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
@@ -122,7 +122,7 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
   const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data: DeliverableFormState) => isEdit ? deliverablesApi.updateInProject(projectId, del.id, data) : deliverablesApi.createForProject(projectId, data),
+    mutationFn: (data: DeliverableFormState) => isEdit ? deliverablesApi.updateInProject(projectId, del!.id, data as unknown as Record<string, unknown>) : deliverablesApi.createForProject(projectId, data as unknown as Record<string, unknown>),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['deliverables', projectId] }); qc.invalidateQueries({ queryKey: ['deliverables-overview'] }); onClose() },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -221,7 +221,7 @@ export default function DeliverablesPage(): JSX.Element {
   })
 
   const deliverables = delivData?.deliverables || []
-  const summary = delivData?.summary || {}
+  const summary: NonNullable<DeliverablesData['summary']> = delivData?.summary || {}
   const { sort: ovSort, setSort: setOvSort, sortedData: sortedOverviewRaw } = useSort(overview as unknown as Record<string, unknown>[], 'name')
   const sortedOverview = sortedOverviewRaw as unknown as DeliverableItem[]
 
@@ -250,7 +250,7 @@ export default function DeliverablesPage(): JSX.Element {
             {selectedProject && hasRole('admin', 'pm') && <Button onClick={() => setShowCreate(true)} icon="＋">Nuevo entregable</Button>}
           </div>
 
-          {selectedProject && summary.total > 0 && (
+          {selectedProject && (summary.total ?? 0) > 0 && (
             <div style={{ display: 'flex', gap: 14, marginBottom: 20 }}>
               {[
                 { label: 'Total', value: summary.total, color: 'var(--text-2)' },
@@ -274,7 +274,7 @@ export default function DeliverablesPage(): JSX.Element {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {deliverables.map(d => {
-                const cfg = STATUS_CFG[d.status] || STATUS_CFG.planned
+                const cfg = STATUS_CFG[d.status as keyof typeof STATUS_CFG] || STATUS_CFG.planned
                 return (
                   <div key={d.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${d.overdue ? 'var(--danger-border)' : cfg.color + '25'}`, borderRadius: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
@@ -332,7 +332,7 @@ export default function DeliverablesPage(): JSX.Element {
               <SortableTH col="status" sort={ovSort} onSort={setOvSort}>Estado</SortableTH>
             </div>
             {sortedOverview.map(d => {
-              const cfg = STATUS_CFG[d.status] || STATUS_CFG.planned
+              const cfg = STATUS_CFG[d.status as keyof typeof STATUS_CFG] || STATUS_CFG.planned
               return (
                 <div key={d.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
                   <div>

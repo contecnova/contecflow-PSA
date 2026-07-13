@@ -111,7 +111,7 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
 
   const save = () => {
     const result = validation.validateForm(form)
-    if (!result.success) return
+    if (!result.success || !result.data) return
     mutate({
       ...result.data,
       billing_rate:   result.data.billing_rate === '' || result.data.billing_rate == null ? null : Number(result.data.billing_rate),

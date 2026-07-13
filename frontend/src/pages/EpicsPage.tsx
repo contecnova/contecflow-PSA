@@ -90,8 +90,8 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
 
   const { mutate, isPending } = useMutation({
     mutationFn: (d: EpicFormState) => isEdit
-      ? epicsApi.update(epic.id, d).then(r=>r.data)
-      : epicsApi.createForProject(projectId, d).then(r=>r.data),
+      ? epicsApi.update(epic.id, d as Record<string, unknown>).then(r=>r.data)
+      : epicsApi.createForProject(projectId, d as Record<string, unknown>).then(r=>r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['epics',projectId] }); onClose() },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
   })
@@ -188,8 +188,8 @@ function RoadmapView({ epics, t }: { epics: EpicItem[]; t: (key: string, params?
                 <div style={{position:'absolute',left:`${left}%`,width:`${w}%`,height:'100%',background:epic.color||'var(--purple)',borderRadius:4,opacity:0.85,display:'flex',alignItems:'center',paddingLeft:8,overflow:'hidden',minWidth:4}}>
                   {w>8&&<span style={{fontSize: "var(--text-xs)",fontWeight:600,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{epic.title}</span>}
                 </div>
-                {epic.progress>0&&(
-                  <div style={{position:'absolute',left:`${left}%`,width:`${w*epic.progress/100}%`,height:'100%',background:'#fff',opacity:0.15,borderRadius:4}}/>
+                {(epic.progress ?? 0)>0&&(
+                  <div style={{position:'absolute',left:`${left}%`,width:`${w*(epic.progress ?? 0)/100}%`,height:'100%',background:'#fff',opacity:0.15,borderRadius:4}}/>
                 )}
               </div>
               <div style={{width:50,flexShrink:0,textAlign:'right',fontSize: "var(--text-xs)",color:'var(--text-2)',paddingLeft:8}}>{epic.progress||0}%</div>
@@ -308,9 +308,9 @@ export default function EpicsPage(): JSX.Element {
           {/* Lista de épicas */}
           <div data-export-table="epics-list" style={{display:'flex',flexDirection:'column',gap:10}}>
             {epics.map(epic=>{
-              const st  = STATUS_CFG[epic.status]  || STATUS_CFG.open
-              const pri = PRIORITY_CFG[epic.priority] || PRIORITY_CFG.medium
-              const progress = epic.task_count>0 ? Math.round((epic.done_tasks||0)/epic.task_count*100) : 0
+              const st  = STATUS_CFG[epic.status ?? 'open']  || STATUS_CFG.open
+              const pri = PRIORITY_CFG[epic.priority ?? 'medium'] || PRIORITY_CFG.medium
+              const progress = (epic.task_count ?? 0)>0 ? Math.round((epic.done_tasks||0)/(epic.task_count ?? 0)*100) : 0
               return (
                 <button key={epic.id} type="button" style={{...ps,padding:'16px 20px',border:`1px solid ${epic.color}30`,cursor:'pointer',width:'100%',textAlign:'left',fontFamily:'inherit'}}
                   onClick={()=>setDetailEpic(epic)}>
@@ -326,9 +326,9 @@ export default function EpicsPage(): JSX.Element {
                       <div style={{display:'flex',alignItems:'center',gap:20,fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
                         {epic.start_date&&<span>📅 {epic.start_date} → {epic.end_date||t('epics.no_end_date')}</span>}
                         <span>📌 {epic.task_count||0} {t('epics.tasks_count')}</span>
-                        {epic.task_count>0&&<span style={{color:'var(--success)'}}>{progress}% {t('epics.completed_label')}</span>}
+                        {(epic.task_count ?? 0)>0&&<span style={{color:'var(--success)'}}>{progress}% {t('epics.completed_label')}</span>}
                       </div>
-                      {epic.task_count>0&&(
+                      {(epic.task_count ?? 0)>0&&(
                         <div style={{marginTop:8,height:4,background:'var(--surface-4)',borderRadius:2,overflow:'hidden'}}>
                           <div style={{height:'100%',width:`${progress}%`,background:epic.color,borderRadius:2,transition:'width .3s'}}/>
                         </div>

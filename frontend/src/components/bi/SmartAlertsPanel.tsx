@@ -17,6 +17,11 @@ interface AlertRule {
   [k: string]: unknown
 }
 
+interface CorrelatedMetric {
+  metric_key?: string
+  [k: string]: unknown
+}
+
 interface AlertHistoryEntry {
   id: string | number
   rule_id?: string | number
@@ -24,6 +29,11 @@ interface AlertHistoryEntry {
   severity?: string
   message?: string
   acknowledged?: boolean
+  rule_name?: string
+  metric_key?: string
+  condition?: string
+  triggered_at?: string
+  correlated?: CorrelatedMetric[]
   [k: string]: unknown
 }
 

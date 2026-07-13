@@ -97,7 +97,7 @@ function ImportTab() {
     setOpStartedAt(Date.now())
     try {
       const fd = new FormData(); fd.append('file', file)
-      const resp = await importApi.validate(entityType, fd)
+      const resp = await importApi.validate(entityType, fd as unknown as Record<string, unknown>)
       setValidation(resp.data); setStep('validate')
       setOpStage(resp.data?.valid ? 'done' : 'failed')
     } catch(e) {
@@ -112,13 +112,13 @@ function ImportTab() {
   }
 
   const doImport = async () => {
-    if (!fileRef.current?.files[0]) return
+    if (!fileRef.current?.files![0]) return
     setImporting(true)
     setOpStage('importing')
     setOpStartedAt(Date.now())
     try {
-      const fd = new FormData(); fd.append('file', fileRef.current.files[0])
-      const resp = await importApi.execute(entityType, fd)
+      const fd = new FormData(); fd.append('file', fileRef.current.files![0])
+      const resp = await importApi.execute(entityType, fd as unknown as Record<string, unknown>)
       setResult(resp.data); setStep('result')
       setOpStage(resp.data?.status === 'failed' ? 'failed' : 'done')
     } catch(e) {
@@ -182,7 +182,7 @@ function ImportTab() {
             <div>
               <label style={ls}>{t('import_data.file_label')}</label>
               <input ref={fileRef} type="file" accept=".csv,.txt"
-                onChange={e => { if(e.target.files[0]) { setStep('select'); setValidation(null); setResult(null) } }}
+                onChange={e => { if(e.target.files![0]) { setStep('select'); setValidation(null); setResult(null) } }}
                 style={{...fs,padding:'7px'}} />
             </div>
 
@@ -202,7 +202,7 @@ function ImportTab() {
                   {(validating || importing) && <span style={{ color: 'var(--text-3)' }}>{opElapsed}s</span>}
                 </div>
               )}
-              <Button onClick={() => { if(fileRef.current?.files[0]) validateFile(fileRef.current.files[0]) }} disabled={validating}>
+              <Button onClick={() => { if(fileRef.current?.files![0]) validateFile(fileRef.current.files![0]) }} disabled={validating}>
                 {validating ? t('import_data.validating_btn') : t('import_data.validate_btn')}
               </Button>
               {step === 'validate' && validation?.valid && (
@@ -222,14 +222,14 @@ function ImportTab() {
               <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',marginBottom:10}}>{validation.total_rows} {t('import_data.rows_detected')}</div>
               {validation.warnings?.map((w,i) => <div key={i} style={{background:'var(--warning-bg)',border:'1px solid var(--warning-border)',borderRadius:6,padding:'6px 10px',color:'var(--warning)',fontSize: "var(--text-sm)",marginBottom:6}}>⚠ {t('import_data.warning')} {w}</div>)}
               {validation.errors?.map((e,i) => <div key={i} style={{background:'var(--danger-bg)',border:'1px solid var(--danger-border)',borderRadius:6,padding:'6px 10px',color:'var(--danger)',fontSize: "var(--text-sm)",marginBottom:6}}>✗ {t('import_data.row')} {e.row}: {e.error}</div>)}
-              {validation.preview?.length > 0 && (
+              {(validation.preview ?? []).length > 0 && (
                 <div style={{marginTop:12,fontSize: "var(--text-xs)",color:'var(--text-2)'}}>
                   <div style={{fontWeight:700,marginBottom:6}}>{t('import_data.preview')}</div>
                   <div style={{overflowX:'auto'}}>
                     <table style={{borderCollapse:'collapse',fontSize: "var(--text-xs)"}}>
-                      <thead><tr>{Object.keys(validation.preview[0] || {}).map(k => <th key={k} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)',textAlign:'left',color:'var(--text-3)',whiteSpace:'nowrap'}}>{k}</th>)}</tr></thead>
+                      <thead><tr>{Object.keys((validation.preview ?? [])[0] || {}).map(k => <th key={k} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)',textAlign:'left',color:'var(--text-3)',whiteSpace:'nowrap'}}>{k}</th>)}</tr></thead>
                       <tbody>
-                        {validation.preview.map((row,i) => <tr key={i}>{Object.values(row).map((v,j) => <td key={j} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)20',color:'var(--text-1)',whiteSpace:'nowrap'}}>{String(v).slice(0,30)}</td>)}</tr>)}
+                        {(validation.preview ?? []).map((row,i) => <tr key={i}>{Object.values(row).map((v,j) => <td key={j} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)20',color:'var(--text-1)',whiteSpace:'nowrap'}}>{String(v).slice(0,30)}</td>)}</tr>)}
                       </tbody>
                     </table>
                   </div>
@@ -240,9 +240,9 @@ function ImportTab() {
 
           {/* Import result */}
           {result && step === 'result' && (
-            <div style={{...card,padding:'16px 20px',border:`1px solid ${result.succeeded>0?'rgba(52,211,153,0.25)':'rgba(248,113,113,0.25)'}`}}>
-              <div style={{fontSize: "var(--text-md)",fontWeight:700,color:result.succeeded>0?'var(--success)':'var(--danger)',marginBottom:12}}>
-                {result.succeeded > 0 ? t('import_data.import_completed') : t('import_data.import_failed')}
+            <div style={{...card,padding:'16px 20px',border:`1px solid ${(result.succeeded ?? 0)>0?'rgba(52,211,153,0.25)':'rgba(248,113,113,0.25)'}`}}>
+              <div style={{fontSize: "var(--text-md)",fontWeight:700,color:(result.succeeded ?? 0)>0?'var(--success)':'var(--danger)',marginBottom:12}}>
+                {(result.succeeded ?? 0) > 0 ? t('import_data.import_completed') : t('import_data.import_failed')}
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:12}}>
                 {[
@@ -271,7 +271,7 @@ function ImportTab() {
                   {j.status}
                 </span>
                 <div>
-                  <div style={{fontSize: "var(--text-sm)",fontWeight:600}}>{ENTITY_LABELS[j.entity_type]||j.entity_type}</div>
+                  <div style={{fontSize: "var(--text-sm)",fontWeight:600}}>{ENTITY_LABELS[j.entity_type as keyof typeof ENTITY_LABELS]||j.entity_type}</div>
                   <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{j.filename} · {j.started_at}</div>
                 </div>
                 <span style={{fontSize: "var(--text-sm)",color:'var(--text-2)',textAlign:'right'}}>{j.succeeded}/{j.total_rows}</span>

@@ -51,14 +51,14 @@ type LinkedTicket = {
 
 type InputStyles = CSSProperties
 
-const PRIORITY_COLOR = {
+const PRIORITY_COLOR: Record<string, string> = {
   p1_critical: COLOR.danger,
   p2_high: 'var(--orange)',
   p3_medium: COLOR.warning,
   p4_low: COLOR.text2,
 }
 
-const PRIORITY_LABEL = {
+const PRIORITY_LABEL: Record<string, string> = {
   p1_critical: 'P1 Critico',
   p2_high: 'P2 Alto',
   p3_medium: 'P3 Medio',
@@ -66,10 +66,10 @@ const PRIORITY_LABEL = {
 }
 
 function PBadge({ v }: { v?: Priority }) {
-  const color = PRIORITY_COLOR[v] || COLOR.text2
+  const color = PRIORITY_COLOR[v ?? ''] || COLOR.text2
   return (
     <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color, padding: '2px 7px', borderRadius: 4, border: `1px solid ${color}30`, background: `${color}12`, whiteSpace: 'nowrap' }}>
-      {PRIORITY_LABEL[v] || v}
+      {PRIORITY_LABEL[v ?? ''] || v}
     </span>
   )
 }
@@ -287,7 +287,7 @@ function Problems() {
   const IS: InputStyles = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     open: COLOR.danger,
     investigating: COLOR.warning,
     known_error: 'var(--orange)',
@@ -309,7 +309,7 @@ function Problems() {
         ? <EmptyState icon="🔍" title="Sin problemas registrados" description="Crea el primer problema para investigar incidentes recurrentes." />
         : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {problems.map((p) => {
-              const sc = statusColors[p.status] || COLOR.text2
+              const sc = statusColors[p.status ?? ''] || COLOR.text2
               return (
                 <div key={p.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
@@ -320,9 +320,9 @@ function Problems() {
                           {p.status?.replace(/_/g, ' ')}
                         </span>
                         <PBadge v={p.priority} />
-                        {p.related_tickets?.length > 0 && (
+                        {(p.related_tickets ?? []).length > 0 && (
                           <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-                            {p.related_tickets.length} ticket{p.related_tickets.length !== 1 ? 's' : ''}
+                            {(p.related_tickets ?? []).length} ticket{(p.related_tickets ?? []).length !== 1 ? 's' : ''}
                           </span>
                         )}
                       </div>
@@ -469,7 +469,7 @@ function KB() {
           <div key={a.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-1)', flex: 1, marginRight: 8 }}>{a.title}</div>
-              <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', background: `${STATUS_COLOR[a.status] || COLOR.text2}15`, color: STATUS_COLOR[a.status] || COLOR.text2 }}>
+              <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', background: `${STATUS_COLOR[a.status ?? ''] || COLOR.text2}15`, color: STATUS_COLOR[a.status ?? ''] || COLOR.text2 }}>
                 {a.status}
               </span>
             </div>

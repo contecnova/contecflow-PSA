@@ -21,7 +21,8 @@
       "Bash(python -m pytest tests/test_perf_pdf_email.py -x --tb=short)",
       "Bash(cd \"C:/Users/f80ova0/Documents/Code/contecflow PSA/frontend\" && sed -i 's/typeLabels\\(t\\)\\\\[a\\\\.type\\\\]/typeLabels\\(t\\)[a.type || \"\"]/g' src/pages/AbsencesPage.tsx && grep -n 'typeLabels\\(t\\)\\\\[a.type' src/pages/AbsencesPage.tsx)",
       "Bash(npx tsc *)",
-      "Bash(echo \"EXIT_GREP=$?\")"
+      "Bash(echo \"EXIT_GREP=$?\")",
+      "Read(//tmp/**)"
     ]
   }
 }

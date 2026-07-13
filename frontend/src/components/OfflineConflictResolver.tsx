@@ -15,12 +15,22 @@ import {
 } from '../services/offlineSync'
 import { useAppT } from '../i18n/AppLangContext'
 
+type ConflictItem = {
+  id?: number
+  opId: string
+  localValue: unknown
+  serverValue: unknown
+  strategy: string
+  resolvedAt: number | null
+  resolution: 'local' | 'server' | 'merged' | null
+}
+
 export default function OfflineConflictResolver() {
   const t = useAppT()
-  const [conflicts, setConflicts] = useState([])
-  const [selectedConflict, setSelectedConflict] = useState(null)
+  const [conflicts, setConflicts] = useState<ConflictItem[]>([])
+  const [selectedConflict, setSelectedConflict] = useState<ConflictItem | null>(null)
   const [resolving, setResolving] = useState(false)
-  const [history, setHistory] = useState([])
+  const [history, setHistory] = useState<ConflictItem[]>([])
   const [showHistory, setShowHistory] = useState(false)
 
   // Load conflicts on mount
@@ -51,11 +61,11 @@ export default function OfflineConflictResolver() {
     }
   }
 
-  async function handleResolve(conflict, strategy) {
+  async function handleResolve(conflict: ConflictItem, strategy: 'local' | 'server' | 'merged') {
     setResolving(true)
     try {
       await resolveConflict({
-        conflictId: conflict.id,
+        conflictId: conflict.id!,
         resolution: strategy,
       })
       await refreshConflicts()

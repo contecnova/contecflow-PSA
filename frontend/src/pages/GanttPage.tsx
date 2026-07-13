@@ -5,6 +5,7 @@
  */
 import { useState, useCallback, useMemo } from 'react'
 import { useToast } from '../context/ToastContext'
+import type { ToastMessage } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksApi, taskDependenciesApi, projectsApi, aiCopilotApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
@@ -60,7 +61,7 @@ export default function GanttPage(): JSX.Element {
   // ── data ────────────────────────────────────────────────────────────────────
   const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects'],
-    queryFn:  () => projectsApi.list({}).then(r => r.data?.items ?? r.data ?? []),
+    queryFn:  () => projectsApi.list({}).then(r => (r.data as unknown as { items?: ProjectItem[] })?.items ?? (r.data as unknown as ProjectItem[]) ?? []),
   })
 
   const { data: rawTasks = [], isLoading } = useQuery<TaskItem[]>({
@@ -68,7 +69,7 @@ export default function GanttPage(): JSX.Element {
     queryFn:  () => {
       const params = { page_size: 300, ...(projectId ? { project_id: projectId } : {}) }
       return tasksApi.list(params)
-          .then(r => Array.isArray(r.data) ? (r.data as TaskItem[]) : ((r.data?.items || []) as TaskItem[]))
+          .then(r => Array.isArray(r.data) ? (r.data as unknown as TaskItem[]) : (((r.data as unknown as { items?: TaskItem[] })?.items || []) as TaskItem[]))
     },
     staleTime: 15000,
   })
@@ -125,12 +126,12 @@ export default function GanttPage(): JSX.Element {
 
   // ── mutations ───────────────────────────────────────────────────────────────
   const { mutate: saveDates } = useMutation({
-    mutationFn: (updates: Array<{ id: string | number; start_date?: string; due_date?: string }>) => taskDependenciesApi.bulkDates(updates),
+    mutationFn: (updates: Array<{ id: string | number; start_date?: string; due_date?: string }>) => taskDependenciesApi.bulkDates(updates as unknown as Record<string, unknown>),
     onSuccess:  () => { invalidate('tasks'); setLocalDates({}); toast.success(t('gantt.dates_saved')) },
     onError:    (e: unknown) => {
       setLocalDates({})
       const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-      toast.error((detail && String(detail)) || t('gantt.error_save'))
+      toast.error(((detail && String(detail)) || t('gantt.error_save')) as ToastMessage)
     },
   })
 
@@ -144,7 +145,7 @@ export default function GanttPage(): JSX.Element {
     onSuccess:  () => { invalidate('task-deps'); toast.success(t('gantt.dependency_created')) },
     onError:    (e: unknown) => {
       const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-      toast.error((detail && String(detail)) || t('gantt.error_create_dependency'))
+      toast.error(((detail && String(detail)) || t('gantt.error_create_dependency')) as ToastMessage)
     },
   })
 

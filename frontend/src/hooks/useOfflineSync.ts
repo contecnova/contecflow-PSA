@@ -10,10 +10,17 @@ import { useState, useEffect } from 'react'
 import { syncPendingOps, offlineDb } from '../services/offlineSync'
 import api from '../services/api'
 
+interface SyncOp {
+  method: string
+  url: string
+  body?: unknown
+  headers?: Record<string, string>
+}
+
 export default function useOfflineSync() {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
   const [pendingCount, setPendingCount] = useState(0)
-  const [lastSyncResult, setLastSyncResult] = useState(null)
+  const [lastSyncResult, setLastSyncResult] = useState<Awaited<ReturnType<typeof syncPendingOps>> | null>(null)
 
   useEffect(() => {
     const goOnline  = () => setIsOnline(true)
@@ -36,7 +43,7 @@ export default function useOfflineSync() {
   // Auto-sync on reconnect
   useEffect(() => {
     if (!isOnline) return
-    const apiFn = (op) =>
+    const apiFn = (op: SyncOp) =>
       api.request({ method: op.method, url: op.url, data: op.body, headers: op.headers })
     syncPendingOps(apiFn)
       .then(result => {

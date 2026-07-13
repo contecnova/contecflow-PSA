@@ -177,7 +177,7 @@ class OfflineDb {
       this._db = null
       return
     }
-    this._db = new Dexie('contecflow_offline')
+    this._db = new Dexie!('contecflow_offline')
     // Keep v1 schema for existing installations and move new tables/indexes to v2.
     this._db.version(1).stores({
       cache: 'key, ts',
@@ -302,7 +302,7 @@ export async function readCache(key: string) {
  * @param {number} retryCount
  * @returns {number} milliseconds to wait
  */
-function _exponentialBackoff(retryCount) {
+function _exponentialBackoff(retryCount: number) {
   const baseDelay = 1000 // 1s
   const maxDelay = 30000 // 30s
   const jitter = Math.random() * 0.1
@@ -407,7 +407,7 @@ export async function syncPendingOps(apiFn?: (op: PendingOperation) => Promise<u
   })
   
   // Group by endpoint for batch efficiency
-  const opsByEndpoint = {}
+  const opsByEndpoint: Record<string, PendingOperation[]> = {}
   for (const op of ops) {
     const endpoint = new URL(op.url, 'http://localhost').pathname
     if (!opsByEndpoint[endpoint]) opsByEndpoint[endpoint] = []
@@ -720,7 +720,7 @@ export function getSupportedOfflineOperations() {
  * Queue a task creation for offline execution.
  * @param {object} taskData - Task payload
  */
-export async function queueTaskCreate(taskData) {
+export async function queueTaskCreate(taskData: Record<string, unknown>) {
   return queueOperation({
     method: 'POST',
     url: '/api/v1/tasks',
@@ -736,7 +736,7 @@ export async function queueTaskCreate(taskData) {
  * @param {string|number} taskId - Task ID
  * @param {object} taskData - Updated task fields
  */
-export async function queueTaskUpdate(taskId, taskData) {
+export async function queueTaskUpdate(taskId: string | number, taskData: Record<string, unknown>) {
   return queueOperation({
     method: 'PATCH',
     url: `/api/v1/tasks/${taskId}`,
@@ -752,7 +752,7 @@ export async function queueTaskUpdate(taskId, taskData) {
  * @param {string|number} taskId - Task ID
  * @param {string} status - New status value
  */
-export async function queueTaskUpdateStatus(taskId, status) {
+export async function queueTaskUpdateStatus(taskId: string | number, status: string) {
   return queueOperation({
     method: 'PATCH',
     url: `/api/v1/tasks/${taskId}`,
@@ -767,7 +767,7 @@ export async function queueTaskUpdateStatus(taskId, status) {
  * Queue a time imputation creation for offline execution.
  * @param {object} imputationData - Imputation payload
  */
-export async function queueImputationCreate(imputationData) {
+export async function queueImputationCreate(imputationData: Record<string, unknown>) {
   return queueOperation({
     method: 'POST',
     url: '/api/v1/imputations',
@@ -783,7 +783,7 @@ export async function queueImputationCreate(imputationData) {
  * @param {string|number} imputationId - Imputation ID
  * @param {object} imputationData - Updated imputation fields
  */
-export async function queueImputationUpdate(imputationId, imputationData) {
+export async function queueImputationUpdate(imputationId: string | number, imputationData: Record<string, unknown>) {
   return queueOperation({
     method: 'PATCH',
     url: `/api/v1/imputations/${imputationId}`,
@@ -798,7 +798,7 @@ export async function queueImputationUpdate(imputationId, imputationData) {
  * Queue an expense creation for offline execution.
  * @param {object} expenseData - Expense payload
  */
-export async function queueExpenseCreate(expenseData) {
+export async function queueExpenseCreate(expenseData: Record<string, unknown>) {
   return queueOperation({
     method: 'POST',
     url: '/api/v1/expenses',

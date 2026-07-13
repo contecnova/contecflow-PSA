@@ -28,7 +28,7 @@ export default function OfflineIndicator() {
     lastSyncResult,
   } = useOfflineSync(api);
   
-  const [syncStats, setSyncStats] = useState(null);
+  const [syncStats, setSyncStats] = useState<Awaited<ReturnType<typeof getSyncStats>> | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [manualSyncing, setManualSyncing] = useState(false);
 

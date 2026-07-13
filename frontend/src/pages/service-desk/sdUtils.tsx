@@ -46,13 +46,13 @@ export const LABEL_STYLE = {
 }
 
 // ── Formatters ─────────────────────────────────────────────────────────────────
-export function fmtDate(d) {
+export function fmtDate(d: string | number | Date | null | undefined) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('es-ES', {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
   })
 }
-export function fmtMinutes(m) {
+export function fmtMinutes(m: number | null | undefined) {
   if (!m) return '—'
   if (m < 60) return `${m}m`
   const h = Math.floor(m / 60), min = Math.round(m % 60)
@@ -60,8 +60,8 @@ export function fmtMinutes(m) {
 }
 
 // ── Tiny badge components ──────────────────────────────────────────────────────
-export function PBadge({ v }) {
-  const color = PRIORITY_COLOR[v] || COLOR.text2
+export function PBadge({ v }: { v: string }) {
+  const color = PRIORITY_COLOR[v as keyof typeof PRIORITY_COLOR] || COLOR.text2
   return (
     <span style={{
       fontSize: "var(--text-2xs)", fontWeight: 700, color,
@@ -69,12 +69,12 @@ export function PBadge({ v }) {
       border: `1px solid ${color}30`, background: `${color}12`,
       whiteSpace: 'nowrap',
     }}>
-      {PRIORITY_LABEL[v] || v}
+      {PRIORITY_LABEL[v as keyof typeof PRIORITY_LABEL] || v}
     </span>
   )
 }
-export function SBadge({ v }) {
-  const color = STATUS_COLOR[v] || COLOR.text2
+export function SBadge({ v }: { v: string }) {
+  const color = STATUS_COLOR[v as keyof typeof STATUS_COLOR] || COLOR.text2
   return (
     <span style={{
       fontSize: "var(--text-2xs)", fontWeight: 600, color,

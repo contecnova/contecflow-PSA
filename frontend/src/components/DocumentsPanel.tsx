@@ -11,9 +11,9 @@ import { extractErr } from '../utils/helpers';
 import { Upload, Download, Trash2, Plus, Sparkles, Loader, X } from 'lucide-react';
 import { useAppT } from '../hooks/useAppT';
 
-import type { CSSProperties } from 'react';
+import type { CSSProperties, DragEvent } from 'react';
 
-function fmtBytes(b) {
+function fmtBytes(b: number | null | undefined) {
   if (!b) return '';
   if (b < 1024) return `${b} B`;
   if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`;
@@ -29,8 +29,8 @@ const FILE_COLORS = {
   other:       { c: 'var(--text-3)', bg: 'color-mix(in srgb, var(--text-3) 9%, transparent)',   l: 'FILE' },
 };
 
-function detectType(mime, name) {
-  const ext = (name || '').split('.').pop()?.toLowerCase();
+function detectType(mime: string | null | undefined, name: string | null | undefined): keyof typeof FILE_COLORS {
+  const ext = (name || '').split('.').pop()?.toLowerCase() ?? '';
   if (mime?.startsWith('image/')) return 'image';
   if (mime === 'application/pdf' || ext === 'pdf') return 'pdf';
   if (mime?.includes('spreadsheet') || mime?.includes('excel') || ['xls','xlsx','csv'].includes(ext)) return 'spreadsheet';
@@ -39,7 +39,7 @@ function detectType(mime, name) {
   return 'other';
 }
 
-function FileIcon({ mime, name, size = 30 }) {
+function FileIcon({ mime, name, size = 30 }: { mime?: string | null; name?: string | null; size?: number }) {
   const ft = FILE_COLORS[detectType(mime, name)];
   return (
     <div style={{
@@ -54,7 +54,7 @@ function FileIcon({ mime, name, size = 30 }) {
   );
 }
 
-const APPROVAL_ICON = {
+const APPROVAL_ICON: Record<string, { c: string; icon: string }> = {
   approved: { c: 'var(--success)', icon: '✓' },
   rejected: { c: 'var(--danger)', icon: '✕' },
   pending:  { c: 'var(--warning)', icon: '◷' },
@@ -62,25 +62,48 @@ const APPROVAL_ICON = {
 
 const CATS = ['contract','deliverable','proposal','sop','legal','requirements','meeting_notes','other'];
 
-function resolveQueryKey(projectId, taskId, ticketId) {
+type IdVal = string | number | null | undefined;
+
+function resolveQueryKey(projectId: IdVal, taskId: IdVal, ticketId: IdVal): (string | number | null | undefined)[] {
   if (taskId) return ['docs-task', taskId];
   if (ticketId) return ['docs-ticket', ticketId];
   return ['docs-project', projectId];
 }
 
-function resolveApiFn(projectId, taskId, ticketId) {
+function resolveApiFn(projectId: IdVal, taskId: IdVal, ticketId: IdVal) {
   if (taskId) return () => documentsApi.byTask(taskId, {});
   if (ticketId) return () => documentsApi.byTicket(ticketId, {});
   return () => documentsApi.byProject(projectId, {});
 }
 
-export default function DocumentsPanel({ projectId, taskId, ticketId, _compact = false }) {
+interface DocVersion {
+  file_mime_type?: string | null;
+  file_name?: string | null;
+  file_size?: number | null;
+  download_url?: string | null;
+}
+interface Doc {
+  id: string | number;
+  title?: string;
+  category?: string;
+  latest_version?: DocVersion | null;
+  requires_approval?: boolean;
+  approval_status?: string | null;
+}
+interface DocumentsPanelProps {
+  projectId?: IdVal;
+  taskId?: IdVal;
+  ticketId?: IdVal;
+  _compact?: boolean;
+}
+
+export default function DocumentsPanel({ projectId, taskId, ticketId, _compact = false }: DocumentsPanelProps) {
   const { t } = useAppT();
   const toast = useToast();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('other');
   const [dragOver, setDragOver] = useState(false);
@@ -88,22 +111,25 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
   const qKey = resolveQueryKey(projectId, taskId, ticketId);
   const apiFn = resolveApiFn(projectId, taskId, ticketId);
 
-  const { data: docs = [], isLoading } = useQuery({
+  const { data: docs = [], isLoading } = useQuery<Doc[]>({
     queryKey: qKey,
-    queryFn: () => apiFn().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => apiFn().then((r: { data?: { items?: Doc[] } | Doc[] }) => {
+      const d = r.data as { items?: Doc[] } | Doc[] | undefined;
+      return (d && !Array.isArray(d) ? d.items : d) ?? [];
+    }),
     enabled: !!(projectId || taskId || ticketId),
   });
 
   const uploadMutation = useMutation({
     mutationFn: () => {
       const fd = new FormData();
-      fd.append('file', file);
-      fd.append('title', title || file.name);
+      fd.append('file', file as File);
+      fd.append('title', title || (file as File).name);
       fd.append('category', category);
       if (projectId) fd.append('project_id', String(projectId));
       if (taskId)    fd.append('task_id',    String(taskId));
       if (ticketId)  fd.append('ticket_id',  String(ticketId));
-      return documentsApi.upload(fd);
+      return documentsApi.upload(fd as unknown as Record<string, unknown>);
     },
     onSuccess: () => {
       toast.success(t('documents_panel.uploaded_ok'));
@@ -114,18 +140,18 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
   });
 
   const deleteMutation = useMutation({
-    mutationFn: id => documentsApi.delete(id),
+    mutationFn: (id: string | number) => documentsApi.delete(id),
     onSuccess: () => { toast.success(t('documents_panel.deleted_ok')); qc.invalidateQueries({ queryKey: qKey }); },
     onError: e => toast.error(extractErr(e, t('documents_panel.delete_error'))),
   });
 
   const summaryMutation = useMutation({
-    mutationFn: id => documentsApi.aiSummary(id),
+    mutationFn: (id: string | number) => documentsApi.aiSummary(id),
     onSuccess: () => { toast.success(t('documents_panel.ai_summary_saved')); qc.invalidateQueries({ queryKey: qKey }); },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   });
 
-  const onDrop = useCallback(e => {
+  const onDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault(); setDragOver(false);
     const f = e.dataTransfer.files?.[0];
     if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); setShowForm(true); }

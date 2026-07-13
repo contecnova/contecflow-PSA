@@ -72,8 +72,8 @@ function FTSMode() {
       if (q.trim().length < 2) return {}
       const ents = entity === 'all' ? ENTITY_TYPES.map(e => e.id) : [entity]
       const calls = await Promise.allSettled([
-        ents.includes('project')  ? projectsApi.list({ search: q, limit: 8 }).then(r => ({ type: 'project', items: r.data?.items || r.data || [] })) : null,
-        ents.includes('task')     ? tasksApi.list({ search: q, limit: 8 }).then(r => ({ type: 'task',    items: r.data?.items || r.data || [] })) : null,
+        ents.includes('project')  ? projectsApi.list({ search: q, limit: 8 } as unknown as import('../services/api/projects').ProjectListParams).then(r => ({ type: 'project', items: (r.data as unknown as { items?: SearchItem[] })?.items || r.data || [] })) : null,
+        ents.includes('task')     ? tasksApi.list({ search: q, limit: 8 } as unknown as import('../services/api/tasks').TaskListParams).then(r => ({ type: 'task',    items: (r.data as unknown as { items?: SearchItem[] })?.items || r.data || [] })) : null,
         ents.includes('client')   ? clientsApi.list({ q, limit: 8 }).then(r => ({ type: 'client',  items: r.data?.items ?? r.data ?? [] })) : null,
         ents.includes('ticket')   ? ticketsApi.list({ search: q, page_size: 8 }).then(r => ({ type: 'ticket',  items: r.data?.tickets || r.data?.items || (Array.isArray(r.data) ? r.data : []) })) : null,
         ents.includes('contract') ? contractsApi.list({ q, limit: 8 }).then(r => ({ type: 'contract', items: r.data?.items || r.data || [] })) : null,
@@ -143,16 +143,16 @@ function FTSMode() {
           <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>
             {totalResults} resultado(s) para &quot;{q}&quot;
           </div>
-          {ENTITY_TYPES.filter(e => results[e.id]?.length > 0).map(etype => (
+          {ENTITY_TYPES.filter(e => (results[e.id]?.length ?? 0) > 0).map(etype => (
             <div key={etype.id} style={{ marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ fontSize: "var(--text-lg)" }}>{etype.icon}</span>
                 <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: etype.color }}>{etype.label}</span>
                 <span style={{ fontSize: "var(--text-xs)", background: etype.color + '20', color: etype.color, borderRadius: 10, padding: '1px 7px' }}>
-                  {results[etype.id].length}
+                  {results[etype.id]!.length}
                 </span>
               </div>
-              {results[etype.id].map(item => (
+              {results[etype.id]!.map(item => (
                 <button key={item.id} type="button" style={{ ...panel, padding: '12px 16px', marginBottom: 6,
                   cursor: 'pointer', transition: 'border-color 0.12s' }}
                   onMouseEnter={e => e.currentTarget.style.borderColor = etype.color + '40'}
