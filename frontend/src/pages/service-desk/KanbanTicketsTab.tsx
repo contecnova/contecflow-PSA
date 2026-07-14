@@ -1,19 +1,37 @@
 import { useState } from 'react'
+import type React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { Spinner } from '../../components/ui'
 import { ticketsApi } from '../../services/api'
 
-const PRIO_COLOR = { p1_critical: '#f87171', p2_high: '#fb923c', p3_medium: '#4f8ef7', p4_low: '#34d399' }
-const PRIO_LABEL = { p1_critical: 'P1', p2_high: 'P2', p3_medium: 'P3', p4_low: 'P4' }
+const PRIO_COLOR: Record<string, string> = { p1_critical: '#f87171', p2_high: '#fb923c', p3_medium: '#4f8ef7', p4_low: '#34d399' }
+const PRIO_LABEL: Record<string, string> = { p1_critical: 'P1', p2_high: 'P2', p3_medium: 'P3', p4_low: 'P4' }
 
-export default function KanbanTicketsTab({ onSelect }) {
+interface KanbanTicket {
+  id: string | number
+  status?: string
+  number?: string | number
+  title?: string
+  priority?: string
+  requester_name?: string
+  assigned_name?: string
+  sla_resolution_status?: string
+  [key: string]: unknown
+}
+
+interface DragState {
+  ticket: KanbanTicket
+  fromCol: string
+}
+
+export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: KanbanTicket) => void }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [dragging, setDragging] = useState(null)
-  const [dragOverCol, setDragOverCol] = useState(null)
+  const [dragging, setDragging] = useState<DragState | null>(null)
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null)
 
   const KANBAN_COLS = [
     { id: 'open',           label: t('service_desk.status_open'),           color: '#4f8ef7' },
@@ -23,14 +41,15 @@ export default function KanbanTicketsTab({ onSelect }) {
     { id: 'resolved',       label: t('service_desk.status_resolved'),       color: '#34d399' },
   ]
 
-  const { data: raw = {}, isLoading } = useQuery({
+  const { data: raw = {}, isLoading } = useQuery<Record<string, KanbanTicket[]>>({
     queryKey: ['sd-tickets-kanban'],
-    queryFn: () => ticketsApi.list({ page_size: 200 }).then(r => {
-      const tickets = Array.isArray(r.data) ? r.data : (r.data?.tickets || [])
-      const cols = {}
+    queryFn: () => ticketsApi.list({ page_size: 200 }).then((r: { data: unknown }) => {
+      const d = r.data as { tickets?: KanbanTicket[] } | KanbanTicket[]
+      const tickets: KanbanTicket[] = Array.isArray(d) ? d : (d?.tickets || [])
+      const cols: Record<string, KanbanTicket[]> = {}
       KANBAN_COLS.forEach(c => { cols[c.id] = [] })
       tickets.forEach(ticket => {
-        const s = ticket.status
+        const s = ticket.status ?? ''
         if (cols[s]) cols[s].push(ticket)
         else cols['open'] = [...(cols['open'] || []), ticket]
       })
@@ -40,20 +59,20 @@ export default function KanbanTicketsTab({ onSelect }) {
   })
 
   const { mutate: moveTicket } = useMutation({
-    mutationFn: ({ id, status }) => ticketsApi.update(id, { status }),
+    mutationFn: ({ id, status }: { id: string | number; status: string }) => ticketsApi.update(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sd-tickets-kanban'] }),
-    onError: e => toast.error(e?.response?.data?.detail || 'Error al mover ticket'),
+    onError: (e: unknown) => toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al mover ticket'),
   })
 
-  const onDragStart = (e, ticket, fromCol) => {
+  const onDragStart = (e: React.DragEvent, ticket: KanbanTicket, fromCol: string) => {
     setDragging({ ticket, fromCol })
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', String(ticket.id))
   }
-  const onDragOver = e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }
-  const onDragEnter = (e, colId) => { e.preventDefault(); setDragOverCol(colId) }
-  const onDragLeave = e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverCol(null) }
-  const onDrop = (e, toColId) => {
+  const onDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }
+  const onDragEnter = (e: React.DragEvent, colId: string) => { e.preventDefault(); setDragOverCol(colId) }
+  const onDragLeave = (e: React.DragEvent) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOverCol(null) }
+  const onDrop = (e: React.DragEvent, toColId: string) => {
     e.preventDefault()
     setDragOverCol(null)
     if (!dragging || dragging.fromCol === toColId) { setDragging(null); return }

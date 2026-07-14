@@ -150,8 +150,8 @@ export async function syncPending(apiInstance: ApiLike): Promise<SyncResult> {
 
 // ── Auto-sync on reconnect ────────────────────────────────────────────────────
 
-let _apiRef = null;
-let _onSyncCallback = null;
+let _apiRef: ApiLike | null = null;
+let _onSyncCallback: ((result: SyncResult) => void) | null = null;
 
 export function initOfflineSync(apiInstance: ApiLike, onSync?: (result: SyncResult) => void) {
   _apiRef = apiInstance;

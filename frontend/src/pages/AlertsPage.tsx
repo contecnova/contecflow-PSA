@@ -12,7 +12,7 @@ import { fmtRelative, extractErr} from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 
-function alertSourceUrl(alert) {
+function alertSourceUrl(alert: any) {
   if (alert.project?.id) return `/projects/${alert.project.id}`
   const t = alert.alert_type
   if (t === 'task_blocked' || t === 'hours_deviation') return '/tasks'
@@ -59,22 +59,22 @@ export default function AlertsPage(): JSX.Element {
   })
 
   const { mutate: resolve } = useMutation({
-    mutationFn: (id) => alertsApi.resolve(id),
+    mutationFn: (id: any) => alertsApi.resolve(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['alerts-page'] }),
     onError: e => toast.error(extractErr(e, t('alerts.generic_error'))),
   })
 
   const { mutate: markRead } = useMutation({
-    mutationFn: (id) => alertsApi.read(id),
+    mutationFn: (id: any) => alertsApi.read(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['alerts-page'] }),
     onError: e => toast.error(extractErr(e, t('alerts.generic_error'))),
   })
 
-  const unread = alerts.filter(a => !a.is_read).length
-  const bySeverity = {
-    critical: alerts.filter(a => a.severity === 'critical'),
-    warning:  alerts.filter(a => a.severity === 'warning'),
-    info:     alerts.filter(a => a.severity === 'info'),
+  const unread = alerts.filter((a: any) => !a.is_read).length
+  const bySeverity: Record<string, any[]> = {
+    critical: alerts.filter((a: any) => a.severity === 'critical'),
+    warning:  alerts.filter((a: any) => a.severity === 'warning'),
+    info:     alerts.filter((a: any) => a.severity === 'info'),
   }
 
   return (
@@ -134,8 +134,8 @@ export default function AlertsPage(): JSX.Element {
         <EmptyState icon="✅" title={t('alerts.no_alerts')} description={t('alerts.empty_description')} />
       ) : (
         <div data-export-table="alerts-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {alerts.map(alert => {
-            const cfg = SEVERITY_CONFIG[alert.severity] || SEVERITY_CONFIG.info
+          {alerts.map((alert: any) => {
+            const cfg = SEVERITY_CONFIG[alert.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.info
             const sourceUrl = alertSourceUrl(alert)
             return (
               <div key={alert.id} style={{
@@ -152,7 +152,7 @@ export default function AlertsPage(): JSX.Element {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: "var(--text-lg-em)" }}>{TYPE_ICONS[alert.alert_type] || '🔔'}</span>
+                      <span style={{ fontSize: "var(--text-lg-em)" }}>{TYPE_ICONS[alert.alert_type as keyof typeof TYPE_ICONS] || '🔔'}</span>
                       <div>
                         <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{alert.title}</div>
                         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

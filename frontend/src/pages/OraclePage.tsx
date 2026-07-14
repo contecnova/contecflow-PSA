@@ -11,14 +11,45 @@ import { Brain } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 
+interface OraclePrediction {
+  id: string | number
+  type: string
+  severity: string
+  title?: string
+  entity_type?: string
+  entity_name?: string
+  is_acknowledged?: boolean
+  probability?: number
+  explanation?: string
+  recommended_action?: string
+  [key: string]: unknown
+}
+
+interface OracleAlert {
+  type?: string
+  entity?: string
+  probability?: number
+  [key: string]: unknown
+}
+
+interface OracleAnalysis {
+  alerts_generated?: number
+  methodology?: string
+  alerts?: OracleAlert[]
+  [key: string]: unknown
+}
+
+interface SevCfg { label: string; color: string; bg: string }
+interface TypeIcon { icon: string; label: string }
+
 const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const SEV = {
+const SEV: Record<string, SevCfg> = {
   critical: { label: 'Crítico', color: 'var(--danger)', bg: 'var(--danger-bg)' },
   high:     { label: 'Alto',    color: 'var(--warning)', bg: 'var(--warning-bg)' },
   medium:   { label: 'Medio',   color: 'var(--accent)', bg: 'var(--accent-muted)' },
   low:      { label: 'Bajo',    color: 'var(--text-2)', bg: 'rgba(120,138,170,0.09)' },
 }
-const TYPE_ICONS = {
+const TYPE_ICONS: Record<string, TypeIcon> = {
   project_delay:  { icon: '📅', label: 'Retraso en proyecto' },
   sla_breach:     { icon: '⏱', label: 'Incumplimiento SLA' },
   burnout:        { icon: '🔥', label: 'Riesgo de burnout' },

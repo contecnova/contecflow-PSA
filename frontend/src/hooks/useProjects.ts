@@ -26,7 +26,7 @@ function unwrapList<T>(r: { data?: { items?: T[] } | T[] | null }): T[] {
 export function useProjects(params: ProjectListParams = {}): UseQueryResult<Project[]> {
   return useQuery<Project[]>({
     queryKey: queryKeys.projects.list(params),
-    queryFn: () => projectsApi.list(params).then((r: { data?: { items?: Project[] } | Project[] | null }) => unwrapList<Project>(r)),
+    queryFn: () => projectsApi.list(params).then((r) => unwrapList<Project>(r as { data?: { items?: Project[] } | Project[] | null })),
     staleTime: 2 * 60 * 1000,
   })
 }
@@ -35,7 +35,7 @@ export function useProjects(params: ProjectListParams = {}): UseQueryResult<Proj
 export function useAllProjects(): UseQueryResult<Project[]> {
   return useQuery<Project[]>({
     queryKey: queryKeys.projects.all(),
-    queryFn: () => projectsApi.list({}).then((r: { data?: { items?: Project[] } | Project[] | null }) => unwrapList<Project>(r)),
+    queryFn: () => projectsApi.list({}).then((r) => unwrapList<Project>(r as { data?: { items?: Project[] } | Project[] | null })),
     staleTime: 2 * 60 * 1000,
   })
 }
@@ -43,7 +43,7 @@ export function useAllProjects(): UseQueryResult<Project[]> {
 export function useProject(id: string | undefined): UseQueryResult<unknown> {
   return useQuery({
     queryKey: queryKeys.projects.detail(id),
-    queryFn: () => projectsApi.get(id).then((r: { data: unknown }) => r.data),
+    queryFn: () => projectsApi.get(id!).then((r) => r.data),
     enabled: !!id,
   })
 }
@@ -51,7 +51,7 @@ export function useProject(id: string | undefined): UseQueryResult<unknown> {
 export function useCreateProject(): UseMutationResult<unknown, unknown, Partial<Project>> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: Partial<Project>) => projectsApi.create(data),
+    mutationFn: (data: Partial<Project>) => projectsApi.create(data as unknown as Parameters<typeof projectsApi.create>[0]),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.projects.all() }),
   })
 }
@@ -59,7 +59,7 @@ export function useCreateProject(): UseMutationResult<unknown, unknown, Partial<
 export function useUpdateProject(): UseMutationResult<unknown, unknown, UpdateArgs<Partial<Project>>> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: UpdateArgs<Partial<Project>>) => projectsApi.update(id, data),
+    mutationFn: ({ id, data }: UpdateArgs<Partial<Project>>) => projectsApi.update(id, data as Parameters<typeof projectsApi.update>[1]),
     onSuccess: (_: unknown, { id }: UpdateArgs<Partial<Project>>) => {
       qc.invalidateQueries({ queryKey: queryKeys.projects.all() })
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(id) })
@@ -79,7 +79,7 @@ export function useProjectTeam(projectId: string | undefined): UseQueryResult<un
   return useQuery({
     // TODO #82: migrate to queryKeys — team is project-derived but lacks a dedicated factory entry
     queryKey: ['project-team', projectId],
-    queryFn: () => projectsApi.team(projectId).then((r: { data: unknown }) => r.data),
+    queryFn: () => projectsApi.team(projectId!).then((r) => r.data),
     enabled: !!projectId,
     staleTime: 2 * 60 * 1000,
   })
@@ -88,7 +88,7 @@ export function useProjectTeam(projectId: string | undefined): UseQueryResult<un
 export function useProjectMembers(projectId: string | undefined): UseQueryResult<unknown> {
   return useQuery({
     queryKey: queryKeys.projects.members(projectId),
-    queryFn: () => projectsApi.members(projectId).then((r: { data: unknown }) => r.data),
+    queryFn: () => projectsApi.members(projectId!).then((r) => r.data),
     enabled: !!projectId,
     staleTime: 2 * 60 * 1000,
   })
@@ -98,7 +98,7 @@ export function useProjectEVM(projectId: string | undefined): UseQueryResult<unk
   return useQuery({
     // TODO #82: migrate to queryKeys — EVM is project-derived but lacks a dedicated factory entry
     queryKey: ['project-evm', projectId],
-    queryFn: () => projectsApi.evm(projectId).then((r: { data: unknown }) => r.data),
+    queryFn: () => projectsApi.evm(projectId!).then((r) => r.data),
     enabled: !!projectId,
     staleTime: 2 * 60 * 1000,
   })
@@ -108,7 +108,7 @@ export function useProjectEVMPortfolio(): UseQueryResult<unknown> {
   return useQuery({
     // TODO #82: migrate to queryKeys — EVM portfolio lacks a dedicated factory entry
     queryKey: ['project-evm-portfolio'],
-    queryFn: () => projectsApi.evmPortfolio().then((r: { data: unknown }) => r.data),
+    queryFn: () => projectsApi.evmPortfolio().then((r) => r.data),
     staleTime: 2 * 60 * 1000,
   })
 }
@@ -116,7 +116,7 @@ export function useProjectEVMPortfolio(): UseQueryResult<unknown> {
 export function useAddProjectMember(): UseMutationResult<unknown, unknown, AddMemberArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: AddMemberArgs) => projectsApi.addMember(id, data),
+    mutationFn: ({ id, data }: AddMemberArgs) => projectsApi.addMember(id, data as unknown as Parameters<typeof projectsApi.addMember>[1]),
     onSuccess: (_: unknown, { id }: AddMemberArgs) => {
       qc.invalidateQueries({ queryKey: queryKeys.projects.members(id) })
       qc.invalidateQueries({ queryKey: ['project-team', id] })

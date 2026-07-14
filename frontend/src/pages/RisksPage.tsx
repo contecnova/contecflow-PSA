@@ -171,7 +171,7 @@ function RiskMatrix({ risks }: { risks: RiskItem[] }) {
         <tbody>
           {[...impacts].reverse().map(imp => (
             <tr key={imp}>
-              <td style={{ padding: '4px 10px', fontSize: "var(--text-xs)", color: 'var(--text-2)', textAlign: 'right', whiteSpace: 'nowrap' }}>{impactLabels[imp]}</td>
+              <td style={{ padding: '4px 10px', fontSize: "var(--text-xs)", color: 'var(--text-2)', textAlign: 'right', whiteSpace: 'nowrap' }}>{impactLabels[imp as keyof typeof impactLabels]}</td>
               {probs.map(prob => {
                 const color = getColor(prob, imp)
                 const cr = cellRisks(prob, imp)

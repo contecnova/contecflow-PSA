@@ -18,7 +18,7 @@
  *   /puntos     — extrae puntos clave como lista
  */
 
-import { useState, useRef, useCallback, useEffect, type CSSProperties } from 'react';
+import { useState, useRef, useCallback, useEffect, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ChangeEvent as ReactChangeEvent } from 'react';
 import { nexusAgentApi } from '../services/api';
 import { useAppT } from '../hooks/useAppT';
 
@@ -30,7 +30,7 @@ const COMMANDS = [
   { id: 'puntos',    label: '📌 Puntos clave', hint: 'Extrae ideas principales como lista' },
 ];
 
-const PROMPT_MAP = {
+const PROMPT_MAP: Record<string, (text: string) => string> = {
   completar: (text) => `Continúa el siguiente texto de forma coherente y profesional, sin repetir lo ya escrito:\n\n${text}`,
   resumir:   (text) => `Resume el siguiente texto en 2-4 frases concisas:\n\n${text}`,
   mejorar:   (text) => `Mejora la redacción y claridad del siguiente texto, manteniendo el significado original. Devuelve únicamente el texto mejorado, sin explicaciones:\n\n${text}`,
@@ -38,7 +38,18 @@ const PROMPT_MAP = {
   puntos:    (text) => `Extrae los puntos clave del siguiente texto como una lista con viñetas (•):\n\n${text}`,
 };
 
-export default function AIInlineEditor({ value, onChange, rows = 4, placeholder, style, disabled, inputId, ariaLabel }) {
+type AIInlineEditorProps = {
+  value: string
+  onChange: (val: string) => void
+  rows?: number
+  placeholder?: string
+  style?: CSSProperties
+  disabled?: boolean
+  inputId?: string
+  ariaLabel?: string
+}
+
+export default function AIInlineEditor({ value, onChange, rows = 4, placeholder, style, disabled, inputId, ariaLabel }: AIInlineEditorProps) {
   const { t } = useAppT();
   const [palette, setPalette] = useState(false);   // palette visible?
   const [filter, setFilter]   = useState('');       // text after "/"
@@ -52,7 +63,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
   );
 
   // Detect "/" keystroke to open palette
-  const handleKeyDown = useCallback((e) => {
+  const handleKeyDown = useCallback((e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if (palette) {
       if (e.key === 'Escape') {
         setPalette(false);
@@ -77,9 +88,9 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
     }
   }, [palette, filter, slashPos, value, onChange]);
 
-  const handleChange = useCallback((e) => {
+  const handleChange = useCallback((e: ReactChangeEvent<HTMLTextAreaElement>) => {
     const newVal = e.target.value;
-    const caret  = e.target.selectionStart;
+    const caret  = e.target.selectionStart ?? 0;
 
     // Find if user just typed "/"
     if (!palette) {
@@ -114,7 +125,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
     onChange(newVal);
   }, [palette, slashPos, onChange]);
 
-  const runCommand = useCallback(async (cmd) => {
+  const runCommand = useCallback(async (cmd: string) => {
     // Remove "/command" from the textarea value
     const before = value.slice(0, slashPos);
     const after   = value.slice(slashPos + 1 + filter.length);
@@ -163,8 +174,8 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
   // Close palette on outside click
   useEffect(() => {
     if (!palette) return;
-    const handler = (e) => {
-      if (!textareaRef.current?.contains(e.target)) {
+    const handler = (e: MouseEvent) => {
+      if (!textareaRef.current?.contains(e.target as Node)) {
         setPalette(false);
         setFilter('');
       }
@@ -173,7 +184,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
     return () => document.removeEventListener('mousedown', handler);
   }, [palette]);
 
-  const baseStyle = {
+  const baseStyle: CSSProperties = {
     width: '100%',
     padding: '8px 12px',
     borderRadius: 6,

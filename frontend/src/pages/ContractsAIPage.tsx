@@ -62,7 +62,7 @@ type ContractDetail = {
   clauses?: ContractClause[]
 }
 
-const CLAUSE_TYPE_LABEL = {
+const CLAUSE_TYPE_LABEL: Record<string, string> = {
   payment:       'Pagos',
   penalty:       'Penalizaciones',
   deliverable:   'Entregables',
@@ -73,7 +73,7 @@ const CLAUSE_TYPE_LABEL = {
   confidentiality: 'Confidencialidad',
 }
 
-const CLAUSE_TYPE_ICON = {
+const CLAUSE_TYPE_ICON: Record<string, string> = {
   payment:        '💰',
   penalty:        '⚠️',
   deliverable:    '📦',
@@ -84,7 +84,7 @@ const CLAUSE_TYPE_ICON = {
   confidentiality:'🔒',
 }
 
-const RISK_COLOR = {
+const RISK_COLOR: Record<string, string> = {
   high:   'var(--danger)',
   medium: 'var(--warning)',
   low:    'var(--success)',
@@ -164,7 +164,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
                   <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase' }}>Valor total</div>
                   <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>{data.total_value?.toLocaleString()} €</div>
                 </div>
-                {data.scope_creep_alerts > 0 && (
+                {(data.scope_creep_alerts ?? 0) > 0 && (
                   <div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase' }}>Scope creep</div>
                     <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--warning)' }}>
@@ -255,7 +255,7 @@ export default function ContractsAIPage(): JSX.Element {
 
   const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects'],
-    queryFn:  () => projectsApi.list({}).then(r => (r.data?.items ?? r.data ?? []) as ProjectItem[]),
+    queryFn:  () => projectsApi.list({}).then(r => ((r.data as unknown as { items?: ProjectItem[] })?.items ?? r.data ?? []) as ProjectItem[]),
   })
 
   const { data: contracts = [], isLoading } = useQuery<ContractItem[]>({
@@ -283,10 +283,10 @@ export default function ContractsAIPage(): JSX.Element {
   const { mutate: analyzePdf, isPending: isAnalyzingPdf } = useMutation({
     mutationFn: () => {
       const fd = new FormData()
-      fd.append('file', pdfFile)
+      fd.append('file', pdfFile as Blob)
       if (projectId)  fd.append('project_id', projectId)
       if (clientName) fd.append('client_name', clientName)
-      return contractsAIApi.analyzePdf(fd)
+      return contractsAIApi.analyzePdf(fd as unknown as Record<string, unknown>)
     },
     onSuccess: () => {
       toast.success('PDF analizado correctamente')
@@ -439,7 +439,7 @@ export default function ContractsAIPage(): JSX.Element {
                 <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
                   {c.client_name || '—'} · {c.created_at}
                   {' · '}{c.clauses_count} cláusulas
-                  {c.at_risk_clauses > 0 && (
+                  {(c.at_risk_clauses ?? 0) > 0 && (
                     <span style={{ color: 'var(--danger)', fontWeight: 600 }}>
                       {' · '}{c.at_risk_clauses} en riesgo
                     </span>

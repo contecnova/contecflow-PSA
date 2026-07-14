@@ -21,15 +21,36 @@ import {
 import { useToast } from '../context/ToastContext'
 import { Sparkles, X, RefreshCw } from 'lucide-react'
 
+interface Suggestion {
+  task_id: string | number
+  suggested_start?: string | null
+  suggested_due?: string | null
+  rationale?: string | null
+  _selected?: boolean
+  _title?: string
+  [key: string]: unknown
+}
 
-export default function SmartScheduleModal({ open, onClose, projectId, projectName }) {
+interface SmartScheduleModalProps {
+  open: boolean
+  onClose: () => void
+  projectId?: string | number | null
+  projectName?: string
+}
+
+interface ErrLike {
+  response?: { data?: { detail?: string } }
+  message?: string
+}
+
+export default function SmartScheduleModal({ open, onClose, projectId, projectName }: SmartScheduleModalProps) {
   const toast = useToast()
   const qc = useQueryClient()
-  const [suggestions, setSuggestions] = useState([])  // mutable: [{task_id, suggested_start, suggested_due, rationale, _selected, _title}]
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])  // mutable: [{task_id, suggested_start, suggested_due, rationale, _selected, _title}]
   const [unscheduledCount, setUnscheduledCount] = useState(0)
   const [maxTasks, setMaxTasks] = useState(20)
-  const [error, setError] = useState(null)
-  const [tasksById, setTasksById] = useState({})
+  const [error, setError] = useState<string | null>(null)
+  const [tasksById, setTasksById] = useState<Record<string, string>>({})
 
   // ── Suggest mutation ─────────────────────────────────────────────────────
   const { mutate: requestSuggestions, isPending: isLoading, reset: resetSuggest } = useMutation({
@@ -37,32 +58,32 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
       project_id: projectId || null,
       max_tasks: maxTasks,
     }).then(r => r.data),
-    onSuccess: async (data) => {
-      const arr = Array.isArray(data?.scheduled) ? data.scheduled : []
+    onSuccess: async (data: { scheduled?: Suggestion[]; unscheduled_count?: number; message?: string } | undefined) => {
+      const arr: Suggestion[] = Array.isArray(data?.scheduled) ? data!.scheduled! : []
       setUnscheduledCount(data?.unscheduled_count || 0)
 
       // Buscar títulos de cada task para mostrar al user. Hacemos una llamada
       // ligera por proyecto si está disponible; si no, una a una.
-      let title_map = {}
+      const title_map: Record<string, string> = {}
       try {
         if (projectId) {
           const res = await tasksApi.list({ project_id: projectId, page_size: 300 })
-          const items = Array.isArray(res.data) ? res.data : (res.data?.items || [])
-          for (const t of items) title_map[t.id] = t.title
+          const items: Array<{ id: string | number; title: string }> = Array.isArray(res.data) ? res.data : (res.data?.items || [])
+          for (const t of items) title_map[String(t.id)] = t.title
         }
       } catch { /* noop, falls back below */ }
       setTasksById(title_map)
 
-      setSuggestions(arr.map(s => ({
+      setSuggestions(arr.map((s) => ({
         ...s,
         _selected: true,           // por defecto, todas seleccionadas
-        _title: title_map[s.task_id] || `Tarea #${String(s.task_id).slice(0, 8)}`,
+        _title: title_map[String(s.task_id)] || `Tarea #${String(s.task_id).slice(0, 8)}`,
       })))
       if (arr.length === 0) {
         toast.info(data?.message || 'No hay tareas sin fecha para planificar.')
       }
     },
-    onError: (e) => {
+    onError: (e: ErrLike) => {
       setError(e?.response?.data?.detail || e?.message || 'Error al generar sugerencias')
     },
   })
@@ -93,7 +114,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
       if (updates.length === 0) {
         return Promise.reject(new Error('No hay tareas seleccionadas'))
       }
-      return taskDependenciesApi.bulkDates(updates).then(r => r.data)
+      return taskDependenciesApi.bulkDates(updates as unknown as Record<string, unknown>).then(r => r.data)
     },
     onSuccess: (_data) => {
       const n = suggestions.filter(s => s._selected).length

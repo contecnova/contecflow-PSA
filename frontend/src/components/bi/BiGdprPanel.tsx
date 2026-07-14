@@ -156,7 +156,7 @@ function DsrTab() {
   })
 
   const createMut = useMutation({
-    mutationFn: (p: DsrForm) => biGdprApi.createDsr(p).then(r => r.data),
+    mutationFn: (p: DsrForm) => biGdprApi.createDsr(p as Record<string, unknown>).then(r => r.data),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: ['bi-gdpr-dsr'] })
       qc.invalidateQueries({ queryKey: ['bi-gdpr-stats'] })
@@ -194,7 +194,7 @@ function DsrTab() {
           {['erasure', 'portability', 'rectification', 'restriction'].map(rt => <option key={rt} value={rt}>{rt}</option>)}
         </select>
         <input placeholder="Notas (opcional)" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={S.input} />
-        <button onClick={() => createMut.mutate({ user_id: form.user_id, request_type: form.request_type, notes: form.notes || undefined })}
+        <button onClick={() => createMut.mutate({ user_id: form.user_id, request_type: form.request_type, notes: form.notes || '' })}
           disabled={createMut.isPending || !form.user_id}
           style={{ ...S.btn, opacity: (createMut.isPending || !form.user_id) ? 0.5 : 1 }}>
           {t('bi.gdpr.create_dsr', 'Nueva DSR')}
@@ -260,18 +260,18 @@ function DsrTab() {
                         </button>
                       </>
                     )}
-                    {dsr.erasure_report && (
+                    {dsr.erasure_report ? (
                       <button onClick={() => setExpanded(expanded ? null : dsr.id)} style={{ ...S.btnGhost, padding: '4px 8px' }}>
                         {expanded ? '▲' : '▼'}
                       </button>
-                    )}
+                    ) : null}
                   </div>
                 </div>
-                {expanded && dsr.erasure_report && (
+                {expanded && dsr.erasure_report ? (
                   <div style={{ marginTop: 10, background: 'var(--surface-4)', borderRadius: 8, padding: '10px 12px', fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)', overflowX: 'auto' }}>
                     <pre style={{ margin: 0 }}>{JSON.stringify(dsr.erasure_report, null, 2)}</pre>
                   </div>
-                )}
+                ) : null}
               </div>
             )
           })}
@@ -435,7 +435,7 @@ function MasksTab() {
         {(masksData?.items ?? []).map((m, i) => (
           <div key={i} style={{ ...S.row, justifyContent: 'space-between' }}>
             <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>{m.dataset ?? m.entity}.{m.field}</span>
-            <span style={S.badge(MASK_COLOR[m.mask_type] ?? 'var(--text-3)')}>{m.mask_type}</span>
+            <span style={S.badge(MASK_COLOR[m.mask_type ?? ''] ?? 'var(--text-3)')}>{m.mask_type}</span>
             <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 'auto' }}>{fmt(m.updated_at)}</span>
           </div>
         ))}
@@ -491,14 +491,14 @@ function StatsTab() {
         </div>
       )}
 
-      {data?.overdue > 0 && (
+      {(data?.overdue ?? 0) > 0 && (
         <div style={{ ...S.innerCard, borderColor: 'var(--danger-border)' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--danger)', marginBottom: 6 }}>
             <AlertTriangle size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-            {data.overdue} DSR{data.overdue !== 1 ? 's' : ''} ha{data.overdue !== 1 ? 'n' : ''} superado el plazo GDPR (30 días)
+            {data?.overdue} DSR{data?.overdue !== 1 ? 's' : ''} ha{data?.overdue !== 1 ? 'n' : ''} superado el plazo GDPR (30 días)
           </div>
           <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
-            {(data.overdue_ids ?? []).join(', ')}
+            {(data?.overdue_ids ?? []).join(', ')}
           </div>
         </div>
       )}

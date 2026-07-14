@@ -153,7 +153,7 @@ export default function BudgetsPage(): JSX.Element {
     if (!result.success) {
       return
     }
-    updateEntry({ id:editEntry.budget_id, month:editEntry.month, data:result.data })
+    updateEntry({ id:editEntry!.budget_id, month:editEntry!.month, data:result.data })
   }
 
   return (
@@ -172,7 +172,7 @@ export default function BudgetsPage(): JSX.Element {
         </div>
         {summary && (
           <div style={{ display:'flex', gap:16, marginLeft:12 }}>
-            {[['planned', fmtEur(summary.total_planned)], ['actual', fmtEur(summary.total_actual)], ['deviation', `${summary.deviation_pct > 0 ? '+' : ''}${summary.deviation_pct}%`]].map(([k,v]) => (
+            {[['planned', fmtEur(summary.total_planned)], ['actual', fmtEur(summary.total_actual)], ['deviation', `${(summary.deviation_pct ?? 0) > 0 ? '+' : ''}${summary.deviation_pct ?? 0}%`]].map(([k,v]) => (
               <div key={k} style={{ fontSize: "var(--text-sm)" }}><span style={{ color:'var(--text-2)', marginRight:6 }}>{t(`budgets.${k}`)}:</span><strong>{v}</strong></div>
             ))}
           </div>
@@ -214,7 +214,7 @@ export default function BudgetsPage(): JSX.Element {
                     }
                   </div>
                   <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
-                    {t('budgets.planned')}: {fmtEur(b.planned_total)} · {t('budgets.actual')}: {fmtEur(b.actual_total)} · {t('budgets.deviation')}: <span style={{ color: b.deviation > 0 ? 'var(--danger)' : 'var(--success)', fontWeight:500 }}>{b.deviation > 0 ? '+' : ''}{fmtEur(b.deviation)}</span>
+                    {t('budgets.planned')}: {fmtEur(b.planned_total)} · {t('budgets.actual')}: {fmtEur(b.actual_total)} · {t('budgets.deviation')}: <span style={{ color: (b.deviation ?? 0) > 0 ? 'var(--danger)' : 'var(--success)', fontWeight:500 }}>{(b.deviation ?? 0) > 0 ? '+' : ''}{fmtEur(b.deviation)}</span>
                   </div>
                 </div>
                 <button onClick={()=>setSelected(selected===b.id?null:b.id)}
@@ -243,7 +243,7 @@ export default function BudgetsPage(): JSX.Element {
                             const actual = Number(e.actual) || 0
                             return (
                               <td key={e.month} style={{ padding:'6px 8px', textAlign:'right', cursor: field==='actual'&&!e.is_locked?'pointer':'default' }}
-                                onClick={()=>{ if(field==='actual'&&!e.is_locked){ setEditEntry({budget_id:b.id,month:e.month,entry:e}); setEntryForm({actual:e.actual,committed:e.committed,notes:e.notes||''}) }}}>
+                                onClick={()=>{ if(field==='actual'&&!e.is_locked){ setEditEntry({budget_id:b.id,month:e.month,entry:e}); setEntryForm({actual:e.actual ?? 0,committed:e.committed ?? 0,notes:e.notes||''}) }}}>
                                 <span style={{ color: field==='actual'&&actual>planned?'var(--danger)':'var(--text-1)' }}>
                                   {val > 0 ? `${(val/1000).toFixed(1)}k` : '—'}
                                 </span>

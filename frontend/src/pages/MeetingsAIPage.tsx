@@ -105,7 +105,7 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
   const s = (k: keyof ProcessFormState) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
   const { mutate: process, isPending } = useMutation({
-    mutationFn: (d: ProcessFormState) => meetingsAIApi.process(d).then(r => r.data),
+    mutationFn: (d: ProcessFormState) => meetingsAIApi.process(d as unknown as Record<string, unknown>).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-meetings'] }); onClose() },
     onError: (e: unknown) => toast.error(extractErr(e, t('meetings_ai.error_process'))),
   })
@@ -278,13 +278,13 @@ export default function MeetingsAIPage() {
               )}
 
               {/* Decisions */}
-              {detail.decisions?.length > 0 && (
+              {(detail.decisions ?? []).length > 0 && (
                 <div style={{ ...card, padding: '16px 20px', marginBottom: 14 }}>
                   <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-                    ✅ {_t('meetings_ai.decisions_label', { count: detail.decisions.length })}
+                    ✅ {_t('meetings_ai.decisions_label', { count: (detail.decisions ?? []).length })}
                   </div>
-                  {detail.decisions.map((d, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < detail.decisions.length - 1 ? '1px solid var(--surface-4)30' : 'none', fontSize: "var(--text-base)" }}>
+                  {(detail.decisions ?? []).map((d, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < (detail.decisions ?? []).length - 1 ? '1px solid var(--surface-4)30' : 'none', fontSize: "var(--text-base)" }}>
                       <span style={{ color: 'var(--success)', flexShrink: 0, marginTop: 1 }}>◆</span>
                       <span style={{ lineHeight: 1.5 }}>{d}</span>
                     </div>
@@ -293,19 +293,19 @@ export default function MeetingsAIPage() {
               )}
 
               {/* Actions */}
-              {detail.actions?.length > 0 && (
+              {(detail.actions ?? []).length > 0 && (
                 <div style={{ ...card, padding: '16px 20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      📋 {_t('meetings_ai.actions_label_detail', { count: detail.actions.length })}
+                      📋 {_t('meetings_ai.actions_label_detail', { count: (detail.actions ?? []).length })}
                     </div>
-                    {detail.actions.some(a => !a.is_created) && (
+                    {(detail.actions ?? []).some(a => !a.is_created) && (
                       <Button onClick={() => createTasks(selected)} disabled={creating}>
                         {creating ? _t('meetings_ai.creating_tasks') : _t('meetings_ai.create_tasks_btn')}
                       </Button>
                     )}
                   </div>
-                  {detail.actions.map(a => (
+                  {(detail.actions ?? []).map(a => (
                     <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--surface-4)30', alignItems: 'flex-start', gap: 12 }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4 }}>{a.description}</div>
