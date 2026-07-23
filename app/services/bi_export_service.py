@@ -67,8 +67,8 @@ def export_dashboard_excel(
     try:
         import openpyxl  # noqa: PLC0415
         from openpyxl.chart import BarChart, LineChart, Reference  # noqa: PLC0415
-        from openpyxl.styles import Alignment, Font, PatternFill  # noqa: PLC0415
-        from openpyxl.utils import get_column_letter  # noqa: PLC0415
+        from openpyxl.styles import Alignment, Font, PatternFill  # noqa: PLC0415, F401
+        from openpyxl.utils import get_column_letter  # noqa: PLC0415, F401
         from openpyxl.worksheet.table import Table, TableStyleInfo  # noqa: PLC0415
     except ImportError as exc:
         raise HTTPException(500, f"openpyxl no instalado: {exc}") from exc

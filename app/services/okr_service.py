@@ -218,14 +218,14 @@ def delete_objective(db: Session, obj: Objective) -> dict:
         KeyResult.objective_id == obj.id,
         KeyResult.is_active == True
     ).all()
-    
+
     for kr in active_krs:
         kr.is_active = False
-    
+
     # Perform soft delete of objective
     obj.is_active = False
     db.commit()
-    
+
     return {
         "ok": True,
         "message": f"Objetivo eliminado junto con {len(active_krs)} Key Result(s) (soft delete)",

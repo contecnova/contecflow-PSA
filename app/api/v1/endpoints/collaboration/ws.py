@@ -159,14 +159,14 @@ async def collaboration_ws(
                     payload = json.loads(raw)
                 except Exception:
                     continue
-                
+
                 # Revalidación cada 10 mensajes del cliente (más watchdog cada 30s)
                 revalidate_counter += 1
                 if revalidate_counter >= 10:
                     if not await _ensure_user_still_active():
                         return
                     revalidate_counter = 0
-                
+
                 t = payload.get("type")
                 # Rate limit (excluye pong de servidor; ping cuenta como 1 token)
                 if not bucket.take(1.0):

@@ -384,7 +384,7 @@ def analyze_ticket_for_resolution(
 ) -> dict:
     """
     Analyze a ticket and suggest possible resolutions.
-    
+
     Returns: {
         "ticket_id": str,
         "analysis": str (reasoning),
@@ -434,7 +434,7 @@ def analyze_ticket_for_resolution(
 
         # ── Step 3: Call AI to analyze ticket ──────────────────────────────
         system_prompt = """You are an AI expert in IT Service Desk.
-        
+
         Analyze the following support ticket and:
         1. Understand the problem
         2. Search the KB knowledge provided
@@ -445,7 +445,7 @@ def analyze_ticket_for_resolution(
             "confidence": 85,
             "root_cause": "brief root cause"
         }
-        
+
         Respond ONLY with valid JSON, no markdown."""
 
         ticket_content = f"""

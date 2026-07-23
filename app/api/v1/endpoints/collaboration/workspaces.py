@@ -149,7 +149,7 @@ def remove_team_member(team_id: str, user_id: str, current_user: User = Depends(
 # ── Channels ─────────────────────────────────────────────────────────────────
 @router.get("/channels", response_model=APIListResponse[ChannelOut], summary="Listar canales accesibles")
 def list_channels(team_id: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    org = _org(current_user)
+    _org(current_user)  # authz guard: lanza 403 si el usuario no tiene organización
     chs = ws_svc.list_channels(db, current_user, team_id=team_id)
     out: List[ChannelOut] = []
     for c in chs:

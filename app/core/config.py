@@ -345,10 +345,9 @@ class Settings(
                 "Set a real password in .env or run ./setup.sh before seeding."
             )
         environment = info.data.get("ENVIRONMENT", "development")
-        # En staging/production exigir password fuerte; en test mantener el
-        # default conocido para que las suites no fallen, pero no permitirlo
-        # más allá de development/test.
-        if environment in {"staging", "production"} and v == "contecflow2024!":
+        # Fuera de entornos locales (development/test/local) exigir que no sea el
+        # default conocido. Cubre production, staging, prod, uat, qa, preprod, etc.
+        if environment not in cls._LOCAL_ENVS and v == "contecflow2024!":
             raise ValueError(
                 "DEFAULT_USER_PASSWORD must be changed from the default value in "
                 f"{environment}. Set a strong password in your .env file."
@@ -373,6 +372,12 @@ class Settings(
     # validators below would be the descriptor (not iterable) and Settings() would
     # crash on boot. ClassVar marks them as plain class constants.
     _PLACEHOLDER_PREFIXES: ClassVar[tuple[str, ...]] = ("CHANGE_ME", "REPLACE_ME", "TODO", "PLACEHOLDER")
+    # Entornos considerados locales/de confianza donde se toleran credenciales de dev.
+    # Cualquier OTRO valor (production, staging, prod, prd, uat, qa, preprod…) se trata
+    # como "real" y aplica el endurecimiento de credenciales — así un despliegue
+    # etiquetado "prod"/"uat" NO se salta la validación por no llamarse exactamente
+    # "production"/"staging".
+    _LOCAL_ENVS: ClassVar[set[str]] = {"development", "dev", "test", "testing", "local", ""}
     _KNOWN_WEAK_PASSWORDS: ClassVar[set[str]] = {
         "contecflow2024!",
         "password",
@@ -408,7 +413,7 @@ class Settings(
             raise ValueError(
                 "SUPERADMIN_PASSWORD still has a placeholder value. Set a real password in .env."
             )
-        if environment in {"staging", "production"}:
+        if environment not in cls._LOCAL_ENVS:
             if v.lower() in cls._KNOWN_WEAK_PASSWORDS:
                 raise ValueError(
                     f"SUPERADMIN_PASSWORD is a known weak/default value; refuse to boot in {environment}."

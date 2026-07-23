@@ -1,4 +1,7 @@
 """approval_engine package — split from the former 1827-LOC god-file."""
+# Barrel/re-export module: every import below exists to re-export a symbol from a
+# submodule so that `from app.services.approval_engine import X` keeps working.
+# ruff: noqa: F401
 from app.services.approval_engine._base import *  # noqa: F401,F403
 from app.services.approval_engine.workflows import *  # noqa: F401,F403
 from app.services.approval_engine.requests import *  # noqa: F401,F403

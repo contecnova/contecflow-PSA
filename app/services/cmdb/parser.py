@@ -1,7 +1,7 @@
 """
 CMDB Parser Utilities — Data normalization and format conversion
 ===================================================================
-Funciones de bajo nivel para parseo, hash, similitud de strings y 
+Funciones de bajo nivel para parseo, hash, similitud de strings y
 normalización de payloads de agentes.
 """
 import hashlib
@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 
 def load_config(provider) -> dict[str, Any]:
     """Devuelve config_json parseado como dict. Devuelve {} si vacío o inválido.
-    
+
     Args:
         provider: Objeto con atributo config_json
-    
+
     Returns:
         Diccionario parseado o {} si no es JSON válido
     """
@@ -35,10 +35,10 @@ def compute_config_hash(attributes: str | dict | list | None) -> str:
     Normaliza cualquier tipo de entrada a JSON canonicalizado.
     Esto asegura que la misma configuración produce el mismo hash
     independientemente del formato de entrada (dict vs JSON string).
-    
+
     Args:
         attributes: Configuración como JSON string, dict, list o None
-    
+
     Returns:
         SHA-256 hexdigest de la representación canónica (vacío si None/vacío)
     """
@@ -60,14 +60,14 @@ def compute_config_hash(attributes: str | dict | list | None) -> str:
 
 def string_similarity(a: str | None, b: str | None) -> float:
     """Calcula similitud entre dos strings usando SequenceMatcher.
-    
+
     Normaliza ambas strings (strip + lowercase) y compara.
     Usada para deduplicación de CIs basada en nombres.
-    
+
     Args:
         a: Primera string (o None)
         b: Segunda string (o None)
-    
+
     Returns:
         Similitud en [0.0, 1.0], donde 1.0 es idéntica
     """

@@ -28,10 +28,10 @@ logger = logging.getLogger(__name__)
 
 def discover_aws(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
     """Descubre activos EC2 + RDS en AWS.
-    
+
     Args:
         provider_config: Configuración con region_name, aws_access_key_id, aws_secret_access_key
-    
+
     Returns:
         Lista de diccionarios con atributos de instancias descubiertas
     """

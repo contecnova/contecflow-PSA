@@ -21,13 +21,13 @@ from typing import Any, Dict, List, Optional
 
 class ModelSerializer:
     """Base class para serializar modelos SQLAlchemy a diccionarios.
-    
+
     Proporciona un patrón DRY para serialización consistente.
     Subclases deben definir:
         - fields: Lista de atributos simples a incluir
         - related_counts: Dict {relación: nombre_en_salida} para contar items
         - related_objects: Dict {relación: campo_id} para incluir relaciones
-    
+
     Example:
         class UserSerializer(ModelSerializer):
             fields = ['id', 'name', 'email']
@@ -84,7 +84,7 @@ class ModelSerializer:
     @staticmethod
     def _serialize_value(val: Any) -> Any:
         """Serializa un valor individual de forma inteligente.
-        
+
         Maneja: datetime (ISO), Enum (value), dict/list (recursivo),
         y otros tipos (as-is). Preserva estructuras dict/list correctamente.
         """

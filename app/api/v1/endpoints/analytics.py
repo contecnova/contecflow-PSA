@@ -222,14 +222,6 @@ CATALOGUE = {
         "y_label": "% Carga",
         "default_chart": "line",
     },
-    "tasks_by_status": {
-        "label": "Tareas por estado",
-        "category": "Proyectos",
-        "description": "Distribución de tareas por estado",
-        "x_label": "Estado",
-        "y_label": "Tareas",
-        "default_chart": "pie",
-    },
     "tasks_by_project": {
         "label": "Tareas por proyecto",
         "category": "Proyectos",
@@ -285,22 +277,6 @@ CATALOGUE = {
         "x_label": "Mes",
         "y_label": "€",
         "default_chart": "line",
-    },
-    "absences_by_type": {
-        "label": "Ausencias por tipo",
-        "category": "RRHH",
-        "description": "Días de ausencia por tipo en el período",
-        "x_label": "Tipo",
-        "y_label": "Días",
-        "default_chart": "pie",
-    },
-    "absences_by_person": {
-        "label": "Ausencias por persona",
-        "category": "RRHH",
-        "description": "Días de ausencia por empleado",
-        "x_label": "Persona",
-        "y_label": "Días",
-        "default_chart": "bar",
     },
     "absences_by_month": {
         "label": "Ausencias por mes",
@@ -398,12 +374,6 @@ CATALOGUE = {
         "description": "Story points completados por sprint",
         "x_label": "Sprint", "y_label": "Story Points", "default_chart": "bar",
     },
-    "sprint_completion_rate": {
-        "label": "Tasa de completitud de sprint",
-        "category": "Agilidad",
-        "description": "% de story points completados respecto al planificado",
-        "x_label": "Sprint", "y_label": "% Completado", "default_chart": "line",
-    },
     "tasks_lead_time": {
         "label": "Lead time de tareas",
         "category": "Agilidad",
@@ -421,12 +391,6 @@ CATALOGUE = {
         "category": "Agilidad",
         "description": "Tareas que han superado su fecha límite sin completarse",
         "x_label": "Proyecto", "y_label": "Tareas retrasadas", "default_chart": "bar",
-    },
-    "tasks_by_assignee": {
-        "label": "Tareas por persona",
-        "category": "Agilidad",
-        "description": "Distribución de tareas activas por miembro del equipo",
-        "x_label": "Persona", "y_label": "Tareas", "default_chart": "bar_grouped",
     },
     # ── Clientes / Negocio ───────────────────────────────────────────────────
     "revenue_by_client": {

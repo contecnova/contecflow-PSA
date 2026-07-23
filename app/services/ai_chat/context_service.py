@@ -58,12 +58,6 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
 
     # Superadmin → org_id = None → _filter_by_org no aplica filtro.
     org_id = None if is_super else (getattr(user, "organization_id", None) if user else None)
-    org_project_ids = None
-    if org_id:
-        q_org_projects = db.query(Project.id)
-        q_org_projects = _filter_by_org(q_org_projects, Project, org_id)
-        org_project_ids = [pid for (pid,) in q_org_projects.all()]
-
     user_project_ids = None
     if user and not can_see_org_wide:
         imp_pids = {

@@ -406,7 +406,7 @@ def create_and_upload(
             version_num=1,
             content_type=file.content_type or "application/octet-stream",
         )
-    except Exception as exc:
+    except Exception:
         # Fallo upstream del backend de almacenamiento (S3 / FS) — no es un
         # error de la petición del cliente, sino indisponibilidad del servicio.
         logger.exception("File upload to storage failed for user=%s file=%s", current_user.id, file.filename)

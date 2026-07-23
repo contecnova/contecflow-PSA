@@ -1,0 +1,88 @@
+# Contecflow PSA — orquestación de despliegue (IaC versionada).
+#
+# Antes este compose vivía fuera del repo (en /opt/contecflow), lo que hacía el
+# despliegue no reproducible (hallazgo de auditoría). Aquí queda versionado y
+# alineado con scripts/deploy.sh (servicios db/redis/nginx/backend + worker).
+#
+# Uso:
+#   cp deploy/.env.deploy.example .env   # y rellena secretos
+#   docker compose -f deploy/docker-compose.yml build
+#   docker compose -f deploy/docker-compose.yml run --rm --no-deps backend python -m alembic upgrade head
+#   docker compose -f deploy/docker-compose.yml up -d
+#
+# NOTA: no ha sido levantada/verificada en el entorno de auditoría (sin Docker).
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-contecflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: ${POSTGRES_DB:-contecflow}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"   # bind a loopback: no exponer la BD a la red
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-contecflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6379:6379"   # bind a loopback
+    restart: unless-stopped
+
+  backend:
+    image: ${BACKEND_IMAGE:-contecflow-backend:local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    env_file: [.env]
+    environment:
+      # El .env de despliegue debe apuntar DATABASE_URL/REDIS_URL a estos servicios.
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://contecflow:${POSTGRES_PASSWORD}@db:5432/contecflow}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  worker:
+    image: ${BACKEND_IMAGE:-contecflow-backend:local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    command: ["python", "-m", "celery", "-A", "app.worker.celery_app", "worker", "--beat", "--loglevel=info"]
+    env_file: [.env]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://contecflow:${POSTGRES_PASSWORD}@db:5432/contecflow}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    restart: unless-stopped
+
+  nginx:
+    image: ${FRONTEND_IMAGE:-contecflow-frontend:local}
+    build:
+      context: ../frontend
+      dockerfile: ../deploy/Dockerfile.frontend
+    depends_on: [backend]
+    ports:
+      - "${WEB_PORT:-80}:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata: {}

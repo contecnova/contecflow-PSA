@@ -1,0 +1,38 @@
+# Backend (FastAPI + Celery) — Contecflow PSA
+# Build context: repo root.  Build: docker build -f deploy/Dockerfile.backend -t contecflow-backend .
+#
+# NOTA: imagen creada como parte de la remediación de auditoría para versionar la IaC
+# (antes el compose vivía fuera del repo, en /opt/contecflow). No ha sido "docker build"-verificada
+# en el entorno de auditoría (sin Docker disponible); revisar en un host con Docker antes de publicar.
+FROM python:3.12-slim AS base
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# psycopg2-binary y cryptography traen wheels; curl solo para el healthcheck del compose.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instala dependencias primero para aprovechar la caché de capas.
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+# Dependencias ML opcionales (forecasting/anomalías): descomenta si el despliegue las usa.
+# COPY requirements-ml.txt ./
+# RUN pip install --no-cache-dir -r requirements-ml.txt
+
+COPY . .
+
+# Ejecuta como usuario no-root.
+RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+# Arranque de la API. Las migraciones se ejecutan aparte:
+#   docker compose run --rm --no-deps backend python -m alembic upgrade head
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

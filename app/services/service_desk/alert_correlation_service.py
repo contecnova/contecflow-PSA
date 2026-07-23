@@ -459,7 +459,6 @@ def run_correlation_scan_job(db: Session, *, organization_id: Optional[str] = No
 
     # Semantic enrichment pass
     if clusters:
-        window_start = datetime.now(timezone.utc) - timedelta(hours=DEFAULT_WINDOW_HOURS)
         all_ticket_ids: list[str] = []
         for c in clusters:
             all_ticket_ids.extend(c.ticket_ids)

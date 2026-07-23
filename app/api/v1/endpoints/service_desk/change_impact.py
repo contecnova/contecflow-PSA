@@ -268,7 +268,7 @@ def batch_score_changes(
                 auto_approved += 1
             db.commit()
             scored += 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             db.rollback()
             errors += 1
 

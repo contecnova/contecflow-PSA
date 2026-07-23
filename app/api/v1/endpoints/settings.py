@@ -317,7 +317,6 @@ def get_log_level(_: User = Depends(require_admin)):
         "valid_levels": sorted(VALID_LOG_LEVELS),
     }
 
-from app.core.config import settings as app_settings
 
 @router.post("/log-level", summary="Cambiar nivel de log en tiempo real (requiere admin)")
 def set_log_level(payload: LogLevelPayload, _: User = Depends(require_admin)):

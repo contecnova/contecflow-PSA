@@ -14,3 +14,6 @@ Domains:
 """
 
 from . import core, delivery, ai_domain, platform, framework
+
+# Explicit re-export contract: router.py includes these five domain routers.
+__all__ = ["core", "delivery", "ai_domain", "platform", "framework"]

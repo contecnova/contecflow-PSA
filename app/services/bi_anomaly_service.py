@@ -168,7 +168,7 @@ def _prepare_churn_model() -> tuple[Any | None, str]:
     if not _LGBM_AVAILABLE:
         return None, "rule_based"
     if _CHURN_MODEL is not None:
-        return _CHURN_MODEL, "lightgbm"
+        return _CHURN_MODEL, "lightgbm_synthetic"
 
     X, y = _build_synthetic_churn_dataset()
     model = lgb.LGBMClassifier(
@@ -197,7 +197,11 @@ def _prepare_churn_model() -> tuple[Any | None, str]:
         scale[feature] = sigma
     _CHURN_BASELINE = baseline
     _CHURN_SCALE = scale
-    return _CHURN_MODEL, "lightgbm"
+    # "lightgbm_synthetic": el modelo se entrena con un dataset SINTÉTICO derivado de
+    # una heurística fija (_build_synthetic_churn_dataset), no con datos históricos
+    # reales del cliente. La etiqueta lo hace explícito en la respuesta (method_used)
+    # para no presentar la predicción como ML entrenado sobre datos reales.
+    return _CHURN_MODEL, "lightgbm_synthetic"
 
 
 def _top_churn_factors(features: dict[str, float], model: Any | None) -> list[str]:

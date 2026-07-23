@@ -271,7 +271,6 @@ async def twilio_gather_webhook(
 
     form_data = dict(await request.form())
     digit     = form_data.get("Digits", "")
-    caller_id = form_data.get("From", "unknown")
     org_id    = None
 
     cfg = await run_db(get_config, db, org_id)

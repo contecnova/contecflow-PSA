@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import time as _time_sleep
 from datetime import date, datetime, time, timedelta, timezone
+from pathlib import Path
 from app.core.config import settings
 from app.core.security import create_access_token
 from app.models.billing_reports import Invoice, InvoiceLine
@@ -911,7 +912,7 @@ def process_oidc_callback(payload: dict, db) -> dict:
     if id_token:
         try:
             import urllib.request as _ureq, json as _json
-            from jose import jwt as _jose_jwt, jwk as _jose_jwk, exceptions as _jose_exc  # type: ignore
+            from jose import jwt as _jose_jwt, exceptions as _jose_exc  # type: ignore
 
             # Fetch JWKS from the IdP (issuer derived from discovery or config)
             issuer = getattr(config, "issuer", None) or ""
@@ -985,8 +986,6 @@ def _render_step_value(value, context: dict):
 def _provisioning_root() -> "Path":
     """Return the operator-controlled provisioning root, or raise if provisioning
     is disabled / unconfigured (fail-closed)."""
-    from pathlib import Path  # noqa: PLC0415
-
     if not settings.PROVISIONING_ENABLED:
         raise PermissionError("Infrastructure provisioning is disabled (set PROVISIONING_ENABLED=1)")
     root = (settings.PROVISIONING_ROOT_DIR or "").strip()
@@ -1004,8 +1003,6 @@ def _safe_provision_path(candidate, *, label: str, required: bool = True) -> "st
     absolute path as a string, or None when *candidate* is empty and not
     required. Raises ValueError on any containment violation.
     """
-    from pathlib import Path  # noqa: PLC0415
-
     if candidate is None or str(candidate).strip() == "":
         if required:
             raise ValueError(f"Provisioning '{label}' is required")

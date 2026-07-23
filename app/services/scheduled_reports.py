@@ -163,7 +163,6 @@ def _build_html_body(report_name: str, report_type: str, frequency: str, next_ru
 def _execute_report(report: ScheduledReport, db) -> None:
     """Generate PDF and distribute via email + Slack."""
     report_type = getattr(report, "report_type", None) or "custom"
-    include_narrative = getattr(report, "include_narrative", False)
     slack_webhook = getattr(report, "slack_webhook", None)
 
     # Resolve recipients

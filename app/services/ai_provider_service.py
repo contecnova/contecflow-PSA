@@ -616,7 +616,7 @@ def _try_fallback_providers(
 ) -> dict | None:
     """
     Try any available provider as fallback (provider-agnostic).
-    
+
     Returns result dict if success, None if all fail.
     """
     # Get all available active providers
@@ -624,7 +624,7 @@ def _try_fallback_providers(
         AIProvider.status != "error",
         AIProvider.is_active == True,  # audit #36 soft-delete
     )
-    
+
     if not is_superadmin and organization_id:
         # Try org-specific first, then shared
         org_providers = query.filter(AIProvider.organization_id == organization_id).all()
@@ -632,7 +632,7 @@ def _try_fallback_providers(
         all_providers = org_providers + shared_providers
     else:
         all_providers = query.all()
-    
+
     # Try each provider in order
     for provider in all_providers:
         try:
@@ -643,13 +643,13 @@ def _try_fallback_providers(
                 model=None,  # Use provider's default model
                 max_tokens=max_tokens,
             )
-            
+
             # Update provider stats
             provider.total_requests   += 1
             provider.total_tokens_in  += result.get("tokens_in", 0)
             provider.total_tokens_out += result.get("tokens_out", 0)
             provider.last_used_at      = datetime.now(timezone.utc)
-            
+
             # Calculate cost if model info available
             cat_models = PROVIDER_CATALOG.get(provider.provider, {}).get("models", [])
             m_info = next(
@@ -663,21 +663,21 @@ def _try_fallback_providers(
                 )
                 provider.total_cost_usd += cost
                 result["cost_usd"] = cost
-            
+
             db.commit()
             _logger.info(
                 "Fallback AI provider succeeded: %s (%s)",
                 provider.name, provider.provider
             )
             return result
-            
+
         except Exception as exc:
             _logger.debug(
                 "Fallback provider %s failed: %s",
                 provider.name, str(exc)
             )
             continue
-    
+
     # All providers failed
     _logger.warning("All AI providers failed as fallback")
     return None
@@ -792,7 +792,7 @@ def call_ai(
             p.last_error_at = datetime.now(timezone.utc)
             p.status      = "error"
             db.commit()
-            
+
             # ── Fallback 1: Try any other available provider (provider-agnostic) ──
             p = None
             fallback_result = _try_fallback_providers(
@@ -887,7 +887,6 @@ def diagnose_provider(provider) -> dict:
     """
     provider_type = provider.provider.value if hasattr(provider.provider, "value") else str(provider.provider)
     api_key = decrypt_value(provider.api_key) if provider.api_key else ""
-    base_url = (provider.api_base_url or PROVIDER_CATALOG.get(provider_type, {}).get("base_url") or "").strip()
 
     result: dict = {
         "id": provider.id,

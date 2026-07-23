@@ -190,7 +190,6 @@ def ml_forecast_revenue(
     # Basic confidence interval from residual stddev (if enough data)
     residual_std = 0.0
     if len(revenue_values) >= 3:
-        fitted = _linear_regression_forecast(revenue_values[:-1], 1)
         residuals = [abs(revenue_values[i] - revenue_values[max(0, i - 1)]) for i in range(1, len(revenue_values))]
         if residuals:
             mu = sum(residuals) / len(residuals)

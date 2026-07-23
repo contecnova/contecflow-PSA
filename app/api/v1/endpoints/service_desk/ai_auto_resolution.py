@@ -145,7 +145,7 @@ def analyze_ticket_for_ai_resolution(
 ):
     """
     Analyze a ticket and get AI-powered resolution suggestions.
-    
+
     Returns:
     {
         "ticket_id": str,
@@ -188,7 +188,7 @@ def apply_ai_auto_resolution(
 ):
     """
     Apply AI-recommended resolution to a ticket.
-    
+
     Only admins or L3 support can apply auto-resolution.
     """
     if current_user.role not in ["admin", "support"]:
@@ -252,9 +252,9 @@ def run_auto_resolution_job(
 ):
     """
     Run the daily auto-resolution job.
-    
+
     Admin-only. Analyzes open tickets and resolves if high confidence.
-    
+
     Returns job stats:
     {
         "processed": count,
@@ -413,7 +413,7 @@ def run_auto_resolution_job(
         _append_job_history(db, fail_record)
         db.commit()
         raise
-    
+
     return {
         **stats,
         "status": "completed",

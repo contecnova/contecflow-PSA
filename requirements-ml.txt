@@ -18,13 +18,13 @@ hf-xet==1.4.3
 
 # ── BI Phase 2: Advanced forecasting + anomaly detection ──────────────────────
 # Prophet: Facebook time-series forecasting with seasonality decomposition
-prophet>=1.1.5
+prophet==1.3.0
 # statsmodels: ARIMA, SARIMAX, Holt-Winters time series models
-statsmodels>=0.14.0
+statsmodels==0.14.6
 # LightGBM: gradient boosting for overrun / churn prediction
-lightgbm>=4.3.0
+lightgbm==4.6.0
 # ReportLab: PDF generation for scheduled report delivery
-reportlab>=4.2.0
+reportlab==4.4.10
 # ── Third-party ETL connector SDKs (install individually as needed) ──────────
 # Instala solo los que necesites:
 #   pip install simple-salesforce hubspot-api-client jira stripe xero-python

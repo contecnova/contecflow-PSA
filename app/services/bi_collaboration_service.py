@@ -968,7 +968,7 @@ def list_notifications(
         q = q.filter(DashboardNotification.dashboard_key == dashboard_key)
     if only_unread:
         q = q.filter(DashboardNotification.is_read.is_(False))
-    
+
     rows = q.order_by(DashboardNotification.created_at.desc()).all()
     return [
         {
@@ -1001,18 +1001,18 @@ def mark_notification_read(
         q = q.filter(DashboardNotification.organization_id.is_(None))
     if recipient_user_id:
         q = q.filter(DashboardNotification.recipient_user_id == recipient_user_id)
-    
+
     row = q.first()
     if not row:
         raise ValueError("notification_not_found")
-    
+
     row.is_read = is_read
     if is_read:
         row.read_at = datetime.now(timezone.utc)
     else:
         row.read_at = None
     db.commit()
-    
+
     return {
         "id": row.id,
         "dashboard_key": row.dashboard_key,

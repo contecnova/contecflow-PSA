@@ -252,7 +252,7 @@ def post_bi_card_to_teams_channel(
         message_payload = {
             "body": {
                 "contentType": "html",
-                "content": f'<attachment id="bi-card"></attachment>',
+                "content": '<attachment id="bi-card"></attachment>',
             },
             "attachments": [
                 {

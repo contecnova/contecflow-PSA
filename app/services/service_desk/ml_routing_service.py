@@ -475,7 +475,6 @@ def get_routing_stats(db: Session) -> dict:
         )
 
         # Top 5 agents by avg resolution speed (min samples)
-        from sqlalchemy import text  # noqa: PLC0415
         top_agents = (
             db.query(
                 RoutingFeedback.assigned_agent_id,

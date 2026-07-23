@@ -1,5 +1,5 @@
 """Service Desk — Tickets subdomain router."""
-from fastapi import APIRouter, Depends, Query, Header, Body, BackgroundTasks, Cookie, Response
+from fastapi import APIRouter, Depends, Query, Header, Body, BackgroundTasks, Cookie, Response, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 

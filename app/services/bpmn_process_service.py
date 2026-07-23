@@ -328,7 +328,6 @@ def build_bpmn_xml(process_key: str, process_name: str, steps: list[str]) -> str
     for i, (fid, src, tgt) in enumerate(flows):
         src_kind = elements[i][1]
         src_w = 36 if src_kind in ("startEvent", "endEvent") else 110
-        tgt_kind = elements[i + 1][1]
         tgt_x = cursor_x + src_w + 60
         # Centerlines
         src_cx = cursor_x + src_w

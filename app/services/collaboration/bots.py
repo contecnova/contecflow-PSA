@@ -481,7 +481,7 @@ def _ai_summarize(text: str) -> Optional[str]:
 # ── Service Desk auto-ticket escalation ──────────────────────────────────────
 def _escalate_to_ticket(db: Session, user, conversation_id: str, query: str, *, force: bool = False, priority: str = "p3_medium") -> dict:
     from app.models.service_desk import Ticket, TicketStatus, TicketType, TicketPriority
-    org = _org(user)
+    _org(user)  # authz guard: lanza 403 si el usuario no tiene organización
     title = (query or "Solicitud desde chat").strip()[:120]
     description = query or "Generado desde chat"
     # FIX: el modelo Ticket usa ``requester_user_id`` (no ``reporter_user_id``)

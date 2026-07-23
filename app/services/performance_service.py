@@ -589,7 +589,6 @@ def aggregate_campaign(db: Session, camp: Review360Campaign) -> dict:
     individuales se omiten y solo se exponen agregados numéricos.
     """
     questions = list_questions(db, camp.cycle_id)
-    q_by_key  = {q.key: q for q in questions}
 
     submitted = [r for r in (camp.reviews or []) if r.status == ReviewStatus.submitted]
     by_type: dict[str, list[PerformanceReview]] = {"self": [], "manager": [], "peer": [], "upward": []}
