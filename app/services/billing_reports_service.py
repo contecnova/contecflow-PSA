@@ -11,6 +11,7 @@ import enum
 import io
 import json
 import logging
+import secrets
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException
@@ -1403,7 +1404,11 @@ def execute_import_csv(entity_type: str, content: bytes, filename: str, current_
                     job_title=row.get("job_title"),
                     weekly_capacity_hours=float(row["weekly_capacity_hours"]) if row.get("weekly_capacity_hours") else settings.DEFAULT_WEEKLY_CAPACITY_HOURS,
                     hourly_rate=float(row["hourly_rate"]) if row.get("hourly_rate") else None,
-                    hashed_password=get_password_hash(settings.DEFAULT_USER_PASSWORD),
+                    # Seguridad: cada usuario importado recibe una contraseña ALEATORIA y única
+                    # (no la DEFAULT_USER_PASSWORD compartida y conocida). El usuario debe
+                    # establecerla vía "olvidé mi contraseña"; así una importación masiva no
+                    # crea cuentas accesibles con una credencial por defecto compartida.
+                    hashed_password=get_password_hash(secrets.token_urlsafe(24)),
                 )
                 db.add(u)
                 succeeded += 1

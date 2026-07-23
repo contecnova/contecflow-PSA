@@ -286,7 +286,6 @@ def assign_asset_record(db: Session, asset_id: str, user_id: str, changed_by: st
 
 # ── Phase 2 — Asset Lifecycle ─────────────────────────────────────────────────
 
-from datetime import datetime, timezone  # noqa: E402 (added here to avoid changing top imports)
 
 
 def _days_until(date_str: Optional[str]) -> Optional[int]:
@@ -439,7 +438,6 @@ def create_refresh_ticket(
         Ticket,
         TicketStatus,
         TicketPriority,
-        TicketType,
     )
 
     asset = get_asset_or_404(db, asset_id)

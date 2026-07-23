@@ -29,7 +29,7 @@ api.interceptors.request.use((config) => {
   if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
     const csrf = _readCookie('csrf_token')
     if (csrf) {
-      config.headers = config.headers || {}
+      config.headers = (config.headers || {}) as typeof config.headers
       ;(config.headers as Record<string, string>)['X-CSRF-Token'] = csrf
     }
   }

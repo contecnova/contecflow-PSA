@@ -97,7 +97,7 @@ def assess_change_risk_ai(
 ) -> dict:
     """
     Use IA to assess change risk automatically.
-    
+
     Returns: {
         "risk_level": "critical" | "high" | "medium" | "low",
         "risk_score": 0-100,
@@ -108,18 +108,18 @@ def assess_change_risk_ai(
     }
     """
     system_prompt = """You are a Change Management expert. Analyze the following change request and:
-    
+
     1. Assess risk level (critical/high/medium/low) based on:
        - Impact areas affected
        - Number of dependent systems
        - Rollback plan quality
        - Complexity indicators
-    
+
     2. Identify risk factors
     3. Suggest mitigations
     4. Recommend approval level
     5. Estimate duration
-    
+
     Respond ONLY with valid JSON:
     {
         "risk_level": "high",
@@ -171,7 +171,7 @@ def create_rollout_plan(
 ) -> dict:
     """
     Generate automated rollout plan.
-    
+
     Returns: {
         "phases": [
             {
@@ -259,7 +259,7 @@ def create_rollout_plan(
 
     total_minutes = sum(p["duration_minutes"] for p in phases)
     now = datetime.now(timezone.utc)
-    
+
     return {
         "phases": phases,
         "total_estimated_minutes": total_minutes,
@@ -275,7 +275,7 @@ def generate_rollback_automation_script(
 ) -> str:
     """
     Generate bash/Python script for automated rollback.
-    
+
     Returns script content that can be executed.
     """
     script = f"""#!/bin/bash
@@ -324,7 +324,7 @@ def check_change_suitability_for_automation(
 ) -> dict:
     """
     Determine if change can be fully automated or requires manual oversight.
-    
+
     Returns: {
         "can_automate": bool,
         "automation_level": "full" | "partial" | "manual",

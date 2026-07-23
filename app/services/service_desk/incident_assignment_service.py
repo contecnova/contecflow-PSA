@@ -26,7 +26,7 @@ from sqlalchemy.orm import joinedload
 from app.models.settings import AppSetting
 
 try:
-    import lightgbm as lgb  # type: ignore
+    import lightgbm as lgb  # type: ignore  # noqa: F401  (availability probe; sets _LGBM_AVAILABLE)
     _LGBM_AVAILABLE = True
 except (ImportError, OSError):
     _LGBM_AVAILABLE = False

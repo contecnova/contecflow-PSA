@@ -74,7 +74,7 @@ def _via_whisper_local(data: bytes, filename: str) -> Optional[str]:
         with open(in_path, "wb") as f:
             f.write(data)
         try:
-            proc = subprocess.run(
+            subprocess.run(
                 [binary, in_path, "--model", model, "--language", "es", "--output_format", "txt", "--output_dir", td],
                 check=True, capture_output=True, timeout=120,
             )

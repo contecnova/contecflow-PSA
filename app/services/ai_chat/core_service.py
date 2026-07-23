@@ -77,7 +77,7 @@ def prepare_chat(db: Session, conversation_id, user_id: str, context_type=None, 
     Returns (conv, messages, system)."""
     from app.services.ai_chat.conversation_service import get_or_create_conversation
     from app.models.user import User
-    
+
     conv = get_or_create_conversation(db, conversation_id, user_id, context_type, context_id)
 
     user_msg = AIMessage(conversation_id=conv.id, role="user", content=effective_message)

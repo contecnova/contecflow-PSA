@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_admin_or_pm

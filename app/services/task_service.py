@@ -8,20 +8,18 @@ procedural functions so that every existing import continues to work.
 from __future__ import annotations
 
 # ── Re-export from the tasks sub-package ─────────────────────────────────────
-# These imports make `from app.services.task_service import X` work even for
-# names that now live in the sub-package.
-from app.services.tasks.core import (
-    validate_task_transition,
-    apply_status_side_effects,
-    _TASK_VALID_TRANSITIONS,
-)
-from app.services.tasks.bulk import bulk_update_tasks  # noqa: F811 (overrides below)
-from app.services.tasks.scheduling import cascade_reschedule  # noqa: F811
+# `build_task_list_query` lives only in the sub-package; re-export it so
+# `from app.services.task_service import build_task_list_query` keeps working.
+# NOTE: validate_task_transition / apply_status_side_effects / _TASK_VALID_TRANSITIONS /
+# bulk_update_tasks / cascade_reschedule are NOT imported here on purpose: this module
+# defines its own procedural versions below (they carry extra logic such as OKR sync),
+# and importing them too would just shadow the imports (dead code / F811).
 from app.services.tasks.queries import build_task_list_query  # noqa: F401
 
 # ─────────────────────────────────────────────────────────────────────────────
 # All original imports kept verbatim so the procedural wrappers below compile.
 # ─────────────────────────────────────────────────────────────────────────────
+import logging
 from collections import deque
 from datetime import datetime, timezone, timedelta, date
 from typing import Optional, TYPE_CHECKING
@@ -611,7 +609,7 @@ def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> d
         if not task:
             errors.append({"id": task_id, "reason": "not_found"})
             continue
-        
+
         # G5 Fix: Enforce ABAC for each task individually in bulk date update
         if current_user:
             try:
@@ -619,7 +617,7 @@ def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> d
             except HTTPException:
                 errors.append({"id": task.id, "reason": "abac_denied"})
                 continue
-        
+
         if "start_date" in u:
             task.start_date = _to_date(u["start_date"])
         if "due_date" in u:

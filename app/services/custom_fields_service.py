@@ -237,7 +237,7 @@ def delete_workflow_state(project_id: str, state_id: str, db: Session) -> dict:
     ).first()
     if not s:
         raise HTTPException(404, "Estado no encontrado")
-    
+
     # Check if any active tasks are using this state
     in_use = db.query(Task).filter(
         Task.status == s.value,
@@ -248,7 +248,7 @@ def delete_workflow_state(project_id: str, state_id: str, db: Session) -> dict:
             400,
             f"No se puede eliminar: {in_use} tareas usan este estado. Reasígnalas primero.",
         )
-    
+
     # Soft-delete: mark as inactive
     s.is_active = False
     db.commit()
@@ -284,7 +284,7 @@ def delete_transition(project_id: str, transition_id: str, db: Session) -> dict:
     ).first()
     if not t:
         raise HTTPException(404, "Transición no encontrada")
-    
+
     # Soft-delete: mark as inactive
     t.is_active = False
     db.commit()

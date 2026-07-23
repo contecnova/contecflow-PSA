@@ -344,7 +344,7 @@ def change_password(
     current_pw = payload.current_password
     new_pw     = payload.new_password
     mfa_token  = payload.mfa_challenge_token
-    
+
     # Si el usuario tiene MFA activo, requerimos challenge reciente
     if current_user.mfa_enabled:
         if not mfa_token:
@@ -354,21 +354,21 @@ def change_password(
         except Exception as e:
             logger.info("MFA challenge read failed during change-password for user=%s", current_user.id, exc_info=True)
             raise HTTPException(401, f"MFA inválido: {str(e)}")
-    
+
     if not current_pw or not new_pw:
         raise HTTPException(400, "current_password y new_password son obligatorios")
-    
+
     ok, err = validate_password_policy(new_pw, db=db, org_id=getattr(current_user, "organization_id", None))
     if not ok:
         raise HTTPException(400, err)
-    
+
     if not current_user.hashed_password:
         raise HTTPException(400, "Tu cuenta usa SSO — la contraseña se gestiona externamente")
-    
+
     if not verify_password(current_pw, current_user.hashed_password):
         raise HTTPException(403, "Contraseña actual incorrecta")
-    
+
     current_user.hashed_password = get_password_hash(new_pw)
     _svc.commit_db(db)
-    
+
     return {"ok": True, "message": "Contraseña actualizada correctamente"}

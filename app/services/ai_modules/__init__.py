@@ -1,5 +1,7 @@
 """ai_modules package — split from the former 2047-LOC ai_modules_service.py.
 Re-exports every public symbol so existing imports keep working."""
+# Barrel/re-export module (see docstring): imports below re-export submodule symbols.
+# ruff: noqa: F401
 from app.services.ai_modules._base import *  # noqa: F401,F403
 from app.services.ai_modules.oracle import *  # noqa: F401,F403
 from app.services.ai_modules.voice import *  # noqa: F401,F403

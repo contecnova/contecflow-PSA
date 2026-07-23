@@ -659,13 +659,13 @@ def delete_department(item_id: str, db: Session) -> dict:
     item = db.query(Department).filter(Department.id == item_id).first()
     if not item:
         raise ValueError("not_found")
-    
+
     # Check for dependencies (will be automatically SET NULL per FK config)
     dependencies = _check_department_dependencies(item_id, db)
-    
+
     item.is_active = False
     db.commit()
-    
+
     if dependencies:
         return {"ok": True, "warning": "Dependencias limpiadas", "details": dependencies}
     return {"ok": True}
@@ -705,23 +705,23 @@ def delete_holiday(item_id: str, db: Session) -> dict:
 
 def _check_department_dependencies(department_id: str, db: Session) -> list[str]:
     """Check if department has active dependencies.
-    
+
     Returns list of dependency descriptions if found, empty list otherwise.
     Dependencies are automatically SET NULL per FK config, but we validate
     for informational purposes.
     """
     from app.models.alm import ALMCostCenter, ALMAsset
-    
+
     dependencies = []
-    
+
     # Check Cost Centers with this department
     center_count = db.query(ALMCostCenter).filter(ALMCostCenter.department_id == department_id).count()
     if center_count > 0:
         dependencies.append(f"{center_count} Centro(s) de coste asignado(s)")
-    
+
     # Check Assets with this department
     asset_count = db.query(ALMAsset).filter(ALMAsset.department_id == department_id).count()
     if asset_count > 0:
         dependencies.append(f"{asset_count} Activo(s) asignado(s)")
-    
+
     return dependencies

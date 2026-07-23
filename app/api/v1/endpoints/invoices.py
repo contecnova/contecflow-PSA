@@ -4,10 +4,12 @@ import io
 from fastapi import APIRouter, Body, HTTPException, Query, Response, status, Depends
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.deps import get_db, get_current_user
+from app.models.billing_reports import InvoiceStatus
 from app.models.user import User, UserRole
 from app.schemas.billing_reports import InvoiceCreate, InvoiceOut, InvoiceSummaryOut
-from app.services import billing_reports_service
+from app.services import billing_reports_service, stripe_service
 from app.services.psa_flows import build_invoice_preview_from_timesheets_flow
 from app.core.responses import APIListResponse
 
@@ -70,7 +72,36 @@ def create_payment_link(
     invoice = billing_reports_service.get_invoice_by_id(db, invoice_id)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    raise HTTPException(status_code=503, detail="Stripe not configured")
+    if not stripe_service.is_configured():
+        # Honesto: la funcionalidad no está disponible hasta configurar Stripe,
+        # en vez de un 503 que sugiere un fallo transitorio.
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="El cobro con Stripe no está disponible: configura STRIPE_SECRET_KEY.",
+        )
+    if invoice.status == InvoiceStatus.paid:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="La factura ya está pagada.")
+    # Reutiliza el enlace ya generado (idempotente de cara al usuario).
+    if invoice.stripe_payment_link_url:
+        return {"url": invoice.stripe_payment_link_url, "id": invoice.stripe_payment_link_id, "reused": True}
+    try:
+        session = stripe_service.create_checkout_session(
+            invoice_id=invoice.id,
+            invoice_number=invoice.number,
+            amount=invoice.total or 0,
+            currency=invoice.currency or settings.DEFAULT_CURRENCY,
+            success_url=f"{settings.FRONTEND_URL}/invoices/{invoice.id}?paid=1",
+            cancel_url=f"{settings.FRONTEND_URL}/invoices/{invoice.id}?canceled=1",
+            customer_email=invoice.client_email,
+        )
+    except stripe_service.StripeError as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+    invoice.stripe_payment_link_url = session["url"]
+    invoice.stripe_payment_link_id = session["id"]
+    if session.get("payment_intent"):
+        invoice.stripe_payment_intent_id = session["payment_intent"]
+    db.commit()
+    return {"url": session["url"], "id": session["id"], "reused": False}
 
 
 @router.get("/{invoice_id}/pdf", summary="Descargar factura en PDF")

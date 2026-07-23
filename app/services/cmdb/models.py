@@ -110,7 +110,6 @@ def reconcile_cis(
         else:
             # UPDATE if any field changed; detect attribute/config drift separately
             changed = False
-            old_attributes = existing.attributes
             for field in ("name", "status", "ip_address", "hostname", "version",
                           "description", "attributes", "environment"):
                 new_val = ci_data.get(field)
@@ -532,7 +531,6 @@ def process_agent_checkin(
     Returns summary dict with `agent_id`, `ci_id`, `created`/`updated` flags.
     """
     from fastapi import HTTPException  # noqa: PLC0415
-    from app.models.cmdb import CMDBAgentRegistration  # noqa: PLC0415
     from app.services.cmdb.parser import resolve_agent_by_token, normalize_agent_payload  # noqa: PLC0415
 
     reg = resolve_agent_by_token(db, raw_token)

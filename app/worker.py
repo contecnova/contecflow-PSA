@@ -7,7 +7,10 @@ celery_app = Celery(
     "contecflow",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.tasks"],
+    # Todas las tareas @celery_app.task viven en este mismo módulo (app.worker),
+    # no en "app.tasks" (que no existe). Apuntamos include al módulo real para que
+    # el worker las descubra al arrancar. Ver beat_schedule ("app.worker.<task>").
+    include=["app.worker"],
 )
 
 celery_app.conf.beat_schedule = {

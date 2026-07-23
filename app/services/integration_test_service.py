@@ -146,7 +146,6 @@ def _test_stripe(cfg: dict, db: Session) -> dict:
 
 
 def _test_docusign(cfg: dict, db: Session) -> dict:
-    base = cfg.get("base_url") or "https://account-d.docusign.com"
     acct = cfg.get("account_id")
     if not acct:
         return {"ok": False, "detail": "account_id vacío (requiere flujo OAuth completo para test real)"}

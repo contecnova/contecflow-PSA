@@ -43,7 +43,7 @@ def overrun_risk(
             "risk_level": "unknown",
             "can_predict": False,
         }
-    
+
     result = ml_trainer.predict_project(
         db, project_id, current_user.organization_id,
         is_superadmin=bool(getattr(current_user, "is_superadmin", False)),

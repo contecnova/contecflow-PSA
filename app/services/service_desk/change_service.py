@@ -253,7 +253,7 @@ def _maybe_auto_approve(
 
     Returns True if the change was auto-approved.
     """
-    from app.models.service_desk import ChangeType, ChangeStatus  # noqa: PLC0415
+    from app.models.service_desk import ChangeStatus  # noqa: PLC0415
     try:
         change_type_val = change.change_type.value if hasattr(change.change_type, "value") else change.change_type
     except Exception:  # noqa: BLE001

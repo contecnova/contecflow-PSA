@@ -151,7 +151,7 @@ def mfa_validate(
 
     if not challenge_token:
         raise HTTPException(400, "mfa_challenge_token requerido")
-    
+
     challenge_data, challenge_row = _read_mfa_challenge(db, challenge_token)
     user_id = challenge_data.get("sub")
 
@@ -385,7 +385,7 @@ def webauthn_auth_start(
     mfa_challenge_token = payload.mfa_challenge_token
     if not mfa_challenge_token:
         raise HTTPException(400, "mfa_challenge_token requerido")
-    
+
     mfa_data, _ = _read_mfa_challenge(db, mfa_challenge_token)
     user_id = mfa_data.get("sub")
     user = _svc.lookup_user_by_id_active(db, user_id)

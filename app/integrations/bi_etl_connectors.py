@@ -269,7 +269,7 @@ class HubSpotConnector(BaseConnector):
 
     def connect(self, config: Dict[str, Any]) -> Any:
         try:
-            import hubspot  # type: ignore
+            import hubspot  # type: ignore  # noqa: F401  (optional-dependency availability probe)
             from hubspot import HubSpot  # type: ignore
         except ImportError:
             raise ImportError("pip install hubspot-api-client")
@@ -378,9 +378,9 @@ class XeroConnector(BaseConnector):
     def connect(self, config: Dict[str, Any]) -> Any:
         try:
             from xero_python.api_client import ApiClient  # type: ignore
-            from xero_python.api_client.configuration import Configuration  # type: ignore
+            from xero_python.api_client.configuration import Configuration  # type: ignore  # noqa: F401
             from xero_python.api_client.oauth2 import OAuth2Token  # type: ignore
-            from xero_python.accounting import AccountingApi  # type: ignore
+            from xero_python.accounting import AccountingApi  # type: ignore  # noqa: F401
         except ImportError:
             raise ImportError("pip install xero-python")
 
@@ -864,7 +864,6 @@ class GoogleAnalyticsConnector(BaseConnector):
         try:
             from google.analytics.data_v1beta import BetaAnalyticsDataClient  # type: ignore  # noqa: PLC0415
             from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, RunReportRequest  # type: ignore  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
             import os  # noqa: PLC0415
 
             os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", client["credentials_json"])

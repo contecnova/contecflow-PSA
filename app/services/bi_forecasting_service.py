@@ -141,7 +141,6 @@ def forecast(
 
     # Confidence bands (±1 std of residuals, simplified)
     residuals = []
-    preds_in_sample = _holt_double_exp(values[:-1], 1)
     for i in range(1, len(values)):
         pred = _holt_double_exp(values[:i], 1)[0]
         residuals.append(abs(pred - values[i]))
