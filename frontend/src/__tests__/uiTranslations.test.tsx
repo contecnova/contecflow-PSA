@@ -8,10 +8,15 @@ import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/re
 import { AppLangProvider, useAppLang } from '../i18n/AppLangContext';
 import React from 'react';
 
-// AppLangProvider needs useAuth() to optionally persist lang to backend
-vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ user: null }),
-}));
+// AppLangProvider hace `useContext(AuthContext)` (no solo useAuth): el mock debe
+// exportar un Context real para que useContext no falle.
+vi.mock('../context/AuthContext', async () => {
+  const { createContext } = await vi.importActual<typeof import('react')>('react');
+  return {
+    useAuth: () => ({ user: null }),
+    AuthContext: createContext<{ user: null } | null>({ user: null }),
+  };
+});
 
 vi.mock('../services/api', () => ({
   default: {

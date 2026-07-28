@@ -194,7 +194,7 @@ const TimerWidget = () => {
             </select>
             <button
               disabled={!projectId || loading}
-              onClick={() => call(() => imputationsApi.timerStart({ project_id: Number(projectId) }))}
+              onClick={() => call(() => imputationsApi.timerStart({ project_id: projectId }))}
               style={{ ...btnStyle('var(--accent)'), width: '100%', opacity: (!projectId || loading) ? 0.5 : 1 }}>
               {loading ? 'Iniciando…' : '▶ Iniciar'}
             </button>
