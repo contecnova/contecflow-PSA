@@ -56,7 +56,7 @@ export default function ResetPasswordPage() {
     setSuccess('')
     try {
       const { data } = await authApi.resetPassword({ token, new_password: password })
-      setSuccess(data?.message || t('reset_password.success_message'))
+      setSuccess((data as { ok: boolean; message?: string })?.message || t('reset_password.success_message'))
       setTimeout(() => navigate('/login'), 1200)
     } catch (e) {
       const raw = e.response?.data?.detail

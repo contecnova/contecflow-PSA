@@ -245,11 +245,11 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
 
   const { data: users = [] } = useQuery<UserPick[]>({
     queryKey: ['okr-users-pick'],
-    queryFn: () => usersApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => (Array.isArray(r.data) ? r.data : (r.data?.items || [])) as UserPick[]),
+    queryFn: () => usersApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => (r.data ?? []) as UserPick[]),
   })
   const { data: projects = [] } = useQuery<ProjectPick[]>({
     queryKey: ['okr-projects-pick'],
-    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => (Array.isArray(r.data) ? r.data : (r.data?.items || [])) as ProjectPick[]),
+    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => (r.data ?? []) as ProjectPick[]),
   })
   const { data: departments = [] } = useQuery<DepartmentPick[]>({
     queryKey: ['okr-departments-pick'],
@@ -368,7 +368,7 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
 
   const { data: users = [] } = useQuery<UserPick[]>({
     queryKey: ['okr-users-pick'],
-    queryFn: () => usersApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => (Array.isArray(r.data) ? r.data : (r.data?.items || [])) as UserPick[]),
+    queryFn: () => usersApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => (r.data ?? []) as UserPick[]),
   })
 
   const { mutate, isPending } = useMutation({

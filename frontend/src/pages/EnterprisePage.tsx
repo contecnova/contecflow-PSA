@@ -690,7 +690,7 @@ function SSOTab() {
             <div>
               <label style={labelStyle}>Proveedor</label>
               <select value={form.provider} onChange={e => {
-                const info = PROVIDER_INFO[e.target.value] || {}
+                const info: { label?: string; icon?: string; discovery?: string } = PROVIDER_INFO[e.target.value] || {}
                 setForm(f => ({ ...f, provider: e.target.value, oidc_discovery_url: info.discovery || '' }))
               }} style={inputStyle}>
                 {Object.entries(PROVIDER_INFO).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}

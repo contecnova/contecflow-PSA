@@ -344,7 +344,7 @@ export default function CapacityPage(): JSX.Element {
     ? users.filter(u => (u.department || '').toLowerCase().includes(deptFilter.toLowerCase()))
     : users
 
-  const departments: string[] = [...new Set(users.map((u) => u.department).filter((v): v is string => Boolean(v)))]
+  const departments: string[] = [...new Set<string>(users.map((u) => u.department).filter((v): v is string => Boolean(v)))]
 
   // Calcular KPIs de capacidad
   const totalAssignments = board.length

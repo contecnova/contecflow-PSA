@@ -323,7 +323,7 @@ export default function MetricsDashboardTab() {
     queryKey: ['sd-itil-metrics', days],
     queryFn: () => {
       const { d_from, d_to } = dateRange(days)
-      return sdMetricsApi.itil({ date_from: d_from, date_to: d_to }).then(r => r.data)
+      return sdMetricsApi.itil({ date_from: d_from, date_to: d_to }).then(r => r.data as ItilMetrics)
     },
     staleTime: 60_000,
   })
@@ -332,12 +332,12 @@ export default function MetricsDashboardTab() {
     queryKey: ['sd-agent-perf', days],
     queryFn: () => {
       const { d_from, d_to } = dateRange(days)
-      return sdMetricsApi.agentPerformance({ date_from: d_from, date_to: d_to }).then(r => r.data)
+      return sdMetricsApi.agentPerformance({ date_from: d_from, date_to: d_to }).then(r => r.data as AgentPerf[])
     },
     staleTime: 60_000,
   })
 
-  const { sort: agentSort, setSort: setAgentSort, sortedData: sortedAgents } = useSort(agents || [], 'total', 'desc')
+  const { sort: agentSort, setSort: setAgentSort, sortedData: sortedAgents } = useSort<AgentPerf>(agents || [], 'total', 'desc')
 
   if (isLoading) {
     return (
@@ -359,8 +359,8 @@ export default function MetricsDashboardTab() {
     : (metrics.fcr_percent ?? 0) >= 50 ? COLOR.warning
     : COLOR.danger
 
-  const typeEntries = Object.entries(metrics.by_type || {}).sort((a, b) => b[1] - a[1])
-  const priorityEntries = Object.entries(metrics.by_priority || {})
+  const typeEntries = Object.entries<number>(metrics.by_type || {}).sort((a, b) => b[1] - a[1])
+  const priorityEntries = Object.entries<number>(metrics.by_priority || {})
   const totalTickets = metrics.volume?.total || 1
 
   /* palette for type bars */

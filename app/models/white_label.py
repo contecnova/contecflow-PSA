@@ -50,6 +50,12 @@ class OrgBranding(Base):
     # CSS override (safe subset — no scripts)
     custom_css_vars   = Column(Text, nullable=True)  # JSON: {"--color-primary": "#...", ...}
 
+    # Traducciones personalizadas del portal, por idioma/módulo/clave.
+    # JSON: { "<lang>": { "<module>": { "<key>": "<value>" } } }.
+    # Persistido aquí (antes era un dict en memoria per-proceso que se perdía al
+    # reiniciar y no se compartía entre workers).
+    portal_translations = Column(Text, nullable=True)  # JSON
+
     is_active         = Column(Boolean, default=True)
     created_by        = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at        = Column(DateTime(timezone=True), server_default=func.now())

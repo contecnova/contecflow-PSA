@@ -247,7 +247,7 @@ export default function ClientsPage(): JSX.Element {
         </div>
         {isLoading ? <Spinner /> : clients.length === 0
           ? <EmptyState icon="🏢" title="Sin clientes" description="Crea el primer cliente para empezar" />
-          : clientView === 'grid' ? sortedClients.map(c => (
+          : clientView === 'grid' ? (sortedClients as Client[]).map(c => (
             <button key={c.id} type="button" onClick={() => { setSelected(c); setActiveTab('contacts') }}
               style={{ ...panel, padding: '14px 16px', marginBottom: 8, cursor: 'pointer', borderColor: selected?.id === c.id ? 'var(--accent)' : 'var(--surface-4)', background: selected?.id === c.id ? 'var(--accent-muted)' : 'var(--surface-2)', transition: 'all 0.12s' }}
               onMouseEnter={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-5)' } }}
@@ -274,7 +274,7 @@ export default function ClientsPage(): JSX.Element {
                 <SortableTH col="projects_count" sort={clientSort} onSort={setClientSort}>Proy</SortableTH>
                 <span>SD</span>
               </div>
-              {sortedClients.map(c => (
+              {(sortedClients as Client[]).map(c => (
                 <button key={c.id} type="button" onClick={() => { setSelected(c); setActiveTab('contacts') }}
                   style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '9px 12px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', cursor: 'pointer', background: selected?.id === c.id ? 'var(--accent-muted)' : 'transparent' }}
                   onMouseEnter={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'var(--surface-3)' }}

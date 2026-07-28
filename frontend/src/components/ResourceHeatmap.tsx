@@ -2,7 +2,7 @@
  * ResourceHeatmap — Visual weekly load heatmap per team member
  * Shows hard/soft bookings, utilization %, and overload warnings
  */
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
@@ -75,7 +75,7 @@ const BOOKING_COLORS = {
   soft: 'var(--purple)',
 }
 
-const fs = {
+const fs: CSSProperties = {
   width: '100%',
   background: 'var(--surface-3)',
   border: '1px solid var(--surface-4)',
@@ -87,7 +87,7 @@ const fs = {
   fontFamily: 'var(--font-sans)',
   boxSizing: 'border-box',
 }
-const ls = {
+const ls: CSSProperties = {
   fontSize: '11px',
   fontWeight: 700,
   color: 'var(--text-2)',
@@ -129,7 +129,7 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
   })
   const validation = useFormValidation(bookingSchema)
 
-  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => r.data?.items ?? r.data ?? []) })
+  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => r.data ?? []) })
   const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list({}).then(r => r.data) })
   const projects = projRaw as ProjectItem[]
   const users = usersRaw as UserItem[]

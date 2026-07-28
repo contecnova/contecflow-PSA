@@ -13,12 +13,6 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    // noCheck sigue activo: reactivar el typecheck completo destapa ~219 errores
-    // de tipos preexistentes (params de API mal nombrados, enums TaskStatus, tipos
-    // `never` del refactor APIListResponse). Es una migración gradual (#115), no un
-    // flip de flag; hacerlo sin corregirlos rompería el build/CI. Se corrigen por
-    // carpeta y luego se elimina esta línea.
-    "noCheck": true,
 
     /* Coexistencia con JS — migración gradual #115 */
     "allowJs": true,

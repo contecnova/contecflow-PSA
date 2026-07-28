@@ -168,7 +168,7 @@ export default function RACIPage() {
 
   const { data: projRaw = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => projectsApi.list({}).then(r => r.data ?? []),
   })
   const projects = (Array.isArray(projRaw) ? projRaw : []) as ProjectItem[]
 

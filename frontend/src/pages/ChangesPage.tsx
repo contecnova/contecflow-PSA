@@ -381,7 +381,7 @@ export default function ChangesPage(): JSX.Element {
   const [reviewing, setReviewing] = useState<ChangeRequest | null>(null)
   const [tab, setTab] = useState<ChangesTab>('project')
 
-  const { data: projects = [] } = useQuery<ProjectPick[]>({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => (r.data?.items ?? r.data ?? []) as ProjectPick[]) })
+  const { data: projects = [] } = useQuery<ProjectPick[]>({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => (r.data ?? []) as ProjectPick[]) })
 
   const { data: changesData, isLoading } = useQuery<ChangesData>({
     queryKey: ['changes', selectedProject],

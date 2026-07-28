@@ -40,7 +40,10 @@ interface DateOverride {
 
 interface AiSuggestion {
   task_id?: string | number
-  [key: string]: unknown
+  severity?: string
+  type?: string
+  message?: string
+  suggestions?: string[]
 }
 
 interface DependencyItem {
@@ -102,9 +105,9 @@ export default function GanttPage(): JSX.Element {
 
   // Map task_id → suggestion para lookup O(1) en GanttChart.
   const aiSuggestionsByTask = useMemo(() => {
-    const out: Record<string | number, AiSuggestion> = {}
+    const out: Record<string, AiSuggestion> = {}
     for (const s of (aiSuggestionsResp?.suggestions || [])) {
-      if (s?.task_id) out[s.task_id] = s
+      if (s?.task_id) out[String(s.task_id)] = s
     }
     return out
   }, [aiSuggestionsResp])

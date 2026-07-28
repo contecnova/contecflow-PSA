@@ -204,12 +204,12 @@ export function MajorIncidents() {
   type MI = { [k: string]: unknown; id: string; number?: string; title?: string; severity?: string; status?: string; commander?: string; declared_at?: string; resolved_at?: string }
   const { data: mis = [], isLoading } = useQuery<MI[]>({
     queryKey: ['sd-major-incidents'],
-    queryFn: () => sdRoutingApi.majorIncidents().then(r => r.data),
+    queryFn: () => sdRoutingApi.majorIncidents().then(r => r.data as MI[]),
     refetchInterval: 30000,
   })
 
   const activeMis = mis.filter(m => m.status === 'active')
-  const { sort: miSort, setSort: setMiSort, sortedData: sortedMis } = useSort(mis, 'declared_at', 'desc')
+  const { sort: miSort, setSort: setMiSort, sortedData: sortedMis } = useSort<MI>(mis, 'declared_at', 'desc')
 
   return (
     <div>

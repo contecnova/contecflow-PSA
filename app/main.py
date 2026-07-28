@@ -302,6 +302,17 @@ async def lifespan(_app: FastAPI):
         logger.error("❌ Startup safety check failed: %s", _sched_exc)
         raise
     if _enable_apscheduler:
+        # APScheduler in-process es adecuado para dev y para un despliegue de un solo
+        # worker. En producción multi-worker, el SQLAlchemyJobStore compartido reduce
+        # pero NO garantiza la ejecución única entre procesos (APScheduler no hace
+        # locking distribuido como Celery Beat). Recomendación: en prod multi-worker,
+        # ENABLE_APSCHEDULER=0 + ENABLE_CELERY_BEAT=1 (un único proceso beat).
+        if settings.ENVIRONMENT == "production" and not _celery_beat_enabled:
+            logger.warning(
+                "⚠️  APScheduler activo en producción. Con >1 worker las tareas "
+                "programadas pueden ejecutarse más de una vez. Usa Celery Beat "
+                "(ENABLE_APSCHEDULER=0, ENABLE_CELERY_BEAT=1) para ejecución única."
+            )
         logger.info("⏰ Iniciando scheduler de informes...")
         try:
             from apscheduler.schedulers.background import BackgroundScheduler

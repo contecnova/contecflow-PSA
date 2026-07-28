@@ -67,7 +67,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
   const t = useAppT()
   const { data: skillCatalog = [] } = useQuery<Skill[]>({
     queryKey: ['skills-catalog'],
-    queryFn: () => skillsApi.catalog().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => skillsApi.catalog().then(r => (r.data as { items?: Skill[] })?.items ?? (r.data as Skill[]) ?? []),
     staleTime: STALE_5_MIN_MS,
   })
 
@@ -104,7 +104,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
   })
 
   // group skill catalog by category
-  const byCategory = skillCatalog.reduce((acc: Record<string, Skill[]>, s: Skill) => {
+  const byCategory: Record<string, Skill[]> = skillCatalog.reduce((acc: Record<string, Skill[]>, s: Skill) => {
     const cat = s.category || 'other'
     if (!acc[cat]) acc[cat] = []
     acc[cat].push(s)
@@ -262,7 +262,7 @@ function WorkersPanel({ subId }: { subId: string }) {
 
   const { data: workers = [], isLoading } = useQuery<Worker[]>({
     queryKey: ['sub-workers', subId],
-    queryFn: () => enterpriseSubsApi.workers(subId).then(r => r.data),
+    queryFn: () => enterpriseSubsApi.workers(subId).then(r => r.data as Worker[]),
   })
 
   const { mutate: deactivate } = useMutation({
@@ -374,15 +374,15 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
 
   const { data: assignments = [] } = useQuery<Assignment[]>({
     queryKey: ['sub-assignments', sub.id],
-    queryFn: () => enterpriseSubsApi.assignments(sub.id).then(r => r.data),
+    queryFn: () => enterpriseSubsApi.assignments(sub.id).then(r => r.data as Assignment[]),
   })
   const { data: timelogs = [] } = useQuery<Timelog[]>({
     queryKey: ['sub-timelogs', sub.id],
-    queryFn: () => enterpriseSubsApi.timelogs(sub.id).then(r => r.data),
+    queryFn: () => enterpriseSubsApi.timelogs(sub.id).then(r => r.data as Timelog[]),
   })
   const { data: invoices = [] } = useQuery<Invoice[]>({
     queryKey: ['sub-invoices', sub.id],
-    queryFn: () => enterpriseSubsApi.invoices(sub.id).then(r => r.data),
+    queryFn: () => enterpriseSubsApi.invoices(sub.id).then(r => r.data as Invoice[]),
   })
   const { data: projects = [] } = useQuery<ProjectListItem[]>({
     queryKey: ['projects'],
@@ -701,18 +701,18 @@ export default function SubcontractorsPage() {
 
   const { data: dashboard } = useQuery<Record<string, unknown>>({
     queryKey: ['sub-dashboard'],
-    queryFn: () => enterpriseSubsApi.dashboard().then(r => r.data),
+    queryFn: () => enterpriseSubsApi.dashboard().then(r => r.data as Record<string, unknown>),
   })
   const { data: subs = [], isLoading } = useQuery<Sub[]>({
     queryKey: ['subcontractors'],
-    queryFn: () => enterpriseSubsApi.list().then(r => r.data),
+    queryFn: () => enterpriseSubsApi.list().then(r => r.data as Sub[]),
   })
 
   const [showEdit, setShowEdit] = useState(false)
   const [editTarget, setEditTarget] = useState<Sub | null>(null)
   const [editForm, setEditForm] = useState<Record<string, string>>({})
   const [view, setView] = useState('grid')
-  const { sort: subSort, setSort: setSubSort, sortedData: sortedSubs } = useSort(subs, 'name')
+  const { sort: subSort, setSort: setSubSort, sortedData: sortedSubs } = useSort<Sub>(subs, 'name')
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: (d: Record<string, unknown>) => enterpriseSubsApi.create(d),

@@ -801,13 +801,11 @@ def get_portal_stats(
 
 # ── Traducciones personalizadas del portal ───────────────────────────────────
 
-# Custom portal translations, keyed by organization_id to avoid cross-tenant
-# leakage (audit HIGH): a single flat dict was shared across ALL tenants.
-# Shape: { "<organization_id>": { <lang>: { <module>: { <key>: <value> } } } }
-# TODO(multi-worker): still per-process and lost on restart. Move to DB
-# (e.g. an OrgBranding.portal_translations JSON column) or Redis for durability
-# and to share state across workers.
-_TRANSLATIONS_STORE: dict = {}
+# Custom portal translations, persistidas por organización en
+# OrgBranding.portal_translations (JSON). Antes vivían en un dict en memoria
+# per-proceso: se perdían al reiniciar y no se compartían entre workers.
+# Shape: { <lang>: { <module>: { <key>: <value> } } }.
+import json  # noqa: E402
 
 
 def _org_key(current_user: User) -> str:
@@ -817,17 +815,44 @@ def _org_key(current_user: User) -> str:
 
 @router.get("/translations", summary="Obtener traducciones personalizadas del portal")
 async def get_portal_translations(
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _TRANSLATIONS_STORE.get(_org_key(current_user), {})
+    from app.models.white_label import OrgBranding
+
+    org_id = _org_key(current_user)
+    branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
+    if not branding or not branding.portal_translations:
+        return {}
+    try:
+        return json.loads(branding.portal_translations)
+    except (ValueError, TypeError):
+        return {}
+
 
 @router.post("/translations", summary="Guardar traducciones personalizadas del portal")
 async def save_portal_translations(
     data: dict,
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    bucket = _TRANSLATIONS_STORE.setdefault(_org_key(current_user), {})
-    bucket.update(data)
+    from app.models.white_label import OrgBranding
+
+    org_id = _org_key(current_user)
+    branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
+    if not branding:
+        branding = OrgBranding(organization_id=org_id, created_by=getattr(current_user, "id", None))
+        db.add(branding)
+    # Merge sobre lo existente (mismo comportamiento que el antiguo bucket.update).
+    current = {}
+    if branding.portal_translations:
+        try:
+            current = json.loads(branding.portal_translations)
+        except (ValueError, TypeError):
+            current = {}
+    current.update(data)
+    branding.portal_translations = json.dumps(current, ensure_ascii=False)
+    db.commit()
     return {"ok": True}
 
 

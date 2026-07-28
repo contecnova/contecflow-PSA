@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -142,7 +142,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
   const qc = useQueryClient()
   const [showAddMilestone, setShowAddMilestone] = useState(false)
   const [msForm, setMsForm] = useState({ name: '', due_date: '', billing_amount: '', billing_pct: '', sort_order: 0 })
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { data, isLoading } = useQuery<ProjectDetailData>({
@@ -269,7 +269,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
               <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
               <XAxis dataKey="week" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} tickFormatter={w => w.slice(5)} angle={-30} textAnchor="end" />
               <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
-              <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${v.toFixed(1)}h`, 'Horas']} />
+              <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${(v as number).toFixed(1)}h`, 'Horas']} />
               <Bar dataKey="hours" fill="#4f8ef7" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -319,7 +319,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
 
 export default function ProfitabilityPage() {
   const t = useAppT()
-  const { _hasRole } = useAuth()
+  const { hasRole: _hasRole } = useAuth()
   const [selectedProject, setSelectedProject] = useState<string | number | null>(null)
   const [statusFilter, setStatusFilter] = useState('active')
 
@@ -378,7 +378,7 @@ export default function ProfitabilityPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                 <XAxis dataKey="project_code" tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} angle={-35} textAnchor="end" />
                 <YAxis tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} tickFormatter={v => `${v.toFixed(0)}%`} />
-                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${v.toFixed(1)}%`, 'Margen']} />
+                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${(v as number).toFixed(1)}%`, 'Margen']} />
                 <Bar dataKey="margin_pct" radius={[3, 3, 0, 0]}>
                   {projects.slice().reverse().map((p, i) => (
                     <Cell key={i} fill={p.margin_pct < 0 ? 'var(--danger)' : p.margin_pct < 15 ? 'var(--warning)' : p.margin_pct < 30 ? 'var(--accent)' : 'var(--success)'} />

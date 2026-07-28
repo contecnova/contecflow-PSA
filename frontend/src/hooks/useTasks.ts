@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { tasksApi } from '../services/api'
+import type { TaskCreatePayload, TaskUpdatePayload, TaskBulkUpdatePayload, TaskCommentPayload } from '../services/api/tasks'
 import { queryKeys } from '../constants/queryKeys'
 
 const STALE = 60 * 1000 // 1 min — operational data
@@ -28,7 +29,7 @@ function unwrapList<T>(r: { data?: { items?: T[] } | T[] | null }): T[] {
 export function useTasks(params: TaskListParams = {}): UseQueryResult<Task[]> {
   return useQuery<Task[]>({
     queryKey: queryKeys.tasks.list(params),
-    queryFn: () => tasksApi.list(params).then((r: { data?: { items?: Task[] } | Task[] | null }) => unwrapList<Task>(r)),
+    queryFn: () => tasksApi.list(params).then((r) => (r.data ?? []) as unknown as Task[]),
     staleTime: STALE,
   })
 }
@@ -64,7 +65,7 @@ export function useTaskComments(taskId: string | undefined): UseQueryResult<unkn
 export function useCreateTask(): UseMutationResult<unknown, unknown, Partial<Task>> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: Partial<Task>) => tasksApi.create(data),
+    mutationFn: (data: Partial<Task>) => tasksApi.create(data as TaskCreatePayload),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tasks.all() }),
   })
 }
@@ -72,7 +73,7 @@ export function useCreateTask(): UseMutationResult<unknown, unknown, Partial<Tas
 export function useUpdateTask(): UseMutationResult<unknown, unknown, UpdateArgs<Partial<Task>>> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: UpdateArgs<Partial<Task>>) => tasksApi.update(id, data),
+    mutationFn: ({ id, data }: UpdateArgs<Partial<Task>>) => tasksApi.update(id, data as TaskUpdatePayload),
     onSuccess: (_: unknown, { id }: UpdateArgs<Partial<Task>>) => {
       qc.invalidateQueries({ queryKey: queryKeys.tasks.all() })
       qc.invalidateQueries({ queryKey: ['kanban'] })
@@ -95,7 +96,7 @@ export function useDeleteTask(): UseMutationResult<unknown, unknown, string> {
 export function useBulkUpdateTasks(): UseMutationResult<unknown, unknown, BulkUpdateArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: BulkUpdateArgs) => tasksApi.bulkUpdate(data),
+    mutationFn: (data: BulkUpdateArgs) => tasksApi.bulkUpdate(data as unknown as TaskBulkUpdatePayload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.tasks.all() })
       qc.invalidateQueries({ queryKey: ['kanban'] })
@@ -106,7 +107,7 @@ export function useBulkUpdateTasks(): UseMutationResult<unknown, unknown, BulkUp
 export function useAddTaskComment(): UseMutationResult<unknown, unknown, CommentArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: CommentArgs) => tasksApi.comment(id, data),
+    mutationFn: ({ id, data }: CommentArgs) => tasksApi.comment(id, data as unknown as TaskCommentPayload),
     onSuccess: (_: unknown, { id }: CommentArgs) => qc.invalidateQueries({ queryKey: queryKeys.tasks.comments(id) }),
   })
 }

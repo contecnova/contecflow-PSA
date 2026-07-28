@@ -616,7 +616,7 @@ export default function AIHubPage(): JSX.Element {
           ) : (
             <div data-export-table="ai-providers-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
               {providers.map((p: any) => {
-                const meta = PMETA[p.provider] || { icon: '🤖', color: 'var(--text-2)' }
+                const meta: { name?: string; icon: string; color: string } = PMETA[p.provider] || { icon: '🤖', color: 'var(--text-2)' }
                 const st   = statusCfg[p.status] || statusCfg.inactive
                 return (
                   <div key={p.id} style={{ ...card, padding: '18px 20px', borderColor: p.is_default ? meta.color + '50' : 'var(--surface-4)' }}>

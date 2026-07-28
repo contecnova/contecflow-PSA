@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { tasksApi, projectsApi, sprintsApi, absencesApi, unwrapList } from '../services/api'
+import type { TaskListParams } from '../services/api/tasks'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Calendar } from 'lucide-react'
@@ -60,7 +61,7 @@ export default function CalendarPage(): JSX.Element {
   // Tareas con fecha de vencimiento
   const { data: tasks = [] } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-tasks', year, month],
-    queryFn: () => tasksApi.list({ due_date_from: dateFrom, due_date_to: dateTo, limit: 100 })
+    queryFn: () => tasksApi.list({ due_date_from: dateFrom, due_date_to: dateTo, limit: 100 } as TaskListParams)
       .then(r => (unwrapList(r) as TaskItem[]).map(t => ({
         date: t.due_date, type: 'task', title: t.title, id: t.id, status: t.status,
       }))).catch(() => []),

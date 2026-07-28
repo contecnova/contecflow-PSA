@@ -38,7 +38,7 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
   const { data: projects = [] } = useQuery<ProjectOption[]>({
     queryKey: ['projects-quick'],
     queryFn: () => projectsApi.list({ page_size: 200, status: 'active' }).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
+      return r.data ?? []
     }),
     staleTime: 60_000,
   })

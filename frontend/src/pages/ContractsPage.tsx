@@ -431,7 +431,7 @@ export default function ContractsPage(): JSX.Element {
     return s + (totalAmount > 0 ? totalAmount : retainer * 12)
   }, 0)
   const active = contracts.filter(c => c.status === 'active').length
-  const { sort: contractSort, setSort: setContractSort, sortedData: sortedContracts } = useSort(contracts, 'name')
+  const { sort: contractSort, setSort: setContractSort, sortedData: sortedContracts } = useSort<Contract>(contracts, 'name')
 
   return (
     <PageShell>

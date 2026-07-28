@@ -95,7 +95,7 @@ function ProgressBar({ pct, color = 'var(--accent)', label }: { pct?: number | n
 function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: () => void }) {
   const { data: dataRaw, isLoading, isError } = useQuery({
     queryKey: ['evm', projectId],
-    queryFn: () => projectsApi.evm(projectId).then(r => r.data),
+    queryFn: () => projectsApi.evm(String(projectId)).then(r => r.data),
     enabled: !!projectId,
   });
   const data = (dataRaw ?? null) as EvmData | null

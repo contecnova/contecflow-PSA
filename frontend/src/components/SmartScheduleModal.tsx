@@ -67,8 +67,8 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
       const title_map: Record<string, string> = {}
       try {
         if (projectId) {
-          const res = await tasksApi.list({ project_id: projectId, page_size: 300 })
-          const items: Array<{ id: string | number; title: string }> = Array.isArray(res.data) ? res.data : (res.data?.items || [])
+          const res = await tasksApi.list({ project_id: String(projectId), page_size: 300 })
+          const items: Array<{ id: string | number; title: string }> = res.data ?? []
           for (const t of items) title_map[String(t.id)] = t.title
         }
       } catch { /* noop, falls back below */ }
