@@ -62,7 +62,7 @@ export default function SprintChartsPage() {
 
   const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects-list'],
-    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
+    queryFn: () => projectsApi.list({}).then(r => r.data ?? []),
   })
 
   const { data: sprintsData } = useQuery<SprintItem[] | { sprints?: SprintItem[] }>({

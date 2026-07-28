@@ -156,7 +156,7 @@ function DsrTab() {
   })
 
   const createMut = useMutation({
-    mutationFn: (p: DsrForm) => biGdprApi.createDsr(p as Record<string, unknown>).then(r => r.data),
+    mutationFn: (p: DsrForm) => biGdprApi.createDsr(p).then(r => r.data),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: ['bi-gdpr-dsr'] })
       qc.invalidateQueries({ queryKey: ['bi-gdpr-stats'] })

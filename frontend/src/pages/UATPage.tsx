@@ -227,7 +227,7 @@ export default function UATPage() {
 
   const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => projectsApi.list({}).then(r => r.data ?? []),
   })
 
   const { data: tasksData = [] } = useQuery<TaskItem[]>({

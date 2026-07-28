@@ -374,12 +374,12 @@ class TestStripeV238:
         return r.json()["id"]
 
     def test_payment_link_requires_stripe_configured(self, client, admin_token, db):
-        """Without STRIPE_SECRET_KEY configured, returns 503."""
+        """Without STRIPE_SECRET_KEY configured, returns 501 (Not Implemented)."""
         inv_id = self._make_invoice(client, admin_token)
         r = client.post(f"/api/v1/invoices/{inv_id}/payment-link",
                         headers=auth(admin_token))
-        # Either 503 (no stripe key) or 200/201 (if mocked/configured)
-        assert r.status_code in (200, 201, 503), r.text
+        # 501 (feature no disponible sin STRIPE_SECRET_KEY) o 200/201 (si está configurado/mockeado).
+        assert r.status_code in (200, 201, 501), r.text
 
     def test_payment_link_nonexistent_invoice(self, client, admin_token, db):
         r = client.post("/api/v1/invoices/99999999/payment-link",

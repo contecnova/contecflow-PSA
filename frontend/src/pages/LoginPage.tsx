@@ -28,7 +28,7 @@ export default function LoginPage(): JSX.Element {
       const user = await login(form.username, form.password)
       navigate(user.role === 'employee' ? '/imputar' : '/tasks')
     } catch (e) {
-      const raw = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      const raw = (e as { response?: { data?: { detail?: string | { msg: string }[] } } }).response?.data?.detail
       setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || t('login.credentials_error')))
     } finally {
       setLoading(false)
@@ -47,7 +47,7 @@ export default function LoginPage(): JSX.Element {
       const { data } = await authApi.forgotPassword({ email_or_username: forgotInput.trim() } as unknown as import('../services/api').ForgotPasswordPayload)
       setMessage((data as { ok: boolean; message?: string })?.message || t('login.forgot_email_sent'))
     } catch (e) {
-      const raw = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      const raw = (e as { response?: { data?: { detail?: string | { msg: string }[] } } }).response?.data?.detail
       setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || t('login.forgot_error')))
     } finally {
       setLoading(false)
@@ -73,7 +73,7 @@ export default function LoginPage(): JSX.Element {
       setNewPassword('')
       setSearchParams({})
     } catch (e) {
-      const raw = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      const raw = (e as { response?: { data?: { detail?: string | { msg: string }[] } } }).response?.data?.detail
       setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || t('login.reset_error')))
     } finally {
       setLoading(false)

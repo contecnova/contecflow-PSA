@@ -32,7 +32,7 @@ function CannedResponsePicker({ onSelect, onClose }: { onSelect: (body: string) 
     queryFn: () => sdCannedApi.list(search ? { search } : {}).then((r: { data: CannedResponse[] }) => r.data).catch(() => []),
     staleTime: 60000,
   })
-  const cats: string[] = [...new Set(responses.map((r) => r.category || 'General'))].sort()
+  const cats: string[] = Array.from<string>(new Set(responses.map((r) => String(r.category || 'General')))).sort()
   return (
     <div style={{
       position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 4,

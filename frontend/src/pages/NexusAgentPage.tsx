@@ -93,7 +93,7 @@ export default function ContecflowAgentPage() {
   })
 
   const { mutate: run, isPending } = useMutation({
-    mutationFn: inst => nexusAgentApi.run(inst).then(r => r.data),
+    mutationFn: (inst: string) => nexusAgentApi.run(inst).then(r => r.data),
     onSuccess: data => { setResult(data); refetch() },
     onError: e => toast.error(extractErr(e, 'Error al ejecutar el agente')),
   })

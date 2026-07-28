@@ -915,6 +915,19 @@ function GanttWithDeps({ projectId, tasks }: { projectId: any; tasks: any }) {
 }
 
 
+interface ProjectRow {
+  id: string | number
+  name?: string
+  code?: string
+  project_type: string
+  pm_name?: string
+  status?: string
+  budget_used_pct?: number
+  progress_pct?: number
+  risk_level?: string
+  [key: string]: unknown
+}
+
 export default function ProjectsPage() {
   const t = useAppT()
   const { hasRole } = useAuth()
@@ -954,7 +967,8 @@ export default function ProjectsPage() {
   })
 
   const filtered = projects.filter(p => !typeFilter || p.project_type === typeFilter)
-  const { sort: projSort, setSort: setProjSort, sortedData: sortedProjects } = useSort(filtered, 'name')
+  const { sort: projSort, setSort: setProjSort, sortedData: sortedProjectsRaw } = useSort(filtered, 'name')
+  const sortedProjects = sortedProjectsRaw as ProjectRow[]
 
   const stats = {
     total: projects.length,

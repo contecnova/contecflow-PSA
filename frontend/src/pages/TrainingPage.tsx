@@ -134,7 +134,7 @@ function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?:
   })
   const { data: usersRaw = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list({}).then(r => Array.isArray(r.data) ? r.data : (r.data?.users || [])),
+    queryFn: () => usersApi.list({}).then(r => r.data ?? []),
   })
   const users = usersRaw as UserItem[]
   const { mutate, isPending } = useMutation({

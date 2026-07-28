@@ -5,6 +5,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, tasksApi, taskDependenciesApi } from '../services/api'
+import type { TaskListParams } from '../services/api/tasks'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -260,8 +261,8 @@ export default function DependenciesPage(): JSX.Element {
   const { data: tasks = [] } = useQuery<TaskItem[]>({
     queryKey: ['tasks-list', project],
     queryFn: () => project
-      ? tasksApi.list({ project_id: project, limit: 500 })
-          .then(r => Array.isArray(r.data) ? r.data : (r.data?.items ?? []))
+      ? tasksApi.list({ project_id: project, limit: 500 } as TaskListParams)
+          .then(r => Array.isArray(r.data) ? r.data : [])
           .catch(() => [])
       : Promise.resolve([]),
     enabled: !!project,

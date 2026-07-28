@@ -96,7 +96,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
       await usersApi.update(user.id, {
         job_title: jobTitle || undefined,
         department: department || undefined,
-      })
+      } as Parameters<typeof usersApi.update>[1])
       await usersApi.updateManager(user.id, { manager_id: managerId || null })
       toast.success('Posición actualizada')
       onSaved()
@@ -507,7 +507,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
       selectedUserId
         ? usersApi.approvalChain(selectedUserId)
         : usersApi.myApprovalChain()
-    ).then(r => r.data),
+    ).then(r => r.data as unknown as ApprovalChainData),
     enabled: true,
     staleTime: 10000,
   })
@@ -717,7 +717,7 @@ export default function OrgChartPage() {
 
   const { data: chartData, isLoading: loadingChart } = useQuery<OrgChartData>({
     queryKey: ['org-chart'],
-    queryFn: () => usersApi.orgChart().then(r => r.data?.data ?? r.data),
+    queryFn: () => usersApi.orgChart().then(r => ((r.data as { data?: OrgChartData })?.data ?? r.data) as OrgChartData),
     staleTime: 30000,
   })
 

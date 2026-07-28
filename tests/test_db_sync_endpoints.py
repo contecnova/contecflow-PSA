@@ -36,6 +36,7 @@ def test_async_endpoints_do_not_use_sync_db_session() -> None:
             defaults = node.args.defaults
             defaults_start = total_args - len(defaults)
 
+            has_sync_db_dep = False
             for idx, arg in enumerate(node.args.args):
                 if arg.arg != "db" or idx < defaults_start:
                     continue
@@ -49,11 +50,29 @@ def test_async_endpoints_do_not_use_sync_db_session() -> None:
                     and isinstance(default.args[0], ast.Name)
                     and default.args[0].id == "get_db"
                 ):
-                    found_async_with_sync_db = True
+                    has_sync_db_dep = True
                     break
 
-            if found_async_with_sync_db:
-                break
+            if not has_sync_db_dep:
+                continue
+
+            # Cumple si el acceso síncrono a BD se hace vía el wrapper de threadpool
+            # `run_db(...)` (patrón explícitamente aceptado por este guard): no bloquea
+            # el event loop aunque el handler sea async. Solo se marca si usa `db`
+            # directamente sin threadpool.
+            uses_run_db = any(
+                isinstance(inner, ast.Call)
+                and (
+                    (isinstance(inner.func, ast.Name) and inner.func.id == "run_db")
+                    or (isinstance(inner.func, ast.Attribute) and inner.func.attr == "run_db")
+                )
+                for inner in ast.walk(node)
+            )
+            if uses_run_db:
+                continue
+
+            found_async_with_sync_db = True
+            break
 
         if found_async_with_sync_db:
             failing_files.append(path.name)

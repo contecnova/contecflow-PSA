@@ -108,7 +108,7 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
       let res: { data?: { message?: string } } | undefined
       if (action === 'complete')        res = await milestonesApi.complete(m.id)
       if (action === 'uncomplete')      res = await milestonesApi.uncomplete(m.id)
-      if (action === 'request')         res = await milestonesApi.requestApproval(m.id)
+      if (action === 'request')         res = await milestonesApi.requestApproval(m.id, {})
       if (action === 'approve')         res = await milestonesApi.approve(m.id, { approved: true })
       if (action === 'reject')          res = await milestonesApi.approve(m.id, { approved: false, rejection_reason: payload })
       if (action === 'invoice')         res = await milestonesApi.generateInvoice(m.id)
@@ -276,25 +276,27 @@ export default function MilestoneBillingPage(): JSX.Element {
 
   const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(unwrapList),
+    queryFn: () => projectsApi.list({}).then(r => unwrapList(r) as ProjectItem[]),
   })
 
   const { data: milestones = [], refetch } = useQuery<MilestoneItem[]>({
     queryKey: ['milestones', selectedProject],
-    queryFn: () => milestonesApi.list(selectedProject).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => milestonesApi.list(selectedProject).then(r => (r.data?.items ?? r.data ?? []) as MilestoneItem[]),
     enabled: !!selectedProject,
   })
 
   const { data: dashboard = [], refetch: refetchDash } = useQuery<MilestoneItem[]>({
     queryKey: ['milestones-dashboard'],
-    queryFn: () => milestonesApi.dashboard().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => milestonesApi.dashboard().then(r => (r.data?.items ?? r.data ?? []) as MilestoneItem[]),
     enabled: tab === 'dashboard',
   })
 
   const projectName = projects.find(p => String(p.id) === String(selectedProject))?.name || ''
 
   // Agrupados por estado
-  const byStatus = milestones.reduce<Record<string, MilestoneItem[]>>((acc, m) => {
+  // useQuery devuelve data como `any` en este proyecto (tipos de react-query), asi que
+  // fijamos el tipo local antes de reducir para evitar TS2347.
+  const byStatus = (milestones as MilestoneItem[]).reduce<Record<string, MilestoneItem[]>>((acc, m) => {
     const key = m.billing_status || 'pending'
     acc[key] = [...(acc[key] || []), m]
     return acc
@@ -315,7 +317,7 @@ export default function MilestoneBillingPage(): JSX.Element {
           { id: 'dashboard', label: 'Dashboard pendientes', count: dashboard.length || undefined },
         ]}
         active={tab}
-        onChange={setTab}
+        onChange={(id) => setTab(id as 'project' | 'dashboard')}
         ariaLabel="Facturación por hitos"
       />
 

@@ -155,7 +155,7 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
 
   const { data: allProjects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects-for-portfolio'],
-    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
+    queryFn: () => projectsApi.list({}).then(r => r.data ?? []),
   });
 
   const { mutate: addProject } = useMutation({

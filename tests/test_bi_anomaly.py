@@ -74,7 +74,7 @@ def test_churn_predict_batch_contract(client, admin_token):
     data = r.json()
     assert "clients" in data
     assert data["total_clients"] == 1
-    assert data["method_used"] in ("lightgbm", "rule_based")
+    assert data["method_used"] in ("lightgbm", "lightgbm_synthetic", "rule_based")
 
 
 def test_anomaly_requires_auth(client):

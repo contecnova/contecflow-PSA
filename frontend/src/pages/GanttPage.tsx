@@ -4,6 +4,7 @@
  * drops the old 26px-column custom grid.
  */
 import { useState, useCallback, useMemo } from 'react'
+import type { ComponentProps } from 'react'
 import { useToast } from '../context/ToastContext'
 import type { ToastMessage } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -40,7 +41,10 @@ interface DateOverride {
 
 interface AiSuggestion {
   task_id?: string | number
-  [key: string]: unknown
+  severity?: string
+  type?: string
+  message?: string
+  suggestions?: string[]
 }
 
 interface DependencyItem {
@@ -102,9 +106,9 @@ export default function GanttPage(): JSX.Element {
 
   // Map task_id → suggestion para lookup O(1) en GanttChart.
   const aiSuggestionsByTask = useMemo(() => {
-    const out: Record<string | number, AiSuggestion> = {}
+    const out: Record<string, AiSuggestion> = {}
     for (const s of (aiSuggestionsResp?.suggestions || [])) {
-      if (s?.task_id) out[s.task_id] = s
+      if (s?.task_id) out[String(s.task_id)] = s
     }
     return out
   }, [aiSuggestionsResp])
@@ -230,13 +234,13 @@ export default function GanttPage(): JSX.Element {
       ) : (
         <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }}>
           <GanttChart
-            tasks={tasks}
-            projects={projects}
+            tasks={tasks as unknown as ComponentProps<typeof GanttChart>['tasks']}
+            projects={projects as unknown as ComponentProps<typeof GanttChart>['projects']}
             mode="project"
             onTaskUpdate={handleTaskUpdate}
             onDepCreate={handleDepCreate}
             showBaseline={showBaseline}
-            dependencies={dependencies}
+            dependencies={dependencies as unknown as ComponentProps<typeof GanttChart>['dependencies']}
             aiSuggestions={aiSuggestionsByTask}
           />
         </div>

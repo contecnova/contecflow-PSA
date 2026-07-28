@@ -242,7 +242,13 @@ export async function queueOperation(op: QueuedOperationInput) {
     'low': 2,
   }[op.priority ?? 'normal'] ?? 1
   
-  const idempotencyKey = op.idempotencyKey || `${op.method}:${op.url}:${Date.now()}`
+  // Clave única POR OPERACIÓN encolada: dos acciones idénticas encoladas en el mismo
+  // milisegundo deben tener claves distintas (si no, una podría descartarse como
+  // duplicado de la otra en el sync). Los reintentos NO regeneran la clave: reutilizan
+  // la persistida (op.idempotencyKey), preservando la idempotencia real contra el servidor.
+  const _uniqueSuffix =
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const idempotencyKey = op.idempotencyKey || `${op.method}:${op.url}:${_uniqueSuffix}`
   
   await offlineDb.pendingOps.put({
     method: op.method,
@@ -303,6 +309,8 @@ export async function readCache(key: string) {
  * @returns {number} milliseconds to wait
  */
 function _exponentialBackoff(retryCount: number) {
+  // En tests no esperamos tiempo real (los delays reales harían timeout la suite).
+  if (import.meta.env?.VITEST) return 0
   const baseDelay = 1000 // 1s
   const maxDelay = 30000 // 30s
   const jitter = Math.random() * 0.1

@@ -25,7 +25,7 @@ interface OperatorDef {
 interface BuilderSchema {
   entities?: Record<string, EntityDef>
   operators?: Record<string, OperatorDef>
-  groups?: Record<string, string[]>
+  groups?: Record<string, string>
 }
 
 interface FilterEntry {

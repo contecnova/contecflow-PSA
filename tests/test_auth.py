@@ -9,7 +9,10 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 from tests.conftest import TEST_PASSWORD, auth
-from app.api.v1.endpoints.auth import _resolve_sso_organization_id, _validate_https_discovery_url
+from app.services.auth_service import (
+    resolve_sso_organization_id as _resolve_sso_organization_id,
+    validate_https_discovery_url as _validate_https_discovery_url,
+)
 from app.core.config import Settings
 from app.core.network import extract_client_ip
 from app.models.enterprise import SSOConfig, SSOProvider
@@ -54,7 +57,7 @@ def test_password_reset_flow_with_token(client, db):
     assert res.status_code == 200
 
     # Build a valid token directly using endpoint helper for deterministic test.
-    from app.api.v1.endpoints.auth import _issue_password_reset_token
+    from app.services.auth_service import issue_password_reset_token as _issue_password_reset_token
     from app.models.user import User
 
     admin = db.query(User).filter(User.username == "admin").first()

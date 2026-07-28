@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 // Patch HTMLCanvasElement.getContext so Plotly 3D charts don't trigger the
 // "willReadFrequently" browser warning on repeated getImageData calls.
 // Audit #C9: getContext is a heavily overloaded method (2d / webgl / bitmaprenderer

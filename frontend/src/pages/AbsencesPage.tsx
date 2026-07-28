@@ -662,7 +662,7 @@ export default function AbsencesPage(): JSX.Element {
                 <SortableTH col="working_days" sort={teamAbsSort} onSort={setTeamAbsSort}>{t('absences.days')}</SortableTH>
                 <SortableTH col="status" sort={teamAbsSort} onSort={setTeamAbsSort}>{t('common.status')}</SortableTH>
               </div>
-              {sortedTeamAbs.map(a => (
+              {(sortedTeamAbs as Absence[]).map(a => (
                 <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
                   <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{a.user_name}</span>
                   <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{typeLabels(t)[a.type || ""]?.replace(/^\S+\s/, '') || a.type}</span>

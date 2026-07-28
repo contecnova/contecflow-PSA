@@ -72,7 +72,7 @@ export default function TeamDashboardPage() {
   const { data: resourcesRaw = [], isLoading: lr } = useQuery({
     queryKey: ['team-dash-resources'],
     queryFn: () => usersApi.list({ page_size: 200 }).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
+      return r.data ?? []
     }).catch(() => []),
     staleTime: 60_000,
   })

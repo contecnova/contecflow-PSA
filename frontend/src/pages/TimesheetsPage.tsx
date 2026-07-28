@@ -475,7 +475,7 @@ export default function TimesheetsPage() {
               {[...filteredTeam].sort((a, b) => {
                 const va = a[teamSortKey] ?? ''
                 const vb = b[teamSortKey] ?? ''
-                const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb))
+                const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))
                 return teamSortDir === 'asc' ? cmp : -cmp
               }).map(ts => (
                 <div key={ts.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>

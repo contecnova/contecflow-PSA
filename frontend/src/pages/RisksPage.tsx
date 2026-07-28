@@ -329,7 +329,7 @@ export default function RisksPage() {
   const [view, setView] = useState<'list' | 'cards'>('list')
   const qc = useQueryClient()
 
-  const { data: projects = [] } = useQuery<ProjectItem[]>({ queryKey: ['projects', { status: 'active' }], queryFn: () => projectsApi.list({ status: 'active' }).then(r => (r.data?.items ?? r.data ?? []) as ProjectItem[]) })
+  const { data: projects = [] } = useQuery<ProjectItem[]>({ queryKey: ['projects', { status: 'active' }], queryFn: () => projectsApi.list({ status: 'active' }).then(r => (r.data ?? []) as ProjectItem[]) })
 
   const { data: risksData, isLoading } = useQuery<RisksResponse>({
     queryKey: ['risks', selectedProject],

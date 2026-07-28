@@ -9,7 +9,7 @@
  */
 import { useMemo, useState, useCallback } from 'react'
 import type { CSSProperties } from 'react'
-// @ts-expect-error react-plotly.js ships no type declarations
+// react-plotly.js ships no type declarations of its own; resolved via ambient/module types
 import Plot from 'react-plotly.js'
 
 interface RawNode {

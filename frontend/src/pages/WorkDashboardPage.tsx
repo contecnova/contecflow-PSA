@@ -3,6 +3,7 @@ import { CSSProperties, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { tasksApi, analyticsApi, approvalsApi, expensesApi, absencesApi } from '../services/api'
+import type { TaskListParams } from '../services/api/tasks'
 import {
   Clock, Plus, Timer, Ticket, CheckCircle2, AlertTriangle, Calendar,
   Bell, Wallet, Plane, ArrowUpRight, ArrowDownRight, Minus, ArrowRight,
@@ -160,12 +161,12 @@ export default function WorkDashboardPage(): JSX.Element {
     queryKey: ['work-dash-task-stats', userId],
     queryFn: async () => {
       const [openRes, overdueRes, doneRes] = await Promise.all([
-        tasksApi.list({ assigned_to_me: true, status: 'backlog,todo,in_progress,blocked,in_review', page_size: 500 }),
-        tasksApi.list({ assigned_to_me: true, overdue_only: true, page_size: 500 }),
-        tasksApi.list({ assigned_to_me: true, status: 'done', page_size: 1 }),
+        tasksApi.list({ assigned_to_me: true, status: 'backlog,todo,in_progress,blocked,in_review', page_size: 500 } as unknown as TaskListParams),
+        tasksApi.list({ assigned_to_me: true, overdue_only: true, page_size: 500 } as TaskListParams),
+        tasksApi.list({ assigned_to_me: true, status: 'done', page_size: 1 } as TaskListParams),
       ])
-      const openItems = Array.isArray(openRes?.data) ? openRes.data : (openRes?.data?.items ?? [])
-      const overdueItems = Array.isArray(overdueRes?.data) ? overdueRes.data : (overdueRes?.data?.items ?? [])
+      const openItems = openRes?.data ?? []
+      const overdueItems = overdueRes?.data ?? []
       const openTaskIds = new Set<string | number>(openItems.map((task: { id?: string | number }) => task.id).filter(Boolean) as Array<string | number>)
       overdueItems.forEach((task: { id?: string | number }) => { if (task?.id) openTaskIds.add(task.id) })
       return {

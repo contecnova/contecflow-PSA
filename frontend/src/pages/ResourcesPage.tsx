@@ -486,7 +486,7 @@ export default function ResourcesPage() {
   })
   const { sort: resSort, setSort: setResSort, sortedData: sortedResources } = useSort<Resource>(filtered, resSortBy)
 
-  const departments = [...new Set(loadData.map(r => r.user?.department).filter(Boolean))]
+  const departments = [...new Set<string>(loadData.map(r => r.user?.department).filter((v): v is string => Boolean(v)))]
   const overloaded  = loadData.filter(r => (r.current_load_pct ?? 0) > 100).length
   const available   = loadData.filter(r => (r.current_load_pct ?? 0) < 60).length
   const avgLoad     = loadData.length ? (loadData.reduce((s, r) => s + (r.current_load_pct ?? 0), 0) / loadData.length).toFixed(0) : 0

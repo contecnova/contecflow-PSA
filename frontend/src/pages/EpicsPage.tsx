@@ -90,8 +90,8 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
 
   const { mutate, isPending } = useMutation({
     mutationFn: (d: EpicFormState) => isEdit
-      ? epicsApi.update(epic.id, d as Record<string, unknown>).then(r=>r.data)
-      : epicsApi.createForProject(projectId, d as Record<string, unknown>).then(r=>r.data),
+      ? epicsApi.update(epic.id, d).then(r=>r.data)
+      : epicsApi.createForProject(projectId, d).then(r=>r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['epics',projectId] }); onClose() },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
   })

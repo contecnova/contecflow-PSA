@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { usersApi } from '../services/api'
+import type { UserCreatePayload } from '../services/api/users'
 
 export interface User {
   id: string
@@ -53,7 +54,7 @@ export function useUser(id: string | undefined): UseQueryResult<unknown> {
 export function useCreateUser(): UseMutationResult<unknown, unknown, Partial<User>> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: Partial<User>) => usersApi.create(data),
+    mutationFn: (data: Partial<User>) => usersApi.create(data as unknown as UserCreatePayload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   })
 }

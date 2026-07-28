@@ -159,7 +159,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const byCategory = userSkills.reduce<Record<string, UserSkill[]>>((a, s) => { const c = s.category || ''; if (!a[c]) a[c] = []; a[c]!.push(s); return a }, {})
+  const byCategory = (userSkills as UserSkill[]).reduce<Record<string, UserSkill[]>>((a, s) => { const c = s.category || ''; if (!a[c]) a[c] = []; a[c]!.push(s); return a }, {})
 
   return (
     <Modal open title={`Skills — ${user.full_name}`} onClose={onClose} width={620}>

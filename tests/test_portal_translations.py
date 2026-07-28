@@ -2,10 +2,8 @@ from tests.conftest import auth
 
 
 def test_portal_translations_roundtrip(client, admin_token):
-    from app.api.v1.endpoints import client_portal as cp
-
-    cp._TRANSLATIONS_STORE.clear()
-
+    # Las traducciones se persisten en OrgBranding.portal_translations (BD). La BD
+    # SQLite in-memory se recrea por test, así que no hay estado que limpiar.
     payload = {
         "es": {"portal": {"hello": "Hola"}},
         "en": {"portal": {"hello": "Hello"}},

@@ -175,7 +175,7 @@ export default function ServiceDeskPage() {
       {showCreate && (
         <CreateTicketModal
           onClose={() => setShowCreate(false)}
-          onCreated={tk => tk?.id && setSelId(tk.id)}
+          onCreated={tk => { const created = tk as { id?: unknown }; if (created?.id) setSelId(created.id) }}
         />
       )}
     </PageShell>
