@@ -814,7 +814,7 @@ def _org_key(current_user: User) -> str:
 
 
 @router.get("/translations", summary="Obtener traducciones personalizadas del portal")
-async def get_portal_translations(
+def get_portal_translations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -831,7 +831,7 @@ async def get_portal_translations(
 
 
 @router.post("/translations", summary="Guardar traducciones personalizadas del portal")
-async def save_portal_translations(
+def save_portal_translations(
     data: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),

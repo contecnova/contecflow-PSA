@@ -46,12 +46,15 @@ const organizationUpdateSchema = z.object({
   primary_color: z.string().optional(),
 })
 
+type OrgCreateForm = z.infer<typeof organizationCreateSchema>
+type OrgUpdateForm = z.infer<typeof organizationUpdateSchema>
+
 export default function OrganizationsPage() {
   // ...existing code...
   const [removingUserId, setRemovingUserId] = useState(null)
     // Mutación para eliminar usuario de la organización
     const { mutate: removeUser, isPending: isRemoving } = useMutation({
-      mutationFn: ({ orgId, userId }) => organizationsApi.removeUser(orgId, userId),
+      mutationFn: ({ orgId, userId }: { orgId: string | number; userId: string | number }) => organizationsApi.removeUser(orgId, userId),
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: ['org-detail', selected] });
         setRemovingUserId(null)
@@ -93,7 +96,7 @@ export default function OrganizationsPage() {
   const { data: allUsers = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list({}).then(r=>r.data) })
   // Mutación para asignar usuario
   const { mutate: assignUser, isPending: isAssigning } = useMutation({
-    mutationFn: ({ orgId, userId }) => organizationsApi.assignUser(orgId, { user_id: userId }),
+    mutationFn: ({ orgId, userId }: { orgId: string | number; userId: string | number }) => organizationsApi.assignUser(orgId, { user_id: userId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['org-detail', selected] });
       setShowAssignUser(false)
@@ -104,29 +107,29 @@ export default function OrganizationsPage() {
   })
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => organizationsApi.create(d),
+    mutationFn: (d: OrgCreateForm) => organizationsApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['orgs'] }); setShowCreate(false); createValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const submitCreate = () => {
     const result = createValidation.validateForm(form)
-    if (!result.success) return
-    create(result.data)
+    if (!result.success || !result.data) return
+    create(result.data as OrgCreateForm)
   }
 
   const submitEdit = () => {
     const result = editValidation.validateForm(editForm)
-    if (!result.success) return
-    update({ id: selected, data: result.data })
+    if (!result.success || !result.data) return
+    update({ id: selected, data: result.data as OrgUpdateForm })
   }
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ id, is_active }) => organizationsApi.update(id, { is_active }),
+    mutationFn: ({ id, is_active }: { id: string | number; is_active: boolean }) => organizationsApi.update(id, { is_active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['orgs'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: update, isPending: isUpdating } = useMutation({
-    mutationFn: ({ id, data }) => organizationsApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string | number; data: OrgUpdateForm }) => organizationsApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['orgs'] }); qc.invalidateQueries({ queryKey: ['org-detail', selected] }); setShowEdit(false); editValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, 'Error al actualizar')),
   })

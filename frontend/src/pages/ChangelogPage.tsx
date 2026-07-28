@@ -154,8 +154,8 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
 
   const submit = () => {
     const result = validation.validateForm(form)
-    if (!result.success) return
-    save(result.data)
+    if (!result.success || !result.data) return
+    save(result.data as ManualEntryPayload)
   }
 
   return (
@@ -211,8 +211,8 @@ function GenerateModal({ projectId, onClose, onSaved }: { projectId: string; onC
 
   const submitGenerate = () => {
     const result = validation.validateForm({ weeks, version_tag: versionTag })
-    if (!result.success) return
-    generate(result.data)
+    if (!result.success || !result.data) return
+    generate(result.data as GeneratePayload)
   }
 
   return (

@@ -507,7 +507,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
       selectedUserId
         ? usersApi.approvalChain(selectedUserId)
         : usersApi.myApprovalChain()
-    ).then(r => r.data),
+    ).then(r => r.data as unknown as ApprovalChainData),
     enabled: true,
     staleTime: 10000,
   })

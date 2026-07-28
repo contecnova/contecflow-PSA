@@ -233,7 +233,7 @@ function ReviewCRModal({ cr, projectId, onClose }: { cr: ChangeRequest; projectI
   const submitReview = (approved: boolean) => {
     const result = validation.validateForm({ approved, resolution_notes: notes })
     if (!result.success) return
-    mutate(result.data)
+    mutate({ ...result.data, approved })
   }
 
   return (

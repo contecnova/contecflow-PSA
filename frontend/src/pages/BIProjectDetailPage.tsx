@@ -41,6 +41,7 @@ type AnalyticsRow = {
   value?: number | string
   revenue?: number | string
   cost?: number | string
+  margin?: number
 }
 
 type UserFilterOption = { id: string | number; label?: string }

@@ -139,14 +139,14 @@ export default function AgentDashboardPage(): JSX.Element {
         <>
           {/* KPI row */}
           <div className="ds-grid-stats">
-            {[
+            {([
               [t('agent_dashboard.kpi_open_tickets'), dash.current?.open_tickets || 0, 'var(--text-1)'],
               [t('agent_dashboard.kpi_resolved_period'), kpis.total_resolved || 0, 'var(--success)'],
               [t('agent_dashboard.kpi_avg_time_hours'), kpis.avg_resolution_hours || 0, 'var(--accent)'],
               [t('agent_dashboard.kpi_sla_compliance'), `${kpis.sla_compliance_pct || 0}%`,
-                kpis.sla_compliance_pct >= 90 ? 'var(--success)' : kpis.sla_compliance_pct >= 70 ? 'var(--warning)' : 'var(--danger)'],
+                (kpis.sla_compliance_pct || 0) >= 90 ? 'var(--success)' : (kpis.sla_compliance_pct || 0) >= 70 ? 'var(--warning)' : 'var(--danger)'],
               [t('agent_dashboard.kpi_avg_csat'), kpis.avg_csat ? kpis.avg_csat.toFixed(1) + '/5' : t('agent_dashboard.no_data'), 'var(--purple)'],
-            ].map(([label, val, color]) => (
+            ] as Array<[string, string | number, string]>).map(([label, val, color]) => (
               <div key={label} className="ds-card">
                 <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color, lineHeight: 1.1 }}>{val}</div>
                 <div className="ds-eyebrow">{label}</div>

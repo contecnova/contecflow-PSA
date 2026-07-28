@@ -276,7 +276,7 @@ export default function MilestoneBillingPage(): JSX.Element {
 
   const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(unwrapList),
+    queryFn: () => projectsApi.list({}).then(r => unwrapList(r) as ProjectItem[]),
   })
 
   const { data: milestones = [], refetch } = useQuery<MilestoneItem[]>({

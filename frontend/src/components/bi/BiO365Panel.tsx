@@ -2,7 +2,7 @@
  * BiO365Panel — Office 365 productivity analytics.
  * Conecta con /api/v1/bi/o365/*
  */
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biO365Api } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -24,6 +24,7 @@ interface O365Config {
   client_id?: string
   client_secret?: string
   enabled?: boolean
+  last_sync_at?: string | null
 }
 
 interface O365ConfigForm {
@@ -52,13 +53,14 @@ export default function BiO365Panel() {
   const { data: config } = useQuery<O365Config>({
     queryKey: ['bi-o365-config'],
     queryFn:  () => biO365Api.getConfig().then(r => r.data),
-    onSuccess: (d) => {
-      if (!configLoaded) {
-        setConfigForm({ tenant_id: d.tenant_id ?? '', client_id: d.client_id ?? '', client_secret: '', enabled: d.enabled ?? true })
-        setConfigLoaded(true)
-      }
-    },
   })
+
+  useEffect(() => {
+    if (config && !configLoaded) {
+      setConfigForm({ tenant_id: config.tenant_id ?? '', client_id: config.client_id ?? '', client_secret: '', enabled: config.enabled ?? true })
+      setConfigLoaded(true)
+    }
+  }, [config, configLoaded])
 
   const { data: reportData } = useQuery({
     queryKey: ['bi-o365-report', selectedReport],
@@ -73,7 +75,7 @@ export default function BiO365Panel() {
   })
 
   const saveConfigMutation = useMutation({
-    mutationFn: (data) => biO365Api.saveConfig(data).then(r => r.data),
+    mutationFn: (data: O365ConfigForm) => biO365Api.saveConfig(data).then(r => r.data),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-o365-config'] }),
   })
 

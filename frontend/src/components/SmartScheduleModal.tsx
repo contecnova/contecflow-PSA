@@ -124,7 +124,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
       qc.invalidateQueries({ queryKey: ['tasks-my'] })
       onClose()
     },
-    onError: (e) => {
+    onError: (e: ErrLike) => {
       const detail = e?.response?.data?.detail || e?.message || 'Error al aplicar fechas'
       toast.error(detail)
     },

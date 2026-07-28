@@ -34,18 +34,3 @@ declare module 'react' {
   }
 }
 
-declare module '@tanstack/react-query' {
-  export class QueryClient {
-    constructor(...args: any[])
-  }
-
-  export function useQuery<TData = any, TError = any, TSelected = TData>(...args: any[]): any
-  export function useMutation<TData = any, TError = any, TVariables = any, TContext = any>(...args: any[]): any
-  export const useQueryClient: (...args: any[]) => any
-  export const useQueries: (...args: any[]) => any
-  export const useInfiniteQuery: (...args: any[]) => any
-  export const QueryClientProvider: any
-
-  export type UseQueryResult<TData = any, TError = any> = any
-  export type UseMutationResult<TData = any, TError = any, TVariables = any, TContext = any> = any
-}
