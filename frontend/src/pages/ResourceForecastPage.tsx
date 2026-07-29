@@ -287,6 +287,7 @@ export default function ResourceForecastPage() {
         </select>
 
         <input
+          aria-label="Departamento"
           placeholder="Departamento..."
           value={department}
           onChange={e => setDepartment(e.target.value)}

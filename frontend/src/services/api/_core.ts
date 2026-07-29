@@ -49,14 +49,26 @@ let _refreshPromise: Promise<unknown> | null = null
 // pagination. Endpoints that return bare arrays or single objects are unchanged.
 api.interceptors.response.use((res) => {
   const body = res?.data
-  if (
-    body && typeof body === 'object' && !Array.isArray(body) &&
-    Array.isArray(body.items) &&
-    body.meta && typeof body.meta === 'object' &&
-    Object.keys(body).length === 2
-  ) {
-    ;(res as { meta?: unknown }).meta = body.meta
-    res.data = body.items
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    const keys = Object.keys(body)
+    // Envelope de LISTA (APIListResponse): { items, meta } → expone el array en res.data
+    // y la meta de paginación en res.meta.
+    if (
+      Array.isArray(body.items) &&
+      body.meta && typeof body.meta === 'object' &&
+      keys.length === 2
+    ) {
+      ;(res as { meta?: unknown }).meta = body.meta
+      res.data = body.items
+    }
+    // Envelope de OBJETO (APIResponse): exactamente { data, meta } → expone el payload en
+    // res.data (que es lo que el frontend espera de forma universal) y la meta en res.meta.
+    // Guard estricto (2 claves exactas 'data'+'meta') para no tocar payloads que casualmente
+    // tengan una clave 'data' (p.ej. {data, weeks}).
+    else if (keys.length === 2 && 'data' in body && 'meta' in body) {
+      ;(res as { meta?: unknown }).meta = (body as { meta?: unknown }).meta
+      res.data = (body as { data?: unknown }).data
+    }
   }
   return res
 })
