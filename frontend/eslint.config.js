@@ -149,14 +149,14 @@ export default [
       'no-empty': 'off',
 
       // Accessibility baseline (WCAG-focused)
-      'jsx-a11y/aria-props': 'off',
-      'jsx-a11y/aria-proptypes': 'off',
-      'jsx-a11y/aria-unsupported-elements': 'off',
-      'jsx-a11y/role-has-required-aria-props': 'off',
-      'jsx-a11y/role-supports-aria-props': 'off',
-      'jsx-a11y/alt-text': 'off',
-      'jsx-a11y/control-has-associated-label': 'off',
-      'jsx-a11y/label-has-associated-control': 'off',
+      'jsx-a11y/aria-props': 'warn',
+      'jsx-a11y/aria-proptypes': 'warn',
+      'jsx-a11y/aria-unsupported-elements': 'warn',
+      'jsx-a11y/role-has-required-aria-props': 'warn',
+      'jsx-a11y/role-supports-aria-props': 'warn',
+      'jsx-a11y/alt-text': 'warn',
+      'jsx-a11y/control-has-associated-label': 'warn',
+      'jsx-a11y/label-has-associated-control': 'warn',
       'jsx-a11y/click-events-have-key-events': 'error',
       'jsx-a11y/no-static-element-interactions': 'error',
 
