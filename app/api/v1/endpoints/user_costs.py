@@ -31,7 +31,7 @@ from app.core.deps import require_admin_or_hr
 from app.db.session import get_db
 from app.models.user import User
 from app.models.user_cost import CountryEmployerCost
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 import app.services.cost_service as svc
 
 router = APIRouter(tags=["User Costs"])
@@ -116,7 +116,7 @@ def create_country(
             setattr(existing, k, v)
         db.commit()
         db.refresh(existing)
-        return svc.serialize_country(existing)
+        return APIResponse.ok(data=svc.serialize_country(existing))
     row = CountryEmployerCost(
         organization_id=org_id,
         country_code=code,
@@ -129,7 +129,7 @@ def create_country(
     db.add(row)
     db.commit()
     db.refresh(row)
-    return svc.serialize_country(row)
+    return APIResponse.ok(data=svc.serialize_country(row))
 
 
 @router.post("/countries/seed", summary="Seed default global country presets")
@@ -138,7 +138,7 @@ def seed_countries(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin_or_hr),
 ):
-    return svc.seed_country_presets(db, force=force)
+    return APIResponse.ok(data=svc.seed_country_presets(db, force=force))
 
 
 @router.patch("/countries/{preset_id}", summary="Update a country preset")
@@ -159,7 +159,7 @@ def update_country(
         setattr(row, k, v)
     db.commit()
     db.refresh(row)
-    return svc.serialize_country(row)
+    return APIResponse.ok(data=svc.serialize_country(row))
 
 
 @router.delete("/countries/{preset_id}", summary="Delete a country preset (org-scoped only)")
@@ -179,7 +179,7 @@ def delete_country(
         raise HTTPException(403, "Cannot delete another org's preset")
     db.delete(row)
     db.commit()
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── User cost profiles ───────────────────────────────────────────────────────
@@ -219,7 +219,7 @@ def create_user_profile(
         organization_id=org_id,
         created_by_user_id=current_user.id,
     )
-    return svc.serialize_profile(profile)
+    return APIResponse.ok(data=svc.serialize_profile(profile))
 
 
 @router.get("/users/{user_id}/active", summary="Get the user's active cost profile + cost/hour")
@@ -234,14 +234,14 @@ def get_active(
         raise HTTPException(404, "User not found")
     profile = svc.get_active_profile(db, user_id, on)
     rate = svc.cost_per_hour(db, user, on)
-    return {
+    return APIResponse.ok(data={
         "user_id": user_id,
         "as_of": (on or Date.today()).isoformat(),
         "profile": svc.serialize_profile(profile) if profile else None,
         "cost_per_hour": rate,
         "source": "profile" if profile else ("legacy_hourly_rate" if rate else "none"),
         "legacy_hourly_rate": user.hourly_rate,
-    }
+    })
 
 
 @router.post("/users/{user_id}/preview", summary="Preview total annual cost + cost/hour from inputs")
@@ -256,7 +256,7 @@ def preview_cost(
         payload.extra_annual_costs,
         payload.productive_hours_year,
     )
-    return {"total_annual_cost": total, "cost_per_hour": per_hour}
+    return APIResponse.ok(data={"total_annual_cost": total, "cost_per_hour": per_hour})
 
 
 @router.patch("/profiles/{profile_id}", summary="Update a cost profile")
@@ -270,7 +270,7 @@ def update_profile(
     p = svc.update_profile(db, profile_id, **payload.model_dump(exclude_none=True))
     if not p:
         raise HTTPException(404, "Profile not found")
-    return svc.serialize_profile(p)
+    return APIResponse.ok(data=svc.serialize_profile(p))
 
 
 @router.delete("/profiles/{profile_id}", summary="Delete a cost profile")
@@ -282,7 +282,7 @@ def delete_profile(
     enforce_abac(db, current_user, "user_cost_profile", profile_id, action="delete")
     if not svc.delete_profile(db, profile_id):
         raise HTTPException(404, "Profile not found")
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── Bulk summary for dashboards ──────────────────────────────────────────────
@@ -324,7 +324,7 @@ def cost_summary(
         if rate:
             total_users_with_cost += 1
             sum_hourly += rate
-    return {
+    return APIResponse.ok(data={
         "as_of": on.isoformat(),
         "users": items,
         "total_users": len(users),
@@ -333,4 +333,4 @@ def cost_summary(
         "avg_cost_per_hour": round(sum_hourly / total_users_with_cost, 2) if total_users_with_cost else 0,
         "truncated": truncated,
         "limit": COST_SUMMARY_HARD_CAP,
-    }
+    })

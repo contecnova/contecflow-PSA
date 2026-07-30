@@ -50,7 +50,7 @@ def test_recommend_assignment(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert create.status_code in (200, 201)
-    ticket_id = create.json()["id"]
+    ticket_id = create.json()["data"]["id"]
 
     r = client.post(
         f"/api/v1/sd/tickets/{ticket_id}/recommend-assignment",

@@ -112,7 +112,7 @@ def test_sd_problems_create_list_link_and_create_change_endpoints(client, admin_
         },
     )
     assert create_res.status_code in (200, 201), create_res.text
-    problem_id = create_res.json()["id"]
+    problem_id = create_res.json()["data"]["id"]
 
     list_res = client.get("/api/v1/sd/problems", headers=auth(admin_token))
     assert list_res.status_code == 200, list_res.text
@@ -129,8 +129,8 @@ def test_sd_problems_create_list_link_and_create_change_endpoints(client, admin_
         json={"ticket_ids": [t1.id, t2.id]},
     )
     assert link_res.status_code == 200, link_res.text
-    assert link_res.json()["ok"] is True
-    assert link_res.json()["linked_count"] == 2
+    assert link_res.json()["data"]["ok"] is True
+    assert link_res.json()["data"]["linked_count"] == 2
 
     linked_res = client.get(
         f"/api/v1/sd/problems/{problem_id}/linked-incidents",
@@ -145,7 +145,7 @@ def test_sd_problems_create_list_link_and_create_change_endpoints(client, admin_
         json={"change_type": "normal"},
     )
     assert rfc_res.status_code == 201, rfc_res.text
-    body = rfc_res.json()
+    body = rfc_res.json()["data"]
     assert body["ok"] is True
     assert body["id"]
 

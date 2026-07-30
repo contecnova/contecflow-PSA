@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIResponse, APIListResponse
 from app.core.tenancy import org_scoped_or_404
 from app.models.cmdb import CMDBDiscoveryProvider, CMDBDiscoveryJob
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
@@ -85,7 +86,10 @@ def list_cmdb(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    return serialize_cmdb_items(list_cmdb_items(db, current_user, page, page_size))
+    return APIListResponse.ok(
+        items=serialize_cmdb_items(list_cmdb_items(db, current_user, page, page_size)),
+        page=page, page_size=page_size,
+    )
 
 
 @router.post("/cmdb", summary="Crear CI")
@@ -93,7 +97,7 @@ def create_ci(payload: CIIn, db: Session = Depends(get_db), current_user: User =
     enforce_ci_org_constraints(db, current_user, payload, is_update=False)
     ci = build_ci(db, payload)
     _commit_or_rollback(db); db.refresh(ci)
-    return {"id": ci.id, "code": ci.code}
+    return APIResponse.ok(data={"id": ci.id, "code": ci.code})
 
 
 @router.patch("/cmdb/{ci_id}", summary="Actualizar CI")
@@ -102,19 +106,19 @@ def update_ci(ci_id: str, payload: CIIn, db: Session = Depends(get_db), current_
     enforce_ci_org_constraints(db, current_user, payload, is_update=True)
     apply_ci_update(ci, payload)
     _commit_or_rollback(db)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.get("/cmdb/{ci_id}/relations", summary="Relaciones del CI (impacto)")
 def get_ci_relations(ci_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return get_ci_relations_payload(db, current_user, ci_id)
+    return APIListResponse.ok(items=get_ci_relations_payload(db, current_user, ci_id))
 
 
 @router.post("/cmdb/relations", summary="Crear relación entre CIs")
 def create_ci_relation(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     rel = build_ci_relation(db, current_user, payload)
     _commit_or_rollback(db)
-    return {"id": rel.id, "ok": True}
+    return APIResponse.ok(data={"id": rel.id, "ok": True})
 
 
 @router.get("/cmdb/{ci_id}/impact", summary="Análisis de impacto — CIs afectados si este falla")
@@ -124,7 +128,7 @@ def get_ci_impact(
     limit: int = Query(500, ge=1, le=2000),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    return get_ci_impact_payload(db, current_user, ci_id, max_depth=max_depth, limit=limit)
+    return APIResponse.ok(data=get_ci_impact_payload(db, current_user, ci_id, max_depth=max_depth, limit=limit))
 
 
 @router.get("/cmdb/{ci_id}/topology", summary="Topología CMDB navegable alrededor de un CI")
@@ -134,7 +138,7 @@ def get_ci_topology(
     limit: int = Query(300, ge=1, le=2000),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    return get_ci_topology_graph_payload(db, current_user, ci_id, radius=radius, limit=limit)
+    return APIResponse.ok(data=get_ci_topology_graph_payload(db, current_user, ci_id, radius=radius, limit=limit))
 
 
 @router.get("/cmdb/discovery/providers", summary="Listar proveedores discovery CMDB")
@@ -148,7 +152,7 @@ def list_discovery_providers(
             | (CMDBDiscoveryProvider.organization_id.is_(None))
         )
     providers = q.order_by(CMDBDiscoveryProvider.created_at.desc()).all()
-    return [_serialize_discovery_provider(p) for p in providers]
+    return APIListResponse.ok(items=[_serialize_discovery_provider(p) for p in providers])
 
 
 @router.post("/cmdb/discovery/providers", summary="Crear proveedor discovery CMDB")
@@ -168,7 +172,7 @@ def create_discovery_provider(
     db.add(provider)
     _commit_or_rollback(db)
     db.refresh(provider)
-    return _serialize_discovery_provider(provider)
+    return APIResponse.ok(data=_serialize_discovery_provider(provider))
 
 
 @router.patch("/cmdb/discovery/providers/{provider_id}", summary="Actualizar proveedor discovery CMDB")
@@ -198,7 +202,7 @@ def patch_discovery_provider(
 
     _commit_or_rollback(db)
     db.refresh(provider)
-    return _serialize_discovery_provider(provider)
+    return APIResponse.ok(data=_serialize_discovery_provider(provider))
 
 
 @router.post("/cmdb/discovery/providers/{provider_id}/run", summary="Ejecutar discovery para proveedor")
@@ -208,7 +212,7 @@ def run_discovery_provider_now(
 ):
     provider = org_scoped_or_404(db, CMDBDiscoveryProvider, provider_id, current_user, detail="Provider not found")
     job = run_discovery_for_provider(db, provider)
-    return {"ok": True, "job": _serialize_discovery_job(job)}
+    return APIResponse.ok(data={"ok": True, "job": _serialize_discovery_job(job)})
 
 
 @router.get("/cmdb/discovery/providers/{provider_id}/jobs", summary="Listar jobs de discovery")
@@ -226,19 +230,17 @@ def list_discovery_jobs(
     )
     total = q.count()
     jobs = q.offset((page - 1) * page_size).limit(page_size).all()
-    return {
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "items": [_serialize_discovery_job(j) for j in jobs],
-    }
+    return APIListResponse.ok(
+        items=[_serialize_discovery_job(j) for j in jobs],
+        total=total, page=page, page_size=page_size,
+    )
 
 
 @router.post("/cmdb/discovery/run-all", summary="Ejecutar discovery para todos los proveedores activos")
 def run_discovery_all(
     db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ):
-    return {"ok": True, "results": run_all_active_discoveries(db)}
+    return APIResponse.ok(data={"ok": True, "results": run_all_active_discoveries(db)})
 
 
 @router.get("/cmdb/discovery/reconciliation-health", summary="Salud de reconciliación CMDB")
@@ -247,7 +249,7 @@ def reconciliation_health(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return get_reconciliation_health(db, provider_type=provider_type)
+    return APIResponse.ok(data=get_reconciliation_health(db, provider_type=provider_type))
 
 
 @router.get('/cmdb/discovery/reconciliation-candidates', summary='Preview deduplicación CMDB con confidence score')
@@ -259,7 +261,7 @@ def reconciliation_candidates(
 ):
     _ = current_user
     items = deduplicate_candidates(db, provider_type=provider_type, min_confidence=min_confidence)
-    return {"items": items, "count": len(items), "min_confidence": min_confidence}
+    return APIResponse.ok(data={"items": items, "count": len(items), "min_confidence": min_confidence})
 
 
 @router.post('/cmdb/discovery/reconciliation-merge', summary='Aplicar auto-merge de CIs duplicados por confidence score')
@@ -278,7 +280,7 @@ def reconciliation_merge(
         limit=limit,
     )
     _commit_or_rollback(db)
-    return {"ok": True, **result}
+    return APIResponse.ok(data={"ok": True, **result})
 
 
 # ── Dependency mapping + Blast Radius ────────────────────────────────────────
@@ -296,7 +298,7 @@ def get_dependency_graph(
     Nodos incluyen color por tipo de CI y estado operacional.
     Links incluyen tipo de relación y strength para la simulación.
     """
-    return get_dependency_graph_d3(db, current_user, ci_id, depth=depth, limit=limit)
+    return APIResponse.ok(data=get_dependency_graph_d3(db, current_user, ci_id, depth=depth, limit=limit))
 
 
 @router.get("/cmdb/{ci_id}/blast-radius", summary="Resumen de blast radius (CIs afectados + usuarios estimados)")
@@ -306,7 +308,7 @@ def get_ci_blast_radius(
     current_user: User = Depends(get_current_user),
 ):
     """Análisis de radio de impacto con desglose por criticidad y estimación de usuarios afectados."""
-    return get_blast_radius_summary(db, current_user, ci_id)
+    return APIResponse.ok(data=get_blast_radius_summary(db, current_user, ci_id))
 
 
 @router.get("/cmdb/{ci_id}/deprecation-impact", summary="Impacto de deprecación de un CI (incluye activos vinculados)")
@@ -319,14 +321,14 @@ def get_ci_deprecation_impact(
     current_user: User = Depends(get_current_user),
 ):
     """Evalúa el impacto de retirar/deprecar un CI usando dependencia CMDB + assets enlazados por ci_id."""
-    return get_ci_deprecation_impact_payload(
+    return APIResponse.ok(data=get_ci_deprecation_impact_payload(
         db,
         current_user,
         ci_id,
         max_depth=max_depth,
         limit=limit,
         include_root_assets=include_root_assets,
-    )
+    ))
 
 
 # ── ITSM-P04: Drift Detection endpoints ──────────────────────────────────────
@@ -346,7 +348,7 @@ def cmdb_drift_report(
     y el proveedor de discovery que lo detectó.
     """
     _ = current_user
-    return get_drift_report(db, hours=hours)
+    return APIResponse.ok(data=get_drift_report(db, hours=hours))
 
 
 @router.post(
@@ -363,7 +365,7 @@ def run_due_discovery(
     innecesarios y reducir carga en entornos grandes.
     """
     _ = current_user
-    return {"ok": True, "results": run_due_discoveries(db)}
+    return APIResponse.ok(data={"ok": True, "results": run_due_discoveries(db)})
 
 
 @router.post(
@@ -389,7 +391,7 @@ def approve_baseline(
 
     cis = q.all()
     if not cis:
-        return {"ok": False, "error": "No CIs found for provider/ci_id combination"}
+        return APIResponse.ok(data={"ok": False, "error": "No CIs found for provider/ci_id combination"})
 
     approved = 0
     for ci in cis:
@@ -398,7 +400,7 @@ def approve_baseline(
         approved += 1
 
     _commit_or_rollback(db)
-    return {"ok": True, "approved": approved}
+    return APIResponse.ok(data={"ok": True, "approved": approved})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -456,7 +458,7 @@ def register_agent(
         created_by=str(current_user.id),
     )
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.post("/cmdb/agents/checkin", summary="Check-in de agente on-premise (bearer token auth)")
@@ -481,7 +483,7 @@ def agent_checkin(
     client_ip = request.client.host if request.client else None
     result = process_agent_checkin(db, raw_token, payload.model_dump(), client_ip=client_ip)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.get("/cmdb/agents", summary="Listar agentes on-premise registrados (admin)")
@@ -490,7 +492,7 @@ def list_agents(
     _: User = Depends(require_admin),
 ):
     """Return all registered agents with last check-in metadata."""
-    return {"agents": list_agent_registrations(db)}
+    return APIListResponse.ok(items=list_agent_registrations(db))
 
 
 @router.delete("/cmdb/agents/{agent_id}", summary="Revocar token de agente on-premise (admin)")
@@ -503,7 +505,7 @@ def revoke_agent(
     enforce_abac(db, current_user, "sd_cmdb_agent", agent_id, action="delete")
     revoke_agent_token(db, agent_id)
     _commit_or_rollback(db)
-    return {"ok": True, "agent_id": agent_id, "revoked": True}
+    return APIResponse.ok(data={"ok": True, "agent_id": agent_id, "revoked": True})
 
 
 @router.post("/cmdb/agents/{agent_id}/rotate-token", summary="Rotar token de agente on-premise (admin)")
@@ -515,7 +517,7 @@ def rotate_agent(
     """Invalidate the current token and generate a new one.  Returned once only."""
     result = rotate_agent_token(db, agent_id)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 # ── SNMP Network Scan endpoint ────────────────────────────────────────────────
@@ -564,10 +566,10 @@ def snmp_network_scan(
         stats = reconcile_cis(db, discovered, "snmp")
         _commit_or_rollback(db)
 
-    return {
+    return APIResponse.ok(data={
         "ok": True,
         "discovered": len(discovered),
         "devices": discovered,
         "persisted": persist,
         "stats": stats,
-    }
+    })

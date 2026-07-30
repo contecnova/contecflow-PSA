@@ -377,13 +377,13 @@ class TestLogLevelSecurity:
     def test_admin_reads_log_level(self, client, admin_token, db):
         r = client.get("/api/v1/settings/log-level", headers=auth(admin_token))
         assert r.status_code == 200
-        assert "root" in r.json()
-        assert "valid_levels" in r.json()
+        assert "root" in r.json()["data"]
+        assert "valid_levels" in r.json()["data"]
 
     def test_admin_sets_valid_log_level(self, client, admin_token, db):
         r = client.post("/api/v1/settings/log-level", json={"level": "WARNING"}, headers=auth(admin_token))
         assert r.status_code == 200
-        assert r.json()["level"] == "WARNING"
+        assert r.json()["data"]["level"] == "WARNING"
 
     def test_invalid_log_level_rejected(self, client, admin_token, db):
         r = client.post("/api/v1/settings/log-level", json={"level": "VERBOSE"}, headers=auth(admin_token))
@@ -394,19 +394,19 @@ class TestLogLevelSecurity:
                         json={"level": "ERROR", "logger": "contecflow"},
                         headers=auth(admin_token))
         assert r.status_code == 200
-        assert r.json()["logger"] == "contecflow"
+        assert r.json()["data"]["logger"] == "contecflow"
 
     def test_global_log_level_updates_root_and_uvicorn(self, client, admin_token, db):
         r = client.post("/api/v1/settings/log-level", json={"level": "WARNING"}, headers=auth(admin_token))
         assert r.status_code == 200
-        body = r.json()
+        body = r.json()["data"]
         assert body["logger"] == "global"
         assert "root" in body.get("affected", [])
         assert "uvicorn" in body.get("affected", [])
 
         r2 = client.get("/api/v1/settings/log-level", headers=auth(admin_token))
         assert r2.status_code == 200
-        levels = r2.json()
+        levels = r2.json()["data"]
         assert levels["root"] == "WARNING"
         assert levels["contecflow"] == "WARNING"
         assert levels["uvicorn"] == "WARNING"
@@ -498,7 +498,7 @@ class TestResourceSchedulerBookings:
             "start_date": start, "end_date": end, "hours_per_day": 8,
         }, headers=auth(pm_token))
         assert r.status_code in (200, 201), r.text
-        return r.json()
+        return r.json()["data"]
 
     def test_create_booking(self, client, pm_token, db):
         b = self._make_booking(client, pm_token, pm_token)
@@ -514,8 +514,8 @@ class TestResourceSchedulerBookings:
                          json={"start_date": new_start, "end_date": new_end},
                          headers=auth(pm_token))
         assert r.status_code == 200, r.text
-        assert r.json()["start_date"] == new_start
-        assert r.json()["end_date"]   == new_end
+        assert r.json()["data"]["start_date"] == new_start
+        assert r.json()["data"]["end_date"]   == new_end
 
     def test_patch_booking_partial_update(self, client, pm_token, db):
         """Partial PATCH (only hours_per_day) must not touch dates."""
@@ -525,8 +525,8 @@ class TestResourceSchedulerBookings:
                          json={"hours_per_day": 6.0},
                          headers=auth(pm_token))
         assert r.status_code == 200
-        assert r.json()["hours_per_day"] == 6.0
-        assert r.json()["start_date"] == orig_start  # unchanged
+        assert r.json()["data"]["hours_per_day"] == 6.0
+        assert r.json()["data"]["start_date"] == orig_start  # unchanged
 
     def test_patch_booking_invalid_date_range(self, client, pm_token, db):
         """end_date before start_date must be rejected."""
@@ -543,7 +543,7 @@ class TestResourceSchedulerBookings:
         b = self._make_booking(client, pm_token, pm_token)
         r = client.delete(f"/api/v1/bookings/{b['id']}", headers=auth(pm_token))
         assert r.status_code == 200
-        payload = r.json()
+        payload = r.json()["data"]
         assert payload.get("ok") is True
 
         listed = client.get("/api/v1/bookings", headers=auth(pm_token))

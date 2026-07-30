@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIResponse, APIListResponse
 from app.models.service_desk import Ticket, AgentGroupMember
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.services.sla_service import ticket_out as _ticket_out
@@ -65,12 +66,16 @@ def list_tickets(
     page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=200),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    return list_tickets_payload(
+    payload = list_tickets_payload(
         db=db, current_user=current_user, ticket_out=_ticket_out,
         status=status, priority=priority, ticket_type=ticket_type,
         assigned_to=assigned_to, group_id=group_id, project_id=project_id,
         support_level=support_level, sla_breached=sla_breached,
         search=search, page=page, page_size=page_size,
+    )
+    return APIListResponse.ok(
+        items=payload["tickets"], total=payload["total"],
+        page=payload["page"], page_size=page_size,
     )
 
 
@@ -88,7 +93,7 @@ def my_queue(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
-    return items
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.get("/tickets/my-queue/prioritized", summary="Mi cola priorizada por riesgo SLA y valor de negocio")
@@ -105,7 +110,7 @@ def my_queue_prioritized(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
-    return items
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.get("/tickets/client/my", summary="Mis tickets (cliente)")
@@ -125,7 +130,7 @@ def client_my_tickets(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
-    return items
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.get("/tickets/client/{ticket_id}", summary="Detalle de ticket (cliente portal)")
@@ -136,19 +141,19 @@ def get_ticket_client(
     db: Session = Depends(get_db),
 ):
     client = require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
-    return client_ticket_detail_payload(db, client.id, ticket_id, _ticket_out)
+    return APIResponse.ok(data=client_ticket_detail_payload(db, client.id, ticket_id, _ticket_out))
 
 
 @router.get("/tickets/{ticket_id}", summary="Detalle de ticket")
 def get_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return ticket_detail_payload(db, current_user, ticket_id, _ticket_out)
+    return APIResponse.ok(data=ticket_detail_payload(db, current_user, ticket_id, _ticket_out))
 
 
 @router.post("/tickets", summary="Crear ticket (agente interno)")
 def create_ticket(payload: TicketCreateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     ticket = build_internal_ticket(db, payload, current_user.id)
     _commit_or_rollback(db); db.refresh(ticket)
-    return _ticket_out(ticket)
+    return APIResponse.ok(data=_ticket_out(ticket))
 
 
 @router.post("/tickets/client", summary="Crear ticket desde portal cliente")
@@ -161,7 +166,7 @@ def create_ticket_client(
     client = require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
     ticket = build_client_portal_ticket(db, payload, client)
     _commit_or_rollback(db); db.refresh(ticket)
-    return _ticket_out(ticket)
+    return APIResponse.ok(data=_ticket_out(ticket))
 
 
 @router.patch("/tickets/{ticket_id}", summary="Actualizar ticket")
@@ -186,7 +191,7 @@ def update_ticket(
         enqueue_reassign_feedback(background_tasks, ticket_id, "ticket")
     if effects.get("record_routing_outcome"):
         enqueue_routing_outcome(background_tasks, ticket_id)
-    return _ticket_out(ticket)
+    return APIResponse.ok(data=_ticket_out(ticket))
 
 
 @router.post("/tickets/{ticket_id}/comments", summary="Añadir comentario")
@@ -198,11 +203,11 @@ def add_comment(
     ticket = get_scoped_ticket_for_comment_or_404(db, current_user, ticket_id)
     comment = add_internal_comment(db, ticket, ticket_id, payload.body, payload.is_public, current_user)
     _commit_or_rollback(db); db.refresh(comment)
-    return {
+    return APIResponse.ok(data={
         "id": comment.id, "body": comment.body, "is_public": comment.is_public,
         "author_name": current_user.full_name if current_user else "Cliente",
         "created_at": str(comment.created_at)[:16],
-    }
+    })
 
 
 @router.post("/tickets/{ticket_id}/comments/client", summary="Comentario del cliente")
@@ -216,7 +221,7 @@ def add_client_comment(
     ticket = get_ticket_for_client_comment_or_404(db, ticket_id)
     comment = add_client_comment_svc(db, ticket, ticket_id, payload.body, client.id)
     _commit_or_rollback(db)
-    return {"id": comment.id, "created_at": str(comment.created_at)[:16]}
+    return APIResponse.ok(data={"id": comment.id, "created_at": str(comment.created_at)[:16]})
 
 
 @router.post("/tickets/{ticket_id}/time-log", summary="Registrar tiempo")
@@ -224,7 +229,7 @@ def log_time(ticket_id: str, payload: TimeLogIn, db: Session = Depends(get_db), 
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = add_ticket_time(db, ticket, ticket_id, current_user.id, payload.minutes, payload.description, payload.unit)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.post("/tickets/{ticket_id}/restore-pending", summary="Restaurar información previa al estado pendiente")
@@ -236,7 +241,7 @@ def restore_pending(
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = restore_pending_snapshot(db, ticket, current_user.id)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.post("/tickets/{ticket_id}/escalate", summary="Escalar ticket")
@@ -247,7 +252,7 @@ def escalate_ticket(
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = escalate_ticket_level(db, ticket, ticket_id, to_level, reason, current_user.id)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.post("/tickets/{ticket_id}/csat", summary="Valoración de satisfacción")
@@ -260,19 +265,19 @@ def submit_csat(
     require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
     result = submit_ticket_csat(db, ticket_id, payload.score, payload.comment)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.get("/tickets/{ticket_id}/links", summary="Ver tickets vinculados")
 def get_ticket_links(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return list_ticket_links_payload(db, ticket_id)
+    return APIListResponse.ok(items=list_ticket_links_payload(db, ticket_id))
 
 
 @router.post("/tickets/{ticket_id}/links", summary="Vincular tickets")
 def link_tickets(ticket_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     lk = create_ticket_link_record(db, ticket_id, payload, current_user.id)
     _commit_or_rollback(db)
-    return {"ok": True, "link_id": lk.id}
+    return APIResponse.ok(data={"ok": True, "link_id": lk.id})
 
 
 @router.delete("/tickets/{ticket_id}/links/{link_id}", summary="Eliminar vínculo")
@@ -280,38 +285,38 @@ def delete_ticket_link(ticket_id: str, link_id: str, db: Session = Depends(get_d
     enforce_abac(db, current_user, "sd_ticket_link", link_id, action="delete")
     delete_ticket_link_svc(db, link_id)
     _commit_or_rollback(db)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.post("/tickets/{ticket_id}/sla/pause", summary="Pausar SLA")
 def pause_sla(ticket_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     result = pause_ticket_sla_from_payload(db, ticket_id, current_user.id, payload)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.post("/tickets/{ticket_id}/sla/resume", summary="Reanudar SLA")
 def resume_sla(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     result = resume_ticket_sla(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.get("/tickets/{ticket_id}/sla/events", summary="Historial de eventos SLA")
 def get_sla_events(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return list_sla_events(db, ticket_id)
+    return APIListResponse.ok(items=list_sla_events(db, ticket_id))
 
 
 @router.get("/tickets/{ticket_id}/watchers", summary="Ver seguidores del ticket")
 def get_watchers(ticket_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return [serialize_ticket_watcher(w) for w in list_ticket_watchers(db, ticket_id)]
+    return APIListResponse.ok(items=[serialize_ticket_watcher(w) for w in list_ticket_watchers(db, ticket_id)])
 
 
 @router.post("/tickets/{ticket_id}/watch", summary="Seguir ticket", status_code=201)
 def watch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     result = watch_ticket_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.delete("/tickets/{ticket_id}/watch", summary="Dejar de seguir ticket")
@@ -319,33 +324,33 @@ def unwatch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: 
     enforce_abac(db, current_user, "sd_ticket", ticket_id, action="delete")
     result = unwatch_ticket_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.post("/tickets/{ticket_id}/merge", summary="Fusionar ticket duplicado en éste")
 def merge_ticket(ticket_id: str, payload: MergeIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
     result = merge_ticket_command(db, ticket_id, payload.merged_ticket_id, payload.reason, current_user.id)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.post("/tickets/{ticket_id}/split", summary="Dividir ticket en ticket hijo")
 def split_ticket(ticket_id: str, payload: SplitTicketIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
     result = split_ticket_command(db=db, ticket_id=ticket_id, payload=payload, current_user_id=current_user.id)
     _commit_or_rollback(db); db.refresh(result["child"])
-    return {"ok": True, "parent": result["parent"].number, "child": result["child"].number, "child_id": result["child"].id}
+    return APIResponse.ok(data={"ok": True, "parent": result["parent"].number, "child": result["child"].number, "child_id": result["child"].id})
 
 
 @router.post("/tickets/{ticket_id}/ai-suggest", summary="Sugerir respuesta IA para ticket")
 def suggest_ticket_response_ai(ticket_id: str, payload: Optional[dict] = Body(default=None), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return build_ai_ticket_suggestion(db, ticket_id, payload, current_user)
+    return APIResponse.ok(data=build_ai_ticket_suggestion(db, ticket_id, payload, current_user))
 
 
 @router.post("/tickets/{ticket_id}/auto-assign", summary="Auto-asignar ticket al agente con menos carga del grupo")
 def auto_assign_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
     result = auto_assign_ticket_ml_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.get("/tickets/{ticket_id}/routing-candidates", summary="Candidatos de asignación ML rankeados por score")
@@ -373,7 +378,7 @@ def routing_candidates(
         .all()
     )
     candidates = get_routing_candidates(db, ticket, members)
-    return {
+    return APIResponse.ok(data={
         "ticket_id": ticket_id,
         "ticket_number": ticket.number,
         "candidates": candidates,
@@ -383,7 +388,7 @@ def routing_candidates(
             "historical_csat": "20%",
             "skill_match": "15%",
         },
-    }
+    })
 
 
 @router.post("/tickets/{ticket_id}/smart-assign", summary="Asignación ML inteligente con explicación")
@@ -395,14 +400,14 @@ def smart_assign_ticket(
     """Assign ticket to the ML-predicted best available agent and return score explanation."""
     result = auto_assign_ticket_ml_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.get("/tickets/{ticket_id}/ai-explain", summary="Explicación de confianza IA para asignación y auto-resolución")
 def explain_ai_decision(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
-        return {"ok": False, "error": "Ticket no encontrado"}
+        return APIResponse.ok(data={"ok": False, "error": "Ticket no encontrado"})
 
     auto_resolution = score_auto_resolution(db, ticket)
     candidates = []
@@ -417,7 +422,7 @@ def explain_ai_decision(ticket_id: str, db: Session = Depends(get_db), current_u
             )
         candidates.sort(key=lambda c: c["assignment_score"], reverse=True)
 
-    return {
+    return APIResponse.ok(data={
         "ticket_id": ticket.id,
         "ticket_number": ticket.number,
         "auto_resolution": auto_resolution,
@@ -426,16 +431,16 @@ def explain_ai_decision(ticket_id: str, db: Session = Depends(get_db), current_u
             "auto_resolution_threshold": 85,
             "routing_method": "ml_score_v1",
         },
-    }
+    })
 
 
 @router.get("/tickets/{ticket_id}/merges", summary="Ver merges de un ticket")
 def get_merges(ticket_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return list_ticket_merges_payload(db, ticket_id)
+    return APIListResponse.ok(items=list_ticket_merges_payload(db, ticket_id))
 
 
 @router.post("/tickets/{ticket_id}/to-kb", summary="Convertir resolución de ticket en artículo KB")
 def ticket_to_kb(ticket_id: str, title: str = Query(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     a = create_kb_from_ticket(db, ticket_id, title, current_user.id)
     _commit_or_rollback(db); db.refresh(a)
-    return {"id": a.id, "number": a.number}
+    return APIResponse.ok(data={"id": a.id, "number": a.number})

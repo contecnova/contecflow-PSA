@@ -5,6 +5,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
@@ -32,21 +33,21 @@ def list_kb_articles(
         db=db, search=search, category_id=category_id, public_only=public_only,
         page=page, page_size=page_size, response=response, authorization=authorization,
     )
-    return serialize_kb_articles(articles, public_only)
+    return APIListResponse.ok(items=serialize_kb_articles(articles, public_only), page=page, page_size=page_size)
 
 
 @router.get("/kb/{article_id}", summary="Detalle de artículo KB")
 def get_kb_article(article_id: str, db: Session = Depends(get_db)):
     a = get_kb_article_and_increment_view(db, article_id)
     _commit_or_rollback(db)
-    return serialize_kb_article_detail(a)
+    return APIResponse.ok(data=serialize_kb_article_detail(a))
 
 
 @router.post("/kb", summary="Crear artículo KB")
 def create_kb_article(payload: KBArticleIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     a = build_kb_article(db, payload, current_user.id)
     _commit_or_rollback(db); db.refresh(a)
-    return {"id": a.id, "number": a.number}
+    return APIResponse.ok(data={"id": a.id, "number": a.number})
 
 
 @router.patch("/kb/{article_id}", summary="Actualizar artículo KB")
@@ -54,7 +55,7 @@ def update_kb_article(article_id: str, payload: KBArticleUpdate, db: Session = D
     a = get_scoped_kb_article_or_404(db, current_user, article_id)
     apply_kb_article_update(db, a, payload, changed_by_user_id=current_user.id)
     _commit_or_rollback(db)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.delete("/kb/{article_id}", summary="Eliminar artículo KB")
@@ -62,14 +63,14 @@ def delete_kb_article(article_id: str, db: Session = Depends(get_db), current_us
     enforce_abac(db, current_user, "sd_kb_article", article_id, action="delete")
     delete_kb_article_svc(db, current_user, article_id)
     _commit_or_rollback(db)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.post("/kb/{article_id}/helpful", summary="Marcar artículo como útil")
 def mark_helpful(article_id: str, helpful: bool = True, db: Session = Depends(get_db)):
     update_kb_helpful_vote(db, article_id, helpful)
     _commit_or_rollback(db)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # NOTE: GET /known-errors is canonically served by problem_management.py (KEDB).
@@ -84,7 +85,7 @@ def get_kb_versions(
 ):
     _ = get_scoped_kb_article_or_404(db, current_user, article_id)
     items = list_kb_versions(db, article_id)
-    return serialize_kb_versions(items)
+    return APIListResponse.ok(items=serialize_kb_versions(items))
 
 
 @router.post("/kb/{article_id}/rollback/{version}", summary="Rollback de artículo KB a versión previa")
@@ -97,4 +98,4 @@ def rollback_kb(
     article = get_scoped_kb_article_or_404(db, current_user, article_id)
     rollback_kb_to_version(db, article, version, changed_by_user_id=current_user.id)
     _commit_or_rollback(db)
-    return {"ok": True, "article_id": article_id, "rolled_back_to": version}
+    return APIResponse.ok(data={"ok": True, "article_id": article_id, "rolled_back_to": version})

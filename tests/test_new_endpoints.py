@@ -87,7 +87,7 @@ def _create_template(client, headers) -> str:
         headers=headers,
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()["id"]
+    return res.json()["data"]["id"]
 
 
 def test_templates_full(client, admin_token, db):

@@ -49,7 +49,7 @@ def test_ticket_is_auto_assigned_on_create(client, admin_token, db):
         },
     )
     assert create.status_code in (200, 201), create.text
-    data = create.json()
+    data = create.json()["data"]
 
     assert data.get("assigned_group_id") == group.id
     assert data.get("assigned_to_id") in {"admin-test-id", "dev-test-id"}
@@ -84,7 +84,7 @@ def test_routing_rule_assign_user_sets_assigned_status(client, admin_token, db):
         },
     )
     assert create.status_code in (200, 201), create.text
-    ticket_id = create.json()["id"]
+    ticket_id = create.json()["data"]["id"]
 
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     assert ticket is not None
@@ -108,14 +108,14 @@ def test_productive_ml_assignment_endpoints(client, admin_token, db):
         },
     )
     assert create.status_code in (200, 201), create.text
-    ticket_id = create.json()["id"]
+    ticket_id = create.json()["data"]["id"]
 
     candidates = client.get(
         f"/api/v1/sd/tickets/{ticket_id}/routing-candidates",
         headers=auth(admin_token),
     )
     assert candidates.status_code == 200, candidates.text
-    cand_data = candidates.json()
+    cand_data = candidates.json()["data"]
     assert isinstance(cand_data.get("candidates"), list)
     assert len(cand_data["candidates"]) >= 1
 
@@ -124,7 +124,7 @@ def test_productive_ml_assignment_endpoints(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert auto_assign.status_code == 200, auto_assign.text
-    auto_data = auto_assign.json()
+    auto_data = auto_assign.json()["data"]
     assert auto_data.get("ok") is True
     assert auto_data.get("method") == "ml_score_v2"
     assert auto_data.get("assigned_to") in {"admin-test-id", "dev-test-id"}
@@ -134,7 +134,7 @@ def test_productive_ml_assignment_endpoints(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert smart_assign.status_code == 200, smart_assign.text
-    smart_data = smart_assign.json()
+    smart_data = smart_assign.json()["data"]
     assert smart_data.get("ok") is True
     assert smart_data.get("method") == "ml_score_v2"
 

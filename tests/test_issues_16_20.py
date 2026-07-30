@@ -296,7 +296,7 @@ class TestPersistedSLAMetrics:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), f"Ticket creation failed: {res.text}"
-        return res.json()["id"]
+        return res.json()["data"]["id"]
 
     def test_first_response_minutes_persisted_on_in_progress(self, client, db, admin_token):
         """Setting status=in_progress persists first_response_minutes on the ticket."""
@@ -499,7 +499,7 @@ class TestCMDBImpactGraph:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         if data["impacted_count"] > 0:
             assert "depth" in data["impacted"][0]
 
@@ -514,7 +514,7 @@ class TestCMDBImpactGraph:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert "truncated" in data
         assert isinstance(data["truncated"], bool)
 
@@ -529,7 +529,7 @@ class TestCMDBImpactGraph:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert data["max_depth"] == 2
 
     def test_limit_query_param_accepted(self, client, db, admin_token):
@@ -561,7 +561,7 @@ class TestCMDBImpactGraph:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         impacted_ids = {i["ci_id"] for i in data["impacted"]}
         # level1 is a direct dependent (depth=1) — should be included
         assert ci_level1.id in impacted_ids
@@ -582,6 +582,6 @@ class TestCMDBImpactGraph:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert data["impacted_count"] <= 1
         assert data["truncated"] is True

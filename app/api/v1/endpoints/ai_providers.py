@@ -9,6 +9,7 @@ from app.core.deps import get_current_user, require_admin
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse, APIResponse
 from app.services.ai_provider_service import (
     PROVIDER_CATALOG,
     call_ai,
@@ -51,7 +52,7 @@ def _out(p):
 @router.get("/catalog")
 def get_catalog(_=Depends(get_current_user)):
     """Catálogo completo de proveedores y modelos disponibles."""
-    return PROVIDER_CATALOG
+    return APIResponse.ok(data=PROVIDER_CATALOG)
 
 
 @router.get("")
@@ -59,7 +60,7 @@ def list_providers(db: Session = Depends(get_db), current_user: User = Depends(g
     providers = svc_list_providers(
         db, is_superadmin=current_user.is_superadmin, organization_id=current_user.organization_id
     )
-    return [_out(p) for p in providers]
+    return APIListResponse.ok(items=[_out(p) for p in providers])
 
 
 @router.post("")
@@ -71,7 +72,7 @@ def create_provider(data: dict = Body(...), db: Session = Depends(get_db), cu=De
         data=data,
         is_superadmin=cu.is_superadmin,
     )
-    return _out(p)
+    return APIResponse.ok(data=_out(p))
 
 
 @router.patch("/{pid}")
@@ -80,7 +81,7 @@ def update_provider(pid: str, data: dict = Body(...), db: Session = Depends(get_
     if not p:
         raise HTTPException(status_code=404, detail="AI provider not found")
     p = svc_update_provider(db, p, data, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
-    return _out(p)
+    return APIResponse.ok(data=_out(p))
 
 
 @router.delete("/{pid}")
@@ -90,7 +91,7 @@ def delete_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_a
     if not p:
         raise HTTPException(status_code=404, detail="AI provider not found")
     svc_delete_provider(db, p)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.post("/{pid}/set-default")
@@ -98,7 +99,7 @@ def set_default(pid: str, db: Session = Depends(get_db), _=Depends(require_admin
     p = svc_set_default_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
         raise HTTPException(status_code=404, detail="AI provider not found")
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.post("/{pid}/test")
@@ -118,8 +119,8 @@ def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_adm
         except Exception as db_exc:
             _logger.error("Failed to update provider test result in DB: %s", db_exc)
             # Continue anyway - test succeeded even if we can't update DB
-        return {"ok": True, "response": result.get("text", ""), "latency_ms": latency,
-                "model": result.get("model", p.default_model)}
+        return APIResponse.ok(data={"ok": True, "response": result.get("text", ""), "latency_ms": latency,
+                                    "model": result.get("model", p.default_model)})
     except ValueError as e:
         try:
             update_provider_test_result(db, p, success=False, error=str(e))
@@ -166,13 +167,13 @@ def sync_provider_models(pid: str, db: Session = Depends(get_db), _=Depends(requ
 
     try:
         models = svc_sync_provider_models(db, p)
-        return {
+        return APIResponse.ok(data={
             "ok": True,
             "provider_id": p.id,
             "provider": p.provider,
             "models": models,
             "default_model": p.default_model,
-        }
+        })
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
@@ -190,7 +191,7 @@ def sync_all_provider_models(db: Session = Depends(get_db), _=Depends(require_ad
         organization_id=_.organization_id,
     )
     if not providers:
-        return {"ok": True, "results": [], "message": "No hay proveedores configurados"}
+        return APIResponse.ok(data={"ok": True, "results": [], "message": "No hay proveedores configurados"})
 
     results = []
     failures = 0
@@ -217,12 +218,12 @@ def sync_all_provider_models(db: Session = Depends(get_db), _=Depends(require_ad
                 "error": str(e),
             })
 
-    return {
+    return APIResponse.ok(data={
         "ok": failures == 0,
         "results": results,
         "total": len(results),
         "failed": failures,
-    }
+    })
 
 
 @router.get("/diagnostics")
@@ -237,31 +238,31 @@ def diagnose_all_providers(db: Session = Depends(get_db), _=Depends(require_admi
         organization_id=_.organization_id,
     )
     if not providers:
-        return {"total": 0, "healthy": 0, "warning": 0, "error": 0, "providers": []}
+        return APIResponse.ok(data={"total": 0, "healthy": 0, "warning": 0, "error": 0, "providers": []})
 
     results = [svc_diagnose_provider(p) for p in providers]
     healthy = sum(1 for r in results if r["status"] == "ok")
     warning = sum(1 for r in results if r["status"] == "warning")
     errors  = sum(1 for r in results if r["status"] == "error")
-    return {
+    return APIResponse.ok(data={
         "total": len(results),
         "healthy": healthy,
         "warning": warning,
         "error": errors,
         "providers": results,
-    }
+    })
 
 
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db), _=Depends(get_current_user)):
     data = svc_get_stats(db, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
-    return {
+    return APIResponse.ok(data={
         "providers": [_out(p) for p in data["providers"]],
         "by_module": [{"module": r.module, "calls": r.calls,
                        "tokens": r.tokens or 0, "cost": round(r.cost or 0, 4)} for r in data["logs"]],
         "total_cost": data["total_cost"],
         "total_requests": data["total_requests"],
-    }
+    })
 
 
 # ── Endpoint de chat unificado ────────────────────────────────────────────────
@@ -279,4 +280,4 @@ def unified_chat(data: dict = Body(...), db: Session = Depends(get_db),
 
     text = call_ai(db, messages, system=system, module=module,
                    user_id=cu.id, model=model, provider_id=provider_id)
-    return {"text": text, "module": module}
+    return APIResponse.ok(data={"text": text, "module": module})

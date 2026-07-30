@@ -24,7 +24,7 @@ logger = logging.getLogger("contecflow.v14")
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.core.ratelimit import limiter
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.models.cab import (
@@ -66,7 +66,7 @@ def cast_cab_vote(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.cast_cab_vote(cr_id, payload.vote, payload.comment, current_user, db)
+        return APIResponse.ok(data=_svc.cast_cab_vote(cr_id, payload.vote, payload.comment, current_user, db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -81,7 +81,7 @@ def close_cab_vote(
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.close_cab_vote(cr_id, payload.get("decision"), payload.get("reason"), current_user, db)
+        return APIResponse.ok(data=_svc.close_cab_vote(cr_id, payload.get("decision"), payload.get("reason"), current_user, db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -116,7 +116,7 @@ def create_maintenance_window(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.create_maintenance_window(payload, current_user.id, db)
+    return APIResponse.ok(data=_svc.create_maintenance_window(payload, current_user.id, db))
 
 
 @router.post("/cab/changes/{cr_id}/schedule", summary="Asignar CR a ventana de mantenimiento")
@@ -132,7 +132,7 @@ def schedule_cr_in_window(
     if not window_id:
         raise HTTPException(422, "window_id es obligatorio")
     try:
-        return _svc.schedule_cr_in_window(cr_id, window_id, payload.get("rollback_plan"), payload.get("test_plan"), db)
+        return APIResponse.ok(data=_svc.schedule_cr_in_window(cr_id, window_id, payload.get("rollback_plan"), payload.get("test_plan"), db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -172,7 +172,7 @@ def create_webhook_trigger(
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.create_webhook_trigger(payload, current_user.id, db)
+        return APIResponse.ok(data=_svc.create_webhook_trigger(payload, current_user.id, db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -226,7 +226,7 @@ async def fire_webhook(
     if trigger.workflow_id:
         background_tasks.add_task(_execute_workflow_from_webhook, trigger.workflow_id, payload_json)
 
-    return {"ok": True, "fired": True, "trigger": trigger.name}
+    return APIResponse.ok(data={"ok": True, "fired": True, "trigger": trigger.name})
 
 
 def _execute_workflow_from_webhook(workflow_id: str, context: dict):
@@ -239,7 +239,7 @@ def webhook_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_webhook_logs(trigger_id, db)
+    return APIListResponse.ok(items=_svc.get_webhook_logs(trigger_id, db))
 
 
 @router.post("/webhooks/{trigger_id}/rotate", summary="Rotar slug del webhook trigger")
@@ -255,7 +255,7 @@ def rotate_webhook_trigger_slug(
     that many days. Omit for a non-expiring slug.
     """
     try:
-        return _svc.rotate_webhook_trigger_slug(trigger_id, expires_in_days, db)
+        return APIResponse.ok(data=_svc.rotate_webhook_trigger_slug(trigger_id, expires_in_days, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -268,7 +268,7 @@ def delete_webhook_trigger(
 ):
     enforce_abac(db, current_user, "cab_webhook", trigger_id, action="delete")
     try:
-        return _svc.delete_webhook_trigger(trigger_id, db)
+        return APIResponse.ok(data=_svc.delete_webhook_trigger(trigger_id, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -285,7 +285,7 @@ def list_email_templates(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_email_templates(db)
+    return APIResponse.ok(data=_svc.list_email_templates(db))
 
 
 class EmailTemplateCreate(BaseModel):
@@ -303,7 +303,7 @@ def create_email_template(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.create_email_template(payload, current_user.id, db)
+    return APIResponse.ok(data=_svc.create_email_template(payload, current_user.id, db))
 
 
 class SendEmailPayload(BaseModel):
@@ -323,7 +323,7 @@ def send_email(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.send_email_action(payload, db)
+    return APIResponse.ok(data=_svc.send_email_action(payload, db))
 
 
 @router.get("/email/logs", summary="Historial de emails enviados")
@@ -333,7 +333,7 @@ def email_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.get_email_logs(limit, status, db)
+    return APIListResponse.ok(items=_svc.get_email_logs(limit, status, db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -366,7 +366,7 @@ def create_gdpr_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.create_gdpr_request(payload, current_user, db)
+    return APIResponse.ok(data=_svc.create_gdpr_request(payload, current_user, db))
 
 
 @router.post("/gdpr/requests/{request_id}/process", summary="Procesar solicitud GDPR")
@@ -379,7 +379,7 @@ def process_gdpr_request(
 ):
     """Execute the GDPR request: anonymise data or generate export."""
     try:
-        return _svc.process_gdpr_request(request_id, current_user, db)
+        return APIResponse.ok(data=_svc.process_gdpr_request(request_id, current_user, db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -399,7 +399,7 @@ def global_search(
     current_user: User = Depends(get_current_user),
 ):
     """Full-text search across projects, tasks, tickets, users, invoices, opportunities."""
-    return _svc.global_search(q, types, limit, db)
+    return APIResponse.ok(data=_svc.global_search(q, types, limit, db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -411,7 +411,7 @@ AVAILABLE_WIDGETS = _svc.AVAILABLE_WIDGETS
 
 @router.get("/dashboard-widgets/catalog", summary="Catálogo de widgets disponibles")
 def widget_catalog(current_user: User = Depends(get_current_user)):
-    return AVAILABLE_WIDGETS
+    return APIListResponse.ok(items=AVAILABLE_WIDGETS)
 
 
 @router.get("/dashboard-widgets", summary="Widgets del usuario actual")
@@ -419,7 +419,7 @@ def get_user_widgets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_user_widgets(current_user, db)
+    return APIListResponse.ok(items=_svc.get_user_widgets(current_user, db))
 
 
 @router.post("/dashboard-widgets", summary="Guardar layout de widgets del usuario")
@@ -428,7 +428,7 @@ def save_widget_layout(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.save_widget_layout(payload, current_user.id, db)
+    return APIResponse.ok(data=_svc.save_widget_layout(payload, current_user.id, db))
 
 
 @router.delete("/dashboard-widgets/reset", summary="Restablecer widgets por defecto")
@@ -437,7 +437,7 @@ def reset_widgets(
     current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "dashboard_widget", str(current_user.id), action="delete")
-    return _svc.reset_widgets(current_user.id, db)
+    return APIResponse.ok(data=_svc.reset_widgets(current_user.id, db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -458,7 +458,7 @@ def get_onboarding(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_onboarding(current_user, db)
+    return APIResponse.ok(data=_svc.get_onboarding(current_user, db))
 
 
 @router.post("/onboarding/complete-step", summary="Marcar paso de onboarding como completado")
@@ -468,7 +468,7 @@ def complete_onboarding_step(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.complete_onboarding_step(payload.get("step_id"), current_user, db)
+        return APIResponse.ok(data=_svc.complete_onboarding_step(payload.get("step_id"), current_user, db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -478,7 +478,7 @@ def dismiss_onboarding(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.dismiss_onboarding(current_user, db)
+    return APIResponse.ok(data=_svc.dismiss_onboarding(current_user, db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -490,7 +490,7 @@ def list_integrations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.list_integrations(db)
+    return APIListResponse.ok(items=_svc.list_integrations(db))
 
 
 class IntegrationCreate(BaseModel):
@@ -507,7 +507,7 @@ def create_integration(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.create_integration(payload, current_user.id, db)
+    return APIResponse.ok(data=_svc.create_integration(payload, current_user.id, db))
 
 
 @router.post("/oauth-integrations/{integration_id}/sync", summary="Sincronizar integración")
@@ -518,7 +518,7 @@ def sync_integration(
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.run_integration_sync(integration_id, payload, db)
+        return APIResponse.ok(data=_svc.run_integration_sync(integration_id, payload, db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -531,7 +531,7 @@ def calendar_events(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_calendar_events(user_id or current_user.id, from_date, to_date, db)
+    return APIListResponse.ok(items=_svc.get_calendar_events(user_id or current_user.id, from_date, to_date, db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -545,7 +545,7 @@ def get_commit_links(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_commit_links(integration_id, task_id, db)
+    return APIListResponse.ok(items=_svc.get_commit_links(integration_id, task_id, db))
 
 
 @router.get("/revenue/rules", summary="Reglas de reconocimiento de ingresos")
@@ -553,7 +553,7 @@ def list_revenue_rules(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_revenue_rules(db)
+    return APIListResponse.ok(items=_svc.list_revenue_rules(db))
 
 
 class RevenueRuleCreate(BaseModel):
@@ -572,7 +572,7 @@ def create_revenue_rule(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.create_revenue_rule(payload, current_user.id, db)
+        return APIResponse.ok(data=_svc.create_revenue_rule(payload, current_user.id, db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -589,7 +589,7 @@ def compute_revenue_period(
     """Compute and record revenue recognition for a given month."""
     period_str = payload.get("period", str(date.today().replace(day=1)))
     try:
-        return _svc.compute_revenue_period(rule_id, period_str, db)
+        return APIResponse.ok(data=_svc.compute_revenue_period(rule_id, period_str, db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -603,7 +603,7 @@ def auto_compute_revenue(
     current_user: User = Depends(require_any_manager),
 ):
     period_str = period or str(date.today().replace(day=1))
-    return _svc.auto_compute_revenue(period_str, db)
+    return APIResponse.ok(data=_svc.auto_compute_revenue(period_str, db))
 
 
 @router.get("/revenue/summary", summary="Resumen de ingresos reconocidos")
@@ -611,7 +611,7 @@ def revenue_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_revenue_summary(db)
+    return APIResponse.ok(data=_svc.get_revenue_summary(db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -624,7 +624,7 @@ def get_risk_scores(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_risk_scores(refresh, db)
+    return APIResponse.ok(data=_svc.get_risk_scores(refresh, db))
 
 
 @router.get("/risk-scores/{project_id}", summary="Puntuación de riesgo detallada de un proyecto")
@@ -634,7 +634,7 @@ def get_project_risk_score(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.get_project_risk_score(project_id, db)
+        return APIResponse.ok(data=_svc.get_project_risk_score(project_id, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -648,7 +648,7 @@ def revenue_journal_entries(
     _: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.get_revenue_journal(project_id, db)
+        return APIResponse.ok(data=_svc.get_revenue_journal(project_id, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 

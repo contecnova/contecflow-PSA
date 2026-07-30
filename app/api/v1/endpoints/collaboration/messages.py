@@ -18,7 +18,7 @@ from app.schemas.collaboration import (
 from app.services.collaboration import messages as msg_svc
 from app.services.collaboration._permissions import _org, assert_conversation_access
 from app.services.traffic_control_service import consume_quota
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter()
 
@@ -43,7 +43,7 @@ def list_messages(
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.post("/messages", response_model=MessageOut, summary="Enviar mensaje")
+@router.post("/messages", response_model=APIResponse[MessageOut], summary="Enviar mensaje")
 def send_message(payload: MessageCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Membership + ABAC por conversación cuando se envía por conversation_id.
     if payload.conversation_id:
@@ -102,20 +102,20 @@ def send_message(payload: MessageCreate, current_user: User = Depends(get_curren
         bot_svc.maybe_handle_inline_command(db, current_user, msg)
     except Exception:
         pass  # bots are best-effort
-    return MessageOut(**msg_svc._serialize_message(db, msg))
+    return APIResponse.ok(data=MessageOut(**msg_svc._serialize_message(db, msg)))
 
 
-@router.patch("/messages/{message_id}", response_model=MessageOut, summary="Editar mensaje")
+@router.patch("/messages/{message_id}", response_model=APIResponse[MessageOut], summary="Editar mensaje")
 def edit_message(message_id: str, payload: MessageUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     msg = msg_svc.edit_message(db, current_user, message_id, payload.body or "", payload.metadata_json)
-    return MessageOut(**msg_svc._serialize_message(db, msg))
+    return APIResponse.ok(data=MessageOut(**msg_svc._serialize_message(db, msg)))
 
 
 @router.delete("/messages/{message_id}", summary="Borrar mensaje")
 def delete_message(message_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     enforce_abac(db, current_user, "collaboration_message", message_id, action="delete")
     msg_svc.delete_message(db, current_user, message_id)
-    return {"deleted": True}
+    return APIResponse.ok(data={"deleted": True})
 
 
 @router.get("/messages/{message_id}/versions", response_model=APIListResponse[MessageVersionOut], summary="Historial del mensaje")
@@ -130,47 +130,47 @@ def get_versions(message_id: str, current_user: User = Depends(get_current_user)
 # ── Reactions ────────────────────────────────────────────────────────────────
 @router.post("/messages/{message_id}/reactions", summary="Toggle reacción")
 def toggle_reaction(message_id: str, payload: ReactionToggle, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return msg_svc.toggle_reaction(db, current_user, message_id, payload.emoji)
+    return APIResponse.ok(data=msg_svc.toggle_reaction(db, current_user, message_id, payload.emoji))
 
 
 # ── Reads ────────────────────────────────────────────────────────────────────
 @router.post("/conversations/{conversation_id}/read", summary="Marcar leído")
 def mark_read(conversation_id: str, payload: ReadUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     msg_svc.mark_read(db, current_user, conversation_id, payload.last_message_id)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── Pins ─────────────────────────────────────────────────────────────────────
 @router.post("/conversations/{conversation_id}/pins", summary="Pinear mensaje")
 def pin(conversation_id: str, payload: PinIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     msg_svc.pin_message(db, current_user, payload.message_id)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.delete("/conversations/{conversation_id}/pins/{message_id}", summary="Quitar pin")
 def unpin(conversation_id: str, message_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     enforce_abac(db, current_user, "collaboration_message", message_id, action="delete")
     msg_svc.unpin_message(db, current_user, message_id)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.get("/conversations/{conversation_id}/pins", summary="Lista de pins")
 def list_pins(conversation_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return msg_svc.list_pins(db, current_user, conversation_id)
+    return APIListResponse.ok(items=msg_svc.list_pins(db, current_user, conversation_id))
 
 
 # ── Saved ────────────────────────────────────────────────────────────────────
 @router.post("/saved", summary="Guardar mensaje (mis guardados)")
 def save_msg(payload: SaveIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     msg_svc.save_message(db, current_user, payload.message_id, payload.note)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.delete("/saved/{message_id}", summary="Quitar de guardados")
 def unsave_msg(message_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     enforce_abac(db, current_user, "collaboration_saved_message", message_id, action="delete")
     msg_svc.unsave_message(db, current_user, message_id)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.get("/saved", response_model=APIListResponse[dict], summary="Mis mensajes guardados")
@@ -216,7 +216,7 @@ def link_message(
         payload={"kind": kind, "linked_id": eid},
     )
     db.commit()
-    return {"ok": True, "kind": kind, "linked_id": eid}
+    return APIResponse.ok(data={"ok": True, "kind": kind, "linked_id": eid})
 
 
 @router.get("/messages/{message_id}/link/candidates", summary="Buscar candidatos para anclar")
@@ -247,7 +247,7 @@ def link_candidates(
         if q:
             qx = qx.filter(Task.title.ilike(f"%{q}%"))
         rows = qx.order_by(Task.created_at.desc()).limit(limit).all()
-        return [{"id": t.id, "label": f"{t.code or '?'} · {t.title}"} for t in rows]
+        return APIListResponse.ok(items=[{"id": t.id, "label": f"{t.code or '?'} · {t.title}"} for t in rows])
     if kind == "ticket":
         from app.models.service_desk import Ticket
         qx = db.query(Ticket)
@@ -256,8 +256,8 @@ def link_candidates(
         if q:
             qx = qx.filter(Ticket.title.ilike(f"%{q}%"))
         rows = qx.order_by(Ticket.created_at.desc()).limit(limit).all()
-        return [{"id": t.id, "label": f"{getattr(t, 'number', t.id[:8])} · {t.title}"} for t in rows]
-    return []
+        return APIListResponse.ok(items=[{"id": t.id, "label": f"{getattr(t, 'number', t.id[:8])} · {t.title}"} for t in rows])
+    return APIListResponse.ok(items=[])
 
 
 @router.get("/mentions", summary="Mis menciones recientes")
@@ -275,4 +275,4 @@ def list_my_mentions(current_user: User = Depends(get_current_user), db: Session
                 "conversation_id": m.conversation_id,
                 "created_at": r.created_at,
             })
-    return out
+    return APIListResponse.ok(items=out)

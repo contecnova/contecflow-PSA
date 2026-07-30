@@ -97,7 +97,7 @@ def test_sd_cab_workflow_endpoints_full_flow(client, admin_token, pm_token, dev_
         },
     )
     assert create_res.status_code == 200, create_res.text
-    change_id = create_res.json()["id"]
+    change_id = create_res.json()["data"]["id"]
 
     start_res = client.post(
         f"/api/v1/sd/changes/{change_id}/cab/workflow",

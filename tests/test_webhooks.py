@@ -26,7 +26,7 @@ def _create_webhook(client, token, url="https://example.com/hook", events=None, 
         payload["project_id"] = project_id
     res = client.post("/api/v1/enterprise/webhooks", json=payload, headers=auth(token))
     assert res.status_code in (200, 201), res.text
-    return res.json()
+    return res.json()["data"]
 
 
 # ── Webhook CRUD ───────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ class TestWebhookCRUD:
         _create_webhook(client, admin_token, url="https://example.com/hook2")
         res = client.get("/api/v1/enterprise/webhooks", headers=auth(admin_token))
         assert res.status_code == 200
-        assert len(res.json()) >= 2
+        assert len(res.json()["items"]) >= 2
 
     def test_update_webhook(self, client, admin_token, db):
         hook = _create_webhook(client, admin_token)
@@ -54,7 +54,7 @@ class TestWebhookCRUD:
         )
         assert res.status_code in (200, 204), res.text
         if res.status_code == 200:
-            data = res.json()
+            data = res.json()["data"]
             assert data.get("is_active") is False
 
     def test_delete_webhook(self, client, admin_token, db):
@@ -148,7 +148,7 @@ class TestWebhookDelivery:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        assert isinstance(res.json(), list)
+        assert isinstance(res.json()["items"], list)
 
 
 # ── Webhook Service Unit Tests ─────────────────────────────────────────────────

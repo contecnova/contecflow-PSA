@@ -24,6 +24,7 @@ from app.db.session import get_db
 from app.core.config import settings
 from app.core.deps import require_any_manager
 from app.core.ratelimit import limiter
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.models.client_portal import (
@@ -211,7 +212,7 @@ def list_clients(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_clients(project_id, client_org_id, db)
+    return APIListResponse.ok(items=_svc.list_clients(project_id, client_org_id, db))
 
 
 @router.post("/clients", summary="Crear acceso de cliente al portal")
@@ -221,7 +222,7 @@ def create_client(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.create_client(payload, db)
+        return APIResponse.ok(data=_svc.create_client(payload, db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -234,7 +235,7 @@ def update_client(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.update_client(client_id, payload, db)
+        return APIResponse.ok(data=_svc.update_client(client_id, payload, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -247,7 +248,7 @@ def delete_client(
 ):
     enforce_abac(db, current_user, "client_portal_client", client_id, action="delete")
     try:
-        return _svc.delete_client(client_id, db)
+        return APIResponse.ok(data=_svc.delete_client(client_id, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -268,7 +269,7 @@ def client_login(request: Request, response: Response, payload: ClientLoginIn, d
         secure=settings.ENVIRONMENT == "production",
         max_age=CLIENT_TOKEN_EXPIRE_HOURS * 3600,
     )
-    return {"ok": True, "client": result["client"]}
+    return APIResponse.ok(data={"ok": True, "client": result["client"]})
 
 
 @router.post("/auth/logout", summary="Cerrar sesión del portal de cliente")
@@ -280,12 +281,12 @@ def client_logout(response: Response):
         secure=settings.ENVIRONMENT == "production",
         path="/",
     )
-    return {"detail": "Sesión cerrada correctamente"}
+    return APIResponse.ok(data={"detail": "Sesión cerrada correctamente"})
 
 
 @router.get("/auth/me", summary="Datos del cliente autenticado")
 def get_me(current_client: ClientUser = Depends(get_current_client), db: Session = Depends(get_db)):
-    return _svc.get_me(current_client, db)
+    return APIResponse.ok(data=_svc.get_me(current_client, db))
 
 
 @router.get("/auth/session-config", summary="Configuración de duración de sesión para portal")
@@ -294,7 +295,7 @@ def get_portal_session_config(
     db: Session = Depends(get_db),
 ):
     _ = current_client
-    return _svc.get_portal_session_config(db)
+    return APIResponse.ok(data=_svc.get_portal_session_config(db))
 
 
 @router.get("/branding", summary="Branding del portal para el cliente autenticado")
@@ -302,7 +303,7 @@ def get_portal_branding(
     current_client: ClientUser = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
-    return _svc.get_portal_branding(current_client, db)
+    return APIResponse.ok(data=_svc.get_portal_branding(current_client, db))
 
 
 @router.get("/invoices", summary="Facturas visibles para el cliente")
@@ -311,7 +312,7 @@ def list_client_invoices(
     current_client: ClientUser = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
-    return _svc.list_client_invoices(status, current_client, db)
+    return APIListResponse.ok(items=_svc.list_client_invoices(status, current_client, db))
 
 
 @router.post("/invoices/{invoice_id}/approve", summary="Aprobación de factura por cliente")
@@ -324,7 +325,7 @@ def approve_client_invoice(
     approved = bool(payload.get("approved", True))
     reason = (payload.get("reason") or "").strip()
     try:
-        return _svc.approve_client_invoice(invoice_id, approved, reason, current_client, db)
+        return APIResponse.ok(data=_svc.approve_client_invoice(invoice_id, approved, reason, current_client, db))
     except ValueError as e:
         status_code = 403 if "proyectos" in str(e) else 404
         raise HTTPException(status_code, str(e))
@@ -337,7 +338,7 @@ def create_public_share_link(
     _: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.create_public_share_link(project_id, db)
+        return APIResponse.ok(data=_svc.create_public_share_link(project_id, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -348,7 +349,7 @@ def view_public_project_status(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.view_public_project_status(token, db)
+        return APIResponse.ok(data=_svc.view_public_project_status(token, db))
     except ValueError as e:
         status_code = 401 if "Token" in str(e) else 404
         raise HTTPException(status_code, str(e))
@@ -361,7 +362,7 @@ def update_my_profile(
     current_client: ClientUser = Depends(get_current_client),
 ):
     try:
-        return _svc.update_my_profile(payload, current_client, db, settings.MIN_PASSWORD_LENGTH)
+        return APIResponse.ok(data=_svc.update_my_profile(payload, current_client, db, settings.MIN_PASSWORD_LENGTH))
     except ValueError as e:
         status_code = 403 if "deshabilitad" in str(e) or "desactivado" in str(e) else 400
         raise HTTPException(status_code, str(e))
@@ -376,7 +377,7 @@ def get_client_dashboard(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.get_client_dashboard(project_id, current_client, db)
+        return APIResponse.ok(data=_svc.get_client_dashboard(project_id, current_client, db))
     except ValueError as e:
         raise HTTPException(403, str(e))
 
@@ -393,7 +394,7 @@ def list_feature_requests(
     current_client: ClientUser = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
-    return _svc.list_feature_requests(status, current_client, db)
+    return APIListResponse.ok(items=_svc.list_feature_requests(status, current_client, db))
 
 
 @router.get("/feature-requests/team", summary="Todas las FRs (equipo interno)")
@@ -405,7 +406,7 @@ def list_all_feature_requests(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_all_feature_requests(project_id, client_id, client_org_id, status, current_user, db)
+    return APIListResponse.ok(items=_svc.list_all_feature_requests(project_id, client_id, client_org_id, status, current_user, db))
 
 
 def _fr_out(fr) -> dict:
@@ -419,7 +420,7 @@ def create_feature_request(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.create_feature_request(payload, current_client, db)
+        return APIResponse.ok(data=_svc.create_feature_request(payload, current_client, db))
     except ValueError as e:
         status_code = 403 if "permisos" in str(e) or "acceso" in str(e) else 400
         raise HTTPException(status_code, str(e))
@@ -433,7 +434,7 @@ def update_feature_request(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.update_feature_request(fr_id, payload, current_client, db)
+        return APIResponse.ok(data=_svc.update_feature_request(fr_id, payload, current_client, db))
     except ValueError as e:
         status_code = 403 if "acceso" in str(e) else (404 if "encontrada" in str(e) else 400)
         raise HTTPException(status_code, str(e))
@@ -447,7 +448,7 @@ def withdraw_feature_request(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.withdraw_feature_request(fr_id, payload.reason, current_client, db)
+        return APIResponse.ok(data=_svc.withdraw_feature_request(fr_id, payload.reason, current_client, db))
     except ValueError as e:
         status_code = 404 if "encontrada" in str(e) else 400
         raise HTTPException(status_code, str(e))
@@ -470,7 +471,7 @@ def respond_to_fr(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.respond_to_fr(fr_id, payload, current_user, db)
+        return APIResponse.ok(data=_svc.respond_to_fr(fr_id, payload, current_user, db))
     except ValueError as e:
         status_code = 422 if "pm_response" in str(e) else 404
         raise HTTPException(status_code, str(e))
@@ -484,7 +485,7 @@ def client_decide_fr(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.client_decide_fr(fr_id, payload, current_client, db)
+        return APIResponse.ok(data=_svc.client_decide_fr(fr_id, payload, current_client, db))
     except ValueError as e:
         status_code = 404 if "encontrada" in str(e) else 400
         raise HTTPException(status_code, str(e))
@@ -502,7 +503,7 @@ def list_uat_client(
     current_client: ClientUser = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
-    return _svc.list_uat_client(status, current_client, db)
+    return APIListResponse.ok(items=_svc.list_uat_client(status, current_client, db))
 
 
 @router.get("/uat/team", summary="Todas las UATs (equipo interno)")
@@ -511,7 +512,7 @@ def list_uat_team(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_uat_team(project_id, db)
+    return APIListResponse.ok(items=_svc.list_uat_team(project_id, db))
 
 
 @router.post("/uat", summary="Crear sesión UAT (equipo interno)")
@@ -530,7 +531,7 @@ def create_uat_for_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.create_uat_for_project(project_id, payload, db)
+    return APIResponse.ok(data=_svc.create_uat_for_project(project_id, payload, db))
 
 
 @router.post("/uat/{uat_id}/test-cases", summary="Añadir caso de prueba")
@@ -540,7 +541,7 @@ def add_test_case(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.add_test_case(uat_id, payload, db)
+    return APIResponse.ok(data=_svc.add_test_case(uat_id, payload, db))
 
 
 @router.post("/uat/{uat_id}/submit-result", summary="Cliente envía resultado del UAT")
@@ -551,7 +552,7 @@ def submit_uat_result(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.submit_uat_result(uat_id, payload, current_client, db)
+        return APIResponse.ok(data=_svc.submit_uat_result(uat_id, payload, current_client, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -564,7 +565,7 @@ def report_uat_issue(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.report_uat_issue(uat_id, payload, current_client, db)
+        return APIResponse.ok(data=_svc.report_uat_issue(uat_id, payload, current_client, db))
     except ValueError as e:
         raise HTTPException(403, str(e))
 
@@ -577,7 +578,7 @@ def update_issue(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.update_uat_issue(issue_id, status, db)
+        return APIResponse.ok(data=_svc.update_uat_issue(issue_id, status, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -594,7 +595,7 @@ def get_client_messages(
     current_client: ClientUser = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
-    return _svc.get_client_messages(thread_id, current_client, db)
+    return APIListResponse.ok(items=_svc.get_client_messages(thread_id, current_client, db))
 
 
 @router.get("/messages/team", summary="Mensajes del proyecto (equipo interno)")
@@ -603,7 +604,7 @@ def get_team_messages(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_team_messages(project_id, db)
+    return APIListResponse.ok(items=_svc.get_team_messages(project_id, db))
 
 
 @router.post("/messages", summary="Enviar mensaje (cliente)")
@@ -613,7 +614,7 @@ def send_client_message(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.send_client_message(payload, current_client, db)
+        return APIResponse.ok(data=_svc.send_client_message(payload, current_client, db))
     except ValueError as e:
         raise HTTPException(403, str(e))
 
@@ -624,7 +625,7 @@ def send_team_message(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.send_team_message(payload, current_user, db)
+    return APIResponse.ok(data=_svc.send_team_message(payload, current_user, db))
 
 
 # ── Project info (client-safe view) ──────────────────────────────────────────
@@ -636,7 +637,7 @@ def get_project_info(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.get_project_info(project_id, current_client, db)
+        return APIResponse.ok(data=_svc.get_project_info(project_id, current_client, db))
     except ValueError as e:
         status_code = 403 if "acceso" in str(e) or "asignados" in str(e) else 404
         raise HTTPException(status_code, str(e))
@@ -651,7 +652,7 @@ def get_client_documents(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.get_client_documents(project_id, current_client, db)
+        return APIListResponse.ok(items=_svc.get_client_documents(project_id, current_client, db))
     except ValueError as e:
         raise HTTPException(403, str(e))
 
@@ -662,7 +663,7 @@ def get_all_documents(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_all_documents(project_id, db)
+    return APIListResponse.ok(items=_svc.get_all_documents(project_id, db))
 
 
 def _doc_out(d) -> dict:
@@ -676,7 +677,7 @@ def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.upload_document(payload, project_id, current_user, db)
+    return APIResponse.ok(data=_svc.upload_document(payload, project_id, current_user, db))
 
 
 class SignDocumentIn(BaseModel):
@@ -698,7 +699,7 @@ def sign_document(
         except Exception as e:
             logging.getLogger(__name__).warning(f"No se pudo obtener IP del cliente: {e}")
     try:
-        return _svc.sign_document(
+        return APIResponse.ok(data=_svc.sign_document(
             doc_id,
             current_client.full_name,
             current_client.email,
@@ -707,7 +708,7 @@ def sign_document(
             settings.PDF_STORAGE_PATH,
             current_client,
             db,
-        )
+        ))
     except ValueError as e:
         msg = str(e)
         if "ya fue firmado" in msg:
@@ -740,12 +741,12 @@ def download_signed_pdf(
 # ── Wiki (portal cliente — solo páginas con visibility=portal) ──────────────
 @router.get("/wiki/pages", summary="Páginas wiki visibles al cliente")
 def portal_wiki_pages(db: Session = Depends(get_db), current_client=Depends(get_current_client)):
-    return _svc.portal_wiki_pages(db)
+    return APIListResponse.ok(items=_svc.portal_wiki_pages(db))
 
 @router.get("/wiki/pages/{page_id}", summary="Contenido de página wiki (portal)")
 def portal_wiki_page_detail(page_id: str, db: Session = Depends(get_db), current_client=Depends(get_current_client)):
     try:
-        return _svc.portal_wiki_page_detail(page_id, db)
+        return APIResponse.ok(data=_svc.portal_wiki_page_detail(page_id, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -757,7 +758,7 @@ def get_surveys(
     current_client: ClientUser = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
-    return _svc.get_surveys(current_client, db)
+    return APIListResponse.ok(items=_svc.get_surveys(current_client, db))
 
 
 def _survey_out(s) -> dict:
@@ -772,7 +773,7 @@ def create_survey(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.create_survey(project_id, client_id, title, db)
+    return APIResponse.ok(data=_svc.create_survey(project_id, client_id, title, db))
 
 
 @router.post("/surveys/{survey_id}/respond", summary="Responder encuesta (cliente)")
@@ -783,7 +784,7 @@ def respond_survey(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.respond_survey(survey_id, payload, current_client, db)
+        return APIResponse.ok(data=_svc.respond_survey(survey_id, payload, current_client, db))
     except ValueError as e:
         msg = str(e)
         raise HTTPException(400 if "respondida" in msg else 404, msg)
@@ -797,7 +798,7 @@ def get_portal_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_portal_stats(project_id, db)
+    return APIResponse.ok(data=_svc.get_portal_stats(project_id, db))
 
 # ── Traducciones personalizadas del portal ───────────────────────────────────
 
@@ -878,9 +879,9 @@ def portal_ai_chat(
     """
     import app.services.ai_modules_service as _ai_svc  # noqa: PLC0415
     try:
-        return _ai_svc.client_portal_chat_authenticated(
+        return APIResponse.ok(data=_ai_svc.client_portal_chat_authenticated(
             db, current_client, payload.message, payload.session_id
-        )
+        ))
     except ValueError as e:
         err = str(e)
         if "missing_fields" in err:
@@ -897,4 +898,4 @@ def portal_ai_chat_history(
     db: Session = Depends(get_db),
 ):
     import app.services.ai_modules_service as _ai_svc  # noqa: PLC0415
-    return _ai_svc.list_client_chat_messages(db, current_client, session_id)
+    return APIListResponse.ok(items=_ai_svc.list_client_chat_messages(db, current_client, session_id))

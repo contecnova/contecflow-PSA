@@ -24,14 +24,14 @@ def test_create_project_type(client, admin_token, db):
         json={"label": "Consultoría", "value": "consulting", "color": "#0070F3"},
         headers=auth(admin_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
 
 
 def test_update_project_type(client, admin_token, db):
     created = client.post("/api/v1/settings/project-types",
         json={"label": "Tipo a Editar", "value": "edit_type"},
-        headers=auth(admin_token)).json()
+        headers=auth(admin_token)).json()["data"]
     res = client.patch(f"/api/v1/settings/project-types/{created['id']}",
         json={"label": "Tipo Editado", "value": "edit_type", "color": "#FF0000"},
         headers=auth(admin_token))
@@ -41,11 +41,11 @@ def test_update_project_type(client, admin_token, db):
 def test_delete_project_type(client, admin_token, db):
     created = client.post("/api/v1/settings/project-types",
         json={"label": "Tipo a Borrar", "value": "delete_type"},
-        headers=auth(admin_token)).json()
+        headers=auth(admin_token)).json()["data"]
     res = client.delete(f"/api/v1/settings/project-types/{created['id']}",
         headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert res.json()["data"]["ok"] is True
 
     listed = client.get("/api/v1/settings/project-types", headers=auth(admin_token))
     assert listed.status_code == 200
@@ -71,18 +71,18 @@ def test_create_department(client, admin_token, db):
         json={"name": "Ingeniería de Software"},
         headers=auth(admin_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
 
 
 def test_delete_department(client, admin_token, db):
     dept = client.post("/api/v1/settings/departments",
         json={"name": "Dpto a Borrar"},
-        headers=auth(admin_token)).json()
+        headers=auth(admin_token)).json()["data"]
     res = client.delete(f"/api/v1/settings/departments/{dept['id']}",
         headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert res.json()["data"]["ok"] is True
 
     listed = client.get("/api/v1/settings/departments", headers=auth(admin_token))
     assert listed.status_code == 200
@@ -108,7 +108,7 @@ def test_create_holiday(client, admin_token, db):
         json={"name": "Día de la Hispanidad", "date": "2025-10-12"},
         headers=auth(admin_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
 
 
@@ -117,10 +117,10 @@ def test_delete_holiday_hard_and_hidden(client, admin_token, db):
         "/api/v1/settings/holidays",
         json={"name": "Fiesta Borrable", "date": "2026-12-08"},
         headers=auth(admin_token),
-    ).json()
+    ).json()["data"]
     res = client.delete(f"/api/v1/settings/holidays/{created['id']}", headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert res.json()["data"]["ok"] is True
 
     listed = client.get("/api/v1/settings/holidays", headers=auth(admin_token))
     assert listed.status_code == 200

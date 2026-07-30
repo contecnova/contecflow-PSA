@@ -177,7 +177,7 @@ def test_service_desk_ticket_full_lifecycle(client, admin_token, pm_token, db):
         headers=auth(admin_token),
     )
     assert create.status_code in (200, 201), create.text
-    ticket = create.json()
+    ticket = create.json()["data"]
     ticket_id = ticket["id"]
     assert ticket["status"] in ("open", "new")
 
@@ -220,7 +220,7 @@ def test_service_desk_ticket_full_lifecycle(client, admin_token, pm_token, db):
         headers=auth(admin_token),
     )
     assert resolve.status_code == 200, resolve.text
-    assert resolve.json()["status"] == "resolved"
+    assert resolve.json()["data"]["status"] == "resolved"
 
     # Cerrar ticket
     close = client.patch(
@@ -229,7 +229,7 @@ def test_service_desk_ticket_full_lifecycle(client, admin_token, pm_token, db):
         headers=auth(admin_token),
     )
     assert close.status_code == 200, close.text
-    assert close.json()["status"] == "closed"
+    assert close.json()["data"]["status"] == "closed"
     # CSAT (client-side) is tested in portal flow tests
 
 
@@ -247,11 +247,11 @@ def test_service_desk_ticket_appears_in_my_queue(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert create.status_code in (200, 201), create.text
-    ticket_id = create.json()["id"]
+    ticket_id = create.json()["data"]["id"]
 
     queue = client.get("/api/v1/sd/tickets/my-queue", headers=auth(admin_token))
     assert queue.status_code == 200
-    ids = [t["id"] for t in queue.json()]
+    ids = [t["id"] for t in queue.json()["items"]]
     assert ticket_id in ids
 
 
@@ -582,14 +582,14 @@ def test_client_portal_fr_lifecycle(client, pm_token, admin_token, db):
         },
     )
     assert fr.status_code in (200, 201), fr.text
-    fr_data = fr.json()
+    fr_data = fr.json()["data"]
     fr_id = fr_data["id"]
     assert fr_data["status"] in ("pending", "new", "submitted")
 
     # El equipo interno ve las FRs pendientes
     team_frs = client.get("/api/v1/portal/feature-requests/team", headers=auth(pm_token))
     assert team_frs.status_code == 200
-    fr_ids = [f["id"] for f in team_frs.json()]
+    fr_ids = [f["id"] for f in team_frs.json()["items"]]
     assert fr_id in fr_ids
 
     # PM responde con estimación
@@ -605,7 +605,7 @@ def test_client_portal_fr_lifecycle(client, pm_token, admin_token, db):
         headers=auth(pm_token),
     )
     assert response.status_code == 200, response.text
-    assert response.json()["status"] == "estimated"
+    assert response.json()["data"]["status"] == "estimated"
 
     # Cliente aprueba la propuesta (usa cookie)
     decision = client.post(
@@ -613,7 +613,7 @@ def test_client_portal_fr_lifecycle(client, pm_token, admin_token, db):
         json={"approved": True, "reason": "Excelente propuesta, procedemos"},
     )
     assert decision.status_code == 200, decision.text
-    assert decision.json()["status"] == "approved"
+    assert decision.json()["data"]["status"] == "approved"
 
 
 def test_client_portal_fr_rejected_by_client(client, pm_token, db):
@@ -650,7 +650,7 @@ def test_client_portal_fr_rejected_by_client(client, pm_token, db):
         },
     )
     assert fr.status_code in (200, 201), fr.text
-    fr_id = fr.json()["id"]
+    fr_id = fr.json()["data"]["id"]
 
     # PM responde
     client.post(
@@ -670,7 +670,7 @@ def test_client_portal_fr_rejected_by_client(client, pm_token, db):
         json={"approved": False, "reason": "El coste supera el presupuesto disponible"},
     )
     assert decision.status_code == 200, decision.text
-    assert decision.json()["status"] == "rejected"
+    assert decision.json()["data"]["status"] == "rejected"
 
 
 # ── 7. Flujo de entrega con entregable y aprobación cliente ───────────────────

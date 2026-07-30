@@ -1,5 +1,4 @@
 """tests/test_change_rollout.py — Tests for Change Rollout Planning endpoints."""
-import pytest
 from tests.conftest import auth
 
 
@@ -33,7 +32,7 @@ def test_create_rollout_plan(client, admin_token, db):
     }
     r = client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans", json=payload, headers=auth(admin_token))
     assert r.status_code in (200, 201)
-    data = r.json()
+    data = r.json()["data"]
     assert "id" in data
     assert data["name"] == "Blue/Green deploy plan"
 
@@ -50,10 +49,10 @@ def test_list_rollout_plans(client, admin_token, db):
 def test_approve_plan(client, admin_token, db):
     cr = _create_change_request(client, admin_token, db)
     res = client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans", json={"name": "plan-approve"}, headers=auth(admin_token))
-    plan_id = res.json()["id"]
+    plan_id = res.json()["data"]["id"]
     r = client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans/{plan_id}/approve", headers=auth(admin_token))
     assert r.status_code == 200
-    assert r.json()["status"] in ("approved", "active")
+    assert r.json()["data"]["status"] in ("approved", "active")
 
 
 def test_advance_phase(client, admin_token, db):
@@ -62,7 +61,7 @@ def test_advance_phase(client, admin_token, db):
         "name": "plan-phases",
         "phases": [{"name": "P1", "steps": []}, {"name": "P2", "steps": []}]
     }, headers=auth(admin_token))
-    plan_id = res.json()["id"]
+    plan_id = res.json()["data"]["id"]
     # Approve first
     client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans/{plan_id}/approve", headers=auth(admin_token))
     # Advance phase
@@ -73,10 +72,10 @@ def test_advance_phase(client, admin_token, db):
 def test_simulate_impact(client, admin_token, db):
     cr = _create_change_request(client, admin_token, db)
     res = client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans", json={"name": "plan-sim"}, headers=auth(admin_token))
-    plan_id = res.json()["id"]
+    plan_id = res.json()["data"]["id"]
     r = client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans/{plan_id}/simulate", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "impact" in data or "simulation" in data or isinstance(data, dict)
 
 

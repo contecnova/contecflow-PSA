@@ -532,7 +532,7 @@ class TestEnhancedTemplates:
             headers=headers,
         )
         assert resp.status_code in (200, 201)
-        return resp.json()["id"]
+        return resp.json()["data"]["id"]
 
     def test_add_document_to_template(self, client, admin_headers):
         tmpl_id = self._create_template(client, admin_headers)

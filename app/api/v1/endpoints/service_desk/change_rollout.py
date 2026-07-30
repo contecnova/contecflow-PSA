@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
+from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk.change_rollout_service import (
@@ -88,7 +89,7 @@ def list_rollout_plans(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = list_plans(db, org_id=org_id, change_request_id=cr_id)
-    return {"items": items, "count": len(items)}
+    return APIListResponse.ok(items=items)
 
 
 @router.get("/change/rollout-plans", summary="Listar planes de rollout (compat legacy)")
@@ -104,7 +105,7 @@ def list_rollout_plans_compat(
     org_id = getattr(current_user, "organization_id", None)
     target_cr = change_request_id or cr_id
     items = list_plans(db, org_id=org_id, change_request_id=target_cr)
-    return {"items": items, "count": len(items)}
+    return APIListResponse.ok(items=items)
 
 
 @router.post("/changes/{cr_id}/rollout-plans", summary="Crear plan de rollout para CR", status_code=201)
@@ -125,7 +126,7 @@ def create_plan(
     if body.rollback_plan and not rollback_steps:
         rollback_steps = [line.strip() for line in body.rollback_plan.splitlines() if line.strip()]
 
-    return create_rollout_plan(
+    return APIResponse.ok(data=create_rollout_plan(
         db,
         org_id=org_id,
         change_request_id=cr_id,
@@ -137,7 +138,7 @@ def create_plan(
         maintenance_window_start=body.maintenance_window_start,
         maintenance_window_end=body.maintenance_window_end,
         created_by=current_user.id,
-    )
+    ))
 
 
 @router.get("/changes/rollout-plans/{plan_id}", summary="Detalle de un plan de rollout")
@@ -150,7 +151,7 @@ def get_rollout_plan(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return get_plan(db, org_id=org_id, plan_id=plan_id)
+        return APIResponse.ok(data=get_plan(db, org_id=org_id, plan_id=plan_id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -167,7 +168,7 @@ def approve_rollout_plan(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return approve_plan(db, org_id=org_id, plan_id=plan_id, approver_user_id=current_user.id)
+        return APIResponse.ok(data=approve_plan(db, org_id=org_id, plan_id=plan_id, approver_user_id=current_user.id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -185,7 +186,7 @@ def advance_rollout_phase(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return advance_phase(db, org_id=org_id, plan_id=plan_id, phase_notes=body.phase_notes if body else None)
+        return APIResponse.ok(data=advance_phase(db, org_id=org_id, plan_id=plan_id, phase_notes=body.phase_notes if body else None))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -216,7 +217,7 @@ def simulate_rollout_impact(
         plans = _get(db, org_id)
         plans[plan_id] = plan
         _set(db, org_id, plans)
-        return {"simulation": simulation, "impact": simulation, "plan_id": plan_id}
+        return APIResponse.ok(data={"simulation": simulation, "impact": simulation, "plan_id": plan_id})
 
     payload = body or SimulateImpactIn()
     simulation = simulate_impact(
@@ -225,4 +226,4 @@ def simulate_rollout_impact(
         change_type=payload.change_type,
         rollout_phases=payload.rollout_phases,
     )
-    return {"simulation": simulation, "impact": simulation}
+    return APIResponse.ok(data={"simulation": simulation, "impact": simulation})
