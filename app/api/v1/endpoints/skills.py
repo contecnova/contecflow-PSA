@@ -5,7 +5,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_hr
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
 from app.services import skill_service
 from app.schemas.skills import SkillIn, UserSkillIn
@@ -45,7 +45,7 @@ def create_skill(
     if skill_service.get_skill_by_name(db, payload.name):
         raise HTTPException(400, "Ya existe un skill con ese nombre")
     s = skill_service.create_skill(db, payload.model_dump())
-    return {"id": s.id, "name": s.name, "category": s.category}
+    return APIResponse.ok(data={"id": s.id, "name": s.name, "category": s.category})
 
 
 @router.patch("/catalog/{skill_id}", summary="Actualizar skill")
@@ -59,7 +59,7 @@ def update_skill(
     if not s:
         raise HTTPException(404, "Skill no encontrado")
     s = skill_service.update_skill(db, s, payload.model_dump())
-    return {"id": s.id, "name": s.name}
+    return APIResponse.ok(data={"id": s.id, "name": s.name})
 
 
 @router.delete("/catalog/{skill_id}", summary="Eliminar skill")
@@ -73,7 +73,7 @@ def delete_skill(
     if not s:
         raise HTTPException(404, "Skill no encontrado")
     skill_service.deactivate_skill(db, s)
-    return {"ok": True, "message": "Skill eliminada correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Skill eliminada correctamente"})
 
 
 # ── User skills ───────────────────────────────────────────────────────────────
@@ -114,9 +114,7 @@ def add_user_skill(
     if current_user.role not in [UserRole.admin, UserRole.hr] and current_user.id != user_id:
         raise HTTPException(403, "Solo puedes editar tus propios skills")
     us, updated = skill_service.upsert_user_skill(db, user_id, payload.model_dump(), current_user.id)
-    if updated:
-        return {"id": us.id, "message": "Skill actualizado"}
-    return {"id": us.id, "message": "Skill añadido"}
+    return APIResponse.ok(data={"id": us.id, "message": "Skill actualizado" if updated else "Skill añadido"})
 
 
 @router.delete("/users/{user_id}/{skill_id}", summary="Eliminar skill de usuario")
@@ -133,7 +131,7 @@ def remove_user_skill(
     if not us:
         raise HTTPException(404, "No encontrado")
     skill_service.remove_user_skill(db, us)
-    return {"ok": True, "message": "Skill de usuario eliminada correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Skill de usuario eliminada correctamente"})
 
 
 # ── Staffing search ───────────────────────────────────────────────────────────
@@ -151,7 +149,7 @@ def search_by_skills(
     for user in result:
         for sk in user["matching_skills"]:
             sk["level_label"] = LEVEL_LABELS.get(sk["level"], sk["level"])
-    return result
+    return APIListResponse.ok(items=result)
 
 
 @router.get("/matrix", summary="Matriz de skills del equipo")
@@ -167,7 +165,7 @@ def get_skills_matrix(
 
     lookup = {(us.user_id, us.skill_id): us for us in user_skills}
 
-    return {
+    return APIResponse.ok(data={
         "skills": [{"id": s.id, "name": s.name, "category": s.category, "category_label": CAT_LABELS.get(s.category, s.category)} for s in skills],
         "users": [{
             "user_id": u.id,
@@ -181,7 +179,7 @@ def get_skills_matrix(
                 } for s in skills
             }
         } for u in users]
-    }
+    })
 
 
 # ── Historial de niveles por usuario/skill ────────────────────────────────────
@@ -227,8 +225,8 @@ def record_skill_assessment(
     if not skill_id or not new_level:
         raise HTTPException(400, "skill_id y new_level son obligatorios")
     entry = skill_service.record_skill_assessment(db, user_id, skill_id, new_level, notes, cu.id)
-    return {
+    return APIResponse.ok(data={
         "id": entry.id,
         "old_level": str(entry.old_level) if entry.old_level else None,
         "new_level": entry.new_level,
-    }
+    })
