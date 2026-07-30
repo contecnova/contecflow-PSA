@@ -762,7 +762,7 @@ class TestMejora5FeedbackEndpointLLMConfirm:
                 app.dependency_overrides = previous_overrides
 
         assert resp.status_code == 200
-        body = resp.json()
+        body = resp.json()["data"]
         assert body["ok"] is True
         assert body["persisted_as_expert"] is True
         assert captured_corrected_by.get("value", "").startswith("manager_confirm:"), (
@@ -807,7 +807,7 @@ class TestMejora5FeedbackEndpointLLMConfirm:
                 app.dependency_overrides = previous_overrides
 
         assert resp.status_code == 200
-        assert resp.json()["persisted_as_expert"] is False
+        assert resp.json()["data"]["persisted_as_expert"] is False
         assert captured_corrected_by.get("value") == "manager-002", (
             "Human correction (confirmed=False) should use plain manager id"
         )

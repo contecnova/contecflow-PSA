@@ -75,8 +75,8 @@ def test_analytics_query_empty_scope_returns_empty_rows(client, admin_token, db,
     )
     assert res.status_code == 200
     payload = res.json()
-    assert payload["rows"] == []
-    assert payload["total"] == 0
+    assert payload["data"]["rows"] == []
+    assert payload["data"]["total"] == 0
 
 
 def test_advanced_utilization_forbidden_foreign_project_returns_403(client, admin_token, db, seed_multitenant):

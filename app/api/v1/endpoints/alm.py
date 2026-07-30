@@ -8,6 +8,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse, APIResponse
 from app.services.alm_service import (
     get_alm_dashboard,
     list_vendors_records, create_vendor_record, get_vendor_record,
@@ -31,31 +32,31 @@ router = APIRouter()
 # ── Dashboard / KPIs ──────────────────────────────────────────────────────────
 @router.get("/dashboard", summary="KPIs del módulo ALM")
 def alm_dashboard(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return get_alm_dashboard(db)
+    return APIResponse.ok(data=get_alm_dashboard(db))
 
 
 # ── Vendors ───────────────────────────────────────────────────────────────────
 @router.get("/vendors")
 def list_vendors(q: Optional[str] = None, category: Optional[str] = None,
                  db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return list_vendors_records(q, category, db)
+    return APIListResponse.ok(items=list_vendors_records(q, category, db))
 
 @router.post("/vendors")
 def create_vendor(data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_any_manager)):
-    return create_vendor_record(data, db)
+    return APIResponse.ok(data=create_vendor_record(data, db))
 
 @router.get("/vendors/{vid}")
 def get_vendor(vid: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return get_vendor_record(vid, db)
+    return APIResponse.ok(data=get_vendor_record(vid, db))
 
 @router.patch("/vendors/{vid}")
 def update_vendor(vid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_any_manager)):
-    return update_vendor_record(vid, data, db)
+    return APIResponse.ok(data=update_vendor_record(vid, data, db))
 
 @router.delete("/vendors/{vid}")
 def delete_vendor(vid: str, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
     enforce_abac(db, cu, "alm_vendor", vid, action="delete")
-    return delete_vendor_record(vid, db)
+    return APIResponse.ok(data=delete_vendor_record(vid, db))
 
 
 # ── Contracts ─────────────────────────────────────────────────────────────────
@@ -63,24 +64,24 @@ def delete_vendor(vid: str, db: Session = Depends(get_db), cu=Depends(require_an
 def list_contracts(vendor_id: Optional[str] = None, status: Optional[str] = None,
                    expiring_days: Optional[int] = None,
                    db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return list_contracts_records(vendor_id, status, expiring_days, db)
+    return APIListResponse.ok(items=list_contracts_records(vendor_id, status, expiring_days, db))
 
 @router.post("/contracts")
 def create_contract(data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(require_any_manager)):
-    return create_contract_record(data, cu.id, db)
+    return APIResponse.ok(data=create_contract_record(data, cu.id, db))
 
 @router.get("/contracts/{cid}")
 def get_contract(cid: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return get_contract_record(cid, db)
+    return APIResponse.ok(data=get_contract_record(cid, db))
 
 @router.patch("/contracts/{cid}")
 def update_contract(cid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_any_manager)):
-    return update_contract_record(cid, data, db)
+    return APIResponse.ok(data=update_contract_record(cid, data, db))
 
 @router.delete("/contracts/{cid}")
 def delete_contract(cid: str, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
     enforce_abac(db, cu, "alm_contract", cid, action="delete")
-    return delete_contract_record(cid, db)
+    return APIResponse.ok(data=delete_contract_record(cid, db))
 
 
 # ── Licenses ──────────────────────────────────────────────────────────────────
@@ -88,35 +89,35 @@ def delete_contract(cid: str, db: Session = Depends(get_db), cu=Depends(require_
 def list_licenses(vendor_id: Optional[str] = None, status: Optional[str] = None,
                   expiring_days: Optional[int] = None, compliance_only: bool = False,
                   db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return list_licenses_records(vendor_id, status, expiring_days, compliance_only, db)
+    return APIListResponse.ok(items=list_licenses_records(vendor_id, status, expiring_days, compliance_only, db))
 
 @router.post("/licenses")
 def create_license(data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_any_manager)):
-    return create_license_record(data, db)
+    return APIResponse.ok(data=create_license_record(data, db))
 
 @router.get("/licenses/{lid}")
 def get_license(lid: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return get_license_record(lid, db)
+    return APIResponse.ok(data=get_license_record(lid, db))
 
 @router.patch("/licenses/{lid}")
 def update_license(lid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_any_manager)):
-    return update_license_record(lid, data, db)
+    return APIResponse.ok(data=update_license_record(lid, data, db))
 
 @router.delete("/licenses/{lid}")
 def delete_license(lid: str, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
     enforce_abac(db, cu, "alm_license", lid, action="delete")
-    return delete_license_record(lid, db)
+    return APIResponse.ok(data=delete_license_record(lid, db))
 
 
 # ── License Assignments ───────────────────────────────────────────────────────
 @router.post("/licenses/{lid}/assign")
 def assign_license(lid: str, data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(get_current_user)):
-    return assign_license_record(lid, data, cu.id, db)
+    return APIResponse.ok(data=assign_license_record(lid, data, cu.id, db))
 
 @router.delete("/licenses/{lid}/assignments/{aid}")
 def revoke_assignment(lid: str, aid: str, db: Session = Depends(get_db), cu=Depends(get_current_user)):
     enforce_abac(db, cu, "alm_license_assignment", aid, action="delete")
-    return revoke_assignment_record(lid, aid, db)
+    return APIResponse.ok(data=revoke_assignment_record(lid, aid, db))
 
 
 # ── Assets ────────────────────────────────────────────────────────────────────
@@ -124,61 +125,61 @@ def revoke_assignment(lid: str, aid: str, db: Session = Depends(get_db), cu=Depe
 def list_assets(type: Optional[str] = None, status: Optional[str] = None,
                 assigned_to: Optional[str] = None, q: Optional[str] = None,
                 db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return list_assets_records(type, status, assigned_to, q, db)
+    return APIListResponse.ok(items=list_assets_records(type, status, assigned_to, q, db))
 
 @router.post("/assets")
 def create_asset(data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_any_manager)):
-    return create_asset_record(data, db)
+    return APIResponse.ok(data=create_asset_record(data, db))
 
 @router.get("/assets/{aid}")
 def get_asset(aid: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return get_asset_record(aid, db)
+    return APIResponse.ok(data=get_asset_record(aid, db))
 
 @router.patch("/assets/{aid}")
 def update_asset(aid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_any_manager)):
-    return update_asset_record(aid, data, db)
+    return APIResponse.ok(data=update_asset_record(aid, data, db))
 
 @router.delete("/assets/{aid}")
 def delete_asset(aid: str, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
     enforce_abac(db, cu, "alm_asset", aid, action="delete")
-    return delete_asset_record(aid, db)
+    return APIResponse.ok(data=delete_asset_record(aid, db))
 
 @router.post("/assets/{aid}/assign")
 def assign_asset(aid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return assign_asset_record(aid, data, db)
+    return APIResponse.ok(data=assign_asset_record(aid, data, db))
 
 
 # ── Cost Centers ──────────────────────────────────────────────────────────────
 @router.get("/cost-centers")
 def list_cost_centers(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return list_cost_centers_records(db)
+    return APIListResponse.ok(items=list_cost_centers_records(db))
 
 @router.post("/cost-centers")
 def create_cost_center(data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_any_manager)):
-    return create_cost_center_record(data, db)
+    return APIResponse.ok(data=create_cost_center_record(data, db))
 
 @router.patch("/cost-centers/{cid}")
 def update_cost_center(cid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_any_manager)):
-    return update_cost_center_record(cid, data, db)
+    return APIResponse.ok(data=update_cost_center_record(cid, data, db))
 
 @router.delete("/cost-centers/{cid}")
 def delete_cost_center(cid: str, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
     enforce_abac(db, cu, "alm_cost_center", cid, action="delete")
-    return delete_cost_center_record(cid, db)
+    return APIResponse.ok(data=delete_cost_center_record(cid, db))
 
 
 # ── Software Installs ─────────────────────────────────────────────────────────
 @router.post("/assets/{aid}/installs")
 def add_install(aid: str, data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(require_any_manager)):
-    return add_install_record(aid, data, cu.id, db)
+    return APIResponse.ok(data=add_install_record(aid, data, cu.id, db))
 
 @router.delete("/assets/{aid}/installs/{iid}")
 def remove_install(aid: str, iid: str, db: Session = Depends(get_db), cu=Depends(get_current_user)):
     enforce_abac(db, cu, "alm_software_install", iid, action="delete")
-    return remove_install_record(aid, iid, db)
+    return APIResponse.ok(data=remove_install_record(aid, iid, db))
 
 
 # ── Compliance report ─────────────────────────────────────────────────────────
 @router.get("/compliance")
 def compliance_report(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return get_compliance_report(db)
+    return APIResponse.ok(data=get_compliance_report(db))

@@ -24,7 +24,7 @@ def _make_active_cycle(client, admin_token, *, name="Cycle 360"):
     cid = client.post(
         "/api/v1/performance/cycles", headers=auth(admin_token),
         json={"name": name},
-    ).json()["id"]
+    ).json()["data"]["id"]
     client.post(f"/api/v1/performance/cycles/{cid}/activate",
                 headers=auth(admin_token))
     return cid
@@ -34,11 +34,11 @@ def _make_active_cycle(client, admin_token, *, name="Cycle 360"):
 
 def test_cycle_seeds_default_questions(client, admin_token, db):
     cid = client.post("/api/v1/performance/cycles", headers=auth(admin_token),
-                      json={"name": "C1"}).json()["id"]
+                      json={"name": "C1"}).json()["data"]["id"]
     res = client.get(f"/api/v1/performance/cycles/{cid}/questions",
                      headers=auth(admin_token))
     assert res.status_code == 200
-    qs = res.json()
+    qs = res.json()["items"]
     # 5 ratings + 3 textos por defecto
     assert len(qs) == 8
     keys = {q["key"] for q in qs}
@@ -50,26 +50,26 @@ def test_create_cycle_without_default_questions(client, admin_token, db):
     cid = client.post(
         "/api/v1/performance/cycles", headers=auth(admin_token),
         json={"name": "Empty", "seed_default_questions": False},
-    ).json()["id"]
+    ).json()["data"]["id"]
     qs = client.get(f"/api/v1/performance/cycles/{cid}/questions",
-                    headers=auth(admin_token)).json()
+                    headers=auth(admin_token)).json()["items"]
     assert qs == []
 
 
 def test_clone_questions_from_previous_cycle(client, admin_token, db):
     src = client.post("/api/v1/performance/cycles", headers=auth(admin_token),
-                      json={"name": "Src"}).json()["id"]
+                      json={"name": "Src"}).json()["data"]["id"]
     dst = client.post(
         "/api/v1/performance/cycles", headers=auth(admin_token),
         json={"name": "Dst", "seed_default_questions": False,
               "clone_questions_from_cycle_id": src},
-    ).json()["id"]
+    ).json()["data"]["id"]
     src_keys = {q["key"] for q in
                 client.get(f"/api/v1/performance/cycles/{src}/questions",
-                           headers=auth(admin_token)).json()}
+                           headers=auth(admin_token)).json()["items"]}
     dst_keys = {q["key"] for q in
                 client.get(f"/api/v1/performance/cycles/{dst}/questions",
-                           headers=auth(admin_token)).json()}
+                           headers=auth(admin_token)).json()["items"]}
     assert src_keys == dst_keys and len(dst_keys) == 8
 
 
@@ -90,18 +90,18 @@ def test_delete_question_response_and_concealment(client, admin_token, db):
     listado del ciclo (ABAC + concealment pattern)."""
     # Ciclo en draft (las preguntas solo se pueden borrar en draft)
     cid = client.post("/api/v1/performance/cycles", headers=auth(admin_token),
-                      json={"name": "Del-Q", "seed_default_questions": False}).json()["id"]
+                      json={"name": "Del-Q", "seed_default_questions": False}).json()["data"]["id"]
     # Creamos una pregunta y memorizamos su id + key
     q = client.post(
         f"/api/v1/performance/cycles/{cid}/questions", headers=auth(admin_token),
         json={"key": "tobedeleted", "label": "Borrar esta",
               "kind": "rating_5", "required": False},
-    ).json()
+    ).json()["data"]
     assert q["id"] and q["key"] == "tobedeleted"
 
     # Antes de borrar: aparece en el listado
     listing_before = client.get(f"/api/v1/performance/cycles/{cid}/questions",
-                                headers=auth(admin_token)).json()
+                                headers=auth(admin_token)).json()["items"]
     assert any(x["id"] == q["id"] for x in listing_before)
 
     # 1) Respuesta del DELETE: 204 sin body
@@ -113,7 +113,7 @@ def test_delete_question_response_and_concealment(client, admin_token, db):
 
     # 2) Concealment: ya no aparece en el listado del ciclo
     listing_after = client.get(f"/api/v1/performance/cycles/{cid}/questions",
-                               headers=auth(admin_token)).json()
+                               headers=auth(admin_token)).json()["items"]
     assert all(x["id"] != q["id"] for x in listing_after)
     assert all(x["key"] != "tobedeleted" for x in listing_after)
     # Y un PATCH posterior contra el id eliminado responde 404
@@ -125,9 +125,9 @@ def test_delete_question_response_and_concealment(client, admin_token, db):
 def test_delete_question_blocked_after_activate(client, admin_token, db):
     """Una vez el ciclo está activo, el DELETE de preguntas debe rechazarse."""
     cid = client.post("/api/v1/performance/cycles", headers=auth(admin_token),
-                      json={"name": "Del-Q-active"}).json()["id"]
+                      json={"name": "Del-Q-active"}).json()["data"]["id"]
     qs = client.get(f"/api/v1/performance/cycles/{cid}/questions",
-                    headers=auth(admin_token)).json()
+                    headers=auth(admin_token)).json()["items"]
     qid = qs[0]["id"]
     client.post(f"/api/v1/performance/cycles/{cid}/activate",
                 headers=auth(admin_token))
@@ -136,16 +136,16 @@ def test_delete_question_blocked_after_activate(client, admin_token, db):
     assert res.status_code == 400
     # Y la pregunta sigue ahí (concealment NO debe ocurrir cuando el delete falla)
     qs_after = client.get(f"/api/v1/performance/cycles/{cid}/questions",
-                          headers=auth(admin_token)).json()
+                          headers=auth(admin_token)).json()["items"]
     assert any(q["id"] == qid for q in qs_after)
 
 
 def test_delete_question_employee_forbidden(client, admin_token, dev_token, db):
     """RBAC: solo admin/HR puede borrar preguntas."""
     cid = client.post("/api/v1/performance/cycles", headers=auth(admin_token),
-                      json={"name": "Del-Q-rbac"}).json()["id"]
+                      json={"name": "Del-Q-rbac"}).json()["data"]["id"]
     qid = client.get(f"/api/v1/performance/cycles/{cid}/questions",
-                     headers=auth(admin_token)).json()[0]["id"]
+                     headers=auth(admin_token)).json()["items"][0]["id"]
     res = client.delete(f"/api/v1/performance/questions/{qid}",
                         headers=auth(dev_token))
     assert res.status_code == 403
@@ -164,7 +164,7 @@ def test_eligible_reviewers_no_manager_returns_empty(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert r.status_code == 200
-    body = r.json()
+    body = r.json()["data"]
     assert body["users"] == []
     assert "manager" in body["reason_blocked"].lower()
 
@@ -178,7 +178,7 @@ def test_eligible_peers_filter_by_team(client, admin_token, db):
         f"/api/v1/performance/cycles/{cid}/eligible-reviewers/{pm.id}/peer",
         headers=auth(admin_token),
     )
-    body = r.json()
+    body = r.json()["data"]
     # 3 pares (admin, dev, hr) — todos en team=Frontend
     assert len(body["users"]) == 3
     assert body["reason_blocked"] is None
@@ -196,7 +196,7 @@ def test_eligible_upward_uses_reverse_org_chart(client, admin_token, db):
         f"/api/v1/performance/cycles/{cid}/eligible-reviewers/{pm.id}/upward",
         headers=auth(admin_token),
     )
-    body = r.json()
+    body = r.json()["data"]
     assert len(body["users"]) == 1
     assert body["users"][0]["id"] == dev.id
 
@@ -270,7 +270,7 @@ def test_campaign_creates_all_reviews_and_notifies(client, admin_token, db):
         },
     )
     assert r.status_code == 201, r.text
-    body = r.json()
+    body = r.json()["data"]
     assert body["total_reviewers"] == 1 + 2 + 1  # self + 2 peers + 1 upward
     assert body["by_type"] == {"self": 1, "manager": 0, "peer": 2, "upward": 1}
 
@@ -305,12 +305,12 @@ def test_dashboard_anonymizes_below_threshold(client, admin_token, db):
         json={"subject_id": pm.id, "self_review": False,
               "peer_reviewer_ids": [one_peer.id], "anonymity_threshold": 3},
     )
-    camp_id = r.json()["id"]
+    camp_id = r.json()["data"]["id"]
     # El par envía con texto
     review_id = client.get(
         f"/api/v1/performance/campaigns/{camp_id}/reviews",
         headers=auth(admin_token),
-    ).json()[0]["id"]
+    ).json()["items"][0]["id"]
     # Como reviewer es peer-0, hacemos login para PATCH? No, ese reviewer es
     # otro user. Pero solo el reviewer puede modificar. Lo modificamos
     # directamente a través de la sesión DB para simplificar el test.
@@ -321,7 +321,7 @@ def test_dashboard_anonymizes_below_threshold(client, admin_token, db):
     db.commit()
 
     dash = client.get(f"/api/v1/performance/campaigns/{camp_id}/dashboard",
-                      headers=auth(admin_token)).json()
+                      headers=auth(admin_token)).json()["data"]
     peer_group = dash["groups"]["peer"]
     assert peer_group["count"] == 1
     assert peer_group["anonymized"] is True
@@ -345,7 +345,7 @@ def test_dashboard_exposes_text_above_threshold(client, admin_token, db):
               "peer_reviewer_ids": [u.id for u in three_peers],
               "anonymity_threshold": 3},
     )
-    camp_id = r.json()["id"]
+    camp_id = r.json()["data"]["id"]
     revs = db.query(PerformanceReview).filter(
         PerformanceReview.campaign_id == camp_id
     ).all()
@@ -356,7 +356,7 @@ def test_dashboard_exposes_text_above_threshold(client, admin_token, db):
     db.commit()
 
     dash = client.get(f"/api/v1/performance/campaigns/{camp_id}/dashboard",
-                      headers=auth(admin_token)).json()
+                      headers=auth(admin_token)).json()["data"]
     peer_group = dash["groups"]["peer"]
     assert peer_group["count"] == 3
     assert peer_group["anonymized"] is False
@@ -400,7 +400,7 @@ def test_user_can_view_own_360_history(client, dev_token, db):
     r = client.get(f"/api/v1/performance/users/{dev.id}/360-history",
                    headers=auth(dev_token))
     assert r.status_code == 200
-    body = r.json()
+    body = r.json()["data"]
     assert body["subject_id"] == dev.id
     assert body["series"] == []  # sin campañas aún
 

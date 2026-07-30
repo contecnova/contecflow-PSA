@@ -50,7 +50,7 @@ def _create_opportunity(client, token, prob=70):
         "expected_hours": 500,
     }, headers=auth(token))
     assert r.status_code in (200, 201), r.text
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 def _create_vendor(client, token):
@@ -59,7 +59,7 @@ def _create_vendor(client, token):
         "category": "software",
     }, headers=auth(token))
     assert r.status_code in (200, 201), r.text
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 # ─── 1. Activity Feed ────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ def _create_vendor(client, token):
 def test_activity_empty_feed(client, admin_token, db):
     r = client.get("/api/v1/activity/activity/project/nonexistent-project", headers=auth(admin_token))
     assert r.status_code == 200
-    assert r.json() == []
+    assert r.json()["items"] == []
 
 
 def test_activity_entity_feed_task(client, admin_token, pm_token, db):
@@ -83,7 +83,7 @@ def test_activity_project_feed(client, admin_token, pm_token, db):
     _create_task(client, pm_token, pid, "Feed Task 2")
     r = client.get(f"/api/v1/activity/activity/project/{pid}", headers=auth(admin_token))
     assert r.status_code == 200
-    assert isinstance(r.json(), list)
+    assert isinstance(r.json()["items"], list)
 
 
 def test_activity_pagination_params(client, admin_token, db):
@@ -100,7 +100,7 @@ def test_mentions_parse_no_mentions(client, admin_token, db):
         "entity_id": "fake-task-id",
     }, headers=auth(admin_token))
     assert r.status_code == 200
-    assert r.json()["count"] == 0
+    assert r.json()["data"]["count"] == 0
 
 
 def test_mentions_parse_nonexistent_user(client, admin_token, db):
@@ -110,13 +110,13 @@ def test_mentions_parse_nonexistent_user(client, admin_token, db):
         "entity_id": "fake-task-id",
     }, headers=auth(admin_token))
     assert r.status_code == 200
-    assert r.json()["count"] == 0
+    assert r.json()["data"]["count"] == 0
 
 
 def test_mentions_my_empty(client, dev_token, db):
     r = client.get("/api/v1/activity/mentions/my", headers=auth(dev_token))
     assert r.status_code == 200
-    assert isinstance(r.json(), list)
+    assert isinstance(r.json()["items"], list)
 
 
 def test_mentions_my_unread_filter(client, dev_token, db):
@@ -140,7 +140,7 @@ def test_health_current_score(client, admin_token, pm_token, db):
     pid = _create_project(client, pm_token, "health1")
     r = client.get(f"/api/v1/activity/projects/{pid}/health", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "current" in data
     assert "score" in data["current"]
     assert 0 <= data["current"]["score"] <= 100
@@ -152,7 +152,7 @@ def test_health_compute_and_save(client, admin_token, pm_token, db):
     pid = _create_project(client, pm_token, "health2")
     r = client.post(f"/api/v1/activity/projects/{pid}/health/compute", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "score" in data
     assert "id" in data
 
@@ -163,7 +163,7 @@ def test_health_history_grows(client, admin_token, pm_token, db):
     client.post(f"/api/v1/activity/projects/{pid}/health/compute", headers=auth(admin_token))
     r = client.get(f"/api/v1/activity/projects/{pid}/health", headers=auth(admin_token))
     assert r.status_code == 200
-    assert len(r.json()["history"]) >= 2
+    assert len(r.json()["data"]["history"]) >= 2
 
 
 def test_health_portfolio(client, admin_token, pm_token, db):
@@ -171,7 +171,7 @@ def test_health_portfolio(client, admin_token, pm_token, db):
     _create_project(client, pm_token, "port2")
     r = client.get("/api/v1/activity/projects/health/portfolio", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["items"]
     assert isinstance(data, list)
     if data:
         assert "score" in data[0]
@@ -205,7 +205,7 @@ def test_health_overdue_tasks_lower_score(client, admin_token, pm_token, db):
     r = client.get(f"/api/v1/activity/projects/{pid}/health", headers=auth(admin_token))
     assert r.status_code == 200
     # schedule_score must be below 100 when there are overdue tasks
-    assert r.json()["current"]["schedule_score"] < 100
+    assert r.json()["data"]["current"]["schedule_score"] < 100
 
 
 # ─── 4. Recurring Tasks ──────────────────────────────────────────────────────
@@ -213,7 +213,7 @@ def test_health_overdue_tasks_lower_score(client, admin_token, pm_token, db):
 def test_recurring_list_empty(client, admin_token, db):
     r = client.get("/api/v1/activity/recurring-tasks", headers=auth(admin_token))
     assert r.status_code == 200
-    assert isinstance(r.json(), list)
+    assert isinstance(r.json()["items"], list)
 
 
 def test_recurring_create_weekly(client, admin_token, pm_token, db):
@@ -226,7 +226,7 @@ def test_recurring_create_weekly(client, admin_token, pm_token, db):
         "priority": "low",
     }, headers=auth(admin_token))
     assert r.status_code in (200, 201)
-    assert "id" in r.json()
+    assert "id" in r.json()["data"]
 
 
 def test_recurring_create_daily(client, admin_token, pm_token, db):
@@ -271,7 +271,7 @@ def test_recurring_filter_by_project(client, admin_token, pm_token, db):
     }, headers=auth(admin_token))
     r = client.get(f"/api/v1/activity/recurring-tasks?project_id={pid}", headers=auth(admin_token))
     assert r.status_code == 200
-    assert len(r.json()) >= 1
+    assert len(r.json()["items"]) >= 1
 
 
 def test_recurring_update(client, admin_token, pm_token, db):
@@ -280,7 +280,7 @@ def test_recurring_update(client, admin_token, pm_token, db):
         "project_id": pid, "title": "Old title", "freq": "weekly",
         "start_date": str(date.today()),
     }, headers=auth(admin_token))
-    rt_id = cr.json()["id"]
+    rt_id = cr.json()["data"]["id"]
     r = client.patch(f"/api/v1/activity/recurring-tasks/{rt_id}", json={
         "project_id": pid, "title": "New title", "freq": "daily",
         "start_date": str(date.today()),
@@ -294,7 +294,7 @@ def test_recurring_delete(client, admin_token, pm_token, db):
         "project_id": pid, "title": "Temp", "freq": "weekly",
         "start_date": str(date.today()),
     }, headers=auth(admin_token))
-    rt_id = cr.json()["id"]
+    rt_id = cr.json()["data"]["id"]
     r = client.delete(f"/api/v1/activity/recurring-tasks/{rt_id}", headers=auth(admin_token))
     assert r.status_code == 200
     r2 = client.delete(f"/api/v1/activity/recurring-tasks/{rt_id}", headers=auth(admin_token))
@@ -310,7 +310,7 @@ def test_recurring_materialize_dry_run(client, admin_token, pm_token, db):
     }, headers=auth(admin_token))
     r = client.post("/api/v1/activity/recurring-tasks/materialize?dry_run=true", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert data["dry_run"] is True
     assert "tasks_created" in data
 
@@ -324,7 +324,7 @@ def test_recurring_materialize_real(client, admin_token, pm_token, db):
     }, headers=auth(admin_token))
     r = client.post("/api/v1/activity/recurring-tasks/materialize", headers=auth(admin_token))
     assert r.status_code == 200
-    assert r.json()["dry_run"] is False
+    assert r.json()["data"]["dry_run"] is False
 
 
 # ─── 5. CPM Critical Path ────────────────────────────────────────────────────
@@ -340,7 +340,7 @@ def test_cpm_single_task(client, admin_token, pm_token, db):
     _create_task(client, pm_token, pid, "Only Task", estimated_hours=16)
     r = client.get(f"/api/v1/activity/projects/{pid}/critical-path", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "critical_path" in data
     assert "nodes" in data
     assert len(data["nodes"]) == 1
@@ -355,7 +355,7 @@ def test_cpm_multiple_tasks(client, admin_token, pm_token, db):
     _create_task(client, pm_token, pid, "Task Z", 24)
     r = client.get(f"/api/v1/activity/projects/{pid}/critical-path", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert len(data["nodes"]) == 3
     for node in data["nodes"]:
         assert "early_start" in node
@@ -369,7 +369,7 @@ def test_cpm_fields_present(client, admin_token, pm_token, db):
     _create_task(client, pm_token, pid, "CPM Task", 40)
     r = client.get(f"/api/v1/activity/projects/{pid}/critical-path", headers=auth(admin_token))
     assert r.status_code == 200
-    node = r.json()["nodes"][0]
+    node = r.json()["data"]["nodes"][0]
     for field in ["id", "code", "title", "duration_days", "early_start",
                   "early_finish", "late_start", "late_finish", "total_float", "is_critical"]:
         assert field in node, f"Missing field: {field}"
@@ -380,7 +380,7 @@ def test_cpm_fields_present(client, admin_token, pm_token, db):
 def test_demand_empty(client, admin_token, db):
     r = client.get("/api/v1/activity/pipeline/resource-demand", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "demand_by_role" in data
     assert "opportunities_in_scope" in data
 
@@ -395,7 +395,7 @@ def test_demand_add_line(client, admin_token, pm_token, db):
         "end_date": str(date.today() + timedelta(days=120)),
     }, headers=auth(admin_token))
     assert r.status_code in (200, 201)
-    assert "id" in r.json()
+    assert "id" in r.json()["data"]
 
 
 def test_demand_aggregates_by_role(client, admin_token, pm_token, db):
@@ -408,7 +408,7 @@ def test_demand_aggregates_by_role(client, admin_token, pm_token, db):
     }, headers=auth(admin_token))
     r = client.get("/api/v1/activity/pipeline/resource-demand", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     roles = {item["role"] for item in data["demand_by_role"]}
     assert "DevOps Engineer" in roles
     devops = next(x for x in data["demand_by_role"] if x["role"] == "DevOps Engineer")
@@ -422,7 +422,7 @@ def test_demand_weighted_hours(client, admin_token, pm_token, db):
     }, headers=auth(admin_token))
     r = client.get("/api/v1/activity/pipeline/resource-demand?min_probability=0", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     qa = next((x for x in data["demand_by_role"] if x["role"] == "QA Engineer"), None)
     if qa:
         assert qa["weighted_hours"] < qa["total_hours"]
@@ -433,7 +433,7 @@ def test_demand_delete_line(client, admin_token, pm_token, db):
     cr = client.post("/api/v1/activity/pipeline/resource-demand-lines", json={
         "opportunity_id": opp_id, "role_or_skill": "PM", "hours_required": 40,
     }, headers=auth(admin_token))
-    lid = cr.json()["id"]
+    lid = cr.json()["data"]["id"]
     r = client.delete(f"/api/v1/activity/pipeline/resource-demand-lines/{lid}", headers=auth(admin_token))
     assert r.status_code == 200
 
@@ -459,7 +459,7 @@ def test_vendor_scorecard_empty(client, admin_token, db):
     vid = _create_vendor(client, admin_token)
     r = client.get(f"/api/v1/activity/alm/vendors/{vid}/scorecard", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert data["vendor_id"] == vid
     assert data["evaluations"] == []
     assert data["latest_composite"] is None
@@ -475,7 +475,7 @@ def test_vendor_add_evaluation(client, admin_token, db):
         "price_score": 6.0,
     }, headers=auth(admin_token))
     assert r.status_code in (200, 201)
-    data = r.json()
+    data = r.json()["data"]
     assert "composite_score" in data
     assert 0 < data["composite_score"] <= 10
 
@@ -492,7 +492,7 @@ def test_vendor_composite_all_dimensions(client, admin_token, db):
         "compliance_score": 10.0,
     }, headers=auth(admin_token))
     assert r.status_code in (200, 201)
-    assert r.json()["composite_score"] == pytest.approx(10.0, abs=0.01)
+    assert r.json()["data"]["composite_score"] == pytest.approx(10.0, abs=0.01)
 
 
 def test_vendor_composite_partial_dimensions(client, admin_token, db):
@@ -502,7 +502,7 @@ def test_vendor_composite_partial_dimensions(client, admin_token, db):
         "sla_score": 6.0,
     }, headers=auth(admin_token))
     assert r.status_code in (200, 201)
-    assert r.json()["composite_score"] == pytest.approx(6.0, abs=0.01)
+    assert r.json()["data"]["composite_score"] == pytest.approx(6.0, abs=0.01)
 
 
 def test_vendor_score_out_of_range(client, admin_token, db):
@@ -524,7 +524,7 @@ def test_vendor_scorecard_history_trend(client, admin_token, db):
         }, headers=auth(admin_token))
     r = client.get(f"/api/v1/activity/alm/vendors/{vid}/scorecard", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert len(data["evaluations"]) == 3
     assert len(data["trend"]) == 3
     assert data["latest_composite"] is not None
@@ -541,7 +541,7 @@ def test_vendor_ranking(client, admin_token, db):
     }, headers=auth(admin_token))
     r = client.get("/api/v1/activity/alm/vendors/scorecard/ranking", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["items"]
     assert len(data) >= 2
     scores = [item["composite_score"] for item in data if item["composite_score"] is not None]
     assert scores == sorted(scores, reverse=True)
@@ -556,7 +556,7 @@ def test_vendor_scorecard_rating_label(client, admin_token, db):
     }, headers=auth(admin_token))
     r = client.get(f"/api/v1/activity/alm/vendors/{vid}/scorecard", headers=auth(admin_token))
     assert r.status_code == 200
-    assert r.json()["evaluations"][0]["rating"] == "Excelente"
+    assert r.json()["data"]["evaluations"][0]["rating"] == "Excelente"
 
 
 def test_vendor_not_found(client, admin_token, db):
@@ -578,7 +578,7 @@ def test_simulation_baseline(client, admin_token, pm_token, db):
     _create_task(client, pm_token, pid, "Sim Task B", 24)
     r = client.post(f"/api/v1/activity/projects/{pid}/simulate", json={}, headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "simulation" in data
     sim = data["simulation"]
     assert sim["days_delta"] == 0
@@ -592,19 +592,19 @@ def test_simulation_delay(client, admin_token, pm_token, db):
     _create_task(client, pm_token, pid, "Delay Task", 16)
     r = client.post(f"/api/v1/activity/projects/{pid}/simulate", json={"delay_days": 14}, headers=auth(admin_token))
     assert r.status_code == 200
-    assert r.json()["simulation"]["days_delta"] == 14
+    assert r.json()["data"]["simulation"]["days_delta"] == 14
 
 
 def test_simulation_add_resources(client, admin_token, pm_token, db):
     pid = _create_project(client, pm_token, "sim3")
     _create_task(client, pm_token, pid, "Big Task", 160)
     base_r = client.post(f"/api/v1/activity/projects/{pid}/simulate", json={}, headers=auth(admin_token))
-    base_delta = base_r.json()["simulation"]["days_delta"]
+    base_delta = base_r.json()["data"]["simulation"]["days_delta"]
     boosted_r = client.post(f"/api/v1/activity/projects/{pid}/simulate", json={
         "add_resources": [{"role": "Developer", "hours_per_week": 40}],
     }, headers=auth(admin_token))
     assert boosted_r.status_code == 200
-    assert boosted_r.json()["simulation"]["days_delta"] <= base_delta
+    assert boosted_r.json()["data"]["simulation"]["days_delta"] <= base_delta
 
 
 def test_simulation_cut_tasks(client, admin_token, pm_token, db):
@@ -613,7 +613,7 @@ def test_simulation_cut_tasks(client, admin_token, pm_token, db):
     tid2 = _create_task(client, pm_token, pid, "Cut Task", 40)
     r = client.post(f"/api/v1/activity/projects/{pid}/simulate", json={"cut_task_ids": [tid2]}, headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert data["simulation"]["cut_tasks"] == 1
     assert any(t["id"] == tid2 for t in data["cut"])
 
@@ -624,7 +624,7 @@ def test_simulation_defer_tasks(client, admin_token, pm_token, db):
     tid2 = _create_task(client, pm_token, pid, "Defer this", 40)
     r = client.post(f"/api/v1/activity/projects/{pid}/simulate", json={"defer_task_ids": [tid2]}, headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert data["simulation"]["deferred_tasks"] == 1
     assert any(t["id"] == tid2 for t in data["deferred"])
 
@@ -634,7 +634,7 @@ def test_simulation_compress_pct(client, admin_token, pm_token, db):
     _create_task(client, pm_token, pid, "Big", 200)
     r = client.post(f"/api/v1/activity/projects/{pid}/simulate", json={"compress_pct": 30.0}, headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "notes" in data
     assert any("compress" in n.lower() for n in data["notes"])
 
@@ -649,7 +649,7 @@ def test_simulation_combined_scenario(client, admin_token, pm_token, db):
         "compress_pct": 20.0,
     }, headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert data["simulation"]["cut_tasks"] == 1
     assert "cost_delta_eur" in data["simulation"]
 

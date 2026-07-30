@@ -11,7 +11,7 @@ def create_workflow(client, admin_token, entity_type="expense", is_default=True,
         "is_default": is_default,
     }, headers=auth(admin_token))
     assert res.status_code in (200, 201), res.text
-    return res.json()
+    return res.json()["data"]
 
 
 def add_step(client, admin_token, workflow_id, step_order=1, approver_type="role", approver_role="admin"):
@@ -23,7 +23,7 @@ def add_step(client, admin_token, workflow_id, step_order=1, approver_type="role
         "timeout_hours": 48,
     }, headers=auth(admin_token))
     assert res.status_code in (200, 201), res.text
-    return res.json()
+    return res.json()["data"]
 
 
 def create_request(client, token, entity_type="expense", workflow_id=None):
@@ -55,7 +55,7 @@ def test_create_workflow(client, admin_token, db):
         "is_default": True,
     }, headers=auth(admin_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert data["name"] == "Aprobación gastos"
     assert data["entity_type"] == "expense"
     return data["id"]
@@ -72,7 +72,7 @@ def test_get_workflow_detail(client, admin_token, db):
     wf = create_workflow(client, admin_token)
     res = client.get(f"/api/v1/approvals/workflows/{wf['id']}", headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["id"] == wf["id"]
+    assert res.json()["data"]["id"] == wf["id"]
 
 
 def test_get_nonexistent_workflow(client, admin_token, db):
@@ -88,15 +88,15 @@ def test_update_workflow(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert res.status_code == 200
-    assert res.json()["name"] == "Actualizado"
-    assert res.json()["is_active"] is False
+    assert res.json()["data"]["name"] == "Actualizado"
+    assert res.json()["data"]["is_active"] is False
 
 
 def test_delete_workflow(client, admin_token, db):
     wf = create_workflow(client, admin_token, is_default=False)
     res = client.delete(f"/api/v1/approvals/workflows/{wf['id']}", headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json().get("ok") is True
+    assert res.json()["data"].get("ok") is True
     # Verify it is gone
     res2 = client.get(f"/api/v1/approvals/workflows/{wf['id']}", headers=auth(admin_token))
     assert res2.status_code == 404
@@ -129,7 +129,7 @@ def test_add_step_to_workflow(client, admin_token, db):
         "approver_role": "pm", "timeout_hours": 48,
     }, headers=auth(admin_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert data["name"] == "Manager"
     assert data["step_order"] == 1
 
@@ -150,8 +150,8 @@ def test_update_step(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert res.status_code == 200
-    assert res.json()["name"] == "Paso editado"
-    assert res.json()["timeout_hours"] == 96
+    assert res.json()["data"]["name"] == "Paso editado"
+    assert res.json()["data"]["timeout_hours"] == 96
 
 
 def test_delete_step(client, admin_token, db):
@@ -162,7 +162,7 @@ def test_delete_step(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert res.status_code == 200
-    assert res.json().get("ok") is True
+    assert res.json()["data"].get("ok") is True
 
 
 def test_delete_group(client, admin_token, db):
@@ -172,11 +172,11 @@ def test_delete_group(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert created.status_code in (200, 201), created.text
-    gid = created.json()["id"]
+    gid = created.json()["data"]["id"]
 
     deleted = client.delete(f"/api/v1/approvals/groups/{gid}", headers=auth(admin_token))
     assert deleted.status_code == 200
-    assert deleted.json().get("ok") is True
+    assert deleted.json()["data"].get("ok") is True
 
     fetched = client.get(f"/api/v1/approvals/groups/{gid}", headers=auth(admin_token))
     assert fetched.status_code == 404
@@ -205,7 +205,7 @@ def test_create_approval_request_with_default_workflow(client, admin_token, dev_
     add_step(client, admin_token, wf["id"])
     res = create_request(client, dev_token, entity_type="purchase")
     assert res.status_code in (200, 201), res.text
-    data = res.json()
+    data = res.json()["data"]
     assert data["status"] == "pending"
     assert data["entity_type"] == "purchase"
     assert data["workflow_id"] == wf["id"]
@@ -216,7 +216,7 @@ def test_request_response_schema_fields(client, admin_token, dev_token, db):
     add_step(client, admin_token, wf["id"])
     res = create_request(client, dev_token, entity_type="purchase2")
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     required = {"id", "workflow_id", "entity_type", "entity_id", "status", "current_step", "decisions"}
     assert required.issubset(data.keys()), f"Missing fields: {required - data.keys()}"
 
@@ -250,7 +250,7 @@ def test_approve_request_single_step(client, admin_token, dev_token, db):
     wf = create_workflow(client, admin_token, entity_type="e2e_approve", is_default=True)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
 
-    req = create_request(client, dev_token, entity_type="e2e_approve").json()
+    req = create_request(client, dev_token, entity_type="e2e_approve").json()["data"]
     assert req["status"] == "pending"
 
     # Admin approves
@@ -260,7 +260,7 @@ def test_approve_request_single_step(client, admin_token, dev_token, db):
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    data = res.json()
+    data = res.json()["data"]
     assert data["status"] == "approved"
     assert data["final_decision"] == "approved"
 
@@ -270,7 +270,7 @@ def test_reject_request(client, admin_token, dev_token, db):
     wf = create_workflow(client, admin_token, entity_type="e2e_reject", is_default=True)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
 
-    req = create_request(client, dev_token, entity_type="e2e_reject").json()
+    req = create_request(client, dev_token, entity_type="e2e_reject").json()["data"]
 
     res = client.post(
         f"/api/v1/approvals/requests/{req['id']}/decide",
@@ -278,7 +278,7 @@ def test_reject_request(client, admin_token, dev_token, db):
         headers=auth(admin_token),
     )
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert data["status"] == "rejected"
     assert data["final_decision"] == "rejected"
 
@@ -288,7 +288,7 @@ def test_cannot_decide_already_approved(client, admin_token, dev_token, db):
     wf = create_workflow(client, admin_token, entity_type="e2e_double", is_default=True)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
 
-    req = create_request(client, dev_token, entity_type="e2e_double").json()
+    req = create_request(client, dev_token, entity_type="e2e_double").json()["data"]
     client.post(
         f"/api/v1/approvals/requests/{req['id']}/decide",
         json={"decision": "approved"},
@@ -309,7 +309,7 @@ def test_multistep_workflow_progresses(client, admin_token, pm_token, dev_token,
     add_step(client, admin_token, wf["id"], step_order=1, approver_type="role", approver_role="admin")
     add_step(client, admin_token, wf["id"], step_order=2, approver_type="role", approver_role="pm")
 
-    req = create_request(client, dev_token, entity_type="multistep").json()
+    req = create_request(client, dev_token, entity_type="multistep").json()["data"]
     assert req["current_step"] == 1
 
     # Admin approves step 1
@@ -317,7 +317,7 @@ def test_multistep_workflow_progresses(client, admin_token, pm_token, dev_token,
         f"/api/v1/approvals/requests/{req['id']}/decide",
         json={"decision": "approved"},
         headers=auth(admin_token),
-    ).json()
+    ).json()["data"]
     # Should advance to step 2, not yet approved
     assert after_step1["current_step"] == 2
     assert after_step1["status"] == "pending"
@@ -327,7 +327,7 @@ def test_multistep_workflow_progresses(client, admin_token, pm_token, dev_token,
         f"/api/v1/approvals/requests/{req['id']}/decide",
         json={"decision": "approved"},
         headers=auth(pm_token),
-    ).json()
+    ).json()["data"]
     assert after_step2["status"] == "approved"
 
 
@@ -337,7 +337,7 @@ def test_sod_self_approval_blocked(client, admin_token, db):
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
 
     # Admin requests (and is also the approver type)
-    req = create_request(client, admin_token, entity_type="sod_test").json()
+    req = create_request(client, admin_token, entity_type="sod_test").json()["data"]
     assert req["status"] == "pending"
 
     # Admin tries to approve their own request → SoD violation → 403
@@ -354,14 +354,14 @@ def test_cancel_request(client, admin_token, dev_token, db):
     """The requester can cancel their own pending request."""
     wf = create_workflow(client, admin_token, entity_type="cancel_test", is_default=True)
     add_step(client, admin_token, wf["id"])
-    req = create_request(client, dev_token, entity_type="cancel_test").json()
+    req = create_request(client, dev_token, entity_type="cancel_test").json()["data"]
 
     res = client.post(
         f"/api/v1/approvals/requests/{req['id']}/cancel",
         headers=auth(dev_token),
     )
     assert res.status_code == 200
-    assert res.json().get("ok") is True
+    assert res.json()["data"].get("ok") is True
 
 
 def test_decide_nonexistent_request(client, admin_token, db):
@@ -380,7 +380,7 @@ def test_decide_nonexistent_request(client, admin_token, db):
 def test_pending_my_action_empty(client, admin_token, db):
     res = client.get("/api/v1/approvals/requests/pending-my-action", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    assert isinstance(res.json()["items"], list)
 
 
 def test_pending_my_action_after_request(client, admin_token, dev_token, db):
@@ -392,7 +392,7 @@ def test_pending_my_action_after_request(client, admin_token, dev_token, db):
     res = client.get("/api/v1/approvals/requests/pending-my-action", headers=auth(admin_token))
     assert res.status_code == 200
     # Admin is the approver → should see the request
-    assert len(res.json()) >= 1
+    assert len(res.json()["items"]) >= 1
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -402,7 +402,7 @@ def test_pending_my_action_after_request(client, admin_token, dev_token, db):
 def test_approval_stats(client, admin_token, db):
     res = client.get("/api/v1/approvals/stats", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "total" in data
     assert "pending" in data
     assert "approved" in data
@@ -414,15 +414,15 @@ def test_stats_counts_update_after_approvals(client, admin_token, dev_token, db)
     wf = create_workflow(client, admin_token, entity_type="stats_count", is_default=True)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
 
-    req = create_request(client, dev_token, entity_type="stats_count").json()
-    before = client.get("/api/v1/approvals/stats", headers=auth(admin_token)).json()
+    req = create_request(client, dev_token, entity_type="stats_count").json()["data"]
+    before = client.get("/api/v1/approvals/stats", headers=auth(admin_token)).json()["data"]
 
     client.post(
         f"/api/v1/approvals/requests/{req['id']}/decide",
         json={"decision": "approved"},
         headers=auth(admin_token),
     )
-    after = client.get("/api/v1/approvals/stats", headers=auth(admin_token)).json()
+    after = client.get("/api/v1/approvals/stats", headers=auth(admin_token)).json()["data"]
     assert after["approved"] >= before["approved"]
 
 

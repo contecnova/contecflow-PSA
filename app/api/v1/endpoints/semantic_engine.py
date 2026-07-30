@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.schemas.semantic_engine import SemConfigPatch
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_hr
+from app.core.responses import APIListResponse, APIResponse
 import app.services.semantic_engine_service as _svc
 
 router = APIRouter()
@@ -25,7 +26,7 @@ def _cache_item_embedding(db, item_id, item_type, text, user_id):
 @router.get("/config")
 def get_config(db: Session = Depends(get_db), _=Depends(get_current_user)):
     cfg = _svc.get_or_create_config(db)
-    return _svc.serialize_config(cfg)
+    return APIResponse.ok(data=_svc.serialize_config(cfg))
 
 
 @router.patch("/config")
@@ -60,7 +61,7 @@ def update_config(data: SemConfigPatch = Body(...),
         if k in allowed and hasattr(cfg, k):
             setattr(cfg, k, v)
     _svc.save_config(db, cfg)
-    return {"ok": True, "config": _svc.serialize_config(cfg)}
+    return APIResponse.ok(data={"ok": True, "config": _svc.serialize_config(cfg)})
 
 
 # ── Sugerencia de asignacion ──────────────────────────────────────────────────
@@ -95,11 +96,11 @@ def suggest_ticket_assignee(data: dict = Body(...),
     priority   = data.get("priority", "medium")
     assigner   = _svc.get_assigner(db)
     result     = assigner.suggest_for_ticket(title, desc, candidates, priority=priority)
-    return _svc.enrich_suggestion(
+    return APIResponse.ok(data=_svc.enrich_suggestion(
         db, result,
         organization_id=getattr(cu, "organization_id", None),
         is_superadmin=bool(getattr(cu, "is_superadmin", False)),
-    )
+    ))
 
 
 @router.post("/suggest/task")
@@ -118,11 +119,11 @@ def suggest_task_assignee(data: dict = Body(...),
     priority = data.get("priority", "medium")
     assigner = _svc.get_assigner(db)
     result   = assigner.suggest_for_task(title, desc, candidates, priority=priority)
-    return _svc.enrich_suggestion(
+    return APIResponse.ok(data=_svc.enrich_suggestion(
         db, result,
         organization_id=getattr(cu, "organization_id", None),
         is_superadmin=bool(getattr(cu, "is_superadmin", False)),
-    )
+    ))
 
 
 # ── Estimacion de esfuerzo ────────────────────────────────────────────────────
@@ -135,7 +136,7 @@ def estimate_effort(data: dict = Body(...),
     desc      = data.get("description", "")
     role_hint = data.get("role_hint", "default")
     assigner  = _svc.get_assigner(db)
-    return assigner.estimate_effort(title, desc, role_hint)
+    return APIResponse.ok(data=assigner.estimate_effort(title, desc, role_hint))
 
 
 @router.post("/estimate/sprint-backlog")
@@ -148,7 +149,7 @@ def estimate_sprint_backlog(data: dict = Body(...),
     from app.core.config import settings as _s  # noqa: PLC0415
     _default_h = float(getattr(_s, "DEFAULT_WEEKLY_CAPACITY_HOURS", 40.0) or 40.0) * 2
     capacity_h = data.get("team_capacity_hours", _default_h)
-    return _svc.estimate_sprint_backlog(tasks, capacity_h, db)
+    return APIResponse.ok(data=_svc.estimate_sprint_backlog(tasks, capacity_h, db))
 
 
 # ── Priorizacion de cola ──────────────────────────────────────────────────────
@@ -159,14 +160,14 @@ def prioritize_queue(data: dict = Body(...),
                      _=Depends(get_current_user)):
     items    = data.get("items", [])
     assigner = _svc.get_assigner(db)
-    return {"prioritized": assigner.prioritize_queue(items)}
+    return APIResponse.ok(data={"prioritized": assigner.prioritize_queue(items)})
 
 
 # ── Perfiles de usuario ───────────────────────────────────────────────────────
 
 @router.get("/profiles")
 def list_profiles(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return _svc.list_profiles_with_users(db)
+    return APIListResponse.ok(items=_svc.list_profiles_with_users(db))
 
 
 @router.post("/profiles")
@@ -178,14 +179,14 @@ def create_or_update_profile(data: dict = Body(...),
     if not user_id:
         raise HTTPException(400, "user_id requerido")
     try:
-        return _svc.upsert_profile(
+        return APIResponse.ok(data=_svc.upsert_profile(
             db,
             user_id=user_id,
             profile_text=profile_text,
             max_load=data.get("max_load"),
             is_available=data.get("is_available", True),
             current_user=cu,
-        )
+        ))
     except PermissionError as e:
         raise HTTPException(403, str(e))
 
@@ -193,11 +194,11 @@ def create_or_update_profile(data: dict = Body(...),
 @router.post("/profiles/auto-generate")
 def auto_generate_profiles(db: Session = Depends(get_db),
                             cu=Depends(require_admin_or_hr)):
-    return _svc.auto_generate_profiles(
+    return APIResponse.ok(data=_svc.auto_generate_profiles(
         db,
         organization_id=getattr(cu, "organization_id", None),
         is_superadmin=bool(getattr(cu, "is_superadmin", False)),
-    )
+    ))
 
 
 @router.post("/profiles/rebuild-embeddings")
@@ -205,7 +206,7 @@ def rebuild_embeddings(db: Session = Depends(get_db),
                        _=Depends(require_admin_or_hr)):
     assigner = _svc.get_assigner(db)
     n = assigner.rebuild_profiles()
-    return {"rebuilt": n}
+    return APIResponse.ok(data={"rebuilt": n})
 
 
 # ── Feedback de experto ───────────────────────────────────────────────────────
@@ -230,18 +231,18 @@ def record_feedback(data: dict = Body(...),
                              correct_user_id, corrected_by)
     _cache_item_embedding(db, item_id, item_type, item_text, correct_user_id)
     llm_confirmed = original_engine_mode == "llm" and confirmed
-    return {"ok": True, "persisted_as_expert": llm_confirmed}
+    return APIResponse.ok(data={"ok": True, "persisted_as_expert": llm_confirmed})
 
 
 # ── Estadisticas ──────────────────────────────────────────────────────────────
 
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return _svc.get_stats(db)
+    return APIResponse.ok(data=_svc.get_stats(db))
 
 
 @router.post("/record-assignment")
 def record_assignment(data: dict = Body(...),
                       db: Session = Depends(get_db),
                       cu=Depends(get_current_user)):
-    return _svc.record_assignment(db, data, cu.id)
+    return APIResponse.ok(data=_svc.record_assignment(db, data, cu.id))

@@ -19,6 +19,7 @@ from app.core.ratelimit import limiter
 from app.schemas.raci import RACIBatchIn, RetroNotesIn, ChangelogEntryIn, ChangelogEntryPatch, UATCaseIn
 
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
@@ -59,7 +60,7 @@ def get_project_raci(
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
     try:
-        return _svc.get_project_raci(project_id, db)
+        return APIResponse.ok(data=_svc.get_project_raci(project_id, db))
     except ValueError as e:
         raise _http(e)
 
@@ -78,7 +79,7 @@ def upsert_raci(
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
     try:
-        return _svc.upsert_raci(project_id, payload.entries, db)
+        return APIResponse.ok(data=_svc.upsert_raci(project_id, payload.entries, db))
     except ValueError as e:
         raise _http(e)
 
@@ -124,7 +125,7 @@ def get_sprint_retrospective(
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
     try:
-        return _svc.get_sprint_retrospective(project_id, sprint_id, db)
+        return APIResponse.ok(data=_svc.get_sprint_retrospective(project_id, sprint_id, db))
     except ValueError as e:
         raise _http(e)
 
@@ -144,7 +145,7 @@ def save_sprint_retrospective(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.save_sprint_retrospective(project_id, sprint_id, payload, current_user.id, db)
+        return APIResponse.ok(data=_svc.save_sprint_retrospective(project_id, sprint_id, payload, current_user.id, db))
     except ValueError as e:
         raise _http(e)
 
@@ -161,7 +162,7 @@ def get_burnout_risk(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_burnout_risk(department, min_risk_level, db)
+    return APIResponse.ok(data=_svc.get_burnout_risk(department, min_risk_level, db))
 
 
 @router.post("/resources/burnout-risk/compute", summary="Recalcular y persistir snapshots de burnout",
@@ -172,7 +173,7 @@ def compute_and_save_burnout_snapshots(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.compute_and_save_burnout_snapshots(db)
+    return APIResponse.ok(data=_svc.compute_and_save_burnout_snapshots(db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -190,7 +191,7 @@ def get_project_changelog(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.get_project_changelog(project_id, entry_type, since, db)
+        return APIResponse.ok(data=_svc.get_project_changelog(project_id, entry_type, since, db))
     except ValueError as e:
         raise _http(e)
 
@@ -204,7 +205,7 @@ def create_changelog_entry(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.create_changelog_entry(project_id, payload, current_user.id, db)
+        return APIResponse.ok(data=_svc.create_changelog_entry(project_id, payload, current_user.id, db))
     except ValueError as e:
         raise _http(e)
 
@@ -220,7 +221,7 @@ def generate_changelog(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.generate_changelog(project_id, weeks, version_tag, current_user.id, db)
+        return APIResponse.ok(data=_svc.generate_changelog(project_id, weeks, version_tag, current_user.id, db))
     except ValueError as e:
         raise _http(e)
 
@@ -236,7 +237,7 @@ def update_changelog_entry(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.update_changelog_entry(project_id, entry_id, payload, db)
+        return APIResponse.ok(data=_svc.update_changelog_entry(project_id, entry_id, payload, db))
     except ValueError as e:
         raise _http(e)
 
@@ -273,7 +274,7 @@ def list_uat_cases(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.list_uat_cases(project_id, status, task_id, db)
+    return APIResponse.ok(data=_svc.list_uat_cases(project_id, status, task_id, db))
 
 
 @router.post("/projects/{project_id}/uat",
@@ -285,7 +286,7 @@ def create_uat_case(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.create_uat_case(project_id, payload, db)
+    return APIResponse.ok(data=_svc.create_uat_case(project_id, payload, db))
 
 
 @router.patch("/projects/{project_id}/uat/{case_id}",
@@ -299,7 +300,7 @@ def update_uat_case(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.update_uat_case(project_id, case_id, payload, db)
+        return APIResponse.ok(data=_svc.update_uat_case(project_id, case_id, payload, db))
     except ValueError as e:
         raise _http(e)
 
@@ -334,6 +335,6 @@ def export_uat_report(
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
     try:
-        return _svc.export_uat_report(project_id, db)
+        return APIResponse.ok(data=_svc.export_uat_report(project_id, db))
     except ValueError as e:
         raise _http(e)

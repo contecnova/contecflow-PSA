@@ -15,7 +15,7 @@ def test_bi_comments_persist_in_relational_table(client, admin_token, db):
         },
     )
     assert create_res.status_code == 200, create_res.text
-    comment = create_res.json()["comment"]
+    comment = create_res.json()["data"]["comment"]
 
     rows = db.query(DashboardComment).filter(DashboardComment.id == comment["id"]).all()
     assert len(rows) == 1
@@ -37,7 +37,7 @@ def test_bi_dashboard_versions_persist_in_relational_table(client, admin_token, 
         json={"config": {"layout": "grid", "period_days": 30}, "change_log": "Initial snapshot"},
     )
     assert create_res.status_code == 200, create_res.text
-    version = create_res.json()["version"]
+    version = create_res.json()["data"]["version"]
 
     rows = db.query(DashboardVersion).filter(DashboardVersion.id == version["id"]).all()
     assert len(rows) == 1
@@ -48,7 +48,7 @@ def test_bi_dashboard_versions_persist_in_relational_table(client, admin_token, 
         headers=auth(admin_token),
     )
     assert list_res.status_code == 200, list_res.text
-    assert list_res.json()["count"] >= 1
+    assert list_res.json()["meta"]["total"] >= 1
 
 
 def test_bi_dashboard_shares_persist_in_relational_table(client, admin_token, db):
@@ -58,7 +58,7 @@ def test_bi_dashboard_shares_persist_in_relational_table(client, admin_token, db
         json={"target_user_id": "pm-test-id", "target_user_name": "PM Test", "permission": "edit"},
     )
     assert share_res.status_code == 200, share_res.text
-    share = share_res.json()["share"]
+    share = share_res.json()["data"]["share"]
 
     rows = db.query(DashboardShare).filter(DashboardShare.id == share["id"]).all()
     assert len(rows) == 1
@@ -94,7 +94,7 @@ def test_bi_comments_fallback_when_table_missing(client, admin_token, db):
         },
     )
     assert create_res.status_code == 200, create_res.text
-    comment_id = create_res.json()["comment"]["id"]
+    comment_id = create_res.json()["data"]["comment"]["id"]
 
     list_after_create_res = client.get(
         "/api/v1/bi/collaboration/comments?dashboard_key=executive&widget_id=kpi_grid",

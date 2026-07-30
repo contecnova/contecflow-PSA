@@ -18,7 +18,7 @@ def test_user_can_create_own_plan(client, dev_token, db):
         },
     )
     assert res.status_code == 201, res.text
-    body = res.json()
+    body = res.json()["data"]
     assert body["subject_id"] == dev.id
     assert body["status"] == "draft"
     assert len(body["goals"]) == 2
@@ -57,9 +57,9 @@ def test_completing_all_goals_marks_plan_completed(client, dev_token, db):
             "subject_id": dev.id, "title": "P",
             "goals": [{"title": "G1"}, {"title": "G2"}],
         },
-    ).json()["id"]
+    ).json()["data"]["id"]
     plan = client.get(f"/api/v1/performance/dev-plans/{plan_id}",
-                      headers=auth(dev_token)).json()
+                      headers=auth(dev_token)).json()["data"]
     g1, g2 = plan["goals"]
     # Marcamos ambos como done
     client.patch(f"/api/v1/performance/dev-goals/{g1['id']}",
@@ -69,7 +69,7 @@ def test_completing_all_goals_marks_plan_completed(client, dev_token, db):
     assert res.status_code == 200
     # El plan ahora está completed
     plan2 = client.get(f"/api/v1/performance/dev-plans/{plan_id}",
-                       headers=auth(dev_token)).json()
+                       headers=auth(dev_token)).json()["data"]
     assert plan2["status"] == "completed"
     assert plan2["progress_pct"] == 100.0
     # Cada goal completed_at != null y progress=100
@@ -85,7 +85,7 @@ def test_other_user_cannot_view_plan(client, dev_token, pm_token, db):
     plan_id = client.post(
         "/api/v1/performance/dev-plans", headers=auth(dev_token),
         json={"subject_id": dev.id, "title": "Privado"},
-    ).json()["id"]
+    ).json()["data"]["id"]
     res = client.get(f"/api/v1/performance/dev-plans/{plan_id}",
                      headers=auth(pm_token))
     assert res.status_code == 403
@@ -97,7 +97,7 @@ def test_admin_can_view_any_plan(client, admin_token, dev_token, db):
     plan_id = client.post(
         "/api/v1/performance/dev-plans", headers=auth(dev_token),
         json={"subject_id": dev.id, "title": "Visible"},
-    ).json()["id"]
+    ).json()["data"]["id"]
     res = client.get(f"/api/v1/performance/dev-plans/{plan_id}",
                      headers=auth(admin_token))
     assert res.status_code == 200
@@ -109,16 +109,16 @@ def test_add_and_delete_goal(client, dev_token, db):
     plan_id = client.post(
         "/api/v1/performance/dev-plans", headers=auth(dev_token),
         json={"subject_id": dev.id, "title": "P"},
-    ).json()["id"]
+    ).json()["data"]["id"]
     g = client.post(f"/api/v1/performance/dev-plans/{plan_id}/goals",
                     headers=auth(dev_token),
-                    json={"title": "Nuevo objetivo"}).json()
+                    json={"title": "Nuevo objetivo"}).json()["data"]
     plan = client.get(f"/api/v1/performance/dev-plans/{plan_id}",
-                      headers=auth(dev_token)).json()
+                      headers=auth(dev_token)).json()["data"]
     assert len(plan["goals"]) == 1
     res = client.delete(f"/api/v1/performance/dev-goals/{g['id']}",
                         headers=auth(dev_token))
     assert res.status_code == 204
     plan2 = client.get(f"/api/v1/performance/dev-plans/{plan_id}",
-                       headers=auth(dev_token)).json()
+                       headers=auth(dev_token)).json()["data"]
     assert plan2["goals"] == []

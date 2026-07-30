@@ -28,7 +28,7 @@ def _create_project(client, token, name="Epics Test Project"):
         headers=auth(token),
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()["id"]
+    return res.json()["id"]  # /projects no migrado: dict crudo
 
 
 def _create_wiki_space(client, token, slug="ws-delete-test"):
@@ -43,7 +43,7 @@ def _create_wiki_space(client, token, slug="ws-delete-test"):
         headers=auth(token),
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()["id"]
+    return res.json()["data"]["id"]
 
 
 # ── 1. DELETE /wiki/spaces/{space_id} ──────────────────────────────────────────
@@ -56,12 +56,12 @@ def test_delete_wiki_space_hides_from_listing(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert deleted.status_code == 200, deleted.text
-    assert deleted.json().get("ok") is True
+    assert deleted.json()["data"]["ok"] is True
 
     # Concealment: ya no debe aparecer en el listado de espacios.
     listed = client.get("/api/v1/epics/wiki/spaces", headers=auth(admin_token))
     assert listed.status_code == 200
-    assert all(s["id"] != space_id for s in listed.json())
+    assert all(s["id"] != space_id for s in listed.json()["items"])
 
     # Soft-delete: la fila sigue en BD pero con is_active=False.
     from app.models.epics import WikiSpace
@@ -87,14 +87,14 @@ def test_delete_wiki_page_hides_from_listing(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert created.status_code in (200, 201), created.text
-    page_id = created.json()["id"]
+    page_id = created.json()["data"]["id"]
 
     deleted = client.delete(
         f"/api/v1/epics/wiki/pages/{page_id}",
         headers=auth(admin_token),
     )
     assert deleted.status_code == 200, deleted.text
-    assert deleted.json().get("ok") is True
+    assert deleted.json()["data"]["ok"] is True
 
     # Concealment: la página no debe aparecer en el árbol de páginas del espacio.
     listed = client.get(
@@ -110,7 +110,7 @@ def test_delete_wiki_page_hides_from_listing(client, admin_token, db):
             out.extend(_ids_in_tree(n.get("children") or []))
         return out
 
-    assert page_id not in _ids_in_tree(listed.json())
+    assert page_id not in _ids_in_tree(listed.json()["items"])
 
     # Soft-delete: is_active=False
     from app.models.epics import WikiPage
@@ -133,19 +133,19 @@ def test_delete_saved_filter_hides_from_listing(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert created.status_code in (200, 201), created.text
-    filter_id = created.json()["id"]
+    filter_id = created.json()["data"]["id"]
 
     deleted = client.delete(
         f"/api/v1/epics/filters/{filter_id}",
         headers=auth(admin_token),
     )
     assert deleted.status_code == 200, deleted.text
-    assert deleted.json().get("ok") is True
+    assert deleted.json()["data"]["ok"] is True
 
     # Concealment: no aparece en el listado de filtros del usuario.
     listed = client.get("/api/v1/epics/filters", headers=auth(admin_token))
     assert listed.status_code == 200
-    assert all(f["id"] != filter_id for f in listed.json())
+    assert all(f["id"] != filter_id for f in listed.json()["items"])
 
     # Soft-delete: is_active=False
     from app.models.epics import SavedFilter
@@ -168,14 +168,14 @@ def test_delete_threaded_comment_hides_from_listing(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert created.status_code in (200, 201), created.text
-    comment_id = created.json()["id"]
+    comment_id = created.json()["data"]["id"]
 
     deleted = client.delete(
         f"/api/v1/epics/comments/{comment_id}",
         headers=auth(admin_token),
     )
     assert deleted.status_code == 200, deleted.text
-    assert deleted.json().get("ok") is True
+    assert deleted.json()["data"]["ok"] is True
 
     # Concealment: no aparece en el listado para esa entidad.
     listed = client.get(
@@ -184,8 +184,7 @@ def test_delete_threaded_comment_hides_from_listing(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert listed.status_code == 200
-    payload = listed.json()
-    items = payload if isinstance(payload, list) else payload.get("comments", [])
+    items = listed.json()["items"]
     assert all(c.get("id") != comment_id for c in items)
 
     # Soft-delete: is_active=False
@@ -214,14 +213,14 @@ def test_delete_epic_hides_from_listing(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert created.status_code in (200, 201), created.text
-    epic_id = created.json()["id"]
+    epic_id = created.json()["data"]["id"]
 
     deleted = client.delete(
         f"/api/v1/epics/{epic_id}",
         headers=auth(admin_token),
     )
     assert deleted.status_code == 200, deleted.text
-    assert deleted.json().get("ok") is True
+    assert deleted.json()["data"]["ok"] is True
 
     # Concealment: la épica no aparece en el listado del proyecto.
     listed = client.get(
@@ -230,7 +229,7 @@ def test_delete_epic_hides_from_listing(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert listed.status_code == 200
-    assert all(e["id"] != epic_id for e in listed.json())
+    assert all(e["id"] != epic_id for e in listed.json()["items"])
 
     # Soft-delete: is_active=False
     from app.models.epics import Epic

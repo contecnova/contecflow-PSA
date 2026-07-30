@@ -49,7 +49,7 @@ from app.services.approval_engine import (
     serialize_approval_request as _request_out,
 )
 from app.schemas.approvals import WorkflowIn, StepIn, ApprovalRequestIn, DecisionIn
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 logger = logging.getLogger(__name__)
 
@@ -81,14 +81,15 @@ def create_workflow_endpoint(
     current_user: User = Depends(require_admin),
 ):
     w = create_workflow(db, payload.model_dump())
-    return _workflow_out(w, include_steps=True)
+    return APIResponse.ok(data=_workflow_out(w, include_steps=True))
 
 
 @router.get("/workflow-templates", summary="Listar plantillas de flujos")
 def list_workflow_templates_endpoint(
     current_user: User = Depends(get_current_user),
 ):
-    return list_workflow_templates()
+    items = list_workflow_templates()
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/workflows/from-template", summary="Crear flujo desde plantilla")
@@ -102,7 +103,7 @@ def create_workflow_from_template_endpoint(
     if not template_id:
         raise HTTPException(400, "template_id es obligatorio")
     w = create_workflow_from_template(db, template_id, override_name=name)
-    return _workflow_out(w, include_steps=True)
+    return APIResponse.ok(data=_workflow_out(w, include_steps=True))
 
 
 @router.get("/workflows/{workflow_id}", summary="Detalle de flujo")
@@ -114,7 +115,7 @@ def get_workflow_endpoint(
     w = get_workflow(db, workflow_id)
     if not w:
         raise HTTPException(404)
-    return _workflow_out(w, include_steps=True)
+    return APIResponse.ok(data=_workflow_out(w, include_steps=True))
 
 
 @router.patch("/workflows/{workflow_id}", summary="Actualizar flujo")
@@ -127,7 +128,7 @@ def update_workflow_endpoint(
     w = update_workflow(db, workflow_id, payload)
     if not w:
         raise HTTPException(404)
-    return _workflow_out(w, include_steps=True)
+    return APIResponse.ok(data=_workflow_out(w, include_steps=True))
 
 
 @router.get("/workflows/{workflow_id}/validate", summary="Validar flujo")
@@ -136,7 +137,7 @@ def validate_workflow_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return validate_workflow(db, workflow_id)
+    return APIResponse.ok(data=validate_workflow(db, workflow_id))
 
 
 @router.post("/workflows/{workflow_id}/publish", summary="Publicar flujo")
@@ -146,7 +147,7 @@ def publish_workflow_endpoint(
     current_user: User = Depends(require_admin),
 ):
     w = publish_workflow(db, workflow_id)
-    return _workflow_out(w, include_steps=True)
+    return APIResponse.ok(data=_workflow_out(w, include_steps=True))
 
 
 @router.post("/workflows/{workflow_id}/clone-version", summary="Clonar flujo como nueva versión")
@@ -158,7 +159,7 @@ def clone_workflow_version_endpoint(
 ):
     suffix = payload.get("suffix")
     w = clone_workflow_as_version(db, workflow_id, suffix=suffix)
-    return _workflow_out(w, include_steps=True)
+    return APIResponse.ok(data=_workflow_out(w, include_steps=True))
 
 
 @router.post("/simulate", summary="Simular selección y ruta de flujo")
@@ -171,7 +172,7 @@ def simulate_workflow_endpoint(
     context = payload.get("context") or {}
     if not entity_type:
         raise HTTPException(400, "entity_type es obligatorio")
-    return simulate_workflow(db, entity_type=entity_type, context=context)
+    return APIResponse.ok(data=simulate_workflow(db, entity_type=entity_type, context=context))
 
 
 @router.delete("/workflows/{workflow_id}", summary="Eliminar flujo")
@@ -183,7 +184,7 @@ def delete_workflow_endpoint(
     enforce_abac(db, current_user, "approval_workflow", workflow_id, action="delete")
     if not delete_workflow(db, workflow_id):
         raise HTTPException(404)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── CRUD Steps ─────────────────────────────────────────────────────────────────
@@ -197,7 +198,7 @@ def add_step(
     s = add_workflow_step(db, workflow_id, payload.model_dump())
     if not s:
         raise HTTPException(404)
-    return _step_out(s)
+    return APIResponse.ok(data=_step_out(s))
 
 
 @router.patch("/workflows/{workflow_id}/steps/{step_id}", summary="Actualizar paso")
@@ -210,7 +211,7 @@ def update_step(
     s = update_workflow_step(db, workflow_id, step_id, payload)
     if not s:
         raise HTTPException(404)
-    return _step_out(s)
+    return APIResponse.ok(data=_step_out(s))
 
 
 @router.delete("/workflows/{workflow_id}/steps/{step_id}", summary="Eliminar paso")
@@ -222,7 +223,7 @@ def delete_step(
     enforce_abac(db, current_user, "approval_workflow_step", step_id, action="delete")
     if not delete_workflow_step(db, workflow_id, step_id):
         raise HTTPException(404)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── Requests ───────────────────────────────────────────────────────────────────
@@ -254,10 +255,10 @@ def pending_my_action(
             r["step_name"] = step.name
             r["step_order"] = step.step_order
             result.append(r)
-        return result
+        return APIListResponse.ok(items=result, total=len(result))
     except Exception:
         logger.exception("pending-my-action failed for user_id=%s", getattr(current_user, "id", None))
-        return []
+        return APIListResponse.ok(items=[], total=0)
 
 
 @router.post("/requests", summary="Crear solicitud de aprobación")
@@ -267,7 +268,7 @@ def create_request(
     current_user: User = Depends(get_current_user),
 ):
     req = create_approval_request(payload, db, current_user)
-    return _request_out(req)
+    return APIResponse.ok(data=_request_out(req))
 
 
 @router.post("/requests/{request_id}/decide", summary="Aprobar, rechazar o delegar un paso")
@@ -282,7 +283,7 @@ def decide_request(
         db, current_user,
         attachment_url=getattr(payload, "attachment_url", None),
     )
-    return _request_out(req)
+    return APIResponse.ok(data=_request_out(req))
 
 
 @router.post("/requests/{request_id}/cancel", summary="Cancelar solicitud")
@@ -292,7 +293,7 @@ def cancel_request(
     current_user: User = Depends(get_current_user),
 ):
     cancel_approval_request(db, request_id, current_user)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── Financial Audit Log ────────────────────────────────────────────────────────
@@ -314,7 +315,7 @@ def get_financial_audit_log(
             f"Esta solicitud es de tipo '{req.entity_type}', que no es una entidad financiera. "
             "El audit log financiero sólo existe para: " + ", ".join(sorted(_FINANCIAL_ENTITY_TYPES)),
         )
-    return {
+    return APIResponse.ok(data={
         "request_id": request_id,
         "entity_type": req.entity_type,
         "entity_id": req.entity_id,
@@ -330,7 +331,7 @@ def get_financial_audit_log(
             }
             for e in entries
         ],
-    }
+    })
 
 
 # ── Timeout job ───────────────────────────────────────────────────────────────
@@ -348,7 +349,7 @@ def run_approval_timeouts(
     En producción lo ejecuta el scheduler periódicamente cada hora.
     """
     result = process_approval_timeouts(db)
-    return result
+    return APIResponse.ok(data=result)
 
 
 # ── Stats ──────────────────────────────────────────────────────────────────────
@@ -357,7 +358,7 @@ def approval_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return get_approval_stats(db, current_user)
+    return APIResponse.ok(data=get_approval_stats(db, current_user))
 
 
 @router.get("/analytics/bottlenecks", summary="Cuellos de botella por flujo/paso")
@@ -367,7 +368,7 @@ def approval_bottlenecks(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return get_workflow_bottlenecks(db, current_user, workflow_id=workflow_id, days=days)
+    return APIResponse.ok(data=get_workflow_bottlenecks(db, current_user, workflow_id=workflow_id, days=days))
 
 
 @router.get("/analytics/approver-load", summary="Carga de trabajo por aprobador")
@@ -376,7 +377,7 @@ def approver_load_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return get_approver_load(db, current_user, days=days)
+    return APIResponse.ok(data=get_approver_load(db, current_user, days=days))
 
 
 # ── Approver Groups ──────────────────────────────────────────────────────────────
@@ -402,7 +403,7 @@ def create_group(
         member_ids=payload.get("member_ids", []),
         created_by=current_user.id,
     )
-    return _group_out(g)
+    return APIResponse.ok(data=_group_out(g))
 
 
 @router.get("/groups/{group_id}", summary="Detalle de grupo")
@@ -414,7 +415,7 @@ def get_group(
     g = get_approval_group(db, group_id)
     if not g:
         raise HTTPException(404)
-    return _group_out(g)
+    return APIResponse.ok(data=_group_out(g))
 
 
 @router.patch("/groups/{group_id}", summary="Actualizar grupo")
@@ -432,7 +433,7 @@ def update_group(
     )
     if not g:
         raise HTTPException(404)
-    return _group_out(g)
+    return APIResponse.ok(data=_group_out(g))
 
 
 @router.delete("/groups/{group_id}", summary="Eliminar grupo")
@@ -444,4 +445,4 @@ def delete_group(
     enforce_abac(db, current_user, "approval_group", group_id, action="delete")
     if not delete_approval_group(db, group_id):
         raise HTTPException(404)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})

@@ -8,6 +8,7 @@ from app.core.deps import get_current_client, require_any_manager
 from app.db.session import get_db
 from app.models.client_portal import ClientUser
 from app.models.user import User
+from app.core.responses import APIListResponse, APIResponse
 import app.services.portal_conversation_service as _svc
 
 
@@ -68,7 +69,7 @@ def list_team_conversations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_team_conversations(current_user, db, project_id, client_org_id, assigned_to_me)
+    return APIListResponse.ok(items=_svc.list_team_conversations(current_user, db, project_id, client_org_id, assigned_to_me))
 
 
 @router.get("/team/policies", summary="Políticas GRC de conversaciones del portal")
@@ -76,7 +77,7 @@ def list_policies(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_policies(current_user, db)
+    return APIListResponse.ok(items=_svc.list_policies(current_user, db))
 
 
 @router.put("/team/policies/{topic_type}", summary="Actualizar política GRC por tipo de conversación")
@@ -87,7 +88,7 @@ def update_policy(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.update_policy(topic_type, payload.model_dump(exclude_unset=True), current_user, db)
+        return APIResponse.ok(data=_svc.update_policy(topic_type, payload.model_dump(exclude_unset=True), current_user, db))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -99,7 +100,7 @@ def create_team_conversation(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.create_team_conversation(payload, current_user, db)
+        return APIResponse.ok(data=_svc.create_team_conversation(payload, current_user, db))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -111,7 +112,7 @@ def get_team_conversation(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.get_team_conversation_detail(conversation_id, current_user, db)
+        return APIResponse.ok(data=_svc.get_team_conversation_detail(conversation_id, current_user, db))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -123,7 +124,7 @@ def get_team_messages(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.list_team_messages(conversation_id, current_user, db)
+        return APIListResponse.ok(items=_svc.list_team_messages(conversation_id, current_user, db))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -136,7 +137,7 @@ def send_team_message(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.send_team_message(conversation_id, payload, current_user, db)
+        return APIResponse.ok(data=_svc.send_team_message(conversation_id, payload, current_user, db))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -149,7 +150,7 @@ def assign_participants(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.assign_participants(conversation_id, payload, current_user, db)
+        return APIResponse.ok(data=_svc.assign_participants(conversation_id, payload, current_user, db))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -163,7 +164,7 @@ def review_message(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.review_message(conversation_id, message_id, payload.decision, payload.note, current_user, db)
+        return APIResponse.ok(data=_svc.review_message(conversation_id, message_id, payload.decision, payload.note, current_user, db))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -173,7 +174,7 @@ def run_sla_escalations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.run_sla_escalations(current_user, db)
+    return APIResponse.ok(data=_svc.run_sla_escalations(current_user, db))
 
 
 @router.get("", summary="Mis conversaciones gobernadas del portal")
@@ -181,7 +182,7 @@ def list_client_conversations(
     db: Session = Depends(get_db),
     current_client: ClientUser = Depends(get_current_client),
 ):
-    return _svc.list_client_conversations(current_client, db)
+    return APIListResponse.ok(items=_svc.list_client_conversations(current_client, db))
 
 
 @router.post("", summary="Crear conversación gobernada desde el portal")
@@ -191,7 +192,7 @@ def create_client_conversation(
     current_client: ClientUser = Depends(get_current_client),
 ):
     try:
-        return _svc.create_client_conversation(payload, current_client, db)
+        return APIResponse.ok(data=_svc.create_client_conversation(payload, current_client, db))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -203,7 +204,7 @@ def get_client_conversation(
     current_client: ClientUser = Depends(get_current_client),
 ):
     try:
-        return _svc.get_client_conversation_detail(conversation_id, current_client, db)
+        return APIResponse.ok(data=_svc.get_client_conversation_detail(conversation_id, current_client, db))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -215,7 +216,7 @@ def get_client_messages(
     current_client: ClientUser = Depends(get_current_client),
 ):
     try:
-        return _svc.list_client_messages(conversation_id, current_client, db)
+        return APIListResponse.ok(items=_svc.list_client_messages(conversation_id, current_client, db))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -228,7 +229,7 @@ def send_client_message(
     current_client: ClientUser = Depends(get_current_client),
 ):
     try:
-        return _svc.send_client_message(conversation_id, payload, current_client, db)
+        return APIResponse.ok(data=_svc.send_client_message(conversation_id, payload, current_client, db))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -240,6 +241,6 @@ def send_l1_bot_reply(
     current_client: ClientUser = Depends(get_current_client),
 ):
     try:
-        return _svc.send_l1_bot_reply(conversation_id, current_client, db)
+        return APIResponse.ok(data=_svc.send_l1_bot_reply(conversation_id, current_client, db))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

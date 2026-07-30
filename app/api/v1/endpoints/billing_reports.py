@@ -65,7 +65,7 @@ from app.schemas.billing_reports import (
     OkResponse,
 )
 import app.services.billing_reports_service as _svc
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter()
 
@@ -95,20 +95,20 @@ IMPORT_TEMPLATES = _svc.IMPORT_TEMPLATES
 # REPORT BUILDER
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.get("/report-catalog/catalog", response_model=Dict[str, Any], summary="Catálogo de informes disponibles")
+@router.get("/report-catalog/catalog", response_model=APIResponse[Dict[str, Any]], summary="Catálogo de informes disponibles")
 def report_catalog(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return build_report_catalog(db, current_user)
+    return APIResponse.ok(data=build_report_catalog(db, current_user))
 
 
-@router.get("/report-catalog/data-sources", response_model=Dict[str, Any], summary="Fuentes de datos disponibles")
+@router.get("/report-catalog/data-sources", response_model=APIResponse[Dict[str, Any]], summary="Fuentes de datos disponibles")
 def report_data_sources(current_user: User = Depends(require_any_manager)):
-    return get_data_sources()
+    return APIResponse.ok(data=get_data_sources())
 
 
-@router.post("/report-catalog/run", response_model=Dict[str, Any], summary="Ejecutar un informe con filtros")
+@router.post("/report-catalog/run", response_model=APIResponse[Dict[str, Any]], summary="Ejecutar un informe con filtros")
 def run_report(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
@@ -123,7 +123,7 @@ def run_report(
     project_id = payload.get("project_id")
 
     org_id = current_user.organization_id
-    return dispatch_report(
+    return APIResponse.ok(data=dispatch_report(
         data_source=data_source,
         report_id=report_id,
         filters=filters,
@@ -142,33 +142,33 @@ def run_report(
             "pipeline": lambda f, org_id=None: run_pipeline_report(db, f, org_id=org_id),
             "system": lambda rid, f, d1, d2: _run_system_report(db, rid, f, d1, d2),
         },
-    )
+    ))
 
 
-@router.post("/report-catalog/save", response_model=ReportSaveOut, summary="Guardar informe personalizado")
+@router.post("/report-catalog/save", response_model=APIResponse[ReportSaveOut], summary="Guardar informe personalizado")
 def save_report(
     payload: ReportSave,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.save_report_definition(payload, current_user, db)
+    return APIResponse.ok(data=_svc.save_report_definition(payload, current_user, db))
 
 
-@router.delete("/report-catalog/{report_id}", response_model=OkResponse, summary="Eliminar informe guardado")
+@router.delete("/report-catalog/{report_id}", response_model=APIResponse[OkResponse], summary="Eliminar informe guardado")
 def delete_report(
     report_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "billing_report_definition", report_id, action="delete")
-    return _svc.delete_report_definition(report_id, current_user.id, db)
+    return APIResponse.ok(data=_svc.delete_report_definition(report_id, current_user.id, db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # BULK IMPORT
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.get("/import/template/{entity_type}", response_model=ImportTemplateOut, summary="Plantilla CSV para importación")
+@router.get("/import/template/{entity_type}", response_model=APIResponse[ImportTemplateOut], summary="Plantilla CSV para importación")
 def get_import_template(
     entity_type: str,
     current_user: User = Depends(require_any_manager),
@@ -176,15 +176,15 @@ def get_import_template(
     if entity_type not in IMPORT_TEMPLATES:
         raise HTTPException(400, f"Tipo no válido. Opciones: {list(IMPORT_TEMPLATES.keys())}")
     tpl = IMPORT_TEMPLATES[entity_type]
-    return {
+    return APIResponse.ok(data={
         "entity_type": entity_type,
         "columns": tpl["columns"],
         "example": tpl["example"],
         "instructions": "Descarga esta plantilla, rellena los datos y sube el fichero CSV en el importador. La primera fila debe ser la cabecera.",
-    }
+    })
 
 
-@router.post("/import/validate", response_model=ImportValidateOut, summary="Validar CSV antes de importar")
+@router.post("/import/validate", response_model=APIResponse[ImportValidateOut], summary="Validar CSV antes de importar")
 def validate_import(
     entity_type: str,
     file: UploadFile = File(...),
@@ -193,7 +193,7 @@ def validate_import(
 ):
     content = file.file.read()
     try:
-        return _svc.validate_import_csv(entity_type, content)
+        return APIResponse.ok(data=_svc.validate_import_csv(entity_type, content))
     except ValueError as e:
         msg = str(e)
         if msg == "too_large":    raise HTTPException(413, "Fichero demasiado grande (máx 5 MB)")
@@ -203,7 +203,7 @@ def validate_import(
         raise HTTPException(400, msg)
 
 
-@router.post("/import/execute", response_model=ImportExecuteOut, summary="Ejecutar importación masiva")
+@router.post("/import/execute", response_model=APIResponse[ImportExecuteOut], summary="Ejecutar importación masiva")
 def execute_import(
     entity_type: str,
     file: UploadFile = File(...),
@@ -212,7 +212,7 @@ def execute_import(
 ):
     content = file.file.read()
     try:
-        return _svc.execute_import_csv(entity_type, content, file.filename, current_user, db)
+        return APIResponse.ok(data=_svc.execute_import_csv(entity_type, content, file.filename, current_user, db))
     except ValueError as e:
         msg = str(e)
         if msg == "too_large": raise HTTPException(413, "Fichero demasiado grande (máx 5 MB)")
@@ -260,38 +260,38 @@ def list_invoices(
     return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
-@router.post("/invoices/from-timesheets", response_model=Dict[str, Any], summary="Generar factura desde timesheets aprobados")
+@router.post("/invoices/from-timesheets", response_model=APIResponse[Dict[str, Any]], summary="Generar factura desde timesheets aprobados")
 def invoice_from_timesheets(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return build_invoice_preview_from_timesheets_flow(
+    return APIResponse.ok(data=build_invoice_preview_from_timesheets_flow(
         db=db,
         project_id=payload.get("project_id"),
         date_from=payload.get("date_from"),
         date_to=payload.get("date_to"),
         tax_rate=payload.get("tax_rate"),
-    )
+    ))
 
 
-@router.post("/invoices", response_model=InvoiceOut, status_code=201, summary="Crear factura")
+@router.post("/invoices", response_model=APIResponse[InvoiceOut], status_code=201, summary="Crear factura")
 def create_invoice(
     payload: InvoiceCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.create_invoice(payload, current_user, db)
+    return APIResponse.ok(data=_svc.create_invoice(payload, current_user, db))
 
 
-@router.patch("/invoices/{invoice_id}/status", response_model=InvoiceOut, summary="Cambiar estado de factura")
+@router.patch("/invoices/{invoice_id}/status", response_model=APIResponse[InvoiceOut], summary="Cambiar estado de factura")
 def update_invoice_status(
     invoice_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.update_invoice_status(invoice_id, payload, current_user, db)
+    return APIResponse.ok(data=_svc.update_invoice_status(invoice_id, payload, current_user, db))
 
 
 @router.get(
@@ -351,24 +351,24 @@ def download_invoice_pdf(
     )
 
 
-@router.get("/invoices/summary", response_model=InvoiceSummaryOut, summary="Resumen financiero de facturas")
+@router.get("/invoices/summary", response_model=APIResponse[InvoiceSummaryOut], summary="Resumen financiero de facturas")
 def invoice_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_invoice_summary(db)
+    return APIResponse.ok(data=_svc.get_invoice_summary(db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ITSM ADVANCED METRICS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.get("/itsm-metrics/sla-dashboard", response_model=SlaDashboardOut, summary="Dashboard SLA en tiempo real")
+@router.get("/itsm-metrics/sla-dashboard", response_model=APIResponse[SlaDashboardOut], summary="Dashboard SLA en tiempo real")
 def sla_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_sla_dashboard(db)
+    return APIResponse.ok(data=_svc.get_sla_dashboard(db))
 
 
 @router.get("/itsm-metrics/agent-performance", response_model=APIListResponse[AgentPerformanceOut], summary="Rendimiento por agente")
@@ -381,14 +381,14 @@ def agent_performance(
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.post("/itsm-metrics/pause-sla/{ticket_id}", response_model=SlaPauseResumeOut, summary="Pausar/reanudar SLA (pendiente cliente)")
+@router.post("/itsm-metrics/pause-sla/{ticket_id}", response_model=APIResponse[SlaPauseResumeOut], summary="Pausar/reanudar SLA (pendiente cliente)")
 def pause_resume_sla(
     ticket_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.pause_resume_sla(ticket_id, payload, db)
+    return APIResponse.ok(data=_svc.pause_resume_sla(ticket_id, payload, db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -404,32 +404,32 @@ def list_workflows(
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.post("/automation-workflows", response_model=AutomationWorkflowOut, status_code=201, summary="Crear workflow")
+@router.post("/automation-workflows", response_model=APIResponse[AutomationWorkflowOut], status_code=201, summary="Crear workflow")
 def create_workflow(
     payload: WorkflowCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.create_workflow(payload, current_user, db)
+    return APIResponse.ok(data=_svc.create_workflow(payload, current_user, db))
 
 
-@router.patch("/automation-workflows/{wf_id}", response_model=AutomationWorkflowOut, summary="Actualizar workflow")
+@router.patch("/automation-workflows/{wf_id}", response_model=APIResponse[AutomationWorkflowOut], summary="Actualizar workflow")
 def update_workflow(
     wf_id: str, payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.update_workflow(wf_id, payload, db)
+    return APIResponse.ok(data=_svc.update_workflow(wf_id, payload, db))
 
 
-@router.delete("/automation-workflows/{wf_id}", response_model=OkResponse, summary="Eliminar workflow")
+@router.delete("/automation-workflows/{wf_id}", response_model=APIResponse[OkResponse], summary="Eliminar workflow")
 def delete_workflow(
     wf_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "billing_automation_workflow", wf_id, action="delete")
-    return _svc.delete_workflow(wf_id, db)
+    return APIResponse.ok(data=_svc.delete_workflow(wf_id, db))
 
 
 @router.get("/automation-workflows/{wf_id}/executions", response_model=APIListResponse[WorkflowExecutionOut], summary="Historial de ejecuciones")
@@ -445,7 +445,7 @@ def workflow_executions(
     return APIListResponse.ok(items=items, total=len(items), page=page, page_size=page_size)
 
 
-@router.post("/automation-workflows/{wf_id}/run", response_model=Dict[str, Any], summary="Ejecutar workflow ahora")
+@router.post("/automation-workflows/{wf_id}/run", response_model=APIResponse[Dict[str, Any]], summary="Ejecutar workflow ahora")
 def run_workflow_now(
     wf_id: str,
     payload: dict = Body(default={}),
@@ -453,10 +453,10 @@ def run_workflow_now(
     current_user: User = Depends(require_any_manager),
 ):
     context = payload.get("context") or {}
-    return _bookings_svc.execute_workflow_now_record(wf_id, context, current_user.id, db)
+    return APIResponse.ok(data=_bookings_svc.execute_workflow_now_record(wf_id, context, current_user.id, db))
 
 
-@router.patch("/automation-workflows/{wf_id}/steps/{step_id}/retries", response_model=Dict[str, Any], summary="Configurar reintentos por step")
+@router.patch("/automation-workflows/{wf_id}/steps/{step_id}/retries", response_model=APIResponse[Dict[str, Any]], summary="Configurar reintentos por step")
 def update_workflow_step_retries(
     wf_id: str,
     step_id: str,
@@ -489,12 +489,12 @@ def update_workflow_step_retries(
     }
     step.config = json.dumps(cfg)
     db.commit()
-    return {
+    return APIResponse.ok(data={
         "ok": True,
         "workflow_id": wf_id,
         "step_id": step_id,
         "retry": cfg["retry"],
-    }
+    })
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -510,16 +510,16 @@ def list_templates(
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.post("/templates", response_model=TemplateCreateOut, status_code=201, summary="Crear plantilla de proyecto")
+@router.post("/templates", response_model=APIResponse[TemplateCreateOut], status_code=201, summary="Crear plantilla de proyecto")
 def create_template(
     payload: TemplateCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.create_template(payload, current_user, db)
+    return APIResponse.ok(data=_svc.create_template(payload, current_user, db))
 
 
-@router.post("/templates/{template_id}/instantiate", response_model=TemplateInstantiateOut, summary="Crear proyecto desde plantilla")
+@router.post("/templates/{template_id}/instantiate", response_model=APIResponse[TemplateInstantiateOut], summary="Crear proyecto desde plantilla")
 def instantiate_template(
     template_id: str,
     payload: dict = Body(...),
@@ -527,7 +527,7 @@ def instantiate_template(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.instantiate_template(template_id, payload, current_user, db)
+        return APIResponse.ok(data=_svc.instantiate_template(template_id, payload, current_user, db))
     except ValueError:
         raise HTTPException(404, "Plantilla no encontrada")
 
@@ -536,13 +536,13 @@ def instantiate_template(
 # SMARTMATCH
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.post("/smartmatch", response_model=SmartMatchOut, summary="SmartMatch — sugerir mejores recursos para una tarea/proyecto")
+@router.post("/smartmatch", response_model=APIResponse[SmartMatchOut], summary="SmartMatch — sugerir mejores recursos para una tarea/proyecto")
 def smartmatch(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.smartmatch(payload, db)
+    return APIResponse.ok(data=_svc.smartmatch(payload, db))
 
 
 # ── Scheduled Reports ──────────────────────────────────────────────────────────
@@ -556,36 +556,36 @@ def list_scheduled_reports(
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.post("/scheduled-reports", response_model=ScheduledReportCreateOut, status_code=201, summary="Crear informe programado")
+@router.post("/scheduled-reports", response_model=APIResponse[ScheduledReportCreateOut], status_code=201, summary="Crear informe programado")
 def create_scheduled_report(
     payload: ScheduledReportCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.create_scheduled_report(payload, current_user, db)
+    return APIResponse.ok(data=_svc.create_scheduled_report(payload, current_user, db))
 
 
-@router.patch("/scheduled-reports/{report_id}", response_model=ScheduledReportOut, summary="Actualizar informe programado")
+@router.patch("/scheduled-reports/{report_id}", response_model=APIResponse[ScheduledReportOut], summary="Actualizar informe programado")
 def update_scheduled_report(
     report_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.update_scheduled_report(report_id, payload, db)
+    return APIResponse.ok(data=_svc.update_scheduled_report(report_id, payload, db))
 
 
-@router.delete("/scheduled-reports/{report_id}", response_model=OkResponse, summary="Eliminar informe programado")
+@router.delete("/scheduled-reports/{report_id}", response_model=APIResponse[OkResponse], summary="Eliminar informe programado")
 def delete_scheduled_report(
     report_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "scheduled_report", report_id, action="delete")
-    return _svc.delete_scheduled_report(report_id, db)
+    return APIResponse.ok(data=_svc.delete_scheduled_report(report_id, db))
 
 
-@router.post("/scheduled-reports/{report_id}/run", response_model=ScheduledReportRunOut, summary="Ejecutar informe ahora")
+@router.post("/scheduled-reports/{report_id}/run", response_model=APIResponse[ScheduledReportRunOut], summary="Ejecutar informe ahora")
 def run_scheduled_report(
     report_id: str,
     db: Session = Depends(get_db),
@@ -599,7 +599,7 @@ def run_scheduled_report(
         if "no encontrado" in err.lower() or "not found" in err.lower():
             raise HTTPException(404, err)
         raise HTTPException(500, err)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.get(

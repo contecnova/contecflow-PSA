@@ -35,7 +35,7 @@ class TestRACIMatrix:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert isinstance(data, list) or isinstance(data, dict)
 
     def test_assign_raci_entry(self, client, admin_token, db):
@@ -96,7 +96,7 @@ class TestRACIMatrix:
             f"/api/v1/projects/{proj['id']}/raci",
             headers=auth(admin_token),
         )
-        entries = get_res.json()
+        entries = get_res.json()["data"]
         if isinstance(entries, list) and entries:
             entry_id = entries[0].get("id")
             if entry_id:
@@ -127,7 +127,7 @@ class TestBurnoutRisk:
     def test_burnout_risk_list_returns_resources(self, client, admin_token, db):
         res = client.get("/api/v1/resources/burnout-risk", headers=auth(admin_token))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert isinstance(data, list) or isinstance(data, dict)
 
     def test_compute_burnout_risk_runs(self, client, admin_token, db):
@@ -153,7 +153,7 @@ class TestUATCases:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data.get("title") == "Login feature UAT"
         assert data.get("status") in ("open", "pending", None)
 
@@ -170,7 +170,7 @@ class TestUATCases:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         cases = data.get("cases", data) if isinstance(data, dict) else data
         assert len(cases) >= 3
 
@@ -181,7 +181,7 @@ class TestUATCases:
             json={"title": "Pass UAT", "acceptance_criteria": "All green"},
             headers=auth(admin_token),
         )
-        case_id = case_res.json().get("id")
+        case_id = case_res.json()["data"].get("id")
         if not case_id:
             pytest.skip("UAT case creation did not return id")
 
@@ -199,7 +199,7 @@ class TestUATCases:
             json={"title": "Fail UAT", "acceptance_criteria": "Should fail"},
             headers=auth(admin_token),
         )
-        case_id = case_res.json().get("id")
+        case_id = case_res.json()["data"].get("id")
         if not case_id:
             pytest.skip("UAT case creation did not return id")
 
@@ -221,7 +221,7 @@ class TestProjectChangelog:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         # Response is a dict with an 'entries' key
         entries = data.get("entries") if isinstance(data, dict) else data
         assert isinstance(entries, list)
@@ -240,7 +240,7 @@ class TestProjectChangelog:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data.get("version_tag") == "v1.2.0"
 
     def test_update_changelog_entry(self, client, admin_token, db):
@@ -252,7 +252,7 @@ class TestProjectChangelog:
             headers=auth(admin_token),
         ).json()
 
-        entry_id = entry.get("id")
+        entry_id = (entry.get("data") or {}).get("id")
         if not entry_id:
             pytest.skip("Changelog entry id not returned")
 
@@ -270,7 +270,7 @@ class TestProjectChangelog:
             json={"version_tag": "v2.0", "title": "To delete", "entry_type": "milestone",
                   "entry_date": "2026-02-01"},
             headers=auth(admin_token),
-        ).json()
+        ).json()["data"]
 
         entry_id = entry.get("id")
         if not entry_id:

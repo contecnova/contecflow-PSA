@@ -15,7 +15,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 import app.services.issue_type_service as _svc
 
 router = APIRouter()
@@ -87,7 +87,7 @@ def init_issue_types(
     cu: User = Depends(require_admin_or_pm),
 ):
     try:
-        return _svc.init_issue_types(project_id, db)
+        return APIResponse.ok(data=_svc.init_issue_types(project_id, db))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -103,7 +103,7 @@ def create_issue_type(
     cu: User = Depends(require_admin_or_pm),
 ):
     try:
-        return _svc.create_issue_type(project_id, p.model_dump(), db)
+        return APIResponse.ok(data=_svc.create_issue_type(project_id, p.model_dump(), db))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -119,7 +119,7 @@ def update_issue_type(
     cu: User = Depends(require_admin_or_pm),
 ):
     try:
-        return _svc.update_issue_type(project_id, type_id, p.model_dump(), db)
+        return APIResponse.ok(data=_svc.update_issue_type(project_id, type_id, p.model_dump(), db))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -135,7 +135,7 @@ def delete_issue_type(
 ):
     enforce_abac(db, cu, "issue_type", type_id, action="delete")
     try:
-        return _svc.delete_issue_type(project_id, type_id, db)
+        return APIResponse.ok(data=_svc.delete_issue_type(project_id, type_id, db))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -153,7 +153,7 @@ def get_task_dependencies(
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):
-    return _svc.get_task_dependencies(project_id, db)
+    return APIResponse.ok(data=_svc.get_task_dependencies(project_id, db))
 
 
 @router.post("/task-dependencies", summary="Crear dependencia entre tareas")
@@ -163,7 +163,7 @@ def create_task_dependency(
     cu: User = Depends(get_current_user),
 ):
     try:
-        return _svc.create_task_dependency(p.model_dump(), cu.id, db)
+        return APIResponse.ok(data=_svc.create_task_dependency(p.model_dump(), cu.id, db))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -179,7 +179,7 @@ def update_task_dependency(
     cu: User = Depends(get_current_user),
 ):
     try:
-        return _svc.update_task_dependency(dep_id, p.model_dump(), db)
+        return APIResponse.ok(data=_svc.update_task_dependency(dep_id, p.model_dump(), db))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -195,7 +195,7 @@ def delete_task_dependency(
 ):
     enforce_abac(db, cu, "task_dependency", dep_id, action="delete")
     try:
-        return _svc.delete_task_dependency(dep_id, db)
+        return APIResponse.ok(data=_svc.delete_task_dependency(dep_id, db))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -213,7 +213,7 @@ def get_epic_dependencies(
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):
-    return _svc.get_epic_dependencies(project_id, db)
+    return APIListResponse.ok(items=_svc.get_epic_dependencies(project_id, db))
 
 
 @router.post("/epic-dependencies", summary="Crear dependencia entre épicas con tipo")
@@ -223,7 +223,7 @@ def create_epic_dependency(
     cu: User = Depends(require_admin_or_pm),
 ):
     try:
-        return _svc.create_epic_dependency(p.model_dump(), cu.id, db)
+        return APIResponse.ok(data=_svc.create_epic_dependency(p.model_dump(), cu.id, db))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -239,7 +239,7 @@ def delete_epic_dependency(
 ):
     enforce_abac(db, cu, "epic_dependency", dep_id, action="delete")
     try:
-        return _svc.delete_epic_dependency(dep_id, db)
+        return APIResponse.ok(data=_svc.delete_epic_dependency(dep_id, db))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -257,7 +257,7 @@ def index_entity(
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):
-    return _svc.index_entity(p.model_dump(), db)
+    return APIResponse.ok(data=_svc.index_entity(p.model_dump(), db))
 
 
 @router.post("/fts/index/bulk", summary="Indexar múltiples entidades de un proyecto")
@@ -266,7 +266,7 @@ def bulk_index(
     db: Session = Depends(get_db),
     cu: User = Depends(require_admin_or_pm),
 ):
-    return _svc.bulk_index(project_id, db)
+    return APIResponse.ok(data=_svc.bulk_index(project_id, db))
 
 
 @router.get("/fts/search", summary="Búsqueda full-text unificada")
@@ -279,6 +279,6 @@ def fts_search(
     cu: User = Depends(get_current_user),
 ):
     try:
-        return _svc.fts_search(q, project_id, entity_types, limit, db)
+        return APIResponse.ok(data=_svc.fts_search(q, project_id, entity_types, limit, db))
     except ValueError as e:
         raise HTTPException(400, str(e))

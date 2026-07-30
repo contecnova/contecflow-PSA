@@ -1,7 +1,7 @@
 """
 Complete test suite for BI Dashboard Collaboration features v23.10.50
 - Comments with resolution
-- Dashboard sharing with permissions  
+- Dashboard sharing with permissions
 - Shared views
 - Dashboard versioning
 - Notification system
@@ -34,7 +34,7 @@ class TestBiCollaborationComments:
             },
         )
         assert res.status_code == 200, res.text
-        comment = res.json()["comment"]
+        comment = res.json()["data"]["comment"]
 
         # Verify DB persistence
         rows = db.query(DashboardComment).filter(
@@ -65,7 +65,7 @@ class TestBiCollaborationComments:
             params={"dashboard_key": "ops"},
         )
         assert res.status_code == 200, res.text
-        assert res.json()["count"] >= 3
+        assert res.json()["meta"]["total"] >= 3
 
     def test_resolve_comment(self, client, admin_token, db):
         """Resolving a comment should update resolved flag and timestamp."""
@@ -79,7 +79,7 @@ class TestBiCollaborationComments:
                 "message": "Fix ticket backlog display",
             },
         )
-        comment_id = create_res.json()["comment"]["id"]
+        comment_id = create_res.json()["data"]["comment"]["id"]
 
         # Resolve comment
         resolve_res = client.patch(
@@ -136,7 +136,7 @@ class TestBiCollaborationSharing:
             },
         )
         assert res.status_code == 200, res.text
-        share = res.json()["share"]
+        share = res.json()["data"]["share"]
 
         # Verify DB persistence
         rows = db.query(DashboardShare).filter(
@@ -158,7 +158,7 @@ class TestBiCollaborationSharing:
             },
         )
         assert res.status_code == 200, res.text
-        share = res.json()["share"]
+        share = res.json()["data"]["share"]
 
         rows = db.query(DashboardShare).filter(
             DashboardShare.id == share["id"]
@@ -177,7 +177,7 @@ class TestBiCollaborationSharing:
             },
         )
         assert res.status_code == 200, res.text
-        share = res.json()["share"]
+        share = res.json()["data"]["share"]
 
         rows = db.query(DashboardShare).filter(
             DashboardShare.id == share["id"]
@@ -206,7 +206,7 @@ class TestBiCollaborationSharing:
             headers=auth(admin_token),
         )
         assert res.status_code == 200, res.text
-        assert res.json()["count"] >= 2
+        assert res.json()["meta"]["total"] >= 2
 
     def test_revoke_dashboard_share(self, client, admin_token, db):
         """Revoking a share should delete the DashboardShare record."""
@@ -220,7 +220,7 @@ class TestBiCollaborationSharing:
                 "permission": "edit",
             },
         )
-        share_id = create_res.json()["share"]["id"]
+        share_id = create_res.json()["data"]["share"]["id"]
 
         # Revoke share
         revoke_res = client.delete(
@@ -250,7 +250,7 @@ class TestBiDashboardVersioning:
             },
         )
         assert res.status_code == 200, res.text
-        version = res.json()["version"]
+        version = res.json()["data"]["version"]
 
         # Verify DB persistence
         rows = db.query(DashboardVersion).filter(
@@ -286,7 +286,7 @@ class TestBiDashboardVersioning:
         )
         assert res.status_code == 200, res.text
         versions = res.json()["items"]
-        
+
         # Should be ordered by created_at descending
         if len(versions) > 1:
             assert versions[0]["created_at"] >= versions[1]["created_at"]
@@ -304,7 +304,7 @@ class TestBiDashboardVersioning:
                 "change_log": "Version 1",
             },
         )
-        v1_id = v1_res.json()["version"]["id"]
+        v1_id = v1_res.json()["data"]["version"]["id"]
 
         # Create v2
         client.post(
@@ -334,7 +334,7 @@ class TestBiDashboardVersioning:
                 headers=auth(admin_token),
                 json={"config": {}, "change_log": f"v{i}"},
             )
-            version_numbers.append(res.json()["version"]["version"])
+            version_numbers.append(res.json()["data"]["version"]["version"])
 
         # Should increment 1, 2, 3
         assert version_numbers == [1, 2, 3]
@@ -353,7 +353,7 @@ class TestBiCollaborationNotifications:
         )
         assert res.status_code == 200, res.text
         assert "items" in res.json()
-        assert "count" in res.json()
+        assert "meta" in res.json()
 
     def test_filter_notifications_by_dashboard(self, client, admin_token):
         """Should be able to filter notifications by dashboard_key."""
@@ -376,7 +376,7 @@ class TestBiCollaborationNotifications:
     def test_mark_notification_as_read(self, client, admin_token, db):
         """Marking a notification as read should update is_read flag."""
         # First, create a notification by creating a comment
-        comment_res = client.post(
+        client.post(
             "/api/v1/bi/collaboration/comments",
             headers=auth(admin_token),
             json={
@@ -393,7 +393,7 @@ class TestBiCollaborationNotifications:
             params={"dashboard_key": "notify_test", "include_read": False},
         )
 
-        if notif_res.json()["count"] > 0:
+        if notif_res.json()["meta"]["total"] > 0:
             notif_id = notif_res.json()["items"][0]["id"]
 
             # Mark as read
@@ -434,7 +434,7 @@ class TestBiCollaborationSharedViews:
             },
         )
         assert res.status_code == 200, res.text
-        view = res.json()["view"]
+        view = res.json()["data"]["view"]
         assert view["name"] == "Q2 Revenue View"
 
     def test_list_shared_views(self, client, admin_token):
@@ -470,7 +470,7 @@ class TestBiCollaborationSharedViews:
                 "filters": {"v": 1},
             },
         )
-        view_id = create_res.json()["view"]["id"]
+        view_id = create_res.json()["data"]["view"]["id"]
 
         # Update view
         update_res = client.patch(
@@ -482,7 +482,7 @@ class TestBiCollaborationSharedViews:
             },
         )
         assert update_res.status_code == 200, update_res.text
-        assert update_res.json()["view"]["name"] == "Updated Name"
+        assert update_res.json()["data"]["view"]["name"] == "Updated Name"
 
 
 class TestBiCollaborationRealTimeUpdates:
@@ -509,7 +509,7 @@ class TestBiCollaborationRealTimeUpdates:
             headers=auth(admin_token),
         )
         assert res.status_code == 200, res.text
-        snapshot = res.json()
+        snapshot = res.json()["data"]
         assert snapshot["type"] == "bi_dashboard_update"
         assert snapshot["dashboard_key"] == dashboard_key
         assert "timestamp" in snapshot
@@ -566,19 +566,19 @@ class TestBiCollaborationIntegration:
             headers=auth(admin_token),
             params={"dashboard_key": dashboard_key},
         ).json()
-        assert comments["count"] > 0
+        assert comments["meta"]["total"] > 0
 
         shares = client.get(
             f"/api/v1/bi/collaboration/dashboards/{dashboard_key}/shares",
             headers=auth(admin_token),
         ).json()
-        assert shares["count"] > 0
+        assert shares["meta"]["total"] > 0
 
         versions = client.get(
             f"/api/v1/bi/collaboration/dashboards/{dashboard_key}/versions",
             headers=auth(admin_token),
         ).json()
-        assert versions["count"] > 0
+        assert versions["meta"]["total"] > 0
 
     def test_collaboration_multiuser_scenario(self, client, admin_token):
         """Multiple users collaborating on same dashboard."""
@@ -612,4 +612,4 @@ class TestBiCollaborationIntegration:
             headers=auth(admin_token),
             params={"dashboard_key": dashboard_key},
         )
-        assert res.json()["count"] >= 2
+        assert res.json()["meta"]["total"] >= 2

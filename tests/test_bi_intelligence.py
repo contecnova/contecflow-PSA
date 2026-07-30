@@ -9,7 +9,7 @@ def test_phase2_forecast_endpoint(client, admin_token):
         headers=auth(admin_token),
     )
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "history" in data
     assert "forecast" in data
     assert data["months_ahead"] == 4
@@ -23,7 +23,7 @@ def test_phase2_anomalies_endpoint(client, admin_token):
         headers=auth(admin_token),
     )
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "threshold" in data
     assert "items" in data
     assert isinstance(data["items"], list)
@@ -34,7 +34,7 @@ def test_phase2_connectors_crud_and_sync(client, admin_token):
     # list
     res = client.get("/api/v1/bi/intelligence/connectors", headers=auth(admin_token))
     assert res.status_code == 200
-    items = res.json().get("items", {})
+    items = res.json()["data"].get("items", {})
     assert "salesforce" in items
 
     # enable connector
@@ -44,12 +44,12 @@ def test_phase2_connectors_crud_and_sync(client, admin_token):
         headers=auth(admin_token),
     )
     assert res2.status_code == 200
-    assert res2.json()["config"]["enabled"] is True
+    assert res2.json()["data"]["config"]["enabled"] is True
 
     # sync connector
     res3 = client.post("/api/v1/bi/intelligence/connectors/salesforce/sync", headers=auth(admin_token))
     assert res3.status_code == 200
-    assert "status" in res3.json()
+    assert "status" in res3.json()["data"]
 
 
 
@@ -65,18 +65,18 @@ def test_phase2_reports_and_delivery_endpoints(client, admin_token):
         headers=auth(admin_token),
     )
     assert preview.status_code == 200
-    assert "rows" in preview.json()
+    assert "rows" in preview.json()["data"]
 
     delivery = client.get("/api/v1/bi/intelligence/delivery/overview", headers=auth(admin_token))
     assert delivery.status_code == 200
-    assert "active" in delivery.json()
+    assert "active" in delivery.json()["data"]
 
 
 
 def test_phase2_realtime_token(client, admin_token):
     res = client.get("/api/v1/bi/intelligence/realtime/token", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "token" in data
     assert "stream_url" in data
 
@@ -84,7 +84,7 @@ def test_phase2_realtime_token(client, admin_token):
 def test_phase2_visual_query_builder_schema_and_preview(client, admin_token):
     schema = client.get("/api/v1/bi/intelligence/query-builder/schema", headers=auth(admin_token))
     assert schema.status_code == 200
-    payload = schema.json()
+    payload = schema.json()["data"]
     assert "entities" in payload
     assert "operators" in payload
     assert "groups" in payload
@@ -102,7 +102,7 @@ def test_phase2_visual_query_builder_schema_and_preview(client, admin_token):
         headers=auth(admin_token),
     )
     assert preview.status_code == 200
-    data = preview.json()
+    data = preview.json()["data"]
     assert data["entity"] == "projects"
     assert data["columns"] == ["code", "name", "status"]
     assert "rows" in data
@@ -133,7 +133,7 @@ def test_phase2_visual_query_builder_templates_crud(client, admin_token):
         headers=auth(admin_token),
     )
     assert create.status_code == 200
-    item = create.json()["item"]
+    item = create.json()["data"]["item"]
     assert item["name"] == "Proyectos activos"
     template_id = item["id"]
 
@@ -143,7 +143,7 @@ def test_phase2_visual_query_builder_templates_crud(client, admin_token):
     )
     assert listed.status_code == 200
     data = listed.json()
-    assert data["count"] >= 1
+    assert data["meta"]["total"] >= 1
     assert any(t["id"] == template_id for t in data["items"])
 
     deleted = client.delete(
@@ -198,14 +198,14 @@ def test_bi_delivery_send_only_on_change_and_diff(client, admin_token, monkeypat
         headers=auth(admin_token),
     )
     assert create.status_code == 201, create.text
-    schedule_id = create.json()["id"]
+    schedule_id = create.json()["data"]["id"]
 
     first = client.post(
         f"/api/v1/bi/delivery/schedules/{schedule_id}/send-now",
         headers=auth(admin_token),
     )
     assert first.status_code == 200, first.text
-    first_data = first.json()
+    first_data = first.json()["data"]
     assert first_data["skipped_no_changes"] is False
     assert first_data["diff"]["has_changes"] is True
     assert send_calls["email"] == 1
@@ -215,7 +215,7 @@ def test_bi_delivery_send_only_on_change_and_diff(client, admin_token, monkeypat
         headers=auth(admin_token),
     )
     assert second.status_code == 200, second.text
-    second_data = second.json()
+    second_data = second.json()["data"]
     assert second_data["skipped_no_changes"] is True
     assert second_data["results"]["email"] == "skipped_no_changes"
     assert send_calls["email"] == 1
@@ -230,7 +230,7 @@ def test_bi_delivery_send_only_on_change_and_diff(client, admin_token, monkeypat
         headers=auth(admin_token),
     )
     assert third.status_code == 200, third.text
-    third_data = third.json()
+    third_data = third.json()["data"]
     assert third_data["skipped_no_changes"] is False
     assert third_data["diff"]["has_changes"] is True
     assert third_data["diff"]["added_rows"] >= 1
@@ -241,7 +241,7 @@ def test_bi_delivery_send_only_on_change_and_diff(client, admin_token, monkeypat
         headers=auth(admin_token),
     )
     assert diff_now.status_code == 200, diff_now.text
-    assert diff_now.json()["diff"]["has_changes"] is False
+    assert diff_now.json()["data"]["diff"]["has_changes"] is False
 
 
 def test_bi_delivery_diff_unknown_schedule_returns_404(client, admin_token):
@@ -267,11 +267,11 @@ def test_bi_delivery_delete_schedule(client, admin_token):
         headers=auth(admin_token),
     )
     assert created.status_code == 201, created.text
-    schedule_id = created.json()["id"]
+    schedule_id = created.json()["data"]["id"]
 
     deleted = client.delete(f"/api/v1/bi/delivery/schedules/{schedule_id}", headers=auth(admin_token))
     assert deleted.status_code == 200
-    assert deleted.json().get("ok") is True
+    assert deleted.json()["data"].get("ok") is True
 
     diff = client.get(f"/api/v1/bi/delivery/schedules/{schedule_id}/diff", headers=auth(admin_token))
     assert diff.status_code == 404

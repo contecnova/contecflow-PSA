@@ -40,6 +40,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse, APIResponse
 from app.services import revenue_service as svc
 
 router = APIRouter(tags=["Revenue Recognition"])
@@ -54,7 +55,7 @@ def list_contracts(
     current_user: User = Depends(get_current_user),
 ):
     contracts = svc.list_contracts(db, project_id=project_id)
-    return [svc._serialize_contract(c) for c in contracts]
+    return APIListResponse.ok(items=[svc._serialize_contract(c) for c in contracts])
 
 
 @router.post("/contracts", summary="Crear contrato ASC 606")
@@ -64,7 +65,7 @@ def create_contract(
     current_user: User = Depends(require_any_manager),
 ):
     c = svc.create_contract(db, organization_id=current_user.organization_id, data=payload)
-    return svc._serialize_contract(c)
+    return APIResponse.ok(data=svc._serialize_contract(c))
 
 
 @router.get("/contracts/{contract_id}", summary="Detalle de contrato ASC 606")
@@ -74,7 +75,7 @@ def get_contract(
     current_user: User = Depends(get_current_user),
 ):
     c = svc.get_contract(db, contract_id)
-    return svc._serialize_contract(c)
+    return APIResponse.ok(data=svc._serialize_contract(c))
 
 
 @router.patch("/contracts/{contract_id}", summary="Actualizar contrato ASC 606")
@@ -85,7 +86,7 @@ def update_contract(
     current_user: User = Depends(require_any_manager),
 ):
     c = svc.update_contract(db, contract_id, payload)
-    return svc._serialize_contract(c)
+    return APIResponse.ok(data=svc._serialize_contract(c))
 
 
 @router.delete("/contracts/{contract_id}", summary="Eliminar contrato ASC 606")
@@ -96,7 +97,7 @@ def delete_contract(
 ):
     enforce_abac(db, current_user, "revenue_contract", contract_id, action="delete")
     svc.delete_contract(db, contract_id)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── Obligations ────────────────────────────────────────────────────────────────
@@ -108,7 +109,7 @@ def list_obligations(
     current_user: User = Depends(get_current_user),
 ):
     obs = svc.list_obligations(db, contract_id)
-    return [svc._serialize_obligation(ob) for ob in obs]
+    return APIListResponse.ok(items=[svc._serialize_obligation(ob) for ob in obs])
 
 
 @router.post("/contracts/{contract_id}/obligations", summary="Crear obligación de desempeño")
@@ -119,7 +120,7 @@ def create_obligation(
     current_user: User = Depends(require_any_manager),
 ):
     ob = svc.create_obligation(db, contract_id, payload)
-    return svc._serialize_obligation(ob)
+    return APIResponse.ok(data=svc._serialize_obligation(ob))
 
 
 @router.patch("/obligations/{obligation_id}", summary="Actualizar obligación de desempeño")
@@ -130,7 +131,7 @@ def update_obligation(
     current_user: User = Depends(require_any_manager),
 ):
     ob = svc.update_obligation(db, obligation_id, payload)
-    return svc._serialize_obligation(ob)
+    return APIResponse.ok(data=svc._serialize_obligation(ob))
 
 
 @router.delete("/obligations/{obligation_id}", summary="Eliminar obligación de desempeño")
@@ -141,7 +142,7 @@ def delete_obligation(
 ):
     enforce_abac(db, current_user, "revenue_obligation", obligation_id, action="delete")
     svc.delete_obligation(db, obligation_id)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── Entries ────────────────────────────────────────────────────────────────────
@@ -155,7 +156,7 @@ def list_entries(
     current_user: User = Depends(get_current_user),
 ):
     entries = svc.list_entries(db, contract_id=contract_id, year=year, month=month)
-    return [svc._serialize_entry(e) for e in entries]
+    return APIListResponse.ok(items=[svc._serialize_entry(e) for e in entries])
 
 
 @router.post("/entries/{entry_id}/reverse", summary="Revertir entrada contable")
@@ -165,7 +166,7 @@ def reverse_entry(
     current_user: User = Depends(require_any_manager),
 ):
     rev = svc.reverse_entry(db, entry_id, current_user.id)
-    return svc._serialize_entry(rev)
+    return APIResponse.ok(data=svc._serialize_entry(rev))
 
 
 # ── Period Close ───────────────────────────────────────────────────────────────
@@ -176,7 +177,7 @@ def list_period_closes(
     current_user: User = Depends(get_current_user),
 ):
     closes = svc.list_period_closes(db)
-    return [svc._serialize_period_close(pc) for pc in closes]
+    return APIListResponse.ok(items=[svc._serialize_period_close(pc) for pc in closes])
 
 
 @router.post("/period-closes", summary="Cerrar período contable")
@@ -192,7 +193,7 @@ def close_period(
         from fastapi import HTTPException
         raise HTTPException(400, "Se requieren year y month")
     pc = svc.close_period(db, current_user.organization_id, int(year), int(month), current_user.id, notes)
-    return svc._serialize_period_close(pc)
+    return APIResponse.ok(data=svc._serialize_period_close(pc))
 
 
 @router.delete("/period-closes/{year}/{month}", summary="Reabrir período contable")
@@ -204,7 +205,7 @@ def reopen_period(
 ):
     enforce_abac(db, current_user, "revenue_period_close", f"{year}-{month}", action="delete")
     svc.reopen_period(db, current_user.organization_id, year, month)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── Manual recognition trigger ─────────────────────────────────────────────────
@@ -220,7 +221,7 @@ def run_monthly(
     year  = int(payload.get("year",  today.year))
     month = int(payload.get("month", today.month))
     result = svc.run_monthly_recognition(db, year, month, user_id=current_user.id)
-    return result
+    return APIResponse.ok(data=result)
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────
@@ -234,4 +235,4 @@ def asc606_dashboard(
 ):
     from datetime import date
     y = year or date.today().year
-    return svc.get_asc606_dashboard(db, y, months)
+    return APIResponse.ok(data=svc.get_asc606_dashboard(db, y, months))

@@ -25,7 +25,7 @@ def _make_active_cycle_with_reviews(client, admin_token, db, *, end_in_days=3, n
     cid = client.post("/api/v1/performance/cycles",
                       headers=auth(admin_token),
                       json={"name": f"C-end{end_in_days}-{suffix}",
-                            "end_date": end_date}).json()["id"]
+                            "end_date": end_date}).json()["data"]["id"]
     client.post(f"/api/v1/performance/cycles/{cid}/activate",
                 headers=auth(admin_token))
     # Creamos N pares (ids únicos por ciclo) y los enlazamos a un subject
@@ -63,7 +63,7 @@ def test_reminders_created_for_cycles_closing_soon(client, admin_token, db):
     res = client.post("/api/v1/performance/admin/run-reminders",
                       headers=auth(admin_token))
     assert res.status_code == 200
-    body = res.json()
+    body = res.json()["data"]
     assert body["cycles_processed"] >= 1
     assert body["reminders_sent"] == 3  # uno por reviewer pendiente
 
@@ -82,11 +82,11 @@ def test_reminders_dedup_within_window(client, admin_token, db):
     _make_active_cycle_with_reviews(client, admin_token, db, end_in_days=2, n_reviews=2)
 
     first = client.post("/api/v1/performance/admin/run-reminders",
-                        headers=auth(admin_token)).json()
+                        headers=auth(admin_token)).json()["data"]
     assert first["reminders_sent"] == 2
     # Segunda corrida inmediata: todos deduplicados
     second = client.post("/api/v1/performance/admin/run-reminders",
-                         headers=auth(admin_token)).json()
+                         headers=auth(admin_token)).json()["data"]
     assert second["reminders_sent"] == 0
     assert second["reminders_skipped_dedup"] == 2
 
@@ -97,7 +97,7 @@ def test_reminders_skip_far_future_cycles(client, admin_token, db):
     _make_active_cycle_with_reviews(client, admin_token, db, end_in_days=30, n_reviews=2)
 
     body = client.post("/api/v1/performance/admin/run-reminders",
-                       headers=auth(admin_token)).json()
+                       headers=auth(admin_token)).json()["data"]
     assert body["reminders_sent"] == 0
 
 
@@ -117,7 +117,7 @@ def test_cycle_kpis_basic(client, admin_token, db):
     res = client.get(f"/api/v1/performance/cycles/{cid}/kpis",
                      headers=auth(admin_token))
     assert res.status_code == 200
-    body = res.json()
+    body = res.json()["data"]
     assert body["total_reviews"] == 4
     assert body["submitted"] == 1
     assert body["pending"] == 3
@@ -136,7 +136,7 @@ def test_org_kpis_aggregate_active_cycles(client, admin_token, db):
 
     res = client.get("/api/v1/performance/kpis", headers=auth(admin_token))
     assert res.status_code == 200
-    body = res.json()
+    body = res.json()["data"]
     assert body["active_cycles"] >= 2
     assert body["total_reviews_active"] == 4
     assert body["pending_reviews_active"] == 4

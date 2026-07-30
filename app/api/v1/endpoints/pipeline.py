@@ -10,7 +10,7 @@ from app.services import pipeline_service
 from app.services.pipeline_service import STAGE_LABELS, serialize_opportunity as _opp_out
 from app.services import proposal_service as proposal_svc
 from app.schemas.pipeline import OpportunityIn, OpportunityUpdate, PipelineActivityIn as ActivityIn, StageConfigIn
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter()
 
@@ -46,7 +46,7 @@ def get_pipeline(
             "weighted_revenue": sum(o["weighted_revenue"] for o in stage_opps),
         }
     total_pipeline = sum(o["weighted_revenue"] for o in [_opp_out(op) for op in opps] if o["stage"] not in ["won", "lost", "cancelled"])
-    return {
+    return APIResponse.ok(data={
         "stages": stages,
         "summary": {
             "total_opportunities": len(opps),
@@ -55,7 +55,7 @@ def get_pipeline(
             "won_ytd": sum((o.expected_revenue or 0) for o in opps if o.stage == "won"),
             "win_rate": round(sum(1 for o in opps if o.stage == "won") / max(sum(1 for o in opps if o.stage in ["won", "lost"]), 1) * 100, 1),
         }
-    }
+    })
 
 
 @router.post("", summary="Crear oportunidad")
@@ -65,7 +65,7 @@ def create_opportunity(
     current_user: User = Depends(get_current_user),
 ):
     opp = pipeline_service.create_opportunity(db, current_user, payload.model_dump())
-    return _opp_out(opp)
+    return APIResponse.ok(data=_opp_out(opp))
 
 
 @router.patch("/{opp_id}", summary="Actualizar oportunidad")
@@ -82,7 +82,7 @@ def update_opportunity(
         new_stage=new_stage,
         explicit_probability=payload.probability,
     )
-    return _opp_out(opp)
+    return APIResponse.ok(data=_opp_out(opp))
 
 
 @router.delete("/{opp_id}", summary="Eliminar oportunidad")
@@ -92,7 +92,7 @@ def delete_opportunity(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "opportunity", opp_id, action="delete")
-    return pipeline_service.delete_opportunity(db, current_user, opp_id)
+    return APIResponse.ok(data=pipeline_service.delete_opportunity(db, current_user, opp_id))
 
 
 @router.get("/{opp_id}/activities", summary="Actividades de una oportunidad")
@@ -118,7 +118,7 @@ def add_activity(
     current_user: User = Depends(get_current_user),
 ):
     act = pipeline_service.add_activity(db, current_user, opp_id, payload.type, payload.content)
-    return {"id": act.id, "message": "Actividad añadida"}
+    return APIResponse.ok(data={"id": act.id, "message": "Actividad añadida"})
 
 @router.post("/{opp_id}/convert", summary="Convertir oportunidad ganada a proyecto")
 def convert_opportunity_to_project(
@@ -129,7 +129,7 @@ def convert_opportunity_to_project(
     """Crea un proyecto a partir de los datos de la oportunidad y vincula ambos.
     También crea automáticamente un RevenueContract ASC 606 si el módulo está disponible.
     """
-    return pipeline_service.convert_opportunity_to_project(db, current_user, opp_id)
+    return APIResponse.ok(data=pipeline_service.convert_opportunity_to_project(db, current_user, opp_id))
 
 
 # ── Proposals ─────────────────────────────────────────────────────────────────
@@ -147,13 +147,13 @@ def generate_proposal(
         user_id=current_user.id,
         extra_vars=payload.get("extra_vars"),
     )
-    return {
+    return APIResponse.ok(data={
         "id": opp.id,
         "proposal_content": opp.proposal_content,
         "proposal_status": "generated",
         "proposal_generated_at": str(opp.proposal_generated_at)[:16] if opp.proposal_generated_at else None,
         "message": "Propuesta generada correctamente",
-    }
+    })
 
 
 @router.post("/{opp_id}/mark-proposal-sent", summary="Marcar propuesta como enviada al cliente")
@@ -163,12 +163,12 @@ def mark_proposal_sent(
     current_user: User = Depends(get_current_user),
 ):
     opp = proposal_svc.mark_proposal_sent(db, opp_id)
-    return {
+    return APIResponse.ok(data={
         "id": opp.id,
         "proposal_status": "sent",
         "proposal_sent_at": str(opp.proposal_sent_at)[:16] if opp.proposal_sent_at else None,
         "message": "Propuesta marcada como enviada",
-    }
+    })
 
 
 @router.get("/{opp_id}/proposal", summary="Obtener contenido de la propuesta generada")
@@ -178,13 +178,13 @@ def get_proposal(
     current_user: User = Depends(get_current_user),
 ):
     opp = proposal_svc.get_opportunity_by_id(db, opp_id)
-    return {
+    return APIResponse.ok(data={
         "id": opp.id,
         "proposal_content": opp.proposal_content,
         "proposal_template_id": opp.proposal_template_id,
         "proposal_generated_at": str(opp.proposal_generated_at)[:16] if opp.proposal_generated_at else None,
         "proposal_sent_at": str(opp.proposal_sent_at)[:16] if opp.proposal_sent_at else None,
-    }
+    })
 
 
 # ── Proposal Templates ─────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ def create_template(
     current_user: User = Depends(require_any_manager),
 ):
     t = proposal_svc.create_template(db, current_user.organization_id, current_user.id, payload)
-    return proposal_svc.serialize_template(t)
+    return APIResponse.ok(data=proposal_svc.serialize_template(t))
 
 
 @router.patch("/proposals/templates/{template_id}", summary="Actualizar plantilla de propuesta")
@@ -217,7 +217,7 @@ def update_template(
     current_user: User = Depends(require_any_manager),
 ):
     t = proposal_svc.update_template(db, template_id, payload)
-    return proposal_svc.serialize_template(t)
+    return APIResponse.ok(data=proposal_svc.serialize_template(t))
 
 
 @router.delete("/proposals/templates/{template_id}", summary="Desactivar plantilla de propuesta")
@@ -228,7 +228,7 @@ def delete_template(
 ):
     enforce_abac(db, current_user, "proposal_template", template_id, action="delete")
     proposal_svc.delete_template(db, template_id)
-    return {"ok": True, "message": "Plantilla desactivada correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Plantilla desactivada correctamente"})
 
 
 # ── Weighted Forecast ─────────────────────────────────────────────────────────
@@ -288,11 +288,11 @@ def get_weighted_forecast(
     ]
     total_weighted = sum(f["weighted_revenue"] for f in forecast_list)
 
-    return {
+    return APIResponse.ok(data={
         "forecast": forecast_list,
         "unscheduled": {k: round(v, 2) if isinstance(v, float) else v for k, v in unscheduled.items()},
         "total_weighted_pipeline": round(total_weighted, 2),
-    }
+    })
 
 
 # ── Configurable Stage Management ─────────────────────────────────────────────
@@ -308,13 +308,13 @@ def list_stage_configs(
     current_user: User = Depends(get_current_user),
 ):
     configs = pipeline_service.list_stage_configs(db)
-    # El test espera una lista directa, no un dict
-    return [{
+    items = [{
         "id": c.id, "stage_key": c.stage_key, "label": c.label,
         "description": c.description, "color": c.color, "order": c.order,
         "probability_default": c.probability_default,
         "is_terminal": c.is_terminal, "is_won": c.is_won,
     } for c in configs]
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 
@@ -327,7 +327,7 @@ def create_stage_config(
 ):
     try:
         stage = pipeline_service.create_stage_config(db, payload.model_dump())
-        return {"ok": True, "id": stage.id, "stage_key": stage.stage_key}
+        return APIResponse.ok(data={"ok": True, "id": stage.id, "stage_key": stage.stage_key})
     except Exception as e:
         # Si es duplicado, devolver 400 (no 409) para cumplir el contrato de test
         from fastapi import HTTPException
@@ -345,7 +345,7 @@ def update_stage_config(
     current_user: User = Depends(require_admin),
 ):
     stage = pipeline_service.update_stage_config(db, stage_id, payload.model_dump(exclude_unset=True))
-    return {"ok": True, "id": stage.id}
+    return APIResponse.ok(data={"ok": True, "id": stage.id})
 
 
 
