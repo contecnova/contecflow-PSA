@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.abac_enforce import enforce_abac
 from app.core.config import settings
 from app.core.deps import get_current_user
+from app.core.responses import APIListResponse, APIResponse
 from app.core.security import create_access_token, decode_token
 from app.db.session import get_db, SessionLocal
 from app.models.user import User
@@ -68,7 +69,7 @@ def phase2_revenue_forecast(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.ml_forecast_revenue(db, organization_id=org_id, months_ahead=months_ahead)
+    return APIResponse.ok(data=svc.ml_forecast_revenue(db, organization_id=org_id, months_ahead=months_ahead))
 
 
 @router.get("/bi/intelligence/ml/anomalies/revenue", summary="Detección de anomalías de revenue BI Intelligence")
@@ -78,7 +79,7 @@ def phase2_revenue_anomalies(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.ml_detect_revenue_anomalies(db, organization_id=org_id, z_threshold=z_threshold)
+    return APIResponse.ok(data=svc.ml_detect_revenue_anomalies(db, organization_id=org_id, z_threshold=z_threshold))
 
 
 @router.get("/bi/intelligence/connectors", summary="Estado conectores BI Intelligence")
@@ -87,7 +88,7 @@ def phase2_connectors(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return {"items": svc.get_connectors(db, organization_id=org_id)}
+    return APIResponse.ok(data={"items": svc.get_connectors(db, organization_id=org_id)})
 
 
 @router.patch("/bi/intelligence/connectors/{connector}", summary="Activar/desactivar conector BI Intelligence")
@@ -105,7 +106,7 @@ def phase2_patch_connector(
             connector=connector,
             payload=payload.model_dump(),
         )
-        return {"ok": True, "connector": connector, "config": data}
+        return APIResponse.ok(data={"ok": True, "connector": connector, "config": data})
     except ValueError:
         raise HTTPException(status_code=404, detail="Conector no soportado")
 
@@ -118,7 +119,7 @@ def phase2_sync_connector(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.run_connector_sync(db, organization_id=org_id, connector=connector)
+        return APIResponse.ok(data=svc.run_connector_sync(db, organization_id=org_id, connector=connector))
     except ValueError:
         raise HTTPException(status_code=404, detail="Conector no soportado")
 
@@ -143,7 +144,7 @@ def enqueue_connector_sync(
     task = sync_connector_data.apply_async(
         kwargs={"connector_id": connector, "org_id": org_id or None}
     )
-    return {"queued": True, "task_id": task.id, "connector": connector}
+    return APIResponse.ok(data={"queued": True, "task_id": task.id, "connector": connector})
 
 
 @router.get(
@@ -162,7 +163,7 @@ def connector_sync_log(
     """
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.get_connector_sync_log(db, organization_id=org_id, connector=connector, limit=limit)
+        return APIResponse.ok(data=svc.get_connector_sync_log(db, organization_id=org_id, connector=connector, limit=limit))
     except ValueError:
         raise HTTPException(status_code=404, detail="Conector no soportado")
 
@@ -170,7 +171,7 @@ def connector_sync_log(
 @router.get("/bi/intelligence/reports/presets", summary="Presets de Report Builder avanzado BI Intelligence")
 def phase2_report_presets(current_user: User = Depends(get_current_user)):
     _ = current_user
-    return {"items": svc.list_advanced_report_presets()}
+    return APIListResponse.ok(items=svc.list_advanced_report_presets())
 
 
 @router.post("/bi/intelligence/reports/preview", summary="Preview de preset avanzado BI Intelligence")
@@ -181,13 +182,13 @@ def phase2_report_preview(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.preview_advanced_report(
+        return APIResponse.ok(data=svc.preview_advanced_report(
             db,
             organization_id=org_id,
             current_user=current_user,
             preset_id=payload.preset_id,
             limit=payload.limit,
-        )
+        ))
     except ValueError:
         raise HTTPException(status_code=404, detail="Preset no encontrado")
 
@@ -198,7 +199,7 @@ def phase2_report_preview(
 )
 def phase2_visual_query_builder_schema(current_user: User = Depends(get_current_user)):
     _ = current_user
-    return svc.get_visual_query_builder_schema()
+    return APIResponse.ok(data=svc.get_visual_query_builder_schema())
 
 
 @router.post(
@@ -211,7 +212,7 @@ def phase2_visual_query_builder_preview(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return svc.preview_visual_query(
+        return APIResponse.ok(data=svc.preview_visual_query(
             db,
             current_user=current_user,
             entity=payload.entity,
@@ -220,7 +221,7 @@ def phase2_visual_query_builder_preview(
             sort_column=payload.sort.column if payload.sort else None,
             sort_direction=payload.sort.direction if payload.sort else "asc",
             limit=payload.limit,
-        )
+        ))
     except ValueError as exc:
         if str(exc) == "entity_not_found":
             raise HTTPException(status_code=404, detail="Entidad no soportada") from exc
@@ -241,7 +242,7 @@ def phase2_visual_query_builder_templates(
         organization_id=org_id,
         user_id=str(current_user.id),
     )
-    return {"items": templates, "count": len(templates)}
+    return APIListResponse.ok(items=templates)
 
 
 @router.post(
@@ -266,7 +267,7 @@ def phase2_save_visual_query_builder_template(
         if str(exc) == "entity_not_found":
             raise HTTPException(status_code=404, detail="Entidad no soportada") from exc
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"ok": True, "item": item}
+    return APIResponse.ok(data={"ok": True, "item": item})
 
 
 @router.delete(
@@ -291,7 +292,7 @@ def phase2_delete_visual_query_builder_template(
         if str(exc) == "template_not_found":
             raise HTTPException(status_code=404, detail="Plantilla no encontrada") from exc
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"ok": True, "template_id": template_id}
+    return APIResponse.ok(data={"ok": True, "template_id": template_id})
 
 
 @router.get("/bi/intelligence/delivery/overview", summary="Overview de scheduled delivery BI Intelligence")
@@ -300,7 +301,7 @@ def phase2_delivery_overview(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.delivery_overview(db, organization_id=org_id)
+    return APIResponse.ok(data=svc.delivery_overview(db, organization_id=org_id))
 
 
 @router.post("/bi/intelligence/delivery/run/{report_id}", summary="Ejecutar envío de informe programado ahora")
@@ -310,7 +311,7 @@ def phase2_delivery_run_now(
     current_user: User = Depends(get_current_user),
 ):
     _ = current_user
-    return svc.run_scheduled_delivery_now(db, report_id=report_id)
+    return APIResponse.ok(data=svc.run_scheduled_delivery_now(db, report_id=report_id))
 
 
 # ── BI Phase 2: ML enhanced endpoints ─────────────────────────────────────────
@@ -330,13 +331,13 @@ def phase2_timeseries_forecast(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.ml_forecast_prophet(
+    return APIResponse.ok(data=svc.ml_forecast_prophet(
         db,
         organization_id=org_id,
         metric_key=metric_key,
         periods=periods,
         frequency=frequency,
-    )
+    ))
 
 
 @router.get("/bi/intelligence/ml/anomalies/multivariate", summary="Detección de anomalías multivariante (IsolationForest)")
@@ -346,7 +347,7 @@ def phase2_multivariate_anomalies(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.ml_detect_anomalies_multivariate(db, organization_id=org_id, contamination=contamination)
+    return APIResponse.ok(data=svc.ml_detect_anomalies_multivariate(db, organization_id=org_id, contamination=contamination))
 
 
 @router.get("/bi/intelligence/ml/predict/overrun", summary="Predicción de overrun de proyectos (LightGBM / heurística)")
@@ -355,7 +356,7 @@ def phase2_predict_overrun(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.ml_predict_project_overrun_lgbm(db, organization_id=org_id)
+    return APIResponse.ok(data=svc.ml_predict_project_overrun_lgbm(db, organization_id=org_id))
 
 
 # ── BI Phase 2: ETL connector config + sync ────────────────────────────────────
@@ -367,7 +368,7 @@ def phase2_get_connector_config(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.get_connector_config(db, organization_id=org_id, connector=connector)
+    return APIResponse.ok(data=svc.get_connector_config(db, organization_id=org_id, connector=connector))
 
 
 @router.put("/bi/intelligence/connectors/{connector}/config", summary="Guardar configuración de conector (ETL)")
@@ -384,7 +385,7 @@ def phase2_save_connector_config(
         connector=connector,
         config=payload.config,
     )
-    return {"ok": True, "connector": connector, "config": saved}
+    return APIResponse.ok(data={"ok": True, "connector": connector, "config": saved})
 
 
 @router.post("/bi/intelligence/connectors/{connector}/etl-sync", summary="Ejecutar sincronización ETL completa del conector")
@@ -396,7 +397,7 @@ def phase2_etl_sync(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.run_etl_connector_sync(db, organization_id=org_id, connector=connector)
+        return APIResponse.ok(data=svc.run_etl_connector_sync(db, organization_id=org_id, connector=connector))
     except ValueError:
         raise HTTPException(status_code=404, detail="Conector no soportado")
 
@@ -406,10 +407,10 @@ def phase2_etl_catalog(current_user: User = Depends(get_current_user)):
     _ = current_user
     try:
         from app.integrations import bi_etl_connectors
-        return {"connectors": bi_etl_connectors.list_connectors()}
+        return APIResponse.ok(data={"connectors": bi_etl_connectors.list_connectors()})
     except Exception:
         logger.exception("Error cargando catálogo de conectores ETL")
-        return {"connectors": []}
+        return APIResponse.ok(data={"connectors": []})
 
 
 @router.get("/bi/intelligence/realtime/token", summary="Token corto para stream BI en tiempo real")
@@ -418,10 +419,10 @@ def phase2_realtime_token(current_user: User = Depends(get_current_user)):
         subject=current_user.id,
         extra={"bi_intelligence_stream": True},
     )
-    return {
+    return APIResponse.ok(data={
         "token": token,
         "stream_url": "/api/v1/bi/intelligence/realtime/stream",
-    }
+    })
 
 
 @router.websocket("/bi/intelligence/realtime/stream")
@@ -557,7 +558,7 @@ def list_delivery_schedules(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return {"items": delivery_svc.list_schedules(db, organization_id=org_id)}
+    return APIListResponse.ok(items=delivery_svc.list_schedules(db, organization_id=org_id))
 
 
 @router.get("/bi/delivery/schedules/{schedule_id}", summary="Detalle de schedule de entrega BI")
@@ -568,7 +569,7 @@ def get_delivery_schedule(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return delivery_svc.get_schedule(db, organization_id=org_id, schedule_id=schedule_id)
+        return APIResponse.ok(data=delivery_svc.get_schedule(db, organization_id=org_id, schedule_id=schedule_id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -581,7 +582,7 @@ def create_delivery_schedule(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return delivery_svc.create_schedule(
+        return APIResponse.ok(data=delivery_svc.create_schedule(
             db,
             organization_id=org_id,
             name=body.name,
@@ -595,7 +596,7 @@ def create_delivery_schedule(
             teams_webhook_url=body.teams_webhook_url,
             is_active=body.is_active,
             send_only_on_change=body.send_only_on_change,
-        )
+        ))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -609,12 +610,12 @@ def update_delivery_schedule(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return delivery_svc.update_schedule(
+        return APIResponse.ok(data=delivery_svc.update_schedule(
             db,
             organization_id=org_id,
             schedule_id=schedule_id,
             payload=body.model_dump(exclude_none=True),
-        )
+        ))
     except ValueError as exc:
         code = 404 if "not_found" in str(exc) else 422
         raise HTTPException(status_code=code, detail=str(exc)) from exc
@@ -630,7 +631,7 @@ def delete_delivery_schedule(
     org_id = getattr(current_user, "organization_id", None)
     try:
         delivery_svc.delete_schedule(db, organization_id=org_id, schedule_id=schedule_id)
-        return {"ok": True, "schedule_id": schedule_id}
+        return APIResponse.ok(data={"ok": True, "schedule_id": schedule_id})
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -643,7 +644,7 @@ def send_delivery_now(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return delivery_svc.send_schedule_now(db, organization_id=org_id, schedule_id=schedule_id)
+        return APIResponse.ok(data=delivery_svc.send_schedule_now(db, organization_id=org_id, schedule_id=schedule_id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -656,6 +657,6 @@ def get_delivery_diff(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return delivery_svc.get_schedule_report_diff(db, organization_id=org_id, schedule_id=schedule_id)
+        return APIResponse.ok(data=delivery_svc.get_schedule_report_diff(db, organization_id=org_id, schedule_id=schedule_id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

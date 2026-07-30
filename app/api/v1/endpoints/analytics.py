@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 # Legacy metrics fully migrated to MODULAR_METRICS_REGISTRY — see #109/#104.
 # New modular metrics system
@@ -798,7 +799,7 @@ def get_catalogue(current_user: User = Depends(get_current_user)):
         if cat not in result:
             result[cat] = []
         result[cat].append({"id": key, **meta})
-    return result
+    return APIResponse.ok(data=result)
 
 
 def _date_range(date_from: Optional[str], date_to: Optional[str]):
@@ -896,11 +897,11 @@ def run_query(
             "summary": {},
         }
         # No cache for empty result: avoids polluting cache with empty responses for rare tenants
-        return response
+        return APIResponse.ok(data=response)
     if not no_cache:
         cached = _cache_get(cache_key)
         if cached is not None:
-            return cached
+            return APIResponse.ok(data=cached)
 
     if metric_id in METRIC_REGISTRY:
         handler = METRIC_REGISTRY[metric_id]
@@ -941,7 +942,7 @@ def run_query(
         if not no_cache:
             ttl = _get_metric_cache_ttl(metric_id)
             _cache_set(cache_key, response, ttl_seconds=ttl)
-        return response
+        return APIResponse.ok(data=response)
 
     rows = []
 
@@ -963,7 +964,7 @@ def run_query(
     if not no_cache:
         ttl = _get_metric_cache_ttl(metric_id)
         _cache_set(cache_key, response, ttl_seconds=ttl)
-    return response
+    return APIResponse.ok(data=response)
 
 
 def _compute_summary(rows, meta=None):
@@ -980,11 +981,11 @@ def get_filter_options(
     if not no_cache:
         cached = _cache_get(cache_key)
         if cached is not None:
-            return cached
+            return APIResponse.ok(data=cached)
     response = _svc.get_filter_options_data(current_user, db)
     if not no_cache:
         _cache_set(cache_key, response, ttl_seconds=300)
-    return response
+    return APIResponse.ok(data=response)
 
 
 @router.get("/hours_by_week", summary="Horas por semana")
@@ -993,7 +994,7 @@ def hours_by_week(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_hours_by_week(weeks, current_user, db)
+    return APIResponse.ok(data=_svc.get_hours_by_week(weeks, current_user, db))
 
 
 @router.get("/utilization/advanced", summary="Utilización avanzada (actual + bookings + proyección)")
@@ -1005,7 +1006,7 @@ def advanced_utilization(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_advanced_utilization(weeks_ahead, project_id, project_type, client_id, current_user, db)
+    return APIResponse.ok(data=_svc.get_advanced_utilization(weeks_ahead, project_id, project_type, client_id, current_user, db))
 
 
 @router.get("/alerts/metric-breaches", summary="Alertas de métricas por umbral")
@@ -1015,7 +1016,7 @@ def metric_breaches(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_metric_breaches(margin_threshold_pct, top_n, current_user, db)
+    return APIResponse.ok(data=_svc.get_metric_breaches(margin_threshold_pct, top_n, current_user, db))
 
 
 # ── BI Storytelling / Ask-the-Data / OLAP ───────────────────────────────────
@@ -1033,7 +1034,7 @@ def get_narrative(
 ):
     from app.services.bi_storytelling import generate_narrative
     org_id = getattr(current_user, "organization_id", None)
-    return generate_narrative(org_id=org_id, lang=lang, force_refresh=force_refresh)
+    return APIResponse.ok(data=generate_narrative(org_id=org_id, lang=lang, force_refresh=force_refresh))
 
 
 @router.post("/ask", summary="Pregunta en lenguaje natural sobre los datos OLAP")
@@ -1044,13 +1045,13 @@ def ask_the_data(
 ):
     from app.services.ask_the_data import ask
     org_id = getattr(current_user, "organization_id", None)
-    return ask(
+    return APIResponse.ok(data=ask(
         question=payload.question,
         db=db,
         org_id=org_id,
         user_id=str(current_user.id),
         is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
-    )
+    ))
 
 
 @router.get("/olap/kpis", summary="KPIs del OLAP (DuckDB)")
@@ -1060,7 +1061,7 @@ def get_olap_kpis(
 ):
     from app.services.olap.query_engine import get_kpi_summary
     org_id = getattr(current_user, "organization_id", None)
-    return get_kpi_summary(org_id)
+    return APIResponse.ok(data=get_kpi_summary(org_id))
 
 
 @router.get("/olap/pipeline-funnel", summary="Funnel del pipeline (OLAP)")
@@ -1070,7 +1071,7 @@ def get_olap_pipeline_funnel(
 ):
     from app.services.olap.query_engine import get_pipeline_funnel
     org_id = getattr(current_user, "organization_id", None)
-    return get_pipeline_funnel(org_id)
+    return APIListResponse.ok(items=get_pipeline_funnel(org_id))
 
 
 @router.get("/olap/portfolio-health", summary="Salud del portfolio (OLAP)")
@@ -1080,7 +1081,7 @@ def get_olap_portfolio_health(
 ):
     from app.services.olap.query_engine import get_portfolio_health
     org_id = getattr(current_user, "organization_id", None)
-    return get_portfolio_health(org_id)
+    return APIListResponse.ok(items=get_portfolio_health(org_id))
 
 
 @router.get("/olap/margin-evolution", summary="Evolución del margen mensual (OLAP)")
@@ -1091,7 +1092,7 @@ def get_olap_margin_evolution(
 ):
     from app.services.olap.query_engine import get_margin_evolution
     org_id = getattr(current_user, "organization_id", None)
-    return get_margin_evolution(org_id, months)
+    return APIListResponse.ok(items=get_margin_evolution(org_id, months))
 
 
 @router.get("/olap/utilization", summary="Utilización por usuario (OLAP)")
@@ -1101,4 +1102,4 @@ def get_olap_utilization(
 ):
     from app.services.olap.query_engine import get_utilization_by_user
     org_id = getattr(current_user, "organization_id", None)
-    return get_utilization_by_user(org_id)
+    return APIListResponse.ok(items=get_utilization_by_user(org_id))

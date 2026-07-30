@@ -6,7 +6,7 @@ def test_filter_options_includes_types_and_clients(client, admin_token, db):
     """La respuesta de /filters/options incluye los campos nuevos."""
     res = client.get("/api/v1/analytics/filters/options", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "projects" in data
     assert "users" in data
     assert "departments" in data
@@ -20,7 +20,7 @@ def test_projects_by_type_metric(client, admin_token, db):
     """La métrica projects_by_type devuelve datos con type y label."""
     res = client.get("/api/v1/analytics/query/projects_by_type", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert data["metric_id"] == "projects_by_type"
     assert "rows" in data
     assert "filters" in data
@@ -38,7 +38,7 @@ def test_projects_by_type_filter_by_client(client, admin_token, db):
                      params={"client_id": "00000000-0000-0000-0000-000000000099"},
                      headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["rows"] == []
+    assert res.json()["data"]["rows"] == []
 
 
 def test_query_hours_by_person_with_project_type_filter(client, admin_token, db):
@@ -47,7 +47,7 @@ def test_query_hours_by_person_with_project_type_filter(client, admin_token, db)
                      params={"project_type": "consulting"},
                      headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "rows" in data
     assert data["filters"]["project_type"] == "consulting"
 
@@ -61,7 +61,7 @@ def test_advanced_utilization_endpoint(client, admin_token, db):
     """GET /analytics/utilization/advanced devuelve summary + team."""
     res = client.get("/api/v1/analytics/utilization/advanced", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "summary" in data
     assert "team" in data
     assert "window" in data
@@ -77,7 +77,7 @@ def test_advanced_utilization_project_type_filter(client, admin_token, db):
                      params={"project_type": "development", "weeks_ahead": 2},
                      headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert data["filters"]["project_type"] == "development"
 
 
@@ -87,7 +87,7 @@ def test_advanced_utilization_team_structure(client, admin_token, db):
                      params={"weeks_ahead": 1},
                      headers=auth(admin_token))
     assert res.status_code == 200
-    team = res.json()["team"]
+    team = res.json()["data"]["team"]
     for member in team:
         assert "user_id" in member
         assert "full_name" in member
@@ -103,7 +103,7 @@ def test_metric_breaches_returns_list(client, admin_token, db):
                      params={"margin_threshold_pct": 15.0},
                      headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "threshold" in data
     assert data["threshold"] == 15.0
     assert "items" in data

@@ -26,7 +26,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, require_admin
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.esign import ESignEnvelope, ESignProvider, ESignStatus
 from app.models.user import User
 from app.models.settings import AppSetting
@@ -145,7 +145,7 @@ def list_envelopes(
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
-@router.post("", response_model=EnvelopeOut, summary="Crear solicitud de firma")
+@router.post("", response_model=APIResponse[EnvelopeOut], summary="Crear solicitud de firma")
 def create_envelope(
     body:         EnvelopeCreate,
     db:           Session = Depends(get_db),
@@ -176,7 +176,7 @@ def create_envelope(
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
-    return esign_service.create_envelope(
+    return APIResponse.ok(data=esign_service.create_envelope(
         db,
         document_id=body.document_id,
         created_by_id=current_user.id,
@@ -186,7 +186,7 @@ def create_envelope(
         expires_days=body.expires_days,
         signers=body.signers,
         provider_result=provider_result,
-    )
+    ))
 
 
 # ── Static sub-routes (must come BEFORE /{envelope_id} to avoid capture) ─────
@@ -205,13 +205,13 @@ def esign_stats(
     ab_key = _get_esign_setting(db, "esign.adobe_sign_client_id")
     docusign_ok = bool(ds_key and ds_acc) or _docusign_configured()
     adobe_ok    = bool(ab_key) or _adobe_configured()
-    return {
+    return APIResponse.ok(data={
         **stats,
         "providers": {
             "docusign_configured": docusign_ok,
             "adobe_configured":    adobe_ok,
         },
-    }
+    })
 
 
 # ── E-firma provider configuration ───────────────────────────────────────────
@@ -244,7 +244,7 @@ def get_esign_config(
     ab_key = _get_esign_setting(db, "esign.adobe_sign_client_id")
     result["docusign_configured"] = bool(ds_key and ds_acc) or _docusign_configured()
     result["adobe_configured"]    = bool(ab_key) or _adobe_configured()
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.patch("/config", summary="Guardar configuración de proveedores de firma")
@@ -267,12 +267,12 @@ def update_esign_config(
         val = data.get(field)
         if val is not None and val != "***":
             _set_esign_setting(db, db_key, val)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── Per-envelope endpoints ────────────────────────────────────────────────────
 
-@router.get("/{envelope_id}", response_model=EnvelopeOut, summary="Detalle de solicitud")
+@router.get("/{envelope_id}", response_model=APIResponse[EnvelopeOut], summary="Detalle de solicitud")
 def get_envelope(
     envelope_id: int,
     db:          Session = Depends(get_db),
@@ -281,7 +281,7 @@ def get_envelope(
     env = esign_service.get_envelope(db, envelope_id)
     if not env:
         raise HTTPException(404, "Solicitud no encontrada")
-    return env
+    return APIResponse.ok(data=env)
 
 
 @router.patch("/{envelope_id}/status", summary="Actualizar estado (manual o desde proveedor)")
@@ -301,7 +301,7 @@ def update_status(
         raise HTTPException(404)
 
     env = esign_service.update_envelope_status(db, env, new_status)
-    return {"id": envelope_id, "status": env.status}
+    return APIResponse.ok(data={"id": envelope_id, "status": env.status})
 
 
 @router.patch("/{envelope_id}/signers/{signer_id}/signed", summary="Marcar firmante como firmado")
@@ -317,7 +317,7 @@ def mark_signer_signed(
 
     envelope = esign_service.get_envelope(db, envelope_id)
     esign_service.mark_signer_signed(db, signer, envelope)
-    return {"signer_id": signer_id, "signed": True}
+    return APIResponse.ok(data={"signer_id": signer_id, "signed": True})
 
 
 @router.delete("/{envelope_id}", summary="Anular solicitud de firma")
@@ -333,7 +333,7 @@ def void_envelope(
     if env.status == ESignStatus.completed:
         raise HTTPException(400, "No se puede anular una solicitud ya completada")
     esign_service.void_envelope(db, env)
-    return {"id": envelope_id, "status": "voided"}
+    return APIResponse.ok(data={"id": envelope_id, "status": "voided"})
 
 
 # ── Provider webhooks (DocuSign Connect / Adobe Sign Webhooks) ────────────────
@@ -507,7 +507,7 @@ def docusign_oauth_authorize(
     redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/docusign/callback"
 
     url = docusign_auth_url(integration_key, redirect_uri, is_demo=is_demo)
-    return {"authorization_url": url, "redirect_uri": redirect_uri}
+    return APIResponse.ok(data={"authorization_url": url, "redirect_uri": redirect_uri})
 
 
 @router.get("/auth/docusign/callback", summary="Callback OAuth DocuSign — intercambio de código")
@@ -539,7 +539,7 @@ def docusign_oauth_callback(
         _set_esign_setting(db, "esign.docusign_refresh_token", result["refresh_token"])
 
     _logger.info("[eSign] DocuSign OAuth completed; tokens stored")
-    return {"ok": True, "message": "DocuSign autorizado correctamente. Tokens almacenados."}
+    return APIResponse.ok(data={"ok": True, "message": "DocuSign autorizado correctamente. Tokens almacenados."})
 
 
 @router.get("/auth/adobe/authorize", summary="Iniciar OAuth con Adobe Sign")
@@ -561,7 +561,7 @@ def adobe_oauth_authorize(
     redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/adobe/callback"
 
     url = adobe_sign_auth_url(client_id, redirect_uri, base_url=base_url)
-    return {"authorization_url": url, "redirect_uri": redirect_uri}
+    return APIResponse.ok(data={"authorization_url": url, "redirect_uri": redirect_uri})
 
 
 @router.get("/auth/adobe/callback", summary="Callback OAuth Adobe Sign — intercambio de código")
@@ -595,7 +595,7 @@ def adobe_oauth_callback(
         _set_esign_setting(db, "esign.adobe_sign_base_url", result["api_access_point"])
 
     _logger.info("[eSign] Adobe Sign OAuth completed; tokens stored")
-    return {"ok": True, "message": "Adobe Sign autorizado correctamente. Tokens almacenados."}
+    return APIResponse.ok(data={"ok": True, "message": "Adobe Sign autorizado correctamente. Tokens almacenados."})
 
 
 @router.post("/auth/docusign/store-token", summary="Almacenar token DocuSign manualmente")
@@ -612,7 +612,7 @@ def store_docusign_token(
     _set_esign_setting(db, "esign.docusign_access_token", access_token)
     if refresh_token:
         _set_esign_setting(db, "esign.docusign_refresh_token", refresh_token)
-    return {"ok": True, "message": "Token DocuSign almacenado."}
+    return APIResponse.ok(data={"ok": True, "message": "Token DocuSign almacenado."})
 
 
 @router.post("/auth/adobe/store-token", summary="Almacenar token Adobe Sign manualmente")
@@ -629,4 +629,4 @@ def store_adobe_token(
     _set_esign_setting(db, "esign.adobe_sign_access_token", access_token)
     if refresh_token:
         _set_esign_setting(db, "esign.adobe_sign_refresh_token", refresh_token)
-    return {"ok": True, "message": "Token Adobe Sign almacenado."}
+    return APIResponse.ok(data={"ok": True, "message": "Token Adobe Sign almacenado."})

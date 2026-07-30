@@ -1,7 +1,6 @@
 """Tests: BI ETL Connector Celery pipeline — sync_connector_data task,
 sync log persistence, async enqueue endpoint, and log endpoint.
 """
-import pytest
 from tests.conftest import auth
 
 
@@ -25,7 +24,7 @@ def test_sync_log_returns_empty_initially(client, admin_token):
         headers=auth(admin_token),
     )
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "entries" in data
     assert isinstance(data["entries"], list)
 
@@ -42,7 +41,7 @@ def test_sync_log_limit_param(client, admin_token):
         headers=auth(admin_token),
     )
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert data["connector"] == "zendesk"
     assert len(data["entries"]) <= 10
 
@@ -74,7 +73,7 @@ def test_enqueue_connector_sync_queues_task(client, admin_token, monkeypatch):
     # Either 200 (queued) or 503 (Redis not available in test env) is acceptable
     assert res.status_code in (200, 503)
     if res.status_code == 200:
-        data = res.json()
+        data = res.json()["data"]
         assert data["connector"] == "salesforce"
         assert "task_id" in data
 

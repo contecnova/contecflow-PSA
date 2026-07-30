@@ -14,14 +14,14 @@ def test_delete_report_catalog_item(client, admin_token, db):
         },
     )
     assert created.status_code in (200, 201)
-    report_id = created.json()["id"]
+    report_id = created.json()["data"]["id"]
 
     deleted = client.delete(
         f"/api/v1/billing-reports/report-catalog/{report_id}",
         headers=auth(admin_token),
     )
     assert deleted.status_code == 200
-    assert deleted.json()["ok"] is True
+    assert deleted.json()["data"]["ok"] is True
 
     deleted_again = client.delete(
         f"/api/v1/billing-reports/report-catalog/{report_id}",
@@ -41,14 +41,14 @@ def test_delete_automation_workflow(client, admin_token, db):
         },
     )
     assert created.status_code in (200, 201)
-    wf_id = created.json()["id"]
+    wf_id = created.json()["data"]["id"]
 
     deleted = client.delete(
         f"/api/v1/billing-reports/automation-workflows/{wf_id}",
         headers=auth(admin_token),
     )
     assert deleted.status_code == 200
-    assert deleted.json()["ok"] is True
+    assert deleted.json()["data"]["ok"] is True
 
     listed = client.get("/api/v1/billing-reports/automation-workflows", headers=auth(admin_token))
     assert listed.status_code == 200
@@ -69,14 +69,14 @@ def test_delete_scheduled_report(client, admin_token, db):
         },
     )
     assert created.status_code in (200, 201)
-    report_id = created.json()["id"]
+    report_id = created.json()["data"]["id"]
 
     deleted = client.delete(
         f"/api/v1/billing-reports/scheduled-reports/{report_id}",
         headers=auth(admin_token),
     )
     assert deleted.status_code == 200
-    assert deleted.json()["ok"] is True
+    assert deleted.json()["data"]["ok"] is True
 
     listed = client.get("/api/v1/billing-reports/scheduled-reports", headers=auth(admin_token))
     assert listed.status_code == 200

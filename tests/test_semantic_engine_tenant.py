@@ -53,7 +53,7 @@ def test_list_profiles_with_users_tenant_filter(db):
         headers={"Authorization": f"Bearer {token1}"}
     )
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["items"]
     # Solo debe aparecer el perfil de user1
     assert any(p["user_id"] == "u1" for p in data)
     assert not any(p["user_id"] == "u2" for p in data)
@@ -65,6 +65,6 @@ def test_list_profiles_with_users_tenant_filter(db):
         headers={"Authorization": f"Bearer {token2}"}
     )
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["items"]
     assert any(p["user_id"] == "u2" for p in data)
     assert not any(p["user_id"] == "u1" for p in data)

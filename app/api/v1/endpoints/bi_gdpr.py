@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
+from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_gdpr_service as svc
@@ -69,7 +70,7 @@ def record_consent(
     org_id = getattr(current_user, "organization_id", None)
     consented = body.consented if body.consented is not None else bool(body.granted)
     ip = request.client.host if request.client else None
-    return svc.record_consent(
+    return APIResponse.ok(data=svc.record_consent(
         db,
         user_id=body.user_id,
         consented=consented,
@@ -77,7 +78,7 @@ def record_consent(
         purpose=body.purpose or "analytics",
         channel=body.channel or "web",
         ip_address=ip,
-    )
+    ))
 
 
 @router.get("/bi/gdpr/consent/{user_id}", summary="Obtener estado de consentimiento de un usuario")
@@ -91,8 +92,8 @@ def get_consent(
     org_id = getattr(current_user, "organization_id", None)
     result = svc.get_consent(db, user_id=user_id, org_id=org_id)
     if result is None:
-        return {"user_id": user_id, "consented": None, "updated_at": None}
-    return result
+        return APIResponse.ok(data={"user_id": user_id, "consented": None, "updated_at": None})
+    return APIResponse.ok(data=result)
 
 
 @router.get("/bi/gdpr/consent/{user_id}/history", summary="Historial de consentimiento de un usuario")
@@ -105,7 +106,7 @@ def get_consent_history(
 ):
     org_id = getattr(current_user, "organization_id", None)
     history = svc.get_consent_history(db, user_id=user_id, org_id=org_id)
-    return {"user_id": user_id, "history": history, "count": len(history)}
+    return APIResponse.ok(data={"user_id": user_id, "history": history, "count": len(history)})
 
 
 @router.get("/bi/gdpr/consent", summary="Obtener consentimiento por query param (compat)")
@@ -120,10 +121,10 @@ def get_consent_compat(
     if user_id:
         result = svc.get_consent(db, user_id=user_id, org_id=org_id)
         if result is None:
-            return {"user_id": user_id, "consented": None, "updated_at": None}
-        return result
+            return APIResponse.ok(data={"user_id": user_id, "consented": None, "updated_at": None})
+        return APIResponse.ok(data=result)
     items = svc.list_consents(db, org_id=org_id)
-    return {"items": items, "count": len(items)}
+    return APIListResponse.ok(items=items)
 
 
 @router.get("/bi/gdpr/consents", summary="Listar todos los consentimientos (admin)")
@@ -135,7 +136,7 @@ def list_consents(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_consents(db, org_id=org_id)
-    return {"items": items, "count": len(items)}
+    return APIListResponse.ok(items=items)
 
 
 @router.get("/bi/gdpr/stats", summary="Resumen GDPR: DSRs pendientes, vencidos, consentimientos")
@@ -146,7 +147,7 @@ def gdpr_stats(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.get_dsr_stats(db, org_id=org_id)
+    return APIResponse.ok(data=svc.get_dsr_stats(db, org_id=org_id))
 
 
 @router.get("/bi/gdpr/dsr/{dsr_id}", summary="Obtener una DSR por ID")
@@ -161,7 +162,7 @@ def get_dsr(
     dsr = svc.get_dsr(db, dsr_id=dsr_id, org_id=org_id)
     if not dsr:
         raise HTTPException(status_code=404, detail="DSR not found")
-    return dsr
+    return APIResponse.ok(data=dsr)
 
 
 @router.post("/bi/gdpr/dsr", summary="Crear solicitud de derechos GDPR (DSR)", status_code=201)
@@ -176,14 +177,14 @@ def create_dsr(
     subject_id = body.subject_id or body.user_id
     if not subject_id:
         raise HTTPException(status_code=422, detail="subject_id_required")
-    return svc.create_dsr(
+    return APIResponse.ok(data=svc.create_dsr(
         db,
         subject_id=subject_id,
         request_type=body.request_type,
         org_id=org_id,
         requester_user_id=current_user.id,
         notes=body.notes,
-    )
+    ))
 
 
 @router.patch("/bi/gdpr/dsr/{dsr_id}/resolve", summary="Resolver una DSR")
@@ -197,7 +198,7 @@ def resolve_dsr(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.resolve_dsr(db, dsr_id=dsr_id, org_id=org_id, resolution_notes=body.resolution_notes)
+        return APIResponse.ok(data=svc.resolve_dsr(db, dsr_id=dsr_id, org_id=org_id, resolution_notes=body.resolution_notes))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -218,13 +219,13 @@ def resolve_dsr_compat(
         raise HTTPException(status_code=403, detail="Admin role required to execute GDPR erasure")
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.resolve_dsr(
+        return APIResponse.ok(data=svc.resolve_dsr(
             db,
             dsr_id=dsr_id,
             org_id=org_id,
             resolution_notes=body.resolution_notes,
             execute_erasure_pipeline=(body.status == "completed"),
-        )
+        ))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -255,7 +256,7 @@ def execute_erasure(
         report = svc.execute_erasure(db, subject_id=dsr["subject_id"], org_id=org_id)
         # Auto-resolve the DSR
         svc.resolve_dsr(db, dsr_id=dsr_id, org_id=org_id, resolution_notes="Erasure pipeline executed automatically", execute_erasure_pipeline=False)
-        return {"ok": True, "dsr_id": dsr_id, "erasure_report": report}
+        return APIResponse.ok(data={"ok": True, "dsr_id": dsr_id, "erasure_report": report})
     # intentional: chained re-raise preserves context
     except HTTPException:
         raise
@@ -294,7 +295,7 @@ def portability_export(
         resolution_notes="Portability export generated automatically",
         execute_erasure_pipeline=False,
     )
-    return {"ok": True, "dsr_id": dsr_id, "export": export}
+    return APIResponse.ok(data={"ok": True, "dsr_id": dsr_id, "export": export})
 
 
 @router.get("/bi/gdpr/dsr", summary="Listar solicitudes DSR")
@@ -309,7 +310,7 @@ def list_dsrs(
     if status == "resolved":
         status = "completed"
     items = svc.list_dsrs(db, org_id=org_id, status=status)
-    return {"items": items, "count": len(items)}
+    return APIListResponse.ok(items=items)
 
 
 @router.post("/bi/gdpr/field-masks", summary="Registrar máscara de campo GDPR en BI", status_code=201)
@@ -324,7 +325,7 @@ def set_field_mask(
     dataset = body.dataset or body.entity
     if not dataset:
         raise HTTPException(status_code=422, detail="dataset_required")
-    return svc.set_field_mask(db, dataset=dataset, field=body.field, mask_type=body.mask_type, org_id=org_id)
+    return APIResponse.ok(data=svc.set_field_mask(db, dataset=dataset, field=body.field, mask_type=body.mask_type, org_id=org_id))
 
 
 @router.get("/bi/gdpr/field-masks", summary="Listar máscaras de campos GDPR")
@@ -336,4 +337,4 @@ def list_field_masks(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_field_masks(db, org_id=org_id)
-    return {"items": items, "count": len(items)}
+    return APIListResponse.ok(items=items)

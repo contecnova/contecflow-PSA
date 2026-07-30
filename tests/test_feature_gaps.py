@@ -164,7 +164,7 @@ class TestPipelineForecast:
     def test_forecast_empty(self, client, pm_token, db):
         res = client.get("/api/v1/pipeline/forecast", headers=auth(pm_token))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert "forecast" in data
         assert "total_weighted_pipeline" in data
         assert isinstance(data["forecast"], list)
@@ -178,19 +178,19 @@ class TestPipelineForecast:
             "probability": 60,
             "expected_revenue": 100000,
             "expected_close_date": str(close_date),
-        }, headers=auth(pm_token)).json()
+        }, headers=auth(pm_token)).json()["data"]
         assert "id" in opp
 
         res = client.get("/api/v1/pipeline/forecast", params={"months": 3}, headers=auth(pm_token))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert data["total_weighted_pipeline"] > 0
 
     def test_forecast_months_parameter(self, client, pm_token, db):
         res = client.get("/api/v1/pipeline/forecast", params={"months": 12}, headers=auth(pm_token))
         assert res.status_code == 200
         # Should return 12 month buckets
-        assert len(res.json()["forecast"]) == 12
+        assert len(res.json()["data"]["forecast"]) == 12
 
 
 # ── Pipeline Stage Config ─────────────────────────────────────────────────────
@@ -199,7 +199,7 @@ class TestPipelineStageConfig:
     def test_list_stages_empty(self, client, pm_token, db):
         res = client.get("/api/v1/pipeline/stages", headers=auth(pm_token))
         assert res.status_code == 200
-        assert isinstance(res.json(), list)
+        assert isinstance(res.json()["items"], list)
 
     def test_create_stage_as_admin(self, client, admin_token, db):
         res = client.post("/api/v1/pipeline/stages", json={
@@ -212,7 +212,7 @@ class TestPipelineStageConfig:
             "is_won": False,
         }, headers=auth(admin_token))
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data["ok"] is True or "id" in data
 
     def test_create_stage_duplicate_fails(self, client, admin_token, db):
@@ -410,5 +410,5 @@ class TestProjectTemplates:
             "client_name": "ClienteTest",
         }, headers=auth(admin_token))
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert "project_id" in data or "id" in data

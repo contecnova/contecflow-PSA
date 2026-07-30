@@ -27,6 +27,7 @@ import asyncio
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services.activity_service import (
@@ -71,7 +72,7 @@ def get_activity_feed(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return activity_feed_payload(db, entity_type, entity_id, limit, before)
+    return APIListResponse.ok(items=activity_feed_payload(db, entity_type, entity_id, limit, before))
 
 
 @router.get("/activity/project/{project_id}", summary="Feed de actividad completo del proyecto (tareas + tickets)", tags=["Activity Feed"])
@@ -82,7 +83,7 @@ def get_project_activity(
     _: User = Depends(get_current_user),
 ):
     """Aggregated feed: project events + all tasks of the project."""
-    return project_activity_payload(db, project_id, limit)
+    return APIListResponse.ok(items=project_activity_payload(db, project_id, limit))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -109,7 +110,7 @@ def parse_mentions(
         db, payload.content, current_user,
         payload.entity_type, payload.entity_id, payload.action_url,
     )
-    return {"mentioned_user_ids": ids, "count": len(ids)}
+    return APIResponse.ok(data={"mentioned_user_ids": ids, "count": len(ids)})
 
 
 @router.get("/mentions/my", summary="Mis menciones recientes", tags=["Mentions"])
@@ -119,7 +120,7 @@ def my_mentions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return my_mentions_payload(db, current_user, unread_only, limit)
+    return APIListResponse.ok(items=my_mentions_payload(db, current_user, unread_only, limit))
 
 
 @router.post("/mentions/{mention_id}/read", summary="Marcar mención como leída", tags=["Mentions"])
@@ -128,7 +129,7 @@ def mark_mention_read(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return mark_mention_read_record(db, mention_id, current_user)
+    return APIResponse.ok(data=mark_mention_read_record(db, mention_id, current_user))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -141,7 +142,7 @@ def get_project_health(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return project_health_payload(db, project_id)
+    return APIResponse.ok(data=project_health_payload(db, project_id))
 
 
 @router.post("/projects/{project_id}/health/compute", summary="Calcular y guardar snapshot de salud", tags=["Project Health"])
@@ -150,7 +151,7 @@ def compute_and_save_health(
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
-    return save_health_snapshot_record(db, project_id)
+    return APIResponse.ok(data=save_health_snapshot_record(db, project_id))
 
 
 @router.get("/projects/health/portfolio", summary="Semáforo de salud de todos los proyectos activos", tags=["Project Health"])
@@ -159,7 +160,7 @@ def portfolio_health(
     _: User = Depends(require_any_manager),
 ):
     """Returns health summary for all active projects — useful for dashboard."""
-    return portfolio_health_payload(db)
+    return APIListResponse.ok(items=portfolio_health_payload(db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -190,7 +191,7 @@ def list_recurring_tasks(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return list_recurring_tasks_payload(db, project_id, is_active)
+    return APIListResponse.ok(items=list_recurring_tasks_payload(db, project_id, is_active))
 
 
 @router.post("/recurring-tasks", summary="Crear tarea recurrente", status_code=201, tags=["Recurring Tasks"])
@@ -199,7 +200,7 @@ def create_recurring_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return create_recurring_task_record(db, payload, current_user)
+    return APIResponse.ok(data=create_recurring_task_record(db, payload, current_user))
 
 
 @router.patch("/recurring-tasks/{rt_id}", summary="Actualizar tarea recurrente", tags=["Recurring Tasks"])
@@ -209,7 +210,7 @@ def update_recurring_task(
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
-    return update_recurring_task_record(db, rt_id, payload)
+    return APIResponse.ok(data=update_recurring_task_record(db, rt_id, payload))
 
 
 @router.delete("/recurring-tasks/{rt_id}", summary="Eliminar tarea recurrente", tags=["Recurring Tasks"])
@@ -219,7 +220,7 @@ def delete_recurring_task(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "recurring_task", rt_id, action="delete")
-    return delete_recurring_task_record(db, rt_id)
+    return APIResponse.ok(data=delete_recurring_task_record(db, rt_id))
 
 
 @router.post("/recurring-tasks/materialize", summary="Materializar ocurrencias pendientes de todas las reglas activas", tags=["Recurring Tasks"])
@@ -232,7 +233,7 @@ def materialize_recurring_tasks(
     Called by cron daily (or manually). Creates concrete Task records
     for each RecurringTask whose next occurrence is today or past.
     """
-    return materialize_recurring_tasks_cmd(db, dry_run, current_user)
+    return APIResponse.ok(data=materialize_recurring_tasks_cmd(db, dry_run, current_user))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -250,7 +251,7 @@ def get_critical_path(
     for every task in the project using a topological CPM forward + backward pass.
     Tasks with Float = 0 are on the critical path.
     """
-    return critical_path_payload(db, project_id)
+    return APIResponse.ok(data=critical_path_payload(db, project_id))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -347,7 +348,7 @@ def get_resource_demand(
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
-    return resource_demand_payload(db, horizon_months, min_probability)
+    return APIResponse.ok(data=resource_demand_payload(db, horizon_months, min_probability))
 
 
 @router.post("/pipeline/resource-demand-lines", summary="Añadir línea de demanda a una oportunidad", status_code=201, tags=["Resource Demand"])
@@ -356,7 +357,7 @@ def create_demand_line(
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
-    return create_demand_line_record(db, payload)
+    return APIResponse.ok(data=create_demand_line_record(db, payload))
 
 
 @router.delete("/pipeline/resource-demand-lines/{line_id}", summary="Eliminar línea de demanda", tags=["Resource Demand"])
@@ -366,7 +367,7 @@ def delete_demand_line(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "resource_demand_line", line_id, action="delete")
-    return delete_demand_line_record(db, line_id)
+    return APIResponse.ok(data=delete_demand_line_record(db, line_id))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -391,7 +392,7 @@ def get_vendor_scorecard(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return vendor_scorecard_payload(db, vendor_id)
+    return APIResponse.ok(data=vendor_scorecard_payload(db, vendor_id))
 
 
 @router.post("/alm/vendors/{vendor_id}/scores", summary="Registrar evaluación de proveedor", status_code=201, tags=["Vendor Scorecard"])
@@ -401,7 +402,7 @@ def add_vendor_score(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return add_vendor_score_record(db, vendor_id, payload, current_user)
+    return APIResponse.ok(data=add_vendor_score_record(db, vendor_id, payload, current_user))
 
 
 @router.get("/alm/vendors/scorecard/ranking", summary="Ranking de todos los proveedores por composite score", tags=["Vendor Scorecard"])
@@ -410,7 +411,7 @@ def vendor_scorecard_ranking(
     _: User = Depends(require_any_manager),
 ):
     """Returns the latest composite score for every vendor that has been evaluated."""
-    return vendor_scorecard_ranking_payload(db)
+    return APIListResponse.ok(items=vendor_scorecard_ranking_payload(db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -438,4 +439,4 @@ def simulate_project(
     Returns projected end date, critical path impact, cost delta, and at-risk tasks
     given the hypothetical changes.
     """
-    return simulate_project_payload(db, project_id, payload)
+    return APIResponse.ok(data=simulate_project_payload(db, project_id, payload))

@@ -142,7 +142,7 @@ class TestPipelineV238:
     def test_list_pipeline_stages_returns_defaults(self, client, admin_token, db):
         r = client.get("/api/v1/pipeline/stage-configs", headers=auth(admin_token))
         assert r.status_code == 200
-        data = r.json()
+        data = r.json()["items"]
         # Response: {"configs": [...], "source": "defaults"} o lista directa
         if isinstance(data, dict):
             assert "configs" in data
@@ -162,7 +162,7 @@ class TestPipelineV238:
             "probability_default": 0.5,
         }, headers=auth(admin_token))
         assert r.status_code == 201, r.text
-        assert r.json()["stage_key"] == "test_stage_v238"
+        assert r.json()["data"]["stage_key"] == "test_stage_v238"
 
     def test_create_duplicate_stage_rejected(self, client, admin_token, db):
         client.post("/api/v1/pipeline/stage-configs", json={
@@ -186,7 +186,7 @@ class TestPipelineV238:
                        params={"months": 3},
                        headers=auth(admin_token))
         assert r.status_code == 200
-        data = r.json()
+        data = r.json()["data"]
         # Response: {"forecast": [...], "total_weighted_pipeline": ..., "unscheduled": {...}}
         assert "forecast" in data
         assert len(data["forecast"]) == 3

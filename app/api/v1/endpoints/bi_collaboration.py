@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.deps import get_current_user
+from app.core.responses import APIListResponse, APIResponse
 from app.core.security import decode_token
 from app.db.session import get_db
 from app.db.session import SessionLocal
@@ -81,10 +82,7 @@ def list_bi_comments(
         widget_id=widget_id,
         include_resolved=include_resolved,
     )
-    return {
-        "items": items,
-        "count": len(items),
-    }
+    return APIListResponse.ok(items=items)
 
 
 @router.post("/bi/collaboration/comments", summary="Crear comentario BI")
@@ -102,7 +100,7 @@ def create_bi_comment(
         message=payload.message,
         author=current_user,
     )
-    return {"ok": True, "comment": comment}
+    return APIResponse.ok(data={"ok": True, "comment": comment})
 
 
 @router.patch("/bi/collaboration/comments/{comment_id}/resolve", summary="Marcar comentario BI como resuelto")
@@ -119,7 +117,7 @@ def resolve_bi_comment(
             comment_id=comment_id,
             current_user=current_user,
         )
-        return {"ok": True, "comment": comment}
+        return APIResponse.ok(data={"ok": True, "comment": comment})
     except ValueError:
         raise HTTPException(status_code=404, detail="Comentario no encontrado")
 
@@ -130,7 +128,7 @@ def governance_overview(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.governance_overview(db, organization_id=org_id)
+    return APIResponse.ok(data=svc.governance_overview(db, organization_id=org_id))
 
 
 @router.get("/bi/governance/rules", summary="Leer reglas de governance BI Collaboration")
@@ -139,7 +137,7 @@ def governance_rules(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.get_governance_rules(db, organization_id=org_id)
+    return APIResponse.ok(data=svc.get_governance_rules(db, organization_id=org_id))
 
 
 @router.patch("/bi/governance/rules", summary="Actualizar reglas de governance BI Collaboration")
@@ -150,7 +148,7 @@ def patch_governance_rules(
 ):
     org_id = getattr(current_user, "organization_id", None)
     data = {k: v for k, v in payload.model_dump().items() if v is not None}
-    return svc.update_governance_rules(db, organization_id=org_id, payload=data)
+    return APIResponse.ok(data=svc.update_governance_rules(db, organization_id=org_id, payload=data))
 
 
 @router.post("/bi/governance/run-checks", summary="Ejecutar checks de governance BI Collaboration")
@@ -159,7 +157,7 @@ def run_governance_checks(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.run_governance_checks(db, organization_id=org_id)
+    return APIResponse.ok(data=svc.run_governance_checks(db, organization_id=org_id))
 
 
 @router.get("/bi/governance/last-run", summary="Última ejecución de checks governance BI")
@@ -168,7 +166,7 @@ def last_governance_run(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return {"result": svc.get_last_governance_run(db, organization_id=org_id)}
+    return APIResponse.ok(data={"result": svc.get_last_governance_run(db, organization_id=org_id)})
 
 
 @router.get("/bi/collaboration/shared-views", summary="Listar vistas compartidas BI")
@@ -179,7 +177,7 @@ def list_shared_views(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_shared_views(db, organization_id=org_id, only_active=not include_inactive)
-    return {"items": items, "count": len(items)}
+    return APIListResponse.ok(items=items)
 
 
 @router.post("/bi/collaboration/shared-views", summary="Crear vista compartida BI")
@@ -197,7 +195,7 @@ def create_shared_view(
         filters=payload.filters,
         created_by=current_user,
     )
-    return {"ok": True, "view": item}
+    return APIResponse.ok(data={"ok": True, "view": item})
 
 
 @router.patch("/bi/collaboration/shared-views/{view_id}", summary="Actualizar vista compartida BI")
@@ -217,7 +215,7 @@ def patch_shared_view(
         )
     except ValueError:
         raise HTTPException(status_code=404, detail="Vista compartida no encontrada")
-    return {"ok": True, "view": item}
+    return APIResponse.ok(data={"ok": True, "view": item})
 
 
 # ── Dashboard versioning ───────────────────────────────────────────────────────
@@ -230,7 +228,7 @@ def list_dashboard_versions(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_dashboard_versions(db, organization_id=org_id, dashboard_key=dashboard_key)
-    return {"items": items, "count": len(items)}
+    return APIListResponse.ok(items=items)
 
 
 @router.post("/bi/collaboration/dashboards/{dashboard_key}/versions", summary="Guardar versión de dashboard BI")
@@ -249,7 +247,7 @@ def create_dashboard_version(
         change_log=payload.change_log,
         current_user=current_user,
     )
-    return {"ok": True, "version": item}
+    return APIResponse.ok(data={"ok": True, "version": item})
 
 
 @router.post(
@@ -273,7 +271,7 @@ def restore_dashboard_version(
         )
     except ValueError:
         raise HTTPException(status_code=404, detail="Versión no encontrada")
-    return {"ok": True, "version": item}
+    return APIResponse.ok(data={"ok": True, "version": item})
 
 
 # ── Dashboard Notifications ────────────────────────────────────────────────────
@@ -293,7 +291,7 @@ def list_notifications(
         dashboard_key=dashboard_key,
         only_unread=not include_read,
     )
-    return {"items": items, "count": len(items)}
+    return APIListResponse.ok(items=items)
 
 
 @router.patch("/bi/collaboration/notifications/{notification_id}", summary="Marcar notificación como leída")
@@ -313,7 +311,7 @@ def mark_notification_read(
             recipient_user_id=current_user.id,
             is_read=is_read,
         )
-        return {"ok": True, "notification": item}
+        return APIResponse.ok(data={"ok": True, "notification": item})
     except ValueError:
         raise HTTPException(status_code=404, detail="Notificación no encontrada")
 
@@ -328,7 +326,7 @@ def list_dashboard_shares(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_dashboard_shares(db, organization_id=org_id, dashboard_key=dashboard_key)
-    return {"items": items, "count": len(items)}
+    return APIListResponse.ok(items=items)
 
 
 @router.post("/bi/collaboration/dashboards/{dashboard_key}/shares", summary="Compartir dashboard BI con usuario")
@@ -351,7 +349,7 @@ def share_dashboard(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return {"ok": True, "share": item}
+    return APIResponse.ok(data={"ok": True, "share": item})
 
 
 @router.delete(
@@ -371,7 +369,7 @@ def revoke_dashboard_share(
     )
     if not deleted:
         raise HTTPException(status_code=404, detail="Acceso compartido no encontrado")
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.get('/bi/collaboration/cache-policy', summary='Política de refresco BI (crítico 5-10s)')
@@ -380,7 +378,7 @@ def get_cache_policy(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, 'organization_id', None)
-    return svc.get_cache_policy(db, organization_id=org_id)
+    return APIResponse.ok(data=svc.get_cache_policy(db, organization_id=org_id))
 
 
 @router.patch('/bi/collaboration/cache-policy', summary='Actualizar refresco crítico BI (5-10s)')
@@ -390,11 +388,11 @@ def patch_cache_policy(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, 'organization_id', None)
-    return svc.update_cache_policy(
+    return APIResponse.ok(data=svc.update_cache_policy(
         db,
         organization_id=org_id,
         critical_refresh_seconds=payload.critical_refresh_seconds,
-    )
+    ))
 
 
 @router.get('/bi/collaboration/dashboards/{dashboard_key}/updates/snapshot', summary='Snapshot de actualización de dashboard BI')
@@ -404,7 +402,7 @@ def dashboard_updates_snapshot(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, 'organization_id', None)
-    return svc.dashboard_update_snapshot(db, organization_id=org_id, dashboard_key=dashboard_key)
+    return APIResponse.ok(data=svc.dashboard_update_snapshot(db, organization_id=org_id, dashboard_key=dashboard_key))
 
 
 @router.websocket('/bi/collaboration/dashboards/{dashboard_key}/updates')

@@ -19,7 +19,7 @@ def _create_active_workflow(client, admin_token, step_type: str, config: dict) -
         },
     )
     assert create_res.status_code == 201, create_res.text
-    wf_id = create_res.json()["id"]
+    wf_id = create_res.json()["data"]["id"]
 
     activate_res = client.patch(
         f"/api/v1/billing-reports/automation-workflows/{wf_id}",
@@ -57,7 +57,7 @@ def test_run_workflow_now_executes_provision_identity_step(client, admin_token, 
         json={"context": {"employee_username": "jdoe", "employee_email": "jdoe@example.com"}},
     )
     assert run_res.status_code == 200, run_res.text
-    out = run_res.json()
+    out = run_res.json()["data"]
     assert out["ok"] is True
     assert out["processed"] >= 1
     assert out["errors"] == 0
@@ -100,7 +100,7 @@ def test_run_workflow_now_executes_terraform_step(client, admin_token, monkeypat
         json={"context": {"employee_username": "jdoe"}},
     )
     assert run_res.status_code == 200, run_res.text
-    out = run_res.json()
+    out = run_res.json()["data"]
     assert out["ok"] is True
     assert out["errors"] == 0
 
@@ -132,7 +132,7 @@ def test_run_workflow_now_executes_ansible_step(client, admin_token, monkeypatch
         json={"context": {"employee_username": "jdoe"}},
     )
     assert run_res.status_code == 200, run_res.text
-    out = run_res.json()
+    out = run_res.json()["data"]
     assert out["ok"] is True
     assert out["errors"] == 0
 
@@ -162,7 +162,7 @@ def test_update_workflow_step_retries_endpoint(client, admin_token):
         json={"max_retries": 2, "delay_seconds": 1, "backoff": "linear"},
     )
     assert patch_res.status_code == 200, patch_res.text
-    data = patch_res.json()
+    data = patch_res.json()["data"]
     assert data["ok"] is True
     assert data["retry"]["max_retries"] == 2
     assert data["retry"]["delay_seconds"] == 1
@@ -200,7 +200,7 @@ def test_run_workflow_now_retries_failed_action_and_records_metrics(client, admi
         json={"context": {"employee_username": "jdoe"}},
     )
     assert run_res.status_code == 200, run_res.text
-    out = run_res.json()
+    out = run_res.json()["data"]
     assert out["ok"] is True
     assert out["errors"] == 0
     assert calls["n"] == 2
@@ -238,5 +238,5 @@ def test_run_workflow_now_rejects_non_allowlisted_terraform_command(client, admi
         json={"context": {}},
     )
     assert run_res.status_code == 200, run_res.text
-    out = run_res.json()
+    out = run_res.json()["data"]
     assert out["errors"] >= 1

@@ -31,7 +31,7 @@ def _make_approval_workflow(client, admin_token):
         headers=auth(admin_token),
     )
     assert res.status_code in (200, 201), f"Workflow creation failed: {res.text}"
-    wf_id = res.json()["id"]
+    wf_id = res.json()["data"]["id"]
 
     # Add a step (pm-test-id is approver so admin can create + PM can approve — avoids SoD)
     step_res = client.post(
@@ -62,7 +62,7 @@ def _make_approval_request(client, admin_token, workflow_id, entity_type="expens
         headers=auth(admin_token),
     )
     assert res.status_code in (200, 201), f"Request creation failed: {res.text}"
-    return res.json()["id"]
+    return res.json()["data"]["id"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -136,7 +136,7 @@ class TestFinancialAuditLog:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert data["request_id"] == request_id
         assert data["entity_type"] == "expense"
         assert len(data["entries"]) >= 1

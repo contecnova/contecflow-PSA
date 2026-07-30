@@ -29,7 +29,7 @@ def test_create_cycle(client, admin_token, db):
         headers=auth(admin_token),
         json={"name": "Evaluación Q2 2025", "start_date": "2025-04-01", "end_date": "2025-06-30"})
     assert res.status_code == 201
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
     assert data["name"] == "Evaluación Q2 2025"
 
@@ -52,29 +52,29 @@ def test_activate_cycle(client, admin_token, db):
     cycle_id = client.post("/api/v1/performance/cycles",
         headers=auth(admin_token),
         json={"name": "Ciclo activar"}
-    ).json()["id"]
+    ).json()["data"]["id"]
     res = client.post(f"/api/v1/performance/cycles/{cycle_id}/activate",
         headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["status"] == "active"
+    assert res.json()["data"]["status"] == "active"
 
 
 def test_close_cycle(client, admin_token, db):
     cycle_id = client.post("/api/v1/performance/cycles",
         headers=auth(admin_token),
         json={"name": "Ciclo cerrar"}
-    ).json()["id"]
+    ).json()["data"]["id"]
     client.post(f"/api/v1/performance/cycles/{cycle_id}/activate", headers=auth(admin_token))
     res = client.post(f"/api/v1/performance/cycles/{cycle_id}/close",
         headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["status"] == "closed"
+    assert res.json()["data"]["status"] == "closed"
 
 
 def test_my_reviews_empty(client, dev_token, db):
     res = client.get("/api/v1/performance/my-reviews", headers=auth(dev_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    assert isinstance(res.json()["items"], list)
 
 
 def test_full_evaluation_flow(client, admin_token, dev_token, db):
@@ -85,7 +85,7 @@ def test_full_evaluation_flow(client, admin_token, dev_token, db):
     cycle_id = client.post(
         "/api/v1/performance/cycles", headers=auth(admin_token),
         json={"name": "E2E flow", "start_date": "2025-01-01", "end_date": "2025-03-31"},
-    ).json()["id"]
+    ).json()["data"]["id"]
     r = client.post(f"/api/v1/performance/cycles/{cycle_id}/activate", headers=auth(admin_token))
     assert r.status_code == 200
 
@@ -101,10 +101,10 @@ def test_full_evaluation_flow(client, admin_token, dev_token, db):
               "validate_eligibility": False},
     )
     assert r.status_code == 201, r.text
-    review_id = r.json()["id"]
+    review_id = r.json()["data"]["id"]
 
     # 3) Dev (el evaluador) ve la evaluación pendiente en su lista
-    pending = client.get("/api/v1/performance/my-reviews", headers=auth(dev_token)).json()
+    pending = client.get("/api/v1/performance/my-reviews", headers=auth(dev_token)).json()["items"]
     assert any(rev["id"] == review_id for rev in pending), "La review asignada no aparece en my-reviews"
     me_review = next(rev for rev in pending if rev["id"] == review_id)
     assert me_review["status"] == "pending"
@@ -122,7 +122,7 @@ def test_full_evaluation_flow(client, admin_token, dev_token, db):
         },
     )
     assert r.status_code == 200, r.text
-    body = r.json()
+    body = r.json()["data"]
     assert body["score_quality"] == 4
     assert body["score_overall"] == 4.0  # media de las 5 puntuaciones
     assert body["status"] == "pending"   # aún no enviada
@@ -137,14 +137,14 @@ def test_full_evaluation_flow(client, admin_token, dev_token, db):
     # 6) Dev envía la evaluación
     r = client.post(f"/api/v1/performance/reviews/{review_id}/submit", headers=auth(dev_token))
     assert r.status_code == 200
-    assert r.json()["status"] == "submitted"
+    assert r.json()["data"]["status"] == "submitted"
 
     # 7) Ya no aparece en pending para el evaluador
-    pending_after = client.get("/api/v1/performance/my-reviews", headers=auth(dev_token)).json()
+    pending_after = client.get("/api/v1/performance/my-reviews", headers=auth(dev_token)).json()["items"]
     assert not any(rev["id"] == review_id for rev in pending_after)
 
     # 8) Aparece en histórico del evaluado
-    history = client.get(f"/api/v1/performance/users/{pm.id}/history", headers=auth(admin_token)).json()
+    history = client.get(f"/api/v1/performance/users/{pm.id}/history", headers=auth(admin_token)).json()["items"]
     assert any(rev["id"] == review_id for rev in history)
 
     # 9) Tras cerrar el ciclo, no se pueden modificar las evaluaciones
@@ -160,7 +160,7 @@ def test_full_evaluation_flow(client, admin_token, dev_token, db):
 def test_create_review_requires_both_ids(client, admin_token, db):
     """Validación: faltan reviewer_id o reviewee_id → 422."""
     cycle_id = client.post("/api/v1/performance/cycles", headers=auth(admin_token),
-                           json={"name": "Validación"}).json()["id"]
+                           json={"name": "Validación"}).json()["data"]["id"]
     client.post(f"/api/v1/performance/cycles/{cycle_id}/activate", headers=auth(admin_token))
     r = client.post(f"/api/v1/performance/cycles/{cycle_id}/reviews",
                     headers=auth(admin_token), json={"reviewer_id": "x"})

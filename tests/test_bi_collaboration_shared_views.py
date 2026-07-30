@@ -16,7 +16,7 @@ def test_bi_shared_views_crud_flow(client, admin_token):
         },
     )
     assert created.status_code == 200, created.text
-    payload = created.json()['view']
+    payload = created.json()['data']['view']
     view_id = payload['id']
     assert payload['name'] == 'Executive weekly review'
 
@@ -26,7 +26,7 @@ def test_bi_shared_views_crud_flow(client, admin_token):
         json={'name': 'Executive monthly review', 'filters': {'period_days': 90}},
     )
     assert patched.status_code == 200, patched.text
-    assert patched.json()['view']['name'] == 'Executive monthly review'
+    assert patched.json()['data']['view']['name'] == 'Executive monthly review'
 
     listed_after = client.get('/api/v1/bi/collaboration/shared-views', headers=auth(admin_token))
     assert listed_after.status_code == 200

@@ -15,6 +15,7 @@ from app.schemas.custom_fields import CustomFieldIn, FieldValueIn, WorkflowState
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.custom_fields_service as _svc
 
@@ -33,7 +34,7 @@ def get_project_custom_fields(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return _svc.list_project_custom_fields(project_id, db)
+    return APIListResponse.ok(items=_svc.list_project_custom_fields(project_id, db))
 
 
 @router.post("/custom-fields/{project_id}", summary="Crear campo personalizado")
@@ -43,7 +44,7 @@ def create_project_custom_field(
     db: Session = Depends(get_db),
     current: User = Depends(require_admin_or_pm),
 ):
-    return _svc.create_project_custom_field(project_id, payload, db)
+    return APIResponse.ok(data=_svc.create_project_custom_field(project_id, payload, db))
 
 
 @router.patch("/custom-fields/{project_id}/{field_id}", summary="Actualizar campo")
@@ -53,7 +54,7 @@ def update_project_custom_field(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin_or_pm),
 ):
-    return _svc.update_project_custom_field(project_id, field_id, payload, db)
+    return APIResponse.ok(data=_svc.update_project_custom_field(project_id, field_id, payload, db))
 
 
 @router.delete("/custom-fields/{project_id}/{field_id}", summary="Eliminar campo")
@@ -63,7 +64,7 @@ def delete_project_custom_field(
     current_user: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, current_user, "custom_field", field_id, action="delete")
-    return _svc.delete_project_custom_field(project_id, field_id, db)
+    return APIResponse.ok(data=_svc.delete_project_custom_field(project_id, field_id, db))
 
 
 # ── Valores de campos por tarea ────────────────────────────────────────────────
@@ -74,7 +75,7 @@ def get_task_custom_values(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return _svc.get_task_custom_values(project_id, task_id, db)
+    return APIListResponse.ok(items=_svc.get_task_custom_values(project_id, task_id, db))
 
 
 
@@ -86,7 +87,7 @@ def save_task_custom_values(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return _svc.save_task_custom_values(project_id, task_id, payload, db)
+    return APIResponse.ok(data=_svc.save_task_custom_values(project_id, task_id, payload, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -105,7 +106,7 @@ def get_workflow(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return _svc.get_workflow(project_id, db)
+    return APIResponse.ok(data=_svc.get_workflow(project_id, db))
 
 
 @router.post("/project-workflows/{project_id}/states", summary="Crear estado en workflow")
@@ -115,7 +116,7 @@ def create_workflow_state(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin_or_pm),
 ):
-    return _svc.create_workflow_state(project_id, payload, db)
+    return APIResponse.ok(data=_svc.create_workflow_state(project_id, payload, db))
 
 
 @router.patch("/project-workflows/{project_id}/states/{state_id}", summary="Actualizar estado")
@@ -125,7 +126,7 @@ def update_workflow_state(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin_or_pm),
 ):
-    return _svc.update_workflow_state(project_id, state_id, payload, db)
+    return APIResponse.ok(data=_svc.update_workflow_state(project_id, state_id, payload, db))
 
 
 @router.delete("/project-workflows/{project_id}/states/{state_id}", summary="Eliminar estado (soft delete)")
@@ -135,7 +136,7 @@ def delete_workflow_state(
     user: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, user, "workflow_state", state_id, action="delete")
-    return _svc.delete_workflow_state(project_id, state_id, db)
+    return APIResponse.ok(data=_svc.delete_workflow_state(project_id, state_id, db))
 
 
 @router.post("/project-workflows/{project_id}/transitions", summary="Crear transición")
@@ -145,7 +146,7 @@ def create_transition(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin_or_pm),
 ):
-    return _svc.create_transition(project_id, payload, db)
+    return APIResponse.ok(data=_svc.create_transition(project_id, payload, db))
 
 
 @router.delete("/project-workflows/{project_id}/transitions/{transition_id}", summary="Eliminar transición (soft delete)")
@@ -155,7 +156,7 @@ def delete_transition(
     user: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, user, "workflow_transition", transition_id, action="delete")
-    return _svc.delete_transition(project_id, transition_id, db)
+    return APIResponse.ok(data=_svc.delete_transition(project_id, transition_id, db))
 
 
 @router.post("/project-workflows/{project_id}/init", summary="Inicializar workflow con estados por defecto")
@@ -164,7 +165,7 @@ def init_default_workflow(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin_or_pm),
 ):
-    return _svc.init_default_workflow(project_id, db)
+    return APIResponse.ok(data=_svc.init_default_workflow(project_id, db))
 
 
 @router.delete("/project-workflows/{project_id}/reset", summary="Restablecer workflow a Scrum estándar")
@@ -174,7 +175,7 @@ def reset_workflow(
     user: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, user, "project_workflow", project_id, action="delete")
-    return _svc.reset_workflow(project_id, db)
+    return APIResponse.ok(data=_svc.reset_workflow(project_id, db))
 
 
 @router.post("/project-workflows/{project_id}/tasks/{task_id}/transition", summary="Transicionar tarea")
@@ -184,7 +185,7 @@ def transition_task(
     db: Session = Depends(get_db),
     current: User = Depends(get_current_user),
 ):
-    return _svc.transition_task(project_id, task_id, payload, current, db)
+    return APIResponse.ok(data=_svc.transition_task(project_id, task_id, payload, current, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -199,7 +200,7 @@ def get_permissions(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return _svc.get_permissions(project_id, db)
+    return APIListResponse.ok(items=_svc.get_permissions(project_id, db))
 
 
 @router.post("/permissions/{project_id}", summary="Conceder permiso")
@@ -209,7 +210,7 @@ def grant_permission(
     db: Session = Depends(get_db),
     current: User = Depends(require_admin_or_pm),
 ):
-    return _svc.grant_permission(project_id, payload, current, db)
+    return APIResponse.ok(data=_svc.grant_permission(project_id, payload, current, db))
 
 
 @router.patch("/permissions/{project_id}/{permission_id}", summary="Actualizar permiso")
@@ -219,7 +220,7 @@ def update_permission(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin_or_pm),
 ):
-    return _svc.update_permission(project_id, permission_id, payload, db)
+    return APIResponse.ok(data=_svc.update_permission(project_id, permission_id, payload, db))
 
 
 @router.delete("/permissions/{project_id}/{permission_id}", summary="Revocar permiso")
@@ -229,4 +230,4 @@ def revoke_permission(
     current_user: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, current_user, "project_permission", permission_id, action="delete")
-    return _svc.revoke_permission(project_id, permission_id, db)
+    return APIResponse.ok(data=_svc.revoke_permission(project_id, permission_id, db))

@@ -52,7 +52,7 @@ class TestCustomFields:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data.get("field_key") == "client_ref"
         assert data.get("field_type") == "text"
 
@@ -83,7 +83,7 @@ class TestCustomFields:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert "EMEA" in (data.get("options") or [])
 
     def test_list_custom_fields(self, client, admin_token, db):
@@ -99,7 +99,7 @@ class TestCustomFields:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        assert len(res.json()) >= 3
+        assert len(res.json()["items"]) >= 3
 
     def test_update_custom_field(self, client, admin_token, db):
         proj = _create_project(client, admin_token, "CF Update")
@@ -107,7 +107,7 @@ class TestCustomFields:
             f"/api/v1/custom-fields/{proj['id']}",
             json={"name": "Old Name", "field_key": "old_key", "field_type": "text"},
             headers=auth(admin_token),
-        ).json()
+        ).json()["data"]
         res = client.patch(
             f"/api/v1/custom-fields/{proj['id']}/{field['id']}",
             json={"name": "New Name", "field_key": "old_key", "field_type": "text"},
@@ -121,7 +121,7 @@ class TestCustomFields:
             f"/api/v1/custom-fields/{proj['id']}",
             json={"name": "To Delete", "field_key": "to_del", "field_type": "text"},
             headers=auth(admin_token),
-        ).json()
+        ).json()["data"]
         res = client.delete(
             f"/api/v1/custom-fields/{proj['id']}/{field['id']}",
             headers=auth(admin_token),
@@ -150,7 +150,7 @@ class TestCustomFieldValues:
             f"/api/v1/custom-fields/{proj['id']}",
             json={"name": "Ref", "field_key": "ref", "field_type": "text"},
             headers=auth(admin_token),
-        ).json()
+        ).json()["data"]
 
         # Set value
         res = client.post(
@@ -176,7 +176,7 @@ class TestCustomFieldValues:
             json={"name": "Mandatory", "field_key": "mandatory", "field_type": "text",
                   "is_required": True},
             headers=auth(admin_token),
-        ).json()
+        ).json()["data"]
 
         # Set empty value for required field
         res = client.post(
@@ -200,7 +200,7 @@ class TestWorkflowStates:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data.get("is_initial") is True
 
     def test_create_final_state(self, client, admin_token, db):
@@ -212,7 +212,7 @@ class TestWorkflowStates:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        assert res.json().get("is_final") is True
+        assert res.json()["data"].get("is_final") is True
 
     def test_list_states(self, client, admin_token, db):
         proj = _create_project(client, admin_token, "WF List States")
@@ -232,7 +232,7 @@ class TestWorkflowStates:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         states = data.get("states") if isinstance(data, dict) else data
         assert isinstance(states, list)
         assert len(states) >= 3
@@ -244,7 +244,7 @@ class TestWorkflowStates:
             json={"name": "Old Name", "value": "old", "is_initial": True,
                   "is_final": False, "sort_order": 1},
             headers=auth(admin_token),
-        ).json()
+        ).json()["data"]
         res = client.patch(
             f"/api/v1/project-workflows/{proj['id']}/states/{state['id']}",
             json={"name": "New Name", "value": "old", "color": "#ff0000",
@@ -260,7 +260,7 @@ class TestWorkflowStates:
             json={"name": "Obsolete", "value": "obsolete", "is_initial": False,
                   "is_final": False, "sort_order": 99},
             headers=auth(admin_token),
-        ).json()
+        ).json()["data"]
         res = client.delete(
             f"/api/v1/project-workflows/{proj['id']}/states/{state['id']}",
             headers=auth(admin_token),
@@ -277,13 +277,13 @@ class TestWorkflowTransitions:
             json={"name": "Todo", "value": "todo2", "is_initial": True,
                   "is_final": False, "sort_order": 1},
             headers=auth(token),
-        ).json()
+        ).json()["data"]
         s2 = client.post(
             f"/api/v1/project-workflows/{proj_id}/states",
             json={"name": "Done", "value": "done2", "is_initial": False,
                   "is_final": True, "sort_order": 2},
             headers=auth(token),
-        ).json()
+        ).json()["data"]
         return s1, s2
 
     def test_create_transition(self, client, admin_token, db):
@@ -303,7 +303,7 @@ class TestWorkflowTransitions:
             f"/api/v1/project-workflows/{proj['id']}/transitions",
             json={"from_state_id": s1["id"], "to_state_id": s2["id"], "label": "Complete"},
             headers=auth(admin_token),
-        ).json()
+        ).json()["data"]
         if not trans.get("id"):
             pytest.skip("Transition ID not returned")
         res = client.delete(
@@ -323,4 +323,4 @@ class TestProjectPermissions:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        assert isinstance(res.json(), list)
+        assert isinstance(res.json()["items"], list)

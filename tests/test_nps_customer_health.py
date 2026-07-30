@@ -21,7 +21,7 @@ def _create_client(client, token, name="NPS Client"):
         headers=auth(token),
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()
+    return res.json()["data"]
 
 
 # ── NPS Response Submission ────────────────────────────────────────────────────

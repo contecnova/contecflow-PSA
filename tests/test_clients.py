@@ -11,7 +11,7 @@ def _create_client(client, token, name="Cliente Test SA"):
         "country": "ES",
     }, headers=auth(token))
     assert res.status_code in (200, 201), f"No se pudo crear cliente: {res.text}"
-    return res.json()["id"]
+    return res.json()["data"]["id"]
 
 
 def test_list_clients_empty(client, admin_token, db):
@@ -29,7 +29,7 @@ def test_create_client(client, admin_token, db):
         "contact_email": "carlos@xyz.com",
     }, headers=auth(admin_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
     assert data["name"] == "Empresa XYZ SL"
 
@@ -38,7 +38,7 @@ def test_get_client_detail(client, admin_token, db):
     cid = _create_client(client, admin_token)
     res = client.get(f"/api/v1/clients/{cid}", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert data["id"] == cid
 
 
@@ -69,7 +69,7 @@ def test_add_contact_to_client(client, admin_token, db):
         "role": "technical",
     }, headers=auth(admin_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
 
 
@@ -77,7 +77,7 @@ def test_list_contacts(client, admin_token, db):
     cid = _create_client(client, admin_token)
     res = client.get(f"/api/v1/clients/{cid}/contacts", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    assert isinstance(res.json()["items"], list)
 
 
 def test_client_360_view(client, admin_token, db):

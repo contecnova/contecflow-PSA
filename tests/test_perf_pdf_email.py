@@ -17,7 +17,7 @@ def test_campaign_dashboard_pdf_export(client, admin_token, db):
     pm = db.query(User).filter(User.username == "pm_test").first()
 
     cid = client.post("/api/v1/performance/cycles", headers=auth(admin_token),
-                      json={"name": "PDF cycle"}).json()["id"]
+                      json={"name": "PDF cycle"}).json()["data"]["id"]
     client.post(f"/api/v1/performance/cycles/{cid}/activate",
                 headers=auth(admin_token))
 
@@ -35,7 +35,7 @@ def test_campaign_dashboard_pdf_export(client, admin_token, db):
         json={"subject_id": pm.id, "self_review": True,
               "peer_reviewer_ids": [f"pdf-{i}" for i in range(3)],
               "anonymity_threshold": 3},
-    ).json()["id"]
+    ).json()["data"]["id"]
 
     # Marcar algunas reviews como submitted para tener contenido
     from app.models.performance import PerformanceReview, ReviewStatus
@@ -70,7 +70,7 @@ def test_campaign_creation_does_not_fail_when_smtp_missing(client, admin_token, 
     from app.models.user import User
     pm = db.query(User).filter(User.username == "pm_test").first()
     cid = client.post("/api/v1/performance/cycles", headers=auth(admin_token),
-                      json={"name": "SMTP-less"}).json()["id"]
+                      json={"name": "SMTP-less"}).json()["data"]["id"]
     client.post(f"/api/v1/performance/cycles/{cid}/activate",
                 headers=auth(admin_token))
     res = client.post(

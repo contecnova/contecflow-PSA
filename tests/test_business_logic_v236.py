@@ -54,7 +54,7 @@ def _opp(client, token, name="Opp A", stage="lead", revenue=50000):
         "expected_revenue": revenue,
     }, headers=auth(token))
     assert r.status_code in (200, 201), r.text
-    return r.json()
+    return r.json()["data"]
 
 
 # ─── 1. Task state machine ─────────────────────────────────────────────────────
@@ -218,7 +218,7 @@ class TestPipelineStageMachine:
         opp = _opp(client, pm_token, stage="lead")
         r = client.patch(f"/api/v1/pipeline/{opp['id']}", json={"stage": "qualification"}, headers=auth(pm_token))
         assert r.status_code == 200
-        assert r.json()["stage"] == "qualification"
+        assert r.json()["data"]["stage"] == "qualification"
 
     def test_qualification_to_proposal(self, client, pm_token, db):
         opp = _opp(client, pm_token, stage="qualification")
@@ -234,7 +234,7 @@ class TestPipelineStageMachine:
         opp = _opp(client, pm_token, stage="negotiation")
         r = client.patch(f"/api/v1/pipeline/{opp['id']}", json={"stage": "won"}, headers=auth(pm_token))
         assert r.status_code == 200
-        assert r.json()["stage"] == "won"
+        assert r.json()["data"]["stage"] == "won"
 
     def test_won_is_terminal(self, client, pm_token, db):
         """Won stage is terminal — cannot move out."""
@@ -267,7 +267,7 @@ class TestPipelineStageMachine:
         r = client.patch(f"/api/v1/pipeline/{opp['id']}", json={"stage": "proposal"}, headers=auth(pm_token))
         assert r.status_code == 200
         # proposal → STAGE_PROB 50%
-        row = r.json()
+        row = r.json()["data"]
         if "probability_pct" in row:
             assert row["probability_pct"] == pytest.approx(50, abs=1)
 
@@ -417,13 +417,13 @@ class TestSemanticEngineConfig:
         for mode in ["hybrid", "semantic", "llm", "rules_only"]:
             r = client.patch("/api/v1/semantic/config", json={"engine_mode": mode}, headers=auth(admin_token))
             assert r.status_code == 200, r.text
-            body = r.json()
+            body = r.json()["data"]
             assert body["ok"] is True
             assert body["config"]["engine_mode"] == mode
 
             r2 = client.get("/api/v1/semantic/config", headers=auth(admin_token))
             assert r2.status_code == 200, r2.text
-            assert r2.json()["engine_mode"] == mode
+            assert r2.json()["data"]["engine_mode"] == mode
 
     def test_engine_mode_rejects_invalid_values(self, client, admin_token, db):
         r = client.patch("/api/v1/semantic/config", json={"engine_mode": "semantico-magico"}, headers=auth(admin_token))
@@ -436,7 +436,7 @@ class TestSemanticEngineConfig:
             headers=auth(admin_token),
         )
         assert r.status_code == 200, r.text
-        body = r.json()
+        body = r.json()["data"]
         assert body["ok"] is True
         assert body["config"]["embeddings_backend"] == "tfidf"
         assert body["config"]["effective_model_name"] == "all-MiniLM-L6-v2"
@@ -449,14 +449,14 @@ class TestSemanticEngineConfig:
             headers=auth(admin_token),
         )
         assert r.status_code == 200, r.text
-        body = r.json()
+        body = r.json()["data"]
         assert body["config"]["embeddings_backend"] == "transformer"
         assert body["config"]["effective_model_name"] == model
         assert body["config"]["local_model_name"] == model
 
         r2 = client.get("/api/v1/semantic/config", headers=auth(admin_token))
         assert r2.status_code == 200, r2.text
-        cfg = r2.json()
+        cfg = r2.json()["data"]
         assert cfg["embeddings_backend"] == "transformer"
         assert cfg["effective_model_name"] == model
 
@@ -474,7 +474,7 @@ class TestSemanticEngineConfig:
             headers=auth(admin_token),
         )
         assert r1.status_code == 200, r1.text
-        cfg = r1.json()["config"]
+        cfg = r1.json()["data"]["config"]
         assert cfg["embeddings_backend"] == "transformer"
         assert cfg["effective_model_name"] == "all-MiniLM-L6-v2"
         assert cfg["local_model_name"] == "all-MiniLM-L6-v2"
