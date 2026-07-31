@@ -36,7 +36,7 @@ def test_create_access_policy(client, admin_token):
     }
     r = client.post("/api/v1/bi/governance/policies", json=payload, headers=auth(admin_token))
     assert r.status_code in (200, 201)
-    data = r.json()
+    data = r.json()["data"]
     assert "id" in data
 
 

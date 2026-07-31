@@ -24,7 +24,7 @@ from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services.grc_sod import record_sod_violation as _record_sod_violation
 import app.services.grc_service as grc_svc
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter(tags=["GRC"])
 
@@ -165,7 +165,7 @@ def get_permissions(
     matrix: dict = {}
     for row in rows:
         matrix.setdefault(row.role, {}).setdefault(row.module, {})[row.action] = row.allowed
-    return {"matrix": matrix}
+    return APIResponse.ok(data={"matrix": matrix})
 
 
 @router.patch("/permissions/{role}/{module}/{action}", summary="Actualizar un permiso")
@@ -184,7 +184,7 @@ def update_permission(
              ip=request.client.host if request.client else None,
              severity="warning")
     grc_svc.commit_db(db)
-    return {"role": role, "module": module, "action": action, "allowed": body.allowed}
+    return APIResponse.ok(data={"role": role, "module": module, "action": action, "allowed": body.allowed})
 
 
 @router.post("/permissions/seed", summary="Resetear matriz al estado por defecto")
@@ -196,7 +196,7 @@ def seed_permissions(
     grc_svc.reset_permission_matrix(db, DEFAULT_MATRIX)
     _log_grc(db, current_user.id, "permission_matrix_reset", severity="critical")
     grc_svc.commit_db(db)
-    return {"ok": True, "message": "Matriz de permisos restaurada a valores por defecto"}
+    return APIResponse.ok(data={"ok": True, "message": "Matriz de permisos restaurada a valores por defecto"})
 
 
 # ── SoD Rules ─────────────────────────────────────────────────────────────────
@@ -236,7 +236,7 @@ def create_sod_rule(
              severity="warning")
     grc_svc.commit_db(db)
     db.refresh(rule)
-    return _rule_out(rule)
+    return APIResponse.ok(data=_rule_out(rule))
 
 
 @router.patch("/sod-rules/{rule_id}", summary="Actualizar regla SoD")
@@ -248,7 +248,7 @@ def update_sod_rule(
 ):
     rule = grc_svc.get_sod_rule_or_404(db, rule_id)
     grc_svc.update_sod_rule_db(db, rule, payload)
-    return _rule_out(rule)
+    return APIResponse.ok(data=_rule_out(rule))
 
 
 @router.delete("/sod-rules/{rule_id}", summary="Eliminar regla SoD")
@@ -260,7 +260,7 @@ def delete_sod_rule(
     enforce_abac(db, current_user, "grc_sod_rule", rule_id, action="delete")
     rule = grc_svc.get_sod_rule_or_404(db, rule_id)
     grc_svc.delete_sod_rule_db(db, rule)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── SoD Check ─────────────────────────────────────────────────────────────────
@@ -294,7 +294,7 @@ def sod_check(
                     "conflicting_role": role,
                     "mitigated": bool(rule.mitigated_by_workflow_id),
                 })
-    return {"violations": violations, "count": len(violations)}
+    return APIResponse.ok(data={"violations": violations, "count": len(violations)})
 
 
 # ── SoD Violations (runtime) ──────────────────────────────────────────────────
@@ -325,7 +325,7 @@ def resolve_violation(
     _log_grc(db, current_user.id, "sod_violation_resolved", "sod_violation", violation_id,
              {"note": payload.resolution_note}, severity="info")
     grc_svc.resolve_violation_db(db, v, payload.resolution_note)
-    return _violation_out(v)
+    return APIResponse.ok(data=_violation_out(v))
 
 
 # ── Audit Log ─────────────────────────────────────────────────────────────────

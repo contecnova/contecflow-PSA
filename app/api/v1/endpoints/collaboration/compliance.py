@@ -21,7 +21,7 @@ from app.schemas.collaboration import (
 )
 from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import _org
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter()
 
@@ -84,7 +84,7 @@ def list_policies(current_user: User = Depends(get_current_user), db: Session = 
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.post("/retention", response_model=RetentionPolicyOut, summary="Crear política de retención",
+@router.post("/retention", response_model=APIResponse[RetentionPolicyOut], summary="Crear política de retención",
              dependencies=[Depends(require_admin)])
 def create_policy(payload: RetentionPolicyIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.services.collaboration.workspaces import get_or_create_workspace
@@ -105,10 +105,10 @@ def create_policy(payload: RetentionPolicyIn, current_user: User = Depends(get_c
         payload=payload.model_dump(),
     )
     db.commit()
-    return RetentionPolicyOut(
+    return APIResponse.ok(data=RetentionPolicyOut(
         id=row.id, name=row.name, scope=row.scope, target_id=row.target_id,
         retention_months=row.retention_months, apply_to=row.apply_to, is_active=row.is_active,
-    )
+    ))
 
 
 @router.post("/retention/run", summary="Ejecutar barrido de retención (manual)",
@@ -156,17 +156,17 @@ def run_retention(current_user: User = Depends(get_current_user), db: Session = 
         payload={"deleted": deleted, "policies": len(policies)},
     )
     db.commit()
-    return {"deleted": deleted, "policies_applied": len(policies)}
+    return APIResponse.ok(data={"deleted": deleted, "policies_applied": len(policies)})
 
 
 @router.get("/retention/settings", summary="Config retention por tenant", dependencies=[Depends(require_admin)])
 def get_retention_settings(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return _get_retention_settings(db, _org(current_user))
+    return APIResponse.ok(data=_get_retention_settings(db, _org(current_user)))
 
 
 @router.put("/retention/settings", summary="Actualizar config retention por tenant", dependencies=[Depends(require_admin)])
 def put_retention_settings(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return _set_retention_settings(db, _org(current_user), payload)
+    return APIResponse.ok(data=_set_retention_settings(db, _org(current_user), payload))
 
 
 # ── Legal Hold ───────────────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ def list_holds(current_user: User = Depends(get_current_user), db: Session = Dep
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.post("/legal-holds", response_model=LegalHoldOut, summary="Crear legal hold",
+@router.post("/legal-holds", response_model=APIResponse[LegalHoldOut], summary="Crear legal hold",
              dependencies=[Depends(require_admin)])
 def create_hold(payload: LegalHoldIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     row = CollaborationLegalHold(
@@ -201,13 +201,13 @@ def create_hold(payload: LegalHoldIn, current_user: User = Depends(get_current_u
         payload=payload.model_dump(),
     )
     db.commit()
-    return LegalHoldOut(
+    return APIResponse.ok(data=LegalHoldOut(
         id=row.id, case_reference=row.case_reference, description=row.description,
         custodian_user_ids=row.custodian_user_ids or [],
         custodian_client_ids=row.custodian_client_ids or [],
         channel_ids=row.channel_ids or [],
         started_at=row.started_at, ended_at=row.ended_at, is_active=row.is_active,
-    )
+    ))
 
 
 @router.post("/legal-holds/{hold_id}/release", summary="Cerrar legal hold",
@@ -223,7 +223,7 @@ def release_hold(hold_id: str, current_user: User = Depends(get_current_user), d
         action="legal_hold.released", entity_type="legal_hold", entity_id=hold_id, payload={},
     )
     db.commit()
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 def _legal_held_message_ids(db: Session, organization_id: str) -> set[str]:
@@ -268,7 +268,7 @@ def ediscovery_export(payload: EDiscoveryRequest, current_user: User = Depends(g
         payload={"case": payload.case_reference, "matched": len(rows)},
     )
     db.commit()
-    return {
+    return APIResponse.ok(data={
         "case_reference": payload.case_reference,
         "exported_at": utcnow().isoformat(),
         "total": len(rows),
@@ -277,7 +277,7 @@ def ediscovery_export(payload: EDiscoveryRequest, current_user: User = Depends(g
             "user_id": m.user_id, "body": m.body, "sent_at": m.sent_at, "status": m.status,
             "type": m.type,
         } for m in rows],
-    }
+    })
 
 
 # ── Audit ────────────────────────────────────────────────────────────────────
@@ -318,4 +318,4 @@ def list_audit(request: Request, limit: int = 200, current_user: User = Depends(
 @router.get("/audit/verify", summary="Verificar integridad de la cadena de auditoría",
             dependencies=[Depends(require_admin)])
 def verify_audit(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return audit_log.verify_chain(db, _org(current_user))
+    return APIResponse.ok(data=audit_log.verify_chain(db, _org(current_user)))

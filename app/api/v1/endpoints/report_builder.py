@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, get_db
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.report_builder_service as _svc
 
@@ -53,11 +54,11 @@ class ReportTemplate(BaseModel):
 
 @router.get("/schema", summary="Obtener esquema de entidades disponibles")
 def get_schema(_: User = Depends(get_current_user)):
-    return {
+    return APIResponse.ok(data={
         "entities":  _svc.ENTITIES,
         "operators": _svc.OPERATORS,
         "groups":    _svc.GROUPS,
-    }
+    })
 
 
 @router.post("/preview", summary="Previsualizar informe")
@@ -75,7 +76,7 @@ def preview_report(
         q.sort.direction if q.sort else "asc",
         limit, current_user, db,
     )
-    return {"rows": rows, "count": len(rows), "truncated": len(rows) == limit}
+    return APIResponse.ok(data={"rows": rows, "count": len(rows), "truncated": len(rows) == limit})
 
 
 
@@ -105,7 +106,7 @@ def list_templates(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.load_user_templates(str(current_user.id), db)
+    return APIListResponse.ok(items=_svc.load_user_templates(str(current_user.id), db))
 
 
 @router.post("/templates", summary="Guardar plantilla de informe")
@@ -121,7 +122,7 @@ def save_template(
     record = {"id": next_id, "name": tpl.name, "query": tpl.query.model_dump()}
     templates.append(record)
     _svc.save_user_templates(str(current_user.id), templates, db)
-    return record
+    return APIResponse.ok(data=record)
 
 
 @router.delete("/templates/{template_id}", summary="Eliminar plantilla de informe")
@@ -136,4 +137,4 @@ def delete_template(
     if len(updated) == len(templates):
         raise HTTPException(404, "Plantilla no encontrada")
     _svc.save_user_templates(str(current_user.id), updated, db)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})

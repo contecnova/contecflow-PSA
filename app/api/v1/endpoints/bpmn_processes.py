@@ -26,7 +26,7 @@ from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db
 from app.models.bpmn_process import BPMNProcess
 from app.models.user import User
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 import app.services.bpmn_process_service as svc
 
 router = APIRouter(tags=["BPMN Processes"])
@@ -115,7 +115,7 @@ def seed_processes(
     current_user: User = Depends(require_admin_or_pm),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.seed_catalogue(db, organization_id=org_id, force=payload.force)
+    return APIResponse.ok(data=svc.seed_catalogue(db, organization_id=org_id, force=payload.force))
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
@@ -134,7 +134,7 @@ def create_process(
         bpmn_xml=payload.bpmn_xml, organization_id=org_id,
         created_by_user_id=current_user.id, is_seeded=False, source_kind="custom",
     )
-    return svc.serialize_process(proc, include_versions=True)
+    return APIResponse.ok(data=svc.serialize_process(proc, include_versions=True))
 
 
 @router.get("/{process_id}", summary="Get a BPMN process with latest XML")
@@ -149,7 +149,7 @@ def get_process(
     latest = svc.get_latest_version(db, process_id)
     out = svc.serialize_process(proc, include_versions=True)
     out["latest"] = svc.serialize_version(latest) if latest else None
-    return out
+    return APIResponse.ok(data=out)
 
 
 @router.patch("/{process_id}", summary="Update process metadata")
@@ -162,7 +162,7 @@ def update_process(
     proc = svc.update_metadata(db, process_id, **payload.model_dump(exclude_none=True))
     if not proc:
         raise HTTPException(404, "Process not found")
-    return svc.serialize_process(proc)
+    return APIResponse.ok(data=svc.serialize_process(proc))
 
 
 @router.delete("/{process_id}", summary="Delete a process (custom only)")
@@ -178,7 +178,7 @@ def delete_process(
         raise HTTPException(400, "Seeded processes cannot be deleted; archive instead.")
     enforce_abac(db, current_user, "bpmn_process", process_id, action="delete")
     svc.delete_process(db, process_id)
-    return {"ok": True, "message": "Proceso BPMN eliminado correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Proceso BPMN eliminado correctamente"})
 
 
 @router.post("/{process_id}/duplicate", summary="Duplicate a process")
@@ -192,7 +192,7 @@ def duplicate_process(
                                   created_by_user_id=current_user.id)
     if not proc:
         raise HTTPException(404, "Source process not found")
-    return svc.serialize_process(proc, include_versions=True)
+    return APIResponse.ok(data=svc.serialize_process(proc, include_versions=True))
 
 
 # ── Versions ──────────────────────────────────────────────────────────────────
@@ -208,7 +208,7 @@ def save_version(
         raise HTTPException(404, "Process not found")
     v = svc.save_new_version(db, process_id=process_id, bpmn_xml=payload.bpmn_xml,
                              notes=payload.notes, created_by_user_id=current_user.id)
-    return svc.serialize_version(v)
+    return APIResponse.ok(data=svc.serialize_version(v))
 
 
 @router.get("/{process_id}/versions", summary="List versions of a process")
@@ -234,7 +234,7 @@ def get_version(
     v = svc.get_version(db, process_id, version)
     if not v:
         raise HTTPException(404, "Version not found")
-    return svc.serialize_version(v)
+    return APIResponse.ok(data=svc.serialize_version(v))
 
 
 @router.post("/{process_id}/versions/{version}/publish", summary="Publish a version")
@@ -247,4 +247,4 @@ def publish_version(
     v = svc.publish_version(db, process_id, version)
     if not v:
         raise HTTPException(404, "Version not found")
-    return svc.serialize_version(v)
+    return APIResponse.ok(data=svc.serialize_version(v))

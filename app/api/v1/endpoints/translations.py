@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from app.core.deps import get_current_user
+from app.core.responses import APIResponse
 from app.models.user import User
 import json
 from pathlib import Path
@@ -20,10 +21,10 @@ def get_translations(
     Devuelve el diccionario de traducciones de la UI para el idioma solicitado.
     """
     if lang not in SUPPORTED_LANGS:
-        return {"translations": {}, "error": f"Idioma '{lang}' no soportado"}
+        return APIResponse.ok(data={"translations": {}, "error": f"Idioma '{lang}' no soportado"})
     lang_file = (TRANSLATIONS_PATH / f"{lang}.mjs").resolve()
     if TRANSLATIONS_PATH not in lang_file.parents or not lang_file.is_file():
-        return {"translations": {}, "error": f"Idioma '{lang}' no soportado"}
+        return APIResponse.ok(data={"translations": {}, "error": f"Idioma '{lang}' no soportado"})
     # Leer el archivo y extraer el objeto JS
     with open(lang_file, encoding="utf-8") as f:
         content = f.read()
@@ -31,7 +32,7 @@ def get_translations(
     start = content.find('{')
     end = content.rfind('}')
     if start == -1 or end == -1:
-        return {"translations": {}, "error": "Formato de archivo inválido"}
+        return APIResponse.ok(data={"translations": {}, "error": "Formato de archivo inválido"})
     js_obj = content[start:end+1]
     # Reemplazar comillas simples por dobles y quitar comentarios JS
     import re
@@ -40,5 +41,5 @@ def get_translations(
     try:
         translations = json.loads(js_obj)
     except Exception as e:
-        return {"translations": {}, "error": f"Error al parsear: {str(e)}"}
-    return {"translations": translations}
+        return APIResponse.ok(data={"translations": {}, "error": f"Error al parsear: {str(e)}"})
+    return APIResponse.ok(data={"translations": translations})

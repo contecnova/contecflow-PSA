@@ -96,12 +96,12 @@ def my_approval_chain(
 ):
     enforce_abac(db, current_user, "user", current_user.id, action="read")
     chain = approval_chain_for_user(current_user, db, current_user)
-    return {
+    return APIResponse.ok(data={
         "user_id": current_user.id,
         "user_name": current_user.full_name,
         "chain": chain,
         "direct_approver": chain[0] if chain else None,
-    }
+    })
 
 
 @router.get("/me/preferences", summary="Obtener preferencias del usuario actual")
@@ -109,7 +109,7 @@ def get_my_preferences(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_preferences_payload(current_user.id, db)
+    return APIResponse.ok(data=get_preferences_payload(current_user.id, db))
 
 
 @router.patch("/me/preferences", summary="Actualizar preferencias del usuario actual")
@@ -118,10 +118,10 @@ def update_my_preferences(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return update_preferences_record(current_user.id, payload, db)
+    return APIResponse.ok(data=update_preferences_record(current_user.id, payload, db))
 
 
-@router.patch("/me", response_model=UserPublic, summary="El usuario actualiza su propio perfil")
+@router.patch("/me", response_model=APIResponse[UserPublic], summary="El usuario actualiza su propio perfil")
 def update_my_profile(
     payload: UserSelfUpdate,
     db: Session = Depends(get_db),
@@ -129,7 +129,7 @@ def update_my_profile(
 ):
     update_data = payload.model_dump(exclude_unset=True)
 
-    return update_self_profile(current_user, update_data, db)
+    return APIResponse.ok(data=update_self_profile(current_user, update_data, db))
 
 
 @router.get("/{user_id}/approval-chain", summary="Cadena de aprobación de un usuario")
@@ -144,15 +144,15 @@ def user_approval_chain(
     enforce_abac(db, _, "user", user_id, action="read")
     _ensure_same_org_user_access(user, _)
     chain = approval_chain_for_user(user, db, _)
-    return {
+    return APIResponse.ok(data={
         "user_id": user.id,
         "user_name": user.full_name,
         "chain": chain,
         "direct_approver": chain[0] if chain else None,
-    }
+    })
 
 
-@router.get("/{user_id}", response_model=UserWithRate, summary="Detalle de un recurso")
+@router.get("/{user_id}", response_model=APIResponse[UserWithRate], summary="Detalle de un recurso")
 def get_user(
     user_id: str,
     db: Session = Depends(get_db),
@@ -171,20 +171,20 @@ def get_user(
     if current_user.role not in [UserRole.admin, UserRole.hr]:
         user.hourly_rate = None
 
-    return user
+    return APIResponse.ok(data=user)
 
 
-@router.post("", response_model=UserPublic, summary="Crear nuevo recurso")
+@router.post("", response_model=APIResponse[UserPublic], summary="Crear nuevo recurso")
 def create_user(
     payload: UserCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     enforce_abac(db, current_user, "user", action="create")
-    return create_user_record(payload, current_user, db)
+    return APIResponse.ok(data=create_user_record(payload, current_user, db))
 
 
-@router.patch("/{user_id}", response_model=UserPublic, summary="Actualizar recurso")
+@router.patch("/{user_id}", response_model=APIResponse[UserPublic], summary="Actualizar recurso")
 def update_user(
     user_id: str,
     payload: UserUpdate,
@@ -192,7 +192,7 @@ def update_user(
     current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "user", user_id, action="update")
-    return update_user_record(user_id, payload, current_user, db)
+    return APIResponse.ok(data=update_user_record(user_id, payload, current_user, db))
 
 
 @router.delete("/{user_id}", summary="Desactivar recurso (soft delete)")
@@ -207,7 +207,7 @@ def deactivate_user(
     _ensure_same_org_user_access(user, _)
     enforce_abac(db, _, "user", user_id, action="delete")
     deactivate_user_record(user, db)
-    return {"message": f"Usuario {user.username} desactivado"}
+    return APIResponse.ok(data={"message": f"Usuario {user.username} desactivado"})
 
 
 @router.delete("/{user_id}/permanent", summary="Eliminar usuario permanentemente")
@@ -224,7 +224,7 @@ def delete_user_permanent(
     _ensure_same_org_user_access(user, current_user)
     enforce_abac(db, current_user, "user", user_id, action="delete")
     delete_user_record(user, db)
-    return {"message": f"Usuario {user.username} eliminado permanentemente"}
+    return APIResponse.ok(data={"message": f"Usuario {user.username} eliminado permanentemente"})
 
 
 @router.get("/{user_id}/productivity", summary="Estadísticas de productividad de un recurso")
@@ -236,7 +236,7 @@ def get_user_productivity(
     current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "user", user_id, action="read")
-    return get_user_productivity_payload(user_id, date_from, date_to, current_user, db)
+    return APIResponse.ok(data=get_user_productivity_payload(user_id, date_from, date_to, current_user, db))
 
 
 @router.patch("/{user_id}/manager", summary="Cambiar manager de un usuario")
@@ -247,4 +247,4 @@ def set_user_manager(
     current_user: User = Depends(require_admin),
 ):
     enforce_abac(db, current_user, "user", user_id, action="update")
-    return set_manager_record(user_id, payload.get("manager_id"), current_user, db)
+    return APIResponse.ok(data=set_manager_record(user_id, payload.get("manager_id"), current_user, db))

@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk.inbound_email_service import process_inbound_email
@@ -46,7 +47,7 @@ def get_config(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return get_multichannel_config(db, org_id)
+    return APIResponse.ok(data=get_multichannel_config(db, org_id))
 
 
 @router.put("/config", summary="Guardar configuración de canales de comunicación")
@@ -60,7 +61,7 @@ def put_config(
     # Merge provided fields only
     data = payload.model_dump(exclude_unset=True)
     current.update(data)
-    return save_multichannel_config(db, org_id, current)
+    return APIResponse.ok(data=save_multichannel_config(db, org_id, current))
 
 
 @router.get("/channels", summary="Estado de los canales configurados")
@@ -69,7 +70,7 @@ def list_channels(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return {"channels": get_channel_status(db, org_id)}
+    return APIListResponse.ok(items=get_channel_status(db, org_id))
 
 
 # ── Inbound webhooks ───────────────────────────────────────────────────────────
@@ -159,4 +160,4 @@ def notify_ticket_requester(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return notify_requester(db, ticket_id=ticket_id, message=payload.message, channels=payload.channels)
+    return APIResponse.ok(data=notify_requester(db, ticket_id=ticket_id, message=payload.message, channels=payload.channels))

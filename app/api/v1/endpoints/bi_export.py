@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.core.responses import APIResponse
 from app.models.user import User
 from app.services import bi_export_service as svc
 
@@ -61,7 +62,7 @@ def download_pptx(
 def list_export_formats(
     current_user: User = Depends(get_current_user),
 ):
-    return {
+    return APIResponse.ok(data={
         "formats": [
             {
                 "id": "excel",
@@ -78,4 +79,4 @@ def list_export_formats(
                 "endpoint": "/bi/export/pptx",
             },
         ]
-    }
+    })

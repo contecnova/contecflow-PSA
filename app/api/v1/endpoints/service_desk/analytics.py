@@ -5,6 +5,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.service_desk.stats_service import get_service_desk_stats
 from app.services.service_desk.analytics_service import get_itil_metrics_payload, get_agent_performance_payload
@@ -16,7 +17,7 @@ router = APIRouter()
 
 @router.get("/stats", summary="Estadísticas del service desk")
 def get_stats(days: int = Query(30, ge=1, le=365), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return get_service_desk_stats(db, current_user, days)
+    return APIResponse.ok(data=get_service_desk_stats(db, current_user, days))
 
 
 @router.get("/metrics/itil", summary="Métricas ITIL: MTTR, FCR, SLA compliance, volumen")
@@ -25,7 +26,7 @@ def get_itil_metrics(
     client_id: Optional[str] = Query(None),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    return get_itil_metrics_payload(db, date_from, date_to, client_id)
+    return APIResponse.ok(data=get_itil_metrics_payload(db, date_from, date_to, client_id))
 
 
 @router.get("/metrics/agent-performance", summary="Rendimiento por agente")
@@ -33,7 +34,7 @@ def get_agent_performance(
     date_from: Optional[str] = Query(None), date_to: Optional[str] = Query(None),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    return get_agent_performance_payload(db, date_from, date_to)
+    return APIListResponse.ok(items=get_agent_performance_payload(db, date_from, date_to))
 
 
 @router.get("/dashboard/layout", summary="Layout de dashboard Service Desk por rol")
@@ -42,7 +43,7 @@ def get_dashboard_layout(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return {"role": role, "layout": get_layout(db, org_id, role)}
+    return APIResponse.ok(data={"role": role, "layout": get_layout(db, org_id, role)})
 
 
 @router.put("/dashboard/layout", summary="Guardar layout de dashboard Service Desk por rol")
@@ -52,11 +53,11 @@ def put_dashboard_layout(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return {"role": role, "layout": save_layout(db, org_id, role, layout)}
+    return APIResponse.ok(data={"role": role, "layout": save_layout(db, org_id, role, layout)})
 
 
 @router.get("/incidents/correlation", summary="Correlación de incidentes recurrentes para Problem Management")
 def get_incident_correlation(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    return {"clusters": detect_recurring_incidents(db)}
+    return APIListResponse.ok(items=detect_recurring_incidents(db))

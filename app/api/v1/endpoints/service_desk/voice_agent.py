@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk.voice_agent_service import (
@@ -67,7 +68,7 @@ def get_ivr_config(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return get_config(db, str(org_id) if org_id else None)
+    return APIResponse.ok(data=get_config(db, str(org_id) if org_id else None))
 
 
 @router.put("/config", summary="Actualizar configuración del agente de voz")
@@ -80,7 +81,7 @@ def update_ivr_config(
 ):
     org_id = getattr(current_user, "organization_id", None)
     updates = body.model_dump(exclude_none=True)
-    return update_config(db, str(org_id) if org_id else None, updates)
+    return APIResponse.ok(data=update_config(db, str(org_id) if org_id else None, updates))
 
 
 @router.post("/sessions", summary="Crear nueva sesión de llamada de voz", status_code=201)
@@ -92,7 +93,7 @@ def start_voice_session(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return create_session(db, str(org_id) if org_id else None, body.caller_id, body.channel)
+    return APIResponse.ok(data=create_session(db, str(org_id) if org_id else None, body.caller_id, body.channel))
 
 
 @router.get("/sessions", summary="Listar sesiones de voz")
@@ -106,7 +107,7 @@ def get_voice_sessions(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = list_sessions(db, str(org_id) if org_id else None, status=status, limit=limit)
-    return {"sessions": items, "count": len(items)}
+    return APIResponse.ok(data={"sessions": items, "count": len(items)})
 
 
 @router.get("/sessions/{session_id}", summary="Detalle de sesión de voz")
@@ -123,7 +124,7 @@ def get_voice_session(
     session = next((s for s in sessions_svc if s["id"] == session_id), None)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    return session
+    return APIResponse.ok(data=session)
 
 
 @router.post("/sessions/{session_id}/turn", summary="Añadir turno de transcripción + clasificar intención")
@@ -136,7 +137,7 @@ def add_turn(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return add_transcript_turn(db, str(org_id) if org_id else None, session_id, body.speaker, body.text)
+    return APIResponse.ok(data=add_transcript_turn(db, str(org_id) if org_id else None, session_id, body.speaker, body.text))
 
 
 @router.post("/sessions/{session_id}/close", summary="Cerrar sesión de voz")
@@ -149,7 +150,7 @@ def end_session(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return close_session(db, str(org_id) if org_id else None, session_id, body.resolution)
+    return APIResponse.ok(data=close_session(db, str(org_id) if org_id else None, session_id, body.resolution))
 
 
 @router.post("/sessions/{session_id}/ticket", summary="Crear ticket desde sesión de voz", status_code=201)
@@ -161,7 +162,7 @@ def create_ticket(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return create_ticket_from_session(db, str(org_id) if org_id else None, session_id, current_user.id)
+    return APIResponse.ok(data=create_ticket_from_session(db, str(org_id) if org_id else None, session_id, current_user.id))
 
 
 # ── Twilio Webhook (no auth — validated by Twilio signature) ──────────────────

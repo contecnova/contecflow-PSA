@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
 from app.core.async_db import run_db
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.git_service import (
     get_pull_request,
@@ -152,7 +152,7 @@ def list_prs(
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
-@router.get("/pull-requests/{pr_id}", response_model=PROut, summary="Detalle de PR")
+@router.get("/pull-requests/{pr_id}", response_model=APIResponse[PROut], summary="Detalle de PR")
 def get_pr(
     pr_id: int,
     db:    Session = Depends(get_db),
@@ -161,7 +161,7 @@ def get_pr(
     pr = get_pull_request(db, pr_id)
     if not pr:
         raise HTTPException(404, "Pull request not found")
-    return pr
+    return APIResponse.ok(data=pr)
 
 
 @router.get("/deployments", response_model=APIListResponse[DeployOut], summary="Listar deployments")
@@ -188,7 +188,7 @@ def suggest_branch(
     task = get_task(db, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    return suggest_branch_name(task)
+    return APIResponse.ok(data=suggest_branch_name(task))
 
 
 @router.get("/tasks/{task_id}/pr-status", summary="Estado de PR/Deploy para una tarea")
@@ -200,7 +200,7 @@ def task_pr_status(
     """Returns the latest PR and latest deployment linked to a task."""
     pr, dep = get_task_pr_status(db, task_id)
 
-    return {
+    return APIResponse.ok(data={
         "task_id":    task_id,
         "pr": {
             "id":          pr.id           if pr else None,
@@ -219,4 +219,4 @@ def task_pr_status(
             "deployed_at": dep.deployed_at if dep else None,
             "sha":         dep.sha         if dep else None,
         } if dep else None,
-    }
+    })

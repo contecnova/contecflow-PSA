@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.deps import require_admin
+from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services.audit import audit_log
@@ -78,7 +79,7 @@ def list_policy_packs(
             "config": json.loads(row.config_json) if row and row.config_json else {},
             "updated_at": row.updated_at if row else None,
         })
-    return out
+    return APIListResponse.ok(items=out)
 
 
 @router.put("/policy-packs/{pack_key}", summary="Activar/configurar un policy pack del tenant")
@@ -109,7 +110,7 @@ def upsert_policy_pack(
         resource_name=pack_key,
         new_values={"enabled": payload.is_enabled, "version": payload.pack_version},
     )
-    return {"ok": True, "pack_key": pack_key}
+    return APIResponse.ok(data={"ok": True, "pack_key": pack_key})
 
 
 @router.post("/compliance/evidence", summary="Registrar evidencia de compliance")
@@ -149,7 +150,7 @@ def create_evidence(
         resource_name=payload.control_id,
         new_values={"framework": framework, "type": payload.evidence_type},
     )
-    return {"id": evidence.id, "artifact_hash": evidence.artifact_hash}
+    return APIResponse.ok(data={"id": evidence.id, "artifact_hash": evidence.artifact_hash})
 
 
 @router.get("/compliance/evidence", summary="Listar evidencias SOC2/ISO del tenant")
@@ -166,7 +167,7 @@ def list_evidence(
         framework=framework.upper() if framework else None,
         control_id=control_id,
     )
-    return [
+    items = [
         {
             "id": r.id,
             "framework": r.framework,
@@ -179,6 +180,7 @@ def list_evidence(
         }
         for r in rows
     ]
+    return APIListResponse.ok(items=items)
 
 
 @router.get("/compliance/controls/status", summary="Estado de controles SOC2/ISO con evidencia")
@@ -209,7 +211,7 @@ def compliance_control_status(
             "evidence_count": evidence_count,
         })
 
-    return {
+    return APIResponse.ok(data={
         "framework": fw,
         "organization_id": organization_id,
         "generated_at": datetime.now(timezone.utc),
@@ -220,7 +222,7 @@ def compliance_control_status(
             "audit_log_enabled": True,
         },
         "controls": rows,
-    }
+    })
 
 
 # ── AI module governance ───────────────────────────────────────────────────────
@@ -238,13 +240,13 @@ def get_ai_module_config(
 ):
     rows = _gsvc.list_ai_module_configs(db, _org_id(current_user, strict=False))
     by_module = {r.module: r for r in rows}
-    return [
+    return APIListResponse.ok(items=[
         {
             "module": m,
             "is_enabled": by_module[m].is_enabled if m in by_module else True,
         }
         for m in AI_MODULES
-    ]
+    ])
 
 
 @router.patch("/config/{module}", summary="Activar/desactivar módulo de IA")
@@ -260,7 +262,7 @@ def patch_ai_module_config(
     _gsvc.upsert_ai_module_config(db, _org_id(current_user), module, is_enabled, current_user.id)
     audit_log(db=db, user=current_user, action="UPDATE", resource="ai_module_config",
               resource_id=None, resource_name=module, new_values={"is_enabled": is_enabled})
-    return {"ok": True, "module": module, "is_enabled": is_enabled}
+    return APIResponse.ok(data={"ok": True, "module": module, "is_enabled": is_enabled})
 
 
 @router.get("/stats", summary="Estadísticas de uso de módulos de IA")
@@ -269,7 +271,7 @@ def get_ai_governance_stats(
     current_user: User = Depends(require_admin),
 ):
     stats = _gsvc.get_ai_usage_stats(db, _org_id(current_user, strict=False))
-    return stats
+    return APIResponse.ok(data=stats)
 
 
 @router.get("/logs", summary="Historial de llamadas a módulos de IA gobernados")
@@ -280,4 +282,4 @@ def get_ai_governance_logs(
     current_user: User = Depends(require_admin),
 ):
     logs = _gsvc.list_ai_governance_logs(db, _org_id(current_user, strict=False), limit=limit, module=module)
-    return logs
+    return APIListResponse.ok(items=logs)

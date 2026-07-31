@@ -14,7 +14,7 @@ def _create_project(client, token, code: str, name: str):
     }
     res = client.post("/api/v1/projects", json=payload, headers=auth(token))
     assert res.status_code in (200, 201), res.text
-    return res.json()["id"]
+    return res.json()["data"]["id"]
 
 
 def test_no_cr_on_start_dev_without_approval(client, pm_token, db):

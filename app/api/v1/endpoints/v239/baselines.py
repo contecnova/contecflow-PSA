@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, require_any_manager
+from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 
@@ -38,7 +39,7 @@ def list_baselines(
         .order_by(GanttBaseline.baseline_date.desc())
         .all()
     )
-    return [
+    return APIListResponse.ok(items=[
         {
             "id": b.id,
             "name": b.name,
@@ -52,7 +53,7 @@ def list_baselines(
             "created_at": str(b.created_at),
         }
         for b in baselines
-    ]
+    ])
 
 
 @router.post("/projects/{project_id}/baselines", summary="Freeze current Gantt as baseline", status_code=201)
@@ -114,14 +115,14 @@ def create_baseline(
     db.add(baseline)
     db.commit()
     db.refresh(baseline)
-    return {
+    return APIResponse.ok(data={
         "id": baseline.id,
         "name": baseline.name,
         "baseline_date": str(baseline.baseline_date),
         "total_tasks": baseline.total_tasks,
         "total_hours": baseline.total_hours,
         "created": True,
-    }
+    })
 
 
 @router.get("/projects/{project_id}/baselines/{baseline_id}/compare", summary="Compare current schedule vs baseline")
@@ -179,7 +180,7 @@ def compare_baseline(
     slipped = sum(1 for d in deltas if (d.get("slip_days") or 0) > 0)
     avg_slip = sum(d.get("slip_days") or 0 for d in deltas) / max(len(deltas), 1)
 
-    return {
+    return APIResponse.ok(data={
         "baseline_id": baseline_id,
         "baseline_name": baseline.name,
         "baseline_date": str(baseline.baseline_date),
@@ -191,7 +192,7 @@ def compare_baseline(
             "tasks_added": sum(1 for d in deltas if d.get("delta") == "new_task"),
         },
         "task_deltas": deltas + removed,
-    }
+    })
 
 
 @router.delete("/projects/{project_id}/baselines/{baseline_id}", summary="Delete baseline", status_code=204)

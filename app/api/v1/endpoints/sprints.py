@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.models.sprints import Sprint, SprintStatus
 from app.services.psa_flows import close_sprint_flow
@@ -121,7 +121,7 @@ def create_sprint(
     )
     svc.create_sprint(db, sprint)
     db.refresh(sprint)
-    return _sprint_out(sprint)
+    return APIResponse.ok(data=_sprint_out(sprint))
 
 
 @router.patch("/{project_id}/sprints/{sprint_id}", summary="Actualizar sprint")
@@ -144,7 +144,7 @@ def update_sprint(
 
     # Reload with tasks
     sprint = svc.get_sprint_with_tasks_by_id(db, sprint_id, current_user)
-    return _sprint_out(sprint, include_tasks=True)
+    return APIResponse.ok(data=_sprint_out(sprint, include_tasks=True))
 
 
 @router.post("/{project_id}/sprints/{sprint_id}/start", summary="Iniciar sprint")
@@ -171,7 +171,7 @@ def start_sprint(
     sprint.planned_points = sum(st.task.story_points or 0 for st in sprint.sprint_tasks if st.task)
 
     svc.commit_db(db)
-    return {"ok": True, "sprint": _sprint_out(sprint)}
+    return APIResponse.ok(data={"ok": True, "sprint": _sprint_out(sprint)})
 
 
 @router.post("/{project_id}/sprints/{sprint_id}/close", summary="Cerrar sprint")
@@ -182,7 +182,7 @@ def close_sprint(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "sprint", sprint_id, action="update")
-    return close_sprint_flow(db, project_id, sprint_id)
+    return APIResponse.ok(data=close_sprint_flow(db, project_id, sprint_id))
 
 
 @router.post("/{project_id}/sprints/{sprint_id}/tasks", summary="Añadir tareas al sprint")
@@ -197,7 +197,7 @@ def add_tasks_to_sprint(
     if not sprint: raise HTTPException(404, "Sprint no encontrado")
 
     added = svc.add_tasks_to_sprint(db, sprint_id, project_id, payload.task_ids)
-    return {"ok": True, "added": added}
+    return APIResponse.ok(data={"ok": True, "added": added})
 
 
 @router.delete("/{project_id}/sprints/{sprint_id}/tasks/{task_id}", summary="Quitar tarea del sprint")
@@ -212,7 +212,7 @@ def remove_task_from_sprint(
     st = svc.get_sprint_task(db, sprint_id, task_id)
     if not st: raise HTTPException(404)
     svc.delete_sprint_task(db, st)
-    return {"ok": True, "message": "Tarea retirada del sprint correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Tarea retirada del sprint correctamente"})
 
 
 @router.put("/{project_id}/sprints/{sprint_id}/reorder", summary="Reordenar backlog del sprint")
@@ -224,7 +224,7 @@ def reorder_sprint_backlog(
     current_user: User = Depends(get_current_user),
 ):
     svc.reorder_sprint_backlog(db, sprint_id, payload.task_ids)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.get("/{project_id}/sprints/{sprint_id}/burndown", summary="Datos de burndown chart")
@@ -236,7 +236,7 @@ def get_burndown(
 ):
     sprint = svc.get_sprint_for_charts(db, sprint_id, project_id, current_user)
     if not sprint: raise HTTPException(404)
-    return {"burndown": _compute_burndown(sprint, db)}
+    return APIResponse.ok(data={"burndown": _compute_burndown(sprint, db)})
 
 
 @router.get("/{project_id}/sprints/{sprint_id}/burnup", summary="Datos de burnup chart (scope + completed)")
@@ -256,7 +256,7 @@ def get_burnup(
         raise HTTPException(404)
 
     if not sprint.start_date or not sprint.end_date:
-        return {"burnup": [], "sprint": _sprint_out(sprint)}
+        return APIResponse.ok(data={"burnup": [], "sprint": _sprint_out(sprint)})
 
     tasks = [st.task for st in sprint.sprint_tasks if st.task]
     total_scope = sum(t.story_points or 0 for t in tasks)
@@ -283,11 +283,11 @@ def get_burnup(
         })
         current += timedelta(days=1)
 
-    return {
+    return APIResponse.ok(data={
         "burnup":   burnup,
         "sprint":   _sprint_out(sprint),
         "target":   total_scope,
-    }
+    })
 
 
 @router.get("/{project_id}/backlog", summary="Backlog del proyecto (tareas sin sprint)")
@@ -318,4 +318,4 @@ def get_velocity_history(
     } for s in sprints]
 
     avg_velocity = sum(d["velocity"] for d in data) / len(data) if data else 0
-    return {"sprints": data, "avg_velocity": round(avg_velocity, 1)}
+    return APIResponse.ok(data={"sprints": data, "avg_velocity": round(avg_velocity, 1)})

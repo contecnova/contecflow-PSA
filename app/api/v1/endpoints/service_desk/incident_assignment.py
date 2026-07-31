@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk.incident_assignment_service import (
@@ -60,7 +61,7 @@ def recommend_ticket_assignment(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return recommend_assignment(
+    return APIResponse.ok(data=recommend_assignment(
         db,
         ticket_id=ticket_id,
         title=body.title,
@@ -69,7 +70,7 @@ def recommend_ticket_assignment(
         ticket_type=body.ticket_type,
         org_id=org_id,
         candidate_agents=[a.model_dump() for a in body.candidate_agents],
-    )
+    ))
 
 
 @router.get("/assignment/stats", summary="Estadísticas del motor de asignación ML")
@@ -81,4 +82,4 @@ def assignment_stats(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return get_assignment_stats(db, org_id=org_id)
+    return APIResponse.ok(data=get_assignment_stats(db, org_id=org_id))

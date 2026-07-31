@@ -65,7 +65,7 @@ def test_start_timer(db: Session, timer_client):
 
     response = client.post("/api/v1/imputations/timer/start", json=payload, headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert data["user_id"] is not None
     assert data["project_id"] == project.id
     assert data["started_at"] is not None
@@ -110,12 +110,12 @@ def test_pause_resume_timer(db: Session, timer_client):
     # Pause
     response = client.post("/api/v1/imputations/timer/pause", headers=headers)
     assert response.status_code == 200
-    assert response.json()["paused_at"] is not None
+    assert response.json()["data"]["paused_at"] is not None
 
     # Resume
     response = client.post("/api/v1/imputations/timer/resume", headers=headers)
     assert response.status_code == 200
-    assert response.json()["paused_at"] is None
+    assert response.json()["data"]["paused_at"] is None
 
 
 @pytest.mark.skip(reason="audit #90: depends on seeded Project. Refactor pending — see test_start_timer for the local-creation pattern.")
@@ -142,7 +142,7 @@ def test_stop_timer_creates_imputation(db: Session, timer_client):
     response = client.post("/api/v1/imputations/timer/stop", json=stop_payload, headers=headers)
     assert response.status_code == 200
 
-    data = response.json()
+    data = response.json()["data"]
     assert data["hours"] >= 0.01  # At least a few seconds
     assert data["is_billable"] == True
     assert data["description"] == "Worked on task"
@@ -179,7 +179,7 @@ def test_get_current_timer(db: Session, timer_client):
     # Get current timer
     response = client.get("/api/v1/imputations/timer/current", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert data is not None
     assert data["user_id"] is not None
     assert data["project_name"] == project.name
@@ -320,7 +320,7 @@ def test_stop_timer_force_duplicate_notifies_manager(db: Session, timer_client):
 
     week = client.get("/api/v1/imputations/my/week", headers=headers)
     assert week.status_code == 200
-    assert week.json()["total_hours"] >= 1.25
+    assert week.json()["data"]["total_hours"] >= 1.25
 
 
 @pytest.mark.skip(reason="audit #90: depends on seeded Project. Refactor pending — see test_start_timer for the local-creation pattern.")
@@ -399,7 +399,7 @@ def test_manager_approval_of_forced_duplicate_keeps_sum(client, db: Session, dev
         headers=dev_headers,
     )
     assert stop_response.status_code == 200
-    forced_id = stop_response.json()["id"]
+    forced_id = stop_response.json()["data"]["id"]
 
     approve_response = client.post(f"/api/v1/imputations/{forced_id}/approve", headers=pm_headers)
     assert approve_response.status_code == 200
@@ -414,7 +414,7 @@ def test_manager_approval_of_forced_duplicate_keeps_sum(client, db: Session, dev
 
     week = client.get("/api/v1/imputations/my/week", headers=dev_headers)
     assert week.status_code == 200
-    assert week.json()["total_hours"] >= 1.25
+    assert week.json()["data"]["total_hours"] >= 1.25
 
 
 # ── Lockout Status Tests ───────────────────────────────────────────────────
@@ -427,7 +427,7 @@ def test_lockout_status(db: Session, timer_client):
     response = client.get("/api/v1/imputations/lockout-status", headers=headers)
     assert response.status_code == 200
 
-    data = response.json()
+    data = response.json()["data"]
     assert data["lockout_days"] > 0
     assert data["current_date"] is not None
     assert data["lockout_cutoff_date"] is not None
@@ -466,7 +466,7 @@ def test_dismiss_alert(db: Session, timer_client):
     # Dismiss the alert
     response = client.post(f"/api/v1/imputations/alerts/{alert.id}/dismiss", headers=headers)
     assert response.status_code == 200
-    assert response.json()["status"] == "dismissed"
+    assert response.json()["data"]["status"] == "dismissed"
 
     # Verify it's dismissed
     db.refresh(alert)
@@ -508,7 +508,7 @@ def test_imputation_cost_calculation_with_none_rate(db: Session, timer_client):
 
         # Should succeed and cost should be 0
         assert response.status_code == 200
-        data = response.json()
+        data = response.json()["data"]
         assert data["cost_amount"] == 0.0  # Cost should be 0, not None
 
     finally:

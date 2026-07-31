@@ -15,7 +15,7 @@ def test_run_job_async_returns_queued(client, admin_token, monkeypatch):
         headers=auth(admin_token),
     )
     assert r.status_code == 200, r.text
-    body = r.json()
+    body = r.json()["data"]
     assert body["status"] == "queued"
     assert body["limit"] == 9
     assert "job_id" in body
@@ -38,7 +38,7 @@ def test_run_job_sync_uses_limit(client, admin_token, monkeypatch):
         headers=auth(admin_token),
     )
     assert r.status_code == 200, r.text
-    body = r.json()
+    body = r.json()["data"]
     assert body["status"] == "completed"
     assert body["processed"] == 3
     assert seen["limit"] == 7
@@ -47,7 +47,7 @@ def test_run_job_sync_uses_limit(client, admin_token, monkeypatch):
 def test_auto_resolution_config_get_returns_defaults(client, admin_token):
     r = client.get("/api/v1/sd/auto-resolution/config", headers=auth(admin_token))
     assert r.status_code == 200, r.text
-    body = r.json()
+    body = r.json()["data"]
     assert "threshold_auto" in body
     assert "threshold_suggest" in body
     assert "default_job_limit" in body
@@ -66,7 +66,7 @@ def test_auto_resolution_config_patch_persists_and_normalizes(client, admin_toke
         },
     )
     assert r.status_code == 200, r.text
-    body = r.json()
+    body = r.json()["data"]
     assert body["threshold_auto"] == 0.82
     # Suggest threshold is clamped to not exceed threshold_auto.
     assert body["threshold_suggest"] == 0.82
@@ -76,7 +76,7 @@ def test_auto_resolution_config_patch_persists_and_normalizes(client, admin_toke
 
     r2 = client.get("/api/v1/sd/auto-resolution/config", headers=auth(admin_token))
     assert r2.status_code == 200, r2.text
-    body2 = r2.json()
+    body2 = r2.json()["data"]
     assert body2["threshold_auto"] == 0.82
     assert body2["default_job_limit"] == 30
 
@@ -84,7 +84,7 @@ def test_auto_resolution_config_patch_persists_and_normalizes(client, admin_toke
 def test_auto_resolution_stats_includes_runtime_health(client, admin_token):
     r = client.get("/api/v1/sd/auto-resolution/stats", headers=auth(admin_token))
     assert r.status_code == 200, r.text
-    body = r.json()
+    body = r.json()["data"]
     assert "runtime" in body
     assert "running" in body["runtime"]
     assert "status" in body["runtime"]
@@ -109,7 +109,7 @@ def test_stats_includes_job_history_after_sync_run(client, admin_token, monkeypa
     # Verify stats includes job_history with at least one entry
     r2 = client.get("/api/v1/sd/auto-resolution/stats", headers=auth(admin_token))
     assert r2.status_code == 200, r2.text
-    body = r2.json()
+    body = r2.json()["data"]
     assert "job_history" in body
     assert isinstance(body["job_history"], list)
     assert len(body["job_history"]) >= 1

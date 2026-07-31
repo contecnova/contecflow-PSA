@@ -43,7 +43,7 @@ def _make_project(client, token, code, billing_type="time_material", billing_rat
         headers=auth(token),
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()["id"]
+    return res.json()["data"]["id"]
 
 
 def _make_task(client, token, project_id, title="Tarea test"):
@@ -408,7 +408,7 @@ def test_project_full_crud_lifecycle(client, pm_token, admin_token, db):
         headers=auth(pm_token),
     )
     assert create.status_code in (200, 201), create.text
-    pid = create.json()["id"]
+    pid = create.json()["data"]["id"]
 
     # Actualizar descripción y fechas
     update = client.patch(
@@ -724,7 +724,7 @@ def test_okr_full_progress_flow(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert obj.status_code == 201, obj.text
-    obj_id = obj.json()["id"]
+    obj_id = obj.json()["data"]["id"]
 
     # Añadir key result — POST /api/v1/okrs/key-results con objective_id en body
     kr = client.post(
@@ -775,7 +775,7 @@ def test_absence_approved_blocks_capacity_planning(client, pm_token, dev_token, 
         headers=auth(dev_token),
     )
     assert absence.status_code in (200, 201), absence.text
-    absence_id = absence.json()["id"]
+    absence_id = absence.json()["data"]["id"]
 
     # PM aprueba la ausencia
     approve = client.post(

@@ -22,7 +22,7 @@ def _create_project(client, token, name="Portfolio Project", budget=100_000):
         headers=auth(token),
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()
+    return res.json()["data"]
 
 
 def _create_portfolio(client, token, name="Test Portfolio"):
@@ -32,7 +32,7 @@ def _create_portfolio(client, token, name="Test Portfolio"):
         headers=auth(token),
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()
+    return res.json()["data"]
 
 
 # ── Portfolio CRUD ─────────────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ class TestPortfolioCRUD:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        assert res.json()["id"] == port["id"]
+        assert res.json()["data"]["id"] == port["id"]
 
     def test_get_nonexistent_portfolio(self, client, admin_token, db):
         res = client.get("/api/v1/portfolios/does-not-exist", headers=auth(admin_token))
@@ -78,7 +78,7 @@ class TestPortfolioCRUD:
         )
         assert res.status_code in (200, 204), res.text
         if res.status_code == 200:
-            assert res.json().get("name") == "After Update"
+            assert res.json()["data"].get("name") == "After Update"
 
     def test_delete_portfolio(self, client, admin_token, db):
         port = _create_portfolio(client, admin_token, "To Delete")
@@ -123,7 +123,7 @@ class TestPortfolioProjects:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         projects = data.get("projects") or data.get("items") or []
         ids = [p.get("project_id") or p.get("id") for p in projects]
         if ids:  # only assert if the response includes project list
@@ -154,7 +154,7 @@ class TestPortfolioDashboard:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert isinstance(data, dict)
 
     def test_dashboard_with_project(self, client, admin_token, db):
@@ -170,7 +170,7 @@ class TestPortfolioDashboard:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         # Dashboard should include some EVM summary or project list
         assert "projects" in data or "summary" in data or "portfolio" in data or isinstance(data, dict)
 

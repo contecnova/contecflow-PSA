@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
+from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_governance_service as svc
@@ -44,7 +45,7 @@ def get_governance_config(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, 'organization_id', None)
-    return svc._get_json(db, GOVERNANCE_CONFIG_KEY, org_id, _DEFAULT_CONFIG)
+    return APIResponse.ok(data=svc._get_json(db, GOVERNANCE_CONFIG_KEY, org_id, _DEFAULT_CONFIG))
 
 
 @router.put('/bi/governance/config', summary='Actualizar configuración de governance BI')
@@ -62,7 +63,7 @@ def update_governance_config(
     if payload.data_retention_days is not None:
         current["data_retention_days"] = payload.data_retention_days
     svc._set_json(db, GOVERNANCE_CONFIG_KEY, org_id, current, "BI governance config")
-    return current
+    return APIResponse.ok(data=current)
 
 
 @router.get('/bi/governance/policies', summary='Listar políticas de acceso BI')
@@ -74,7 +75,7 @@ def list_policies(
 ):
     org_id = getattr(current_user, 'organization_id', None)
     policies = svc._get_json(db, GOVERNANCE_POLICIES_KEY, org_id, [])
-    return policies
+    return APIListResponse.ok(items=policies)
 
 
 @router.post('/bi/governance/policies', summary='Crear política de acceso BI', status_code=201)
@@ -99,7 +100,7 @@ def create_policy(
     }
     policies.append(new_policy)
     svc._set_json(db, GOVERNANCE_POLICIES_KEY, org_id, policies, "BI governance policies")
-    return new_policy
+    return APIResponse.ok(data=new_policy)
 
 
 @router.get('/bi/governance/audit-log', summary='Consultar log de auditoría BI governance')
@@ -112,7 +113,7 @@ def get_audit_log(
 ):
     org_id = getattr(current_user, 'organization_id', None)
     items = svc.get_access_history(db, organization_id=org_id, days=days)
-    return {"items": items, "count": len(items)}
+    return APIResponse.ok(data={"items": items, "count": len(items)})
 
 
 class AuditAccessIn(BaseModel):
@@ -160,7 +161,7 @@ def log_access(
         after_state=payload.after_state,
         extra=payload.extra,
     )
-    return {'ok': True, 'audit': row}
+    return APIResponse.ok(data={'ok': True, 'audit': row})
 
 
 @router.get('/bi/governance/audit/access', summary='Consultar auditoria BI por ventana temporal')
@@ -183,7 +184,7 @@ def list_access_history(
         entity_type=entity_type,
         action=action,
     )
-    return {'items': items, 'count': len(items)}
+    return APIResponse.ok(data={'items': items, 'count': len(items)})
 
 
 @router.get('/bi/governance/lineage', summary='Listar data lineage BI')
@@ -196,7 +197,7 @@ def list_lineage(
 ):
     org_id = getattr(current_user, 'organization_id', None)
     items = svc.list_lineage(db, organization_id=org_id, target_table=target_table)
-    return {'items': items, 'count': len(items)}
+    return APIResponse.ok(data={'items': items, 'count': len(items)})
 
 
 @router.post('/bi/governance/lineage', summary='Registrar/actualizar data lineage BI')
@@ -216,7 +217,7 @@ def track_lineage(
         target_table=payload.target_table,
         transformation_sql=payload.transformation_sql,
     )
-    return {'ok': True, 'edge': row}
+    return APIResponse.ok(data={'ok': True, 'edge': row})
 
 
 @router.get('/bi/governance/field-sensitivity', summary='Listar sensibilidad de campos BI')
@@ -229,7 +230,7 @@ def list_fields(
 ):
     org_id = getattr(current_user, 'organization_id', None)
     items = svc.list_field_sensitivity(db, organization_id=org_id, dataset_id=dataset_id)
-    return {'items': items, 'count': len(items)}
+    return APIResponse.ok(data={'items': items, 'count': len(items)})
 
 
 @router.put('/bi/governance/field-sensitivity', summary='Crear/actualizar sensibilidad de campo BI')
@@ -254,4 +255,4 @@ def upsert_field(
         )
     except ValueError:
         raise HTTPException(status_code=400, detail='sensitivity_level invalido')
-    return {'ok': True, 'field': row}
+    return APIResponse.ok(data={'ok': True, 'field': row})

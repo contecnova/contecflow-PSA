@@ -9,6 +9,6 @@ def test_update_branding_all_fields(client, admin_token, db):
     }
     res = client.put("/api/v1/orgs/1/branding", json=payload, headers={"Authorization": f"Bearer {admin_token}"})
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     for k, v in payload.items():
         assert data[k] == v

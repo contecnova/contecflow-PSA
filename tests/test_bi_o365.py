@@ -7,7 +7,7 @@ from tests.conftest import auth
 def test_get_o365_config_default(client, admin_token):
     r = client.get("/api/v1/bi/o365/config", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "enabled" in data
     assert "tenant_id" in data
 
@@ -23,7 +23,7 @@ def test_save_o365_config(client, admin_token):
     }
     r = client.put("/api/v1/bi/o365/config", json=payload, headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert data["tenant_id"] == "test-tenant-123"
     # client_secret must NOT be stored/returned
     assert "client_secret" not in data or data.get("client_secret") in (None, "", "***")
@@ -54,15 +54,15 @@ def test_trigger_o365_sync_with_mock(client, admin_token):
         mock_get.return_value = mock_response
         r = client.post("/api/v1/bi/o365/sync", headers=auth(admin_token))
     assert r.status_code in (200, 202)
-    data = r.json()
+    data = r.json()["data"]
     assert "status" in data or "queued" in data
 
 
 def test_get_o365_report_teams(client, admin_token):
     r = client.get("/api/v1/bi/o365/reports/teams_activity", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
-    assert "report" in data or "rows" in data or "data" in data
+    data = r.json()["data"]
+    assert "report" in data or "rows" in data
 
 
 def test_get_o365_report_unknown(client, admin_token):
@@ -73,15 +73,15 @@ def test_get_o365_report_unknown(client, admin_token):
 def test_get_o365_adoption(client, admin_token):
     r = client.get("/api/v1/bi/o365/adoption", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert isinstance(data, dict)
 
 
 def test_get_o365_sync_log(client, admin_token):
     r = client.get("/api/v1/bi/o365/sync-log", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
-    assert "log" in data or "entries" in data or isinstance(data, list)
+    data = r.json()["data"]
+    assert "log" in data or "entries" in data
 
 
 def test_o365_auth_required(client):

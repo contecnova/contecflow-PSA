@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_smart_alerts_service as svc
@@ -62,10 +63,10 @@ def get_supported_metrics(
     customs = svc.list_custom_metrics(db, organization_id=org_id)
     builtin = [{"key": k, "label": v, "is_custom": False} for k, v in svc.SUPPORTED_METRICS.items()]
     custom_items = [{"key": c["key"], "label": c["label"], "is_custom": True} for c in customs]
-    return {
+    return APIResponse.ok(data={
         "metrics": builtin + custom_items,
         "conditions": svc.SUPPORTED_CONDITIONS,
-    }
+    })
 
 
 @router.get("/bi/alerts/custom-metrics", summary="Listar métricas personalizadas")
@@ -75,7 +76,7 @@ def list_custom_metrics(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_custom_metrics(db, organization_id=org_id)
-    return {"items": items, "count": len(items)}
+    return APIResponse.ok(data={"items": items, "count": len(items)})
 
 
 @router.post("/bi/alerts/custom-metrics", summary="Crear métrica personalizada", status_code=201)
@@ -90,7 +91,7 @@ def create_custom_metric(
     # intentional: chained re-raise preserves context
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return metric
+    return APIResponse.ok(data=metric)
 
 
 @router.delete("/bi/alerts/custom-metrics/{key}", summary="Eliminar métrica personalizada", status_code=204)
@@ -113,7 +114,7 @@ def list_alert_rules(
 ):
     org_id = getattr(current_user, "organization_id", None)
     rules = svc.list_alert_rules(db, organization_id=org_id)
-    return {"items": rules, "count": len(rules)}
+    return APIResponse.ok(data={"items": rules, "count": len(rules)})
 
 
 @router.post("/bi/alerts/rules", summary="Crear nueva regla de alerta BI", status_code=201)
@@ -133,7 +134,7 @@ def create_alert_rule(
     # intentional: chained re-raise preserves context
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return rule
+    return APIResponse.ok(data=rule)
 
 
 @router.patch("/bi/alerts/rules/{rule_id}", summary="Actualizar regla de alerta BI")
@@ -155,7 +156,7 @@ def update_alert_rule(
     except ValueError as exc:
         code = 404 if str(exc) == "rule_not_found" else 422
         raise HTTPException(status_code=code, detail=str(exc)) from exc
-    return rule
+    return APIResponse.ok(data=rule)
 
 
 @router.delete("/bi/alerts/rules/{rule_id}", summary="Eliminar regla de alerta BI", status_code=204)
@@ -177,7 +178,7 @@ def evaluate_alerts(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.evaluate_alerts(db, organization_id=org_id)
+    return APIResponse.ok(data=svc.evaluate_alerts(db, organization_id=org_id))
 
 
 @router.get("/bi/alerts/history", summary="Historial de alertas BI disparadas")
@@ -188,7 +189,7 @@ def get_alert_history(
 ):
     org_id = getattr(current_user, "organization_id", None)
     log = svc.get_alert_log(db, organization_id=org_id, limit=limit)
-    return {"items": log, "count": len(log)}
+    return APIResponse.ok(data={"items": log, "count": len(log)})
 
 
 @router.post("/bi/alerts/history/{alert_id}/acknowledge", summary="Marcar alerta como reconocida")
@@ -207,7 +208,7 @@ def acknowledge_alert(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return entry
+    return APIResponse.ok(data=entry)
 
 
 @router.post("/bi/alerts/seed-defaults", summary="Inicializar reglas de alerta por defecto")
@@ -217,4 +218,4 @@ def seed_default_rules(
 ):
     org_id = getattr(current_user, "organization_id", None)
     svc.seed_default_rules_if_empty(db, organization_id=org_id)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})

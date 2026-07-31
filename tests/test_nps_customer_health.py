@@ -35,7 +35,7 @@ class TestNPSResponses:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data.get("category") == "promoter"
 
     def test_submit_passive_score(self, client, admin_token, db):
@@ -46,7 +46,7 @@ class TestNPSResponses:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data.get("category") == "passive"
 
     def test_submit_detractor_score(self, client, admin_token, db):
@@ -57,7 +57,7 @@ class TestNPSResponses:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data.get("category") == "detractor"
 
     def test_score_out_of_range_rejected(self, client, admin_token, db):
@@ -82,7 +82,7 @@ class TestNPSResponses:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["items"]
         assert len(data) >= 3
 
     def test_nps_response_for_nonexistent_client(self, client, admin_token, db):
@@ -104,7 +104,7 @@ class TestNPSSummary:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         # Should return a summary even with no data
         assert "nps_score" in data or "score" in data or data.get("total", 0) == 0
 
@@ -121,7 +121,7 @@ class TestNPSSummary:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         # NPS = (3 promoters - 0 detractors) / 3 * 100 = 100
         score = data.get("nps_score") or data.get("score")
         if score is not None:
@@ -141,7 +141,7 @@ class TestNPSSummary:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         score = data.get("nps_score") or data.get("score")
         if score is not None:
             assert score == pytest.approx(25.0, abs=1.0)
@@ -212,7 +212,7 @@ class TestCustomerHealthScore:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert "score" in data or "composite" in data or "health_score" in data
 
     def test_health_score_with_nps_data(self, client, admin_token, db):
@@ -229,7 +229,7 @@ class TestCustomerHealthScore:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         # With all promoters NPS component is high; composite should be >= 50
         score = data.get("score") or data.get("composite") or data.get("health_score")
         if score is not None:
@@ -280,4 +280,4 @@ class TestNPSLeaderboard:
     def test_leaderboard_returns_list(self, client, admin_token, db):
         res = client.get("/api/v1/nps/leaderboard", headers=auth(admin_token))
         assert res.status_code == 200
-        assert isinstance(res.json(), list)
+        assert isinstance(res.json()["items"], list)

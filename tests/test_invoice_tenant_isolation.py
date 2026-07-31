@@ -42,7 +42,7 @@ def test_invoice_create_allows_same_tenant_project_and_sets_org(client, pm_token
     res = client.post("/api/v1/invoices", json=payload, headers=auth(pm_token))
     assert res.status_code == 201, res.text
 
-    body = res.json()
+    body = res.json()["data"]
     assert body["project_id"] == "project-a-test"
 
     from app.models.billing_reports import Invoice
@@ -64,7 +64,7 @@ def test_invoice_list_hides_other_tenant_invoices(client, pm_token, seed_multite
     payload = {**BASE_PAYLOAD, "project_id": "project-a-test"}
     create_res = client.post("/api/v1/invoices", json=payload, headers=auth(pm_token))
     assert create_res.status_code == 201, create_res.text
-    invoice_id = create_res.json()["id"]
+    invoice_id = create_res.json()["data"]["id"]
 
     outsider = _outsider_token(client)
     list_res = client.get("/api/v1/invoices", headers=auth(outsider))
@@ -77,7 +77,7 @@ def test_invoice_status_update_blocks_cross_tenant(client, pm_token, seed_multit
     payload = {**BASE_PAYLOAD, "project_id": "project-a-test"}
     create_res = client.post("/api/v1/invoices", json=payload, headers=auth(pm_token))
     assert create_res.status_code == 201, create_res.text
-    invoice_id = create_res.json()["id"]
+    invoice_id = create_res.json()["data"]["id"]
 
     outsider = _outsider_token(client)
     patch_res = client.patch(

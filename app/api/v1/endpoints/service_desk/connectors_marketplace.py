@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_any_manager
+from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.marketplace import IntegrationConnector, IntegrationInstance
 from app.models.user import User
@@ -37,7 +38,7 @@ def list_connectors(
     rows = q.all()
     rows.sort(key=lambda c: (curated_priority.index(c.slug) if c.slug in curated_priority else 999, c.name.lower()))
 
-    return [
+    return APIListResponse.ok(items=[
         {
             "id": c.id,
             "name": c.name,
@@ -49,7 +50,7 @@ def list_connectors(
             "is_certified": c.is_certified,
         }
         for c in rows
-    ]
+    ])
 
 
 @router.get("/connectors/installed", summary="Conectores instalados para la organización")
@@ -59,7 +60,7 @@ def list_installed_connectors(
 ):
     org_id = getattr(current_user, "organization_id", None)
     if not org_id:
-        return []
+        return APIListResponse.ok(items=[])
 
     rows = (
         db.query(IntegrationInstance, IntegrationConnector)
@@ -68,7 +69,7 @@ def list_installed_connectors(
         .all()
     )
 
-    return [
+    return APIListResponse.ok(items=[
         {
             "id": inst.id,
             "name": inst.name,
@@ -85,7 +86,7 @@ def list_installed_connectors(
             "last_sync_status": inst.last_sync_status,
         }
         for inst, conn in rows
-    ]
+    ])
 
 
 @router.post("/connectors/install", summary="Instalar conector desde marketplace")
@@ -118,4 +119,4 @@ def install_connector(
     db.commit()
     db.refresh(inst)
 
-    return {"ok": True, "instance_id": inst.id}
+    return APIResponse.ok(data={"ok": True, "instance_id": inst.id})

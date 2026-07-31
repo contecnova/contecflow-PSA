@@ -5,7 +5,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User, UserRole
 from app.services import risk_service
 from app.services.risk_scoring import risk_level, risk_score
@@ -49,7 +49,7 @@ def get_risks(
         lvl = r["risk_level"]
         by_level[lvl] = by_level.get(lvl, 0) + 1
 
-    return {
+    return APIResponse.ok(data={
         "risks": result,
         "summary": {
             "total": len(result),
@@ -58,7 +58,7 @@ def get_risks(
             "critical_count": by_level.get("critical", 0),
             "high_count": by_level.get("high", 0),
         }
-    }
+    })
 
 
 @router.post("/{project_id}", summary="Crear riesgo")
@@ -76,7 +76,7 @@ def create_risk(
         identified_by=current_user.id,
         **payload.model_dump(),
     )
-    return _risk_out(risk)
+    return APIResponse.ok(data=_risk_out(risk))
 
 
 @router.patch("/{project_id}/{risk_id}", summary="Actualizar riesgo")
@@ -93,7 +93,7 @@ def update_risk(
     if not risk:
         raise HTTPException(404, "Riesgo no encontrado")
     risk = risk_service.update_risk(db, risk, payload.model_dump(exclude_unset=True))
-    return _risk_out(risk)
+    return APIResponse.ok(data=_risk_out(risk))
 
 
 @router.delete("/{project_id}/{risk_id}", summary="Eliminar riesgo")
@@ -110,6 +110,6 @@ def delete_risk(
         raise HTTPException(404, "Riesgo no encontrado")
     enforce_abac(db, current_user, "risk", risk_id, action="delete")
     risk_service.delete_risk(db, risk)
-    return {"ok": True, "message": "Riesgo eliminado correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Riesgo eliminado correctamente"})
 _risk_level = risk_level
 _risk_score = risk_score

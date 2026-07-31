@@ -8,6 +8,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, require_admin
+from app.core.responses import APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 
@@ -103,7 +104,7 @@ def get_branding(
         raise HTTPException(404, "Organization not found")
     branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
     if not branding:
-        return {
+        return APIResponse.ok(data={
             "organization_id": org_id,
             "app_name": "NexusPM",
             "primary_color": "#6366f1",
@@ -114,8 +115,8 @@ def get_branding(
             "enable_ai": True,
             "custom_css_vars": {},
             "is_default": True,
-        }
-    return _branding_out(branding)
+        })
+    return APIResponse.ok(data=_branding_out(branding))
 
 
 @router.put("/orgs/{org_id}/branding", summary="Update tenant branding (admin)")
@@ -150,7 +151,7 @@ def update_branding(
 
     db.commit()
     db.refresh(branding)
-    return _branding_out(branding)
+    return APIResponse.ok(data=_branding_out(branding))
 
 
 @router.delete("/orgs/{org_id}/branding", summary="Reset branding to defaults (admin)", status_code=204)

@@ -28,7 +28,7 @@ def _create_project(client, token, name="Epics Test Project"):
         headers=auth(token),
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()["id"]  # /projects no migrado: dict crudo
+    return res.json()["data"]["id"]  # /projects no migrado: dict crudo
 
 
 def _create_wiki_space(client, token, slug="ws-delete-test"):

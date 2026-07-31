@@ -23,7 +23,7 @@ def _project(client, token, name="BL Project"):
         "project_type": "development", "billing_type": "time_and_materials",
     }, headers=auth(token))
     assert r.status_code in (200, 201), r.text
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 def _task(client, token, project_id, title="T", status=None):
@@ -45,7 +45,7 @@ def _invoice(client, token, lines=None, tax_rate=21.0):
         "tax_rate": tax_rate, "lines": lines,
     }, headers=auth(token))
     assert r.status_code in (200, 201), r.text
-    return r.json()
+    return r.json()["data"]
 
 
 def _opp(client, token, name="Opp A", stage="lead", revenue=50000):
@@ -291,7 +291,7 @@ class TestRateCardBilling:
                       {"role": "pm", "hourly_rate": 100.0}],
         }, headers=auth(admin_token))
         assert r.status_code in (200, 201), r.text
-        data = r.json()
+        data = r.json()["data"]
         assert data["name"] == "Standard Rates"
 
     def test_rate_card_list_returns_created(self, client, admin_token, db):

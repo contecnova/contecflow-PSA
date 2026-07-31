@@ -58,7 +58,7 @@ def test_recommend_assignment(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert data["method_used"] == "ml_score_v2"
     assert "recommendations" in data
     assert isinstance(data["recommendations"], list)
@@ -67,7 +67,7 @@ def test_recommend_assignment(client, admin_token, db):
 def test_assignment_stats(client, admin_token):
     r = client.get("/api/v1/sd/assignment/stats", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "total_auto_assigned" in data or "stats" in data or isinstance(data, dict)
 
 

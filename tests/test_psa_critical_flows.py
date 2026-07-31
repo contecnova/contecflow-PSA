@@ -18,7 +18,7 @@ def _create_project(client, token, code):
         headers=auth(token),
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()["id"]
+    return res.json()["data"]["id"]
 
 
 def _next_monday():
@@ -289,7 +289,7 @@ def test_capacity_plan_blocked_by_approved_absence_flow(client, pm_token, db):
         headers=auth(pm_token),
     )
     assert absence.status_code in (200, 201), absence.text
-    absence_id = absence.json()["id"]
+    absence_id = absence.json()["data"]["id"]
 
     approve = client.post(
         f"/api/v1/absences/{absence_id}/review",

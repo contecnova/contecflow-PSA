@@ -45,7 +45,7 @@ def _create_invoice(client, pm_token, idx):
     }
     res = client.post("/api/v1/invoices", json=payload, headers=auth(pm_token))
     assert res.status_code in (200, 201), res.text
-    return res.json()["number"]
+    return res.json()["data"]["number"]
 
 
 def test_invoice_numbering_sequential_uniqueness(client, pm_token, db):

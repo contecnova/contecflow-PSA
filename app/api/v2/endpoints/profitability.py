@@ -51,11 +51,13 @@ def get_profitability_summary_v2(
     current_user: User = Depends(require_admin),
     response: Response = None,
 ):
-    data = profitability_v1.get_profitability_summary(
+    _resp = profitability_v1.get_profitability_summary(
         status=status,
         db=db,
         current_user=current_user,
     )
+    # v1 ahora devuelve el envelope canónico APIResponse; desenvolvemos el payload.
+    data = _resp.data if hasattr(_resp, "data") else _resp
     org_currency = settings.DEFAULT_CURRENCY
     projects = _normalize_project_revenues(data.get("projects", []), db, org_currency)
 

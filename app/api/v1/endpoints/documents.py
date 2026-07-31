@@ -13,7 +13,7 @@ import mimetypes
 from app.core.deps import get_db, get_current_user
 from app.core.config import settings
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.models.documents import (
     DocumentCategory, DocumentAccessLevel
@@ -98,7 +98,7 @@ serialize_document = doc_svc.serialize_document
 
 # ── CRUD Endpoints ─────────────────────────────────────────────────────────
 
-@router.post("", response_model=DocumentOut, summary="Create document")
+@router.post("", response_model=APIResponse[DocumentOut], summary="Create document")
 def create_document(
     payload: DocumentCreate,
     db: Session = Depends(get_db),
@@ -106,7 +106,7 @@ def create_document(
 ):
     """Create new document."""
     enforce_abac(db, current_user, "document", action="create")
-    return doc_svc.create_document(db, payload, current_user)
+    return APIResponse.ok(data=doc_svc.create_document(db, payload, current_user))
 
 
 
@@ -134,7 +134,7 @@ def list_documents(
     return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
-@router.get("/{doc_id}", response_model=DocumentOut, summary="Get document detail")
+@router.get("/{doc_id}", response_model=APIResponse[DocumentOut], summary="Get document detail")
 def get_document(
     doc_id: str,
     request: Request,
@@ -146,10 +146,10 @@ def get_document(
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user)
     doc_svc.log_document_view(db, doc.id, current_user.id, request.client.host if request.client else None)
-    return serialize_document(db, doc, current_user)
+    return APIResponse.ok(data=serialize_document(db, doc, current_user))
 
 
-@router.patch("/{doc_id}", response_model=DocumentOut, summary="Update document metadata")
+@router.patch("/{doc_id}", response_model=APIResponse[DocumentOut], summary="Update document metadata")
 def update_document(
     doc_id: str,
     payload: DocumentUpdate,
@@ -159,7 +159,7 @@ def update_document(
     """Update document metadata (title, category, etc)."""
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
-    return doc_svc.update_document(db, doc, payload, current_user)
+    return APIResponse.ok(data=doc_svc.update_document(db, doc, payload, current_user))
 
 
 @router.delete("/{doc_id}", summary="Archive document (soft delete)")
@@ -173,7 +173,7 @@ def delete_document(
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
     doc_svc.archive_document(db, doc)
-    return {"status": "archived"}
+    return APIResponse.ok(data={"status": "archived"})
 
 
 # ── Version Management ─────────────────────────────────────────────────────
@@ -277,7 +277,7 @@ def get_versions(
 
 # ── Permission Management ──────────────────────────────────────────────────
 
-@router.post("/{doc_id}/permissions", response_model=DocumentPermissionOut, summary="Grant document access")
+@router.post("/{doc_id}/permissions", response_model=APIResponse[DocumentPermissionOut], summary="Grant document access")
 def add_permission(
     doc_id: str,
     payload: DocumentPermissionCreate,
@@ -289,7 +289,7 @@ def add_permission(
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
     perm, user = doc_svc.add_document_permission(db, doc_id, payload, current_user)
-    return DocumentPermissionOut(
+    return APIResponse.ok(data=DocumentPermissionOut(
         id=perm.id,
         user_id=perm.user_id,
         user_name=user.full_name if user else None,
@@ -299,7 +299,7 @@ def add_permission(
         granted_by_name=current_user.full_name,
         granted_at=perm.granted_at,
         expires_at=perm.expires_at,
-    )
+    ))
 
 
 @router.get("/{doc_id}/permissions", response_model=APIListResponse[DocumentPermissionOut], summary="List document permissions")
@@ -328,12 +328,12 @@ def remove_permission(
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
     doc_svc.remove_document_permission(db, doc_id, perm_id)
-    return {"status": "revoked"}
+    return APIResponse.ok(data={"status": "revoked"})
 
 
 # ── Approval Workflow ──────────────────────────────────────────────────────
 
-@router.post("/{doc_id}/approve", response_model=DocumentOut, summary="Approve document")
+@router.post("/{doc_id}/approve", response_model=APIResponse[DocumentOut], summary="Approve document")
 def approve_document(
     doc_id: str,
     payload: DocumentApprovalPayload,
@@ -344,10 +344,10 @@ def approve_document(
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
-    return doc_svc.approve_document(db, doc, payload, current_user)
+    return APIResponse.ok(data=doc_svc.approve_document(db, doc, payload, current_user))
 
 
-@router.post("/{doc_id}/submit-approval", response_model=DocumentOut, summary="Submit document for approval")
+@router.post("/{doc_id}/submit-approval", response_model=APIResponse[DocumentOut], summary="Submit document for approval")
 def submit_for_approval(
     doc_id: str,
     db: Session = Depends(get_db),
@@ -357,7 +357,7 @@ def submit_for_approval(
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
 
-    return doc_svc.submit_for_approval(db, doc, current_user)
+    return APIResponse.ok(data=doc_svc.submit_for_approval(db, doc, current_user))
 
 
 # ── Combined create + upload in one request ────────────────────────────────
@@ -583,14 +583,15 @@ def docs_by_ticket(
             response.headers["X-Total-Count"] = str(total)
             response.headers["X-Page"] = str(page)
             response.headers["X-Page-Size"] = str(page_size)
-        return [doc_svc.serialize_doc_list_item(doc) for doc in docs]
+        items = [doc_svc.serialize_doc_list_item(doc) for doc in docs]
+        return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
     except Exception:
         logger.exception("docs_by_ticket failed for ticket_id=%s", ticket_id)
         if response is not None:
             response.headers["X-Total-Count"] = "0"
             response.headers["X-Page"] = str(page)
             response.headers["X-Page-Size"] = str(page_size)
-        return []
+        return APIListResponse.ok(items=[], total=0, page=page, page_size=page_size)
 
 
 def _doc_list(db, docs):
@@ -614,7 +615,7 @@ def add_tag(
     if any(t.tag_name == tag_name for t in doc.tags):
         raise HTTPException(409, "Tag already exists")
     doc_svc.add_tag(db, doc_id, tag_name)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.delete("/{doc_id}/tags/{tag_name}", summary="Remove tag from document")
@@ -628,7 +629,7 @@ def remove_tag(
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
     doc_svc.remove_tag(db, doc_id, tag_name)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── AI document summary ────────────────────────────────────────────────────
@@ -732,4 +733,4 @@ def ai_summary(
         raise HTTPException(503, f"AI summary unavailable: {str(exc)[:100]}")
 
     doc_svc.save_ai_summary(db, doc, summary_text)
-    return {"document_id": doc_id, "summary": summary_text}
+    return APIResponse.ok(data={"document_id": doc_id, "summary": summary_text})

@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -48,7 +49,7 @@ def list_bookmarks(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_bookmarks(db, organization_id=org_id, user_id=current_user.id)
-    return {"items": items, "count": len(items)}
+    return APIResponse.ok(data={"items": items, "count": len(items)})
 
 
 @router.post("/bi/bookmarks", summary="Guardar estado actual del dashboard como bookmark", status_code=201)
@@ -67,7 +68,7 @@ def create_bookmark(
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return bookmark
+    return APIResponse.ok(data=bookmark)
 
 
 @router.get("/bi/bookmarks/{bookmark_id}", summary="Obtener bookmark por ID")
@@ -87,7 +88,7 @@ def get_bookmark(
     except ValueError as exc:
         code = 404 if "not_found" in str(exc) else 403
         raise HTTPException(status_code=code, detail=str(exc)) from exc
-    return bookmark
+    return APIResponse.ok(data=bookmark)
 
 
 @router.patch("/bi/bookmarks/{bookmark_id}", summary="Actualizar bookmark")
@@ -109,7 +110,7 @@ def update_bookmark(
     except ValueError as exc:
         code = 404 if "not_found" in str(exc) else 403
         raise HTTPException(status_code=code, detail=str(exc)) from exc
-    return bookmark
+    return APIResponse.ok(data=bookmark)
 
 
 @router.delete("/bi/bookmarks/{bookmark_id}", summary="Eliminar bookmark", status_code=204)
@@ -153,7 +154,7 @@ def generate_share_url(
     except ValueError as exc:
         code = 404 if "not_found" in str(exc) else 403
         raise HTTPException(status_code=code, detail=str(exc)) from exc
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.get("/bi/bookmarks/shared/{share_token}", summary="Cargar bookmark por URL compartida (sin auth)")
@@ -165,6 +166,6 @@ def get_shared_bookmark(
     Retorna el estado del bookmark asociado al share_token.
     """
     try:
-        return svc.get_bookmark_by_share_token(db, share_token)
+        return APIResponse.ok(data=svc.get_bookmark_by_share_token(db, share_token))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

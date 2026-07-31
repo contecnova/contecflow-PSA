@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, require_any_manager
+from app.core.responses import APIResponse
 from app.models.user import User
 from app.services import salesforce_service
 
@@ -100,11 +101,11 @@ def sync_salesforce_opportunities(
 
     salesforce_service.update_instance_sync_status(db, inst, synced_in + synced_out, errors)
 
-    return {
+    return APIResponse.ok(data={
         "ok": not errors,
         "direction": direction,
         "synced_inbound": synced_in,
         "synced_outbound": synced_out,
         "errors": errors,
         "synced_at": str(utcnow()),
-    }
+    })

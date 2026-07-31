@@ -328,7 +328,7 @@ def test_dynamic_forms_diff_and_context_options(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert ctx.status_code == 200
-    payload = ctx.json()
+    payload = ctx.json()["data"]
     assert "clients" in payload
     assert "services" in payload
     assert "cis" in payload

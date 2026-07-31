@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User, UserRole
 from app.services.predictive_retraining_service import (
@@ -81,12 +82,12 @@ def predictive_observability_status(
     itsm_meta = _get_json(db, ITSM_META_KEY, org_id, default={})
     bi_meta = _get_json(db, BI_META_KEY, org_id, default={})
 
-    return {
+    return APIResponse.ok(data={
         "organization_id": org_id,
         "last_eval": last_eval,
         "itsm_meta": itsm_meta,
         "bi_meta": bi_meta,
-    }
+    })
 
 
 @router.get(
@@ -110,14 +111,14 @@ def predictive_observability_health(
     statuses = [str(itsm_eval.get("status", "healthy")), str(bi_eval.get("status", "healthy"))]
     overall_status = max(statuses, key=lambda s: _STATUS_RANK.get(s, 0))
 
-    return {
+    return APIResponse.ok(data={
         "organization_id": org_id,
         "overall_score": overall_score,
         "overall_status": overall_status,
         "status_rank": _STATUS_RANK,
         "itsm": itsm_eval,
         "bi": bi_eval,
-    }
+    })
 
 
 @router.post(
@@ -134,4 +135,4 @@ def predictive_trigger_retrain(
     Uses the same logic as the Celery beat task but executed synchronously.
     """
     result = run_periodic_evaluation_and_retraining(db)
-    return result
+    return APIResponse.ok(data=result)

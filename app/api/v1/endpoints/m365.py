@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.deps import get_current_user, get_db
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import m365_service
@@ -59,7 +60,7 @@ def m365_status(db: Session = Depends(get_db), current_user: User = Depends(get_
     configured = _m365_configured()
     teams_ok = bool(settings.TEAMS_WEBHOOK_URL)
     org_id = getattr(current_user, "organization_id", None)
-    return {
+    return APIResponse.ok(data={
         "graph_configured":            configured,
         "calendar_sync_enabled":       get_runtime_bool(db, "M365_CALENDAR_SYNC_ENABLED", org_id),
         "teams_notifications_enabled": get_runtime_bool(db, "M365_TEAMS_NOTIFICATIONS_ENABLED", org_id),
@@ -70,7 +71,7 @@ def m365_status(db: Session = Depends(get_db), current_user: User = Depends(get_
             "AZURE_CLIENT_SECRET": bool(settings.AZURE_CLIENT_SECRET),
             "TEAMS_WEBHOOK_URL":   teams_ok,
         },
-    }
+    })
 
 
 # ── Calendar endpoints ────────────────────────────────────────────────────────
@@ -91,7 +92,7 @@ async def sync_calendar_events(
             "&$select=id,subject,start,end,location,webLink,attendees"
         )
         events = data.get("value", [])
-        return {"pulled": len(events), "events": events}
+        return APIResponse.ok(data={"pulled": len(events), "events": events})
     except httpx.HTTPStatusError as e:
         logger.warning("Graph API sync failed: status=%s", e.response.status_code)
         raise HTTPException(e.response.status_code, "Graph API request failed")
@@ -117,7 +118,7 @@ async def create_calendar_event(
     }
     try:
         result = await _graph_post(f"/users/{body.user_upn}/events", payload)
-        return {"id": result.get("id"), "webLink": result.get("webLink"), "subject": result.get("subject")}
+        return APIResponse.ok(data={"id": result.get("id"), "webLink": result.get("webLink"), "subject": result.get("subject")})
     except httpx.HTTPStatusError as e:
         logger.warning("Graph API create event failed: status=%s", e.response.status_code)
         raise HTTPException(e.response.status_code, "Graph API request failed")
@@ -141,7 +142,7 @@ async def delete_calendar_event(
     except httpx.HTTPStatusError as e:
         logger.warning("Graph API delete event failed: status=%s", e.response.status_code)
         raise HTTPException(e.response.status_code, "Graph API request failed")
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.post("/calendar/sync-milestones")
@@ -176,7 +177,7 @@ def sync_milestones_to_calendar(
         except Exception as e:
             errors.append({"milestone_id": ms.id, "error": str(e)})
 
-    return {"created": len(created), "errors": errors, "details": created}
+    return APIResponse.ok(data={"created": len(created), "errors": errors, "details": created})
 
 
 # ── Teams notification endpoints ──────────────────────────────────────────────
@@ -208,7 +209,7 @@ async def send_teams_notification(
     if resp.status_code not in (200, 202):
         logger.warning("Teams webhook notify failed: status=%s", resp.status_code)
         raise HTTPException(502, "Teams webhook delivery failed")
-    return {"ok": True, "status": resp.status_code}
+    return APIResponse.ok(data={"ok": True, "status": resp.status_code})
 
 
 @router.post("/teams/notify-project")
@@ -240,7 +241,7 @@ async def notify_project_milestone(
     if resp.status_code not in (200, 202):
         logger.warning("Teams milestone webhook notify failed: status=%s", resp.status_code)
         raise HTTPException(502, "Teams webhook delivery failed")
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.post("/teams/webhooks/incoming")
@@ -306,10 +307,10 @@ async def get_users_presence(
             logger.warning("Error resolviendo UPN M365 %s, se omite", upn, exc_info=True)
 
     if not ids:
-        return []
+        return APIListResponse.ok(items=[])
 
     result = await _graph_post("/communications/getPresencesByUserId", {"ids": [i for i in ids if i]})
-    return result.get("value", [])
+    return APIListResponse.ok(items=result.get("value", []))
 
 
 # ── Microsoft Planner sync ─────────────────────────────────────────────────────
@@ -332,7 +333,7 @@ def sync_to_planner(
 
     tasks = m365_service.get_active_tasks_for_project(db, project_id, limit=200)
     if not tasks:
-        return {"plan_id": plan_id, "created": 0, "skipped": 0, "errors": 0, "message": "No active tasks"}
+        return APIResponse.ok(data={"plan_id": plan_id, "created": 0, "skipped": 0, "errors": 0, "message": "No active tasks"})
 
     # Resolve plan_id
     active_plan_id = plan_id
@@ -387,10 +388,10 @@ def sync_to_planner(
             logger.warning("Error creando tarea Planner '%s' en plan %s", title, active_plan_id, exc_info=True)
             errors += 1
 
-    return {
+    return APIResponse.ok(data={
         "plan_id": active_plan_id,
         "created": created,
         "skipped": skipped,
         "errors":  errors,
-    }
+    })
 

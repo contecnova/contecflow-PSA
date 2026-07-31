@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.core.responses import APIResponse
 from app.models.user import User
 from app.services.service_desk.capacity_planning_service import (
     predict_ticket_volume,
@@ -34,7 +35,7 @@ def ticket_volume_forecast(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return predict_ticket_volume(db, org_id, days_ahead=days)
+    return APIResponse.ok(data=predict_ticket_volume(db, org_id, days_ahead=days))
 
 
 @router.get("/agents", summary="Per-agent load forecast")
@@ -44,7 +45,7 @@ def agent_load_forecast(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return predict_agent_load(db, org_id, days_ahead=days)
+    return APIResponse.ok(data=predict_agent_load(db, org_id, days_ahead=days))
 
 
 @router.get("/recommendations", summary="Staffing capacity recommendations")
@@ -53,7 +54,7 @@ def capacity_recommendations(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return get_capacity_recommendations(db, org_id)
+    return APIResponse.ok(data=get_capacity_recommendations(db, org_id))
 
 
 @router.get("/burnout-risk", summary="Agent burnout risk assessment")
@@ -63,7 +64,7 @@ def burnout_risk(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return calculate_burnout_risk(db, user_id, org_id)
+    return APIResponse.ok(data=calculate_burnout_risk(db, user_id, org_id))
 
 
 @router.get("/config", summary="Get capacity planning config")
@@ -72,7 +73,7 @@ def get_config(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return get_capacity_config(db, org_id)
+    return APIResponse.ok(data=get_capacity_config(db, org_id))
 
 
 @router.put("/config", summary="Update capacity planning config")
@@ -82,4 +83,4 @@ def update_config(
     _: User = Depends(get_current_user),
 ):
     org_id = body.get("org_id", "default")
-    return save_capacity_config(db, org_id, body)
+    return APIResponse.ok(data=save_capacity_config(db, org_id, body))

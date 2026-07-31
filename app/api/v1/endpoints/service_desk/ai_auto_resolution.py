@@ -23,6 +23,7 @@ from uuid import uuid4
 from app.db.session import SessionLocal
 from app.db.session import get_db
 from app.core.deps import get_current_user
+from app.core.responses import APIResponse
 from app.core.tenancy import org_scoped_or_404
 from app.models.user import User
 from app.models.service_desk import Ticket, TicketStatus
@@ -132,7 +133,7 @@ class AutoResolutionConfigPatch(BaseModel):
 @router.post(
     "/tickets/{ticket_id}/ai-analyze",
     summary="Analyze ticket for AI auto-resolution suggestions",
-    response_model=dict,
+    response_model=APIResponse[dict],
     responses={
         404: {"description": "Ticket not found"},
         403: {"description": "Not authorized to view this ticket"},
@@ -167,13 +168,13 @@ def analyze_ticket_for_ai_resolution(
         raise HTTPException(status_code=403, detail="Not authorized")
 
     result = analyze_ticket_for_resolution(db, ticket, current_user)
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.post(
     "/tickets/{ticket_id}/ai-auto-resolve",
     summary="Apply AI auto-resolution to a ticket",
-    response_model=dict,
+    response_model=APIResponse[dict],
     responses={
         404: {"description": "Ticket not found"},
         403: {"description": "Not authorized"},
@@ -228,17 +229,17 @@ def apply_ai_auto_resolution(
 
     db.commit()
 
-    return {
+    return APIResponse.ok(data={
         "message": f"✅ Ticket {ticket.number} auto-resolved with {analysis['confidence']*100:.1f}% confidence",
         "ticket_id": ticket.id,
         "ticket_number": ticket.number,
-    }
+    })
 
 
 @router.post(
     "/auto-resolution/run-job",
     summary="Run daily auto-resolution job",
-    response_model=dict,
+    response_model=APIResponse[dict],
     responses={
         403: {"description": "Only admins can run jobs"},
     },
@@ -270,12 +271,12 @@ def run_auto_resolution_job(
 
     if run_async:
         if not _AUTO_RES_JOB_LOCK.acquire(blocking=False):
-            return {
+            return APIResponse.ok(data={
                 "status": "already_running",
                 "message": "Auto-resolution job is already running",
                 "runtime": _get_runtime_state(db),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
+            })
 
         job_id = str(uuid4())
         started_at = datetime.now(timezone.utc)
@@ -359,12 +360,12 @@ def run_auto_resolution_job(
                 _AUTO_RES_JOB_LOCK.release()
 
         background_tasks.add_task(_run_job_in_background, safe_limit, job_id)
-        return {
+        return APIResponse.ok(data={
             "status": "queued",
             "job_id": job_id,
             "limit": safe_limit,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
+        })
 
     # Run job
     sync_started = datetime.now(timezone.utc)
@@ -414,17 +415,17 @@ def run_auto_resolution_job(
         db.commit()
         raise
 
-    return {
+    return APIResponse.ok(data={
         **stats,
         "status": "completed",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
+    })
 
 
 @router.post(
     "/tickets/{ticket_id}/auto-resolution/validate",
     summary="Validate post-resolution outcome",
-    response_model=dict,
+    response_model=APIResponse[dict],
     responses={
         404: {"description": "Ticket not found"},
         403: {"description": "Not authorized"},
@@ -448,13 +449,13 @@ def validate_ticket_auto_resolution(
 
     result = validate_auto_resolution(db, ticket)
     db.commit()
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.post(
     "/tickets/{ticket_id}/auto-resolution/feedback",
     summary="Submit manual feedback on auto-resolution quality",
-    response_model=dict,
+    response_model=APIResponse[dict],
     responses={
         404: {"description": "Ticket not found"},
         403: {"description": "Not authorized"},
@@ -479,13 +480,13 @@ def submit_auto_resolution_feedback(
 
     record_resolution_feedback(db, ticket, body.success)
     db.commit()
-    return {"recorded": True, "ticket_id": ticket_id, "success": body.success}
+    return APIResponse.ok(data={"recorded": True, "ticket_id": ticket_id, "success": body.success})
 
 
 @router.get(
     "/auto-resolution/stats",
     summary="Get auto-resolution aggregate stats",
-    response_model=dict,
+    response_model=APIResponse[dict],
     responses={
         403: {"description": "Admin only"},
     },
@@ -505,13 +506,13 @@ def get_auto_resolution_statistics(
     payload = get_auto_resolution_stats(db)
     payload["runtime"] = _get_runtime_state(db)
     payload["job_history"] = _get_job_history(db)
-    return payload
+    return APIResponse.ok(data=payload)
 
 
 @router.get(
     "/auto-resolution/config",
     summary="Get auto-resolution config",
-    response_model=dict,
+    response_model=APIResponse[dict],
     responses={403: {"description": "Admin only"}},
 )
 def get_auto_resolution_config_endpoint(
@@ -520,13 +521,13 @@ def get_auto_resolution_config_endpoint(
 ):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-    return get_auto_resolution_config(db)
+    return APIResponse.ok(data=get_auto_resolution_config(db))
 
 
 @router.patch(
     "/auto-resolution/config",
     summary="Update auto-resolution config",
-    response_model=dict,
+    response_model=APIResponse[dict],
     responses={403: {"description": "Admin only"}},
 )
 def update_auto_resolution_config_endpoint(
@@ -540,13 +541,13 @@ def update_auto_resolution_config_endpoint(
     payload = body.model_dump(exclude_unset=True)
     cfg = save_auto_resolution_config(db, payload)
     db.commit()
-    return cfg
+    return APIResponse.ok(data=cfg)
 
 
 @router.post(
     "/auto-resolution/run-close-job",
     summary="Run auto-close job for resolved tickets",
-    response_model=dict,
+    response_model=APIResponse[dict],
     responses={
         403: {"description": "Admin only"},
     },
@@ -567,8 +568,8 @@ def run_auto_close_job_endpoint(
 
     stats = run_auto_close_job(db)
     db.commit()
-    return {
+    return APIResponse.ok(data={
         **stats,
         "status": "completed",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
+    })

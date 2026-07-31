@@ -5,7 +5,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_admin_or_pm
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User, UserRole
 from app.models.project import Project, ProjectStatus, ProjectType
 from app.schemas import (
@@ -116,7 +116,7 @@ def list_all_milestones(
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.get("/{project_id}", response_model=ProjectOut, summary="Detalle de proyecto")
+@router.get("/{project_id}", response_model=APIResponse[ProjectOut], summary="Detalle de proyecto")
 def get_project(
     project_id: str,
     db: Session = Depends(get_db),
@@ -132,20 +132,20 @@ def get_project(
     out.team_size = enriched["team_size"]
     out.tasks_total = enriched["tasks_total"]
     out.tasks_done = enriched["tasks_done"]
-    return out
+    return APIResponse.ok(data=out)
 
 
-@router.post("", response_model=ProjectOut, summary="Crear proyecto")
+@router.post("", response_model=APIResponse[ProjectOut], summary="Crear proyecto")
 def create_project(
     payload: ProjectCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
     project = save_new_project(db, payload, current_user)
-    return ProjectOut.model_validate(project)
+    return APIResponse.ok(data=ProjectOut.model_validate(project))
 
 
-@router.patch("/{project_id}", response_model=ProjectOut, summary="Actualizar proyecto")
+@router.patch("/{project_id}", response_model=APIResponse[ProjectOut], summary="Actualizar proyecto")
 def update_project(
     project_id: str,
     payload: ProjectUpdate,
@@ -160,7 +160,7 @@ def update_project(
         raise HTTPException(status_code=403, detail="Solo puedes editar tus proyectos")
 
     project = update_and_save_project(db, project, payload.model_dump(exclude_unset=True))
-    return ProjectOut.model_validate(project)
+    return APIResponse.ok(data=ProjectOut.model_validate(project))
 
 
 @router.delete("/{project_id}", summary="Cancelar/archivar proyecto")
@@ -174,10 +174,10 @@ def delete_project(
         result = cancel_project_record(db, project_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return result
+    return APIResponse.ok(data=result)
 
 
-@router.post("/{project_id}/phases", response_model=ProjectPhaseOut, summary="Añadir fase a proyecto")
+@router.post("/{project_id}/phases", response_model=APIResponse[ProjectPhaseOut], summary="Añadir fase a proyecto")
 def add_phase(
     project_id: str,
     payload: ProjectPhaseCreate,
@@ -185,7 +185,7 @@ def add_phase(
     _: User = Depends(require_admin_or_pm),
 ):
     phase = add_project_phase_record(db, project_id, payload)
-    return phase
+    return APIResponse.ok(data=phase)
 
 
 @router.get("/{project_id}/team", summary="Equipo activo del proyecto")
@@ -195,22 +195,22 @@ def get_project_team(
     current_user: User = Depends(get_current_user),
 ):
     from app.schemas import UserPublic
-    return [UserPublic.model_validate(m) for m in get_project_team_users(db, project_id)]
+    return APIListResponse.ok(items=[UserPublic.model_validate(m) for m in get_project_team_users(db, project_id)])
 
 
 # ── Miembros del equipo del proyecto ─────────────────────────────────────────
 @router.get("/{project_id}/members", summary="Listar miembros del equipo")
 def list_members(project_id: str, db: Session = Depends(get_db),
                  current_user: User = Depends(get_current_user)):
-    return list_members_payload(db, project_id)
+    return APIListResponse.ok(items=list_members_payload(db, project_id))
 
 
 @router.post("/{project_id}/members", summary="Añadir miembro al equipo")
 def add_member(project_id: str, data: dict, db: Session = Depends(get_db),
                current_user: User = Depends(require_admin_or_pm)):
     m = add_member_record(db, project_id, data)
-    return {"id": m.id, "user_id": m.user_id, "role": m.role,
-            "allocation_pct": m.allocation_pct}
+    return APIResponse.ok(data={"id": m.id, "user_id": m.user_id, "role": m.role,
+            "allocation_pct": m.allocation_pct})
 
 
 @router.patch("/{project_id}/members/{member_id}", summary="Actualizar miembro")
@@ -219,7 +219,7 @@ def update_member(project_id: str, member_id: str, data: dict,
                   current_user: User = Depends(require_admin_or_pm)):
     m = get_member_or_404(db, project_id, member_id)
     m = update_member_record(db, m, data)
-    return {"id": m.id, "role": m.role, "allocation_pct": m.allocation_pct}
+    return APIResponse.ok(data={"id": m.id, "role": m.role, "allocation_pct": m.allocation_pct})
 
 
 @router.delete("/{project_id}/members/{member_id}", summary="Eliminar miembro del equipo")
@@ -228,7 +228,7 @@ def remove_member(project_id: str, member_id: str, db: Session = Depends(get_db)
     m = get_member_or_404(db, project_id, member_id)
     enforce_abac(db, current_user, "project_member", member_id, action="delete")
     remove_member_record(db, m)
-    return {"ok": True, "message": "Miembro eliminado correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Miembro eliminado correctamente"})
 
 
 # ── EVM ───────────────────────────────────────────────────────────────────────
@@ -238,11 +238,11 @@ def get_evm(project_id: str, db: Session = Depends(get_db),
     result = calculate_evm(project_id, db)
     if result is None:
         raise HTTPException(404, "Proyecto no encontrado")
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.get("/evm/portfolio", summary="EVM de toda la cartera activa")
 def get_evm_portfolio(db: Session = Depends(get_db),
                       current_user: User = Depends(require_admin_or_pm)):
-    return calculate_evm_portfolio(db)
+    return APIListResponse.ok(items=calculate_evm_portfolio(db))
 

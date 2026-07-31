@@ -9,7 +9,7 @@ from typing import Optional, Dict
 import logging
 
 from app.core.deps import get_db, get_current_user, require_any_manager
-from app.core.responses import APIListResponse
+from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.models.resources import ResourceAlertType
 from app.services.resource_analytics import (
@@ -183,7 +183,7 @@ def get_load_scoring(
 
 # ── Team Health ────────────────────────────────────────────────────────────
 
-@router.get("/team-health", response_model=TeamHealthMetrics, summary="Get team health metrics")
+@router.get("/team-health", response_model=APIResponse[TeamHealthMetrics], summary="Get team health metrics")
 def get_team_health(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
@@ -191,14 +191,14 @@ def get_team_health(
     """Get team utilization health metrics."""
 
     health = _svc_get_team_health(db)
-    return TeamHealthMetrics(
+    return APIResponse.ok(data=TeamHealthMetrics(
         avg_load_pct=health["avg_load_pct"],
         overloaded_count=health["overloaded_count"],
         at_capacity_count=health["at_capacity_count"],
         underutilized_count=health["underutilized_count"],
         total_users=health["total_users"],
         billable_pct=health["billable_pct"],
-    )
+    ))
 
 
 # ── Skill Gaps ─────────────────────────────────────────────────────────────
@@ -302,7 +302,7 @@ def acknowledge_alert(
     current_user: User = Depends(get_current_user),
 ):
     """Acknowledge/dismiss an alert."""
-    return _svc_acknowledge_alert(db, alert_id, current_user)
+    return APIResponse.ok(data=_svc_acknowledge_alert(db, alert_id, current_user))
 
 
 # ── Forecast ───────────────────────────────────────────────────────────────

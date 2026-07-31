@@ -6,7 +6,7 @@ from datetime import date
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.schemas import ImputationCreate, ImputationUpdate, ImputationOut, WeekSummary
 from app.schemas.time_tracking import TimerSessionOut, TimerStartPayload, TimerStopPayload, ImputationAlertOut, LockoutStatusOut
@@ -55,25 +55,25 @@ def list_imputations(
     return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
-@router.get("/my/week", response_model=WeekSummary, summary="Resumen semanal del usuario actual")
+@router.get("/my/week", response_model=APIResponse[WeekSummary], summary="Resumen semanal del usuario actual")
 def get_my_week(
     week_start: Optional[date] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_week_summary(week_start, current_user, db)
+    return APIResponse.ok(data=get_week_summary(week_start, current_user, db))
 
 
-@router.post("", response_model=ImputationOut, summary="Registrar horas (imputar)")
+@router.post("", response_model=APIResponse[ImputationOut], summary="Registrar horas (imputar)")
 def create_imputation(
     payload: ImputationCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return validate_and_create_imputation(payload, current_user, db)
+    return APIResponse.ok(data=validate_and_create_imputation(payload, current_user, db))
 
 
-@router.patch("/{imputation_id}", response_model=ImputationOut, summary="Editar imputación")
+@router.patch("/{imputation_id}", response_model=APIResponse[ImputationOut], summary="Editar imputación")
 def update_imputation(
     imputation_id: str,
     payload: ImputationUpdate,
@@ -85,7 +85,7 @@ def update_imputation(
         raise HTTPException(status_code=404, detail="Imputación no encontrada")
 
     validate_imputation_edit_allowed(imp, current_user, db)
-    return update_imputation_fields(imp, payload, db, current_user)
+    return APIResponse.ok(data=update_imputation_fields(imp, payload, db, current_user))
 
 
 @router.delete("/{imputation_id}", summary="Eliminar imputación (soft delete)")
@@ -102,7 +102,7 @@ def delete_imputation(
     enforce_abac(db, current_user, "imputation", imputation_id, action="delete")
 
     delete_imputation_record(db, imp)
-    return {"ok": True, "message": "Imputación eliminada"}
+    return APIResponse.ok(data={"ok": True, "message": "Imputación eliminada"})
 
 
 @router.post("/{imputation_id}/approve", summary="Aprobar imputación (manager)")
@@ -112,7 +112,7 @@ def approve_imputation(
     current_user: User = Depends(require_any_manager),
 ):
     approve_imputation_flow(db, imputation_id, current_user)
-    return {"message": "Imputación aprobada"}
+    return APIResponse.ok(data={"message": "Imputación aprobada"})
 
 
 @router.post("/{imputation_id}/reject", summary="Rechazar imputación (manager)")
@@ -122,12 +122,12 @@ def reject_imputation(
     current_user: User = Depends(require_any_manager),
 ):
     reject_imputation_flow(db, imputation_id, current_user)
-    return {"message": "Imputación rechazada"}
+    return APIResponse.ok(data={"message": "Imputación rechazada"})
 
 
 # ── Timer Endpoints ────────────────────────────────────────────────────────
 
-@router.post("/timer/start", response_model=TimerSessionOut, summary="Start work timer")
+@router.post("/timer/start", response_model=APIResponse[TimerSessionOut], summary="Start work timer")
 def start_timer(
     payload: TimerStartPayload,
     db: Session = Depends(get_db),
@@ -135,34 +135,34 @@ def start_timer(
 ):
     """Start timer for current user on a task."""
     timer = start_timer_session(payload, current_user, db)
-    return timer_out(timer)
+    return APIResponse.ok(data=timer_out(timer))
 
 
-@router.post("/timer/pause", response_model=TimerSessionOut, summary="Pause timer")
+@router.post("/timer/pause", response_model=APIResponse[TimerSessionOut], summary="Pause timer")
 def pause_timer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     timer = pause_timer_session(current_user, db)
-    return timer_out(timer)
+    return APIResponse.ok(data=timer_out(timer))
 
 
-@router.post("/timer/resume", response_model=TimerSessionOut, summary="Resume timer")
+@router.post("/timer/resume", response_model=APIResponse[TimerSessionOut], summary="Resume timer")
 def resume_timer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     timer = resume_timer_session(current_user, db)
-    return timer_out(timer)
+    return APIResponse.ok(data=timer_out(timer))
 
 
-@router.post("/timer/stop", response_model=ImputationOut, summary="Stop timer and create imputation")
+@router.post("/timer/stop", response_model=APIResponse[ImputationOut], summary="Stop timer and create imputation")
 def stop_timer(
     payload: TimerStopPayload,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return stop_timer_session(payload, current_user, db)
+    return APIResponse.ok(data=stop_timer_session(payload, current_user, db))
 
 
 @router.post("/timer/cancel", summary="Cancel active timer without creating imputation")
@@ -170,28 +170,28 @@ def cancel_timer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return cancel_timer_session(current_user, db)
+    return APIResponse.ok(data=cancel_timer_session(current_user, db))
 
 
-@router.get("/timer/current", response_model=Optional[TimerSessionOut], summary="Get active timer")
+@router.get("/timer/current", response_model=APIResponse[Optional[TimerSessionOut]], summary="Get active timer")
 def get_current_timer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     timer = get_current_timer_record(db, current_user)
     if not timer:
-        return None
-    return timer_out(timer)
+        return APIResponse.ok(data=None)
+    return APIResponse.ok(data=timer_out(timer))
 
 
 # ── Lockout Status Endpoints ───────────────────────────────────────────────
 
-@router.get("/lockout-status", response_model=LockoutStatusOut, summary="Get imputation lockout status")
+@router.get("/lockout-status", response_model=APIResponse[LockoutStatusOut], summary="Get imputation lockout status")
 def get_lockout_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return lockout_status_payload(current_user, db)
+    return APIResponse.ok(data=lockout_status_payload(current_user, db))
 
 
 # ── Imputation Alerts ──────────────────────────────────────────────────────
@@ -214,4 +214,4 @@ def dismiss_alert(
     current_user: User = Depends(get_current_user),
 ):
     """Dismiss/snooze an imputation alert."""
-    return dismiss_alert_record(db, alert_id, current_user)
+    return APIResponse.ok(data=dismiss_alert_record(db, alert_id, current_user))

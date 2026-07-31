@@ -41,7 +41,7 @@ class TestExchangeRateCRUD:
     def test_create_rate_manual(self, client, admin_token, db):
         res = _create_rate(client, admin_token, "EUR", "USD", 1.08)
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data.get("from_currency") == "EUR"
         assert data.get("to_currency") == "USD"
         assert float(data.get("rate", 0)) == pytest.approx(1.08)
@@ -86,7 +86,7 @@ class TestCurrencyConversion:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         converted = data.get("converted_amount") or data.get("result") or data.get("amount")
         if converted is not None:
             assert float(converted) == pytest.approx(1100.0, rel=0.01)
@@ -103,7 +103,7 @@ class TestCurrencyConversion:
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         converted = data.get("converted_amount") or data.get("result") or data.get("amount")
         if converted is not None:
             assert float(converted) == pytest.approx(500.0)

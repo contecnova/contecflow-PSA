@@ -16,7 +16,7 @@ def _create_project(client, token):
         "status": "active", "project_type": "development",
     }, headers=auth(token))
     assert r.status_code in (200, 201), r.text
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 def test_task_create_with_in_review_status(client, pm_token, db):
@@ -75,7 +75,7 @@ def _create_invoice(client, token):
         ],
     }, headers=auth(token))
     assert r.status_code in (200, 201), r.text
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 def test_invoice_pdf_returns_bytes(client, pm_token, db):

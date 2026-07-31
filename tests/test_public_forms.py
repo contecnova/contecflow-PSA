@@ -18,13 +18,13 @@ def test_delete_public_form_is_soft_and_hidden(client, pm_token, db):
         },
     )
     assert created.status_code in (200, 201)
-    payload = created.json()
+    payload = created.json()["data"]
     form_id = payload["id"]
     token = payload["token"]
 
     deleted = client.delete(f"/api/v1/forms/{form_id}", headers=auth(pm_token))
     assert deleted.status_code == 200
-    assert deleted.json().get("ok") is True
+    assert deleted.json()["data"].get("ok") is True
 
     listed = client.get("/api/v1/forms", headers=auth(pm_token))
     assert listed.status_code == 200

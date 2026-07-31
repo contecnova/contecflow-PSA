@@ -104,11 +104,11 @@ def test_workflow_designer_endpoints_smoke(client, admin_token):
     h = {"Authorization": f"Bearer {admin_token}"}
     r = client.get("/api/v1/sd/workflow-designer/schema", headers=h)
     assert r.status_code == 200
-    assert "node_types" in r.json() and len(r.json()["node_types"]) > 0
+    assert "node_types" in r.json()["data"] and len(r.json()["data"]["node_types"]) > 0
 
     r = client.get("/api/v1/sd/workflow-designer/templates", headers=h)
     assert r.status_code == 200
-    assert isinstance(r.json(), list) and len(r.json()) >= 1
+    assert isinstance(r.json()["items"], list) and len(r.json()["items"]) >= 1
 
     r = client.post(
         "/api/v1/sd/workflow-designer/validate",
@@ -119,7 +119,7 @@ def test_workflow_designer_endpoints_smoke(client, admin_token):
         },
     )
     assert r.status_code == 200
-    assert r.json()["valid"] is True
+    assert r.json()["data"]["valid"] is True
 
 
 # ── Engine ────────────────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ def _publish_blueprint(client, headers, name, graph, process_type="ticket"):
     r = client.post("/api/v1/sd/workflow-designer/blueprints", headers=headers,
                     json={"name": name, "process_type": process_type, "graph": graph})
     assert r.status_code == 200, r.text
-    bp = r.json()
+    bp = r.json()["data"]
     r = client.post(f"/api/v1/sd/workflow-designer/blueprints/{bp['id']}/publish/1", headers=headers)
     assert r.status_code == 200, r.text
     return bp
@@ -146,7 +146,7 @@ def test_engine_runs_simple_blueprint_to_end(client, admin_token):
 
     r = client.post(f"/api/v1/sd/workflow-designer/blueprints/{bp['id']}/runs", headers=h, json={"context": {}})
     assert r.status_code == 200, r.text
-    body = r.json()
+    body = r.json()["data"]
     assert body["run"]["status"] == "completed"
     assert body["run"]["current_node_id"] is None
     # debe haber al menos 2 steps (start, end)
@@ -179,13 +179,13 @@ def test_engine_decision_branches_by_context(client, admin_token):
     r = client.post(f"/api/v1/sd/workflow-designer/blueprints/{bp['id']}/runs", headers=h,
                     json={"context": {"priority": "P1"}})
     assert r.status_code == 200
-    types = [s["node_id"] for s in r.json()["steps"]]
+    types = [s["node_id"] for s in r.json()["data"]["steps"]]
     assert "fast" in types and "slow" not in types
 
     # Sin P1 → ruta slow
     r = client.post(f"/api/v1/sd/workflow-designer/blueprints/{bp['id']}/runs", headers=h,
                     json={"context": {"priority": "P3"}})
-    types = [s["node_id"] for s in r.json()["steps"]]
+    types = [s["node_id"] for s in r.json()["data"]["steps"]]
     assert "slow" in types and "fast" not in types
 
 
@@ -210,7 +210,7 @@ def test_engine_approval_pauses_and_resumes(client, admin_token):
     bp = _publish_blueprint(client, h, "approval", graph)
 
     r = client.post(f"/api/v1/sd/workflow-designer/blueprints/{bp['id']}/runs", headers=h, json={"context": {}})
-    body = r.json()
+    body = r.json()["data"]
     assert body["run"]["status"] == "waiting"
     assert body["run"]["current_node_id"] == "ap"
 
@@ -219,7 +219,7 @@ def test_engine_approval_pauses_and_resumes(client, admin_token):
     r = client.post(f"/api/v1/sd/workflow-designer/runs/{run_id}/resume", headers=h,
                     json={"branch": "approved"})
     assert r.status_code == 200
-    body2 = r.json()
+    body2 = r.json()["data"]
     assert body2["run"]["status"] == "completed"
     assert any(s["node_id"] == "ok" for s in body2["steps"])
     assert not any(s["node_id"] == "ko" for s in body2["steps"])
@@ -240,15 +240,15 @@ def test_engine_run_listing_and_cancel(client, admin_token):
     }
     bp = _publish_blueprint(client, h, "list-cancel", graph)
     r = client.post(f"/api/v1/sd/workflow-designer/blueprints/{bp['id']}/runs", headers=h, json={})
-    run_id = r.json()["run"]["id"]
+    run_id = r.json()["data"]["run"]["id"]
 
     r = client.get("/api/v1/sd/workflow-designer/runs", headers=h)
     assert r.status_code == 200
-    assert any(x["id"] == run_id for x in r.json())
+    assert any(x["id"] == run_id for x in r.json()["items"])
 
     r = client.post(f"/api/v1/sd/workflow-designer/runs/{run_id}/cancel", headers=h, json={"reason": "test"})
     assert r.status_code == 200
-    assert r.json()["run"]["status"] == "cancelled"
+    assert r.json()["data"]["run"]["status"] == "cancelled"
 
 
 def test_engine_rejects_unpublished_blueprint(client, admin_token):
@@ -259,7 +259,7 @@ def test_engine_rejects_unpublished_blueprint(client, admin_token):
     }
     r = client.post("/api/v1/sd/workflow-designer/blueprints", headers=h,
                     json={"name": "draft-only", "process_type": "ticket", "graph": graph})
-    bp = r.json()
+    bp = r.json()["data"]
     # NO lo publicamos
     r = client.post(f"/api/v1/sd/workflow-designer/blueprints/{bp['id']}/runs", headers=h, json={})
     assert r.status_code == 400

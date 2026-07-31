@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
 from app.services import deliverable_service
 from app.services.deliverable_service import serialize_deliverable as _del_out
@@ -43,7 +43,7 @@ def get_deliverables(
     deliverables = deliverable_service.list_project_deliverables(db, project_id, status)
     result = [_del_out(d) for d in deliverables]
 
-    return {
+    return APIResponse.ok(data={
         "deliverables": result,
         "summary": {
             "total": len(result),
@@ -54,7 +54,7 @@ def get_deliverables(
                 sum(1 for d in result if d["status"] in ["delivered", "accepted"]) / max(len(result), 1) * 100, 1
             ),
         }
-    }
+    })
 
 
 @router.post("/{project_id}", summary="Crear entregable")
@@ -67,7 +67,7 @@ def create_deliverable(
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
     d = deliverable_service.create_deliverable(db, project_id, **payload.model_dump())
-    return _del_out(d)
+    return APIResponse.ok(data=_del_out(d))
 
 
 @router.patch("/{project_id}/{del_id}", summary="Actualizar entregable")
@@ -85,7 +85,7 @@ def update_deliverable(
         raise HTTPException(404, "Entregable no encontrado")
     enforce_abac(db, current_user, "deliverable", del_id, action="update")
     d = deliverable_service.update_deliverable(db, d, payload.model_dump(exclude_unset=True))
-    return _del_out(d)
+    return APIResponse.ok(data=_del_out(d))
 
 
 @router.post("/{project_id}/{del_id}/deliver", summary="Marcar como entregado")
@@ -101,7 +101,7 @@ def deliver(
         raise HTTPException(404, "No encontrado")
     enforce_abac(db, current_user, "deliverable", del_id, action="update")
     d = deliverable_service.mark_delivered(db, d, document_url)
-    return _del_out(d)
+    return APIResponse.ok(data=_del_out(d))
 
 
 @router.post("/{project_id}/{del_id}/accept", summary="Aceptar entregable")
@@ -118,7 +118,7 @@ def accept(
         raise HTTPException(400, "Solo se pueden aceptar entregables entregados")
     enforce_abac(db, current_user, "deliverable", del_id, action="update")
     d = deliverable_service.mark_accepted(db, d)
-    return _del_out(d)
+    return APIResponse.ok(data=_del_out(d))
 
 
 @router.post("/{project_id}/{del_id}/reject", summary="Rechazar entregable")
@@ -134,7 +134,7 @@ def reject(
         raise HTTPException(404, "No encontrado")
     enforce_abac(db, current_user, "deliverable", del_id, action="update")
     d = deliverable_service.mark_rejected(db, d, reason)
-    return _del_out(d)
+    return APIResponse.ok(data=_del_out(d))
 
 
 @router.delete("/{project_id}/{del_id}", summary="Eliminar entregable (soft delete)")
@@ -149,4 +149,4 @@ def delete_deliverable(
         raise HTTPException(404, "No encontrado")
     enforce_abac(db, current_user, "deliverable", del_id, action="delete")
     deliverable_service.delete_deliverable(db, d)
-    return {"ok": True, "message": f"Entregable '{d.name}' eliminado"}
+    return APIResponse.ok(data={"ok": True, "message": f"Entregable '{d.name}' eliminado"})

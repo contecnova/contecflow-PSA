@@ -43,7 +43,7 @@ def test_run_alert_engine(client, admin_token, db):
     """Admin can trigger the alert engine."""
     res = client.post("/api/v1/alerts/run", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "message" in data
 
 
@@ -72,7 +72,7 @@ def test_mark_alert_read(client, admin_token, db):
 
     res = client.patch(f"/api/v1/alerts/{alert.id}/read", headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert res.json()["data"]["ok"] is True
 
     db.refresh(alert)
     assert alert.is_read is True
@@ -90,7 +90,7 @@ def test_resolve_alert(client, pm_token, db):
 
     res = client.patch(f"/api/v1/alerts/{alert.id}/resolve", headers=auth(pm_token))
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert res.json()["data"]["ok"] is True
 
     db.refresh(alert)
     assert alert.is_resolved is True

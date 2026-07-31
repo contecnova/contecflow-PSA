@@ -27,7 +27,7 @@ def test_patch_me_name(client, dev_token, db):
         headers=auth(dev_token),
         json={"first_name": "Juan", "last_name": "García"})
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert data["first_name"] == "Juan"
     assert data["last_name"] == "García"
 
@@ -37,7 +37,7 @@ def test_patch_me_phone(client, dev_token, db):
         headers=auth(dev_token),
         json={"phone": "+34 600 000 001"})
     assert res.status_code == 200
-    assert res.json()["phone"] == "+34 600 000 001"
+    assert res.json()["data"]["phone"] == "+34 600 000 001"
 
 
 def test_patch_me_cannot_change_role(client, dev_token, db):
@@ -47,7 +47,7 @@ def test_patch_me_cannot_change_role(client, dev_token, db):
         json={"role": "admin"})
     # Debe ignorar el campo o devolver 403
     if res.status_code == 200:
-        assert res.json().get("role") != "admin"
+        assert res.json()["data"].get("role") != "admin"
     else:
         assert res.status_code in (403, 422)
 
@@ -55,7 +55,7 @@ def test_patch_me_cannot_change_role(client, dev_token, db):
 def test_get_user_preferences_default(client, dev_token, db):
     res = client.get("/api/v1/users/me/preferences", headers=auth(dev_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "accent_color" in data
     assert "theme_mode" in data
     assert "ui_density" in data
@@ -66,7 +66,7 @@ def test_save_user_preferences(client, dev_token, db):
         headers=auth(dev_token),
         json={"accent_color": "#7c3aed", "theme_mode": "light", "ui_density": "compact"})
     assert res.status_code == 200
-    assert res.json().get("ok") is True
+    assert res.json()["data"].get("ok") is True
 
 
 def test_preferences_persist(client, dev_token, db):
@@ -76,7 +76,7 @@ def test_preferences_persist(client, dev_token, db):
         json={"accent_color": "#f43f5e"})
     res = client.get("/api/v1/users/me/preferences", headers=auth(dev_token))
     assert res.status_code == 200
-    assert res.json()["accent_color"] == "#f43f5e"
+    assert res.json()["data"]["accent_color"] == "#f43f5e"
 
 
 def test_change_password(client, dev_token, db):

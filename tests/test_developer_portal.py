@@ -17,11 +17,11 @@ def test_delete_oauth_app_is_soft_and_hidden(client, pm_token, db):
         },
     )
     assert created.status_code in (200, 201)
-    app_id = created.json()["id"]
+    app_id = created.json()["data"]["id"]
 
     deleted = client.delete(f"/api/v1/developer/apps/{app_id}", headers=auth(pm_token))
     assert deleted.status_code == 200
-    payload = deleted.json()
+    payload = deleted.json()["data"]
     assert payload.get("ok") is True
 
     listed = client.get("/api/v1/developer/apps", headers=auth(pm_token))

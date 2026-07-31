@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.core.deps import require_admin, require_any_manager
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.pagination_service import paginate_query
 from app.services import jira_service
@@ -93,7 +94,7 @@ def get_jira_config(
     safe["configured"] = bool(cfg.get("jira_url") and cfg.get("jira_api_token"))
     if cfg.get("jira_api_token"):
         safe["jira_api_token_hint"] = "••••" + cfg["jira_api_token"][-4:]
-    return safe
+    return APIResponse.ok(data=safe)
 
 
 @router.post("/config", summary="Guardar configuración Jira")
@@ -110,7 +111,7 @@ def save_jira_config(
         jira_api_token=payload.jira_api_token,
         jira_project_key=payload.jira_project_key,
     )
-    return {"ok": True, "message": "Configuración Jira guardada"}
+    return APIResponse.ok(data={"ok": True, "message": "Configuración Jira guardada"})
 
 
 @router.get("/test", summary="Test de conexión Jira")
@@ -129,13 +130,13 @@ def test_jira_connection(
         )
         resp.raise_for_status()
         data = resp.json()
-        return {
+        return APIResponse.ok(data={
             "ok": True,
             "jira_url": cfg["jira_url"],
             "account_id": data.get("accountId"),
             "display_name": data.get("displayName"),
             "email": data.get("emailAddress"),
-        }
+        })
     except httpx.HTTPStatusError as e:
         raise HTTPException(502, f"Jira devolvió {e.response.status_code}: {e.response.text[:200]}")
     except httpx.RequestError as e:
@@ -188,7 +189,7 @@ def list_jira_issues(
                 "labels": f.get("labels", []),
                 "updated": f.get("updated"),
             })
-        return {"total": data.get("total", 0), "issues": issues}
+        return APIResponse.ok(data={"total": data.get("total", 0), "issues": issues})
     except httpx.HTTPStatusError as e:
         raise HTTPException(502, f"Jira {e.response.status_code}: {e.response.text[:200]}")
     except Exception as e:
@@ -241,12 +242,12 @@ def sync_jira_to_nexus(
         dry_run=payload.dry_run,
     )
 
-    return {
+    return APIResponse.ok(data={
         "ok": True,
         "dry_run": payload.dry_run,
         "issues_fetched": len(issues),
         **stats,
-    }
+    })
 
 
 @router.post("/push", summary="NexusPM → Jira: crear issues para tareas no vinculadas")
@@ -317,7 +318,7 @@ def push_nexus_to_jira(
     if not payload.dry_run:
         jira_service.commit_db(db)
 
-    return {
+    return APIResponse.ok(data={
         "ok": True,
         "dry_run": payload.dry_run,
         "tasks_evaluated": len(tasks),
@@ -325,7 +326,7 @@ def push_nexus_to_jira(
         "skipped": skipped,
         "errors": errors,
         "error_details": errs[:10],
-    }
+    })
 
 
 @router.post("/webhook", summary="Recibir eventos Jira (issue:updated / issue:created)")
@@ -394,7 +395,7 @@ def get_linked_tasks(
     from app.models.task import Task as TaskModel
     tasks, _, _ = paginate_query(q.order_by(TaskModel.updated_at.desc()), page, page_size)
     jira_url = jira_service.get_setting(db, "jira_url", current_user.organization_id)
-    return [
+    items = [
         {
             "id": t.id, "title": t.title, "status": t.status,
             "jira_issue_key": t.jira_issue_key,
@@ -403,3 +404,4 @@ def get_linked_tasks(
         }
         for t in tasks
     ]
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)

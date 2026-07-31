@@ -44,11 +44,11 @@ def invoke_bot(payload: BotMessageIn, current_user: User = Depends(get_current_u
     handle = payload.bot_handle.lower()
     cmd_map = {"nexus": "ask", "watcher": "risk", "compliance": "decision", "pulse": "standup", "bridge": "findfile"}
     command = cmd_map.get(handle, "ask")
-    return bot_svc.handle_slash(db, current_user, conversation_id=payload.conversation_id, command=command, args=payload.args)
+    return APIResponse.ok(data=bot_svc.handle_slash(db, current_user, conversation_id=payload.conversation_id, command=command, args=payload.args))
 
 
 # ── Slash commands ───────────────────────────────────────────────────────────
-@router.post("/slash", response_model=SlashCommandOut, summary="Ejecutar slash command")
+@router.post("/slash", response_model=APIResponse[SlashCommandOut], summary="Ejecutar slash command")
 def slash(payload: SlashCommandIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     assert_conversation_access(db, current_user, payload.conversation_id)
     res = bot_svc.handle_slash(
@@ -57,7 +57,7 @@ def slash(payload: SlashCommandIn, current_user: User = Depends(get_current_user
         command=payload.command,
         args=payload.args,
     )
-    return SlashCommandOut(**res)
+    return APIResponse.ok(data=SlashCommandOut(**res))
 
 
 @router.get("/slash/help", summary="Listado de slash commands")
@@ -88,7 +88,7 @@ def list_integrations(current_user: User = Depends(get_current_user), db: Sessio
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.post("/integrations", response_model=IntegrationOut, summary="Crear integración")
+@router.post("/integrations", response_model=APIResponse[IntegrationOut], summary="Crear integración")
 def create_integration(payload: IntegrationCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org = _org(current_user)
     from app.services.collaboration.workspaces import get_or_create_workspace
@@ -99,7 +99,7 @@ def create_integration(payload: IntegrationCreate, current_user: User = Depends(
     )
     db.add(row)
     db.commit()
-    return IntegrationOut(id=row.id, kind=row.kind, name=row.name, is_enabled=row.is_enabled, config=row.config or {}, created_at=row.created_at)
+    return APIResponse.ok(data=IntegrationOut(id=row.id, kind=row.kind, name=row.name, is_enabled=row.is_enabled, config=row.config or {}, created_at=row.created_at))
 
 
 @router.delete("/integrations/{integration_id}", summary="Eliminar integración")
@@ -134,7 +134,7 @@ def list_webhooks(current_user: User = Depends(get_current_user), db: Session = 
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.post("/webhooks", response_model=WebhookOut, summary="Crear webhook")
+@router.post("/webhooks", response_model=APIResponse[WebhookOut], summary="Crear webhook")
 def create_webhook(payload: WebhookCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.services.collaboration.workspaces import get_or_create_workspace
     import secrets
@@ -147,11 +147,11 @@ def create_webhook(payload: WebhookCreate, current_user: User = Depends(get_curr
         events=payload.events or [],
     )
     db.add(row); db.commit()
-    return WebhookOut(
+    return APIResponse.ok(data=WebhookOut(
         id=row.id, direction=row.direction, name=row.name, url=row.url, secret_token=row.secret_token,
         target_channel_id=row.target_channel_id, events=row.events or [], is_active=row.is_active,
         last_called_at=row.last_called_at, failure_count=row.failure_count,
-    )
+    ))
 
 
 # Audit #C7: sync body of the webhook is factored out so we can run it in the

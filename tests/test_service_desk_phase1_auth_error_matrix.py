@@ -56,7 +56,7 @@ def test_workflow_publish_nonexistent_version_returns_404(client, admin_token):
         json={"name": "WF publish missing", "process_type": "ticket", "graph": _valid_graph()},
     )
     assert created.status_code == 200
-    bp_id = created.json()["id"]
+    bp_id = created.json()["data"]["id"]
 
     r = client.post(f"/api/v1/sd/workflow-designer/blueprints/{bp_id}/publish/999", headers=auth(admin_token))
     assert r.status_code == 404

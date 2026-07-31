@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin_or_pm
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.jira_integration import (
     JiraConfig,
@@ -165,7 +165,7 @@ def create_jira_config(
     db.add(config)
     db.commit()
     db.refresh(config)
-    return _serialize_config(config)
+    return APIResponse.ok(data=_serialize_config(config))
 
 
 @router.patch("/configs/{config_id}", summary="Actualizar configuración Jira")
@@ -192,7 +192,7 @@ def patch_jira_config(
 
     db.commit()
     db.refresh(config)
-    return _serialize_config(config)
+    return APIResponse.ok(data=_serialize_config(config))
 
 
 @router.delete("/configs/{config_id}", summary="Eliminar configuración Jira")
@@ -205,7 +205,7 @@ def delete_jira_config(
     config = org_scoped_or_404(db, JiraConfig, config_id, current_user, detail="Jira config not found")
     db.delete(config)
     db.commit()
-    return {"deleted": True}
+    return APIResponse.ok(data={"deleted": True})
 
 
 @router.post("/configs/{config_id}/test", summary="Probar conexión Jira")
@@ -232,12 +232,12 @@ def test_jira_connection(
         )
         resp.raise_for_status()
         data = resp.json()
-        return {"ok": True, "jira_account_id": data.get("accountId"), "display_name": data.get("displayName")}
+        return APIResponse.ok(data={"ok": True, "jira_account_id": data.get("accountId"), "display_name": data.get("displayName")})
     except httpx.HTTPStatusError as exc:
-        return {"ok": False, "error": f"HTTP {exc.response.status_code}: {exc.response.text[:200]}"}
+        return APIResponse.ok(data={"ok": False, "error": f"HTTP {exc.response.status_code}: {exc.response.text[:200]}"})
     except Exception as exc:
         logger.warning("Fallo verificando cuenta Jira: %s", exc)
-        return {"ok": False, "error": str(exc)}
+        return APIResponse.ok(data={"ok": False, "error": str(exc)})
 
 
 @router.get("/configs/{config_id}/sync-log", summary="Ver log de sincronización")
@@ -257,24 +257,20 @@ def get_sync_log(
     )
     total = q.count()
     logs = q.offset((page - 1) * page_size).limit(page_size).all()
-    return {
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "items": [
-            {
-                "id": lg.id,
-                "ticket_id": lg.ticket_id,
-                "jira_issue_key": lg.jira_issue_key,
-                "event_type": lg.event_type,
-                "direction": lg.direction,
-                "success": lg.success,
-                "error_message": lg.error_message,
-                "occurred_at": lg.occurred_at,
-            }
-            for lg in logs
-        ],
-    }
+    items = [
+        {
+            "id": lg.id,
+            "ticket_id": lg.ticket_id,
+            "jira_issue_key": lg.jira_issue_key,
+            "event_type": lg.event_type,
+            "direction": lg.direction,
+            "success": lg.success,
+            "error_message": lg.error_message,
+            "occurred_at": lg.occurred_at,
+        }
+        for lg in logs
+    ]
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post("/tickets/{ticket_id}/push", summary="Empujar ticket a Jira")
@@ -298,11 +294,11 @@ def push_ticket(
     try:
         sync_map = push_ticket_to_jira(db, config, ticket)
         db.commit()
-        return {
+        return APIResponse.ok(data={
             "ok": True,
             "jira_issue_key": sync_map.jira_issue_key,
             "sync_status": sync_map.sync_status,
-        }
+        })
     except Exception as exc:
         db.rollback()
         raise HTTPException(502, f"Jira push failed: {exc}") from exc
@@ -384,4 +380,4 @@ def run_manual_sync(
 ):
     """Trigger an incremental sync poll for all mapped tickets of a config."""
     background_tasks.add_task(run_incremental_sync, db, config_id)
-    return {"ok": True, "message": "Incremental sync started in background"}
+    return APIResponse.ok(data={"ok": True, "message": "Incremental sync started in background"})

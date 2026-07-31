@@ -9,7 +9,7 @@ from datetime import date
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin_or_pm
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.expense_service import (
     review_expense as svc_review_expense,
@@ -89,12 +89,12 @@ def team_expenses(
     by_category: dict = {}
     for e in expenses:
         by_category[e.category] = by_category.get(e.category, 0) + e.amount
-    return {
+    return APIResponse.ok(data={
         "expenses": [_expense_out(e) for e in expenses],
         "total": round(total, 2),
         "billable_total": round(billable, 2),
         "by_category": {k: round(v, 2) for k, v in by_category.items()},
-    }
+    })
 
 
 @router.get("/summary/{project_id}", summary="Resumen de gastos por proyecto")
@@ -109,14 +109,14 @@ def project_expense_summary(
     by_cat: dict = {}
     for e in expenses:
         by_cat[e.category] = by_cat.get(e.category, 0) + e.amount
-    return {
+    return APIResponse.ok(data={
         "total": round(total, 2),
         "billable": round(billable, 2),
         "non_billable": round(total - billable, 2),
         "count": len(expenses),
         "by_category": {k: round(v, 2) for k, v in by_cat.items()},
         "expenses": [_expense_out(e) for e in expenses],
-    }
+    })
 
 
 @router.post("", summary="Crear gasto")
@@ -126,7 +126,7 @@ def create_expense(
     current_user: User = Depends(get_current_user),
 ):
     expense = svc_create_expense(db, payload, current_user.id, _next_code(db))
-    return _expense_out(expense)
+    return APIResponse.ok(data=_expense_out(expense))
 
 
 @router.patch("/{expense_id}", summary="Editar gasto (admin/PM, cualquier estado)")
@@ -137,7 +137,7 @@ def update_expense_admin(
     cu: User = Depends(require_admin_or_pm),
 ):
     e = svc_admin_update_expense(db, expense_id, payload)
-    return _expense_out(e)
+    return APIResponse.ok(data=_expense_out(e))
 
 @router.patch("/my/{expense_id}", summary="Editar mi gasto (solo borrador)")
 def update_expense(
@@ -147,7 +147,7 @@ def update_expense(
     current_user: User = Depends(get_current_user),
 ):
     expense = svc_update_my_expense(db, expense_id, current_user.id, payload)
-    return _expense_out(expense)
+    return APIResponse.ok(data=_expense_out(expense))
 
 
 @router.post("/my/{expense_id}/submit", summary="Enviar gasto para aprobación")
@@ -156,7 +156,7 @@ def submit_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return svc_submit_expense(db, expense_id, current_user.id)
+    return APIResponse.ok(data=svc_submit_expense(db, expense_id, current_user.id))
 
 
 @router.post("/my/{expense_id}/recall", summary="Retirar gasto enviado")
@@ -165,7 +165,7 @@ def recall_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return svc_recall_expense(db, expense_id, current_user.id)
+    return APIResponse.ok(data=svc_recall_expense(db, expense_id, current_user.id))
 
 
 @router.post("/{expense_id}/review", summary="Aprobar o rechazar gasto (PM/admin)")
@@ -176,7 +176,7 @@ def review_expense(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "expense", expense_id, action="approve")
-    return svc_review_expense(expense_id, payload.approved, payload.rejection_reason, current_user, db)
+    return APIResponse.ok(data=svc_review_expense(expense_id, payload.approved, payload.rejection_reason, current_user, db))
 
 
 @router.post("/{expense_id}/reimburse", summary="Marcar como reembolsado")
@@ -185,7 +185,7 @@ def reimburse_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return svc_reimburse_expense(db, expense_id)
+    return APIResponse.ok(data=svc_reimburse_expense(db, expense_id))
 
 
 @router.delete("/my/{expense_id}", summary="Eliminar gasto en borrador")
@@ -195,7 +195,7 @@ def delete_expense(
     current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "expense", expense_id, action="delete")
-    return svc_delete_my_expense(db, expense_id, current_user.id)
+    return APIResponse.ok(data=svc_delete_my_expense(db, expense_id, current_user.id))
 
 @router.get("/export", summary="Exportar gastos a Excel")
 def export_expenses(
@@ -222,4 +222,4 @@ async def ocr_receipt(
     if len(image_bytes) > 10 * 1024 * 1024:
         raise HTTPException(400, "El archivo no puede superar 10 MB.")
     extracted = await svc_ocr_receipt(image_bytes, file.content_type)
-    return {"ok": True, "extracted": extracted}
+    return APIResponse.ok(data={"ok": True, "extracted": extracted})

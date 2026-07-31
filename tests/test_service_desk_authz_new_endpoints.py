@@ -63,7 +63,7 @@ def test_workflow_designer_create_allowed_for_pm(client, pm_token):
     }
     r = client.post('/api/v1/sd/workflow-designer/blueprints', headers=auth(pm_token), json=payload)
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert data.get('name') == payload['name']
 
 
@@ -112,6 +112,6 @@ def test_connectors_install_allowed_for_pm(client, pm_token, db):
     payload = {'connector_id': seeded.id, 'name': 'PM connector install'}
     r = client.post('/api/v1/sd/connectors/install', headers=auth(pm_token), json=payload)
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert data.get('ok') is True
     assert data.get('instance_id')

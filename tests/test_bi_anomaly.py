@@ -6,7 +6,7 @@ from tests.conftest import auth
 def test_anomaly_info(client, admin_token):
     r = client.get("/api/v1/bi/anomaly/info", headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "sklearn_available" in data
 
 
@@ -14,7 +14,7 @@ def test_detect_anomalies_default(client, admin_token):
     payload = {"metric": "revenue", "contamination": 0.1}
     r = client.post("/api/v1/bi/anomaly/detect", json=payload, headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "anomalies" in data
     assert "total_points" in data
 
@@ -27,7 +27,7 @@ def test_detect_anomalies_with_data(client, admin_token):
     }
     r = client.post("/api/v1/bi/anomaly/detect", json=payload, headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "anomalies" in data
     assert "anomaly_indices" in data
 
@@ -46,7 +46,7 @@ def test_churn_predict_info(client, admin_token):
     }
     r = client.post("/api/v1/bi/churn/predict", json=payload, headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "client_id" in data
     assert "churn_probability" in data
     assert 0.0 <= data["churn_probability"] <= 1.0
@@ -71,7 +71,7 @@ def test_churn_predict_batch_contract(client, admin_token):
     }
     r = client.post("/api/v1/bi/churn/predict", json=payload, headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "clients" in data
     assert data["total_clients"] == 1
     assert data["method_used"] in ("lightgbm", "lightgbm_synthetic", "rule_based")

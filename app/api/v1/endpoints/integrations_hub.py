@@ -10,6 +10,7 @@ import os
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.core.responses import APIResponse
 from app.core.secret_utils import decrypt_config_secrets
 from app.db.session import get_db
 from app.core.deps import require_any_manager
@@ -59,7 +60,7 @@ def test_slack(
     result = send_slack_message(payload.webhook_url, payload.message, blocks=blocks)
     if not result["ok"]:
         raise HTTPException(400, f"Error Slack: {result.get('error')}")
-    return {"ok": True, "message": "Mensaje enviado a Slack correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Mensaje enviado a Slack correctamente"})
 
 
 @router.post("/slack/notify", summary="Enviar notificación manual a Slack")
@@ -78,7 +79,7 @@ def notify_slack(
 
     result = send_slack_message(webhook_url, payload.get("text", "Notificación de Contecflow"))
     if not result["ok"]: raise HTTPException(400, result.get("error"))
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── Teams endpoints ────────────────────────────────────────────────────────────
@@ -96,7 +97,7 @@ def test_teams(
     )
     if not result["ok"]:
         raise HTTPException(400, f"Error Teams: {result.get('error')}")
-    return {"ok": True, "message": "Mensaje enviado a Teams correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Mensaje enviado a Teams correctamente"})
 
 
 # ── Jira endpoints ─────────────────────────────────────────────────────────────
@@ -111,11 +112,11 @@ def test_jira(
     if not result["ok"]:
         raise HTTPException(400, f"Error Jira: {result.get('error')}")
     projects = result["data"].get("values", [])
-    return {
+    return APIResponse.ok(data={
         "ok": True,
         "projects": [{"key": p["key"], "name": p["name"]} for p in projects[:20]],
         "total": len(projects),
-    }
+    })
 
 
 @router.post("/jira/issues", summary="Crear issue en Jira desde Contecflow")
@@ -146,7 +147,7 @@ def create_jira_issue(
     if payload.nexus_task_id and result.get("key"):
         link_jira_to_task(db, payload.nexus_task_id, result["key"])
 
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.get("/jira/search", summary="Buscar issues en Jira via JQL")
@@ -166,7 +167,7 @@ def search_jira(
     result = search_jira_issues(cfg_dict, jql, max_results)
     if not result["ok"]: raise HTTPException(400, result.get("error"))
     issues = result["data"].get("issues", [])
-    return {
+    return APIResponse.ok(data={
         "total": result["data"].get("total", 0),
         "issues": [{
             "key":      i["key"],
@@ -175,7 +176,7 @@ def search_jira(
             "priority": i["fields"].get("priority", {}).get("name", "—"),
             "assignee": (i["fields"].get("assignee") or {}).get("displayName", "—"),
         } for i in issues],
-    }
+    })
 
 
 @router.post("/jira/transition", summary="Cambiar estado de issue Jira")
@@ -192,7 +193,7 @@ def transition_jira(
     cfg_dict = decrypt_config_secrets(json.loads(cfg.config or "{}"))
     result = transition_jira_issue(cfg_dict, payload.get("issue_key"), payload.get("transition"))
     if not result["ok"]: raise HTTPException(400, result.get("error"))
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── Evento manual ──────────────────────────────────────────────────────────────
@@ -208,7 +209,7 @@ def manual_event_notify(
         entity=payload.get("entity", {}),
         db=db,
     )
-    return {"ok": True, "dispatched": len(results), "results": results}
+    return APIResponse.ok(data={"ok": True, "dispatched": len(results), "results": results})
 
 
 # ── Inbound bot — Slack slash commands ────────────────────────────────────────

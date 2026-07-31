@@ -90,7 +90,7 @@ def test_slash_commands(client, admin_token):
     h = _auth_headers(admin_token)
     client.get("/api/v1/collaboration/workspace", headers=h)
     cid = _conv_id(client, h)
-    r = client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "poll", "args": "Q? | A | B"}, headers=h).json()
+    r = client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "poll", "args": "Q? | A | B"}, headers=h).json()["data"]
     assert r["success"]
     r = client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "decision", "args": "X"}, headers=h).json()
     assert r["success"]
@@ -211,12 +211,12 @@ def test_call_lifecycle(client, admin_token):
     h = _auth_headers(admin_token)
     client.get("/api/v1/collaboration/workspace", headers=h)
     cid = _conv_id(client, h)
-    r = client.post("/api/v1/collaboration/calls/start", json={"conversation_id": cid, "kind": "video"}, headers=h).json()
+    r = client.post("/api/v1/collaboration/calls/start", json={"conversation_id": cid, "kind": "video"}, headers=h).json()["data"]
     assert "livekit_token" in r
     cid_call = r["call_id"]
     client.post(f"/api/v1/collaboration/calls/{cid_call}/leave", headers=h)
     client.post(f"/api/v1/collaboration/calls/{cid_call}/end", headers=h)
-    s = client.get(f"/api/v1/collaboration/calls/{cid_call}", headers=h).json()
+    s = client.get(f"/api/v1/collaboration/calls/{cid_call}", headers=h).json()["data"]
     assert s["status"] == "ended"
 
 
@@ -225,7 +225,7 @@ def test_audit_chain(client, admin_token):
     client.get("/api/v1/collaboration/workspace", headers=h)
     cid = _conv_id(client, h)
     client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "audit test"}, headers=h)
-    res = client.get("/api/v1/collaboration/audit/verify", headers=h).json()
+    res = client.get("/api/v1/collaboration/audit/verify", headers=h).json()["data"]
     assert res["is_valid"] is True
 
 
@@ -239,7 +239,7 @@ def test_retention_run(client, admin_token, db):
     m.sent_at = datetime.utcnow() - timedelta(days=400)
     db.commit()
     client.post("/api/v1/collaboration/retention", json={"name": "12m", "retention_months": 12}, headers=h)
-    res = client.post("/api/v1/collaboration/retention/run", headers=h).json()
+    res = client.post("/api/v1/collaboration/retention/run", headers=h).json()["data"]
     assert res["deleted"] >= 1
 
 
@@ -269,7 +269,7 @@ def test_ediscovery_export(client, admin_token):
     client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "discovery xx"}, headers=h)
     r = client.post("/api/v1/collaboration/ediscovery/export", json={"keywords": ["discovery"]}, headers=h)
     assert r.status_code == 200
-    assert r.json()["total"] >= 1
+    assert r.json()["data"]["total"] >= 1
 
 
 def test_search_query_parser_unit():

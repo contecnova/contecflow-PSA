@@ -11,14 +11,14 @@ def _create_project(client, token, code="CHG-01"):
         "end_date": str(date.today() + timedelta(days=180)),
     }, headers=auth(token))
     assert r.status_code in (200, 201)
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 def test_list_changes_empty(client, pm_token, db):
     pid = _create_project(client, pm_token)
     res = client.get(f"/api/v1/changes/{pid}", headers=auth(pm_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "change_requests" in data
     assert isinstance(data["change_requests"], list)
 
@@ -34,7 +34,7 @@ def test_create_change_request(client, pm_token, db):
         "impact": "high",
     }, headers=auth(pm_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
     assert data["title"] == "Ampliación de alcance modulo X"
 
@@ -45,7 +45,7 @@ def test_change_request_workflow(client, pm_token, admin_token, db):
     cr = client.post(f"/api/v1/changes/{pid}", json={
         "title": "CR con flujo",
         "description": "Solicitud de cambio para testear flujo",
-    }, headers=auth(pm_token)).json()
+    }, headers=auth(pm_token)).json()["data"]
     crid = cr["id"]
 
     # Enviar para revisión
@@ -64,16 +64,16 @@ def test_delete_change_request(client, pm_token, db):
     pid = _create_project(client, pm_token, code="CHG-03")
     cr = client.post(f"/api/v1/changes/{pid}", json={
         "title": "CR a Borrar", "description": "Descripción del CR a borrar",
-    }, headers=auth(pm_token)).json()
+    }, headers=auth(pm_token)).json()["data"]
     res = client.delete(f"/api/v1/changes/{pid}/{cr['id']}",
         headers=auth(pm_token))
     assert res.status_code == 200
-    payload = res.json()
+    payload = res.json()["data"]
     assert payload.get("ok") is True
 
     listed = client.get(f"/api/v1/changes/{pid}", headers=auth(pm_token))
     assert listed.status_code == 200
-    ids = [item["id"] for item in listed.json().get("change_requests", [])]
+    ids = [item["id"] for item in listed.json()["data"].get("change_requests", [])]
     assert cr["id"] not in ids
 
     row = db.query(ChangeRequest).filter(ChangeRequest.id == cr["id"]).first()

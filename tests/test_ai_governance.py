@@ -200,8 +200,7 @@ class TestAIGovernanceAPI:
     def test_list_pii_types(self, client, admin_with_org):
         res = client.get("/api/v1/ai-governance/pii-types", headers=auth(admin_with_org))
         assert res.status_code == 200
-        data = res.json()
-        pii_types = data.get("pii_types", data) if isinstance(data, dict) else data
+        pii_types = res.json()["data"]["pii_types"]
         assert "email" in pii_types
 
     def test_list_policies_empty(self, client, admin_with_org):
@@ -226,7 +225,7 @@ class TestAIGovernanceAPI:
         }
         res = client.post("/api/v1/ai-governance/policies", json=payload, headers=auth(admin_with_org))
         assert res.status_code == 201
-        data = res.json()
+        data = res.json()["data"]
         assert data["name"] == "Block PII in NexusAssist"
         assert data["action"] == "redact"
 
@@ -259,7 +258,7 @@ class TestAIGovernanceAPI:
         }
         create_res = client.post("/api/v1/ai-governance/policies", json=payload, headers=auth(admin_with_org))
         assert create_res.status_code == 201
-        policy_id = create_res.json()["id"]
+        policy_id = create_res.json()["data"]["id"]
 
         get_res = client.get(f"/api/v1/ai-governance/policies/{policy_id}", headers=auth(admin_with_org))
         assert get_res.status_code == 200
@@ -278,7 +277,7 @@ class TestAIGovernanceAPI:
             "priority": 1,
         }
         create_res = client.post("/api/v1/ai-governance/policies", json=payload, headers=auth(admin_with_org))
-        policy_id = create_res.json()["id"]
+        policy_id = create_res.json()["data"]["id"]
 
         update_res = client.patch(
             f"/api/v1/ai-governance/policies/{policy_id}",
@@ -301,7 +300,7 @@ class TestAIGovernanceAPI:
             "priority": 0,
         }
         create_res = client.post("/api/v1/ai-governance/policies", json=payload, headers=auth(admin_with_org))
-        policy_id = create_res.json()["id"]
+        policy_id = create_res.json()["data"]["id"]
 
         del_res = client.delete(f"/api/v1/ai-governance/policies/{policy_id}", headers=auth(admin_with_org))
         assert del_res.status_code == 200
@@ -313,14 +312,14 @@ class TestAIGovernanceAPI:
     def test_audit_log_accessible_admin(self, client, admin_with_org):
         res = client.get("/api/v1/ai-governance/audit-log", headers=auth(admin_with_org))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["items"]
         assert "items" in data
         assert "total" in data
 
     def test_audit_log_stats(self, client, admin_with_org):
         res = client.get("/api/v1/ai-governance/audit-log/stats", headers=auth(admin_with_org))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert "total_evaluations" in data
         assert "block_rate" in data
 

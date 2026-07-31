@@ -20,7 +20,7 @@ def test_create_course(client, admin_token, db):
         json={"title": "Python Avanzado", "provider": "Udemy",
               "category": "técnico", "duration_h": 20.0, "cost": 29.99})
     assert res.status_code == 201
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
 
 
@@ -35,7 +35,7 @@ def test_update_course(client, admin_token, db):
     course_id = client.post("/api/v1/training/courses",
         headers=auth(admin_token),
         json={"title": "Curso original"}
-    ).json()["id"]
+    ).json()["data"]["id"]
     res = client.patch(f"/api/v1/training/courses/{course_id}",
         headers=auth(admin_token),
         json={"title": "Curso actualizado", "duration_h": 15.0})
@@ -46,11 +46,11 @@ def test_delete_course(client, admin_token, db):
     course_id = client.post("/api/v1/training/courses",
         headers=auth(admin_token),
         json={"title": "Curso a borrar"}
-    ).json()["id"]
+    ).json()["data"]["id"]
     res = client.delete(f"/api/v1/training/courses/{course_id}",
         headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert res.json()["data"]["ok"] is True
 
     listed = client.get("/api/v1/training/courses", headers=auth(admin_token))
     assert listed.status_code == 200
@@ -76,7 +76,7 @@ def test_create_enrollment(client, admin_token, db):
     course_id = client.post("/api/v1/training/courses",
         headers=auth(admin_token),
         json={"title": "Curso inscripción"}
-    ).json()["id"]
+    ).json()["data"]["id"]
     # Obtener dev user id
     users = client.get("/api/v1/users", headers=auth(admin_token)).json()
     if isinstance(users, dict):
@@ -95,7 +95,7 @@ def test_delete_enrollment_hard_and_hidden(client, admin_token, db):
         "/api/v1/training/courses",
         headers=auth(admin_token),
         json={"title": "Curso para borrar inscripción"},
-    ).json()["id"]
+    ).json()["data"]["id"]
 
     users = client.get("/api/v1/users", headers=auth(admin_token)).json()
     if isinstance(users, dict):
@@ -108,11 +108,11 @@ def test_delete_enrollment_hard_and_hidden(client, admin_token, db):
         "/api/v1/training/enrollments",
         headers=auth(admin_token),
         json={"course_id": course_id, "user_id": dev["id"], "status": "planned"},
-    ).json()
+    ).json()["data"]
 
     res = client.delete(f"/api/v1/training/enrollments/{created['id']}", headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert res.json()["data"]["ok"] is True
 
     listed = client.get("/api/v1/training/enrollments", headers=auth(admin_token))
     assert listed.status_code == 200

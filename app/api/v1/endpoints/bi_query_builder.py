@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_query_builder_service as svc
@@ -75,7 +76,7 @@ def get_schema(
     request: Request,
     current_user: User = Depends(get_current_user),
 ):
-    return svc.get_schema()
+    return APIResponse.ok(data=svc.get_schema())
 
 
 @router.get("/bi/query-builder/queries", summary="Listar queries guardadas")
@@ -87,7 +88,7 @@ def list_queries(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_queries(db, org_id=org_id)
-    return {"items": items, "count": len(items)}
+    return APIResponse.ok(data={"items": items, "count": len(items)})
 
 
 @router.post("/bi/query-builder/queries", summary="Guardar una nueva query visual", status_code=201)
@@ -100,7 +101,7 @@ def save_query(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.save_query(
+        return APIResponse.ok(data=svc.save_query(
             db,
             org_id=org_id,
             name=body.name,
@@ -120,7 +121,7 @@ def save_query(
             sort_dir=body.sort_dir if body.sort_by else (body.order_by[0].direction if body.order_by else body.sort_dir),
             limit=body.limit,
             created_by=current_user.id,
-        )
+        ))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
@@ -134,7 +135,7 @@ def preview_query(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return svc.preview_query(
+        return APIResponse.ok(data=svc.preview_query(
             db,
             current_user=current_user,
             dataset=body.dataset,
@@ -152,7 +153,7 @@ def preview_query(
             sort_by=body.sort_by or (body.order_by[0].field if body.order_by else None),
             sort_dir=body.sort_dir if body.sort_by else (body.order_by[0].direction if body.order_by else body.sort_dir),
             limit=body.limit,
-        )
+        ))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
@@ -183,6 +184,6 @@ def execute_query(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.execute_query(db, org_id=org_id, query_id=query_id, current_user=current_user)
+        return APIResponse.ok(data=svc.execute_query(db, org_id=org_id, query_id=query_id, current_user=current_user))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

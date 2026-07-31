@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.milestone_service import (
     complete_milestone as svc_complete_milestone,
@@ -67,7 +67,7 @@ def create_milestone(
     current_user: User = Depends(require_any_manager),
 ):
     m = svc_create_milestone(db, project_id, **payload.model_dump())
-    return _ms_out(m, db)
+    return APIResponse.ok(data=_ms_out(m, db))
 
 
 @router.patch("/{milestone_id}", summary="Actualizar milestone")
@@ -81,7 +81,7 @@ def update_milestone(
     if not m: raise HTTPException(404)
     allowed = ["name", "description", "due_date", "billing_amount", "billing_pct", "sort_order"]
     m = svc_update_milestone_fields(db, m, {k: v for k, v in payload.items() if k in allowed})
-    return _ms_out(m, db)
+    return APIResponse.ok(data=_ms_out(m, db))
 
 
 @router.delete("/{milestone_id}", summary="Eliminar milestone")
@@ -96,7 +96,7 @@ def delete_milestone(
     if m.invoice_id:
         raise HTTPException(400, "No se puede eliminar un milestone ya facturado")
     svc_delete_milestone(db, m)
-    return {"ok": True, "message": "Milestone eliminado correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Milestone eliminado correctamente"})
 
 
 # ── Flujo: Completar ───────────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ def complete_milestone(
     current_user: User = Depends(require_any_manager),
 ):
     m = svc_complete_milestone(milestone_id, current_user, db)
-    return _ms_out(m, db)
+    return APIResponse.ok(data=_ms_out(m, db))
 
 
 @router.post("/{milestone_id}/uncomplete", summary="Revertir completado")
@@ -117,7 +117,7 @@ def uncomplete_milestone(
     current_user: User = Depends(require_any_manager),
 ):
     m = svc_uncomplete_milestone(milestone_id, current_user, db)
-    return _ms_out(m, db)
+    return APIResponse.ok(data=_ms_out(m, db))
 
 
 # ── Flujo: Solicitar Aprobación ────────────────────────────────────────────────
@@ -129,7 +129,7 @@ def request_approval(
     current_user: User = Depends(get_current_user),
 ):
     m = request_milestone_approval(milestone_id, payload.message, current_user, db)
-    return {**_ms_out(m, db), "message": "Solicitud de aprobación enviada"}
+    return APIResponse.ok(data={**_ms_out(m, db), "message": "Solicitud de aprobación enviada"})
 
 
 # ── Flujo: Aprobar / Rechazar ──────────────────────────────────────────────────
@@ -144,7 +144,7 @@ def approve_milestone(
         milestone_id, payload.approved, payload.rejection_reason, current_user, db
     )
     msg = "Milestone aprobado — puedes generar la factura" if payload.approved else "Milestone rechazado"
-    return {**_ms_out(m, db), "message": msg}
+    return APIResponse.ok(data={**_ms_out(m, db), "message": msg})
 
 
 # ── Flujo: Generar Factura ─────────────────────────────────────────────────────
@@ -156,7 +156,7 @@ def generate_invoice(
 ):
     invoice_data = generate_milestone_invoice(milestone_id, current_user, db)
     m = svc_get_milestone_by_id(db, milestone_id)
-    return {
+    return APIResponse.ok(data={
         **_ms_out(m, db),
         "invoice": {
             "id": invoice_data["invoice_id"],
@@ -166,7 +166,7 @@ def generate_invoice(
             "status": invoice_data["status"],
         },
         "message": f"Factura {invoice_data['invoice_number']} generada correctamente",
-    }
+    })
 
 
 # ── Dashboard de milestones pendientes ────────────────────────────────────────

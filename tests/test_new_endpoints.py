@@ -6,8 +6,8 @@ def test_ai_suggestions_gantt(client, admin_token, db):
     res = client.get("/api/v1/ai/suggestions/gantt/proj-1", headers=headers)
     assert res.status_code in (200, 404)
     if res.status_code == 200:
-        data = res.json()
-        assert isinstance(data, list)
+        data = res.json()["data"]
+        assert isinstance(data["suggestions"], list)
 
 
 def test_ai_suggestions_timesheets(client, admin_token, db):
@@ -15,7 +15,7 @@ def test_ai_suggestions_timesheets(client, admin_token, db):
     # Query own anomalies (admin id) — querying a non-existent user_id 404s by design (tenant guard)
     res = client.get("/api/v1/ai/suggestions/timesheets/admin-test-id", headers=headers)
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "anomalies" in data
 
 
@@ -23,7 +23,7 @@ def test_resource_demand_pipeline(client, admin_token, db):
     headers = {"Authorization": f"Bearer {admin_token}"}
     res = client.get("/api/v1/resource-demand/pipeline", headers=headers)
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "demand" in data
     assert "projects" in data
 
@@ -33,7 +33,7 @@ def test_health_composite_client(client, admin_token, db):
     res = client.get("/api/v1/clients/client-1/health-composite", headers=headers)
     assert res.status_code in (200, 404)
     if res.status_code == 200:
-        data = res.json()
+        data = res.json()["data"]
         assert "score" in data
         assert "category" in data
 
@@ -43,14 +43,14 @@ def test_health_composite_customers(client, admin_token, db):
     res = client.get("/api/v1/customers/c-1/health-composite", headers=headers)
     assert res.status_code in (200, 404)
     if res.status_code == 200:
-        assert res.json()["score"] >= 0
+        assert res.json()["data"]["score"] >= 0
 
 
 def test_ui_accessibility(client, admin_token, db):
     headers = {"Authorization": f"Bearer {admin_token}"}
     res = client.get("/api/v1/ui/accessibility", headers=headers)
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "elements" in data
     assert len(data["elements"]) > 0
     assert all("aria-label" in e for e in data["elements"])
@@ -60,14 +60,14 @@ def test_ui_keyboard_nav(client, admin_token, db):
     headers = {"Authorization": f"Bearer {admin_token}"}
     res = client.get("/api/v1/ui/keyboard-nav", headers=headers)
     assert res.status_code == 200
-    assert res.json()["tabindex"] == 0
+    assert res.json()["data"]["tabindex"] == 0
 
 
 def test_ui_labels_default(client, admin_token, db):
     headers = {"Authorization": f"Bearer {admin_token}"}
     res = client.get("/api/v1/ui/labels", headers=headers)
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "projects" in data
     assert "dashboard" in data
 
@@ -76,7 +76,7 @@ def test_ui_labels_french(client, admin_token, db):
     headers = {"Authorization": f"Bearer {admin_token}"}
     res = client.get("/api/v1/ui/labels?lang=fr", headers=headers)
     assert res.status_code == 200
-    assert res.json()["projects"] == "Projet"
+    assert res.json()["data"]["projects"] == "Projet"
 
 
 def _create_template(client, headers) -> str:
@@ -95,7 +95,7 @@ def test_templates_full(client, admin_token, db):
     tmpl_id = _create_template(client, headers)
     res = client.get(f"/api/v1/templates/{tmpl_id}/full", headers=headers)
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert data["id"] == tmpl_id
     assert "phases" in data
 
@@ -109,8 +109,8 @@ def test_templates_add_document(client, admin_token, db):
         headers=headers,
     )
     assert res.status_code in (201, 200)
-    data = res.json()
-    assert data.get("created", True) is True
+    data = res.json()["data"]
+    assert data["created"] is True
 
 
 def test_templates_add_role(client, admin_token, db):
@@ -122,8 +122,8 @@ def test_templates_add_role(client, admin_token, db):
         headers=headers,
     )
     assert res.status_code in (201, 200)
-    data = res.json()
-    assert data.get("created", True) is True
+    data = res.json()["data"]
+    assert data["created"] is True
 
 
 def test_templates_export_project(client, admin_token, db):
@@ -148,7 +148,7 @@ def test_templates_export_project(client, admin_token, db):
         headers=headers,
     )
     assert res.status_code in (201, 200), res.text
-    assert "template_id" in res.json()
+    assert "template_id" in res.json()["data"]
 
 
 def test_endpoints_require_auth(client, db):

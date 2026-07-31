@@ -22,7 +22,7 @@ def _create_project(client, token, code: str, name: str):
     }
     res = client.post("/api/v1/projects", json=payload, headers=auth(token))
     assert res.status_code in (200, 201), res.text
-    return res.json()["id"]
+    return res.json()["data"]["id"]
 
 
 def test_portal_fr_multi_project_estimate_approve_start_dev(client, pm_token, db):

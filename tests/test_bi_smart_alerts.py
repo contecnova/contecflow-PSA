@@ -7,7 +7,7 @@ def test_supported_metrics_returns_list(client, admin_token, db):
     """GET /bi/alerts/supported-metrics devuelve métricas y condiciones."""
     res = client.get("/api/v1/bi/alerts/supported-metrics", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "metrics" in data
     assert "conditions" in data
     assert isinstance(data["metrics"], list)
@@ -28,14 +28,14 @@ def test_create_and_list_alert_rule(client, admin_token, db):
     }
     res = client.post("/api/v1/bi/alerts/rules", json=payload, headers=auth(admin_token))
     assert res.status_code == 201
-    rule = res.json()
+    rule = res.json()["data"]
     assert rule["metric_key"] == "revenue"
     assert rule["condition"] == "trend_down"
     assert rule["id"]
 
     list_res = client.get("/api/v1/bi/alerts/rules", headers=auth(admin_token))
     assert list_res.status_code == 200
-    items = list_res.json()["items"]
+    items = list_res.json()["data"]["items"]
     ids = [r["id"] for r in items]
     assert rule["id"] in ids
 
@@ -54,7 +54,7 @@ def test_evaluate_alerts_returns_structure(client, admin_token, db):
     """POST /bi/alerts/evaluate devuelve estructura correcta."""
     res = client.post("/api/v1/bi/alerts/evaluate", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "evaluated_at" in data
     assert "rules_evaluated" in data
     assert "triggered_count" in data
@@ -66,7 +66,7 @@ def test_alert_history_and_acknowledge(client, admin_token, db):
     """Historial de alertas retorna 200; acknowledge de alerta existente funciona."""
     hist_res = client.get("/api/v1/bi/alerts/history", headers=auth(admin_token))
     assert hist_res.status_code == 200
-    data = hist_res.json()
+    data = hist_res.json()["data"]
     assert "items" in data
     assert isinstance(data["items"], list)
     # Acknowledge a non-existent alert should return 404
@@ -84,20 +84,20 @@ def test_update_and_delete_alert_rule(client, admin_token, db):
         "severity": "info",
     }, headers=auth(admin_token))
     assert create_res.status_code == 201
-    rule_id = create_res.json()["id"]
+    rule_id = create_res.json()["data"]["id"]
 
     patch_res = client.patch(f"/api/v1/bi/alerts/rules/{rule_id}",
                              json={"enabled": False, "severity": "critical"},
                              headers=auth(admin_token))
     assert patch_res.status_code == 200
-    assert patch_res.json()["enabled"] is False
-    assert patch_res.json()["severity"] == "critical"
+    assert patch_res.json()["data"]["enabled"] is False
+    assert patch_res.json()["data"]["severity"] == "critical"
 
     del_res = client.delete(f"/api/v1/bi/alerts/rules/{rule_id}", headers=auth(admin_token))
     assert del_res.status_code == 204
 
     list_res = client.get("/api/v1/bi/alerts/rules", headers=auth(admin_token))
-    ids = [r["id"] for r in list_res.json()["items"]]
+    ids = [r["id"] for r in list_res.json()["data"]["items"]]
     assert rule_id not in ids
 
 
@@ -105,7 +105,7 @@ def test_seed_defaults(client, admin_token, db):
     """POST /bi/alerts/seed-defaults responde OK."""
     res = client.post("/api/v1/bi/alerts/seed-defaults", headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert res.json()["data"]["ok"] is True
 
 
 def test_evaluate_alerts_with_historical_correlation(client, admin_token, db, monkeypatch):
@@ -137,7 +137,7 @@ def test_evaluate_alerts_with_historical_correlation(client, admin_token, db, mo
 
     eval_res = client.post("/api/v1/bi/alerts/evaluate", headers=auth(admin_token))
     assert eval_res.status_code == 200
-    data = eval_res.json()
+    data = eval_res.json()["data"]
     assert data["triggered_count"] >= 1
     entry = data["triggered"][0]
     assert entry["metric_key"] == "revenue"

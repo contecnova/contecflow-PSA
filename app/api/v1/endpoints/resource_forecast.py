@@ -25,6 +25,7 @@ from datetime import date, timedelta
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.responses import APIResponse
 from app.models.user import User
 from app.core.config import settings
 from app.services.resource_analytics import (
@@ -119,12 +120,12 @@ def forecast_heatmap(
             "weeks":           weeks_data,
         })
 
-    return {
+    return APIResponse.ok(data={
         "from_date":   str(start),
         "weeks":       weeks,
         "week_labels": [_week_label(w) for w in week_dates],
         "users":       result_users,
-    }
+    })
 
 
 @router.get("/users/{user_id}", summary="Detalle de proyección de un recurso")
@@ -173,13 +174,13 @@ def forecast_user_detail(
             "breakdown":       breakdown,
         })
 
-    return {
+    return APIResponse.ok(data={
         "user_id":        u.id,
         "user_name":      u.full_name,
         "department":     u.department,
         "capacity_hours": capacity,
         "weeks":          weeks_detail,
-    }
+    })
 
 
 @router.get("/availability", summary="Encontrar personas disponibles para un rango y horas requeridas")
@@ -227,13 +228,13 @@ def find_available(
         })
 
     result.sort(key=lambda x: x["avg_available_hrs"], reverse=True)
-    return {
+    return APIResponse.ok(data={
         "from_date":      str(start),
         "to_date":        str(end),
         "hours_needed":   hours_needed,
         "candidates":     [r for r in result if r["fits_requirement"]],
         "insufficient":   [r for r in result if not r["fits_requirement"]],
-    }
+    })
 
 
 @router.get("/summary", summary="Resumen ejecutivo de capacidad del equipo")
@@ -250,7 +251,7 @@ def forecast_summary(
     users = get_forecast_active_users(db, department=department)
 
     if not users:
-        return {
+        return APIResponse.ok(data={
             "total_users": 0,
             "weeks": weeks,
             "avg_team_load_pct": 0,
@@ -261,7 +262,7 @@ def forecast_summary(
             "overloaded_users_count": 0,
             "week_trend": [],
             "risk_weeks": [],
-        }
+        })
 
     total_capacity_hrs  = sum(u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS for u in users) * weeks
     total_committed_hrs = 0.0
@@ -288,7 +289,7 @@ def forecast_summary(
 
     avg_load = round(total_committed_hrs / total_capacity_hrs * 100, 1) if total_capacity_hrs > 0 else 0
 
-    return {
+    return APIResponse.ok(data={
         "total_users":          len(users),
         "weeks":                weeks,
         "avg_team_load_pct":    avg_load,
@@ -299,7 +300,7 @@ def forecast_summary(
         "overloaded_users_count": len(overloaded_users),
         "week_trend":           week_loads,
         "risk_weeks":           sorted(list(risk_weeks)),
-    }
+    })
 
 
 # ── Utilization trend (historical actuals + forward projection) ────────────────
@@ -340,7 +341,7 @@ def utilization_trend(
     users = get_forecast_active_users(db, department=department, user_id=user_id)
 
     if not users:
-        return {"weeks": [_week_label(w) for w in all_weeks], "team": [], "users": []}
+        return APIResponse.ok(data={"weeks": [_week_label(w) for w in all_weeks], "team": [], "users": []})
 
     user_ids = [u.id for u in users]
 
@@ -406,8 +407,8 @@ def utilization_trend(
             pct = round(team_by_week[wk]["actual_h"] / cap * 100, 1) if cap > 0 else 0
             team_series.append({"week": _week_label(wk), "actual_pct": pct, "planned_pct": None, "is_future": False})
 
-    return {
+    return APIResponse.ok(data={
         "weeks":  [_week_label(w) for w in all_weeks],
         "team":   team_series,
         "users":  user_series,
-    }
+    })

@@ -10,7 +10,7 @@ import csv
 import io
 from app.services import v238_service, analytics_service
 from app.core.deps import get_db, get_current_user, require_any_manager
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from pydantic import BaseModel
 
@@ -36,8 +36,8 @@ def adhoc_analytics(
         if hasattr(v238_service, "run_analytics_adhoc"):
             result = v238_service.run_analytics_adhoc(metric, dimensions, date_from, date_to, filters, db)
             if result:
-                return result
-        return {"metric": metric, "dimensions": dimensions, "results": [], "total_rows": 0}
+                return APIResponse.ok(data=result)
+        return APIResponse.ok(data={"metric": metric, "dimensions": dimensions, "results": [], "total_rows": 0})
     except ValueError as e:
         return JSONResponse(status_code=400, content={"detail": f"Error de datos: {str(e)}"})
     except Exception as e:
@@ -61,8 +61,8 @@ def analytics_drilldown(
         if hasattr(v238_service, "run_analytics_drilldown"):
             result = v238_service.run_analytics_drilldown(metric, dimension, value, date_from, date_to, page, page_size, db)
             if result:
-                return result
-        return {"metric": metric, "dimension": dimension, "value": value, "rows": [], "page": page, "page_size": page_size}
+                return APIResponse.ok(data=result)
+        return APIResponse.ok(data={"metric": metric, "dimension": dimension, "value": value, "rows": [], "page": page, "page_size": page_size})
     except ValueError as e:
         return JSONResponse(status_code=400, content={"detail": f"Error de datos: {str(e)}"})
     except Exception as e:
@@ -80,8 +80,8 @@ def analytics_cross_filter(
         if hasattr(v238_service, "run_analytics_cross_filter"):
             result = v238_service.run_analytics_cross_filter(payload, db)
             if result:
-                return result
-        return {"active_filters": payload.get("active_filters", {}), "results": {}}
+                return APIResponse.ok(data=result)
+        return APIResponse.ok(data={"active_filters": payload.get("active_filters", {}), "results": {}})
     except ValueError as e:
         return JSONResponse(status_code=400, content={"detail": f"Error de datos: {str(e)}"})
     except Exception as e:
@@ -152,7 +152,7 @@ class ResourceForecast(BaseModel):
 
 # ── Imputation Analytics ───────────────────────────────────────────────────
 
-@router.get("/imputations", response_model=ImputationStats, summary="Get imputation statistics")
+@router.get("/imputations", response_model=APIResponse[ImputationStats], summary="Get imputation statistics")
 def get_imputation_analytics(
     user_id: Optional[str] = None,
     period: str = Query("monthly", pattern="^(daily|weekly|monthly)$"),
@@ -169,7 +169,7 @@ def get_imputation_analytics(
     imputations = analytics_service.get_imputations_for_analytics(db, query_user_id, cutoff_date)
 
     if not imputations:
-        return ImputationStats(
+        return APIResponse.ok(data=ImputationStats(
             period=period,
             avg_hours_per_day=0,
             avg_billable_pct=0,
@@ -177,7 +177,7 @@ def get_imputation_analytics(
             daily=[],
             weekly=[],
             monthly=[],
-        )
+        ))
 
     # Daily summaries
     daily_dict = {}
@@ -251,7 +251,7 @@ def get_imputation_analytics(
     avg_billable_pct = (sum(i.hours for i in imputations if i.is_billable) / total_hours * 100) if total_hours > 0 else 0
     total_cost = sum(i.cost_amount or 0 for i in imputations)
 
-    return ImputationStats(
+    return APIResponse.ok(data=ImputationStats(
         period=period,
         avg_hours_per_day=round(avg_hours_per_day, 2),
         avg_billable_pct=round(avg_billable_pct, 1),
@@ -259,12 +259,12 @@ def get_imputation_analytics(
         daily=daily,
         weekly=weekly,
         monthly=monthly,
-    )
+    ))
 
 
 # ── Document Analytics ─────────────────────────────────────────────────────
 
-@router.get("/documents", response_model=DocumentStats, summary="Get document statistics")
+@router.get("/documents", response_model=APIResponse[DocumentStats], summary="Get document statistics")
 def get_document_analytics(
     days_back: int = Query(90, ge=1, le=365),
     db: Session = Depends(get_db),
@@ -297,13 +297,13 @@ def get_document_analytics(
         for doc in docs
     )
 
-    return DocumentStats(
+    return APIResponse.ok(data=DocumentStats(
         total_documents=len(docs),
         by_category=category_counts,
         by_status=status_counts,
         avg_versions_per_document=round(avg_versions, 2),
         total_storage_mb=round(total_size_mb, 2),
-    )
+    ))
 
 
 # ── Advanced Resource Forecast ─────────────────────────────────────────────

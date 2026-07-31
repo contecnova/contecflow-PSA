@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 from app.db.session import get_db
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, require_admin_or_pm
-from app.core.responses import APIListResponse
+from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.models.task import TaskStatus, TaskPriority
 from app.schemas import (
@@ -79,12 +79,12 @@ def suggest_task_assignee(
     sem_cfg = get_sem_config(db)
     semantic_auto_assign_enabled = bool(getattr(sem_cfg, "auto_assign_tasks", False)) if sem_cfg else False
 
-    return {
+    return APIResponse.ok(data={
         "requires_confirmation": True,
         "semantic_auto_assign_enabled": semantic_auto_assign_enabled,
         "suggestion": suggestion,
         "confirmation_hint": "Confirma asignando assignee_id en POST /tasks o PATCH /tasks/{task_id}",
-    }
+    })
 
 
 @router.get("", response_model=APIListResponse[TaskOut], summary="Listar tareas con filtros")
@@ -137,10 +137,10 @@ def get_kanban(
     current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "task", action="read")
-    return get_kanban_payload(db, project_id, current_user)
+    return APIResponse.ok(data=get_kanban_payload(db, project_id, current_user))
 
 
-@router.get("/{task_id}", response_model=TaskOut, summary="Detalle de tarea")
+@router.get("/{task_id}", response_model=APIResponse[TaskOut], summary="Detalle de tarea")
 def get_task(
     task_id: str,
     db: Session = Depends(get_db),
@@ -169,20 +169,20 @@ def get_task(
         merged.sort(key=lambda x: x.get("created_at") or "")
         task_out["comments"] = merged
 
-    return task_out
+    return APIResponse.ok(data=task_out)
 
 
-@router.post("", response_model=TaskOut, summary="Crear tarea")
+@router.post("", response_model=APIResponse[TaskOut], summary="Crear tarea")
 def create_task(
     payload: TaskCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "task", action="create")
-    return create_task_record(db, payload, current_user)
+    return APIResponse.ok(data=create_task_record(db, payload, current_user))
 
 
-@router.patch("/{task_id}", response_model=TaskOut, summary="Actualizar tarea")
+@router.patch("/{task_id}", response_model=APIResponse[TaskOut], summary="Actualizar tarea")
 def update_task(
     task_id: str,
     payload: TaskUpdate,
@@ -202,7 +202,7 @@ def update_task(
             and payload.assignee_id != old_assignee_id):
         record_reassign_feedback_bg(background_tasks, db, task_id, "task")
 
-    return task
+    return APIResponse.ok(data=task)
 
 
 @router.get("/{task_id}/movement-log", response_model=APIListResponse[TaskMovementLogOut], summary="Historial de movimientos de tarea")
@@ -224,17 +224,17 @@ def delete_task(
     current_user: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, current_user, "task", task_id, action="delete")
-    return cancel_task_record(db, task_id, current_user)
+    return APIResponse.ok(data=cancel_task_record(db, task_id, current_user))
 
 
-@router.post("/{task_id}/comments", response_model=TaskCommentOut, summary="Añadir comentario")
+@router.post("/{task_id}/comments", response_model=APIResponse[TaskCommentOut], summary="Añadir comentario")
 def add_comment(
     task_id: str,
     payload: TaskCommentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return add_comment_record(db, task_id, payload, current_user)
+    return APIResponse.ok(data=add_comment_record(db, task_id, payload, current_user))
 
 
 @router.post("/bulk-dates", summary="Actualizar fechas de múltiples tareas (Gantt drag-and-drop)")
@@ -248,7 +248,7 @@ def bulk_update_dates(
     Payload: { updates: [{ id, start_date, due_date }] }
     """
     updates = payload.get("updates", [])
-    return bulk_update_dates_record(db, updates, current_user)
+    return APIResponse.ok(data=bulk_update_dates_record(db, updates, current_user))
 
 
 @router.post("/bulk-update", summary="Actualizar estado/asignado/prioridad en múltiples tareas")
@@ -264,7 +264,7 @@ def bulk_update_tasks(
         "assignee_id": payload.assignee_id,
         "priority": payload.priority,
     }
-    return svc_bulk_update_tasks(payload.task_ids, updates, current_user, db)
+    return APIResponse.ok(data=svc_bulk_update_tasks(payload.task_ids, updates, current_user, db))
 
 
 @router.post("/{task_id}/cascade-reschedule", summary="Replanificar en cascada todas las tareas dependientes")
@@ -274,7 +274,7 @@ def cascade_reschedule(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return svc_cascade_reschedule(task_id, new_end_date, db)
+    return APIResponse.ok(data=svc_cascade_reschedule(task_id, new_end_date, db))
 
 
 
@@ -315,7 +315,7 @@ def create_dependency(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return svc_create_task_dependency(db, predecessor_id, successor_id, dependency_type, lag_days, current_user.id)
+    return APIResponse.ok(data=svc_create_task_dependency(db, predecessor_id, successor_id, dependency_type, lag_days, current_user.id))
 
 
 @router.delete("/dependencies/{dep_id}", summary="Eliminar dependencia entre tareas")
@@ -325,5 +325,5 @@ def delete_dependency(
     current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "task_dependency", dep_id, action="delete")
-    return svc_delete_task_dependency(db, dep_id)
+    return APIResponse.ok(data=svc_delete_task_dependency(db, dep_id))
 

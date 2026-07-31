@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.responses import APIListResponse, APIResponse
 from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
@@ -28,7 +29,7 @@ def predictive_scan(
     current_user: User = Depends(get_current_user),
 ):
     """Re-score all open tickets with predictive models. Same logic as Celery task."""
-    return run_predictive_scan(db)
+    return APIResponse.ok(data=run_predictive_scan(db))
 
 
 @router.get("/at-risk", summary="Tickets con mayor probabilidad de incumplir SLA")
@@ -37,7 +38,7 @@ def at_risk_tickets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return {"tickets": get_at_risk_tickets(db, limit=limit)}
+    return APIListResponse.ok(items=get_at_risk_tickets(db, limit=limit))
 
 
 @router.get("/tickets/{ticket_id}", summary="Predicción completa para un ticket específico")
@@ -52,7 +53,7 @@ def predict_one_ticket(
 
     prediction = predict_ticket(db, ticket)
     sla = predict_sla_breach(db, ticket)
-    return {**prediction, "sla_breach": sla}
+    return APIResponse.ok(data={**prediction, "sla_breach": sla})
 
 
 @router.get("/tickets/{ticket_id}/sla-breach", summary="Probabilidad de incumplimiento de SLA para un ticket")
@@ -65,7 +66,7 @@ def sla_breach_prediction(
 
     ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
-    return predict_sla_breach(db, ticket)
+    return APIResponse.ok(data=predict_sla_breach(db, ticket))
 
 
 @router.get("/stats", summary="Estadísticas del modelo predictivo: distribución de riesgos")
@@ -97,9 +98,9 @@ def predictive_stats(
         except Exception:
             pass
 
-    return {
+    return APIResponse.ok(data={
         "open_tickets": len(open_tickets),
         "severity_distribution": risk_buckets,
         "sla_at_risk_count": sla_at_risk,
         "sla_at_risk_pct": round(sla_at_risk / len(open_tickets) * 100, 1) if open_tickets else 0,
-    }
+    })

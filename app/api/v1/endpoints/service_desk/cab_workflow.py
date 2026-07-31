@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_any_manager
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk import cab_workflow_service as svc
@@ -54,7 +55,7 @@ def start_workflow(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     _commit_or_rollback(db)
-    return {'ok': True, 'workflow': state}
+    return APIResponse.ok(data={'ok': True, 'workflow': state})
 
 
 @router.get('/changes/{change_id}/cab/workflow', summary='Consultar estado workflow CAB')
@@ -66,7 +67,7 @@ def get_workflow(
     state = svc.get_workflow(db, change_id=change_id)
     if not state:
         raise HTTPException(status_code=404, detail='workflow_cab_not_found')
-    return state
+    return APIResponse.ok(data=state)
 
 
 @router.post('/changes/{change_id}/cab/meeting', summary='Programar meeting CAB')
@@ -87,7 +88,7 @@ def schedule_meeting(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     _commit_or_rollback(db)
-    return {'ok': True, 'workflow': state}
+    return APIResponse.ok(data={'ok': True, 'workflow': state})
 
 
 @router.post('/changes/{change_id}/cab/vote', summary='Emitir voto CAB')
@@ -108,7 +109,7 @@ def cast_vote(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     _commit_or_rollback(db)
-    return {'ok': True, 'workflow': state}
+    return APIResponse.ok(data={'ok': True, 'workflow': state})
 
 
 @router.post('/changes/{change_id}/cab/executor', summary='Asignar executor tras aprobación CAB')
@@ -128,7 +129,7 @@ def assign_executor(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     _commit_or_rollback(db)
-    return {'ok': True, 'workflow': state}
+    return APIResponse.ok(data={'ok': True, 'workflow': state})
 
 
 @router.get('/changes/cab/templates', summary='Templates CAB predefinidos (testing/comms)')
@@ -136,4 +137,4 @@ def cab_templates(
     current_user: User = Depends(get_current_user),
 ):
     _ = current_user
-    return svc.default_templates()
+    return APIResponse.ok(data=svc.default_templates())

@@ -667,7 +667,7 @@ def export_revenue_journal(
         raise HTTPException(404, str(e))
     lines = data["journal_lines"]
     if not lines:
-        return {"csv": "", "message": "Sin asientos que exportar"}
+        return APIResponse.ok(data={"csv": "", "message": "Sin asientos que exportar"})
 
     buf = io.StringIO()
     fields = ["date", "period", "journal_ref", "line", "account_code", "account_name",
@@ -675,4 +675,4 @@ def export_revenue_journal(
     writer = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore")
     writer.writeheader()
     writer.writerows(lines)
-    return {"csv": buf.getvalue(), "row_count": len(lines)}
+    return APIResponse.ok(data={"csv": buf.getvalue(), "row_count": len(lines)})

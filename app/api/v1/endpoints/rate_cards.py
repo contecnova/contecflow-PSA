@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.rate_card_service as _svc
 
@@ -83,7 +83,7 @@ def create_rate_table(
     current_user: User = Depends(require_any_manager),
 ):
     t = _svc.create_rate_table(db, payload.model_dump(), current_user.organization_id, current_user.is_superadmin)
-    return _table_out(t, include_entries=True)
+    return APIResponse.ok(data=_table_out(t, include_entries=True))
 
 
 @router.get("/effective", summary="Tarifa efectiva para un rol en un cliente/proyecto y fecha")
@@ -103,10 +103,10 @@ def get_effective_rate(
       4. Entrada en tabla asignada al cliente
       5. Entrada en tabla por defecto
     """
-    return _svc.get_effective_rate(
+    return APIResponse.ok(data=_svc.get_effective_rate(
         db, role_label, client_id, project_id, as_of,
         current_user.organization_id, current_user.is_superadmin,
-    )
+    ))
 
 
 @router.get("/{table_id}", summary="Detalle de tabla con entradas")
@@ -116,7 +116,7 @@ def get_rate_table(
     current_user: User = Depends(get_current_user),
 ):
     t = _svc.get_rate_table_or_404(db, table_id, current_user.organization_id, current_user.is_superadmin)
-    return _table_out(t, include_entries=True)
+    return APIResponse.ok(data=_table_out(t, include_entries=True))
 
 
 @router.patch("/{table_id}", summary="Actualizar tabla")
@@ -127,7 +127,7 @@ def update_rate_table(
     current_user: User = Depends(require_any_manager),
 ):
     t = _svc.update_rate_table(db, table_id, payload, current_user.organization_id, current_user.is_superadmin)
-    return _table_out(t, include_entries=True)
+    return APIResponse.ok(data=_table_out(t, include_entries=True))
 
 
 @router.delete("/{table_id}", summary="Eliminar tabla")
@@ -138,7 +138,7 @@ def delete_rate_table(
 ):
     enforce_abac(db, current_user, "rate_table", table_id, action="delete")
     _svc.delete_rate_table(db, table_id, current_user.organization_id, current_user.is_superadmin)
-    return {"ok": True, "message": "Tabla eliminada correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Tabla eliminada correctamente"})
 
 
 @router.post("/{table_id}/duplicate", summary="Duplicar tabla con escalado anual opcional")
@@ -153,7 +153,7 @@ def duplicate_rate_table(
         db, table_id, escalation_pct, new_name,
         current_user.organization_id, current_user.is_superadmin,
     )
-    return _table_out(new_table, include_entries=True)
+    return APIResponse.ok(data=_table_out(new_table, include_entries=True))
 
 
 # ── CRUD Entradas ──────────────────────────────────────────────────────────────
@@ -165,7 +165,7 @@ def add_entry(
     current_user: User = Depends(require_any_manager),
 ):
     e = _svc.add_entry(db, table_id, payload.model_dump(), current_user.organization_id, current_user.is_superadmin)
-    return _entry_out(e)
+    return APIResponse.ok(data=_entry_out(e))
 
 
 @router.patch("/{table_id}/entries/{entry_id}", summary="Actualizar entrada")
@@ -176,7 +176,7 @@ def update_entry(
     current_user: User = Depends(require_any_manager),
 ):
     e = _svc.update_entry(db, table_id, entry_id, payload, current_user.organization_id, current_user.is_superadmin)
-    return _entry_out(e)
+    return APIResponse.ok(data=_entry_out(e))
 
 
 @router.delete("/{table_id}/entries/{entry_id}", summary="Eliminar entrada")
@@ -187,7 +187,7 @@ def delete_entry(
 ):
     enforce_abac(db, current_user, "rate_entry", entry_id, action="delete")
     _svc.delete_entry(db, table_id, entry_id, current_user.organization_id, current_user.is_superadmin)
-    return {"ok": True, "message": "Entrada eliminada correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Entrada eliminada correctamente"})
 
 
 # ── Overrides ──────────────────────────────────────────────────────────────────
@@ -199,7 +199,7 @@ def add_override(
     current_user: User = Depends(require_any_manager),
 ):
     o = _svc.add_override(db, table_id, payload.model_dump(), current_user.organization_id, current_user.is_superadmin)
-    return _override_out(o)
+    return APIResponse.ok(data=_override_out(o))
 
 
 @router.delete("/{table_id}/overrides/{override_id}", summary="Eliminar override")
@@ -210,4 +210,4 @@ def delete_override(
 ):
     enforce_abac(db, current_user, "rate_override", override_id, action="delete")
     _svc.delete_override(db, table_id, override_id, current_user.organization_id, current_user.is_superadmin)
-    return {"ok": True, "message": "Override eliminado correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Override eliminado correctamente"})

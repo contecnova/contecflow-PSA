@@ -164,7 +164,7 @@ def test_create_booking_via_api(client, admin_token, db):
     if proj_res.status_code not in (200, 201):
         pytest.skip("Project creation unavailable in this test context")
 
-    proj_id = proj_res.json()["id"]
+    proj_id = proj_res.json()["data"]["id"]
 
     booking_payload = {
         "user_id": "admin-test-id",

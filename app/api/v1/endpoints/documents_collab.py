@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_user
+from app.core.responses import APIListResponse
 from app.models.user import User
 from app.services.documents_collab_service import (
     get_document_or_404,
@@ -65,4 +66,5 @@ def collab_snapshot_history(
 ):
     get_document_or_404(db, doc_id)
     snaps = svc_get_history(db, doc_id)
-    return [{"id": s.id, "clock": s.clock, "created_at": s.created_at, "size_bytes": s.size_bytes} for s in snaps]
+    items = [{"id": s.id, "clock": s.clock, "created_at": s.created_at, "size_bytes": s.size_bytes} for s in snaps]
+    return APIListResponse.ok(items=items, total=len(items))

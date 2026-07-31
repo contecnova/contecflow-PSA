@@ -31,7 +31,7 @@ def _make_project(client, token, code="FIN01", billing_type="time_material",
         "end_date": str(date.today() + timedelta(days=90)),
     }, headers=auth(token))
     assert r.status_code in (200, 201), f"Project creation failed: {r.text}"
-    pid = r.json()["id"]
+    pid = r.json()["data"]["id"]
     # Strict assignment: users must be explicit members (or PM) to log hours.
     for user_id, role in (("dev-test-id", "developer"), ("pm-test-id", "lead")):
         client.post(
@@ -206,7 +206,7 @@ class TestRateCards:
     def test_create_rate_card(self, client, admin_token, db):
         r = self._create_rate_card(client, admin_token)
         assert r.status_code in (200, 201)
-        data = r.json()
+        data = r.json()["data"]
         assert "id" in data
         assert data["name"] == "RC Test"
 
@@ -226,7 +226,7 @@ class TestRateCards:
         assert r.status_code in (401, 403)
 
     def test_delete_rate_card(self, client, admin_token, db):
-        rc_id = self._create_rate_card(client, admin_token, "RC Delete").json()["id"]
+        rc_id = self._create_rate_card(client, admin_token, "RC Delete").json()["data"]["id"]
         r = client.delete(f"/api/v1/rate-cards/{rc_id}", headers=auth(admin_token))
         assert r.status_code in (200, 204)
         # Verificar que ya no existe
@@ -244,7 +244,7 @@ class TestContracts:
             "name": f"Contract Project {code}", "code": code,
             "status": "active", "billing_type": "fixed_price",
         })
-        return r.json()["id"]
+        return r.json()["data"]["id"]
 
     def _create_contract(self, client, token, code="CNT-FC01", project_token=None):
         # Schema real: name, project_id, client_name, contract_type son requeridos
@@ -299,7 +299,7 @@ class TestProfitabilityEdgeCases:
             "status": "active", "billing_type": "time_material",
             "budget_amount": 0,
         })
-        pid = r.json()["id"]
+        pid = r.json()["data"]["id"]
         res = client.get(f"/api/v1/profitability/{pid}", headers=auth(admin_token))
         assert res.status_code == 200
         data = res.json()
@@ -348,7 +348,7 @@ class TestExpenseApproval:
             "currency": "EUR",
         })
         assert r.status_code in (200, 201), f"Expense creation failed: {r.text}"
-        return r.json()["id"]
+        return r.json()["data"]["id"]
 
     def test_expense_initial_status_pending(self, client, dev_token, db):
         eid = self._create_expense(client, dev_token)
@@ -413,7 +413,7 @@ class TestExpenseApproval:
         assert r.status_code in (200, 201, 400, 422), (
             f"Unexpected status (must be accepted or validated, never 5xx): {r.status_code} {r.text}"
         )
-        body = r.json()
+        body = r.json()["data"]
         if r.status_code in (200, 201):
             # Si lo acepta, debe devolver un objeto con id y reflejar el amount negativo
             assert "id" in body, f"Expected 'id' in created expense, got: {body}"
