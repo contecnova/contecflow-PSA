@@ -13,7 +13,7 @@ def _create_project(client, token):
         "end_date": "2025-12-31",
     }, headers=auth(token))
     assert res.status_code in (200, 201), f"No se pudo crear proyecto: {res.text}"
-    project_id = res.json()["id"]
+    project_id = res.json()["data"]["id"]
     # Strict assignment: explicit member required to impute.
     client.post(
         f"/api/v1/projects/{project_id}/members",
@@ -32,7 +32,7 @@ def test_log_hours(client, admin_token, dev_token, db):
         "description": "Trabajo realizado hoy",
     })
     assert res.status_code in (200, 201)
-    assert res.json()["hours"] == 4.0
+    assert res.json()["data"]["hours"] == 4.0
 
 
 def test_log_hours_exceeds_24(client, admin_token, dev_token, db):
@@ -62,7 +62,7 @@ def test_delete_imputation(client, admin_token, dev_token, db):
         "project_id": pid, "date": str(date.today()), "hours": 2.0,
     })
     assert create.status_code in (200, 201)
-    iid = create.json()["id"]
+    iid = create.json()["data"]["id"]
     res = client.delete(f"/api/v1/imputations/{iid}", headers=auth(dev_token))
     assert res.status_code in (200, 204)
 
@@ -80,7 +80,7 @@ def test_manager_can_reject_imputation(client, admin_token, dev_token, pm_token,
         "description": "Imputación para rechazo",
     })
     assert create.status_code in (200, 201)
-    iid = create.json()["id"]
+    iid = create.json()["data"]["id"]
 
     res = client.post(f"/api/v1/imputations/{iid}/reject", headers=auth(pm_token))
     assert res.status_code == 200

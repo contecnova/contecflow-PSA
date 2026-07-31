@@ -5,7 +5,7 @@ from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_any_manager
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.schemas import DashboardKPIs, ProjectHealthItem, ResourceLoadItem
 from app.services.dashboard_service import (
@@ -19,12 +19,12 @@ from app.services.dashboard_service import (
 router = APIRouter()
 
 
-@router.get("/kpis", response_model=DashboardKPIs, summary="KPIs globales para dirección")
+@router.get("/kpis", response_model=APIResponse[DashboardKPIs], summary="KPIs globales para dirección")
 def get_kpis(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return get_global_kpis(db, current_user)
+    return APIResponse.ok(data=get_global_kpis(db, current_user))
 
 
 @router.get("/projects-health", response_model=APIListResponse[ProjectHealthItem], summary="Salud de todos los proyectos")
@@ -54,7 +54,7 @@ def get_profitability_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return get_profitability(date_from, date_to, db, current_user)
+    return APIResponse.ok(data=get_profitability(date_from, date_to, db, current_user))
 
 
 @router.get("/productivity/team", summary="Productividad del equipo completo")
@@ -65,7 +65,7 @@ def get_team_productivity_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return get_team_productivity(date_from, date_to, department, db, current_user)
+    return APIResponse.ok(data=get_team_productivity(date_from, date_to, department, db, current_user))
 
 
 # ── Dashboard seed por rol ────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ def get_dashboard_seed(current_user: User = Depends(get_current_user)):
     if hasattr(role, "value"):
         role = role.value
     seed = ROLE_DASHBOARD_SEEDS.get(role) or ROLE_DASHBOARD_SEEDS["employee"]
-    return {"role": role, "config": seed}
+    return APIResponse.ok(data={"role": role, "config": seed})
 
 
 _dashboard_widgets: dict = {}  # keyed by user_id for per-user isolation
@@ -115,7 +115,7 @@ def add_dashboard_widget(
         user_widgets = _dashboard_widgets.setdefault(current_user.id, [])
         widget = {"id": len(user_widgets) + 1, **payload}
         user_widgets.append(widget)
-    return widget
+    return APIResponse.ok(data=widget)
 
 
 @router.patch("/widgets/reorder", summary="Reorder dashboard widgets")
@@ -123,4 +123,4 @@ def reorder_dashboard_widgets(
     payload: dict = Body(...),
     current_user: User = Depends(get_current_user),
 ):
-    return {"ok": True, "order": payload.get("order", [])}
+    return APIResponse.ok(data={"ok": True, "order": payload.get("order", [])})

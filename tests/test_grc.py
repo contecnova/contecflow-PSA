@@ -40,7 +40,7 @@ class TestGRCPermissions:
         _seed_matrix(client, admin_token)
         # Try to toggle a known role/module/action combination
         res = client.get("/api/v1/grc/permissions", headers=auth(admin_token))
-        permissions = res.json()
+        permissions = res.json()["data"]["matrix"]
 
         # The endpoint might return a nested dict or a list
         role = module = action = None
@@ -96,7 +96,7 @@ class TestSodRules:
     def test_create_sod_rule(self, client, admin_token, db):
         res = self._create_rule(client, admin_token)
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data.get("module_a") == "invoices"
 
     def test_list_sod_rules(self, client, admin_token, db):
@@ -108,7 +108,7 @@ class TestSodRules:
         assert len(data) >= 1
 
     def test_update_sod_rule(self, client, admin_token, db):
-        rule = self._create_rule(client, admin_token).json()
+        rule = self._create_rule(client, admin_token).json()["data"]
         rule_id = rule.get("id")
         res = client.patch(
             f"/api/v1/grc/sod-rules/{rule_id}",
@@ -118,7 +118,7 @@ class TestSodRules:
         assert res.status_code in (200, 204), res.text
 
     def test_delete_sod_rule(self, client, admin_token, db):
-        rule = self._create_rule(client, admin_token, name="rule-to-delete").json()
+        rule = self._create_rule(client, admin_token, name="rule-to-delete").json()["data"]
         rule_id = rule.get("id")
         res = client.delete(
             f"/api/v1/grc/sod-rules/{rule_id}",
@@ -148,7 +148,7 @@ class TestSodViolations:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert "violations" in data or isinstance(data, list)
 
 

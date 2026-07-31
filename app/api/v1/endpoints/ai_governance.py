@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_user
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -123,7 +123,7 @@ class CheckRequest(BaseModel):
 
 # ── Policy CRUD ───────────────────────────────────────────────────────────────
 
-@router.post("/policies", response_model=PolicyOut, status_code=status.HTTP_201_CREATED)
+@router.post("/policies", response_model=APIResponse[PolicyOut], status_code=status.HTTP_201_CREATED)
 def create_policy(
     body: PolicyIn,
     db: Session = Depends(get_db),
@@ -148,7 +148,7 @@ def create_policy(
         priority            = body.priority,
         is_active           = body.is_active,
     )
-    return PolicyOut.model_validate(policy)
+    return APIResponse.ok(data=PolicyOut.model_validate(policy))
 
 
 @router.get("/policies", response_model=APIListResponse[PolicyOut])
@@ -163,7 +163,7 @@ def list_policies(
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.get("/policies/{policy_id}", response_model=PolicyOut)
+@router.get("/policies/{policy_id}", response_model=APIResponse[PolicyOut])
 def get_policy(
     policy_id: str,
     db: Session = Depends(get_db),
@@ -173,10 +173,10 @@ def get_policy(
     p = svc_get_policy(db, policy_id=policy_id, org_id=_org(current_user))
     if not p:
         raise HTTPException(404, "Policy not found")
-    return PolicyOut.model_validate(p)
+    return APIResponse.ok(data=PolicyOut.model_validate(p))
 
 
-@router.patch("/policies/{policy_id}", response_model=PolicyOut)
+@router.patch("/policies/{policy_id}", response_model=APIResponse[PolicyOut])
 def update_policy(
     policy_id: str,
     body: PolicyUpdate,
@@ -188,7 +188,7 @@ def update_policy(
     if not p:
         raise HTTPException(404, "Policy not found")
     p = svc_update_policy(db, p, body.model_dump(exclude_unset=True))
-    return PolicyOut.model_validate(p)
+    return APIResponse.ok(data=PolicyOut.model_validate(p))
 
 
 @router.delete("/policies/{policy_id}")
@@ -203,12 +203,12 @@ def deactivate_policy(
     if not p:
         raise HTTPException(404, "Policy not found")
     svc_deactivate_policy(db, p)
-    return {"ok": True, "deactivated": policy_id}
+    return APIResponse.ok(data={"ok": True, "deactivated": policy_id})
 
 
 # ── Audit log ─────────────────────────────────────────────────────────────────
 
-@router.get("/audit-log", response_model=Dict[str, Any])
+@router.get("/audit-log", response_model=APIListResponse[Dict[str, Any]])
 def get_audit_log(
     module:       Optional[str] = Query(None),
     scope:        Optional[str] = Query(None),
@@ -229,12 +229,12 @@ def get_audit_log(
         was_blocked=was_blocked, user_id=user_id,
         page=page, page_size=page_size,
     )
-    return {
-        "total":     total,
-        "page":      page,
-        "page_size": page_size,
-        "items":     [AuditLogOut.model_validate(r).model_dump() for r in items],
-    }
+    return APIListResponse.ok(
+        items=[AuditLogOut.model_validate(r).model_dump() for r in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.get("/audit-log/stats", summary="PII detection & blocking statistics")
@@ -247,7 +247,7 @@ def audit_stats(
     since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
     stats = svc_get_audit_stats(db, org_id=_org(current_user), since=since)
     total = stats["total"]
-    return {
+    return APIResponse.ok(data={
         "window_days":        days,
         "total_evaluations":  total,
         "total_blocked":      stats["total_blocked"],
@@ -256,7 +256,7 @@ def audit_stats(
         "block_rate":         round(stats["total_blocked"] / total, 4) if total else 0,
         "by_module":          stats["by_module"],
         "top_pii_types":      [{"type": t, "count": c} for t, c in stats["top_pii"]],
-    }
+    })
 
 
 # ── Interactive check (admin test tool) ──────────────────────────────────────
@@ -269,14 +269,14 @@ def test_prompt(
 ):
     verify_admin_or_governance_role(current_user)
     result = check_prompt(body.text, current_user, body.module, db)
-    return {
+    return APIResponse.ok(data={
         "allowed":      result.allowed,
         "action_taken": result.action_taken,
         "redacted_text":result.redacted_text,
         "pii_found":    [{"type": m.entity_type, "value_masked": f"{m.value[:2]}***"} for m in result.pii_found],
         "warnings":     result.warnings,
         "blocked_by":   result.blocked_by,
-    }
+    })
 
 
 @router.post("/check/output", summary="Test AI output against active policies")
@@ -287,21 +287,21 @@ def test_output(
 ):
     verify_admin_or_governance_role(current_user)
     result = check_output(body.text, current_user, body.module, db)
-    return {
+    return APIResponse.ok(data={
         "allowed":      result.allowed,
         "action_taken": result.action_taken,
         "redacted_text":result.redacted_text,
         "pii_found":    [{"type": m.entity_type, "value_masked": f"{m.value[:2]}***"} for m in result.pii_found],
         "warnings":     result.warnings,
         "blocked_by":   result.blocked_by,
-    }
+    })
 
 
 # ── PII type reference ────────────────────────────────────────────────────────
 
 @router.get("/pii-types", summary="List supported PII entity types")
 def pii_types():
-    return {"pii_types": [label for label, _ in _PII_PATTERNS]}
+    return APIResponse.ok(data={"pii_types": [label for label, _ in _PII_PATTERNS]})
 
 
 # ── Validation helper ─────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@ def test_status_endpoint_returns_structure(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    data = res.json()
+    data = res.json()["data"]
     assert "last_eval" in data
     assert "itsm_meta" in data
     assert "bi_meta" in data
@@ -41,7 +41,7 @@ def test_status_endpoint_returns_persisted_meta(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    data = res.json()
+    data = res.json()["data"]
     assert data["itsm_meta"].get("reason") == "attention_or_stale"
     assert data["bi_meta"].get("forecast_engine") == "prophet"
 
@@ -52,7 +52,7 @@ def test_health_endpoint_returns_scores(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    data = res.json()
+    data = res.json()["data"]
     assert "overall_score" in data
     assert "overall_status" in data
     assert "itsm" in data
@@ -67,7 +67,7 @@ def test_health_endpoint_respects_lookback_days(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    data = res.json()
+    data = res.json()["data"]
     assert data["itsm"]["lookback_days"] == 7
 
 
@@ -97,7 +97,7 @@ def test_health_endpoint_prioritizes_insufficient_data_status(client, admin_toke
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    data = res.json()
+    data = res.json()["data"]
     assert data["overall_status"] == "insufficient_data"
 
 
@@ -123,7 +123,7 @@ def test_trigger_retrain_endpoint_executes_cycle(client, admin_token, db, monkey
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    data = res.json()
+    data = res.json()["data"]
     assert data["organizations"] == 1
     assert data["itsm_retrained"] == 1
     assert calls["n"] == 1

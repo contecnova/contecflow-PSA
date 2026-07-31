@@ -6,7 +6,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services import okr_service
 from app.services.okr_service import (
@@ -49,7 +49,7 @@ def list_objectives(
 def create_objective(payload: ObjectiveIn, db: Session = Depends(get_db),
                      cu: User = Depends(require_any_manager)):
     obj = okr_service.create_objective(db, payload.model_dump())
-    return {"id": obj.id, "title": obj.title}
+    return APIResponse.ok(data={"id": obj.id, "title": obj.title})
 
 
 @router.patch("/{obj_id}", summary="Actualizar objetivo")
@@ -59,7 +59,7 @@ def update_objective(obj_id: str, payload: ObjectiveUpdate,
     if not obj:
         raise HTTPException(404, "Objetivo no encontrado")
     obj = okr_service.update_objective(db, obj, payload.model_dump(exclude_unset=True))
-    return {"id": obj.id}
+    return APIResponse.ok(data={"id": obj.id})
 
 
 @router.delete("/{obj_id}", summary="Eliminar objetivo (soft delete)")
@@ -73,7 +73,7 @@ def delete_objective(obj_id: str, db: Session = Depends(get_db),
     result = okr_service.delete_objective(db, obj)
     if not result["ok"]:
         raise HTTPException(400, result["message"])
-    return result
+    return APIResponse.ok(data=result)
 
 
 # ── Key Results CRUD ──────────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ def create_kr(payload: KeyResultIn, db: Session = Depends(get_db),
     if not obj:
         raise HTTPException(404, "Objetivo no encontrado")
     kr = okr_service.create_kr(db, payload.model_dump())
-    return _ser_kr(kr)
+    return APIResponse.ok(data=_ser_kr(kr))
 
 
 @router.patch("/key-results/{kr_id}", summary="Actualizar Key Result")
@@ -94,7 +94,7 @@ def update_kr(kr_id: str, payload: KeyResultUpdate,
     if not kr:
         raise HTTPException(404, "KR no encontrado")
     kr = okr_service.update_kr(db, kr, payload.model_dump(exclude_unset=True))
-    return _ser_kr(kr)
+    return APIResponse.ok(data=_ser_kr(kr))
 
 
 @router.delete("/key-results/{kr_id}", summary="Eliminar Key Result (soft delete)")
@@ -106,7 +106,7 @@ def delete_kr(kr_id: str, db: Session = Depends(get_db),
     if not kr:
         raise HTTPException(404, "KR no encontrado")
     result = okr_service.delete_kr(db, kr)
-    return result
+    return APIResponse.ok(data=result)
 
 
 # ── Check-ins ─────────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ def checkin_kr(kr_id: str, payload: CheckinIn,
     if not kr:
         raise HTTPException(404, "KR no encontrado")
     kr = okr_service.checkin_kr(db, kr, payload.value, payload.note, cu.id)
-    return {"progress": kr.progress, "current_value": kr.current_value}
+    return APIResponse.ok(data={"progress": kr.progress, "current_value": kr.current_value})
 
 
 # ── Project→Task cascade sync ─────────────────────────────────────────────────
@@ -131,4 +131,4 @@ def sync_kr_from_tasks(
     db: Session = Depends(get_db),
     cu: User = Depends(require_any_manager),
 ):
-    return _sync_kr_from_tasks(kr_id, cu.id, db)
+    return APIResponse.ok(data=_sync_kr_from_tasks(kr_id, cu.id, db))

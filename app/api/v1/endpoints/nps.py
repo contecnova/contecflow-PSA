@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
+from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User, UserRole
 from app.services import nps_service
 
@@ -64,12 +65,12 @@ def submit_nps(
         respondent = body.respondent,
         source     = body.source,
     )
-    return {
+    return APIResponse.ok(data={
         "id":        entry.id,
         "score":     entry.score,
         "category":  entry.category,
         "created_at":entry.created_at,
-    }
+    })
 
 
 @router.get("/{client_id}/responses")
@@ -80,7 +81,7 @@ def list_nps_responses(
     _: User = Depends(get_current_user),
 ):
     rows = nps_service.list_nps_responses(db, client_id, limit)
-    return [
+    return APIListResponse.ok(items=[
         {
             "id":        r.id,
             "score":     r.score,
@@ -91,7 +92,7 @@ def list_nps_responses(
             "created_at":r.created_at,
         }
         for r in rows
-    ]
+    ])
 
 
 @router.get("/{client_id}/summary")
@@ -104,7 +105,7 @@ def client_nps_summary(
     cutoff    = utcnow() - timedelta(days=days)
     responses = nps_service.get_nps_responses_since(db, client_id, cutoff)
     summary   = nps_service.compute_nps_summary(responses)
-    return {**summary, "days": days}
+    return APIResponse.ok(data={**summary, "days": days})
 
 
 # ── Health Snapshot Routes ────────────────────────────────────────────────
@@ -131,7 +132,7 @@ def create_health_snapshot(
         activity_component  = body.activity_component,
         note                = body.note,
     )
-    return {"id": snap.id, "health_score": snap.health_score, "snapshot_at": snap.snapshot_at}
+    return APIResponse.ok(data={"id": snap.id, "health_score": snap.health_score, "snapshot_at": snap.snapshot_at})
 
 
 @router.post("/{client_id}/health-compute", status_code=201)
@@ -147,7 +148,7 @@ def auto_compute_health(
         raise HTTPException(404, "Cliente no encontrado")
 
     snap = nps_service.compute_and_save_health(db, client_id)
-    return {"id": snap.id, "health_score": snap.health_score, "snapshot_at": snap.snapshot_at}
+    return APIResponse.ok(data={"id": snap.id, "health_score": snap.health_score, "snapshot_at": snap.snapshot_at})
 
 
 @router.get("/{client_id}/health")
@@ -158,7 +159,7 @@ def client_health_history(
     _: User = Depends(get_current_user),
 ):
     rows = nps_service.get_health_history(db, client_id, limit)
-    return [
+    return APIListResponse.ok(items=[
         {
             "id":                 r.id,
             "health_score":       r.health_score,
@@ -170,7 +171,7 @@ def client_health_history(
             "snapshot_at":        r.snapshot_at,
         }
         for r in rows
-    ]
+    ])
 
 
 # ── Cross-client trend + leaderboard ─────────────────────────────────────
@@ -190,10 +191,10 @@ def health_trend_all(
         week = r.snapshot_at.strftime("%Y-W%W")
         weekly.setdefault(week, []).append(r.health_score)
 
-    return [
+    return APIListResponse.ok(items=[
         {"week": k, "avg_health": round(sum(v) / len(v), 1), "count": len(v)}
         for k, v in sorted(weekly.items())
-    ]
+    ])
 
 
 @router.get("/leaderboard")
@@ -203,7 +204,7 @@ def health_leaderboard(
 ):
     """Return latest health score per client, ordered best-to-worst."""
     rows = nps_service.get_health_leaderboard(db)
-    return [
+    return APIListResponse.ok(items=[
         {
             "client_id":    snap.client_id,
             "client_name":  name,
@@ -211,4 +212,4 @@ def health_leaderboard(
             "snapshot_at":  snap.snapshot_at,
         }
         for snap, name in rows
-    ]
+    ])

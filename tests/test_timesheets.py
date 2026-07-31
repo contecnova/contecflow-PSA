@@ -4,7 +4,7 @@ from datetime import date
 
 def make_project(client, token):
     r = client.post("/api/v1/projects", json={"name":"P","code":"IMP","status":"active","billing_type":"time_material"}, headers=auth(token))
-    pid = r.json()["id"]
+    pid = r.json()["data"]["id"]
     client.post(
         f"/api/v1/projects/{pid}/members",
         json={"user_id": "dev-test-id", "role": "developer"},

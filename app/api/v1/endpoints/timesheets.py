@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.services.psa_flows import (
     review_timesheet_flow,
@@ -63,7 +63,7 @@ def get_timesheet_lines(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _tsvc.get_timesheet_lines(db, current_user.id, week_start)
+    return APIListResponse.ok(items=_tsvc.get_timesheet_lines(db, current_user.id, week_start))
 
 
 @router.post("/my/{week_start}/submit", summary="Enviar timesheet para aprobación")
@@ -73,7 +73,7 @@ def submit_timesheet(
     current_user: User = Depends(get_current_user),
 ):
     ts = submit_timesheet_flow(db, current_user.id, week_start)
-    return {"message": "Timesheet enviado para aprobación", "status": ts.status}
+    return APIResponse.ok(data={"message": "Timesheet enviado para aprobación", "status": ts.status})
 
 
 @router.get("/pending", response_model=APIListResponse[TimesheetOut], summary="Timesheets pendientes de revisión (managers)")
@@ -112,7 +112,7 @@ def review_timesheet(
     enforce_abac(db, current_user, "timesheet", timesheet_id, action="approve")
     ts = review_timesheet_flow(db, timesheet_id, current_user, payload.approved, payload.notes)
     action = "aprobado" if payload.approved else "rechazado"
-    return {"message": f"Timesheet {action}", "status": ts.status}
+    return APIResponse.ok(data={"message": f"Timesheet {action}", "status": ts.status})
 
 
 
@@ -126,4 +126,4 @@ def send_back_timesheet(
 ):
     """Return a submitted timesheet to the employee so they can correct and re-submit it."""
     ts = send_back_timesheet_flow(db, timesheet_id, current_user, payload.notes)
-    return {"message": "Timesheet devuelto para corrección", "status": ts.status}
+    return APIResponse.ok(data={"message": "Timesheet devuelto para corrección", "status": ts.status})

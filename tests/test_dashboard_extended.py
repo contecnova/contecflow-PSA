@@ -14,7 +14,7 @@ def make_project(client, token, code="DASH01"):
         "name": f"Dash Project {code}", "code": code,
         "status": "active", "billing_type": "time_material",
     }, headers=auth(token))
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 # ── KPIs ───────────────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ def make_project(client, token, code="DASH01"):
 def test_kpis_admin(client, admin_token, db):
     res = client.get("/api/v1/dashboard/kpis", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "total_budget" in data
     assert "projects_active" in data
     assert "total_resources" in data
@@ -40,7 +40,7 @@ def test_kpis_with_active_project(client, admin_token, pm_token, db):
     make_project(client, pm_token)
     res = client.get("/api/v1/dashboard/kpis", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "projects_active" in data
     assert isinstance(data["projects_active"], int)
 
@@ -121,14 +121,14 @@ def test_resource_load_requires_manager(client, dev_token, db):
 def test_profitability_admin(client, admin_token, db):
     res = client.get("/api/v1/dashboard/profitability", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert isinstance(data, list)
 
 
 def test_profitability_structure(client, admin_token, pm_token, db):
     make_project(client, pm_token, code="PROF1")
     res = client.get("/api/v1/dashboard/profitability", headers=auth(admin_token))
-    data = res.json()
+    data = res.json()["data"]
     if data:
         p = data[0]
         assert "project_id" in p
@@ -211,7 +211,7 @@ def test_profitability_avoids_n_plus_one_queries(client, admin_token, pm_token, 
 def test_team_productivity(client, pm_token, db):
     res = client.get("/api/v1/dashboard/productivity/team", headers=auth(pm_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "period_start" in data
     assert "period_end" in data
     assert "team_stats" in data

@@ -19,7 +19,7 @@ class TestReportSchema:
     def test_get_schema_returns_entities(self, client, admin_token, db):
         res = client.get("/api/v1/reports/schema", headers=auth(admin_token))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert isinstance(data, dict)
         # Core entities must be present
         assert "projects" in data.get("entities", data)
@@ -28,7 +28,7 @@ class TestReportSchema:
 
     def test_schema_has_column_metadata(self, client, admin_token, db):
         res = client.get("/api/v1/reports/schema", headers=auth(admin_token))
-        data = res.json()
+        data = res.json()["data"]
         projects_schema = data.get("entities", data).get("projects", {})
         columns = projects_schema.get("columns") or {}
         assert "name" in columns or "code" in columns
@@ -48,7 +48,7 @@ class TestReportPreview:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert "rows" in data or isinstance(data, list)
 
     def test_preview_tasks_filtered_by_status(self, client, admin_token, db):
@@ -110,8 +110,8 @@ class TestReportPreview:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
-        rows = data.get("rows") if isinstance(data, dict) else data
+        data = res.json()["data"]
+        rows = data["rows"]
         assert isinstance(rows, list)
 
 
@@ -175,7 +175,7 @@ class TestReportTemplates:
     def test_create_template(self, client, admin_token, db):
         res = self._create_template(client, admin_token)
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data.get("name") == "My Report Template"
 
     def test_list_templates(self, client, admin_token, db):

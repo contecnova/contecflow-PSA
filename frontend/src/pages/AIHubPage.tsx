@@ -332,7 +332,10 @@ function GovernanceTab() {
   const { data: stats = null, isLoading: loadingStats } = useQuery({
     queryKey: ['ai-governance', 'audit-log-stats'],
     queryFn: () => fetch('/api/v1/ai-governance/audit-log/stats', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null),
+      .then(r => r.ok ? r.json() : null)
+      // Envelope canónico: estos bare-fetch no pasan por el interceptor de axios,
+      // así que desenvolvemos {data,meta} → data aquí.
+      .then(j => (j && typeof j === 'object' && 'data' in j && 'meta' in j) ? j.data : j),
     staleTime: 60_000,
   })
 

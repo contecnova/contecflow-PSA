@@ -4,6 +4,7 @@ import uuid
 
 from app.db.session import get_db
 from app.core.deps import get_current_user
+from app.core.responses import APIResponse
 from app.models.user import User
 from app.models.advanced_config import ProjectTemplate
 from app.models.marketplace import TemplateDocument, TemplateRole
@@ -40,7 +41,7 @@ def add_document(
     db.add(doc)
     db.commit()
     db.refresh(doc)
-    return {
+    return APIResponse.ok(data={
         "created": True,
         "template_id": template_id,
         "document_id": doc.id,
@@ -53,7 +54,7 @@ def add_document(
             "is_required": doc.is_required,
             "due_week_offset": doc.due_week_offset,
         },
-    }
+    })
 
 
 @router.post("/{template_id}/roles", summary="Add role to template", status_code=201)
@@ -78,7 +79,7 @@ def add_role(
     db.add(role)
     db.commit()
     db.refresh(role)
-    return {
+    return APIResponse.ok(data={
         "created": True,
         "template_id": template_id,
         "role_id": role.id,
@@ -88,7 +89,7 @@ def add_role(
         "estimated_hours": role.estimated_hours,
         "is_mandatory": role.is_mandatory,
         "notes": role.notes,
-    }
+    })
 
 
 @router.get("/{template_id}/full", summary="Get full template structure")
@@ -97,7 +98,7 @@ def get_full_template_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_full_template(template_id, db)
+    return APIResponse.ok(data=get_full_template(template_id, db))
 
 
 @router.post("/export", summary="Export project as template", status_code=201)
@@ -106,10 +107,10 @@ def export_project_as_template_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return export_project_as_template(
+    return APIResponse.ok(data=export_project_as_template(
         project_id=payload.get("project_id", ""),
         name=payload.get("name"),
         description=payload.get("description"),
         user_id=current_user.id,
         db=db,
-    )
+    ))

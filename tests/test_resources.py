@@ -138,7 +138,7 @@ def test_team_health(db: Session, resource_client):
 
     response = client.get("/api/v1/resources/team-health", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
 
     assert "avg_load_pct" in data
     assert "overloaded_count" in data
@@ -287,7 +287,7 @@ def test_acknowledge_alert(db: Session, resource_client, admin_token):
         headers=headers,
     )
     assert response.status_code == 200
-    assert response.json()["status"] == "acknowledged"
+    assert response.json()["data"]["status"] == "acknowledged"
 
     # Verify it's acknowledged
     db.refresh(alert)
@@ -348,7 +348,7 @@ def test_billable_percentage_calculated_correctly(db: Session, resource_client):
 
     response = client.get("/api/v1/resources/team-health", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
 
     # billable_pct should be a number between 0 and 100
     assert isinstance(data["billable_pct"], (int, float))

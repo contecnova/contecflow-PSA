@@ -5,7 +5,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.schemas.alerts import AlertOut
 from app.services.pagination_service import paginate_query
@@ -43,7 +43,7 @@ def run_alert_engine(
     _: User = Depends(require_admin),
 ):
     result = svc_run_alert_engine(db)
-    return {"message": f"Motor de alertas ejecutado. {result['alerts_generated']} nuevas alertas generadas."}
+    return APIResponse.ok(data={"message": f"Motor de alertas ejecutado. {result['alerts_generated']} nuevas alertas generadas."})
 
 
 @router.patch("/{alert_id}/read", summary="Marcar alerta como leída")
@@ -54,7 +54,7 @@ def mark_read(
 ):
     enforce_abac(db, current_user, "alert", alert_id, action="update")
     mark_alert_read(db, alert_id, current_user)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.patch("/{alert_id}/resolve", summary="Resolver alerta")
@@ -65,4 +65,4 @@ def resolve_alert(
 ):
     enforce_abac(db, current_user, "alert", alert_id, action="update")
     svc_resolve_alert(db, alert_id, current_user.id, current_user)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})

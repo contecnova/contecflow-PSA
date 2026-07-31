@@ -57,7 +57,7 @@ class TestABACAdminDashboard:
     def test_overview_admin(self, client, admin_with_org):
         res = client.get("/api/v1/abac/admin/overview", headers=auth(admin_with_org))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert "total_policies" in data
         assert "deny_rate" in data
 
@@ -68,38 +68,38 @@ class TestABACAdminDashboard:
     def test_attributes_summary(self, client, admin_with_org):
         res = client.get("/api/v1/abac/admin/attributes/summary", headers=auth(admin_with_org))
         assert res.status_code == 200
-        assert isinstance(res.json(), list)
+        assert isinstance(res.json()["items"], list)
 
     def test_policies_effectiveness(self, client, admin_with_org):
         res = client.get("/api/v1/abac/admin/policies/effectiveness", headers=auth(admin_with_org))
         assert res.status_code == 200
-        assert isinstance(res.json(), list)
+        assert isinstance(res.json()["items"], list)
 
     def test_access_patterns(self, client, admin_with_org):
         res = client.get("/api/v1/abac/admin/access-patterns", headers=auth(admin_with_org))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert "top_denied_users" in data
         assert "daily_trend" in data
 
     def test_user_access_profile(self, client, admin_with_org):
         res = client.get("/api/v1/abac/admin/users/dev-test-id/access-profile", headers=auth(admin_with_org))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert "attributes" in data
         assert "applicable_policies" in data
 
     def test_audit_log_admin(self, client, admin_with_org):
         res = client.get("/api/v1/abac/admin/audit-log", headers=auth(admin_with_org))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert "items" in data
         assert "total" in data
 
     def test_audit_log_stats(self, client, admin_with_org):
         res = client.get("/api/v1/abac/admin/audit-log/stats", headers=auth(admin_with_org))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert "total" in data
 
     @pytest.mark.skip(

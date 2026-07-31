@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk.cmdb_3d_service import (
@@ -47,7 +48,7 @@ def get_cmdb_3d_graph(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return get_3d_graph(db, org_id=org_id, max_nodes=max_nodes)
+    return APIResponse.ok(data=get_3d_graph(db, org_id=org_id, max_nodes=max_nodes))
 
 
 @router.get("/cmdb/blast-radius/{ci_id}", summary="Radio de impacto si falla un CI")
@@ -60,7 +61,7 @@ def get_blast_radius(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return calculate_blast_radius(db, org_id=org_id, ci_id=ci_id, max_depth=max_depth)
+    return APIResponse.ok(data=calculate_blast_radius(db, org_id=org_id, ci_id=ci_id, max_depth=max_depth))
 
 
 @router.post("/cmdb/asset-links", summary="Vincular asset físico a CI lógico", status_code=201)
@@ -72,7 +73,7 @@ def create_asset_link(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return link_asset_to_ci(
+    return APIResponse.ok(data=link_asset_to_ci(
         db,
         org_id=org_id,
         asset_id=body.asset_id,
@@ -80,7 +81,7 @@ def create_asset_link(
         link_type=body.link_type,
         notes=body.notes,
         created_by=current_user.id,
-    )
+    ))
 
 
 @router.get("/cmdb/asset-links", summary="Listar vínculos asset-CI")
@@ -92,7 +93,7 @@ def get_asset_links(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = list_asset_links(db, org_id=org_id)
-    return {"items": items, "count": len(items)}
+    return APIResponse.ok(data={"items": items, "count": len(items)})
 
 
 @router.get("/cmdb/asset-impact/{asset_id}", summary="Impacto de un asset vía sus CIs vinculados")
@@ -104,4 +105,4 @@ def get_asset_impact_view(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return get_asset_impact(db, org_id=org_id, asset_id=asset_id)
+    return APIResponse.ok(data=get_asset_impact(db, org_id=org_id, asset_id=asset_id))

@@ -25,7 +25,7 @@ def _create_project(client, token, suffix="v24"):
         "end_date": str(date.today() + timedelta(days=90)),
     }, headers=auth(token))
     assert r.status_code in (200, 201), r.text
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 def _create_task(client, token, project_id, title="Task A", estimated_hours=8, due_offset=7):

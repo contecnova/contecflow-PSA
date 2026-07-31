@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services.bi_o365_service import (
@@ -54,7 +55,7 @@ def o365_get_config(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return get_config(db, str(org_id) if org_id else None)
+    return APIResponse.ok(data=get_config(db, str(org_id) if org_id else None))
 
 
 @router.put("/config", summary="Actualizar configuración del conector O365")
@@ -66,7 +67,7 @@ def o365_save_config(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return save_config(db, str(org_id) if org_id else None, body.model_dump(exclude_none=True))
+    return APIResponse.ok(data=save_config(db, str(org_id) if org_id else None, body.model_dump(exclude_none=True)))
 
 
 @router.post("/sync", summary="Sincronizar datos de uso O365 desde Graph API", status_code=202)
@@ -86,17 +87,17 @@ def o365_sync(
         client_secret=payload.client_secret,
     )
     if not result.get("ok"):
-        return {
+        return APIResponse.ok(data={
             "status": "error",
             "queued": False,
             "detail": result.get("error", "Sync failed"),
             **result,
-        }
-    return {
+        })
+    return APIResponse.ok(data={
         "status": "queued",
         "queued": True,
         **result,
-    }
+    })
 
 
 @router.get("/reports/{report_name}", summary="Datos de un informe O365 específico")
@@ -110,7 +111,7 @@ def o365_report_data(
     if report_name not in _SUPPORTED_REPORTS:
         raise HTTPException(status_code=404, detail=f"Report '{report_name}' not supported. Available: {_SUPPORTED_REPORTS}")
     org_id = getattr(current_user, "organization_id", None)
-    return get_report_data(db, str(org_id) if org_id else None, report_name)
+    return APIResponse.ok(data=get_report_data(db, str(org_id) if org_id else None, report_name))
 
 
 @router.get("/adoption", summary="Resumen de adopción de productos O365")
@@ -121,7 +122,7 @@ def o365_adoption(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return get_adoption_summary(db, str(org_id) if org_id else None)
+    return APIResponse.ok(data=get_adoption_summary(db, str(org_id) if org_id else None))
 
 
 @router.get("/sync-log", summary="Historial de sincronizaciones O365")
@@ -134,4 +135,4 @@ def o365_sync_log(
 ):
     org_id = getattr(current_user, "organization_id", None)
     log = get_sync_log(db, str(org_id) if org_id else None, limit=limit)
-    return {"entries": log, "count": len(log)}
+    return APIResponse.ok(data={"entries": log, "count": len(log)})

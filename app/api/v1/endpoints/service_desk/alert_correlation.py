@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.responses import APIResponse
 from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
@@ -35,7 +36,6 @@ class MergeClusterIn(BaseModel):
 @router.get(
     "/alert-clusters",
     summary="Listar clusters de alertas activos",
-    response_model=dict,
 )
 def list_alert_clusters(
     window_hours: int = Query(4, ge=1, le=72, description="Ventana temporal en horas"),
@@ -71,7 +71,7 @@ def list_alert_clusters(
         from app.services.service_desk.alert_correlation_service import _enrich_cluster_score
         clusters = [_enrich_cluster_score(c, tickets_map) for c in clusters]
 
-    return {
+    return APIResponse.ok(data={
         "window_hours": window_hours,
         "clusters": [
             {
@@ -91,13 +91,12 @@ def list_alert_clusters(
             for c in clusters
         ],
         "total": len(clusters),
-    }
+    })
 
 
 @router.get(
     "/alert-clusters/stats",
     summary="Estadísticas de correlación de alertas",
-    response_model=dict,
 )
 def alert_cluster_stats(
     organization_id: Optional[str] = Query(None),
@@ -108,14 +107,13 @@ def alert_cluster_stats(
     from app.services.service_desk.alert_correlation_service import get_correlation_stats
 
     org = organization_id or getattr(current_user, "organization_id", None)
-    return get_correlation_stats(db, organization_id=org)
+    return APIResponse.ok(data=get_correlation_stats(db, organization_id=org))
 
 
 @router.post(
     "/alert-clusters/merge",
     summary="Fusionar cluster en un Problema",
     status_code=201,
-    response_model=dict,
 )
 def merge_cluster_to_problem(
     payload: MergeClusterIn,
@@ -140,13 +138,12 @@ def merge_cluster_to_problem(
         raise HTTPException(status_code=400, detail=str(exc))
 
     commit_or_rollback(db)
-    return {"ok": True, **result}
+    return APIResponse.ok(data={"ok": True, **result})
 
 
 @router.post(
     "/alert-clusters/run-scan",
     summary="Ejecutar escaneo de correlación (admin)",
-    response_model=dict,
 )
 def run_correlation_scan(
     organization_id: Optional[str] = Query(None),
@@ -165,7 +162,7 @@ def run_correlation_scan(
     from app.services.service_desk.alert_correlation_service import run_correlation_scan_job
 
     org = organization_id or getattr(current_user, "organization_id", None)
-    return run_correlation_scan_job(db, organization_id=org)
+    return APIResponse.ok(data=run_correlation_scan_job(db, organization_id=org))
 
 
 # ── Per-ticket deduplication ──────────────────────────────────────────────────
@@ -174,7 +171,6 @@ def run_correlation_scan(
 @router.post(
     "/tickets/{ticket_id}/deduplicate",
     summary="Verificar y aplicar deduplicación a un ticket",
-    response_model=dict,
 )
 def deduplicate_ticket(
     ticket_id: str,
@@ -196,4 +192,4 @@ def deduplicate_ticket(
 
     result = deduplicate_new_ticket(db, ticket, acting_user_id=current_user.id)
     commit_or_rollback(db)
-    return result
+    return APIResponse.ok(data=result)

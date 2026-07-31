@@ -18,7 +18,7 @@ def _create_project(client, token, code):
         headers=auth(token),
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()["id"]
+    return res.json()["data"]["id"]
 
 
 def test_imputation_rejects_user_not_assigned_when_project_has_members(client, admin_token, dev_token, db):

@@ -28,7 +28,7 @@ from app.core.deps import get_current_user, get_db
 from app.core.abac_enforce import enforce_abac
 from app.models.user import User, UserRole
 from app.services import developer_portal_service as svc
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter(prefix="/developer", tags=["Developer Portal"])
 
@@ -101,7 +101,7 @@ def create_app(
         owner_id=current_user.id,
         secret_hash=_hash_secret(raw_secret),
     )
-    return _app_out(app, include_secret=raw_secret)
+    return APIResponse.ok(data=_app_out(app, include_secret=raw_secret))
 
 
 @router.get("/apps/{app_id}", summary="Detalle de aplicación")
@@ -111,7 +111,7 @@ def get_app(app_id: str, db: Session = Depends(get_db), current_user: User = Dep
         raise HTTPException(404, "Aplicación no encontrada")
     if app.owner_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(403, "Acceso denegado")
-    return _app_out(app)
+    return APIResponse.ok(data=_app_out(app))
 
 
 @router.patch("/apps/{app_id}", summary="Actualizar aplicación")
@@ -127,7 +127,7 @@ def update_app(
     if app.owner_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(403, "Acceso denegado")
     app = svc.update_app(db, app, payload.model_dump(exclude_none=True))
-    return _app_out(app)
+    return APIResponse.ok(data=_app_out(app))
 
 
 @router.delete("/apps/{app_id}", summary="Eliminar aplicación")
@@ -139,7 +139,7 @@ def delete_app(app_id: str, db: Session = Depends(get_db), current_user: User = 
         raise HTTPException(403, "Acceso denegado")
     enforce_abac(db, current_user, "oauth_app", app_id, action="delete")
     svc.delete_app(db, app)
-    return {"ok": True, "message": "Aplicación eliminada correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Aplicación eliminada correctamente"})
 
 
 @router.post("/apps/{app_id}/rotate-secret", summary="Rotar secreto de cliente")
@@ -151,7 +151,7 @@ def rotate_secret(app_id: str, db: Session = Depends(get_db), current_user: User
         raise HTTPException(403, "Acceso denegado")
     raw_secret = secrets.token_urlsafe(32)
     svc.rotate_app_secret(db, app, _hash_secret(raw_secret))
-    return {"client_id": app.client_id, "client_secret": raw_secret}
+    return APIResponse.ok(data={"client_id": app.client_id, "client_secret": raw_secret})
 
 
 # ── OAuth2 token endpoint ───────────────────────────────────────────────────────

@@ -29,7 +29,7 @@ def test_update_user_allows_multiple_organizations_from_profile(client, admin_to
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    data = res.json()
+    data = res.json()["data"]
     assert data["organization_id"] == "org-extra-1"
     assert set(data["organization_ids"]) == {"1", "org-extra-1"}
 
@@ -52,7 +52,7 @@ def test_create_user_with_multiple_organizations_from_profile(client, admin_toke
 
     res = client.post("/api/v1/users", json=payload, headers=auth(admin_token))
     assert res.status_code == 200, res.text
-    data = res.json()
+    data = res.json()["data"]
 
     assert data["organization_id"] == "org-extra-2"
     assert set(data["organization_ids"]) == {"org-extra-2", "org-extra-3"}

@@ -6,7 +6,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_hr, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
 from app.services import training_service
 from app.services.training_service import (
@@ -41,7 +41,7 @@ def create_course(payload: CourseIn, db: Session = Depends(get_db),
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
     c = training_service.create_course(db, payload.model_dump())
-    return {"id": c.id, "title": c.title}
+    return APIResponse.ok(data={"id": c.id, "title": c.title})
 
 
 @router.patch("/courses/{course_id}", summary="Actualizar curso")
@@ -55,7 +55,7 @@ def update_course(course_id: str, payload: CourseIn, db: Session = Depends(get_d
     if not c:
         raise HTTPException(404, "Curso no encontrado")
     training_service.update_course(db, c, payload.model_dump(exclude_unset=True))
-    return {"id": c.id}
+    return APIResponse.ok(data={"id": c.id})
 
 
 @router.delete("/courses/{course_id}", summary="Eliminar curso")
@@ -70,7 +70,7 @@ def delete_course(course_id: str, db: Session = Depends(get_db),
         raise HTTPException(404, "Curso no encontrado")
     enforce_abac(db, cu, "training_course", course_id, action="delete")
     training_service.soft_delete_course(db, c)
-    return {"ok": True, "message": "Curso eliminado correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Curso eliminado correctamente"})
 
 
 @router.get("/enrollments", response_model=APIListResponse[dict], summary="Listar inscripciones")
@@ -97,7 +97,7 @@ def create_enrollment(payload: EnrollmentIn, db: Session = Depends(get_db),
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
     e = training_service.create_enrollment(db, payload.model_dump())
-    return {"id": e.id}
+    return APIResponse.ok(data={"id": e.id})
 
 
 @router.patch("/enrollments/{enroll_id}", summary="Actualizar inscripción")
@@ -111,7 +111,7 @@ def update_enrollment(enroll_id: str, payload: EnrollmentIn, db: Session = Depen
     if not e:
         raise HTTPException(404, "Inscripción no encontrada")
     training_service.update_enrollment(db, e, payload.model_dump(exclude_unset=True))
-    return {"id": e.id}
+    return APIResponse.ok(data={"id": e.id})
 
 
 @router.delete("/enrollments/{enroll_id}", summary="Eliminar inscripción")
@@ -126,7 +126,7 @@ def delete_enrollment(enroll_id: str, db: Session = Depends(get_db),
         raise HTTPException(404, "Inscripción no encontrada")
     enforce_abac(db, cu, "training_enrollment", enroll_id, action="delete")
     training_service.delete_enrollment(db, e)
-    return {"ok": True, "message": "Inscripción eliminada correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Inscripción eliminada correctamente"})
 
 
 @router.get("/certifications", response_model=APIListResponse[dict], summary="Certificaciones de usuarios")
@@ -149,7 +149,7 @@ def create_certification(payload: CertificationIn, db: Session = Depends(get_db)
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
     c = training_service.create_certification(db, payload.model_dump())
-    return {"id": c.id}
+    return APIResponse.ok(data={"id": c.id})
 
 
 def update_certification(cert_id: str, payload: CertificationIn, db: Session = Depends(get_db),

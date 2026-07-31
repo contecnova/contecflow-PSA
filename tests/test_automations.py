@@ -22,7 +22,7 @@ def test_create_automation(client, admin_token, db):
         "is_active": True,
     }, headers=auth(admin_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
     assert data["name"] == "Notificación tarea vencida"
 
@@ -32,7 +32,7 @@ def test_update_automation(client, admin_token, db):
         "name": "Regla a Editar",
         "trigger_type": "task_overdue",
         "actions": [{"type": "notify_assignee"}],
-    }, headers=auth(admin_token)).json()
+    }, headers=auth(admin_token)).json()["data"]
     res = client.patch(f"/api/v1/automations/{rule['id']}",
         json={"is_active": False, "name": "Regla Desactivada"},
         headers=auth(admin_token))
@@ -44,10 +44,10 @@ def test_delete_automation(client, admin_token, db):
         "name": "Regla a Borrar",
         "trigger_type": "task_overdue",
         "actions": [{"type": "notify_assignee"}],
-    }, headers=auth(admin_token)).json()
+    }, headers=auth(admin_token)).json()["data"]
     res = client.delete(f"/api/v1/automations/{rule['id']}", headers=auth(admin_token))
     assert res.status_code == 200
-    payload = res.json()
+    payload = res.json()["data"]
     assert payload["ok"] is True
 
     listed = client.get("/api/v1/automations", headers=auth(admin_token))
@@ -64,7 +64,7 @@ def test_delete_automation(client, admin_token, db):
 def test_automation_templates(client, admin_token, db):
     res = client.get("/api/v1/automations/templates/list", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    assert isinstance(res.json()["items"], list)
 
 
 def test_automation_executions(client, admin_token, db):
@@ -72,11 +72,11 @@ def test_automation_executions(client, admin_token, db):
         "name": "Regla con historial",
         "trigger_type": "task_overdue",
         "actions": [{"type": "notify_assignee"}],
-    }, headers=auth(admin_token)).json()
+    }, headers=auth(admin_token)).json()["data"]
     res = client.get(f"/api/v1/automations/{rule['id']}/executions",
         headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    assert isinstance(res.json()["items"], list)
 
 
 def test_automation_requires_admin(client, dev_token, db):

@@ -30,7 +30,7 @@ def test_create_document(db: Session, doc_client):
 
     response = client.post("/api/v1/documents", json=payload, headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert data["title"] == "Test Contract"
     assert data["category"] == "contract"
     assert data["requires_approval"] == True
@@ -62,12 +62,12 @@ def test_get_document(db: Session, doc_client):
     # Create document
     create_payload = {"title": "Test Doc", "category": "sop"}
     create_response = client.post("/api/v1/documents", json=create_payload, headers=headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     # Get document
     response = client.get(f"/api/v1/documents/{doc_id}", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert data["title"] == "Test Doc"
     assert data["category"] == "sop"
 
@@ -80,13 +80,13 @@ def test_update_document(db: Session, doc_client):
     # Create document
     create_payload = {"title": "Original Title", "category": "meeting_notes"}
     create_response = client.post("/api/v1/documents", json=create_payload, headers=headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     # Update document
     update_payload = {"title": "Updated Title", "description": "New description"}
     response = client.patch(f"/api/v1/documents/{doc_id}", json=update_payload, headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert data["title"] == "Updated Title"
     assert data["description"] == "New description"
 
@@ -99,7 +99,7 @@ def test_delete_document(db: Session, doc_client):
     # Create and archive document
     create_payload = {"title": "To Delete"}
     create_response = client.post("/api/v1/documents", json=create_payload, headers=headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     response = client.delete(f"/api/v1/documents/{doc_id}", headers=headers)
     assert response.status_code == 200
@@ -107,7 +107,7 @@ def test_delete_document(db: Session, doc_client):
     # Verify archived
     response = client.get(f"/api/v1/documents/{doc_id}", headers=headers)
     assert response.status_code == 200
-    assert response.json()["is_archived"] == True
+    assert response.json()["data"]["is_archived"] == True
 
 
 def test_document_permissions(db: Session, doc_client):
@@ -118,7 +118,7 @@ def test_document_permissions(db: Session, doc_client):
     # Create document
     payload = {"title": "Test Doc"}
     create_response = client.post("/api/v1/documents", json=payload, headers=admin_headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     # Get any non-admin user ID
     db_session = db
@@ -137,7 +137,7 @@ def test_document_permissions(db: Session, doc_client):
         headers=admin_headers,
     )
     assert response.status_code == 200
-    perm_data = response.json()
+    perm_data = response.json()["data"]
     assert perm_data["access_level"] == "viewer"
     perm_id = perm_data["id"]
 
@@ -160,7 +160,7 @@ def test_document_approval(db: Session, doc_client):
         "requires_approval": True,
     }
     create_response = client.post("/api/v1/documents", json=payload, headers=headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     # Approve document
     approve_payload = {"status": "approved"}
@@ -170,7 +170,7 @@ def test_document_approval(db: Session, doc_client):
         headers=headers,
     )
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert data["approval_status"] == "approved"
 
 
@@ -182,7 +182,7 @@ def test_document_file_upload_and_versioning(db: Session, doc_client):
     # Create document
     payload = {"title": "Versioned Doc"}
     create_response = client.post("/api/v1/documents", json=payload, headers=headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     # Upload file version
     file_content = b"This is test content for version 1"
@@ -203,7 +203,7 @@ def test_document_file_upload_and_versioning(db: Session, doc_client):
     # Verify document now has versions
     response = client.get(f"/api/v1/documents/{doc_id}", headers=headers)
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert len(data["versions"]) >= 1
 
 
@@ -213,7 +213,7 @@ def test_document_file_head_returns_metadata_headers(db: Session, doc_client):
     headers = {"Authorization": f"Bearer {token}"}
 
     create_response = client.post("/api/v1/documents", json={"title": "HEAD test doc"}, headers=headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     files = {
         "file": ("head_test.txt", BytesIO(b"head endpoint test"), "text/plain"),
@@ -241,7 +241,7 @@ def test_document_file_get_with_scoped_access_token_no_auth_header(db: Session, 
     headers = {"Authorization": f"Bearer {token}"}
 
     create_response = client.post("/api/v1/documents", json={"title": "Scoped access doc"}, headers=headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     upload_response = client.post(
         f"/api/v1/documents/{doc_id}/versions",
@@ -269,7 +269,7 @@ def test_document_file_size_validation(db: Session, doc_client):
     # Create document
     payload = {"title": "Large File Test"}
     create_response = client.post("/api/v1/documents", json=payload, headers=headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     # Try to upload file larger than MAX_FILE_SIZE_MB (from config, default 100MB)
     # Create 101MB of data
@@ -295,7 +295,7 @@ def test_document_permission_expiration(db: Session, doc_client):
     # Create document
     payload = {"title": "Permission Expiry Test"}
     create_response = client.post("/api/v1/documents", json=payload, headers=admin_headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     # Get test employee user
     db_session = db
@@ -319,7 +319,7 @@ def test_document_permission_expiration(db: Session, doc_client):
 
     # Verify permission exists
     response = client.get(f"/api/v1/documents/{doc_id}", headers=admin_headers)
-    data = response.json()
+    data = response.json()["data"]
     assert len(data["permissions"]) >= 1
 
 
@@ -330,7 +330,7 @@ def test_non_admin_cannot_see_other_documents(db: Session, client, admin_token):
     # Create document as admin
     payload = {"title": "Secret Admin Doc"}
     create_response = client.post("/api/v1/documents", json=payload, headers=admin_headers)
-    create_response.json()["id"]
+    create_response.json()["data"]["id"]
 
     # Get a non-admin user and authenticate as them
     db_session = db
@@ -352,7 +352,7 @@ def test_archived_documents_filtered_by_default(db: Session, doc_client):
     # Create and archive a document
     payload = {"title": "To Archive"}
     create_response = client.post("/api/v1/documents", json=payload, headers=headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     # Archive it
     client.delete(f"/api/v1/documents/{doc_id}", headers=headers)
@@ -379,7 +379,7 @@ def test_document_ai_summary_returns_422_when_text_not_extractable(db: Session, 
     headers = {"Authorization": f"Bearer {token}"}
 
     create_response = client.post("/api/v1/documents", json={"title": "No text doc"}, headers=headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     upload_response = client.post(
         f"/api/v1/documents/{doc_id}/versions",
@@ -400,7 +400,7 @@ def test_document_ai_summary_persists_text_when_extraction_works(db: Session, do
     headers = {"Authorization": f"Bearer {token}"}
 
     create_response = client.post("/api/v1/documents", json={"title": "Text doc"}, headers=headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     upload_response = client.post(
         f"/api/v1/documents/{doc_id}/versions",
@@ -420,11 +420,11 @@ def test_document_ai_summary_persists_text_when_extraction_works(db: Session, do
 
     response = client.post(f"/api/v1/documents/{doc_id}/ai-summary", headers=headers)
     assert response.status_code == 200
-    assert response.json()["summary"] == "Resumen IA de prueba"
+    assert response.json()["data"]["summary"] == "Resumen IA de prueba"
 
     detail = client.get(f"/api/v1/documents/{doc_id}", headers=headers)
     assert detail.status_code == 200
-    assert detail.json()["ai_summary"] == "Resumen IA de prueba"
+    assert detail.json()["data"]["ai_summary"] == "Resumen IA de prueba"
 
 
 def test_document_ai_summary_uses_visual_prompt_for_image_analysis(db: Session, doc_client, monkeypatch):
@@ -432,7 +432,7 @@ def test_document_ai_summary_uses_visual_prompt_for_image_analysis(db: Session, 
     headers = {"Authorization": f"Bearer {token}"}
 
     create_response = client.post("/api/v1/documents", json={"title": "Image doc"}, headers=headers)
-    doc_id = create_response.json()["id"]
+    doc_id = create_response.json()["data"]["id"]
 
     upload_response = client.post(
         f"/api/v1/documents/{doc_id}/versions",
@@ -457,7 +457,7 @@ def test_document_ai_summary_uses_visual_prompt_for_image_analysis(db: Session, 
 
     response = client.post(f"/api/v1/documents/{doc_id}/ai-summary", headers=headers)
     assert response.status_code == 200
-    assert response.json()["summary"] == "Descripcion visual de prueba"
+    assert response.json()["data"]["summary"] == "Descripcion visual de prueba"
     assert "descripcion visual panoramica" in captured["user_prompt"].lower()
     assert "analisis visual" in captured["user_prompt"].lower()
     assert "descripcion visual" in captured["system"].lower()

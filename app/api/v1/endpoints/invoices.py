@@ -11,33 +11,33 @@ from app.models.user import User, UserRole
 from app.schemas.billing_reports import InvoiceCreate, InvoiceOut, InvoiceSummaryOut
 from app.services import billing_reports_service, stripe_service
 from app.services.psa_flows import build_invoice_preview_from_timesheets_flow
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter(tags=["Invoices"])
 
 
-@router.post("/from-timesheets", response_model=Dict[str, Any], summary="Generar preview de factura desde timesheets aprobados")
+@router.post("/from-timesheets", response_model=APIResponse[Dict[str, Any]], summary="Generar preview de factura desde timesheets aprobados")
 def invoice_from_timesheets(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return build_invoice_preview_from_timesheets_flow(
+    return APIResponse.ok(data=build_invoice_preview_from_timesheets_flow(
         db=db,
         project_id=payload.get("project_id"),
         date_from=payload.get("date_from"),
         date_to=payload.get("date_to"),
         tax_rate=payload.get("tax_rate"),
-    )
+    ))
 
 
-@router.post("", response_model=InvoiceOut, status_code=201, summary="Crear factura")
+@router.post("", response_model=APIResponse[InvoiceOut], status_code=201, summary="Crear factura")
 def create_invoice(
     payload: InvoiceCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return billing_reports_service.create_invoice(payload, current_user, db)
+    return APIResponse.ok(data=billing_reports_service.create_invoice(payload, current_user, db))
 
 
 @router.get("", response_model=APIListResponse[InvoiceOut])
@@ -55,12 +55,12 @@ def list_invoices(
     return APIListResponse.ok(items=items, total=total)
 
 
-@router.get("/summary", response_model=InvoiceSummaryOut)
+@router.get("/summary", response_model=APIResponse[InvoiceSummaryOut])
 def invoice_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return billing_reports_service.get_invoice_summary(db)
+    return APIResponse.ok(data=billing_reports_service.get_invoice_summary(db))
 
 
 @router.post("/{invoice_id}/payment-link", status_code=status.HTTP_201_CREATED)
@@ -83,7 +83,7 @@ def create_payment_link(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="La factura ya está pagada.")
     # Reutiliza el enlace ya generado (idempotente de cara al usuario).
     if invoice.stripe_payment_link_url:
-        return {"url": invoice.stripe_payment_link_url, "id": invoice.stripe_payment_link_id, "reused": True}
+        return APIResponse.ok(data={"url": invoice.stripe_payment_link_url, "id": invoice.stripe_payment_link_id, "reused": True})
     try:
         session = stripe_service.create_checkout_session(
             invoice_id=invoice.id,
@@ -101,7 +101,7 @@ def create_payment_link(
     if session.get("payment_intent"):
         invoice.stripe_payment_intent_id = session["payment_intent"]
     db.commit()
-    return {"url": session["url"], "id": session["id"], "reused": False}
+    return APIResponse.ok(data={"url": session["url"], "id": session["id"], "reused": False})
 
 
 @router.get("/{invoice_id}/pdf", summary="Descargar factura en PDF")

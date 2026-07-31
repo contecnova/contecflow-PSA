@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin
+from app.core.responses import APIResponse, APIListResponse
 from app.db.session import get_db
 from app.models.client_portal import ClientUser
 from app.models.clients import Client
@@ -329,7 +330,7 @@ def get_dynamic_forms(db: Session = Depends(get_db), current_user: User = Depend
         rules = _default_rules()
         _set_json(db, _RULES_KEY, org_id, rules, "Service Desk dynamic forms rules")
         db.commit()
-    return rules
+    return APIResponse.ok(data=rules)
 
 
 @router.get("/dynamic-forms/public", summary="Obtener configuración dinámica para portal cliente")
@@ -345,7 +346,7 @@ def get_dynamic_forms_public(
         rules = _default_rules()
         _set_json(db, _RULES_KEY, None, rules, "Service Desk dynamic forms rules")
         db.commit()
-    return rules
+    return APIResponse.ok(data=rules)
 
 
 @router.get("/dynamic-forms/context-options", summary="Opciones contextuales para campos dinámicos (clientes/servicios/CI)")
@@ -359,14 +360,14 @@ def get_dynamic_forms_context_options(
 ):
     org_id = getattr(current_user, "organization_id", None)
     _ = org_id
-    return _context_options_payload(
+    return APIResponse.ok(data=_context_options_payload(
         db,
         current_user=current_user,
         client_id=client_id,
         service_item_id=service_item_id,
         q=q,
         limit=max(5, min(limit, 200)),
-    )
+    ))
 
 
 @router.get("/dynamic-forms/public/context-options", summary="Opciones contextuales para portal cliente")
@@ -379,13 +380,13 @@ def get_dynamic_forms_public_context_options(
     db: Session = Depends(get_db),
 ):
     client = require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
-    return _context_options_payload(
+    return APIResponse.ok(data=_context_options_payload(
         db,
         portal_client=client,
         service_item_id=service_item_id,
         q=q,
         limit=max(5, min(limit, 200)),
-    )
+    ))
 
 
 @router.put("/dynamic-forms", summary="Guardar configuración de formulario dinámico")
@@ -403,7 +404,7 @@ def put_dynamic_forms(payload: DynamicRulesIn, db: Session = Depends(get_db), cu
         user_id=current_user.id,
         reason=payload.reason,
     )
-    return {"ok": True, "rules": rules}
+    return APIResponse.ok(data={"ok": True, "rules": rules})
 
 
 @router.get("/dynamic-forms/history", summary="Historial de configuración de formulario dinámico")
@@ -412,7 +413,7 @@ def get_dynamic_forms_history(db: Session = Depends(get_db), current_user: User 
     history = _get_json(db, _HISTORY_KEY, org_id, fallback=[])
     if not isinstance(history, list):
         history = []
-    return {"items": history}
+    return APIListResponse.ok(items=history)
 
 
 @router.post("/dynamic-forms/diff", summary="Comparar dos snapshots de configuración dinámica")
@@ -453,7 +454,7 @@ def diff_dynamic_forms(payload: DiffIn, db: Session = Depends(get_db), current_u
     left_hints = left_rules.get("routing_hints") or []
     right_hints = right_rules.get("routing_hints") or []
 
-    return {
+    return APIResponse.ok(data={
         "left": {
             "snapshot_id": payload.left_snapshot_id,
             "version": left_rules.get("version"),
@@ -477,7 +478,7 @@ def diff_dynamic_forms(payload: DiffIn, db: Session = Depends(get_db), current_u
             "before": left_hints,
             "after": right_hints,
         },
-    }
+    })
 
 
 @router.post("/dynamic-forms/rollback", summary="Restaurar una configuración anterior del formulario dinámico")
@@ -502,7 +503,7 @@ def rollback_dynamic_forms(payload: RollbackIn, db: Session = Depends(get_db), c
         user_id=current_user.id,
         reason=f"rollback:{payload.snapshot_id}",
     )
-    return {"ok": True, "rules": rules}
+    return APIResponse.ok(data={"ok": True, "rules": rules})
 
 
 @router.post("/dynamic-forms/import/preview", summary="Wizard: previsualizar importación y mapeo de campos dinámicos")
@@ -543,12 +544,12 @@ def preview_dynamic_forms_import(payload: ImportPreviewIn, current_user: User = 
             "data_attribute": data_attribute,
         })
 
-    return {
+    return APIResponse.ok(data={
         "columns": reader.fieldnames,
         "row_count": len(rows),
         "generated_fields": generated,
         "sample_rows": rows[:5],
-    }
+    })
 
 
 @router.post("/dynamic-forms/import/apply", summary="Wizard: aplicar importación/mapeo de campos dinámicos")
@@ -584,4 +585,4 @@ def apply_dynamic_forms_import(payload: ImportApplyIn, db: Session = Depends(get
         user_id=current_user.id,
         reason=payload.reason or f"import:{payload.merge_mode}",
     )
-    return {"ok": True, "rules": rules, "field_count": len(merged)}
+    return APIResponse.ok(data={"ok": True, "rules": rules, "field_count": len(merged)})

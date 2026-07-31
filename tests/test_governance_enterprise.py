@@ -22,7 +22,7 @@ def test_policy_pack_and_evidence_flow(client, admin_token, db):
 
     packs = client.get("/api/v1/governance/policy-packs", headers=auth(admin_token))
     assert packs.status_code == 200
-    assert isinstance(packs.json(), list)
+    assert isinstance(packs.json()["items"], list)
 
     upsert = client.put(
         "/api/v1/governance/policy-packs/access_baseline",
@@ -43,7 +43,7 @@ def test_policy_pack_and_evidence_flow(client, admin_token, db):
         },
     )
     assert evidence.status_code == 200
-    eid = evidence.json()["id"]
+    eid = evidence.json()["data"]["id"]
     assert eid
 
     status = client.get(
@@ -52,7 +52,7 @@ def test_policy_pack_and_evidence_flow(client, admin_token, db):
         params={"framework": "SOC2"},
     )
     assert status.status_code == 200
-    controls = status.json()["controls"]
+    controls = status.json()["data"]["controls"]
     assert any(c["control_id"] == "SOC2-CC6.1" and c["evidence_count"] >= 1 for c in controls)
 
 
@@ -112,7 +112,7 @@ def test_governance_ai_read_endpoints_allow_admin_without_org(client, admin_toke
     try:
         config_res = client.get("/api/v1/governance/config", headers=auth(admin_token))
         assert config_res.status_code == 200
-        config_payload = config_res.json()
+        config_payload = config_res.json()["items"]
         assert isinstance(config_payload, list)
         assert len(config_payload) > 0
         assert all("module" in item for item in config_payload)
@@ -120,12 +120,12 @@ def test_governance_ai_read_endpoints_allow_admin_without_org(client, admin_toke
 
         stats_res = client.get("/api/v1/governance/stats", headers=auth(admin_token))
         assert stats_res.status_code == 200
-        stats_payload = stats_res.json()
+        stats_payload = stats_res.json()["data"]
         assert "total_calls" in stats_payload
         assert "by_module" in stats_payload
 
         logs_res = client.get("/api/v1/governance/logs", headers=auth(admin_token))
         assert logs_res.status_code == 200
-        assert isinstance(logs_res.json(), list)
+        assert isinstance(logs_res.json()["items"], list)
     finally:
         app.dependency_overrides.pop(require_admin, None)

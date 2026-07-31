@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.deps import get_db
+from app.core.responses import APIResponse
 from app.models.task import Task, TaskStatus
 from app.models.user import User
 from app.services.project_service import get_project_scoped_or_404
@@ -32,4 +33,4 @@ def get_project_backlog(
         .all()
     )
     items = [serialize_task(t) for t in tasks]
-    return {"project_id": project_id, "items": items, "total": len(items)}
+    return APIResponse.ok(data={"project_id": project_id, "items": items, "total": len(items)})

@@ -39,7 +39,10 @@ export async function registerCollabPush(): Promise<CollabPushResult> {
   const perm = await Notification.requestPermission()
   if (perm !== 'granted') return { ok: false, reason: 'permission-denied' }
 
-  const pub: VapidPublicKeyResponse = await fetch('/api/v1/collaboration/push/public-key', { credentials: 'include' }).then(r => r.json())
+  // Envelope canónico: este bare-fetch no pasa por el interceptor de axios,
+  // así que desenvolvemos {data,meta} → data manualmente.
+  const pubRaw = await fetch('/api/v1/collaboration/push/public-key', { credentials: 'include' }).then(r => r.json())
+  const pub: VapidPublicKeyResponse = (pubRaw && typeof pubRaw === 'object' && 'data' in pubRaw && 'meta' in pubRaw) ? pubRaw.data : pubRaw
   if (!pub?.configured || !pub?.public_key) return { ok: false, reason: 'vapid-not-configured' }
 
   let sub = await reg.pushManager.getSubscription()

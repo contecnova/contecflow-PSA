@@ -27,14 +27,14 @@ def test_jira_config_save_and_read(client, admin_token, db):
     """Admin can save Jira credentials and read them back (token masked)."""
     res = client.post("/api/v1/jira/config", json=JIRA_CONFIG, headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     # POST /config returns {"ok": True, "message": ...}
     assert data.get("ok") is True
 
     # Read back — jira_url present, token NOT in full
     res2 = client.get("/api/v1/jira/config", headers=auth(admin_token))
     assert res2.status_code == 200
-    cfg = res2.json()
+    cfg = res2.json()["data"]
     assert cfg["jira_url"] == JIRA_CONFIG["jira_url"]
     assert cfg["jira_email"] == JIRA_CONFIG["jira_email"]
     assert "jira_api_token" not in cfg  # token is stripped from GET response
@@ -80,7 +80,7 @@ def test_jira_test_connection_no_config(client, admin_token, db):
         data = res.json()
         assert "jira" in data.get("detail", "").lower() or "configur" in data.get("detail", "").lower()
     else:
-        assert "ok" in res.json()
+        assert "ok" in res.json()["data"]
 
 
 def test_jira_test_connection_mocked(client, admin_token, db):
@@ -92,7 +92,7 @@ def test_jira_test_connection_mocked(client, admin_token, db):
     with patch("app.api.v1.endpoints.jira.httpx.get", return_value=_mock_httpx_ok()):
         res = client.get("/api/v1/jira/test", headers=auth(admin_token))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert data["ok"] is True
         assert data.get("display_name") == "Test Admin"
 
@@ -107,7 +107,7 @@ def test_jira_webhook_updates_task_status(client, admin_token, pm_token, db):
         json={"name": "Jira Test Proj", "code": "JTRP", "status": "active"},
         headers=auth(pm_token),
     )
-    project_id = proj.json()["id"]
+    project_id = proj.json()["data"]["id"]
 
     task_res = client.post(
         "/api/v1/tasks",
@@ -190,6 +190,6 @@ def test_jira_linked_tasks_empty(client, pm_token, db):
     """Linked tasks endpoint returns a list (empty when no tasks are linked)."""
     res = client.get("/api/v1/jira/linked", headers=auth(pm_token))
     assert res.status_code == 200
-    data = res.json()
-    # Endpoint returns a JSON array directly
+    data = res.json()["items"]
+    # Endpoint returns the canonical list envelope
     assert isinstance(data, list)

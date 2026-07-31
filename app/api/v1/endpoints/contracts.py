@@ -6,7 +6,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import require_admin, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services import contract_service
 from app.services.contract_service import serialize_contract as _contract_out
@@ -52,7 +52,7 @@ def create_contract(
         c = contract_service.create_contract(db, current_user.id, **payload.model_dump())
     except IntegrityError:
         raise HTTPException(status_code=409, detail="Código de contrato duplicado. Inténtalo de nuevo.")
-    return _contract_out(c)
+    return APIResponse.ok(data=_contract_out(c))
 
 
 @router.patch("/{contract_id}", summary="Actualizar contrato")
@@ -66,7 +66,7 @@ def update_contract(
     if not c:
         raise HTTPException(404, "Contrato no encontrado")
     c = contract_service.update_contract(db, c, payload.model_dump(exclude_unset=True))
-    return _contract_out(c)
+    return APIResponse.ok(data=_contract_out(c))
 
 
 @router.delete("/{contract_id}", summary="Eliminar contrato")
@@ -83,7 +83,7 @@ def delete_contract(
         contract_service.delete_contract(db, c)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return {"ok": True, "message": "Contrato eliminado correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Contrato eliminado correctamente"})
 
 
 @router.post("/{contract_id}/work-orders", summary="Crear orden de trabajo")
@@ -99,7 +99,7 @@ def create_work_order(
     wo = contract_service.create_work_order(
         db, contract_id=contract_id, project_id=c.project_id, **payload.model_dump()
     )
-    return {"id": wo.id, "code": wo.code, "name": wo.name, "status": wo.status}
+    return APIResponse.ok(data={"id": wo.id, "code": wo.code, "name": wo.name, "status": wo.status})
 
 
 @router.patch("/{contract_id}/work-orders/{wo_id}", summary="Actualizar orden de trabajo")
@@ -114,7 +114,7 @@ def update_work_order(
     if not wo:
         raise HTTPException(404, "Orden de trabajo no encontrada")
     wo = contract_service.update_work_order(db, wo, payload.model_dump(exclude_unset=True))
-    return {"id": wo.id, "code": wo.code, "status": wo.status}
+    return APIResponse.ok(data={"id": wo.id, "code": wo.code, "status": wo.status})
 
 
 @router.patch("/{contract_id}/work-orders/{wo_id}/status", summary="Cambiar estado OT")
@@ -129,4 +129,4 @@ def change_wo_status(
     if not wo:
         raise HTTPException(404, "OT no encontrada")
     contract_service.change_work_order_status(db, wo, status)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})

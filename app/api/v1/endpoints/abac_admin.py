@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_user
+from app.core.responses import APIListResponse, APIResponse
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
 from app.services.abac import (
@@ -50,7 +51,7 @@ def abac_overview(
     verify_admin_or_governance_role(current_user)
     org = _org(current_user)
     since = utcnow() - timedelta(days=days)
-    return get_admin_overview(db, org, since, days)
+    return APIResponse.ok(data=get_admin_overview(db, org, since, days))
 
 
 # ── Attribute coverage ────────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ def attribute_summary(
 ):
     verify_admin_or_governance_role(current_user)
     org = _org(current_user)
-    return get_attribute_summary(db, org)
+    return APIListResponse.ok(items=get_attribute_summary(db, org))
 
 
 # ── Policy effectiveness ──────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ def policy_effectiveness(
     verify_admin_or_governance_role(current_user)
     org = _org(current_user)
     since = utcnow() - timedelta(days=days)
-    return get_policy_effectiveness(db, org, since, days)
+    return APIListResponse.ok(items=get_policy_effectiveness(db, org, since, days))
 
 
 # ── Access patterns ───────────────────────────────────────────────────────────
@@ -91,7 +92,7 @@ def access_patterns(
     verify_admin_or_governance_role(current_user)
     org = _org(current_user)
     since = utcnow() - timedelta(days=days)
-    return get_access_patterns(db, org, since, days, limit)
+    return APIResponse.ok(data=get_access_patterns(db, org, since, days, limit))
 
 
 # ── Per-user access profile ───────────────────────────────────────────────────
@@ -105,7 +106,7 @@ def user_access_profile(
 ):
     verify_admin_or_governance_role(current_user)
     org = _org(current_user)
-    return get_user_access_profile(db, org, user_id, resource_type)
+    return APIResponse.ok(data=get_user_access_profile(db, org, user_id, resource_type))
 
 
 # ── Audit log ─────────────────────────────────────────────────────────────────
@@ -124,7 +125,7 @@ def abac_audit_log(
     verify_admin_or_governance_role(current_user)
     org   = _org(current_user)
     since = utcnow() - timedelta(days=days)
-    return get_audit_log(db, org, since, result, resource_type, user_id, page, page_size)
+    return APIResponse.ok(data=get_audit_log(db, org, since, result, resource_type, user_id, page, page_size))
 
 
 @router.get("/audit-log/stats", summary="Aggregate deny/allow stats")
@@ -136,4 +137,4 @@ def abac_audit_stats(
     verify_admin_or_governance_role(current_user)
     org   = _org(current_user)
     since = utcnow() - timedelta(days=days)
-    return get_audit_stats(db, org, since, days)
+    return APIResponse.ok(data=get_audit_stats(db, org, since, days))

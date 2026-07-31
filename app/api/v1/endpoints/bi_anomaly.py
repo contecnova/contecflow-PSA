@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
 from app.core.deps import get_current_user
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.core.ratelimit import limiter
 from app.models.user import User
@@ -56,12 +57,12 @@ def anomaly_info(
     request: Request,
     current_user: User = Depends(get_current_user),
 ):
-    return {
+    return APIResponse.ok(data={
         "sklearn_available": svc._SKLEARN_AVAILABLE,
         "lgbm_available": svc._LGBM_AVAILABLE,
         "methods": ["auto", "isolation_forest", "zscore"],
         "churn_features": svc.CHURN_FEATURES,
-    }
+    })
 
 
 @router.post("/bi/anomaly/detect", summary="Detectar anomalías en una serie temporal")
@@ -100,7 +101,7 @@ def detect_anomalies(
             }
             for idx in result["anomaly_indices"]
         ]
-        return result
+        return APIResponse.ok(data=result)
     except ValueError as exc:
         from fastapi import HTTPException
         raise HTTPException(status_code=422, detail=str(exc))
@@ -141,5 +142,5 @@ def predict_churn(
     if body.client_id and out.get("clients"):
         first = dict(out["clients"][0])
         first["method_used"] = out.get("method_used")
-        return first
-    return out
+        return APIResponse.ok(data=first)
+    return APIResponse.ok(data=out)

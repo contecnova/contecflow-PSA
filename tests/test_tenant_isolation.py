@@ -53,7 +53,7 @@ def test_foreign_tenant_task_detail_is_not_exposed(client, pm_token, db, seed_mu
 def test_deliverables_for_foreign_tenant_project_are_not_exposed(client, pm_token, db, seed_multitenant):
     res = client.get("/api/v1/deliverables/project-b-test", headers=auth(pm_token))
     assert res.status_code == 200
-    payload = res.json()
+    payload = res.json()["data"]
     assert payload["deliverables"] == []
     assert payload["summary"]["total"] == 0
 

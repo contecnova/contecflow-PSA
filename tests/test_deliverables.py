@@ -11,14 +11,14 @@ def _create_project(client, token, code="DEL-01"):
         "end_date": str(date.today() + timedelta(days=180)),
     }, headers=auth(token))
     assert r.status_code in (200, 201)
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 def test_list_deliverables_empty(client, pm_token, db):
     pid = _create_project(client, pm_token)
     res = client.get(f"/api/v1/deliverables/{pid}", headers=auth(pm_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "deliverables" in data
     assert isinstance(data["deliverables"], list)
 
@@ -33,7 +33,7 @@ def test_create_deliverable(client, pm_token, db):
         "acceptance_criteria": "Aprobado por director técnico",
     }, headers=auth(pm_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
     assert data["name"] == "Informe Técnico v1.0"
 
@@ -42,7 +42,7 @@ def test_update_deliverable(client, pm_token, db):
     pid = _create_project(client, pm_token, code="DEL-02")
     deliv = client.post(f"/api/v1/deliverables/{pid}",
         json={"name": "Entregable Original"},
-        headers=auth(pm_token)).json()
+        headers=auth(pm_token)).json()["data"]
     res = client.patch(f"/api/v1/deliverables/{pid}/{deliv['id']}",
         json={"name": "Entregable Actualizado", "format": "Excel"},
         headers=auth(pm_token))
@@ -54,7 +54,7 @@ def test_deliverable_lifecycle(client, pm_token, admin_token, db):
     pid = _create_project(client, pm_token, code="DEL-03")
     deliv = client.post(f"/api/v1/deliverables/{pid}",
         json={"name": "Entregable Ciclo"},
-        headers=auth(pm_token)).json()
+        headers=auth(pm_token)).json()["data"]
     did = deliv["id"]
 
     # Marcar como entregado
@@ -74,7 +74,7 @@ def test_deliverable_lifecycle_reject(client, pm_token, admin_token, db):
     pid = _create_project(client, pm_token, code="DEL-04")
     deliv = client.post(f"/api/v1/deliverables/{pid}",
         json={"name": "Entregable Rechazado"},
-        headers=auth(pm_token)).json()
+        headers=auth(pm_token)).json()["data"]
     did = deliv["id"]
 
     client.post(f"/api/v1/deliverables/{pid}/{did}/deliver", headers=auth(pm_token))
@@ -88,16 +88,16 @@ def test_delete_deliverable(client, pm_token, db):
     pid = _create_project(client, pm_token, code="DEL-05")
     deliv = client.post(f"/api/v1/deliverables/{pid}",
         json={"name": "Entregable a Borrar"},
-        headers=auth(pm_token)).json()
+        headers=auth(pm_token)).json()["data"]
     res = client.delete(f"/api/v1/deliverables/{pid}/{deliv['id']}",
         headers=auth(pm_token))
     assert res.status_code == 200
-    payload = res.json()
+    payload = res.json()["data"]
     assert payload["ok"] is True
 
     listed = client.get(f"/api/v1/deliverables/{pid}", headers=auth(pm_token))
     assert listed.status_code == 200
-    assert all(d["id"] != deliv["id"] for d in listed.json()["deliverables"])
+    assert all(d["id"] != deliv["id"] for d in listed.json()["data"]["deliverables"])
 
     row = db.query(Deliverable).filter(Deliverable.id == deliv["id"]).first()
     assert row is not None

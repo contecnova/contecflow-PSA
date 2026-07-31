@@ -11,7 +11,7 @@ def test_install_and_configure_connector(client, admin_token, db):
         headers=headers,
     )
     assert res.status_code == 201
-    data = res.json()
+    data = res.json()["data"]
     assert data["connector"] == "slack"
 
     # Invalid connector slug → 404
@@ -41,7 +41,7 @@ def test_list_and_delete_instances(client, admin_token, db):
         headers=headers,
     )
     assert res.status_code == 201
-    instance_id = res.json()["id"]
+    instance_id = res.json()["data"]["id"]
 
     # List includes the new instance
     res = client.get("/api/v1/integrations/instances", headers=headers)
@@ -71,17 +71,17 @@ def test_marketplace_catalog(client, admin_token, db):
 
     res = client.get("/api/v1/integrations/marketplace", headers=headers)
     assert res.status_code == 200
-    connectors = res.json()
+    connectors = res.json()["items"]
     assert len(connectors) > 0
 
     # Filter by category
     res = client.get("/api/v1/integrations/marketplace?category=crm", headers=headers)
     assert res.status_code == 200
-    crm = res.json()
+    crm = res.json()["items"]
     assert all(c["category"] == "crm" for c in crm)
 
     # Certified only
     res = client.get("/api/v1/integrations/marketplace?certified_only=true", headers=headers)
     assert res.status_code == 200
-    certified = res.json()
+    certified = res.json()["items"]
     assert all(c["is_certified"] for c in certified)

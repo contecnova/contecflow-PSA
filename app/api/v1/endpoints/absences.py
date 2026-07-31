@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
 from app.models.resources import AbsenceStatus
 from app.services import absence_service
@@ -69,7 +69,7 @@ def get_my_vacation_balance(
     from datetime import datetime as dt_mod
     if not year:
         year = dt_mod.now().year
-    return absence_service.get_vacation_balance(db, current_user.id, year)
+    return APIResponse.ok(data=absence_service.get_vacation_balance(db, current_user.id, year))
 
 
 @router.post("/my", summary="Solicitar ausencia")
@@ -97,7 +97,7 @@ def request_absence(
         reason=payload.reason,
         working_days=days,
     )
-    return _absence_out(absence)
+    return APIResponse.ok(data=_absence_out(absence))
 
 
 @router.delete("/my/{absence_id}", summary="Cancelar ausencia")
@@ -113,7 +113,7 @@ def cancel_absence(
     if a.status == AbsenceStatus.approved and a.start_date <= date.today():
         raise HTTPException(400, "No puedes cancelar una ausencia ya iniciada")
     absence_service.cancel_absence(db, a)
-    return {"ok": True, "message": "Ausencia cancelada correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Ausencia cancelada correctamente"})
 
 
 @router.patch("/my/{absence_id}", summary="Editar ausencia pendiente")
@@ -149,7 +149,7 @@ def edit_absence(
         reason=payload.reason,
         working_days=days,
     )
-    return _absence_out(a)
+    return APIResponse.ok(data=_absence_out(a))
 
 
 @router.get("/team", summary="Ausencias del equipo")
@@ -196,7 +196,7 @@ def review_absence(
         approver_id=current_user.id,
         rejection_reason=payload.rejection_reason,
     )
-    return {"message": "Aprobada" if payload.approved else "Rechazada", "status": a.status}
+    return APIResponse.ok(data={"message": "Aprobada" if payload.approved else "Rechazada", "status": a.status})
 
 
 @router.get("/calendar", summary="Calendario de ausencias del equipo")
@@ -218,11 +218,11 @@ def get_absence_calendar(
 
     absences, holidays = absence_service.get_calendar_data(db, month_start, month_end)
 
-    return {
+    return APIResponse.ok(data={
         "year": year, "month": month,
         "absences": [_absence_out(a) for a in absences],
         "holidays": [{"date": h.date, "name": h.name, "type": h.type} for h in holidays],
-    }
+    })
 
 
 @router.get("/summary/{user_id}", summary="Resumen de ausencias de un usuario")
@@ -245,10 +245,10 @@ def get_user_absence_summary(
         t = a.type
         by_type[t] = by_type.get(t, 0) + (a.working_days or 0)
 
-    return {
+    return APIResponse.ok(data={
         "user_id": user_id, "year": year,
         "total_days": sum(by_type.values()),
         "by_type": {t: {"days": d, "label": TYPE_LABELS.get(t, t)} for t, d in by_type.items()},
         "vacation_days_taken": by_type.get("vacation", 0),
         "sick_days": by_type.get("sick", 0),
-    }
+    })

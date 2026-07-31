@@ -9,7 +9,7 @@ def make_project(client, token, code="PRF01"):
         "status": "active", "billing_type": "time_material",
         "budget_amount": 50000, "billing_rate": 150,
     }, headers=auth(token))
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 # ── Summary ────────────────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ def test_profitability_summary_structure(client, admin_token, pm_token, db):
     make_project(client, pm_token, "PRF02")
     res = client.get("/api/v1/profitability/summary", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "projects" in data
     assert "portfolio" in data
     portfolio = data["portfolio"]
@@ -43,7 +43,7 @@ def test_profitability_detail_has_breakdowns(client, pm_token, db):
     pid = make_project(client, pm_token, "PRF03")
     res = client.get(f"/api/v1/profitability/{pid}", headers=auth(pm_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "by_person" in data
     assert "by_week" in data
     assert "milestones" in data
@@ -69,7 +69,7 @@ def test_list_milestones_empty(client, pm_token, db):
     pid = make_project(client, pm_token, "PRF05")
     res = client.get(f"/api/v1/profitability/{pid}/milestones", headers=auth(pm_token))
     assert res.status_code == 200
-    assert res.json() == []
+    assert res.json()["items"] == []
 
 
 def test_create_milestone(client, pm_token, db):
@@ -82,7 +82,7 @@ def test_create_milestone(client, pm_token, db):
         "sort_order": 1,
     }, headers=auth(pm_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert data["name"] == "Phase 1 Complete"
     assert data["billing_amount"] == 10000
 
@@ -100,7 +100,7 @@ def test_update_milestone(client, pm_token, db):
     m = client.post(f"/api/v1/profitability/{pid}/milestones", json={
         "name": "Original Name",
         "billing_amount": 5000,
-    }, headers=auth(pm_token)).json()
+    }, headers=auth(pm_token)).json()["data"]
 
     today = str(date.today())
     res = client.patch(f"/api/v1/profitability/{pid}/milestones/{m['id']}", json={
@@ -109,7 +109,7 @@ def test_update_milestone(client, pm_token, db):
         "name": "Updated Name",
     }, headers=auth(pm_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert data["is_completed"] is True
 
 
@@ -125,11 +125,11 @@ def test_delete_milestone(client, pm_token, db):
     pid = make_project(client, pm_token, "PRF10")
     m = client.post(f"/api/v1/profitability/{pid}/milestones", json={
         "name": "To Delete",
-    }, headers=auth(pm_token)).json()
+    }, headers=auth(pm_token)).json()["data"]
 
     res = client.delete(f"/api/v1/profitability/{pid}/milestones/{m['id']}", headers=auth(pm_token))
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert res.json()["data"]["ok"] is True
 
 
 def test_delete_milestone_not_found(client, pm_token, db):
@@ -143,14 +143,14 @@ def test_milestone_billed_update(client, pm_token, db):
     m = client.post(f"/api/v1/profitability/{pid}/milestones", json={
         "name": "Invoice Milestone",
         "billing_amount": 20000,
-    }, headers=auth(pm_token)).json()
+    }, headers=auth(pm_token)).json()["data"]
 
     res = client.patch(f"/api/v1/profitability/{pid}/milestones/{m['id']}", json={
         "is_billed": True,
         "billed_at": str(date.today()),
     }, headers=auth(pm_token))
     assert res.status_code == 200
-    assert res.json()["is_billed"] is True
+    assert res.json()["data"]["is_billed"] is True
 
 
 def test_milestones_listed_in_profitability_detail(client, pm_token, db):
@@ -163,5 +163,5 @@ def test_milestones_listed_in_profitability_detail(client, pm_token, db):
     }, headers=auth(pm_token))
 
     res = client.get(f"/api/v1/profitability/{pid}", headers=auth(pm_token))
-    data = res.json()
+    data = res.json()["data"]
     assert len(data["milestones"]) >= 2

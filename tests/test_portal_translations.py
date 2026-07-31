@@ -15,11 +15,11 @@ def test_portal_translations_roundtrip(client, admin_token):
         headers=auth(admin_token),
     )
     assert post_res.status_code == 200
-    assert post_res.json().get("ok") is True
+    assert post_res.json()["data"].get("ok") is True
 
     get_res = client.get("/api/v1/portal/translations", headers=auth(admin_token))
     assert get_res.status_code == 200
-    data = get_res.json()
+    data = get_res.json()["data"]
     assert data["es"]["portal"]["hello"] == "Hola"
     assert data["en"]["portal"]["hello"] == "Hello"
 

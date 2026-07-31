@@ -22,7 +22,7 @@ def _create_project(client, token, name="CF Project"):
         headers=auth(token),
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()
+    return res.json()["data"]
 
 
 def _create_task(client, token, project_id, title="CF Task"):

@@ -15,7 +15,7 @@ PROJECT_PAYLOAD = {
 def test_create_project_as_pm(client, pm_token, db):
     res = client.post("/api/v1/projects", json=PROJECT_PAYLOAD, headers=auth(pm_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert data["name"] == "Proyecto Test Alpha"
     assert data["code"] == "ALPHA"
     return data["id"]
@@ -39,7 +39,7 @@ def test_list_projects(client, admin_token, db):
 
 def test_get_project_by_id(client, pm_token, db):
     create = client.post("/api/v1/projects", json=PROJECT_PAYLOAD, headers=auth(pm_token))
-    pid = create.json()["id"]
+    pid = create.json()["data"]["id"]
     res = client.get(f"/api/v1/projects/{pid}", headers=auth(pm_token))
     assert res.status_code == 200
     assert res.json()["id"] == pid
@@ -47,7 +47,7 @@ def test_get_project_by_id(client, pm_token, db):
 
 def test_update_project_status(client, pm_token, db):
     create = client.post("/api/v1/projects", json=PROJECT_PAYLOAD, headers=auth(pm_token))
-    pid = create.json()["id"]
+    pid = create.json()["data"]["id"]
     res = client.patch(f"/api/v1/projects/{pid}", json={"status": "active"}, headers=auth(pm_token))
     assert res.status_code == 200
     assert res.json()["status"] == "active"
@@ -73,14 +73,14 @@ def test_create_project_duplicate_code(client, pm_token, db):
 
 def test_delete_project(client, admin_token, db):
     create = client.post("/api/v1/projects", json=PROJECT_PAYLOAD, headers=auth(admin_token))
-    pid = create.json()["id"]
+    pid = create.json()["data"]["id"]
     res = client.delete(f"/api/v1/projects/{pid}", headers=auth(admin_token))
     assert res.status_code in (200, 204)
 
 
 def test_project_member_remove_is_soft_and_reactivable(client, admin_token, db):
     create = client.post("/api/v1/projects", json={**PROJECT_PAYLOAD, "code": "ALPHA-MEM"}, headers=auth(admin_token))
-    pid = create.json()["id"]
+    pid = create.json()["data"]["id"]
 
     me = client.get("/api/v1/auth/me", headers=auth(admin_token))
     uid = me.json()["id"]
@@ -155,7 +155,7 @@ def test_project_auto_assigns_org_on_create(client, db):
         **PROJECT_PAYLOAD, "code": f"ORG-{org_id[:4]}",
     }, headers=auth(token))
     assert create.status_code in (200, 201)
-    pid = create.json()["id"]
+    pid = create.json()["data"]["id"]
 
     # Check the stored project has organization_id set
     from app.models.project import Project
@@ -176,7 +176,7 @@ def test_project_list_scoped_to_org(client, db):
     create_a = client.post("/api/v1/projects", json={
         **PROJECT_PAYLOAD, "code": f"A-{org_a_id[:4]}",
     }, headers=auth(token_a))
-    proj_a_id = create_a.json()["id"]
+    proj_a_id = create_a.json()["data"]["id"]
 
     # Login as user_b — should NOT see project from org_a
     login_b = client.post("/api/v1/auth/login", json={"username": user_b.username, "password": "TestPass123!"})
@@ -202,7 +202,7 @@ def test_project_get_cross_org_returns_404(client, db):
     create_a = client.post("/api/v1/projects", json={
         **PROJECT_PAYLOAD, "code": f"XA-{org_a_id[:4]}",
     }, headers=auth(token_a))
-    proj_a_id = create_a.json()["id"]
+    proj_a_id = create_a.json()["data"]["id"]
 
     login_b = client.post("/api/v1/auth/login", json={"username": user_b.username, "password": "TestPass123!"})
     token_b = login_b.cookies.get("access_token")

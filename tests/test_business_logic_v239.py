@@ -144,7 +144,7 @@ class TestOrgBranding:
     def test_get_branding_default_for_unknown_org(self, client, admin_headers, organization):
         resp = client.get(f"/api/v1/orgs/{organization.id}/branding", headers=admin_headers)
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         # Default values
         assert data.get("is_default") is True or "app_name" in data
 
@@ -160,7 +160,7 @@ class TestOrgBranding:
             headers=admin_headers,
         )
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         assert data["app_name"] == "MyCorp PM"
         assert data["primary_color"] == "#123456"
         assert data["hide_powered_by"] is True
@@ -193,7 +193,7 @@ class TestOrgBranding:
             headers=admin_headers,
         )
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         css_vars = data["custom_css_vars"]
         assert "--primary" in css_vars
         assert "no-dash" not in css_vars
@@ -231,7 +231,7 @@ class TestGanttBaselines:
             headers=admin_headers,
         )
         assert resp.status_code == 201
-        data = resp.json()
+        data = resp.json()["data"]
         assert data["created"] is True
         assert data["name"] == "Sprint 1 Baseline"
         assert "baseline_date" in data
@@ -246,7 +246,7 @@ class TestGanttBaselines:
         )
         resp = client.get(f"/api/v1/projects/{project.id}/baselines", headers=admin_headers)
         assert resp.status_code == 200
-        baselines = resp.json()
+        baselines = resp.json()["items"]
         assert len(baselines) >= 1
         assert any(b["name"] == "Initial Baseline" for b in baselines)
 
@@ -258,7 +258,7 @@ class TestGanttBaselines:
             headers=admin_headers,
         )
         assert create_resp.status_code == 201
-        baseline_id = create_resp.json()["id"]
+        baseline_id = create_resp.json()["data"]["id"]
 
         resp = client.get(
             f"/api/v1/projects/{project.id}/baselines/{baseline_id}/compare",
@@ -275,7 +275,7 @@ class TestGanttBaselines:
             json={"name": "To Delete"},
             headers=admin_headers,
         )
-        baseline_id = create_resp.json()["id"]
+        baseline_id = create_resp.json()["data"]["id"]
         del_resp = client.delete(
             f"/api/v1/projects/{project.id}/baselines/{baseline_id}",
             headers=admin_headers,
@@ -303,7 +303,7 @@ class TestIntegrationMarketplace:
     def test_list_marketplace_returns_connectors(self, client, admin_headers):
         resp = client.get("/api/v1/integrations/marketplace", headers=admin_headers)
         assert resp.status_code == 200
-        connectors = resp.json()
+        connectors = resp.json()["items"]
         assert len(connectors) >= 20  # catalog has 22 connectors
         slugs = [c["slug"] for c in connectors]
         assert "salesforce" in slugs
@@ -316,7 +316,7 @@ class TestIntegrationMarketplace:
             "/api/v1/integrations/marketplace?category=crm", headers=admin_headers
         )
         assert resp.status_code == 200
-        for c in resp.json():
+        for c in resp.json()["items"]:
             assert c["category"] == "crm"
 
     def test_list_marketplace_certified_only(self, client, admin_headers):
@@ -324,7 +324,7 @@ class TestIntegrationMarketplace:
             "/api/v1/integrations/marketplace?certified_only=true", headers=admin_headers
         )
         assert resp.status_code == 200
-        for c in resp.json():
+        for c in resp.json()["items"]:
             assert c["is_certified"] is True
 
     def test_install_connector(self, client, admin_headers):
@@ -340,7 +340,7 @@ class TestIntegrationMarketplace:
             headers=admin_headers,
         )
         assert resp.status_code in (200, 201)
-        data = resp.json()
+        data = resp.json()["data"]
         assert data.get("created", True) is True
         assert data["connector"] == "xero"
         # Config is NOT returned (sensitive data encrypted at rest)
@@ -375,7 +375,7 @@ class TestIntegrationMarketplace:
         )
         resp = client.get("/api/v1/integrations/instances", headers=admin_headers)
         assert resp.status_code == 200
-        instances = resp.json()
+        instances = resp.json()["items"]
         assert isinstance(instances, list)
 
     def test_uninstall_integration(self, client, admin_headers):
@@ -385,7 +385,7 @@ class TestIntegrationMarketplace:
             headers=admin_headers,
         )
         assert install.status_code in (200, 201)
-        inst_id = install.json()["id"]
+        inst_id = install.json()["data"]["id"]
         del_resp = client.delete(f"/api/v1/integrations/instances/{inst_id}", headers=admin_headers)
         # endpoint returns 200 with a confirmation body (not 204) — accept either
         assert del_resp.status_code in (200, 204)
@@ -414,7 +414,7 @@ class TestCustomerHealthComposite:
             f"/api/v1/clients/{sample_client.id}/health-composite", headers=admin_headers
         )
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         assert "composite_score" in data
         assert 0 <= data["composite_score"] <= 100
         assert data["category"] in ("excellent", "good", "at_risk", "critical")
@@ -460,7 +460,7 @@ class TestAICopilotContextual:
             f"/api/v1/ai/suggestions/gantt/{project.id}", headers=admin_headers
         )
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         assert "suggestions" in data
         assert "suggestions_count" in data
         assert data["suggestions_count"] == len(data["suggestions"])
@@ -483,7 +483,7 @@ class TestAICopilotContextual:
             f"/api/v1/ai/suggestions/gantt/{project.id}", headers=admin_headers
         )
         assert resp.status_code == 200
-        suggestions = resp.json()["suggestions"]
+        suggestions = resp.json()["data"]["suggestions"]
         overdue = [s for s in suggestions if s.get("type") == "overdue"]
         assert len(overdue) >= 1
         assert overdue[0]["severity"] in ("high", "medium")
@@ -493,7 +493,7 @@ class TestAICopilotContextual:
             f"/api/v1/ai/suggestions/timesheets/{test_user.id}", headers=admin_headers
         )
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         assert "anomalies" in data
         assert data["anomalies_count"] == 0
 
@@ -508,7 +508,7 @@ class TestAICopilotContextual:
         resp = client.get(
             f"/api/v1/ai/suggestions/timesheets/{test_user.id}", headers=admin_headers
         )
-        data = resp.json()
+        data = resp.json()["data"]
         high_hours = [a for a in data["anomalies"] if a.get("type") == "high_hours"]
         assert len(high_hours) >= 1
         assert high_hours[0]["value"] >= 12
@@ -543,7 +543,7 @@ class TestEnhancedTemplates:
             headers=admin_headers,
         )
         assert resp.status_code == 201
-        assert resp.json()["created"] is True
+        assert resp.json()["data"]["created"] is True
 
     def test_add_role_to_template(self, client, admin_headers):
         tmpl_id = self._create_template(client, admin_headers)
@@ -554,7 +554,7 @@ class TestEnhancedTemplates:
             headers=admin_headers,
         )
         assert resp.status_code == 201
-        assert resp.json()["role_name"] == "Tech Lead"
+        assert resp.json()["data"]["role_name"] == "Tech Lead"
 
     def test_get_full_template_structure(self, client, admin_headers):
         tmpl_id = self._create_template(client, admin_headers)
@@ -565,7 +565,7 @@ class TestEnhancedTemplates:
                     json={"role_name": "BA", "is_mandatory": True}, headers=admin_headers)
         resp = client.get(f"/api/v1/templates/{tmpl_id}/full", headers=admin_headers)
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         assert "phases" in data
         assert "risks" in data
         assert "deliverables" in data
@@ -589,7 +589,7 @@ class TestEnhancedTemplates:
             headers=admin_headers,
         )
         assert resp.status_code in (200, 201)
-        data = resp.json()
+        data = resp.json()["data"]
         assert data.get("created", True) is True
         assert "template_id" in data
 
@@ -603,7 +603,7 @@ class TestApprovalWorkflowBuilder:
     def test_get_schema_returns_node_types(self, client, admin_headers):
         resp = client.get("/api/v1/approval-workflows/builder/schema", headers=admin_headers)
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         assert "node_types" in data
         assert "edge_types" in data
         types = [n["type"] for n in data["node_types"]]
@@ -630,7 +630,7 @@ class TestApprovalWorkflowBuilder:
             headers=admin_headers,
         )
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         assert data["valid"] is True
         assert data["errors"] == []
 
@@ -648,7 +648,7 @@ class TestApprovalWorkflowBuilder:
             headers=admin_headers,
         )
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         assert data["valid"] is False
         assert any("start" in e.lower() for e in data["errors"])
 
@@ -665,7 +665,7 @@ class TestApprovalWorkflowBuilder:
             json=workflow,
             headers=admin_headers,
         )
-        data = resp.json()
+        data = resp.json()["data"]
         assert data["valid"] is False
         assert any("end" in e.lower() for e in data["errors"])
 
@@ -683,7 +683,7 @@ class TestApprovalWorkflowBuilder:
             json=workflow,
             headers=admin_headers,
         )
-        data = resp.json()
+        data = resp.json()["data"]
         # Should still be valid (warning, not error) if orphan doesn't block flow
         assert "warnings" in data
         assert len(data["warnings"]) >= 1

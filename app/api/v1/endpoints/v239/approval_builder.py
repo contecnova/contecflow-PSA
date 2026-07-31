@@ -5,6 +5,7 @@ from typing import List
 from fastapi import APIRouter, Body, Depends
 
 from app.core.deps import get_current_user, require_any_manager
+from app.core.responses import APIResponse
 from app.models.user import User
 
 router = APIRouter()
@@ -14,7 +15,7 @@ router = APIRouter()
 def get_workflow_builder_schema(
     current_user: User = Depends(get_current_user),
 ):
-    return {
+    return APIResponse.ok(data={
         "version": "1.0",
         "node_types": [
             {
@@ -95,7 +96,7 @@ def get_workflow_builder_schema(
             {"type": "false", "label": "False", "color": "#f59e0b"},
         ],
         "canvas": {"default_zoom": 1.0, "grid_snap": 20},
-    }
+    })
 
 
 @router.post("/approval-workflows/builder/validate", summary="Validate a visual workflow graph structure")
@@ -131,10 +132,10 @@ def validate_workflow_graph(
     if not ends:
         errors.append("Workflow must have at least one 'end' node")
 
-    return {
+    return APIResponse.ok(data={
         "valid": len(errors) == 0,
         "errors": errors,
         "warnings": warnings,
         "node_count": len(nodes),
         "edge_count": len(edges),
-    }
+    })

@@ -11,7 +11,7 @@ def test_add_comment(client, admin_token):
     }
     r = client.post("/api/v1/bi/collab/comments", json=payload, headers=auth(admin_token))
     assert r.status_code in (200, 201)
-    data = r.json()
+    data = r.json()["data"]
     assert "id" in data
     assert data["dashboard_id"] == "dash-1"
 
@@ -20,17 +20,17 @@ def test_list_comments(client, admin_token):
     client.post("/api/v1/bi/collab/comments", json={"dashboard_id": "dash-list", "text": "test comment"}, headers=auth(admin_token))
     r = client.get("/api/v1/bi/collab/comments", params={"dashboard_id": "dash-list"}, headers=auth(admin_token))
     assert r.status_code == 200
-    data = r.json()
+    data = r.json()["data"]
     assert "items" in data
     assert len(data["items"]) >= 1
 
 
 def test_resolve_comment(client, admin_token):
     res = client.post("/api/v1/bi/collab/comments", json={"dashboard_id": "dash-x", "text": "resolve me"}, headers=auth(admin_token))
-    comment_id = res.json()["id"]
+    comment_id = res.json()["data"]["id"]
     r = client.patch(f"/api/v1/bi/collab/comments/{comment_id}/resolve", headers=auth(admin_token))
     assert r.status_code == 200
-    assert r.json()["resolved"] is True
+    assert r.json()["data"]["resolved"] is True
 
 
 def test_save_shared_view(client, admin_token):
@@ -42,7 +42,7 @@ def test_save_shared_view(client, admin_token):
     }
     r = client.post("/api/v1/bi/collab/views", json=payload, headers=auth(admin_token))
     assert r.status_code in (200, 201)
-    data = r.json()
+    data = r.json()["data"]
     assert data["name"] == "Q1 snapshot"
 
 
@@ -50,12 +50,12 @@ def test_list_shared_views(client, admin_token):
     client.post("/api/v1/bi/collab/views", json={"dashboard_id": "dash-3", "name": "my view"}, headers=auth(admin_token))
     r = client.get("/api/v1/bi/collab/views", params={"dashboard_id": "dash-3"}, headers=auth(admin_token))
     assert r.status_code == 200
-    assert "items" in r.json()
+    assert "items" in r.json()["data"]
 
 
 def test_toggle_reaction(client, admin_token):
     res = client.post("/api/v1/bi/collab/comments", json={"dashboard_id": "dash-4", "text": "react to me"}, headers=auth(admin_token))
-    comment_id = res.json()["id"]
+    comment_id = res.json()["data"]["id"]
     r = client.post(f"/api/v1/bi/collab/comments/{comment_id}/reactions", json={"emoji": "👍"}, headers=auth(admin_token))
     assert r.status_code in (200, 201)
 

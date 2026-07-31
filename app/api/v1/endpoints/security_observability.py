@@ -40,6 +40,7 @@ from datetime import datetime as _dt
 from app.services.security_observability import (
     SecurityEventService, SecurityAnalyticsService, get_org_id as _org,
 )
+from app.core.responses import APIResponse, APIListResponse
 
 router = APIRouter(prefix="/soc", tags=["Security Observability"])
 
@@ -178,12 +179,12 @@ def soc_overview(
 ):
     """Returns KPI tiles: event counts, auth failure rate, open detections/incidents, MTTD/MTTR."""
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
-    return svc.overview(hours=hours)
+    return APIResponse.ok(data=svc.overview(hours=hours))
 
 
 # ── Event stream ──────────────────────────────────────────────────────────────
 
-@router.get("/events", response_model=Dict[str, Any], summary="Paginated security event stream")
+@router.get("/events", summary="Paginated security event stream")
 def list_events(
     category:   Optional[str] = Query(None),
     severity:   Optional[str] = Query(None),
@@ -202,17 +203,15 @@ def list_events(
         since=since, category=category, severity=severity, event_type=event_type,
         user_id=user_id, ip_address=ip_address, page=page, page_size=page_size,
     )
-    return {
-        "total":     total,
-        "page":      page,
-        "page_size": page_size,
-        "items":     [EventOut.model_validate(e).model_dump() for e in items],
-    }
+    return APIListResponse.ok(
+        items=[EventOut.model_validate(e).model_dump() for e in items],
+        total=total, page=page, page_size=page_size,
+    )
 
 
 # ── Detections ────────────────────────────────────────────────────────────────
 
-@router.get("/detections", response_model=Dict[str, Any], summary="List security detections")
+@router.get("/detections", summary="List security detections")
 def list_detections(
     status:   Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
@@ -227,15 +226,13 @@ def list_detections(
     total, items = svc.list_detections_paginated(
         since=since, status=status, severity=severity, page=page, page_size=page_size,
     )
-    return {
-        "total":     total,
-        "page":      page,
-        "page_size": page_size,
-        "items":     [DetectionOut.model_validate(d).model_dump() for d in items],
-    }
+    return APIListResponse.ok(
+        items=[DetectionOut.model_validate(d).model_dump() for d in items],
+        total=total, page=page, page_size=page_size,
+    )
 
 
-@router.get("/detections/{detection_id}", response_model=DetectionOut, summary="Detection detail")
+@router.get("/detections/{detection_id}", response_model=APIResponse[DetectionOut], summary="Detection detail")
 def get_detection(
     detection_id: str,
     db: Session  = Depends(get_db),
@@ -245,12 +242,12 @@ def get_detection(
     det = svc.get_detection_by_id(detection_id)
     if not det:
         raise HTTPException(status_code=404, detail="Detection not found")
-    return DetectionOut.model_validate(det)
+    return APIResponse.ok(data=DetectionOut.model_validate(det))
 
 
 @router.put(
     "/detections/{detection_id}/status",
-    response_model=DetectionOut,
+    response_model=APIResponse[DetectionOut],
     summary="Update detection status (SOC workflow)",
 )
 def update_detection_status(
@@ -274,14 +271,14 @@ def update_detection_status(
         )
     except ValueError:
         raise HTTPException(status_code=404, detail="Detection not found")
-    return DetectionOut.model_validate(det)
+    return APIResponse.ok(data=DetectionOut.model_validate(det))
 
 
 # ── Incidents ─────────────────────────────────────────────────────────────────
 
 @router.post(
     "/incidents",
-    response_model=IncidentOut,
+    response_model=APIResponse[IncidentOut],
     status_code=status.HTTP_201_CREATED,
     summary="Escalate detections to a security incident",
 )
@@ -299,10 +296,10 @@ def create_incident(
         lead_analyst_id = str(current_user.id),
         playbook_ref    = body.playbook_ref,
     )
-    return IncidentOut.model_validate(inc)
+    return APIResponse.ok(data=IncidentOut.model_validate(inc))
 
 
-@router.get("/incidents", response_model=Dict[str, Any], summary="List security incidents")
+@router.get("/incidents", summary="List security incidents")
 def list_incidents(
     status_filter: Optional[str] = Query(None, alias="status"),
     hours:     int  = Query(720, ge=1, le=8760),
@@ -316,15 +313,13 @@ def list_incidents(
     total, items = svc.list_incidents_paginated(
         since=since, status_filter=status_filter, page=page, page_size=page_size,
     )
-    return {
-        "total":     total,
-        "page":      page,
-        "page_size": page_size,
-        "items":     [IncidentOut.model_validate(i).model_dump() for i in items],
-    }
+    return APIListResponse.ok(
+        items=[IncidentOut.model_validate(i).model_dump() for i in items],
+        total=total, page=page, page_size=page_size,
+    )
 
 
-@router.get("/incidents/{incident_id}", response_model=IncidentOut, summary="Incident detail")
+@router.get("/incidents/{incident_id}", response_model=APIResponse[IncidentOut], summary="Incident detail")
 def get_incident(
     incident_id: str,
     db: Session = Depends(get_db),
@@ -334,10 +329,10 @@ def get_incident(
     inc = svc.get_incident_by_id(incident_id)
     if not inc:
         raise HTTPException(status_code=404, detail="Incident not found")
-    return IncidentOut.model_validate(inc)
+    return APIResponse.ok(data=IncidentOut.model_validate(inc))
 
 
-@router.patch("/incidents/{incident_id}/resolve", response_model=IncidentOut, summary="Resolve incident")
+@router.patch("/incidents/{incident_id}/resolve", response_model=APIResponse[IncidentOut], summary="Resolve incident")
 def resolve_incident(
     incident_id: str,
     body: ResolveIncidentRequest,
@@ -355,12 +350,12 @@ def resolve_incident(
         )
     except ValueError:
         raise HTTPException(status_code=404, detail="Incident not found")
-    return IncidentOut.model_validate(inc)
+    return APIResponse.ok(data=IncidentOut.model_validate(inc))
 
 
 # ── Login Anomalies ───────────────────────────────────────────────────────────
 
-@router.get("/login-anomalies", response_model=Dict[str, Any], summary="Login anomaly feed")
+@router.get("/login-anomalies", summary="Login anomaly feed")
 def list_login_anomalies(
     anomaly_type:    Optional[str] = Query(None),
     severity:        Optional[str] = Query(None),
@@ -377,12 +372,10 @@ def list_login_anomalies(
         since=since, anomaly_type=anomaly_type, severity=severity,
         unresolved_only=unresolved_only, page=page, page_size=page_size,
     )
-    return {
-        "total":     total,
-        "page":      page,
-        "page_size": page_size,
-        "items":     [AnomalyOut.model_validate(a).model_dump() for a in items],
-    }
+    return APIListResponse.ok(
+        items=[AnomalyOut.model_validate(a).model_dump() for a in items],
+        total=total, page=page, page_size=page_size,
+    )
 
 
 @router.patch(
@@ -398,7 +391,7 @@ def resolve_anomaly(
     anomaly = svc.resolve_anomaly(anomaly_id)
     if not anomaly:
         raise HTTPException(status_code=404, detail="Anomaly not found")
-    return {"id": anomaly_id, "is_resolved": True}
+    return APIResponse.ok(data={"id": anomaly_id, "is_resolved": True})
 
 
 # ── SOC Metrics ───────────────────────────────────────────────────────────────
@@ -411,7 +404,7 @@ def attack_indicators(
     current_user: User = Depends(get_current_user),
 ):
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
-    return svc.top_attack_indicators(hours=hours, limit=limit)
+    return APIListResponse.ok(items=svc.top_attack_indicators(hours=hours, limit=limit))
 
 
 @router.get("/metrics/mttd-mttr", summary="MTTD/MTTR daily trend for KPI chart")
@@ -421,7 +414,7 @@ def mttd_mttr_trend(
     current_user: User = Depends(get_current_user),
 ):
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
-    return svc.mttd_mttr_trend(days=days)
+    return APIListResponse.ok(items=svc.mttd_mttr_trend(days=days))
 
 
 @router.get("/metrics/auth-heatmap", summary="Authentication failure heat by hour and country")
@@ -431,7 +424,7 @@ def auth_heatmap(
     current_user: User = Depends(get_current_user),
 ):
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
-    return svc.auth_failure_heatmap(days=days)
+    return APIListResponse.ok(items=svc.auth_failure_heatmap(days=days))
 
 
 @router.get("/metrics/top-ips", summary="Top offending IPs")
@@ -442,7 +435,7 @@ def top_ips(
     current_user: User = Depends(get_current_user),
 ):
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
-    return svc.top_offending_ips(hours=hours, limit=limit)
+    return APIListResponse.ok(items=svc.top_offending_ips(hours=hours, limit=limit))
 
 
 @router.get("/metrics/timeline", summary="Event timeline bucketed by time for sparkline charts")
@@ -453,14 +446,14 @@ def event_timeline(
     current_user: User  = Depends(get_current_user),
 ):
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
-    return svc.event_timeline(hours=hours, bucket_minutes=bucket_minutes)
+    return APIListResponse.ok(items=svc.event_timeline(hours=hours, bucket_minutes=bucket_minutes))
 
 
 # ── Manual event ingest (admin only) ─────────────────────────────────────────
 
 @router.post(
     "/events",
-    response_model=Dict[str, Any],
+    response_model=APIResponse[dict],
     status_code=status.HTTP_201_CREATED,
     summary="Manually ingest a security event (admin/integration)",
 )
@@ -484,4 +477,4 @@ def ingest_event(
         detail        = body.detail,
         raw_event     = body.raw_event,
     )
-    return {"id": ev.id, "occurred_at": ev.occurred_at.isoformat()}
+    return APIResponse.ok(data={"id": ev.id, "occurred_at": ev.occurred_at.isoformat()})

@@ -29,7 +29,7 @@ def _create_project(client, token):
         "budget_hours": 200,
     }, headers=auth(token))
     assert res.status_code in (200, 201), res.text
-    return res.json()
+    return res.json()["data"]
 
 
 def _create_task(client, token, project_id, title="Task A", start_date=None, due_date=None):
@@ -56,7 +56,7 @@ class TestResourceLeveling:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert "conflicts" in data
         assert "suggestions" in data
         assert "summary" in data
@@ -90,7 +90,7 @@ class TestResourceLeveling:
             headers=auth(admin_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         # Should detect overallocation (60h > 40h capacity)
         assert data["summary"]["total_conflicts"] >= 1
         assert data["summary"]["total_overload_hours"] > 0
@@ -246,7 +246,7 @@ class TestAutomationWorkflow:
             ],
         }, headers=auth(admin_token))
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data["name"] == "Regla con espera"
 
     def test_create_rule_with_conditional_branch(self, client, admin_token, db):
@@ -266,7 +266,7 @@ class TestAutomationWorkflow:
             ],
         }, headers=auth(admin_token))
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data["name"] == "Regla condicional"
         # Verify actions structure is preserved
         assert data["actions"][0]["type"] == "conditional_branch"
@@ -320,7 +320,7 @@ class TestCurrencyConversion:
             "date": today,
         }, headers=auth(pm_token))
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert data["converted"] == pytest.approx(1090.0, rel=0.01)
         assert data["rate"] == pytest.approx(1.09, rel=0.01)
 
@@ -332,7 +332,7 @@ class TestCurrencyConversion:
             headers=auth(pm_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert data["converted"] == 500
         assert data["rate"] == 1.0
 

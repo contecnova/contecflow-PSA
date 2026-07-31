@@ -12,6 +12,7 @@ from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIResponse
 from app.services.service_desk.asset_service import (
     asset_stats_payload,
     assign_asset_record,
@@ -119,7 +120,7 @@ def list_assets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return list_assets_payload(db, asset_type, status, assigned_user_id, search, page, page_size)
+    return APIResponse.ok(data=list_assets_payload(db, asset_type, status, assigned_user_id, search, page, page_size))
 
 
 @router.get("/by-ci/{ci_id}", summary="Listar activos vinculados a un CI")
@@ -129,7 +130,7 @@ def list_assets_by_ci(
     current_user: User = Depends(get_current_user),
 ):
     _ = current_user
-    return list_assets_by_ci_payload(db, ci_id)
+    return APIResponse.ok(data=list_assets_by_ci_payload(db, ci_id))
 
 
 @router.post("", summary="Crear nuevo activo")
@@ -141,7 +142,7 @@ def create_asset(
     asset = create_asset_record(db, payload)
     db.commit()
     db.refresh(asset)
-    return asset_out(asset)
+    return APIResponse.ok(data=asset_out(asset))
 
 
 @router.get("/stats", summary="Estadísticas de activos por tipo y estado")
@@ -149,7 +150,7 @@ def get_asset_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return asset_stats_payload(db)
+    return APIResponse.ok(data=asset_stats_payload(db))
 
 
 @router.get("/lifecycle", summary="Dashboard de ciclo de vida: expiración, depreciación, licencias")
@@ -157,7 +158,7 @@ def get_lifecycle(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_lifecycle_dashboard(db)
+    return APIResponse.ok(data=get_lifecycle_dashboard(db))
 
 
 @router.get("/expiring", summary="Activos con warranty/EOL/lease próximo a vencer")
@@ -166,7 +167,7 @@ def get_expiring(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return {"items": get_expiring_soon(db, days=days), "days_window": days}
+    return APIResponse.ok(data={"items": get_expiring_soon(db, days=days), "days_window": days})
 
 
 @router.get("/license-audit", summary="Auditoría de licencias: seats vs uso")
@@ -204,7 +205,7 @@ def get_license_audit(
     items.sort(key=lambda x: x["utilization_pct"])
     total_seats = sum(i["license_seats"] for i in items)
     total_used = sum(i["license_used"] for i in items)
-    return {
+    return APIResponse.ok(data={
         "items": items,
         "summary": {
             "total_licenses": len(items),
@@ -214,7 +215,7 @@ def get_license_audit(
             "over_licensed_count": sum(1 for i in items if i["status"] == "over_licensed"),
             "under_licensed_count": sum(1 for i in items if i["status"] == "under_licensed"),
         },
-    }
+    })
 
 
 @router.get("/software-audit", summary="Auditoría de software instalado vs licenciado")
@@ -256,7 +257,7 @@ def get_software_audit(
             "asset_id": asset.id,
         })
 
-    return {"audit_rows": rows, "total": len(rows)}
+    return APIResponse.ok(data={"audit_rows": rows, "total": len(rows)})
 
 
 @router.get("/{asset_id}", summary="Detalle de un activo con historial")
@@ -265,7 +266,7 @@ def get_asset(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_asset_detail_payload(db, asset_id)
+    return APIResponse.ok(data=get_asset_detail_payload(db, asset_id))
 
 
 @router.put("/{asset_id}", summary="Actualizar activo con historial de cambios")
@@ -278,7 +279,7 @@ def update_asset(
     asset = update_asset_record(db, asset_id, payload, changed_by=current_user.id)
     db.commit()
     db.refresh(asset)
-    return asset_out(asset)
+    return APIResponse.ok(data=asset_out(asset))
 
 
 @router.delete("/{asset_id}", summary="Retirar activo (marca como retired)")
@@ -290,7 +291,7 @@ def retire_asset(
     enforce_abac(db, current_user, "sd_asset", asset_id, action="delete")
     asset = retire_asset_record(db, asset_id, changed_by=current_user.id)
     db.commit()
-    return {"status": "retired", "asset_id": asset_id, "code": asset.code}
+    return APIResponse.ok(data={"status": "retired", "asset_id": asset_id, "code": asset.code})
 
 
 @router.post("/{asset_id}/assign", summary="Asignar activo a un usuario")
@@ -304,7 +305,7 @@ def assign_asset(
         db, asset_id, payload.user_id, changed_by=current_user.id, notes=payload.notes
     )
     db.commit()
-    return {"status": "assigned", "asset_id": asset_id, "assigned_to": user_name}
+    return APIResponse.ok(data={"status": "assigned", "asset_id": asset_id, "assigned_to": user_name})
 
 
 @router.get("/{asset_id}/depreciation", summary="Calcular depreciación actual del activo")
@@ -315,7 +316,7 @@ def get_depreciation(
 ):
     asset = get_asset_or_404(db, asset_id)
     estimated_value = calculate_depreciation(asset)
-    return {
+    return APIResponse.ok(data={
         "asset_id": asset_id,
         "code": asset.code,
         "purchase_price": asset.purchase_price,
@@ -323,7 +324,7 @@ def get_depreciation(
         "depreciation_type": asset.depreciation_type,
         "depreciation_rate": asset.depreciation_rate,
         "estimated_current_value": estimated_value,
-    }
+    })
 
 
 @router.post("/{asset_id}/refresh-ticket", summary="Crear ticket de renovación/reemplazo del activo")
@@ -334,4 +335,4 @@ def create_asset_refresh_ticket(
 ):
     result = create_refresh_ticket(db, asset_id, acting_user_id=current_user.id)
     db.commit()
-    return result
+    return APIResponse.ok(data=result)

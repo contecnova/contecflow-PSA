@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.models.resources import ChangeRequest
 from app.services import change_service
@@ -122,7 +122,7 @@ def get_change_requests(
     current_user: User = Depends(get_current_user),
 ):
     crs = change_service.list_by_project(db, project_id, status=status)
-    return {
+    return APIResponse.ok(data={
         "change_requests": [ChangeRequestOut.from_orm_obj(cr).model_dump() for cr in crs],
         "summary": {
             "total": len(crs),
@@ -131,7 +131,7 @@ def get_change_requests(
             "total_cost_impact": sum(cr.cost_impact or 0 for cr in crs if cr.status == "approved"),
             "total_schedule_impact": sum(cr.schedule_impact_days or 0 for cr in crs if cr.status == "approved"),
         }
-    }
+    })
 
 
 @router.post("/{project_id}", summary="Crear solicitud de cambio")
@@ -147,7 +147,7 @@ def create_change_request(
         requested_by=current_user.id,
         **payload.model_dump(),
     )
-    return ChangeRequestOut.from_orm_obj(cr).model_dump()
+    return APIResponse.ok(data=ChangeRequestOut.from_orm_obj(cr).model_dump())
 
 
 @router.patch("/{project_id}/{cr_id}", summary="Actualizar CR")
@@ -164,7 +164,7 @@ def update_change_request(
     if cr.status not in ["draft", "submitted"]:
         raise HTTPException(400, "Solo se pueden editar CRs en borrador o enviadas")
     cr = change_service.update_change_request(db, cr, **payload.model_dump(exclude_unset=True))
-    return ChangeRequestOut.from_orm_obj(cr).model_dump()
+    return APIResponse.ok(data=ChangeRequestOut.from_orm_obj(cr).model_dump())
 
 
 @router.post("/{project_id}/{cr_id}/submit", summary="Enviar CR para revisión")
@@ -180,7 +180,7 @@ def submit_cr(
     if cr.status != "draft":
         raise HTTPException(400, "Solo se pueden enviar CRs en borrador")
     cr = change_service.submit_change_request(db, cr)
-    return {"message": "CR enviada para revisión", "status": cr.status}
+    return APIResponse.ok(data={"message": "CR enviada para revisión", "status": cr.status})
 
 
 @router.post("/{project_id}/{cr_id}/review", summary="Aprobar o rechazar CR")
@@ -202,7 +202,7 @@ def review_cr(
         reviewer_id=current_user.id,
         resolution_notes=payload.resolution_notes,
     )
-    return {"message": "CR aprobada" if payload.approved else "CR rechazada", "status": cr.status}
+    return APIResponse.ok(data={"message": "CR aprobada" if payload.approved else "CR rechazada", "status": cr.status})
 
 
 @router.post("/{project_id}/{cr_id}/implement", summary="Marcar CR como implementada")
@@ -218,7 +218,7 @@ def implement_cr(
     if cr.status != "approved":
         raise HTTPException(400, "Solo se pueden implementar CRs aprobadas")
     change_service.implement_change_request(db, cr)
-    return {"message": "CR marcada como implementada"}
+    return APIResponse.ok(data={"message": "CR marcada como implementada"})
 
 
 @router.delete("/{project_id}/{cr_id}", summary="Eliminar CR")
@@ -236,4 +236,4 @@ def delete_cr(
         change_service.delete_change_request(db, cr)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return {"ok": True, "message": "Solicitud de cambio eliminada correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Solicitud de cambio eliminada correctamente"})

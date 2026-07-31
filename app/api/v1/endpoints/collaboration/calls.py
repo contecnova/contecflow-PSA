@@ -16,7 +16,7 @@ from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import _org, assert_conversation_access
 from app.services.collaboration.livekit import issue_access_token, url as lk_url
 from app.services.traffic_control_service import consume_quota
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter()
 
@@ -28,7 +28,7 @@ def _room_name(call_id: str) -> str:
     return f"contec-{call_id}"
 
 
-@router.post("/calls/start", response_model=CallTokenOut, summary="Iniciar llamada")
+@router.post("/calls/start", response_model=APIResponse[CallTokenOut], summary="Iniciar llamada")
 def start_call(payload: CallStartIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     assert_conversation_access(db, current_user, payload.conversation_id)
     org = _org(current_user)
@@ -70,14 +70,14 @@ def start_call(payload: CallStartIn, current_user: User = Depends(get_current_us
         room=call.livekit_room, identity=str(current_user.id),
         name=current_user.full_name or current_user.username or current_user.email,
     )
-    return CallTokenOut(
+    return APIResponse.ok(data=CallTokenOut(
         call_id=call.id, livekit_url=lk_url(),
         livekit_room=call.livekit_room, livekit_token=token,
         kind=call.kind, role="host",
-    )
+    ))
 
 
-@router.post("/calls/{call_id}/join", response_model=CallTokenOut, summary="Unirse a llamada")
+@router.post("/calls/{call_id}/join", response_model=APIResponse[CallTokenOut], summary="Unirse a llamada")
 def join_call(call_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org = _org(current_user)
     quota = consume_quota(
@@ -114,11 +114,11 @@ def join_call(call_id: str, current_user: User = Depends(get_current_user), db: 
         room=call.livekit_room, identity=str(current_user.id),
         name=current_user.full_name or current_user.username or current_user.email,
     )
-    return CallTokenOut(
+    return APIResponse.ok(data=CallTokenOut(
         call_id=call.id, livekit_url=lk_url(),
         livekit_room=call.livekit_room, livekit_token=token,
         kind=call.kind, role="participant",
-    )
+    ))
 
 
 @router.post("/calls/{call_id}/leave", summary="Salir de llamada")
@@ -130,7 +130,7 @@ def leave_call(call_id: str, current_user: User = Depends(get_current_user), db:
     if p:
         p.left_at = utcnow()
         db.commit()
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.post("/calls/{call_id}/end", summary="Cerrar llamada")
@@ -140,7 +140,7 @@ def end_call(call_id: str, current_user: User = Depends(get_current_user), db: S
     if not call:
         raise HTTPException(404, "Llamada no encontrada")
     if call.status == "ended":
-        return {"ok": True}
+        return APIResponse.ok(data={"ok": True})
     now = utcnow()
     call.status = "ended"
     call.ended_at = now
@@ -156,7 +156,7 @@ def end_call(call_id: str, current_user: User = Depends(get_current_user), db: S
     from app.services.collaboration._queue import task_queue
     from app.services.collaboration import bots as bot_svc
     task_queue.enqueue(bot_svc.summarize_call, call_id, org)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.post("/calls/{call_id}/recording/start", summary="Iniciar grabación")
@@ -179,10 +179,10 @@ def start_recording(call_id: str, current_user: User = Depends(get_current_user)
         action="call.recording_started", entity_type="call", entity_id=call_id, payload={},
     )
     db.commit()
-    return {"recording_id": rec.id}
+    return APIResponse.ok(data={"recording_id": rec.id})
 
 
-@router.get("/calls/{call_id}", response_model=CallSummaryOut, summary="Resumen llamada")
+@router.get("/calls/{call_id}", response_model=APIResponse[CallSummaryOut], summary="Resumen llamada")
 def get_call(call_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org = _org(current_user)
     call = db.query(CollaborationCall).filter(CollaborationCall.id == call_id, CollaborationCall.organization_id == org).first()
@@ -191,7 +191,7 @@ def get_call(call_id: str, current_user: User = Depends(get_current_user), db: S
     assert_conversation_access(db, current_user, call.conversation_id)
     transcript = db.query(CollaborationTranscript).filter(CollaborationTranscript.call_id == call_id).first()
     parts = db.query(CollaborationCallParticipant).filter(CollaborationCallParticipant.call_id == call_id).all()
-    return CallSummaryOut(
+    return APIResponse.ok(data=CallSummaryOut(
         id=call.id, conversation_id=call.conversation_id, kind=call.kind, status=call.status,
         started_at=call.started_at, ended_at=call.ended_at, duration_seconds=call.duration_seconds,
         is_recorded=call.is_recorded, has_transcript=call.has_transcript, has_summary=call.has_summary,
@@ -199,7 +199,7 @@ def get_call(call_id: str, current_user: User = Depends(get_current_user), db: S
         actions=transcript.actions_json if transcript else [],
         participants=[{"user_id": p.user_id, "client_user_id": p.client_user_id, "role": p.role,
                        "joined_at": p.joined_at, "left_at": p.left_at} for p in parts],
-    )
+    ))
 
 
 @router.post("/calls/{call_id}/transcribe-chunk", summary="Subir chunk de audio para transcribir (Whisper)")

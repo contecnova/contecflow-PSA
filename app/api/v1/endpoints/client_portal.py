@@ -824,11 +824,11 @@ def get_portal_translations(
     org_id = _org_key(current_user)
     branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
     if not branding or not branding.portal_translations:
-        return {}
+        return APIResponse.ok(data={})
     try:
-        return json.loads(branding.portal_translations)
+        return APIResponse.ok(data=json.loads(branding.portal_translations))
     except (ValueError, TypeError):
-        return {}
+        return APIResponse.ok(data={})
 
 
 @router.post("/translations", summary="Guardar traducciones personalizadas del portal")
@@ -854,7 +854,7 @@ def save_portal_translations(
     current.update(data)
     branding.portal_translations = json.dumps(current, ensure_ascii=False)
     db.commit()
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── AI Chat (I26) — cookie-auth para el widget flotante del portal ───────────

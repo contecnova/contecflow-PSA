@@ -151,7 +151,7 @@ def test_task_assignee_suggestion_requires_manual_confirmation(client, admin_tok
         },
     )
     assert r.status_code == 200, r.text
-    data = r.json()
+    data = r.json()["data"]
     assert data.get("requires_confirmation") is True
     assert isinstance(data.get("suggestion"), dict)
     assert "suggested_user_id" in data["suggestion"]

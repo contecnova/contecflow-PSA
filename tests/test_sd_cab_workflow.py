@@ -105,7 +105,7 @@ def test_sd_cab_workflow_endpoints_full_flow(client, admin_token, pm_token, dev_
         json={"manager_user_id": "pm-test-id", "cab_members": ["pm-test-id", "dev-test-id"], "quorum": 2},
     )
     assert start_res.status_code == 201, start_res.text
-    assert start_res.json()["ok"] is True
+    assert start_res.json()["data"]["ok"] is True
 
     meeting_res = client.post(
         f"/api/v1/sd/changes/{change_id}/cab/meeting",
@@ -130,7 +130,7 @@ def test_sd_cab_workflow_endpoints_full_flow(client, admin_token, pm_token, dev_
 
     status_res = client.get(f"/api/v1/sd/changes/{change_id}/cab/workflow", headers=auth(admin_token))
     assert status_res.status_code == 200, status_res.text
-    assert status_res.json()["status"] == "executor"
+    assert status_res.json()["data"]["status"] == "executor"
 
     exec_res = client.post(
         f"/api/v1/sd/changes/{change_id}/cab/executor",
@@ -138,12 +138,12 @@ def test_sd_cab_workflow_endpoints_full_flow(client, admin_token, pm_token, dev_
         json={"executor_user_id": "dev-test-id"},
     )
     assert exec_res.status_code == 200, exec_res.text
-    assert exec_res.json()["workflow"]["executor_user_id"] == "dev-test-id"
+    assert exec_res.json()["data"]["workflow"]["executor_user_id"] == "dev-test-id"
 
 
 def test_sd_cab_templates_endpoint(client, admin_token):
     res = client.get("/api/v1/sd/changes/cab/templates", headers=auth(admin_token))
     assert res.status_code == 200, res.text
-    payload = res.json()
+    payload = res.json()["data"]
     assert "testing_plan" in payload
     assert "comms_plan" in payload

@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import m365_bi_embed_service as svc
@@ -286,7 +287,7 @@ def m365_bi_status(
     sp_site = getattr(_s, "SHAREPOINT_SITE_ID", None)
     frontend = _frontend_base(db, getattr(current_user, "organization_id", None))
 
-    return {
+    return APIResponse.ok(data={
         "graph_configured": graph_ok,
         "teams_webhook_configured": webhook_ok,
         "sharepoint_site_id_configured": bool(sp_site),
@@ -302,4 +303,4 @@ def m365_bi_status(
             "word_export": True,
             "onedrive_upload": graph_ok,
         },
-    }
+    })

@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_conditional_delivery_service as svc
@@ -65,7 +66,7 @@ def list_rules(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_rules(db, org_id=org_id)
-    return {"items": items, "count": len(items)}
+    return APIResponse.ok(data={"items": items, "count": len(items)})
 
 
 @router.post("/bi/delivery/rules", summary="Crear regla de entrega condicional", status_code=201)
@@ -87,7 +88,7 @@ def create_rule(
         condition_operator = None
         condition_value = None
 
-    return svc.create_rule(
+    return APIResponse.ok(data=svc.create_rule(
         db,
         org_id=org_id,
         name=body.name,
@@ -100,7 +101,7 @@ def create_rule(
         schedule_cron=body.schedule or body.schedule_cron,
         enabled=body.enabled,
         created_by=current_user.id,
-    )
+    ))
 
 
 @router.patch("/bi/delivery/rules/{rule_id}", summary="Actualizar regla de entrega")
@@ -114,7 +115,7 @@ def update_rule(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.update_rule(db, org_id=org_id, rule_id=rule_id, updates=body.model_dump(exclude_none=True))
+        return APIResponse.ok(data=svc.update_rule(db, org_id=org_id, rule_id=rule_id, updates=body.model_dump(exclude_none=True)))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -147,12 +148,12 @@ def evaluate_rule(
     org_id = getattr(current_user, "organization_id", None)
     try:
         payload = body or EvaluateRuleIn()
-        return svc.evaluate_rule(
+        return APIResponse.ok(data=svc.evaluate_rule(
             db,
             org_id=org_id,
             rule_id=rule_id,
             current_data=payload.current_data,
             current_metric_value=payload.current_metric_value,
-        )
+        ))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

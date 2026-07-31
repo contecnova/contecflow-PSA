@@ -107,7 +107,7 @@ def list_messages(conversation_id: str, before: Optional[str] = None, limit: int
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.post("/messages", response_model=MessageOut, summary="Enviar mensaje (cliente)")
+@router.post("/messages", response_model=APIResponse[MessageOut], summary="Enviar mensaje (cliente)")
 def send_message(payload: MessageCreate, current_client: ClientUser = Depends(get_current_client), db: Session = Depends(get_db)):
     conv_id = payload.conversation_id
     if not conv_id:
@@ -167,7 +167,7 @@ def send_message(payload: MessageCreate, current_client: ClientUser = Depends(ge
         "type": "message.created", "conversation_id": conv_id, "message_id": msg.id,
         "payload": _serialize_message(db, msg),
     })
-    return MessageOut(**_serialize_message(db, msg))
+    return APIResponse.ok(data=MessageOut(**_serialize_message(db, msg)))
 
 
 @router.post("/messages/{message_id}/reactions", response_model=APIResponse[dict], summary="Toggle reacción (cliente)")
@@ -240,15 +240,15 @@ def mark_all_read(current_client: ClientUser = Depends(get_current_client), db: 
     return APIResponse.ok(data={"marked": n})
 
 
-@router.get("/search", response_model=SearchResponse, summary="Búsqueda en mis conversaciones")
+@router.get("/search", response_model=APIResponse[SearchResponse], summary="Búsqueda en mis conversaciones")
 def search(q: str = Query("", max_length=500), limit: int = Query(50, le=200),
            current_client: ClientUser = Depends(get_current_client), db: Session = Depends(get_db)):
     ids = list(_client_conversation_ids(db, current_client))
     if not ids:
-        return SearchResponse(hits=[], total=0)
+        return APIResponse.ok(data=SearchResponse(hits=[], total=0))
     from app.services.collaboration._search import search_engine
     hits = search_engine.search(
         db, organization_id=getattr(current_client, "organization_id", None),
         query=q, conversation_ids=ids, limit=limit,
     )
-    return SearchResponse(hits=[SearchHit(**h) for h in hits], total=len(hits))
+    return APIResponse.ok(data=SearchResponse(hits=[SearchHit(**h) for h in hits], total=len(hits)))

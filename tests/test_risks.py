@@ -8,14 +8,14 @@ def _create_project(client, token, code="RSK-01"):
         "start_date": "2025-01-01", "end_date": "2025-12-31",
     }, headers=auth(token))
     assert r.status_code in (200, 201)
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 def test_list_project_risks_empty(client, admin_token, db):
     pid = _create_project(client, admin_token)
     res = client.get(f"/api/v1/risks/{pid}", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "risks" in data
     assert isinstance(data["risks"], list)
 
@@ -30,7 +30,7 @@ def test_create_risk(client, admin_token, db):
         "mitigation": "Plan alternativo con tecnología probada",
     }, headers=auth(admin_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
     assert data["probability"] == "medium"
     assert data["impact"] == "major"
@@ -46,7 +46,7 @@ def test_risk_score_computed(client, admin_token, db):
         "mitigation": "Mitigación urgente",
     }, headers=auth(admin_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "risk_score" in data
     assert data["risk_score"] > 0
 
@@ -57,7 +57,7 @@ def test_update_risk(client, admin_token, db):
         "title": "Riesgo a actualizar",
         "probability": "low",
         "impact": "moderate",
-    }, headers=auth(admin_token)).json()
+    }, headers=auth(admin_token)).json()["data"]
     res = client.patch(f"/api/v1/risks/{pid}/{risk['id']}",
         json={"probability": "high", "status": "monitoring"},
         headers=auth(admin_token))
@@ -70,7 +70,7 @@ def test_delete_risk(client, admin_token, db):
         "title": "Riesgo a borrar",
         "probability": "low",
         "impact": "minor",
-    }, headers=auth(admin_token)).json()
+    }, headers=auth(admin_token)).json()["data"]
     res = client.delete(f"/api/v1/risks/{pid}/{risk['id']}", headers=auth(admin_token))
     assert res.status_code in (200, 204)
 
@@ -83,16 +83,16 @@ def test_delete_risk_is_soft_and_hidden_from_list(client, admin_token, db):
         "title": "Riesgo soft-delete",
         "probability": "medium",
         "impact": "major",
-    }, headers=auth(admin_token)).json()
+    }, headers=auth(admin_token)).json()["data"]
 
     deleted = client.delete(f"/api/v1/risks/{pid}/{risk['id']}", headers=auth(admin_token))
     assert deleted.status_code == 200
-    body = deleted.json()
+    body = deleted.json()["data"]
     assert body["ok"] is True
 
     listed = client.get(f"/api/v1/risks/{pid}", headers=auth(admin_token))
     assert listed.status_code == 200
-    listed_ids = {r["id"] for r in listed.json()["risks"]}
+    listed_ids = {r["id"] for r in listed.json()["data"]["risks"]}
     assert risk["id"] not in listed_ids
 
     row = db.query(Risk).filter(Risk.id == risk["id"]).first()

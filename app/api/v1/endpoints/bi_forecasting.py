@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_forecasting_service as svc
@@ -46,12 +47,12 @@ def get_forecast_metrics(
     request: Request,
     current_user: User = Depends(get_current_user),
 ):
-    return {
+    return APIResponse.ok(data={
         "metrics": svc.SUPPORTED_METRICS,
         "methods": svc.SUPPORTED_METHODS,
         "prophet_available": svc._PROPHET_AVAILABLE,
         "arima_available": svc._STATSMODELS_AVAILABLE,
-    }
+    })
 
 
 @router.post("/bi/forecast", summary="Ejecutar forecast para una serie de métricas")
@@ -108,7 +109,7 @@ def run_forecast(
             method=method,
             freq=body.freq,
         )
-        return result
+        return APIResponse.ok(data=result)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
@@ -133,8 +134,8 @@ def run_multi_forecast(
     for item in items:
         try:
             payload = run_forecast(request, item, db, current_user)
-            r = payload
+            r = payload.data
             results.append(r)
         except ValueError as exc:
             errors.append({"metric": item.metric, "error": str(exc)})
-    return {"results": results, "forecasts": results, "errors": errors, "total": len(results)}
+    return APIResponse.ok(data={"results": results, "forecasts": results, "errors": errors, "total": len(results)})

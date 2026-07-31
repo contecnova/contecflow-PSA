@@ -14,6 +14,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.service_desk.sd_reporting_service import (
     build_drilldown_report,
@@ -28,7 +29,7 @@ router = APIRouter(prefix="/sd/reports", tags=["sd-reports"])
 
 @router.get("/types", summary="Available report types")
 def list_report_types(_: User = Depends(get_current_user)):
-    return {"report_types": _REPORT_TYPES}
+    return APIListResponse.ok(items=_REPORT_TYPES)
 
 
 @router.post("/run", summary="Execute drill-down report")
@@ -37,7 +38,7 @@ def run_report(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return build_drilldown_report(
+    return APIResponse.ok(data=build_drilldown_report(
         db=db,
         report_type=body.get("report_type", "ticket_volume"),
         filters=body.get("filters", {}),
@@ -46,7 +47,7 @@ def run_report(
         group_by=body.get("group_by", "day"),
         page=int(body.get("page", 1)),
         page_size=int(body.get("page_size", 100)),
-    )
+    ))
 
 
 @router.get("/presets", summary="Get saved report presets")
@@ -55,7 +56,7 @@ def get_presets(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return {"presets": get_report_presets(db, org_id)}
+    return APIListResponse.ok(items=get_report_presets(db, org_id))
 
 
 @router.post("/presets", summary="Save a report preset")
@@ -65,7 +66,7 @@ def create_preset(
     _: User = Depends(get_current_user),
 ):
     org_id = body.get("org_id", "default")
-    return save_report_preset(db, org_id, body)
+    return APIResponse.ok(data=save_report_preset(db, org_id, body))
 
 
 @router.post("/export", summary="Export report to Excel")

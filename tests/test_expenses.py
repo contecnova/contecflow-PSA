@@ -29,7 +29,7 @@ def test_create_expense(client, admin_token, db):
               "category": "travel", "expense_date": "2025-03-15",
               "currency": "EUR"})
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
     assert data["code"] == "EXP-0001"
 
@@ -48,8 +48,8 @@ def test_expense_codes_use_transactional_sequence(client, admin_token, db):
 
     assert first.status_code in (200, 201)
     assert second.status_code in (200, 201)
-    assert first.json()["code"] == "EXP-0001"
-    assert second.json()["code"] == "EXP-0002"
+    assert first.json()["data"]["code"] == "EXP-0001"
+    assert second.json()["data"]["code"] == "EXP-0002"
 
     seq = db.query(NumberingSequence).filter(NumberingSequence.entity == "expense").first()
     assert seq is not None
@@ -69,7 +69,7 @@ def test_update_expense(client, admin_token, db):
         headers=auth(admin_token),
         json={"description": "Gasto editar", "amount": 50.0,
               "category": "meals", "expense_date": "2025-03-10"}
-    ).json()["id"]
+    ).json()["data"]["id"]
     res = client.patch(f"/api/v1/expenses/{exp_id}",
         headers=auth(admin_token),
         json={"amount": 65.0, "description": "Gasto editado"})
@@ -81,10 +81,10 @@ def test_delete_expense(client, admin_token, db):
         headers=auth(admin_token),
         json={"description": "Gasto borrar", "amount": 10.0,
               "category": "other", "expense_date": "2025-03-01"}
-    ).json()["id"]
+    ).json()["data"]["id"]
     res = client.delete(f"/api/v1/expenses/my/{exp_id}", headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert res.json()["data"]["ok"] is True
 
     mine = client.get("/api/v1/expenses/my", headers=auth(admin_token))
     assert mine.status_code == 200

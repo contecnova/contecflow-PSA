@@ -10,7 +10,7 @@ def _create_project(client, token, code="SPR-01"):
         "end_date": str(date.today() + timedelta(days=365)),
     }, headers=auth(token))
     assert r.status_code in (200, 201), f"No se pudo crear proyecto: {r.text}"
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 def test_list_sprints_empty(client, pm_token, db):
@@ -33,7 +33,7 @@ def test_create_sprint(client, pm_token, db):
         "end_date": end,
     }, headers=auth(pm_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
     assert data["name"] == "Sprint 1"
 
@@ -41,7 +41,7 @@ def test_create_sprint(client, pm_token, db):
 def test_update_sprint(client, pm_token, db):
     pid = _create_project(client, pm_token, code="SPR-02")
     sprint = client.post(f"/api/v1/sprints/{pid}/sprints",
-        json={"name": "Sprint Original"}, headers=auth(pm_token)).json()
+        json={"name": "Sprint Original"}, headers=auth(pm_token)).json()["data"]
     res = client.patch(f"/api/v1/sprints/{pid}/sprints/{sprint['id']}",
         json={"name": "Sprint Actualizado", "goal": "Nuevo objetivo"},
         headers=auth(pm_token))
@@ -54,7 +54,7 @@ def test_start_sprint(client, pm_token, db):
         json={"name": "Sprint para Iniciar",
               "start_date": str(date.today()),
               "end_date": str(date.today() + timedelta(days=14))},
-        headers=auth(pm_token)).json()
+        headers=auth(pm_token)).json()["data"]
     res = client.post(f"/api/v1/sprints/{pid}/sprints/{sprint['id']}/start",
         headers=auth(pm_token))
     assert res.status_code in (200, 400)  # 400 si ya hay sprint activo
@@ -70,7 +70,7 @@ def test_velocity_history_empty(client, pm_token, db):
     pid = _create_project(client, pm_token, code="SPR-05")
     res = client.get(f"/api/v1/sprints/{pid}/velocity", headers=auth(pm_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "sprints" in data
     assert "avg_velocity" in data
 
@@ -90,12 +90,12 @@ def test_sprint_task_remove_is_soft_and_reactivable(client, pm_token, db):
         f"/api/v1/sprints/{pid}/sprints",
         json={"name": "Sprint Soft Delete"},
         headers=auth(pm_token),
-    ).json()
+    ).json()["data"]
     task = client.post(
         "/api/v1/tasks",
         json={"title": "Task in sprint", "project_id": pid, "status": "todo", "priority": "medium"},
         headers=auth(pm_token),
-    ).json()
+    ).json()["data"]
 
     added = client.post(
         f"/api/v1/sprints/{pid}/sprints/{sprint['id']}/tasks",
@@ -103,14 +103,14 @@ def test_sprint_task_remove_is_soft_and_reactivable(client, pm_token, db):
         headers=auth(pm_token),
     )
     assert added.status_code == 200
-    assert added.json().get("added") == 1
+    assert added.json()["data"].get("added") == 1
 
     removed = client.delete(
         f"/api/v1/sprints/{pid}/sprints/{sprint['id']}/tasks/{task['id']}",
         headers=auth(pm_token),
     )
     assert removed.status_code == 200
-    assert removed.json().get("ok") is True
+    assert removed.json()["data"].get("ok") is True
 
     readded = client.post(
         f"/api/v1/sprints/{pid}/sprints/{sprint['id']}/tasks",
@@ -118,7 +118,7 @@ def test_sprint_task_remove_is_soft_and_reactivable(client, pm_token, db):
         headers=auth(pm_token),
     )
     assert readded.status_code == 200
-    assert readded.json().get("added") == 1
+    assert readded.json()["data"].get("added") == 1
 
 
 def test_sprint_requires_auth(client, db):

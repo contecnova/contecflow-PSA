@@ -16,7 +16,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.core.abac_enforce import enforce_abac
 from app.core.events import emit_event, EventType
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services import portfolio_service
 from app.services.portfolio_service import serialize_portfolio as _serialize_portfolio
@@ -63,7 +63,7 @@ def create_portfolio(payload: PortfolioIn, db: Session = Depends(get_db),
     p = portfolio_service.create_portfolio(db, owner_id=cu.id, data=payload.model_dump())
     emit_event(db, EventType.PORTFOLIO_CREATED, {"name": p.name, "status": p.status},
                actor=cu, resource_type="portfolio", resource_id=p.id)
-    return _serialize_portfolio(p)
+    return APIResponse.ok(data=_serialize_portfolio(p))
 
 
 @router.get("/{portfolio_id}", summary="Detalle de cartera")
@@ -72,7 +72,7 @@ def get_portfolio(portfolio_id: str, db: Session = Depends(get_db),
     p = portfolio_service.get_portfolio(db, portfolio_id)
     if not p:
         raise HTTPException(404, "Cartera no encontrada")
-    return _serialize_portfolio(p)
+    return APIResponse.ok(data=_serialize_portfolio(p))
 
 
 @router.patch("/{portfolio_id}", summary="Actualizar cartera")
@@ -85,7 +85,7 @@ def update_portfolio(portfolio_id: str, payload: PortfolioIn,
     p = portfolio_service.update_portfolio(db, p, payload.model_dump(exclude_unset=True))
     emit_event(db, EventType.PORTFOLIO_UPDATED, payload.model_dump(exclude_unset=True),
                actor=cu, resource_type="portfolio", resource_id=portfolio_id)
-    return _serialize_portfolio(p)
+    return APIResponse.ok(data=_serialize_portfolio(p))
 
 
 @router.delete("/{portfolio_id}", summary="Eliminar cartera")
@@ -102,7 +102,7 @@ def delete_portfolio(portfolio_id: str, db: Session = Depends(get_db),
         raise HTTPException(400, str(e))
     emit_event(db, EventType.PORTFOLIO_DELETED, {"name": name},
                actor=cu, resource_type="portfolio", resource_id=portfolio_id)
-    return {"ok": True, "message": "Cartera eliminada correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Cartera eliminada correctamente"})
 
 
 # ── Projects within portfolio ──────────────────────────────────────────────────
@@ -128,7 +128,7 @@ def add_project(portfolio_id: str, payload: PortfolioProjectIn,
     emit_event(db, EventType.PORTFOLIO_PROJECT_ADDED,
                {"portfolio_id": portfolio_id, "project_id": payload.project_id, "project_name": proj.name},
                actor=cu, resource_type="portfolio", resource_id=portfolio_id)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.delete("/{portfolio_id}/projects/{project_id}", summary="Quitar proyecto de la cartera")
@@ -143,7 +143,7 @@ def remove_project(portfolio_id: str, project_id: str,
     emit_event(db, EventType.PORTFOLIO_PROJECT_REMOVED,
                {"portfolio_id": portfolio_id, "project_id": project_id},
                actor=cu, resource_type="portfolio", resource_id=portfolio_id)
-    return {"ok": True, "message": "Proyecto eliminado de la cartera correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Proyecto eliminado de la cartera correctamente"})
 
 
 # ── Portfolio Dashboard ────────────────────────────────────────────────────────
@@ -212,7 +212,7 @@ def portfolio_dashboard(portfolio_id: str, db: Session = Depends(get_db),
 
     budget_envelope = port.budget_total or total_budget
 
-    return {
+    return APIResponse.ok(data={
         "portfolio_id":    portfolio_id,
         "portfolio_name":  port.name,
         "status":          port.status,
@@ -222,4 +222,4 @@ def portfolio_dashboard(portfolio_id: str, db: Session = Depends(get_db),
         "project_count":   len(projects_data),
         "health_counts":   health_counts,
         "projects":        projects_data,
-    }
+    })

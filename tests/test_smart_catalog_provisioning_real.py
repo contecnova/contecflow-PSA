@@ -95,7 +95,7 @@ def test_smart_catalog_provisioning_executes_ad_terraform_ansible(client, admin_
     )
     assert run_res.status_code == 200, run_res.text
 
-    out = run_res.json()
+    out = run_res.json()["data"]
     assert out["status"] == "completed"
     assert len(out["steps_executed"]) == 3
     assert all(step["status"] == "ok" for step in out["steps_executed"])
@@ -121,5 +121,5 @@ def test_smart_catalog_provisioning_skips_when_disabled(client, admin_token, db)
         json={"ticket_id": ticket_id, "service_item_id": service_id},
     )
     assert run_res.status_code == 200, run_res.text
-    out = run_res.json()
+    out = run_res.json()["data"]
     assert out["status"] == "skipped"

@@ -16,7 +16,7 @@ def test_create_absence(client, dev_token, db):
               "end_date": "2025-08-15",
               "reason": "Vacaciones verano"})
     assert res.status_code in (200, 201)
-    assert "id" in res.json()
+    assert "id" in res.json()["data"]
 
 
 def test_absence_overlap_same_user(client, dev_token, db):
@@ -34,7 +34,7 @@ def test_update_absence(client, dev_token, db):
     abs_id = client.post("/api/v1/absences/my",
         headers=auth(dev_token),
         json={"type": "sick", "start_date": "2025-10-01", "end_date": "2025-10-03"}
-    ).json()["id"]
+    ).json()["data"]["id"]
     res = client.patch(f"/api/v1/absences/my/{abs_id}",
         headers=auth(dev_token),
         json={"type": "sick", "start_date": "2025-10-01", "end_date": "2025-10-05"})
@@ -45,10 +45,10 @@ def test_delete_absence(client, dev_token, db):
     abs_id = client.post("/api/v1/absences/my",
         headers=auth(dev_token),
         json={"type": "other", "start_date": "2025-11-01", "end_date": "2025-11-02"}
-    ).json()["id"]
+    ).json()["data"]["id"]
     res = client.delete(f"/api/v1/absences/my/{abs_id}", headers=auth(dev_token))
     assert res.status_code == 200
-    payload = res.json()
+    payload = res.json()["data"]
     assert payload.get("ok") is True
 
     my_abs = client.get("/api/v1/absences/my", headers=auth(dev_token))

@@ -24,7 +24,7 @@ def test_workflow_designer_create_and_publish(client, admin_token, db):
         },
     )
     assert create.status_code in (200, 201), create.text
-    bp = create.json()
+    bp = create.json()["data"]
 
     publish = client.post(
         f"/api/v1/sd/workflow-designer/blueprints/{bp['id']}/publish/1",

@@ -11,7 +11,7 @@ def make_rule(client, token, name="Test Rule", trigger="task_overdue", actions=N
         "actions": actions,
     }, headers=auth(token))
     assert res.status_code in (200, 201)
-    return res.json()
+    return res.json()["data"]
 
 
 # ── List with filters ──────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ def test_list_automations_inactive_filter(client, pm_token, db):
 def test_run_scheduled_admin(client, admin_token, db):
     res = client.post("/api/v1/automations/run-scheduled", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "executed" in data
     assert "errors" in data
 
@@ -54,7 +54,7 @@ def test_test_rule(client, pm_token, db):
     rule = make_rule(client, pm_token, name="Testable Rule")
     res = client.post(f"/api/v1/automations/{rule['id']}/test", headers=auth(pm_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert data["ok"] is True
     assert "results" in data
 
@@ -70,7 +70,7 @@ def test_test_rule_with_notify_role_action(client, pm_token, db):
     ])
     res = client.post(f"/api/v1/automations/{rule['id']}/test", headers=auth(pm_token))
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert res.json()["data"]["ok"] is True
 
 
 def test_test_rule_with_notify_user_action(client, pm_token, db):
@@ -86,7 +86,7 @@ def test_test_rule_with_notify_user_action(client, pm_token, db):
 def test_automation_templates_structure(client, pm_token, db):
     res = client.get("/api/v1/automations/templates/list", headers=auth(pm_token))
     assert res.status_code == 200
-    templates = res.json()
+    templates = res.json()["items"]
     assert len(templates) >= 5
     for t in templates:
         assert "id" in t
@@ -102,7 +102,7 @@ def test_executions_after_test(client, pm_token, db):
     client.post(f"/api/v1/automations/{rule['id']}/test", headers=auth(pm_token))
     res = client.get(f"/api/v1/automations/{rule['id']}/executions", headers=auth(pm_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["items"]
     assert len(data) >= 1
     assert "executed_at" in data[0]
     assert "success" in data[0]
@@ -115,7 +115,7 @@ def test_executions_limit(client, pm_token, db):
         client.post(f"/api/v1/automations/{rule['id']}/test", headers=auth(pm_token))
     res = client.get(f"/api/v1/automations/{rule['id']}/executions?limit=2", headers=auth(pm_token))
     assert res.status_code == 200
-    assert len(res.json()) <= 2
+    assert len(res.json()["items"]) <= 2
 
 
 # ── Rule with project scope ────────────────────────────────────────────────
@@ -133,7 +133,7 @@ def test_create_automation_with_project(client, pm_token, db):
         "actions": [{"type": "create_alert", "params": {"title": "Overdue"}}],
     }, headers=auth(pm_token))
     assert res.status_code in (200, 201)
-    assert res.json()["project_id"] == project["id"]
+    assert res.json()["data"]["project_id"] == project["id"]
 
 
 def test_list_automations_by_project(client, pm_token, db):

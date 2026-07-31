@@ -48,7 +48,7 @@ def test_assets_by_ci_lists_linked_assets(client, admin_token):
 
     res = client.get(f"/api/v1/sd/assets/by-ci/{ci_id}", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert data["ci_id"] == ci_id
     assert data["count"] >= 1
     assert any(a["ci_id"] == ci_id for a in data["assets"])

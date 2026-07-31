@@ -15,11 +15,11 @@ def test_delete_bpmn_process_is_soft_and_hidden(client, pm_token, db):
         },
     )
     assert created.status_code in (200, 201)
-    pid = created.json()["id"]
+    pid = created.json()["data"]["id"]
 
     deleted = client.delete(f"/api/v1/bpmn-processes/{pid}", headers=auth(pm_token))
     assert deleted.status_code == 200
-    payload = deleted.json()
+    payload = deleted.json()["data"]
     assert payload.get("ok") is True
 
     listed = client.get("/api/v1/bpmn-processes", headers=auth(pm_token))

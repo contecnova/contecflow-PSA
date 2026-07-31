@@ -54,7 +54,7 @@ def test_m365_bi_status_unauthenticated(client):
 def test_m365_bi_status_returns_capabilities(client, admin_token):
     res = client.get("/api/v1/m365/bi/status", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "capabilities" in data
     assert "excel_export" in data["capabilities"]
     assert data["capabilities"]["excel_export"] is True

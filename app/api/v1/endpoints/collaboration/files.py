@@ -14,6 +14,7 @@ from app.models.collaboration import (
     CollaborationAttachment, CollaborationAttachmentVersion,
     CollaborationModerationCase,
 )
+from app.core.responses import APIResponse
 from app.schemas.collaboration import AttachmentOut
 from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import _org, assert_conversation_access
@@ -218,7 +219,7 @@ async def upload_new_version(
     )
 
 
-@router.get("/attachments/{attachment_id}", response_model=AttachmentOut, summary="Datos del adjunto")
+@router.get("/attachments/{attachment_id}", response_model=APIResponse[AttachmentOut], summary="Datos del adjunto")
 def get_attachment(attachment_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org = _org(current_user)
     att = db.query(CollaborationAttachment).filter(CollaborationAttachment.id == attachment_id, CollaborationAttachment.organization_id == org).first()
@@ -229,14 +230,14 @@ def get_attachment(attachment_id: str, current_user: User = Depends(get_current_
     preview_url = None
     if att.preview_status == "ready" and att.preview_key:
         preview_url = storage.signed_url(att.preview_key, ttl_seconds=3600)
-    return AttachmentOut(
+    return APIResponse.ok(data=AttachmentOut(
         id=att.id, name=att.name, mime_type=att.mime_type,
         size_bytes=att.size_bytes, storage_provider=att.storage_provider,
         av_status=att.av_status, dlp_status=att.dlp_status,
         is_quarantined=att.is_quarantined,
         download_url=download_url, preview_url=preview_url,
         created_at=att.created_at,
-    )
+    ))
 
 
 @router.get("/files/by-token/{token}", summary="Descargar archivo por token firmado")

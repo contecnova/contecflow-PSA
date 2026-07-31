@@ -6,11 +6,23 @@ from datetime import date, timedelta
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
 from app.services import profitability_service
 from app.schemas.milestones import MilestoneIn, MilestoneUpdate
 
 router = APIRouter()
+
+
+def _milestone_out(m) -> dict:
+    return {
+        "id": m.id, "name": m.name, "description": m.description,
+        "due_date": str(m.due_date) if m.due_date else None,
+        "completed_date": str(m.completed_date) if m.completed_date else None,
+        "billing_amount": m.billing_amount, "billing_pct": m.billing_pct,
+        "is_billed": m.is_billed, "billed_at": str(m.billed_at) if m.billed_at else None,
+        "is_completed": m.is_completed, "sort_order": m.sort_order,
+    }
 
 
 @router.get("/summary", summary="Rentabilidad de todos los proyectos")
@@ -46,7 +58,7 @@ def get_profitability_summary(
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
 
-    return {
+    return APIResponse.ok(data={
         "projects": sorted(results, key=lambda x: x["gross_margin"]),
         "portfolio": {
             "total_revenue": round(total_revenue, 2),
@@ -56,7 +68,7 @@ def get_profitability_summary(
             "project_count": len(results),
             "billable_projects": sum(1 for r in results if r["is_billable"]),
         },
-    }
+    })
 
 
 @router.get("/projects", summary="Lista de proyectos con datos de rentabilidad (para dashboards)")
@@ -87,7 +99,7 @@ def get_profitability_projects(
         for p in projects
     ]
 
-    return sorted(results, key=lambda x: -(x.get("gross_margin") or 0))
+    return APIListResponse.ok(items=sorted(results, key=lambda x: -(x.get("gross_margin") or 0)))
 
 
 @router.get("/{project_id}", summary="Rentabilidad detallada de un proyecto")
@@ -149,7 +161,7 @@ def get_project_profitability(
         "billed_at": str(m.billed_at) if m.billed_at else None,
     } for m in milestones]
 
-    return base
+    return APIResponse.ok(data=base)
 
 
 # ── Milestones ────────────────────────────────────────────────────────────────
@@ -166,12 +178,7 @@ def get_milestones(
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
     milestones = profitability_service.list_milestones(db, project_id)
-    return [{"id": m.id, "name": m.name, "description": m.description,
-             "due_date": str(m.due_date) if m.due_date else None,
-             "completed_date": str(m.completed_date) if m.completed_date else None,
-             "billing_amount": m.billing_amount, "billing_pct": m.billing_pct,
-             "is_billed": m.is_billed, "billed_at": str(m.billed_at) if m.billed_at else None,
-             "is_completed": m.is_completed, "sort_order": m.sort_order} for m in milestones]
+    return APIListResponse.ok(items=[_milestone_out(m) for m in milestones])
 
 
 @router.post("/{project_id}/milestones", summary="Crear hito")
@@ -183,7 +190,8 @@ def create_milestone(
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
-    return profitability_service.create_milestone(db, project_id, payload.model_dump())
+    m = profitability_service.create_milestone(db, project_id, payload.model_dump())
+    return APIResponse.ok(data=_milestone_out(m))
 
 
 @router.patch("/{project_id}/milestones/{milestone_id}", summary="Actualizar hito")
@@ -199,7 +207,8 @@ def update_milestone(
     m = profitability_service.get_milestone(db, milestone_id, project_id)
     if not m:
         raise HTTPException(404, "Hito no encontrado")
-    return profitability_service.update_milestone(db, m, payload.model_dump(exclude_unset=True))
+    m = profitability_service.update_milestone(db, m, payload.model_dump(exclude_unset=True))
+    return APIResponse.ok(data=_milestone_out(m))
 
 
 @router.delete("/{project_id}/milestones/{milestone_id}", summary="Eliminar hito")
@@ -219,4 +228,4 @@ def delete_milestone(
         profitability_service.delete_milestone(db, m)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return {"ok": True, "message": "Hito eliminado correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Hito eliminado correctamente"})

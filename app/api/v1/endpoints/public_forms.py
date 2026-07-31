@@ -26,7 +26,7 @@ from app.core.ratelimit import limiter
 from app.models.user import User, UserRole
 from app.services import public_forms_service
 from app.services.public_forms_service import serialize_form as _form_out
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter(prefix="/forms", tags=["Public Forms"])
 log = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ def create_form(
         notify_emails=payload.notify_emails,
         created_by=current_user.id,
     )
-    return _form_out(form)
+    return APIResponse.ok(data=_form_out(form))
 
 
 @router.get("/{form_id}", summary="Detalle de formulario")
@@ -111,7 +111,7 @@ def get_form(form_id: str, db: Session = Depends(get_db), current_user: User = D
     form = public_forms_service.get_form_by_id(db, form_id)
     if not form:
         raise HTTPException(404, "Formulario no encontrado")
-    return _form_out(form)
+    return APIResponse.ok(data=_form_out(form))
 
 
 @router.patch("/{form_id}", summary="Actualizar formulario")
@@ -127,7 +127,7 @@ def update_form(
     if form.created_by != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(403, "Acceso denegado")
     form = public_forms_service.update_form(db, form, payload.model_dump(exclude_none=True))
-    return _form_out(form)
+    return APIResponse.ok(data=_form_out(form))
 
 
 @router.delete("/{form_id}", summary="Eliminar formulario")
@@ -139,7 +139,7 @@ def delete_form(form_id: str, db: Session = Depends(get_db), current_user: User 
         raise HTTPException(403, "Acceso denegado")
     enforce_abac(db, current_user, "public_form", form_id, action="delete")
     public_forms_service.delete_form(db, form)
-    return {"ok": True, "message": "Formulario eliminado correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Formulario eliminado correctamente"})
 
 
 @router.get("/{form_id}/submissions", summary="Envíos de un formulario")

@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.core.config import settings
 from app.services.psa_flows import create_capacity_plan_flow
@@ -92,10 +93,10 @@ def get_capacity_overview(
             "weeks": weeks_data,
         })
 
-    return {
+    return APIResponse.ok(data={
         "weeks": [str(w) for w in week_list],
         "users": result,
-    }
+    })
 
 
 @router.get("/plans", summary="Listar planes de capacidad")
@@ -108,7 +109,7 @@ def list_plans(
     current_user: User = Depends(require_any_manager),
 ):
     plans = capacity_service.list_capacity_plans(db, user_id, project_id, week_from, week_to)
-    return [{
+    return APIListResponse.ok(items=[{
         "id": p.id,
         "user_id": p.user_id,
         "user_name": p.user.full_name if p.user else "—",
@@ -118,7 +119,7 @@ def list_plans(
         "week_start": str(p.week_start),
         "planned_hours": p.planned_hours,
         "notes": p.notes,
-    } for p in plans]
+    } for p in plans])
 
 
 @router.get("/availability", summary="Disponibilidad de recursos para nuevos proyectos")
@@ -169,7 +170,7 @@ def get_availability(
             })
 
     result.sort(key=lambda x: x["avg_available_hours"], reverse=True)
-    return result
+    return APIListResponse.ok(items=result)
 
 
 # -- Board - vista de planificacion visual -----------------------------------
@@ -192,7 +193,7 @@ def get_capacity_board(
     project_ids = {p.project_id for p in plans if p.project_id}
     projects = capacity_service.get_project_names(db, project_ids)
 
-    return [
+    return APIListResponse.ok(items=[
         {
             "id":            p.id,
             "user_id":       p.user_id,
@@ -203,7 +204,7 @@ def get_capacity_board(
             "notes":         p.notes,
         }
         for p in plans
-    ]
+    ])
 
 
 @router.post("/plans", summary="Crear plan de capacidad")
@@ -229,8 +230,8 @@ def create_capacity_plan(
         project_id=payload.get("project_id") or None,
         notes=payload.get("notes"),
     )
-    return {"id": plan.id, "user_id": plan.user_id, "week_start": str(plan.week_start),
-            "planned_hours": plan.planned_hours, "project_id": plan.project_id}
+    return APIResponse.ok(data={"id": plan.id, "user_id": plan.user_id, "week_start": str(plan.week_start),
+            "planned_hours": plan.planned_hours, "project_id": plan.project_id})
 
 
 @router.patch("/plans/{plan_id}", summary="Mover o actualizar plan de capacidad")
@@ -244,7 +245,7 @@ def update_capacity_plan(
     if not plan:
         raise HTTPException(404)
     capacity_service.update_capacity_plan(db, plan, payload)
-    return {"ok": True, "id": plan.id}
+    return APIResponse.ok(data={"ok": True, "id": plan.id})
 
 
 @router.delete("/plans/{plan_id}", summary="Eliminar plan de capacidad")
@@ -258,7 +259,7 @@ def delete_capacity_plan(
         raise HTTPException(404)
     enforce_abac(db, current_user, "capacity_plan", plan_id, action="delete")
     capacity_service.delete_capacity_plan(db, plan)
-    return {"ok": True, "message": "Plan de capacidad eliminado correctamente"}
+    return APIResponse.ok(data={"ok": True, "message": "Plan de capacidad eliminado correctamente"})
 
 
 @router.get("/leveling", summary="Nivelacion de recursos -- detecta conflictos y sugiere redistribucion")
@@ -345,7 +346,7 @@ def get_resource_leveling(
                     if overload <= 0:
                         break
 
-    return {
+    return APIResponse.ok(data={
         "conflicts": conflicts,
         "suggestions": suggestions,
         "summary": {
@@ -353,4 +354,4 @@ def get_resource_leveling(
             "total_overload_hours": round(sum(c["overload_hours"] for c in conflicts), 2),
             "users_affected": len({c["user_id"] for c in conflicts}),
         },
-    }
+    })

@@ -11,6 +11,7 @@ from app.core.deps import get_current_user, require_any_manager
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIResponse, APIListResponse
 from app.core.tenancy import org_scoped_or_404
 from app.models.workflow_designer import (
     WorkflowBlueprint, WorkflowBlueprintVersion,
@@ -50,23 +51,23 @@ class BlueprintCloneIn(BaseModel):
 
 @router.get("/workflow-designer/schema", summary="Catálogo de tipos de nodo + tipos de proceso")
 def get_workflow_designer_schema(current_user: User = Depends(get_current_user)):
-    return {
+    return APIResponse.ok(data={
         "version": "2.0",
         "process_types": PROCESS_TYPES,
         "node_types": NODE_CATALOG,
-    }
+    })
 
 
 @router.get("/workflow-designer/templates", summary="Plantillas pre-construidas")
 def list_templates(current_user: User = Depends(get_current_user)):
-    return builtin_templates()
+    return APIListResponse.ok(items=builtin_templates())
 
 
 @router.post("/workflow-designer/validate", summary="Validar grafo de workflow")
 def validate_workflow_graph(
     graph: dict = Body(...), current_user: User = Depends(require_any_manager)
 ):
-    return validate_graph(graph)
+    return APIResponse.ok(data=validate_graph(graph))
 
 
 @router.get("/workflow-designer/blueprints", summary="Listar blueprints de workflow")
@@ -83,7 +84,7 @@ def list_blueprints(
         q = q.filter(WorkflowBlueprint.process_type == process_type)
     if not include_archived:
         q = q.filter(WorkflowBlueprint.is_active == True)  # noqa: E712
-    return [serialize_blueprint(bp) for bp in q.all()]
+    return APIListResponse.ok(items=[serialize_blueprint(bp) for bp in q.all()])
 
 
 @router.post("/workflow-designer/blueprints", summary="Crear blueprint de workflow")
@@ -106,7 +107,7 @@ def create_workflow_blueprint(
     )
     db.commit()
     db.refresh(bp)
-    return serialize_blueprint(bp)
+    return APIResponse.ok(data=serialize_blueprint(bp))
 
 
 @router.get("/workflow-designer/blueprints/{blueprint_id}", summary="Detalle blueprint + versiones")
@@ -116,7 +117,7 @@ def get_blueprint(
 ):
     bp = org_scoped_or_404(db, WorkflowBlueprint, blueprint_id, current_user, detail="Blueprint not found")
     versions = [serialize_version(v) for v in bp.versions]
-    return {"blueprint": serialize_blueprint(bp), "versions": versions}
+    return APIResponse.ok(data={"blueprint": serialize_blueprint(bp), "versions": versions})
 
 
 @router.post("/workflow-designer/blueprints/{blueprint_id}/versions", summary="Añadir versión de blueprint")
@@ -134,7 +135,7 @@ def create_blueprint_version(
     version = add_blueprint_version(db, bp, payload.graph, current_user.id)
     db.commit()
     db.refresh(version)
-    return serialize_version(version)
+    return APIResponse.ok(data=serialize_version(version))
 
 
 @router.post("/workflow-designer/blueprints/{blueprint_id}/publish/{version}", summary="Publicar versión de blueprint")
@@ -158,7 +159,7 @@ def publish_blueprint_version(
 
     publish_version(db, bp, target)
     db.commit()
-    return {"ok": True, "blueprint_id": blueprint_id, "published_version": version}
+    return APIResponse.ok(data={"ok": True, "blueprint_id": blueprint_id, "published_version": version})
 
 
 @router.post("/workflow-designer/blueprints/{blueprint_id}/clone", summary="Clonar blueprint")
@@ -185,7 +186,7 @@ def clone_blueprint(
     )
     db.commit()
     db.refresh(bp)
-    return serialize_blueprint(bp)
+    return APIResponse.ok(data=serialize_blueprint(bp))
 
 
 @router.delete("/workflow-designer/blueprints/{blueprint_id}", summary="Archivar blueprint (soft delete)")
@@ -197,7 +198,7 @@ def delete_blueprint(
     bp = org_scoped_or_404(db, WorkflowBlueprint, blueprint_id, current_user, detail="Blueprint not found")
     archive_blueprint(db, bp)
     db.commit()
-    return {"ok": True, "archived": True}
+    return APIResponse.ok(data={"ok": True, "archived": True})
 
 
 # ── Runtime: ejecuciones ─────────────────────────────────────────────────────
@@ -232,10 +233,10 @@ def start_run(
         raise HTTPException(400, str(exc))
     db.commit()
     db.refresh(run)
-    return {
+    return APIResponse.ok(data={
         "run": engine.serialize_run(run),
         "steps": [engine.serialize_step(s) for s in run.steps],
-    }
+    })
 
 
 @router.get("/workflow-designer/runs", summary="Listar ejecuciones")
@@ -250,7 +251,7 @@ def list_runs(
         q = q.filter(WorkflowRun.blueprint_id == blueprint_id)
     if status:
         q = q.filter(WorkflowRun.status == status)
-    return [engine.serialize_run(r) for r in q.limit(limit).all()]
+    return APIListResponse.ok(items=[engine.serialize_run(r) for r in q.limit(limit).all()])
 
 
 @router.get("/workflow-designer/runs/{run_id}", summary="Detalle de ejecución + historial")
@@ -261,10 +262,10 @@ def get_run(
     run = db.query(WorkflowRun).filter(WorkflowRun.id == run_id).first()
     if not run:
         raise HTTPException(404, "Run not found")
-    return {
+    return APIResponse.ok(data={
         "run": engine.serialize_run(run),
         "steps": [engine.serialize_step(s) for s in run.steps],
-    }
+    })
 
 
 @router.post("/workflow-designer/runs/{run_id}/resume", summary="Reanudar ejecución pausada (aprobación / wait)")
@@ -284,10 +285,10 @@ def resume_run(
         raise HTTPException(400, str(exc))
     db.commit()
     db.refresh(run)
-    return {
+    return APIResponse.ok(data={
         "run": engine.serialize_run(run),
         "steps": [engine.serialize_step(s) for s in run.steps],
-    }
+    })
 
 
 @router.post("/workflow-designer/runs/{run_id}/cancel", summary="Cancelar ejecución")
@@ -301,4 +302,4 @@ def cancel_run(
         raise HTTPException(404, "Run not found")
     engine.cancel_run(db, run, reason=reason)
     db.commit()
-    return {"ok": True, "run": engine.serialize_run(run)}
+    return APIResponse.ok(data={"ok": True, "run": engine.serialize_run(run)})

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_any_manager
+from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.service_desk_ai_governance import SDAIEvaluationRun, SDAIDriftSnapshot
 from app.models.settings import AppSetting
@@ -55,7 +56,7 @@ def list_ai_evaluations(
     if org_id:
         q = q.filter(SDAIEvaluationRun.organization_id == org_id)
     items = q.order_by(SDAIEvaluationRun.created_at.desc()).limit(limit).all()
-    return [
+    return APIListResponse.ok(items=[
         {
             "id": x.id,
             "model_name": x.model_name,
@@ -67,7 +68,7 @@ def list_ai_evaluations(
             "created_at": x.created_at,
         }
         for x in items
-    ]
+    ])
 
 
 @router.post("/governance/ai/evaluations", summary="Registrar evaluación offline de IA")
@@ -89,7 +90,7 @@ def create_ai_evaluation(
     db.add(row)
     db.commit()
     db.refresh(row)
-    return {"ok": True, "id": row.id}
+    return APIResponse.ok(data={"ok": True, "id": row.id})
 
 
 @router.get("/governance/ai/drift", summary="Listar snapshots de deriva por tenant")
@@ -105,7 +106,7 @@ def list_ai_drift(
     if model_name:
         q = q.filter(SDAIDriftSnapshot.model_name == model_name)
     items = q.order_by(SDAIDriftSnapshot.measured_at.desc()).limit(limit).all()
-    return [
+    return APIListResponse.ok(items=[
         {
             "id": x.id,
             "model_name": x.model_name,
@@ -116,7 +117,7 @@ def list_ai_drift(
             "measured_at": x.measured_at,
         }
         for x in items
-    ]
+    ])
 
 
 @router.post("/governance/ai/drift", summary="Registrar snapshot de deriva")
@@ -142,12 +143,12 @@ def create_ai_drift_snapshot(
     db.add(row)
     db.commit()
     db.refresh(row)
-    return {"ok": True, "id": row.id, "status": status}
+    return APIResponse.ok(data={"ok": True, "id": row.id, "status": status})
 
 
 @router.get("/governance/metrics/catalog", summary="Catálogo estándar de métricas operativas")
 def get_metrics_catalog(current_user: User = Depends(get_current_user)):
-    return {"items": _DEFAULT_METRIC_CATALOG}
+    return APIListResponse.ok(items=_DEFAULT_METRIC_CATALOG)
 
 
 @router.get("/governance/quality-contract", summary="Contrato de calidad por release")
@@ -157,16 +158,16 @@ def get_quality_contract(
     org_id = getattr(current_user, "organization_id", None)
     row = db.query(AppSetting).filter(AppSetting.organization_id == org_id, AppSetting.key == _quality_key()).first()
     if not row or not row.value:
-        return {
+        return APIResponse.ok(data={
             "minimum_tests_pass_rate": 0.98,
             "max_p1_open": 0,
             "max_regression_bugs": 3,
             "required_checks": ["unit", "integration", "e2e_critical", "security_scan"],
-        }
+        })
     try:
-        return json.loads(row.value)
+        return APIResponse.ok(data=json.loads(row.value))
     except Exception:
-        return {"raw": row.value}
+        return APIResponse.ok(data={"raw": row.value})
 
 
 @router.put("/governance/quality-contract", summary="Actualizar contrato de calidad por release")
@@ -187,4 +188,4 @@ def put_quality_contract(
     else:
         row.value = json.dumps(payload)
     db.commit()
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})

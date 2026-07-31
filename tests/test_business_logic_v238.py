@@ -33,7 +33,7 @@ def _upsert_rate(client, token, from_c="EUR", to_c="USD", rate=1.08, eff=None):
     r = client.post("/api/v1/currency/rates", json=body, headers=auth(token))
     assert r.status_code in (200, 201), r.text
     # bookings.py returns {"ok": True}, v238_features.py (eliminado) retornaba {"id": ..., "rate": ...}
-    return r.json()
+    return r.json()["data"]
 
 
 # ─── 1. Multi-currency ─────────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ class TestMultiCurrency:
                        params={"amount": 100, "from_currency": "EUR", "to_currency": "EUR"},
                        headers=auth(admin_token))
         assert r.status_code == 200
-        data = r.json()
+        data = r.json()["data"]
         assert data["rate"] == 1.0
         assert data["converted"] == 100.0
 
@@ -80,7 +80,7 @@ class TestMultiCurrency:
                        params={"amount": 100, "from_currency": "EUR", "to_currency": "USD"},
                        headers=auth(admin_token))
         assert r.status_code == 200
-        data = r.json()
+        data = r.json()["data"]
         assert abs(data["converted"] - 108.0) < 0.01
         assert "rate_id" in data
         assert data["rate_id"]
@@ -130,7 +130,7 @@ class TestMultiCurrency:
                        params={"base_currency": "EUR"},
                        headers=auth(admin_token))
         assert r.status_code == 200
-        data = r.json()
+        data = r.json()["data"]
         # actual key is report_currency
         assert "report_currency" in data or "base_currency" in data
 
@@ -246,15 +246,15 @@ class TestAutomationsV238:
         r = client.get("/api/v1/automations/trigger-types", headers=auth(admin_token))
         assert r.status_code == 200
         data = r.json()
-        # Response: {"triggers": [{"type": ..., "label": ...}, ...]}
-        triggers = data.get("triggers", data) if isinstance(data, dict) else data
+        # Envelope canónico: {"items": [{"type": ..., "label": ...}, ...], "meta": ...}
+        triggers = data["items"]
         keys = [t["type"] for t in triggers]
         assert "custom_field_changed" in keys
 
     def test_trigger_types_contains_opportunity_stage_changed(self, client, admin_token, db):
         r = client.get("/api/v1/automations/trigger-types", headers=auth(admin_token))
         data = r.json()
-        triggers = data.get("triggers", data) if isinstance(data, dict) else data
+        triggers = data["items"]
         keys = [t["type"] for t in triggers]
         assert "opportunity_stage_changed" in keys
 
@@ -262,22 +262,22 @@ class TestAutomationsV238:
         r = client.get("/api/v1/automations/action-types", headers=auth(admin_token))
         assert r.status_code == 200
         data = r.json()
-        # Response: {"actions": [{"type": ..., "label": ...}, ...]}
-        actions = data.get("actions", data) if isinstance(data, dict) else data
+        # Envelope canónico: {"items": [{"type": ..., "label": ...}, ...], "meta": ...}
+        actions = data["items"]
         keys = [a["type"] for a in actions]
         assert "create_jira_issue" in keys
 
     def test_action_types_contains_hubspot(self, client, admin_token, db):
         r = client.get("/api/v1/automations/action-types", headers=auth(admin_token))
         data = r.json()
-        actions = data.get("actions", data) if isinstance(data, dict) else data
+        actions = data["items"]
         keys = [a["type"] for a in actions]
         assert "create_hubspot_deal" in keys
 
     def test_trigger_types_all_have_label_and_description(self, client, admin_token, db):
         r = client.get("/api/v1/automations/trigger-types", headers=auth(admin_token))
         data = r.json()
-        triggers = data.get("triggers", data) if isinstance(data, dict) else data
+        triggers = data["items"]
         for t in triggers:
             assert "label" in t and t["label"]
             # type is the key field
@@ -286,7 +286,7 @@ class TestAutomationsV238:
     def test_action_types_all_have_label_and_description(self, client, admin_token, db):
         r = client.get("/api/v1/automations/action-types", headers=auth(admin_token))
         data = r.json()
-        actions = data.get("actions", data) if isinstance(data, dict) else data
+        actions = data["items"]
         for a in actions:
             assert "label" in a and a["label"]
             assert "type" in a and a["type"]
@@ -315,7 +315,7 @@ class TestBIV238:
             "date_to": str(date.today()),
         }, headers=auth(admin_token))
         assert r.status_code == 200
-        data = r.json()
+        data = r.json()["data"]
         # Response: {"metric": ..., "dimensions": ..., "results": [...], "total_rows": ...}
         assert "results" in data
         assert "total_rows" in data
@@ -342,7 +342,7 @@ class TestBIV238:
                                "value": str(date.today())[:7]},
                        headers=auth(admin_token))
         assert r.status_code == 200
-        data = r.json()
+        data = r.json()["data"]
         # Response: {"metric":...,"dimension":...,"value":...,"rows":[...],"page":1,...}
         assert "rows" in data
 
@@ -352,7 +352,7 @@ class TestBIV238:
             "active_filters": {"status": "active"},
         }, headers=auth(admin_token))
         assert r.status_code == 200
-        data = r.json()
+        data = r.json()["data"]
         # Response: {"active_filters": ..., "results": {"task_count": {...}}}
         assert "results" in data
 
@@ -371,7 +371,7 @@ class TestStripeV238:
                         "unit_price": 500.0, "amount": 500.0, "discount_pct": 0}],
         }, headers=auth(token))
         assert r.status_code in (200, 201), r.text
-        return r.json()["id"]
+        return r.json()["data"]["id"]
 
     def test_payment_link_requires_stripe_configured(self, client, admin_token, db):
         """Without STRIPE_SECRET_KEY configured, returns 501 (Not Implemented)."""
@@ -398,7 +398,7 @@ class TestCollabSnapshotV238:
             "content": "Initial content",
         }, headers=auth(token))
         assert r.status_code in (200, 201), r.text
-        return r.json()["id"]
+        return r.json()["data"]["id"]
 
     def test_save_snapshot(self, client, admin_token, db):
         doc_id = self._make_document(client, admin_token)
@@ -448,7 +448,7 @@ class TestCollabSnapshotV238:
         r = client.get(f"/api/v1/documents/{doc_id}/collab/history",
                        headers=auth(admin_token))
         assert r.status_code == 200
-        history = r.json()
+        history = r.json()["items"]
         assert len(history) >= 2
         # History is returned in desc order (latest first)
         clocks = [h["clock"] for h in history]

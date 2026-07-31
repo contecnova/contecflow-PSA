@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
+from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.settings import AppSetting
 from app.models.user import User
@@ -85,7 +86,7 @@ def list_connectors(
             "last_sync_at": info.get("last_sync_at"),
             "last_records": info.get("last_records", 0),
         })
-    return {"connectors": items, "count": len(items)}
+    return APIResponse.ok(data={"connectors": items, "count": len(items)})
 
 
 @router.get("/connectors/{connector_id}", summary="Detalle de un conector ETL")
@@ -103,14 +104,14 @@ def get_connector_detail(
     state = _get_connectors_state(db, org_str)
     info = state.get(connector_id, {})
     log = _get_json(db, _SYNC_LOG_KEY_TPL.format(connector=connector_id, org=org_str or "global"), org_str, default=[])
-    return {
+    return APIResponse.ok(data={
         "connector_id": connector_id,
         "enabled": info.get("enabled", False),
         "status": info.get("status", "disconnected"),
         "last_sync_at": info.get("last_sync_at"),
         "last_records": info.get("last_records", 0),
         "recent_log": (log or [])[-10:],
-    }
+    })
 
 
 @router.post("/connectors/{connector_id}/sync", summary="Disparar sincronización manual", status_code=202)
@@ -134,15 +135,15 @@ def trigger_sync(
             queue=queue_name,
             routing_key=queue_name,
         )
-        return {
+        return APIResponse.ok(data={
             "task_id": task.id,
             "connector_id": connector_id,
             "status": "queued",
             "queue": queue_name,
-        }
+        })
     except Exception as exc:
         logger.warning("trigger_sync: could not dispatch Celery task: %s", exc)
-        return {"task_id": None, "connector_id": connector_id, "status": "queued_local", "detail": str(exc)}
+        return APIResponse.ok(data={"task_id": None, "connector_id": connector_id, "status": "queued_local", "detail": str(exc)})
 
 
 @router.get("/connectors/{connector_id}/log", summary="Historial de sincronizaciones")
@@ -160,7 +161,7 @@ def get_sync_log(
     org_str = str(org_id) if org_id else None
     log = _get_json(db, _SYNC_LOG_KEY_TPL.format(connector=connector_id, org=org_str or "global"), org_str, default=[])
     entries = (log or [])[-limit:]
-    return {"connector_id": connector_id, "entries": entries, "count": len(entries)}
+    return APIResponse.ok(data={"connector_id": connector_id, "entries": entries, "count": len(entries)})
 
 
 @router.get("/data/{connector_id}", summary="Leer datos sincronizados de un conector")
@@ -176,4 +177,4 @@ def get_synced_data(
     org_id = getattr(current_user, "organization_id", None)
     org_str = str(org_id) if org_id else None
     data = _get_json(db, _SYNC_DATA_KEY_TPL.format(connector=connector_id, org=org_str or "global"), org_str, default={})
-    return {"connector_id": connector_id, "data": data or {}}
+    return APIResponse.ok(data={"connector_id": connector_id, "data": data or {}})

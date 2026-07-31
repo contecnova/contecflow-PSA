@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
+from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_dashboard_collab_service as svc
@@ -61,7 +62,7 @@ def add_comment(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.add_comment(
+    return APIResponse.ok(data=svc.add_comment(
         db,
         org_id=org_id,
         dashboard_id=body.dashboard_id,
@@ -70,7 +71,7 @@ def add_comment(
         author_name=getattr(current_user, "full_name", current_user.id),
         text=body.text,
         mentions=body.mentions,
-    )
+    ))
 
 
 @router.get("/bi/collab/comments", summary="Listar comentarios de un dashboard")
@@ -84,7 +85,7 @@ def list_comments(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_comments(db, org_id=org_id, dashboard_id=dashboard_id, widget_id=widget_id)
-    return {"items": items, "count": len(items)}
+    return APIResponse.ok(data={"items": items, "count": len(items)})
 
 
 @router.patch("/bi/collab/comments/{comment_id}/resolve", summary="Resolver un comentario")
@@ -97,7 +98,7 @@ def resolve_comment(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.resolve_comment(db, org_id=org_id, comment_id=comment_id)
+        return APIResponse.ok(data=svc.resolve_comment(db, org_id=org_id, comment_id=comment_id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -111,7 +112,7 @@ def save_shared_view(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.save_shared_view(
+    return APIResponse.ok(data=svc.save_shared_view(
         db,
         org_id=org_id,
         name=body.name,
@@ -120,7 +121,7 @@ def save_shared_view(
         filter_state=body.filter_state,
         created_by=current_user.id,
         is_public=body.is_public,
-    )
+    ))
 
 
 @router.get("/bi/collab/views", summary="Listar vistas compartidas")
@@ -133,7 +134,7 @@ def list_shared_views(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_shared_views(db, org_id=org_id, dashboard_id=dashboard_id)
-    return {"items": items, "count": len(items)}
+    return APIResponse.ok(data={"items": items, "count": len(items)})
 
 
 @router.post("/bi/collab/reactions", summary="Toggle reaction emoji en elemento de dashboard")
@@ -145,14 +146,14 @@ def toggle_reaction(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.toggle_reaction(
+    return APIResponse.ok(data=svc.toggle_reaction(
         db,
         org_id=org_id,
         target_id=body.target_id,
         target_type=body.target_type,
         user_id=current_user.id,
         emoji=body.emoji,
-    )
+    ))
 
 
 @router.post("/bi/collab/comments/{comment_id}/reactions", summary="Toggle reaction en comentario", status_code=201)
@@ -165,14 +166,14 @@ def toggle_comment_reaction(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return svc.toggle_reaction(
+    return APIResponse.ok(data=svc.toggle_reaction(
         db,
         org_id=org_id,
         target_id=comment_id,
         target_type="comment",
         user_id=current_user.id,
         emoji=body.emoji,
-    )
+    ))
 
 
 @router.get("/bi/collab/reactions", summary="Obtener reacciones para un elemento")
@@ -186,4 +187,4 @@ def get_reactions(
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.get_reactions(db, org_id=org_id, target_id=target_id, target_type=target_type)
-    return {"items": items}
+    return APIListResponse.ok(items=items)

@@ -13,7 +13,7 @@ from app.models.user import User
 from app.services.audit import audit_log
 from app.services import currency_rates_service
 from app.schemas.currency_rates import ExchangeRateCreate
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter()
 
@@ -94,7 +94,7 @@ def upsert_exchange_rate(
     )
     db.commit()
     if created:
-        return {
+        return APIResponse.ok(data={
             "id": rate_obj.id,
             "from_currency": rate_obj.from_currency,
             "to_currency": rate_obj.to_currency,
@@ -102,8 +102,8 @@ def upsert_exchange_rate(
             "effective_date": str(rate_obj.effective_date),
             "source": rate_obj.source,
             "created": True,
-        }
-    return {
+        })
+    return APIResponse.ok(data={
         "id": rate_obj.id,
         "from_currency": rate_obj.from_currency,
         "to_currency": rate_obj.to_currency,
@@ -111,7 +111,7 @@ def upsert_exchange_rate(
         "effective_date": str(rate_obj.effective_date),
         "source": rate_obj.source,
         "updated": True,
-    }
+    })
 
 
 def _convert_currency_impl(
@@ -180,14 +180,14 @@ def convert_currency(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _convert_currency_impl(
+    return APIResponse.ok(data=_convert_currency_impl(
         amount=amount,
         from_currency=from_currency,
         to_currency=to_currency,
         as_of_date=as_of_date,
         db=db,
         current_user=current_user,
-    )
+    ))
 
 
 @router.post("/currency/convert", summary="Convert amount between currencies (legacy POST)")
@@ -196,14 +196,14 @@ def convert_currency_post(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _convert_currency_impl(
+    return APIResponse.ok(data=_convert_currency_impl(
         amount=payload.amount,
         from_currency=payload.from_currency,
         to_currency=payload.to_currency,
         as_of_date=payload.as_of_date,
         db=db,
         current_user=current_user,
-    )
+    ))
 
 
 @router.get("/currency/report", summary="Multi-currency consolidated report")
@@ -242,7 +242,7 @@ def multicurrency_report(
             }
         )
 
-    return {
+    return APIResponse.ok(data={
         "report_currency": target,
         "as_of_date": str(ref_date),
         "consolidated": {
@@ -252,4 +252,4 @@ def multicurrency_report(
             "total_expenses": round(exp_total, 2),
         },
         "by_currency": breakdown,
-    }
+    })
