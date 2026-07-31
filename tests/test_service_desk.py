@@ -49,7 +49,7 @@ def test_create_ticket(client, admin_token, db):
             "ticket_type": "incident"
         })
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert "id" in data
 
 
@@ -66,10 +66,10 @@ def test_ticket_detail(client, admin_token, db):
         headers=auth(admin_token),
         json={"title": "Test ticket", "description": "Detalle de test", "priority": "p4_low", "ticket_type": "incident"})
     assert create.status_code in (200, 201)
-    tid = create.json()["id"]
+    tid = create.json()["data"]["id"]
     res = client.get(f"/api/v1/sd/tickets/{tid}", headers=auth(admin_token))
     assert res.status_code == 200
-    assert res.json()["id"] == tid
+    assert res.json()["data"]["id"] == tid
 
 
 def test_update_ticket_status(client, admin_token, db):
@@ -77,7 +77,7 @@ def test_update_ticket_status(client, admin_token, db):
         headers=auth(admin_token),
         json={"title": "Ticket estado", "description": "Estado a actualizar", "priority": "p3_medium", "ticket_type": "incident"})
     assert create.status_code in (200, 201)
-    tid = create.json()["id"]
+    tid = create.json()["data"]["id"]
     res = client.patch(f"/api/v1/sd/tickets/{tid}",
         headers=auth(admin_token),
         json={"status": "in_progress"})
@@ -99,11 +99,11 @@ def test_ticket_dynamic_fields_roundtrip(client, admin_token, db):
         },
     )
     assert created.status_code in (200, 201)
-    tid = created.json()["id"]
+    tid = created.json()["data"]["id"]
 
     detail = client.get(f"/api/v1/sd/tickets/{tid}", headers=auth(admin_token))
     assert detail.status_code == 200
-    assert detail.json().get("dynamic_fields", {}).get("affected_environment") == "produccion"
+    assert detail.json()["data"].get("dynamic_fields", {}).get("affected_environment") == "produccion"
 
     updated = client.patch(
         f"/api/v1/sd/tickets/{tid}",
@@ -119,7 +119,7 @@ def test_ticket_dynamic_fields_roundtrip(client, admin_token, db):
 
     detail_after = client.get(f"/api/v1/sd/tickets/{tid}", headers=auth(admin_token))
     assert detail_after.status_code == 200
-    dyn = detail_after.json().get("dynamic_fields", {})
+    dyn = detail_after.json()["data"].get("dynamic_fields", {})
     assert dyn.get("affected_environment") == "preproduccion"
     assert dyn.get("requested_due_date") == "2026-06-01"
 
@@ -131,7 +131,7 @@ def test_update_ticket_status_legacy_waiting_client_maps_to_pending_client(clien
         json={"title": "Ticket legacy waiting", "description": "legacy", "priority": "p3_medium", "ticket_type": "incident"},
     )
     assert create.status_code in (200, 201)
-    tid = create.json()["id"]
+    tid = create.json()["data"]["id"]
 
     res = client.patch(
         f"/api/v1/sd/tickets/{tid}",
@@ -139,7 +139,7 @@ def test_update_ticket_status_legacy_waiting_client_maps_to_pending_client(clien
         json={"status": "waiting_client"},
     )
     assert res.status_code == 200
-    assert res.json()["status"] == "pending_client"
+    assert res.json()["data"]["status"] == "pending_client"
 
 
 def test_update_ticket_status_legacy_pending_change_maps_to_pending_third(client, admin_token, db):
@@ -149,7 +149,7 @@ def test_update_ticket_status_legacy_pending_change_maps_to_pending_third(client
         json={"title": "Ticket legacy change", "description": "legacy", "priority": "p3_medium", "ticket_type": "incident"},
     )
     assert create.status_code in (200, 201)
-    tid = create.json()["id"]
+    tid = create.json()["data"]["id"]
 
     res = client.patch(
         f"/api/v1/sd/tickets/{tid}",
@@ -157,14 +157,14 @@ def test_update_ticket_status_legacy_pending_change_maps_to_pending_third(client
         json={"status": "pending_change"},
     )
     assert res.status_code == 200
-    assert res.json()["status"] == "pending_third"
+    assert res.json()["data"]["status"] == "pending_third"
 
 
 def test_add_comment_to_ticket(client, admin_token, db):
     create = client.post("/api/v1/sd/tickets",
         headers=auth(admin_token),
         json={"title": "Ticket comentarios", "description": "Comentario test", "priority": "p4_low", "ticket_type": "incident"})
-    tid = create.json()["id"]
+    tid = create.json()["data"]["id"]
     res = client.post(f"/api/v1/sd/tickets/{tid}/comments",
         headers=auth(admin_token),
         json={"body": "Investigando el problema"})
@@ -192,7 +192,7 @@ def test_ai_suggest_response_endpoint(client, admin_token, db):
         },
     )
     assert created.status_code in (200, 201)
-    tid = created.json()["id"]
+    tid = created.json()["data"]["id"]
 
     res = client.post(
         f"/api/v1/sd/tickets/{tid}/ai-suggest",
@@ -200,7 +200,7 @@ def test_ai_suggest_response_endpoint(client, admin_token, db):
         json={"content": "cliente bloqueado, pedir logs y pasos de reproducción"},
     )
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert data["ticket_id"] == tid
     assert isinstance(data.get("draft"), str)
 
@@ -215,7 +215,7 @@ def test_split_ticket_creates_child_and_link(client, admin_token, db):
             "ticket_type": "incident",
         },
     )
-    tid = created.json()["id"]
+    tid = created.json()["data"]["id"]
 
     split = client.post(
         f"/api/v1/sd/tickets/{tid}/split",
@@ -223,13 +223,13 @@ def test_split_ticket_creates_child_and_link(client, admin_token, db):
         json={"title": "Incidencia B separada", "description": "Solo problema B"},
     )
     assert split.status_code in (200, 201)
-    out = split.json()
+    out = split.json()["data"]
     assert out["ok"] is True
     assert out.get("child_id")
 
     links = client.get(f"/api/v1/sd/tickets/{tid}/links", headers=auth(admin_token))
     assert links.status_code == 200
-    assert any(l.get("ticket_id") == out["child_id"] for l in links.json())
+    assert any(l.get("ticket_id") == out["child_id"] for l in links.json()["items"])
 
 
 def test_client_ticket_uses_client_sla_policy(client, admin_token, db):
@@ -258,7 +258,7 @@ def test_client_ticket_uses_client_sla_policy(client, admin_token, db):
         json={"title": "Ticket cliente", "description": "desc", "ticket_type": "incident"},
     )
     assert created.status_code in (200, 201)
-    tid = created.json()["id"]
+    tid = created.json()["data"]["id"]
 
     t = db.query(Ticket).filter(Ticket.id == tid).first()
     assert t is not None
@@ -310,14 +310,14 @@ def test_client_ticket_dynamic_fields_roundtrip(client, db):
         },
     )
     assert created.status_code in (200, 201)
-    tid = created.json()["id"]
+    tid = created.json()["data"]["id"]
 
     detail = client.get(
         f"/api/v1/sd/tickets/client/{tid}",
         headers={"Authorization": f"Bearer {client_token}"},
     )
     assert detail.status_code == 200
-    dyn = detail.json().get("dynamic_fields", {})
+    dyn = detail.json()["data"].get("dynamic_fields", {})
     assert dyn.get("affected_environment") == "produccion"
     assert dyn.get("business_impact_details") == "impacto portal"
 
@@ -355,7 +355,7 @@ def test_ticket_restore_pending_and_time_unit_dropdown_backend(client, admin_tok
         },
     )
     assert created.status_code in (200, 201)
-    tid = created.json()["id"]
+    tid = created.json()["data"]["id"]
 
     to_progress = client.patch(
         f"/api/v1/sd/tickets/{tid}",
@@ -376,7 +376,7 @@ def test_ticket_restore_pending_and_time_unit_dropdown_backend(client, admin_tok
         headers=auth(admin_token),
     )
     assert restored.status_code == 200
-    assert restored.json().get("restored") is True
+    assert restored.json()["data"].get("restored") is True
 
     timelog = client.post(
         f"/api/v1/sd/tickets/{tid}/time-log",
@@ -384,7 +384,7 @@ def test_ticket_restore_pending_and_time_unit_dropdown_backend(client, admin_tok
         json={"minutes": 2, "unit": "hours"},
     )
     assert timelog.status_code == 200
-    assert timelog.json().get("logged_minutes") == 120
+    assert timelog.json()["data"].get("logged_minutes") == 120
 
 
 def test_public_status_and_embed_routes(client, db):

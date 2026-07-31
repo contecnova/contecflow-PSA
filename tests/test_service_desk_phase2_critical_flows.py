@@ -46,7 +46,7 @@ def test_kb_versioning_and_rollback(client, admin_token, db):
         },
     )
     assert created.status_code in (200, 201), created.text
-    article_id = created.json()["id"]
+    article_id = created.json()["data"]["id"]
 
     patch = client.patch(
         f"/api/v1/sd/kb/{article_id}",
@@ -57,11 +57,11 @@ def test_kb_versioning_and_rollback(client, admin_token, db):
 
     versions = client.get(f"/api/v1/sd/kb/{article_id}/versions", headers=auth(admin_token))
     assert versions.status_code == 200
-    assert len(versions.json()) >= 2
+    assert len(versions.json()["items"]) >= 2
 
     rollback = client.post(f"/api/v1/sd/kb/{article_id}/rollback/1", headers=auth(admin_token))
     assert rollback.status_code == 200
-    assert rollback.json()["rolled_back_to"] == 1
+    assert rollback.json()["data"]["rolled_back_to"] == 1
 
 
 def test_queue_prioritized_endpoint(client, admin_token, db):
@@ -80,7 +80,7 @@ def test_queue_prioritized_endpoint(client, admin_token, db):
 
     res = client.get("/api/v1/sd/tickets/my-queue/prioritized", headers=auth(admin_token))
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    assert isinstance(res.json()["items"], list)
 
 
 def test_connectors_marketplace_and_governance_ops(client, admin_token, db):

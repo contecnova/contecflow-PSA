@@ -25,14 +25,14 @@ def test_delete_country_preset_hard_and_hidden(client, admin_token, db):
         },
     )
     assert created.status_code == 200
-    preset_id = created.json()["id"]
+    preset_id = created.json()["data"]["id"]
 
     deleted = client.delete(
         f"/api/v1/user-costs/countries/{preset_id}",
         headers=auth(admin_token),
     )
     assert deleted.status_code == 200
-    assert deleted.json()["ok"] is True
+    assert deleted.json()["data"]["ok"] is True
 
     listed = client.get("/api/v1/user-costs/countries", headers=auth(admin_token))
     assert listed.status_code == 200
@@ -58,14 +58,14 @@ def test_delete_user_cost_profile_hard_and_hidden(client, admin_token, db):
         },
     )
     assert created.status_code in (200, 201)
-    profile_id = created.json()["id"]
+    profile_id = created.json()["data"]["id"]
 
     deleted = client.delete(
         f"/api/v1/user-costs/profiles/{profile_id}",
         headers=auth(admin_token),
     )
     assert deleted.status_code == 200
-    assert deleted.json()["ok"] is True
+    assert deleted.json()["data"]["ok"] is True
 
     listed = client.get(
         f"/api/v1/user-costs/users/{user_id}/profiles",

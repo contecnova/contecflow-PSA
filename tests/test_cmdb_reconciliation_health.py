@@ -7,7 +7,7 @@ def test_cmdb_reconciliation_health_endpoint(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    data = res.json()
+    data = res.json()["data"]
     assert "total_discovered" in data
     assert "active_discovered" in data
     assert "stale_discovered" in data
@@ -22,7 +22,7 @@ def test_cmdb_reconciliation_health_provider_filter(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    data = res.json()
+    data = res.json()["data"]
     assert data["provider_filter"] == "aws"
 
 
@@ -50,7 +50,7 @@ def test_cmdb_reconciliation_candidates_endpoint(client, admin_token, monkeypatc
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    payload = res.json()
+    payload = res.json()["data"]
     assert payload["count"] == 1
     assert payload["min_confidence"] == 0.9
     assert payload["items"][0]["confidence"] == 0.91
@@ -82,7 +82,7 @@ def test_cmdb_reconciliation_merge_endpoint(client, admin_token, monkeypatch):
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    payload = res.json()
+    payload = res.json()["data"]
     assert payload["ok"] is True
     assert payload["merged"] == 1
     assert payload["candidates"] == 2

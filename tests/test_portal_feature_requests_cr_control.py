@@ -54,7 +54,7 @@ def test_no_cr_on_start_dev_without_approval(client, pm_token, db):
         },
     )
     assert fr_create.status_code == 200, fr_create.text
-    fr_id = fr_create.json()["id"]
+    fr_id = fr_create.json()["data"]["id"]
 
     # 4) Estimar
     est = client.post(
@@ -77,7 +77,7 @@ def test_no_cr_on_start_dev_without_approval(client, pm_token, db):
         headers=auth(pm_token),
     )
     assert start_dev.status_code == 200, start_dev.text
-    assert start_dev.json()["status"] == "in_development"
+    assert start_dev.json()["data"]["status"] == "in_development"
 
     # 6) Verificar que NO existe ChangeRequest para ese proyecto
     from sqlalchemy import text

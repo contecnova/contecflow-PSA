@@ -13,6 +13,7 @@ from app.schemas.enterprise import (
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.models.enterprise import WebhookEvent
 import app.services.enterprise_service as _svc
@@ -31,7 +32,7 @@ def get_audit_log(
     page: int = Query(1, ge=1), page_size: int = Query(50, le=200),
     db: Session = Depends(get_db), current_user: User = Depends(require_admin),
 ):
-    return _svc.get_audit_log(db, resource, resource_id, user_id, action, date_from, date_to, page, page_size)
+    return APIResponse.ok(data=_svc.get_audit_log(db, resource, resource_id, user_id, action, date_from, date_to, page, page_size))
 
 
 @router.get("/audit-log/stats", summary="Estadísticas del audit log")
@@ -39,7 +40,7 @@ def audit_stats(
     days: int = Query(30, ge=1, le=365),
     db: Session = Depends(get_db), current_user: User = Depends(require_admin),
 ):
-    return _svc.compute_audit_stats(db, days)
+    return APIResponse.ok(data=_svc.compute_audit_stats(db, days))
 
 
 # ── Project Permissions ───────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ def get_project_permissions(
     project_id: str, db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_project_permissions(project_id, db)
+    return APIListResponse.ok(items=_svc.get_project_permissions(project_id, db))
 
 
 @router.post("/project-permissions/{project_id}", summary="Conceder acceso a proyecto")
@@ -60,7 +61,7 @@ def grant_project_permission(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.grant_project_permission(project_id, payload, current_user, db)
+        return APIResponse.ok(data=_svc.grant_project_permission(project_id, payload, current_user, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -71,7 +72,7 @@ def update_project_permission(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.update_project_permission(project_id, permission_id, payload, db)
+        return APIResponse.ok(data=_svc.update_project_permission(project_id, permission_id, payload, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -83,7 +84,7 @@ def revoke_project_permission(
 ):
     enforce_abac(db, current_user, "project_permission", permission_id, action="delete")
     try:
-        return _svc.revoke_project_permission(project_id, permission_id, current_user, db)
+        return APIResponse.ok(data=_svc.revoke_project_permission(project_id, permission_id, current_user, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -94,12 +95,12 @@ def revoke_project_permission(
 
 @router.get("/webhooks", summary="Listar webhooks")
 def list_webhooks(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    return _svc.list_webhooks(db)
+    return APIListResponse.ok(items=_svc.list_webhooks(db))
 
 
 @router.get("/webhooks/events", summary="Lista de eventos disponibles")
 def list_webhook_events(current_user: User = Depends(get_current_user)):
-    return [{"value": e.value, "label": e.value.replace(".", " › ").replace("_", " ").title()} for e in WebhookEvent]
+    return APIListResponse.ok(items=[{"value": e.value, "label": e.value.replace(".", " › ").replace("_", " ").title()} for e in WebhookEvent])
 
 
 @router.post("/webhooks", summary="Crear webhook")
@@ -108,7 +109,7 @@ def create_webhook(
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.create_webhook(payload, current_user, db)
+        return APIResponse.ok(data=_svc.create_webhook(payload, current_user, db))
     except ValueError as e:
         # SSRF guard / validation failure → 400 (bad destination URL).
         raise HTTPException(400, str(e))
@@ -120,7 +121,7 @@ def update_webhook(
     db: Session = Depends(get_db), current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.update_webhook(hook_id, payload, current_user, db)
+        return APIResponse.ok(data=_svc.update_webhook(hook_id, payload, current_user, db))
     except ValueError as e:
         if str(e) == "not_found":
             raise HTTPException(404)
@@ -134,7 +135,7 @@ def delete_webhook(
 ):
     enforce_abac(db, current_user, "webhook", hook_id, action="delete")
     try:
-        return _svc.delete_webhook(hook_id, current_user, db)
+        return APIResponse.ok(data=_svc.delete_webhook(hook_id, current_user, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -145,7 +146,7 @@ def test_webhook(
 ):
     hook = _svc.get_webhook_for_test(hook_id, db)
     if not hook: raise HTTPException(404)
-    return _svc.test_webhook_delivery(hook, current_user)
+    return APIResponse.ok(data=_svc.test_webhook_delivery(hook, current_user))
 
 
 @router.get("/webhooks/{hook_id}/deliveries", summary="Historial de entregas")
@@ -153,7 +154,7 @@ def get_deliveries(
     hook_id: str, limit: int = Query(20, le=100),
     db: Session = Depends(get_db), current_user: User = Depends(require_admin),
 ):
-    return _svc.get_webhook_deliveries(hook_id, limit, db)
+    return APIListResponse.ok(items=_svc.get_webhook_deliveries(hook_id, limit, db))
 
 
 # ── SSO ───────────────────────────────────────────────────────────────────────
@@ -162,14 +163,14 @@ def get_deliveries(
 
 @router.get("/sso", summary="Configuraciones SSO")
 def list_sso(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    return _svc.list_sso_configs(db)
+    return APIListResponse.ok(items=_svc.list_sso_configs(db))
 
 
 @router.post("/sso", summary="Crear configuración SSO")
 def create_sso(
     payload: SSOCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin),
 ):
-    return _svc.create_sso_config(payload, current_user, db)
+    return APIResponse.ok(data=_svc.create_sso_config(payload, current_user, db))
 
 
 @router.patch("/sso/{config_id}", summary="Actualizar SSO")
@@ -178,7 +179,7 @@ def update_sso(
     db: Session = Depends(get_db), current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.update_sso_config(config_id, payload, current_user, db)
+        return APIResponse.ok(data=_svc.update_sso_config(config_id, payload, current_user, db))
     except ValueError as e:
         msg = str(e)
         raise HTTPException(403 if "org_mismatch" in msg else 404, msg)
@@ -190,7 +191,7 @@ def delete_sso(
 ):
     enforce_abac(db, current_user, "sso_config", config_id, action="delete")
     try:
-        return _svc.delete_sso_config(config_id, db)
+        return APIResponse.ok(data=_svc.delete_sso_config(config_id, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -201,7 +202,7 @@ def test_sso(
 ):
     config = _svc.get_sso_config_for_test(config_id, db)
     if not config: raise HTTPException(404)
-    return _svc.validate_sso_config(config)
+    return APIResponse.ok(data=_svc.validate_sso_config(config))
 
 
 # ── Notifications ─────────────────────────────────────────────────────────────
@@ -211,12 +212,12 @@ def my_notifications(
     unread_only: bool = False, page: int = Query(1, ge=1), page_size: int = Query(20, le=100),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_my_notifications(current_user, unread_only, page, page_size, db)
+    return APIResponse.ok(data=_svc.get_my_notifications(current_user, unread_only, page, page_size, db))
 
 
 @router.post("/notifications/read-all", summary="Marcar todas como leídas")
 def mark_all_read(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return _svc.mark_all_notifications_read(current_user, db)
+    return APIResponse.ok(data=_svc.mark_all_notifications_read(current_user, db))
 
 
 @router.post("/notifications/{notif_id}/read", summary="Marcar como leída")
@@ -224,7 +225,7 @@ def mark_read(
     notif_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.mark_notification_read(notif_id, current_user, db)
+        return APIResponse.ok(data=_svc.mark_notification_read(notif_id, current_user, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -235,7 +236,7 @@ def clear_old_notifications(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "notification", current_user.id, action="delete")
-    return _svc.clear_old_notifications(current_user, days, db)
+    return APIResponse.ok(data=_svc.clear_old_notifications(current_user, days, db))
 
 
 # ── Subcontractors ────────────────────────────────────────────────────────────
@@ -247,7 +248,7 @@ def list_subcontractors(
     is_active: Optional[bool] = None,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_subcontractors(is_active, db)
+    return APIListResponse.ok(items=_svc.list_subcontractors(is_active, db))
 
 
 @router.post("/subcontractors", summary="Crear subcontratista")
@@ -255,7 +256,7 @@ def create_subcontractor(
     payload: SubCreate, db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.create_subcontractor(payload, current_user, db)
+    return APIResponse.ok(data=_svc.create_subcontractor(payload, current_user, db))
 
 
 @router.patch("/subcontractors/{sub_id}", summary="Actualizar subcontratista")
@@ -264,7 +265,7 @@ def update_subcontractor(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.update_subcontractor(sub_id, payload, db)
+        return APIResponse.ok(data=_svc.update_subcontractor(sub_id, payload, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -275,7 +276,7 @@ def delete_subcontractor(
 ):
     enforce_abac(db, current_user, "subcontractor", sub_id, action="delete")
     try:
-        return _svc.delete_subcontractor(sub_id, db)
+        return APIResponse.ok(data=_svc.delete_subcontractor(sub_id, db))
     except ValueError as e:
         msg = str(e)
         if "has_dependencies" in msg:
@@ -290,7 +291,7 @@ def add_rate(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.add_subcontractor_rate(sub_id, payload, db)
+        return APIResponse.ok(data=_svc.add_subcontractor_rate(sub_id, payload, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -302,7 +303,7 @@ def delete_rate(
 ):
     enforce_abac(db, current_user, "subcontractor_rate", rate_id, action="delete")
     try:
-        return _svc.delete_subcontractor_rate(sub_id, rate_id, db)
+        return APIResponse.ok(data=_svc.delete_subcontractor_rate(sub_id, rate_id, db))
     except ValueError as e:
         msg = str(e)
         raise HTTPException(400 if "dependencies" in msg else 404, msg)
@@ -312,7 +313,7 @@ def delete_rate(
 def get_assignments(
     sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_subcontractor_assignments(sub_id, db)
+    return APIListResponse.ok(items=_svc.get_subcontractor_assignments(sub_id, db))
 
 
 @router.post("/subcontractors/{sub_id}/assignments", summary="Asignar a proyecto")
@@ -321,7 +322,7 @@ def create_assignment(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.create_subcontractor_assignment(sub_id, payload, current_user, db)
+        return APIResponse.ok(data=_svc.create_subcontractor_assignment(sub_id, payload, current_user, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -331,7 +332,7 @@ def list_all_workers(
     skill_id: Optional[str] = None, is_active: Optional[bool] = None,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_all_workers(skill_id, is_active, db)
+    return APIListResponse.ok(items=_svc.list_all_workers(skill_id, is_active, db))
 
 
 @router.get("/subcontractors/{sub_id}/workers", summary="Trabajadores del subcontratista")
@@ -339,7 +340,7 @@ def get_workers(
     sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.get_workers_for_subcontractor(sub_id, db)
+        return APIListResponse.ok(items=_svc.get_workers_for_subcontractor(sub_id, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -351,7 +352,7 @@ def create_worker(
 ):
     sub = _svc.get_subcontractor(db, sub_id)
     if not sub: raise HTTPException(404)
-    return _svc.create_worker_with_user(sub, payload, current_user, db)
+    return APIResponse.ok(data=_svc.create_worker_with_user(sub, payload, current_user, db))
 
 
 @router.patch("/subcontractors/workers/{worker_id}", summary="Actualizar trabajador")
@@ -360,7 +361,7 @@ def update_worker(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.update_worker(worker_id, payload, db)
+        return APIResponse.ok(data=_svc.update_worker(worker_id, payload, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -371,7 +372,7 @@ def delete_worker(
 ):
     enforce_abac(db, current_user, "subcontractor_worker", worker_id, action="delete")
     try:
-        return _svc.delete_worker(worker_id, db)
+        return APIResponse.ok(data=_svc.delete_worker(worker_id, db))
     except ValueError as e:
         msg = str(e)
         raise HTTPException(400 if "dependencies" in msg else 404, msg)
@@ -383,7 +384,7 @@ def add_worker_skill(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.add_worker_skill(worker_id, payload, db)
+        return APIResponse.ok(data=_svc.add_worker_skill(worker_id, payload, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -395,7 +396,7 @@ def remove_worker_skill(
 ):
     enforce_abac(db, current_user, "subcontractor_worker_skill", skill_id, action="delete")
     try:
-        return _svc.remove_worker_skill(worker_id, skill_id, db)
+        return APIResponse.ok(data=_svc.remove_worker_skill(worker_id, skill_id, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -405,7 +406,7 @@ def get_timelogs(
     sub_id: str, project_id: Optional[str] = None,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_timelogs(sub_id, project_id, db)
+    return APIListResponse.ok(items=_svc.get_timelogs(sub_id, project_id, db))
 
 
 @router.post("/subcontractors/{sub_id}/timelogs", summary="Registrar horas de subcontratista")
@@ -414,7 +415,7 @@ def create_timelog(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.create_timelog(sub_id, payload, db)
+        return APIResponse.ok(data=_svc.create_timelog(sub_id, payload, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -426,7 +427,7 @@ def delete_timelog(
 ):
     enforce_abac(db, current_user, "subcontractor_timelog", log_id, action="delete")
     try:
-        return _svc.delete_timelog(sub_id, log_id, db)
+        return APIResponse.ok(data=_svc.delete_timelog(sub_id, log_id, db))
     except ValueError as e:
         msg = str(e)
         raise HTTPException(400 if "invoiced" in msg else 404, msg)
@@ -436,7 +437,7 @@ def delete_timelog(
 def get_sub_invoices(
     sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_sub_invoices(sub_id, db)
+    return APIListResponse.ok(items=_svc.get_sub_invoices(sub_id, db))
 
 
 @router.post("/subcontractors/{sub_id}/invoices", summary="Registrar factura recibida")
@@ -445,7 +446,7 @@ def create_sub_invoice(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.create_sub_invoice(sub_id, payload, current_user, db)
+        return APIResponse.ok(data=_svc.create_sub_invoice(sub_id, payload, current_user, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -456,7 +457,7 @@ def update_sub_invoice(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.update_sub_invoice(sub_id, inv_id, payload, db)
+        return APIResponse.ok(data=_svc.update_sub_invoice(sub_id, inv_id, payload, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -465,7 +466,7 @@ def update_sub_invoice(
 def subcontractors_dashboard(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_subcontractors_dashboard(db)
+    return APIResponse.ok(data=_svc.get_subcontractors_dashboard(db))
 
 
 # ── Revenue Forecast ──────────────────────────────────────────────────────────
@@ -477,7 +478,7 @@ def portfolio_forecast(
     year: int = Query(None),
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_portfolio_forecast(db, year or datetime.now(timezone.utc).year)
+    return APIResponse.ok(data=_svc.get_portfolio_forecast(db, year or datetime.now(timezone.utc).year))
 
 
 @router.get("/revenue-forecast/{project_id}", summary="Previsión de un proyecto")
@@ -485,7 +486,7 @@ def project_forecast(
     project_id: str, year: int = Query(None),
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_project_forecast(project_id, year or datetime.now(timezone.utc).year, db)
+    return APIResponse.ok(data=_svc.get_project_forecast(project_id, year or datetime.now(timezone.utc).year, db))
 
 
 @router.post("/revenue-forecast/{project_id}/{year}/{month}", summary="Crear/actualizar previsión mensual")
@@ -494,4 +495,4 @@ def upsert_forecast(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     if not 1 <= month <= 12: raise HTTPException(400, "Mes inválido (1-12)")
-    return _svc.upsert_forecast(project_id, year, month, payload, db)
+    return APIResponse.ok(data=_svc.upsert_forecast(project_id, year, month, payload, db))

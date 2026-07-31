@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.core.responses import APIResponse
 from app.models.user import User
 from app.services.service_desk.change_impact_service import (
     analyze_change_impact_full,
@@ -53,7 +54,7 @@ def run_impact_analysis(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return analyze_change_impact_full(db, change_id, current_user_id=str(current_user.id))
+    return APIResponse.ok(data=analyze_change_impact_full(db, change_id, current_user_id=str(current_user.id)))
 
 
 @router.get("/{change_id}/impact-analysis", summary="Get cached change impact analysis")
@@ -62,7 +63,7 @@ def get_impact_analysis(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return get_cached_impact_analysis(db, change_id)
+    return APIResponse.ok(data=get_cached_impact_analysis(db, change_id))
 
 
 @router.get("/{change_id}/risk-matrix", summary="Per-CI risk matrix for change")
@@ -71,7 +72,7 @@ def risk_matrix(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return {"change_id": change_id, "risk_matrix": get_risk_matrix_for_change(db, change_id)}
+    return APIResponse.ok(data={"change_id": change_id, "risk_matrix": get_risk_matrix_for_change(db, change_id)})
 
 
 @router.post("/{change_id}/rollback-plan", summary="Generate rollback plan")
@@ -80,7 +81,7 @@ def generate_rollback(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return generate_rollback_plan(db, change_id, current_user_id=str(current_user.id))
+    return APIResponse.ok(data=generate_rollback_plan(db, change_id, current_user_id=str(current_user.id)))
 
 
 @router.get("/{change_id}/rollback-plan", summary="Get cached rollback plan")
@@ -93,7 +94,7 @@ def get_rollback_plan(
     plan = _get_json_setting(db, f"sd.change.rollback.{change_id}")
     if not plan:
         raise HTTPException(404, "Rollback plan no encontrado. Ejecuta POST primero.")
-    return plan
+    return APIResponse.ok(data=plan)
 
 
 # ── Testing Plan ──────────────────────────────────────────────────────────────
@@ -109,7 +110,7 @@ def generate_testing_plan_endpoint(
     Steps are adapted to the change's risk level and CI count. The plan is cached
     in AppSetting and the change's test_plan text field is also updated if empty.
     """
-    return generate_testing_plan(db, change_id, current_user_id=str(current_user.id))
+    return APIResponse.ok(data=generate_testing_plan(db, change_id, current_user_id=str(current_user.id)))
 
 
 @router.get("/{change_id}/testing-plan", summary="Obtener plan de pruebas en caché (ITSM-P10)")
@@ -122,7 +123,7 @@ def get_testing_plan(
     plan = _get_json_setting(db, f"sd.change.testing.{change_id}")
     if not plan:
         raise HTTPException(404, "Plan de pruebas no encontrado. Ejecuta POST /testing-plan primero.")
-    return plan
+    return APIResponse.ok(data=plan)
 
 
 # ── Communications Plan ───────────────────────────────────────────────────────
@@ -139,7 +140,7 @@ def generate_comms_plan_endpoint(
     executives for critical changes) with timing (T-7d to T-1h), channel,
     and message templates including rollback notification templates.
     """
-    return generate_comms_plan(db, change_id, current_user_id=str(current_user.id))
+    return APIResponse.ok(data=generate_comms_plan(db, change_id, current_user_id=str(current_user.id)))
 
 
 @router.get("/{change_id}/comms-plan", summary="Obtener plan de comunicaciones en caché (ITSM-P10)")
@@ -152,7 +153,7 @@ def get_comms_plan(
     plan = _get_json_setting(db, f"sd.change.comms.{change_id}")
     if not plan:
         raise HTTPException(404, "Plan de comunicaciones no encontrado. Ejecuta POST /comms-plan primero.")
-    return plan
+    return APIResponse.ok(data=plan)
 
 
 # ── What-If Simulation ────────────────────────────────────────────────────────
@@ -175,7 +176,7 @@ def whatif_simulation(
       - "What if I change the type from 'emergency' to 'normal'?"
       - "What if I schedule on Wednesday at 3 AM — is it better than the suggested window?"
     """
-    return simulate_change_whatif(db, change_id, overrides=payload.model_dump(exclude_none=True))
+    return APIResponse.ok(data=simulate_change_whatif(db, change_id, overrides=payload.model_dump(exclude_none=True)))
 
 
 # ── ITSM-P05: CAB dashboard + batch score ─────────────────────────────────────
@@ -223,13 +224,14 @@ def cab_dashboard(
         .all()
     )
 
-    return {
+    # Objeto (no APIListResponse) para preservar el escalar 'unscored' además de la lista.
+    return APIResponse.ok(data={
         "total": total,
         "page": page,
         "page_size": page_size,
         "unscored": sum(1 for c in changes if c.auto_risk_score is None),
         "items": [serialize_change(c) for c in changes],
-    }
+    })
 
 
 @router.post(
@@ -272,10 +274,10 @@ def batch_score_changes(
             db.rollback()
             errors += 1
 
-    return {
+    return APIResponse.ok(data={
         "ok": True,
         "total_pending": len(pending),
         "scored": scored,
         "auto_approved": auto_approved,
         "errors": errors,
-    }
+    })

@@ -16,7 +16,7 @@ def _create_sd_change(client, token):
         },
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()
+    return res.json()["data"]
 
 
 def test_change_assess_risk_endpoint(client, admin_token, db):
@@ -27,7 +27,7 @@ def test_change_assess_risk_endpoint(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert assessed.status_code == 200, assessed.text
-    data = assessed.json()
+    data = assessed.json()["data"]
     assert data["change_id"] == change["id"]
     assert "assessment" in data
     assert "risk_level" in data["assessment"]
@@ -42,7 +42,7 @@ def test_change_plan_rollout_endpoint(client, admin_token, db):
         json={"estimated_duration_minutes": 90},
     )
     assert planned.status_code == 200, planned.text
-    data = planned.json()
+    data = planned.json()["data"]
     assert data["change_id"] == change["id"]
     assert "rollout_plan" in data
     assert "phases" in data["rollout_plan"]
@@ -57,7 +57,7 @@ def test_change_automation_check_and_rollback_script(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert automation.status_code == 200, automation.text
-    auto_data = automation.json()
+    auto_data = automation.json()["data"]
     assert auto_data["change_id"] == change["id"]
     assert "automation_level" in auto_data
 
@@ -66,7 +66,7 @@ def test_change_automation_check_and_rollback_script(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert rollback.status_code == 200, rollback.text
-    rb_data = rollback.json()
+    rb_data = rollback.json()["data"]
     assert rb_data["change_id"] == change["id"]
     assert "script" in rb_data
     assert "ROLLBACK" in rb_data["script"]

@@ -14,7 +14,7 @@ def _create_ci(client, token, name: str, ci_type: str = "service") -> str:
         },
     )
     assert res.status_code == 200, res.text
-    return res.json()["id"]
+    return res.json()["data"]["id"]
 
 
 def test_asset_create_rejects_nonexistent_ci(client, admin_token):
@@ -99,7 +99,7 @@ def test_cmdb_deprecation_impact_includes_impacted_assets(client, admin_token):
         headers=auth(admin_token),
     )
     assert res.status_code == 200, res.text
-    data = res.json()
+    data = res.json()["data"]
 
     assert data["ci"]["id"] == ci_root
     assert "summary" in data

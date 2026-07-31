@@ -32,33 +32,33 @@ from app.services.collaboration._permissions import (
 )
 from app.services.collaboration._search import search_engine
 from app.services.collaboration import workspaces as ws_svc
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter()
 
 
 # ── Workspace ───────────────────────────────────────────────────────────────
-@router.get("/workspace", response_model=WorkspaceOut, summary="Mi workspace (lazy-create)")
+@router.get("/workspace", response_model=APIResponse[WorkspaceOut], summary="Mi workspace (lazy-create)")
 def my_workspace(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     ws = ws_svc.get_or_create_workspace(db, current_user)
-    return WorkspaceOut(
+    return APIResponse.ok(data=WorkspaceOut(
         id=ws.id, organization_id=ws.organization_id, name=ws.name,
         icon_url=ws.icon_url, primary_color=ws.primary_color,
         settings=ws.settings or {}, is_active=ws.is_active,
-    )
+    ))
 
 
-@router.patch("/workspace", response_model=WorkspaceOut, summary="Actualizar workspace")
+@router.patch("/workspace", response_model=APIResponse[WorkspaceOut], summary="Actualizar workspace")
 def update_workspace(payload: WorkspaceUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     ws = ws_svc.get_or_create_workspace(db, current_user)
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(ws, k, v)
     db.commit()
-    return WorkspaceOut(
+    return APIResponse.ok(data=WorkspaceOut(
         id=ws.id, organization_id=ws.organization_id, name=ws.name,
         icon_url=ws.icon_url, primary_color=ws.primary_color,
         settings=ws.settings or {}, is_active=ws.is_active,
-    )
+    ))
 
 
 # ── Teams ────────────────────────────────────────────────────────────────────
@@ -77,21 +77,21 @@ def list_teams(current_user: User = Depends(get_current_user), db: Session = Dep
     return APIListResponse.ok(items=out, total=len(out))
 
 
-@router.post("/teams", response_model=TeamOut, summary="Crear equipo")
+@router.post("/teams", response_model=APIResponse[TeamOut], summary="Crear equipo")
 def create_team(payload: TeamCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     t = ws_svc.create_team(
         db, current_user,
         name=payload.name, slug=payload.slug, description=payload.description,
         is_private=payload.is_private, project_id=payload.project_id,
     )
-    return TeamOut(
+    return APIResponse.ok(data=TeamOut(
         id=t.id, name=t.name, slug=t.slug, description=t.description,
         is_private=t.is_private, project_id=t.project_id, is_archived=t.is_archived,
         member_count=1, channel_count=1, created_at=t.created_at,
-    )
+    ))
 
 
-@router.patch("/teams/{team_id}", response_model=TeamOut, summary="Actualizar equipo")
+@router.patch("/teams/{team_id}", response_model=APIResponse[TeamOut], summary="Actualizar equipo")
 def update_team(team_id: str, payload: TeamUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     assert_team_access(db, current_user, team_id)
     org = _org(current_user)
@@ -101,11 +101,11 @@ def update_team(team_id: str, payload: TeamUpdate, current_user: User = Depends(
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(t, k, v)
     db.commit()
-    return TeamOut(
+    return APIResponse.ok(data=TeamOut(
         id=t.id, name=t.name, slug=t.slug, description=t.description,
         is_private=t.is_private, project_id=t.project_id, is_archived=t.is_archived,
         created_at=t.created_at,
-    )
+    ))
 
 
 @router.get("/teams/{team_id}/members", response_model=APIListResponse[TeamMemberOut], summary="Miembros del equipo")
@@ -136,14 +136,14 @@ def list_team_members(team_id: str, current_user: User = Depends(get_current_use
 @router.post("/teams/{team_id}/members", summary="Añadir miembros al equipo")
 def add_team_members(team_id: str, payload: TeamMemberUpsert, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     n = ws_svc.add_team_members(db, current_user, team_id, payload.user_ids, role=payload.role)
-    return {"added": n}
+    return APIResponse.ok(data={"added": n})
 
 
 @router.delete("/teams/{team_id}/members/{user_id}", summary="Quitar miembro del equipo")
 def remove_team_member(team_id: str, user_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     enforce_abac(db, current_user, "collaboration_team", team_id, action="delete")
     ws_svc.remove_team_member(db, current_user, team_id, user_id)
-    return {"removed": True}
+    return APIResponse.ok(data={"removed": True})
 
 
 # ── Channels ─────────────────────────────────────────────────────────────────
@@ -167,7 +167,7 @@ def list_channels(team_id: Optional[str] = None, current_user: User = Depends(ge
     return APIListResponse.ok(items=out, total=len(out))
 
 
-@router.post("/channels", response_model=ChannelOut, summary="Crear canal")
+@router.post("/channels", response_model=APIResponse[ChannelOut], summary="Crear canal")
 def create_channel(payload: ChannelCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     c = ws_svc.create_channel(
         db, current_user,
@@ -176,15 +176,15 @@ def create_channel(payload: ChannelCreate, current_user: User = Depends(get_curr
         channel_type=payload.channel_type, is_default=payload.is_default,
         project_id=payload.project_id, initial_member_ids=payload.initial_member_ids,
     )
-    return ChannelOut(
+    return APIResponse.ok(data=ChannelOut(
         id=c.id, conversation_id=c.conversation_id, team_id=c.team_id,
         name=c.name, slug=c.slug, topic=c.topic, description=c.description,
         channel_type=c.channel_type, is_default=c.is_default, is_archived=c.is_archived,
         project_id=c.project_id, member_count=1,
-    )
+    ))
 
 
-@router.patch("/channels/{channel_id}", response_model=ChannelOut, summary="Actualizar canal")
+@router.patch("/channels/{channel_id}", response_model=APIResponse[ChannelOut], summary="Actualizar canal")
 def update_channel(channel_id: str, payload: ChannelUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     org = _org(current_user)
     ch = db.query(CollaborationChannel).filter(CollaborationChannel.id == channel_id, CollaborationChannel.organization_id == org).first()
@@ -195,18 +195,18 @@ def update_channel(channel_id: str, payload: ChannelUpdate, current_user: User =
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(ch, k, v)
     db.commit()
-    return ChannelOut(
+    return APIResponse.ok(data=ChannelOut(
         id=ch.id, conversation_id=ch.conversation_id, team_id=ch.team_id,
         name=ch.name, slug=ch.slug, topic=ch.topic, description=ch.description,
         channel_type=ch.channel_type, is_default=ch.is_default, is_archived=ch.is_archived,
         project_id=ch.project_id,
-    )
+    ))
 
 
 @router.post("/channels/{channel_id}/members", summary="Añadir miembros al canal")
 def add_channel_members(channel_id: str, payload: TeamMemberUpsert, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     n = ws_svc.add_channel_members(db, current_user, channel_id, payload.user_ids)
-    return {"added": n}
+    return APIResponse.ok(data={"added": n})
 
 
 @router.get("/channels/{channel_id}/members", response_model=APIListResponse[ChannelMemberOut], summary="Miembros del canal")
@@ -237,7 +237,7 @@ def open_direct(payload: DirectOpenIn, current_user: User = Depends(get_current_
         target_user_id=payload.user_id,
         target_client_id=payload.client_user_id,
     )
-    return {"id": d.id, "conversation_id": d.conversation_id}
+    return APIResponse.ok(data={"id": d.id, "conversation_id": d.conversation_id})
 
 
 @router.post("/groups", summary="Crear grupo ad-hoc")
@@ -247,7 +247,7 @@ def create_group(payload: GroupCreate, current_user: User = Depends(get_current_
         title=payload.title,
         user_ids=payload.user_ids, client_user_ids=payload.client_user_ids,
     )
-    return {"id": g.id, "conversation_id": g.conversation_id}
+    return APIResponse.ok(data={"id": g.id, "conversation_id": g.conversation_id})
 
 
 # ── Conversation members (group + private channel via conversation_id) ──────
@@ -277,7 +277,7 @@ def list_conversation_members(
                 "id": m.id, "client_user_id": m.client_user_id,
                 "is_admin": False, "kind": "client",
             })
-    return out
+    return APIListResponse.ok(items=out)
 
 
 @router.post("/conversations/{conversation_id}/members", summary="Añadir miembros a un grupo")
@@ -340,7 +340,7 @@ def add_conversation_members(
         payload={"users": user_ids, "clients": client_user_ids},
     )
     db.commit()
-    return {"added": added}
+    return APIResponse.ok(data={"added": added})
 
 
 @router.delete("/conversations/{conversation_id}/members/{user_id}", summary="Quitar miembro de un grupo")
@@ -383,16 +383,16 @@ def remove_conversation_member(
         payload={"user_id": user_id},
     )
     db.commit()
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── Conversation listing (sidebar) ───────────────────────────────────────────
 @router.get("/conversations", summary="Lista unificada de conversaciones (sidebar)")
 def list_conversations(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return ws_svc.list_conversations_for_user(db, current_user)
+    return APIListResponse.ok(items=ws_svc.list_conversations_for_user(db, current_user))
 
 
-@router.get("/conversations/{conversation_id}", response_model=ConversationOut, summary="Detalle de conversación")
+@router.get("/conversations/{conversation_id}", response_model=APIResponse[ConversationOut], summary="Detalle de conversación")
 def get_conversation(conversation_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.services.collaboration._permissions import assert_conversation_access
     assert_conversation_access(db, current_user, conversation_id)
@@ -420,11 +420,11 @@ def get_conversation(conversation_id: str, current_user: User = Depends(get_curr
                 if m.user_id:
                     u = db.query(User).filter(User.id == m.user_id).first()
                     members.append({"user_id": m.user_id, "name": (u.full_name or u.username) if u else None})
-    return ConversationOut(
+    return APIResponse.ok(data=ConversationOut(
         id=conv.id, kind=conv.kind, workspace_id=conv.workspace_id,
         last_activity_at=conv.last_activity_at, last_message_id=conv.last_message_id,
         is_archived=conv.is_archived, title=title, members=members, extra=extra,
-    )
+    ))
 
 
 # ── Presence ─────────────────────────────────────────────────────────────────
@@ -448,7 +448,7 @@ def list_presence(current_user: User = Depends(get_current_user), db: Session = 
             "is_in_call": r.is_in_call,
             "last_seen_at": r.last_seen_at,
         })
-    return out
+    return APIListResponse.ok(items=out)
 
 
 @router.post("/presence/me", summary="Actualizar mi presencia")
@@ -462,7 +462,7 @@ def update_presence(payload: PresenceIn, current_user: User = Depends(get_curren
     row.custom_message = payload.custom_message
     row.last_seen_at = utcnow()
     db.commit()
-    return {"status": row.status}
+    return APIResponse.ok(data={"status": row.status})
 
 
 # ── Drafts ──────────────────────────────────────────────────────────────────
@@ -470,7 +470,7 @@ def update_presence(payload: PresenceIn, current_user: User = Depends(get_curren
 def upsert_draft(conversation_id: str, payload: DraftIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.services.collaboration.messages import upsert_draft as _upsert
     _upsert(db, current_user, conversation_id, payload.body, payload.metadata_json, payload.parent_message_id)
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.get("/conversations/{conversation_id}/draft", summary="Leer mi borrador")
@@ -478,8 +478,8 @@ def get_draft(conversation_id: str, parent_message_id: Optional[str] = None, cur
     from app.services.collaboration.messages import get_draft as _get
     d = _get(db, current_user, conversation_id, parent_message_id)
     if not d:
-        return {"body": "", "metadata_json": {}}
-    return {"body": d.body, "metadata_json": d.metadata_json or {}}
+        return APIResponse.ok(data={"body": "", "metadata_json": {}})
+    return APIResponse.ok(data={"body": d.body, "metadata_json": d.metadata_json or {}})
 
 
 # ── Notifications ────────────────────────────────────────────────────────────
@@ -489,11 +489,11 @@ def list_notifications(unread_only: bool = False, current_user: User = Depends(g
     if unread_only:
         q = q.filter(CollaborationNotification.is_read == False)
     rows = q.order_by(CollaborationNotification.created_at.desc()).limit(200).all()
-    return [{
+    return APIListResponse.ok(items=[{
         "id": n.id, "kind": n.kind, "title": n.title, "body": n.body,
         "conversation_id": n.conversation_id, "message_id": n.message_id,
         "is_read": n.is_read, "payload": n.payload, "created_at": n.created_at,
-    } for n in rows]
+    } for n in rows])
 
 
 @router.post("/notifications/mark-all-read", summary="Marcar todas como leídas")
@@ -503,7 +503,7 @@ def mark_all_notifications_read(current_user: User = Depends(get_current_user), 
         CollaborationNotification.is_read == False,
     ).update({"is_read": True, "read_at": utcnow()})
     db.commit()
-    return {"marked": n}
+    return APIResponse.ok(data={"marked": n})
 
 
 @router.post("/notifications/{notif_id}/read", summary="Marcar notificación leída")
@@ -516,7 +516,7 @@ def mark_notif_read(notif_id: str, current_user: User = Depends(get_current_user
     n.is_read = True
     n.read_at = utcnow()
     db.commit()
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
 # ── Notification rules ──────────────────────────────────────────────────────
@@ -525,12 +525,12 @@ def list_rules(current_user: User = Depends(get_current_user), db: Session = Dep
     rows = db.query(CollaborationNotificationRule).filter(
         CollaborationNotificationRule.user_id == current_user.id,
     ).all()
-    return [{
+    return APIListResponse.ok(items=[{
         "id": r.id, "scope": r.scope, "target_id": r.target_id,
         "notify_messages": r.notify_messages, "desktop_push": r.desktop_push,
         "email_digest": r.email_digest,
         "do_not_disturb_from": r.do_not_disturb_from, "do_not_disturb_to": r.do_not_disturb_to,
-    } for r in rows]
+    } for r in rows])
 
 
 @router.put("/notification-rules", summary="Crear / actualizar regla")
@@ -549,7 +549,7 @@ def upsert_rule(payload: NotificationRuleIn, current_user: User = Depends(get_cu
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(row, k, v)
     db.commit()
-    return {"id": row.id}
+    return APIResponse.ok(data={"id": row.id})
 
 
 # ── Search ───────────────────────────────────────────────────────────────────
@@ -559,11 +559,11 @@ def list_saved_searches(current_user: User = Depends(get_current_user), db: Sess
     rows = db.query(CollaborationSavedSearch).filter(
         CollaborationSavedSearch.user_id == current_user.id,
     ).order_by(CollaborationSavedSearch.is_pinned.desc(), CollaborationSavedSearch.last_used_at.desc().nullslast()).all()
-    return [{
+    return APIListResponse.ok(items=[{
         "id": r.id, "name": r.name, "query": r.query,
         "parsed": r.parsed or {}, "is_pinned": r.is_pinned,
         "use_count": r.use_count, "last_used_at": r.last_used_at,
-    } for r in rows]
+    } for r in rows])
 
 
 @router.post("/search/saved", summary="Guardar búsqueda")
@@ -582,7 +582,7 @@ def save_search(payload: dict, current_user: User = Depends(get_current_user), d
     )
     db.add(row)
     db.commit()
-    return {"id": row.id, "name": row.name, "query": row.query, "parsed": parsed}
+    return APIResponse.ok(data={"id": row.id, "name": row.name, "query": row.query, "parsed": parsed})
 
 
 @router.delete("/search/saved/{saved_id}", summary="Eliminar búsqueda guardada")
@@ -596,10 +596,10 @@ def delete_saved_search(saved_id: str, current_user: User = Depends(get_current_
     if row:
         db.delete(row)
         db.commit()
-    return {"ok": True}
+    return APIResponse.ok(data={"ok": True})
 
 
-@router.post("/search/saved/{saved_id}/run", response_model=SearchResponse, summary="Ejecutar búsqueda guardada")
+@router.post("/search/saved/{saved_id}/run", response_model=APIResponse[SearchResponse], summary="Ejecutar búsqueda guardada")
 def run_saved_search(saved_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.models.collaboration import CollaborationSavedSearch
     row = db.query(CollaborationSavedSearch).filter(
@@ -616,7 +616,7 @@ def run_saved_search(saved_id: str, current_user: User = Depends(get_current_use
     row.use_count = (row.use_count or 0) + 1
     row.last_used_at = utcnow()
     db.commit()
-    return SearchResponse(hits=[SearchHit(**h) for h in hits], total=len(hits))
+    return APIResponse.ok(data=SearchResponse(hits=[SearchHit(**h) for h in hits], total=len(hits)))
 
 
 @router.get("/mention-suggestions", summary="Sugerencias para autocomplete @")
@@ -668,10 +668,10 @@ def mention_suggestions(
                        ("everyone", "@everyone · toda la conversación")):
         if not qm or tag.startswith(qm):
             extras.append({"id": tag, "username": tag, "full_name": label, "is_group": True})
-    return {"users": out, "groups": extras}
+    return APIResponse.ok(data={"users": out, "groups": extras})
 
 
-@router.get("/search", response_model=SearchResponse, summary="Búsqueda global")
+@router.get("/search", response_model=APIResponse[SearchResponse], summary="Búsqueda global")
 def search(
     q: str = Query("", min_length=0, max_length=500),
     conversation_id: Optional[str] = None,
@@ -694,4 +694,4 @@ def search(
         conversation_ids=accessible, author_user_id=author_user_id,
         date_from=date_from, date_to=date_to, limit=limit,
     )
-    return SearchResponse(hits=[SearchHit(**h) for h in hits], total=len(hits))
+    return APIResponse.ok(data=SearchResponse(hits=[SearchHit(**h) for h in hits], total=len(hits)))

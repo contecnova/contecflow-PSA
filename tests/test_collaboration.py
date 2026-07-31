@@ -7,8 +7,6 @@ retention + legal hold, eDiscovery, OAuth providers, push, email digest.
 """
 from datetime import datetime, timedelta
 
-import pytest
-
 
 def _auth_headers(token):
     return {"Authorization": f"Bearer {token}"}
@@ -35,7 +33,7 @@ def test_send_edit_delete_message(client, admin_token):
     cid = _conv_id(client, h)
     r = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "hola"}, headers=h)
     assert r.status_code == 200
-    mid = r.json()["id"]
+    mid = r.json()["data"]["id"]
     _msg_body = client.get(f"/api/v1/collaboration/conversations/{cid}/messages", headers=h).json()
     msgs = _msg_body.get("items") if isinstance(_msg_body, dict) else _msg_body
     assert any(m["id"] == mid for m in msgs)
@@ -52,11 +50,11 @@ def test_reactions_pins_saved(client, admin_token):
     h = _auth_headers(admin_token)
     client.get("/api/v1/collaboration/workspace", headers=h)
     cid = _conv_id(client, h)
-    mid = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "test"}, headers=h).json()["id"]
+    mid = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "test"}, headers=h).json()["data"]["id"]
     r = client.post(f"/api/v1/collaboration/messages/{mid}/reactions", json={"emoji": "👍"}, headers=h)
-    assert r.json()["added"] is True
+    assert r.json()["data"]["added"] is True
     client.post(f"/api/v1/collaboration/conversations/{cid}/pins", json={"message_id": mid}, headers=h)
-    pins = client.get(f"/api/v1/collaboration/conversations/{cid}/pins", headers=h).json()
+    pins = client.get(f"/api/v1/collaboration/conversations/{cid}/pins", headers=h).json()["items"]
     assert any(p["message_id"] == mid for p in pins)
     client.post("/api/v1/collaboration/saved", json={"message_id": mid}, headers=h)
     saved = client.get("/api/v1/collaboration/saved", headers=h).json()["items"]
@@ -70,9 +68,9 @@ def test_search_with_operators(client, admin_token):
     client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "Bug en home"}, headers=h)
     client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "doc https://x.com aqui"}, headers=h)
     r = client.get("/api/v1/collaboration/search", params={"q": "home"}, headers=h).json()
-    assert r["total"] >= 1
+    assert r["data"]["total"] >= 1
     r = client.get("/api/v1/collaboration/search", params={"q": "has:link"}, headers=h).json()
-    assert r["total"] >= 1
+    assert r["data"]["total"] >= 1
 
 
 def test_saved_searches(client, admin_token):
@@ -80,8 +78,8 @@ def test_saved_searches(client, admin_token):
     client.get("/api/v1/collaboration/workspace", headers=h)
     r = client.post("/api/v1/collaboration/search/saved", json={"name": "Todo bug", "query": "bug in:general"}, headers=h)
     assert r.status_code == 200
-    sid = r.json()["id"]
-    saved = client.get("/api/v1/collaboration/search/saved", headers=h).json()
+    sid = r.json()["data"]["id"]
+    saved = client.get("/api/v1/collaboration/search/saved", headers=h).json()["items"]
     assert any(s["id"] == sid for s in saved)
     r = client.post(f"/api/v1/collaboration/search/saved/{sid}/run", headers=h)
     assert r.status_code == 200
@@ -235,7 +233,7 @@ def test_retention_run(client, admin_token, db):
     h = _auth_headers(admin_token)
     client.get("/api/v1/collaboration/workspace", headers=h)
     cid = _conv_id(client, h)
-    mid = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "old"}, headers=h).json()["id"]
+    mid = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "old"}, headers=h).json()["data"]["id"]
     from app.models.collaboration import CollaborationMessage
     m = db.query(CollaborationMessage).filter(CollaborationMessage.id == mid).first()
     m.sent_at = datetime.utcnow() - timedelta(days=400)
@@ -249,7 +247,7 @@ def test_legal_hold_protects(client, admin_token, db):
     h = _auth_headers(admin_token)
     client.get("/api/v1/collaboration/workspace", headers=h)
     cid = _conv_id(client, h)
-    mid = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "old hold"}, headers=h).json()["id"]
+    mid = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "old hold"}, headers=h).json()["data"]["id"]
     from app.models.collaboration import CollaborationMessage
     from app.models.user import User
     m = db.query(CollaborationMessage).filter(CollaborationMessage.id == mid).first()
@@ -287,7 +285,7 @@ def test_search_query_parser_unit():
 
 def test_oauth_providers(client, admin_token):
     h = _auth_headers(admin_token)
-    r = client.get("/api/v1/collaboration/integrations/providers", headers=h).json()
+    r = client.get("/api/v1/collaboration/integrations/providers", headers=h).json()["data"]
     assert "jira" in r["providers"]
     assert "github" in r["providers"]
     assert "google_calendar" in r["providers"]
@@ -298,13 +296,13 @@ def test_email_digest_dry_run(client, admin_token):
     client.get("/api/v1/collaboration/workspace", headers=h)
     r = client.post("/api/v1/collaboration/admin/email-digest/run", params={"dry_run": True}, headers=h)
     assert r.status_code == 200
-    body = r.json()
+    body = r.json()["data"]
     assert "sent" in body and "skipped" in body
 
 
 def test_push_public_key(client, admin_token):
     h = _auth_headers(admin_token)
-    r = client.get("/api/v1/collaboration/push/public-key", headers=h).json()
+    r = client.get("/api/v1/collaboration/push/public-key", headers=h).json()["data"]
     assert "configured" in r
 
 
@@ -313,7 +311,7 @@ def test_mention_suggestions(client, admin_token):
     h = _auth_headers(admin_token)
     client.get("/api/v1/collaboration/workspace", headers=h)
     # query vacío: aparecen los 3 grupos especiales
-    r = client.get("/api/v1/collaboration/mention-suggestions", headers=h).json()
+    r = client.get("/api/v1/collaboration/mention-suggestions", headers=h).json()["data"]
     assert "users" in r and "groups" in r
     assert any(g["username"] == "everyone" for g in r["groups"])
     assert any(g["username"] == "channel" for g in r["groups"])
@@ -323,7 +321,7 @@ def test_link_message_to_task(client, admin_token, db):
     h = _auth_headers(admin_token)
     client.get("/api/v1/collaboration/workspace", headers=h)
     cid = _conv_id(client, h)
-    msg_id = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "anchor me"}, headers=h).json()["id"]
+    msg_id = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "anchor me"}, headers=h).json()["data"]["id"]
     from datetime import date
     from app.models.project import Project, ProjectType, ProjectStatus
     from app.models.task import Task
@@ -346,10 +344,10 @@ def test_link_candidates(client, admin_token, db):
     h = _auth_headers(admin_token)
     client.get("/api/v1/collaboration/workspace", headers=h)
     cid = _conv_id(client, h)
-    msg_id = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "hi"}, headers=h).json()["id"]
+    msg_id = client.post("/api/v1/collaboration/messages", json={"conversation_id": cid, "body": "hi"}, headers=h).json()["data"]["id"]
     r = client.get(f"/api/v1/collaboration/messages/{msg_id}/link/candidates", params={"kind": "task"}, headers=h)
     assert r.status_code == 200
-    assert isinstance(r.json(), list)
+    assert isinstance(r.json()["items"], list)
 
 
 def test_decisions_endpoint(client, admin_token):
@@ -367,7 +365,7 @@ def test_calendar_events_no_providers(client, admin_token):
     h = _auth_headers(admin_token)
     r = client.get("/api/v1/collaboration/calendar/events", headers=h)
     assert r.status_code == 200
-    body = r.json()
+    body = r.json()["data"]
     assert body["events"] == []
 
 
@@ -385,7 +383,7 @@ def test_scheduled_message_does_not_notify_immediately(client, admin_token, db):
         headers=h,
     )
     assert r.status_code == 200
-    msg_id = r.json()["id"]
+    msg_id = r.json()["data"]["id"]
     notifs = db.query(CollaborationNotification).filter(CollaborationNotification.message_id == msg_id).count()
     assert notifs == 0  # ningún fan-out hasta que el scheduler lo entregue
 
@@ -479,7 +477,7 @@ def test_mention_suggestions_excludes_self(client, admin_token):
     """Bug fix: las sugerencias de @mention no deben incluir al usuario actual."""
     h = _auth_headers(admin_token)
     client.get("/api/v1/collaboration/workspace", headers=h)
-    r = client.get("/api/v1/collaboration/mention-suggestions", headers=h).json()
+    r = client.get("/api/v1/collaboration/mention-suggestions", headers=h).json()["data"]
     # Ningún user de la lista debe ser el admin actual
     me_in_list = any(u.get("username") == "admin" for u in r["users"])
     assert not me_in_list
@@ -573,7 +571,7 @@ def test_per_conversation_mute_silences_notifications(client, admin_token, pm_to
         json={"user_id": pm.id}, headers=h_admin,
     )
     assert r.status_code == 200
-    conv_id = r.json()["conversation_id"]
+    conv_id = r.json()["data"]["conversation_id"]
 
     # 2) PM silencia esa conversación
     r = client.put(
@@ -635,7 +633,7 @@ def test_conversations_include_unread_count_and_mark_all_read_updates_it(client,
         headers=h_admin,
     )
     assert direct.status_code == 200
-    conv_id = direct.json()["conversation_id"]
+    conv_id = direct.json()["data"]["conversation_id"]
 
     sent = client.post(
         "/api/v1/collaboration/messages",
@@ -646,7 +644,7 @@ def test_conversations_include_unread_count_and_mark_all_read_updates_it(client,
 
     convs_pm = client.get("/api/v1/collaboration/conversations", headers=h_pm)
     assert convs_pm.status_code == 200
-    row = next(c for c in convs_pm.json() if c["id"] == conv_id)
+    row = next(c for c in convs_pm.json()["items"] if c["id"] == conv_id)
     assert row.get("unread_count", 0) >= 1
 
     mark = client.post("/api/v1/collaboration/notifications/mark-all-read", headers=h_pm)
@@ -654,7 +652,7 @@ def test_conversations_include_unread_count_and_mark_all_read_updates_it(client,
 
     convs_pm_after = client.get("/api/v1/collaboration/conversations", headers=h_pm)
     assert convs_pm_after.status_code == 200
-    row_after = next(c for c in convs_pm_after.json() if c["id"] == conv_id)
+    row_after = next(c for c in convs_pm_after.json()["items"] if c["id"] == conv_id)
     assert row_after.get("unread_count", 0) == 0
 
 
@@ -676,7 +674,7 @@ def test_mark_read_clears_conversation_unread_count_immediately(client, admin_to
         headers=h_admin,
     )
     assert direct.status_code == 200
-    conv_id = direct.json()["conversation_id"]
+    conv_id = direct.json()["data"]["conversation_id"]
 
     sent = client.post(
         "/api/v1/collaboration/messages",
@@ -684,11 +682,11 @@ def test_mark_read_clears_conversation_unread_count_immediately(client, admin_to
         headers=h_admin,
     )
     assert sent.status_code == 200
-    mid = sent.json()["id"]
+    mid = sent.json()["data"]["id"]
 
     before = client.get("/api/v1/collaboration/conversations", headers=h_pm)
     assert before.status_code == 200
-    before_row = next(c for c in before.json() if c["id"] == conv_id)
+    before_row = next(c for c in before.json()["items"] if c["id"] == conv_id)
     assert before_row.get("unread_count", 0) >= 1
 
     mark = client.post(
@@ -700,7 +698,7 @@ def test_mark_read_clears_conversation_unread_count_immediately(client, admin_to
 
     after = client.get("/api/v1/collaboration/conversations", headers=h_pm)
     assert after.status_code == 200
-    after_row = next(c for c in after.json() if c["id"] == conv_id)
+    after_row = next(c for c in after.json()["items"] if c["id"] == conv_id)
     assert after_row.get("unread_count", 0) == 0
 
 
@@ -720,12 +718,12 @@ def test_group_add_and_remove_members(client, admin_token, pm_token, dev_token, 
         headers=h_admin,
     )
     assert r.status_code == 200
-    conv_id = r.json()["conversation_id"]
+    conv_id = r.json()["data"]["conversation_id"]
 
     # 2) Listar miembros: deben ser admin + pm (2)
     r = client.get(f"/api/v1/collaboration/conversations/{conv_id}/members", headers=h_admin)
     assert r.status_code == 200
-    members = r.json()
+    members = r.json()["items"]
     user_ids = {m["user_id"] for m in members if m.get("user_id")}
     assert pm.id in user_ids
     # admin auto-incluido al crear
@@ -739,11 +737,11 @@ def test_group_add_and_remove_members(client, admin_token, pm_token, dev_token, 
         headers=h_admin,
     )
     assert r.status_code == 200, r.text
-    assert r.json()["added"] == 1
+    assert r.json()["data"]["added"] == 1
 
     # 4) Listar de nuevo: ahora 3
     r = client.get(f"/api/v1/collaboration/conversations/{conv_id}/members", headers=h_admin)
-    user_ids = {m["user_id"] for m in r.json() if m.get("user_id")}
+    user_ids = {m["user_id"] for m in r.json()["items"] if m.get("user_id")}
     assert dev.id in user_ids
     assert len(user_ids) == 3
 
@@ -754,7 +752,7 @@ def test_group_add_and_remove_members(client, admin_token, pm_token, dev_token, 
         headers=h_admin,
     )
     assert r.status_code == 200
-    assert r.json()["added"] == 0
+    assert r.json()["data"]["added"] == 0
 
     # 6) Un no-admin no puede expulsar a otro
     h_pm = _auth_headers(pm_token)
@@ -794,7 +792,7 @@ def test_group_add_and_remove_members(client, admin_token, pm_token, dev_token, 
             "/api/v1/collaboration/channels",
             json={"team_id": teams[0]["id"], "name": "test-add-block", "channel_type": "public"},
             headers=h_admin,
-        ).json()
+        ).json()["data"]
         ch_conv_id = ch["conversation_id"]
         r = client.post(
             f"/api/v1/collaboration/conversations/{ch_conv_id}/members",

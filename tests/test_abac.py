@@ -413,7 +413,7 @@ class TestABACEndpoints:
         headers = get_auth_headers(test_manager_user)
         response = client.get(f"/api/v1/abac/users/{test_manager_user.id}/attributes", headers=headers)
         assert response.status_code == 200
-        data = response.json()
+        data = response.json()["data"]
         assert data["user_id"] == test_manager_user.id
         assert data["attributes"]["region"] == "EMEA"
 
@@ -437,7 +437,7 @@ class TestABACEndpoints:
         payload = {"attribute_key": "region", "attribute_value": "LATAM"}
         response = client.post(f"/api/v1/abac/users/{user.id}/attributes", json=payload, headers=headers)
         assert response.status_code == 200
-        data = response.json()
+        data = response.json()["data"]
         assert data["user_id"] == user.id
         assert data["attribute_key"] == "region"
         assert data["attribute_value"] == "LATAM"
@@ -451,7 +451,7 @@ class TestABACEndpoints:
         }
         response = client.post("/api/v1/abac/policies", json=payload, headers=headers)
         assert response.status_code == 200
-        data = response.json()
+        data = response.json()["data"]
         assert data["policy_name"] == "Test Policy"
         assert data["effect"] == "allow"
 
@@ -475,7 +475,7 @@ class TestABACEndpoints:
         payload = {"resource_type": "test", "action": "read", "context": {}}
         response = client.post("/api/v1/abac/evaluate", json=payload, headers=headers)
         assert response.status_code == 200
-        data = response.json()
+        data = response.json()["data"]
         assert data["decision"] is True
 
     def test_access_denied_on_missing_attribute(self, db: Session, test_engineer_user: User):
@@ -492,5 +492,5 @@ class TestABACEndpoints:
         payload = {"resource_type": "test", "action": "read", "context": {}}
         response = client.post("/api/v1/abac/evaluate", json=payload, headers=headers)
         assert response.status_code == 200
-        data = response.json()
+        data = response.json()["data"]
         assert data["decision"] is False

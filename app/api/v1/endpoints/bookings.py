@@ -9,7 +9,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.schemas.bookings import (
     BookingCreate,
@@ -39,7 +39,7 @@ def get_booking_conflicts(
     # Parse dates if provided
     sd = date.fromisoformat(start_date) if start_date else None
     ed = date.fromisoformat(end_date) if end_date else None
-    return v238_service.get_booking_conflicts(user_id, sd, ed, threshold_pct, db)
+    return APIResponse.ok(data=v238_service.get_booking_conflicts(user_id, sd, ed, threshold_pct, db))
 
 @router.get("/gantt-leveling")
 def get_gantt_leveling(
@@ -52,7 +52,7 @@ def get_gantt_leveling(
     from datetime import date
     sd = date.fromisoformat(start_date) if start_date else None
     ed = date.fromisoformat(end_date) if end_date else None
-    return v238_service.get_gantt_leveling(project_id, sd, ed, db)
+    return APIResponse.ok(data=v238_service.get_gantt_leveling(project_id, sd, ed, db))
 
 
 
@@ -84,27 +84,27 @@ def list_bookings(
 def bookings_heatmap(weeks: int = Query(12, ge=1, le=52),
                      db: Session = Depends(get_db),
                      current_user: User = Depends(require_any_manager)):
-    return svc.get_bookings_heatmap(weeks, current_user.organization_id, db)
+    return APIResponse.ok(data=svc.get_bookings_heatmap(weeks, current_user.organization_id, db))
 
 
 @router.post("")
 def create_booking(payload: BookingCreate, db: Session = Depends(get_db),
                    current_user: User = Depends(require_any_manager)):
-    return svc.create_booking_record(payload, current_user.id, db)
+    return APIResponse.ok(data=svc.create_booking_record(payload, current_user.id, db))
 
 
 @router.patch("/{booking_id}")
 def update_booking(booking_id: str, payload: BookingUpdate,
                    db: Session = Depends(get_db),
                    current_user: User = Depends(require_any_manager)):
-    return svc.update_booking_record(booking_id, payload, db)
+    return APIResponse.ok(data=svc.update_booking_record(booking_id, payload, db))
 
 
 @router.delete("/{booking_id}")
 def delete_booking(booking_id: str, db: Session = Depends(get_db),
                    current_user: User = Depends(require_any_manager)):
     enforce_abac(db, current_user, "resource_booking", booking_id, action="delete")
-    return svc.delete_booking_record(booking_id, db)
+    return APIResponse.ok(data=svc.delete_booking_record(booking_id, db))
 
 
 # ── SLA Schedules ─────────────────────────────────────────────────────────────
@@ -123,20 +123,20 @@ def list_sla_schedules(
 @router.post("/sla-schedules")
 def create_sla_schedule(payload: SLAScheduleCreate, db: Session = Depends(get_db),
                         current_user: User = Depends(require_admin)):
-    return svc.create_sla_schedule_record(payload, db)
+    return APIResponse.ok(data=svc.create_sla_schedule_record(payload, db))
 
 
 @router.post("/sla-schedules/calculate-deadline")
 def calculate_sla_deadline(payload: dict = Body(...), db: Session = Depends(get_db),
                            current_user: User = Depends(get_current_user)):
-    return svc.calculate_sla_deadline_record(payload, db)
+    return APIResponse.ok(data=svc.calculate_sla_deadline_record(payload, db))
 
 
 @router.post("/sla-schedules/{schedule_id}/holidays")
 def add_holidays(schedule_id: str, payload: dict = Body(...),
                  db: Session = Depends(get_db),
                  current_user: User = Depends(require_admin)):
-    return svc.add_holidays_record(schedule_id, payload, db)
+    return APIResponse.ok(data=svc.add_holidays_record(schedule_id, payload, db))
 
 
 @router.delete("/sla-schedules/{schedule_id}/holidays/{holiday_id}")
@@ -144,7 +144,7 @@ def delete_holiday(schedule_id: str, holiday_id: str,
                    db: Session = Depends(get_db),
                    current_user: User = Depends(require_admin)):
     enforce_abac(db, current_user, "booking_sla_holiday", holiday_id, action="delete")
-    return svc.delete_holiday_record(schedule_id, holiday_id, db)
+    return APIResponse.ok(data=svc.delete_holiday_record(schedule_id, holiday_id, db))
 
 
 # ── API Keys ──────────────────────────────────────────────────────────────────
@@ -164,19 +164,19 @@ def list_api_keys(
 @router.post("/api-keys")
 def create_api_key(payload: ApiKeyCreate, db: Session = Depends(get_db),
                    current_user: User = Depends(get_current_user)):
-    return svc.create_api_key_record(payload, current_user.id, db)
+    return APIResponse.ok(data=svc.create_api_key_record(payload, current_user.id, db))
 
 
 @router.delete("/api-keys/{key_id}")
 def revoke_api_key(key_id: str, db: Session = Depends(get_db),
                    current_user: User = Depends(get_current_user)):
     enforce_abac(db, current_user, "booking_api_key", key_id, action="delete")
-    return svc.revoke_api_key_record(key_id, current_user.id, db)
+    return APIResponse.ok(data=svc.revoke_api_key_record(key_id, current_user.id, db))
 
 
 @router.post("/api-keys/verify")
 def verify_api_key_endpoint(payload: dict = Body(...), db: Session = Depends(get_db)):
-    return svc.verify_api_key_record(payload.get("key", ""), db)
+    return APIResponse.ok(data=svc.verify_api_key_record(payload.get("key", ""), db))
 
 
 # ── Recurring Invoices ────────────────────────────────────────────────────────
@@ -195,26 +195,26 @@ def list_recurring(
 @router.post("/recurring")
 def create_recurring(payload: RecurringCreate, db: Session = Depends(get_db),
                      current_user: User = Depends(require_any_manager)):
-    return svc.create_recurring_record(payload, current_user.id, db)
+    return APIResponse.ok(data=svc.create_recurring_record(payload, current_user.id, db))
 
 
 @router.patch("/recurring/{rec_id}")
 def update_recurring(rec_id: str, payload: dict = Body(...),
                      db: Session = Depends(get_db),
                      current_user: User = Depends(require_any_manager)):
-    return svc.update_recurring_record(rec_id, payload, db)
+    return APIResponse.ok(data=svc.update_recurring_record(rec_id, payload, db))
 
 
 @router.post("/recurring/process-due")
 def process_due_recurring(db: Session = Depends(get_db),
                           current_user: User = Depends(require_admin)):
-    return svc.process_due_recurring_records(db, current_user)
+    return APIResponse.ok(data=svc.process_due_recurring_records(db, current_user))
 
 
 @router.post("/recurring/{rec_id}/generate-now")
 def generate_recurring_now(rec_id: str, db: Session = Depends(get_db),
                            current_user: User = Depends(require_any_manager)):
-    return svc.generate_recurring_now_record(rec_id, db, current_user)
+    return APIResponse.ok(data=svc.generate_recurring_now_record(rec_id, db, current_user))
 
 
 # ── Pipeline Ops ──────────────────────────────────────────────────────────────
@@ -223,13 +223,13 @@ def generate_recurring_now(rec_id: str, db: Session = Depends(get_db),
 def convert_opportunity_to_project(opportunity_id: str, payload: dict = Body(default={}),
                                    db: Session = Depends(get_db),
                                    current_user: User = Depends(require_any_manager)):
-    return svc.convert_opportunity_to_project_record(opportunity_id, payload, current_user, db)
+    return APIResponse.ok(data=svc.convert_opportunity_to_project_record(opportunity_id, payload, current_user, db))
 
 
 @router.get("/pipeline/revenue-forecast")
 def pipeline_revenue_forecast(db: Session = Depends(get_db),
                               current_user: User = Depends(require_any_manager)):
-    return svc.get_pipeline_revenue_forecast(db)
+    return APIResponse.ok(data=svc.get_pipeline_revenue_forecast(db))
 
 
 # ── ITSM Aging ────────────────────────────────────────────────────────────────
@@ -237,13 +237,13 @@ def pipeline_revenue_forecast(db: Session = Depends(get_db),
 @router.get("/itsm/aging")
 def ticket_aging_report(db: Session = Depends(get_db),
                         current_user: User = Depends(require_any_manager)):
-    return svc.get_ticket_aging_report(db)
+    return APIResponse.ok(data=svc.get_ticket_aging_report(db))
 
 
 @router.get("/itsm/wallboard")
 def get_wallboard(db: Session = Depends(get_db),
                   current_user: User = Depends(require_any_manager)):
-    return svc.get_wallboard_data(db)
+    return APIResponse.ok(data=svc.get_wallboard_data(db))
 
 
 # ── SSO ───────────────────────────────────────────────────────────────────────
@@ -251,17 +251,17 @@ def get_wallboard(db: Session = Depends(get_db),
 @router.get("/sso/initiate/{config_id}")
 def initiate_sso(config_id: str, redirect_to: str = Query(""),
                  db: Session = Depends(get_db)):
-    return svc.initiate_sso_record(config_id, redirect_to, db)
+    return APIResponse.ok(data=svc.initiate_sso_record(config_id, redirect_to, db))
 
 
 @router.post("/sso/saml/callback")
 def saml_callback(payload: dict = Body(...), db: Session = Depends(get_db)):
-    return svc.process_saml_callback(payload, db)
+    return APIResponse.ok(data=svc.process_saml_callback(payload, db))
 
 
 @router.post("/sso/oidc/callback")
 def oidc_callback(payload: dict = Body(...), db: Session = Depends(get_db)):
-    return svc.process_oidc_callback(payload, db)
+    return APIResponse.ok(data=svc.process_oidc_callback(payload, db))
 
 
 # ── Workflow Engine ───────────────────────────────────────────────────────────
@@ -269,10 +269,10 @@ def oidc_callback(payload: dict = Body(...), db: Session = Depends(get_db)):
 @router.post("/workflows/enqueue")
 def enqueue_workflow(payload: dict = Body(...), db: Session = Depends(get_db),
                      current_user: User = Depends(get_current_user)):
-    return svc.enqueue_workflow_record(payload, current_user.id, db)
+    return APIResponse.ok(data=svc.enqueue_workflow_record(payload, current_user.id, db))
 
 
 @router.post("/workflows/process-queue")
 def process_workflow_queue(db: Session = Depends(get_db),
                            current_user: User = Depends(require_admin)):
-    return svc.process_workflow_queue_record(db)
+    return APIResponse.ok(data=svc.process_workflow_queue_record(db))

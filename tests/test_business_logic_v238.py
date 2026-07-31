@@ -216,13 +216,13 @@ class TestCapacityV238:
     def test_booking_conflicts_endpoint_exists(self, client, admin_token, db):
         r = client.get("/api/v1/bookings/conflicts", headers=auth(admin_token))
         assert r.status_code == 200
-        data = r.json()
+        data = r.json()["data"]
         assert "conflicts" in data
 
     def test_booking_conflicts_empty_when_no_bookings(self, client, admin_token, db):
         r = client.get("/api/v1/bookings/conflicts", headers=auth(admin_token))
         assert r.status_code == 200
-        assert r.json()["conflicts"] == []
+        assert r.json()["data"]["conflicts"] == []
 
     def test_booking_conflicts_threshold_param(self, client, admin_token, db):
         r = client.get("/api/v1/bookings/conflicts",
@@ -233,7 +233,7 @@ class TestCapacityV238:
     def test_gantt_leveling_endpoint_exists(self, client, admin_token, db):
         r = client.get("/api/v1/bookings/gantt-leveling", headers=auth(admin_token))
         assert r.status_code == 200
-        data = r.json()
+        data = r.json()["data"]
         # Response has overloaded_users, proposals
         assert "proposals" in data
 

@@ -27,6 +27,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse, APIResponse
 from app.services.ai_dispatch import call_ai, get_default_provider
 from app.services.ai_governance import check_prompt
 
@@ -124,7 +125,7 @@ def list_conversations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.list_conversations(db, current_user.id)
+    return APIListResponse.ok(items=_svc.list_conversations(db, current_user.id))
 
 
 @router.get("/ai/conversations/{conv_id}", summary="Detalle de conversación")
@@ -134,7 +135,7 @@ def get_conversation(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.get_conversation(db, conv_id, current_user.id)
+        return APIResponse.ok(data=_svc.get_conversation(db, conv_id, current_user.id))
     except ValueError:
         raise HTTPException(404)
 
@@ -212,12 +213,12 @@ def chat(
     except Exception as e:
         _logger.error("persist_chat_response failed (non-blocking): %s", e, exc_info=True)
 
-    return {
+    return APIResponse.ok(data={
         "conversation_id": conv.id if conv is not None else None,
         "message": assistant_text,
         "tokens_used": 0,
         "latency_ms": latency,
-    }
+    })
 
 
 def _demo_response(message: str, ctx: dict) -> str:
@@ -405,7 +406,7 @@ def archive_conversation(
 ):
     enforce_abac(db, current_user, "ai_conversation", conv_id, action="delete")
     try:
-        return _svc.archive_conversation(db, conv_id, current_user.id)
+        return APIResponse.ok(data=_svc.archive_conversation(db, conv_id, current_user.id))
     except ValueError:
         raise HTTPException(404)
 
@@ -416,7 +417,7 @@ def archive_all_conversations(
     current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "ai_conversation", str(current_user.id), action="delete")
-    return _svc.archive_all_conversations(db, current_user.id)
+    return APIResponse.ok(data=_svc.archive_all_conversations(db, current_user.id))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -463,10 +464,10 @@ def run_agent(
         payload.auto_approve,
     )
 
-    return {
+    return APIResponse.ok(data={
         "execution_id": execution.id,
         "status": "queued",
-    }
+    })
 
 
 @router.get("/ai/agent/{exec_id}/status", summary="NexusAgent — estado de ejecución (polling)")
@@ -477,7 +478,7 @@ def agent_status(
 ):
     """Lightweight polling endpoint. Returns status, result, and step count."""
     try:
-        return _svc.get_agent_status(db, exec_id, current_user.id)
+        return APIResponse.ok(data=_svc.get_agent_status(db, exec_id, current_user.id))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -686,7 +687,7 @@ def agent_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.list_agent_executions(db, current_user.id, limit)
+    return APIListResponse.ok(items=_svc.list_agent_executions(db, current_user.id, limit))
 
 
 @router.get("/ai/agent/{exec_id}", summary="Detalle de ejecución del agente")
@@ -696,7 +697,7 @@ def agent_detail(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.get_agent_detail_with_steps(db, exec_id)
+        return APIResponse.ok(data=_svc.get_agent_detail_with_steps(db, exec_id))
     except ValueError:
         raise HTTPException(404)
 
@@ -720,7 +721,7 @@ def list_prompts(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.list_prompts(db, module=module)
+    return APIListResponse.ok(items=_svc.list_prompts(db, module=module))
 
 
 @router.get("/governance/prompts/{prompt_id}", summary="Detalle de plantilla de prompt")
@@ -730,7 +731,7 @@ def get_prompt_detail(
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.get_prompt_detail(db, prompt_id)
+        return APIResponse.ok(data=_svc.get_prompt_detail(db, prompt_id))
     except ValueError:
         raise HTTPException(404)
 
@@ -741,7 +742,7 @@ def create_prompt(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.create_prompt_template(db, payload, current_user.id)
+    return APIResponse.ok(data=_svc.create_prompt_template(db, payload, current_user.id))
 
 
 @router.patch("/governance/prompts/{prompt_id}", summary="Activar/desactivar plantilla de prompt")
@@ -752,7 +753,7 @@ def toggle_prompt(
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.toggle_prompt_template(db, prompt_id, payload)
+        return APIResponse.ok(data=_svc.toggle_prompt_template(db, prompt_id, payload))
     except ValueError:
         raise HTTPException(404)
 
@@ -765,6 +766,6 @@ def delete_prompt(
 ):
     enforce_abac(db, current_user, "ai_prompt_template", prompt_id, action="delete")
     try:
-        return _svc.delete_prompt_template(db, prompt_id)
+        return APIResponse.ok(data=_svc.delete_prompt_template(db, prompt_id))
     except ValueError:
         raise HTTPException(404)

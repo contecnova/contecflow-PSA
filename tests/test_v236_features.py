@@ -109,7 +109,7 @@ def test_get_log_level(client, admin_token, db):
     """GET /settings/log-level returns current levels."""
     r = client.get("/api/v1/settings/log-level", headers=auth(admin_token))
     assert r.status_code == 200, r.text
-    data = r.json()
+    data = r.json()["data"]
     assert "root" in data
     assert "valid_levels" in data
     assert isinstance(data["valid_levels"], list)
@@ -122,7 +122,7 @@ def test_set_log_level(client, admin_token, db):
                     json={"level": "DEBUG"},
                     headers=auth(admin_token))
     assert r.status_code == 200, r.text
-    assert r.json()["level"] == "DEBUG"
+    assert r.json()["data"]["level"] == "DEBUG"
 
 
 def test_set_invalid_log_level(client, admin_token, db):

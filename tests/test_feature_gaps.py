@@ -351,7 +351,7 @@ class TestProjectTemplates:
     def test_list_templates_empty(self, client, pm_token, db):
         res = client.get("/api/v1/advanced-config/templates", headers=auth(pm_token))
         assert res.status_code == 200
-        assert isinstance(res.json(), list)
+        assert isinstance(res.json()["items"], list)
 
     def test_create_template(self, client, admin_token, db):
         res = client.post("/api/v1/advanced-config/templates", json={
@@ -382,7 +382,7 @@ class TestProjectTemplates:
             ],
         }, headers=auth(admin_token))
         assert res.status_code in (200, 201), res.text
-        data = res.json()
+        data = res.json()["data"]
         assert "id" in data or data.get("ok")
 
     def test_instantiate_template(self, client, admin_token, db):
@@ -400,7 +400,7 @@ class TestProjectTemplates:
             "risks": [],
         }, headers=auth(admin_token))
         assert tpl_res.status_code in (200, 201), tpl_res.text
-        tpl = tpl_res.json()
+        tpl = tpl_res.json()["data"]
         tpl_id = tpl.get("id") or tpl.get("template_id")
         assert tpl_id
 

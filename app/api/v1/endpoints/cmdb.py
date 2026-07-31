@@ -10,7 +10,7 @@ from app.db.session import get_db
 from app.core.config import settings
 from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.cmdb_service as svc
 
@@ -32,51 +32,51 @@ class WikiTagIn(BaseModel):
 @router.get("/wiki-tags/{space_id}")
 def list_tags(space_id: str, db: Session = Depends(get_db),
               cu: User = Depends(get_current_user)):
-    return svc.list_wiki_tags(space_id, db)
+    return APIListResponse.ok(items=svc.list_wiki_tags(space_id, db))
 
 
 @router.post("/wiki-tags/{space_id}")
 def create_tag(space_id: str, p: WikiTagIn,
                db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
-    return svc.create_wiki_tag(space_id, p.name, p.color, cu.id, db)
+    return APIResponse.ok(data=svc.create_wiki_tag(space_id, p.name, p.color, cu.id, db))
 
 
 @router.patch("/wiki-tags/{tag_id}")
 def update_tag(tag_id: str, p: WikiTagIn,
                db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
-    return svc.update_wiki_tag(tag_id, p.name, p.color, db)
+    return APIResponse.ok(data=svc.update_wiki_tag(tag_id, p.name, p.color, db))
 
 
 @router.delete("/wiki-tags/{tag_id}")
 def delete_tag(tag_id: str, db: Session = Depends(get_db),
                cu: User = Depends(require_admin_or_pm)):
     enforce_abac(db, cu, "wiki_tag", tag_id, action="delete")
-    return svc.delete_wiki_tag(tag_id, db)
+    return APIResponse.ok(data=svc.delete_wiki_tag(tag_id, db))
 
 
 @router.post("/wiki-pages/{page_id}/tags/{tag_id}")
 def add_page_tag(page_id: str, tag_id: str,
                  db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return svc.add_page_tag(page_id, tag_id, db)
+    return APIResponse.ok(data=svc.add_page_tag(page_id, tag_id, db))
 
 
 @router.delete("/wiki-pages/{page_id}/tags/{tag_id}")
 def remove_page_tag(page_id: str, tag_id: str,
                     db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     enforce_abac(db, cu, "wiki_page_tag", tag_id, action="delete")
-    return svc.remove_page_tag(page_id, tag_id, db)
+    return APIResponse.ok(data=svc.remove_page_tag(page_id, tag_id, db))
 
 
 @router.get("/wiki-pages/{page_id}/tags")
 def get_page_tags(page_id: str, db: Session = Depends(get_db),
                   cu: User = Depends(get_current_user)):
-    return svc.get_page_tags(page_id, db)
+    return APIListResponse.ok(items=svc.get_page_tags(page_id, db))
 
 
 @router.get("/wiki-tags/{space_id}/pages")
 def pages_by_tag(space_id: str, tag_id: str,
                  db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return svc.get_pages_by_tag(space_id, tag_id, db)
+    return APIListResponse.ok(items=svc.get_pages_by_tag(space_id, tag_id, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -90,26 +90,26 @@ class InternalCommentIn(BaseModel):
 @sd_router.get("/tickets/{ticket_id}/internal-comments")
 def list_internal_comments_route(ticket_id: str, db: Session = Depends(get_db),
                                  cu: User = Depends(require_any_manager)):
-    return svc.list_internal_comments(ticket_id, db)
+    return APIListResponse.ok(items=svc.list_internal_comments(ticket_id, db))
 
 
 @sd_router.post("/tickets/{ticket_id}/internal-comments")
 def add_internal_comment_route(ticket_id: str, p: InternalCommentIn,
                                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return svc.add_internal_comment(ticket_id, p.content, cu.id, db)
+    return APIResponse.ok(data=svc.add_internal_comment(ticket_id, p.content, cu.id, db))
 
 
 @sd_router.patch("/tickets/{ticket_id}/internal-comments/{comment_id}")
 def update_internal_comment_route(ticket_id: str, comment_id: str, p: InternalCommentIn,
                                    db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return svc.update_internal_comment(ticket_id, comment_id, p.content, cu.id, db)
+    return APIResponse.ok(data=svc.update_internal_comment(ticket_id, comment_id, p.content, cu.id, db))
 
 
 @sd_router.delete("/tickets/{ticket_id}/internal-comments/{comment_id}")
 def delete_internal_comment_route(ticket_id: str, comment_id: str,
                                    db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     enforce_abac(db, cu, "ticket_internal_comment", comment_id, action="delete")
-    return svc.delete_internal_comment(ticket_id, comment_id, cu.id, db)
+    return APIResponse.ok(data=svc.delete_internal_comment(ticket_id, comment_id, cu.id, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -230,7 +230,7 @@ def list_cmdb_categories(
 @router.post("/categories")
 def create_cmdb_category(p: CMDBCategoryIn, db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
-    return svc.create_cmdb_category(p.name, p.icon, p.color, db)
+    return APIResponse.ok(data=svc.create_cmdb_category(p.name, p.icon, p.color, db))
 
 
 @router.get("/items", response_model=APIListResponse[dict])
@@ -252,20 +252,20 @@ def list_cmdb_items(
 @router.post("/items")
 def create_cmdb_item(p: CMDBItemIn, db: Session = Depends(get_db),
                      cu: User = Depends(require_admin_or_pm)):
-    return svc.create_cmdb_item(p, cu.id, db)
+    return APIResponse.ok(data=svc.create_cmdb_item(p, cu.id, db))
 
 
 @router.patch("/items/{item_id}")
 def update_cmdb_item(item_id: str, p: CMDBItemUpdate,
                      db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
-    return svc.update_cmdb_item(item_id, p, cu.id, db)
+    return APIResponse.ok(data=svc.update_cmdb_item(item_id, p, cu.id, db))
 
 
 @router.delete("/items/{item_id}")
 def delete_cmdb_item(item_id: str, db: Session = Depends(get_db),
                      cu: User = Depends(require_admin_or_pm)):
     enforce_abac(db, cu, "cmdb_item", item_id, action="delete")
-    return svc.delete_cmdb_item(item_id, db)
+    return APIResponse.ok(data=svc.delete_cmdb_item(item_id, db))
 
 
 @router.get("/items/{item_id}/changelog", summary="Historial de cambios del activo")
@@ -275,26 +275,26 @@ def get_cmdb_changelog(
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):
-    return svc.get_cmdb_changelog(item_id, limit, db)
+    return APIListResponse.ok(items=svc.get_cmdb_changelog(item_id, limit, db))
 
 
 @router.get("/items/{item_id}/relations")
 def item_relations(item_id: str, db: Session = Depends(get_db),
                    cu: User = Depends(get_current_user)):
-    return svc.get_item_relations(item_id, db)
+    return APIResponse.ok(data=svc.get_item_relations(item_id, db))
 
 
 @router.post("/relations")
 def create_cmdb_relation(p: CMDBRelationIn, db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
-    return svc.create_cmdb_relation(p.from_item_id, p.to_item_id, p.rel_type, db)
+    return APIResponse.ok(data=svc.create_cmdb_relation(p.from_item_id, p.to_item_id, p.rel_type, db))
 
 
 @router.delete("/relations/{relation_id}")
 def delete_cmdb_relation(relation_id: str, db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
     enforce_abac(db, cu, "cmdb_relation", relation_id, action="delete")
-    return svc.delete_cmdb_relation(relation_id, db)
+    return APIResponse.ok(data=svc.delete_cmdb_relation(relation_id, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -304,13 +304,13 @@ def delete_cmdb_relation(relation_id: str, db: Session = Depends(get_db),
 @router.get("/agent-dashboard/{agent_id}")
 def agent_dashboard(agent_id: str, days: int = 30,
                     db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return svc.get_agent_dashboard(agent_id, days, db)
+    return APIResponse.ok(data=svc.get_agent_dashboard(agent_id, days, db))
 
 
 @router.post("/agent-dashboard/{agent_id}/snapshot")
 def create_agent_snapshot(agent_id: str, db: Session = Depends(get_db),
                           cu: User = Depends(require_admin_or_pm)):
-    return svc.create_agent_snapshot(agent_id, db)
+    return APIResponse.ok(data=svc.create_agent_snapshot(agent_id, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -320,12 +320,12 @@ def create_agent_snapshot(agent_id: str, db: Session = Depends(get_db),
 @router.post("/wiki-export/{page_id}")
 def export_wiki_page(page_id: str, db: Session = Depends(get_db),
                      cu: User = Depends(get_current_user)):
-    return svc.create_wiki_export_job(page_id, cu.id, db)
+    return APIResponse.ok(data=svc.create_wiki_export_job(page_id, cu.id, db))
 
 
 @router.get("/wiki-export/jobs")
 def list_export_jobs(db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return svc.list_wiki_export_jobs(cu.id, db)
+    return APIListResponse.ok(items=svc.list_wiki_export_jobs(cu.id, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -349,42 +349,42 @@ class KanbanColumnIn(BaseModel):
 @router.get("/kanban/{project_id}")
 def get_kanban_config(project_id: str, db: Session = Depends(get_db),
                       cu: User = Depends(get_current_user)):
-    return svc.get_kanban_config(project_id, db)
+    return APIResponse.ok(data=svc.get_kanban_config(project_id, db))
 
 
 @router.post("/kanban/{project_id}")
 def upsert_kanban_config(project_id: str, p: KanbanConfigIn,
                          db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
-    return svc.upsert_kanban_config(project_id, p.swimlane_by, p.show_subtasks, p.card_fields, db)
+    return APIResponse.ok(data=svc.upsert_kanban_config(project_id, p.swimlane_by, p.show_subtasks, p.card_fields, db))
 
 
 @router.post("/kanban/{project_id}/columns")
 def add_kanban_column(project_id: str, p: KanbanColumnIn,
                       db: Session = Depends(get_db),
                       cu: User = Depends(require_admin_or_pm)):
-    return svc.add_kanban_column(project_id, p.status, p.label, p.wip_limit, p.color, p.sort_order, db)
+    return APIResponse.ok(data=svc.add_kanban_column(project_id, p.status, p.label, p.wip_limit, p.color, p.sort_order, db))
 
 
 @router.patch("/kanban/columns/{column_id}")
 def update_kanban_column(column_id: str, p: KanbanColumnIn,
                          db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
-    return svc.update_kanban_column(column_id, p.label, p.wip_limit, p.color, p.sort_order, db)
+    return APIResponse.ok(data=svc.update_kanban_column(column_id, p.label, p.wip_limit, p.color, p.sort_order, db))
 
 
 @router.delete("/kanban/columns/{column_id}")
 def delete_kanban_column(column_id: str, db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
     enforce_abac(db, cu, "kanban_column", column_id, action="delete")
-    return svc.delete_kanban_column(column_id, db)
+    return APIResponse.ok(data=svc.delete_kanban_column(column_id, db))
 
 
 @router.get("/kanban/{project_id}/board")
 def get_kanban_board(project_id: str, sprint_id: Optional[str] = None,
                      swimlane_value: Optional[str] = None,
                      db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return svc.get_kanban_board(project_id, sprint_id, swimlane_value, db)
+    return APIResponse.ok(data=svc.get_kanban_board(project_id, sprint_id, swimlane_value, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -402,29 +402,29 @@ class SprintPlanIn(BaseModel):
 @router.post("/sprint-plans/generate")
 def generate_sprint_plan(p: SprintPlanIn, db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
-    return svc.generate_sprint_plan(
+    return APIResponse.ok(data=svc.generate_sprint_plan(
         p.project_id, p.sprint_id, p.name, p.team_capacity, p.priorities or [], cu.id, db
-    )
+    ))
 
 
 @router.get("/sprint-plans/{project_id}")
 def list_sprint_plans(project_id: str, db: Session = Depends(get_db),
                       cu: User = Depends(get_current_user)):
-    return svc.list_sprint_plans(project_id, db)
+    return APIListResponse.ok(items=svc.list_sprint_plans(project_id, db))
 
 
 @router.patch("/sprint-plans/{plan_id}/status")
 def update_plan_status(plan_id: str, status: str,
                        db: Session = Depends(get_db),
                        cu: User = Depends(require_admin_or_pm)):
-    return svc.update_sprint_plan_status(plan_id, status, db)
+    return APIResponse.ok(data=svc.update_sprint_plan_status(plan_id, status, db))
 
 
 @router.delete("/sprint-plans/{plan_id}")
 def delete_sprint_plan(plan_id: str, db: Session = Depends(get_db),
                        cu: User = Depends(require_admin_or_pm)):
     enforce_abac(db, cu, "sprint_plan", plan_id, action="delete")
-    return svc.delete_sprint_plan(plan_id, db)
+    return APIResponse.ok(data=svc.delete_sprint_plan(plan_id, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -458,21 +458,21 @@ def list_sla_calendars(
 @router.post("/sla-calendars")
 def create_sla_calendar(p: SLACalendarIn, db: Session = Depends(get_db),
                         cu: User = Depends(require_admin_or_pm)):
-    return svc.create_sla_calendar(p.name, p.timezone, p.work_start, p.work_end, p.work_days, db)
+    return APIResponse.ok(data=svc.create_sla_calendar(p.name, p.timezone, p.work_start, p.work_end, p.work_days, db))
 
 
 @router.patch("/sla-calendars/{cal_id}")
 def update_sla_calendar(cal_id: str, p: SLACalendarIn,
                         db: Session = Depends(get_db),
                         cu: User = Depends(require_admin_or_pm)):
-    return svc.update_sla_calendar(cal_id, p, db)
+    return APIResponse.ok(data=svc.update_sla_calendar(cal_id, p, db))
 
 
 @router.delete("/sla-calendars/{cal_id}")
 def delete_sla_calendar(cal_id: str, db: Session = Depends(get_db),
                         cu: User = Depends(require_admin_or_pm)):
     enforce_abac(db, cu, "sla_calendar", cal_id, action="delete")
-    return svc.delete_sla_calendar(cal_id, db)
+    return APIResponse.ok(data=svc.delete_sla_calendar(cal_id, db))
 
 
 @router.get("/sla-calendars/{cal_id}/holidays", response_model=APIListResponse[dict])
@@ -490,24 +490,24 @@ def list_holidays(
 @router.post("/sla-calendars/{cal_id}/holidays")
 def add_holiday(cal_id: str, p: SLAHolidayIn,
                 db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
-    return svc.add_sla_holiday(cal_id, p.holiday_date, p.name, db)
+    return APIResponse.ok(data=svc.add_sla_holiday(cal_id, p.holiday_date, p.name, db))
 
 
 @router.patch("/sla-calendars/{cal_id}/holidays/{holiday_id}")
 def update_holiday(cal_id: str, holiday_id: str, p: SLAHolidayIn,
                    db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
-    return svc.update_sla_holiday(cal_id, holiday_id, p.holiday_date, p.name, db)
+    return APIResponse.ok(data=svc.update_sla_holiday(cal_id, holiday_id, p.holiday_date, p.name, db))
 
 
 @router.delete("/sla-calendars/{cal_id}/holidays/{holiday_id}")
 def delete_holiday(cal_id: str, holiday_id: str,
                    db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     enforce_abac(db, cu, "sla_holiday", holiday_id, action="delete")
-    return svc.delete_sla_holiday(cal_id, holiday_id, db)
+    return APIResponse.ok(data=svc.delete_sla_holiday(cal_id, holiday_id, db))
 
 
 @router.get("/sla-calendars/{cal_id}/check-date")
 def check_is_business_day(cal_id: str, check_date: str,
                            db: Session = Depends(get_db),
                            cu: User = Depends(get_current_user)):
-    return svc.check_is_business_day(cal_id, check_date, db)
+    return APIResponse.ok(data=svc.check_is_business_day(cal_id, check_date, db))

@@ -12,7 +12,7 @@ from app.core.abac_enforce import enforce_abac
 from app.core.config import settings as app_settings
 from app.models.user import User, UserRole
 import app.services.settings_service as _svc
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 from app.schemas.settings import (
     SettingOut,
     SettingUpdate,
@@ -46,7 +46,7 @@ def get_org_defaults(db: Session = Depends(get_db), current_user: User = Depends
     g_int = _svc.get_runtime_int
     g_float = _svc.get_runtime_float
     org_id = getattr(current_user, "organization_id", None)
-    return {
+    return APIResponse.ok(data={
         "currency": g_str(db, "DEFAULT_CURRENCY", org_id),
         "timezone": g_str(db, "DEFAULT_TIMEZONE", org_id),
         "language": g_str(db, "DEFAULT_LANGUAGE", org_id),
@@ -54,16 +54,16 @@ def get_org_defaults(db: Session = Depends(get_db), current_user: User = Depends
         "weekly_capacity_hours": g_float(db, "DEFAULT_WEEKLY_CAPACITY_HOURS", org_id),
         "vacation_days_per_year": g_int(db, "DEFAULT_VACATION_DAYS_PER_YEAR", org_id),
         "tax_rate": g_float(db, "DEFAULT_TAX_RATE", org_id),
-    }
+    })
 
 @router.get("/general", response_model=APIListResponse[SettingOut])
 def get_general_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     items = _svc.get_general_settings(db)
     return APIListResponse.ok(items=items, total=len(items))
 
-@router.patch("/general/{key}", response_model=SettingOut)
+@router.patch("/general/{key}", response_model=APIResponse[SettingOut])
 def update_setting(key: str, payload: SettingUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    return _svc.update_setting(key, payload.value, current_user.organization_id, db)
+    return APIResponse.ok(data=_svc.update_setting(key, payload.value, current_user.organization_id, db))
 
 
 # ── Runtime-flag groups (Phase 1 of env → UI migration) ──────────────────────
@@ -74,7 +74,7 @@ def update_setting(key: str, payload: SettingUpdate, db: Session = Depends(get_d
 @router.get("/runtime/{group}", summary="Effective values of a runtime-flag group (SLA, etc.)")
 def get_runtime_group(group: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     try:
-        return {"group": group, "items": _svc.get_runtime_group(db, group, current_user.organization_id)}
+        return APIResponse.ok(data={"group": group, "items": _svc.get_runtime_group(db, group, current_user.organization_id)})
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -83,12 +83,12 @@ def get_runtime_group(group: str, db: Session = Depends(get_db), current_user: U
 def update_runtime_setting(group: str, key: str, payload: SettingUpdate, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     try:
         from app.core.network import extract_client_ip
-        return _svc.set_runtime_value(
+        return APIResponse.ok(data=_svc.set_runtime_value(
             db, group, key, payload.value, current_user.organization_id,
             actor_id=str(current_user.id),
             actor_ip=extract_client_ip(request),
             actor_ua=request.headers.get("user-agent"),
-        )
+        ))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -102,13 +102,13 @@ from app.services import integration_credentials_service as _creds
 
 @router.get("/integrations", summary="List integration providers with their fields")
 def list_integration_providers(_: User = Depends(require_admin)):
-    return {"providers": _creds.list_providers()}
+    return APIResponse.ok(data={"providers": _creds.list_providers()})
 
 
 @router.get("/integrations/{provider}", summary="Describe a provider's configuration (no secrets echoed)")
 def describe_integration(provider: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     try:
-        return _creds.describe_provider(db, provider, current_user.organization_id)
+        return APIResponse.ok(data=_creds.describe_provider(db, provider, current_user.organization_id))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
@@ -131,25 +131,25 @@ def read_audit_log(
         organization_id=current_user.organization_id,
         limit=limit, offset=offset,
     )
-    return {"items": [serialize(r) for r in rows], "total": total, "limit": limit, "offset": offset}
+    return APIListResponse.ok(items=[serialize(r) for r in rows], total=total, page_size=limit)
 
 
 @router.post("/integrations/{provider}/test", summary="Probe an integration provider with its current credentials (admin)")
 def test_integration(provider: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     from app.services.integration_test_service import test_provider_connection
-    return test_provider_connection(db, provider, org_id=current_user.organization_id)
+    return APIResponse.ok(data=test_provider_connection(db, provider, org_id=current_user.organization_id))
 
 
 @router.put("/integrations/{provider}/{key}", summary="Set or clear a provider's field (admin)")
 def update_integration(provider: str, key: str, payload: SettingUpdate, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     try:
         from app.core.network import extract_client_ip
-        return _creds.set_credential(
+        return APIResponse.ok(data=_creds.set_credential(
             db, provider, key, payload.value if payload.value != "" else None,
             current_user.organization_id, updated_by=str(current_user.id),
             actor_ip=extract_client_ip(request),
             actor_ua=request.headers.get("user-agent"),
-        )
+        ))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -161,17 +161,17 @@ def get_project_types(db: Session = Depends(get_db), _: User = Depends(get_curre
     items = _svc.get_project_types(db)
     return APIListResponse.ok(items=items, total=len(items))
 
-@router.post("/project-types", response_model=ProjectTypeOut)
+@router.post("/project-types", response_model=APIResponse[ProjectTypeOut])
 def create_project_type(payload: ProjectTypeIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
-        return _svc.create_project_type(payload.model_dump(), db)
+        return APIResponse.ok(data=_svc.create_project_type(payload.model_dump(), db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
-@router.patch("/project-types/{item_id}", response_model=ProjectTypeOut)
+@router.patch("/project-types/{item_id}", response_model=APIResponse[ProjectTypeOut])
 def update_project_type(item_id: str, payload: ProjectTypeIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
-        return _svc.update_project_type(item_id, payload.model_dump(), db)
+        return APIResponse.ok(data=_svc.update_project_type(item_id, payload.model_dump(), db))
     except ValueError:
         raise HTTPException(404, "No encontrado")
 
@@ -179,7 +179,7 @@ def update_project_type(item_id: str, payload: ProjectTypeIn, db: Session = Depe
 def delete_project_type(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
         enforce_abac(db, _, "custom_project_type", item_id, action="delete")
-        return _svc.delete_project_type(item_id, db)
+        return APIResponse.ok(data=_svc.delete_project_type(item_id, db))
     except ValueError:
         raise HTTPException(404, "No encontrado")
 
@@ -190,17 +190,17 @@ def get_project_statuses(db: Session = Depends(get_db), _: User = Depends(get_cu
     items = _svc.get_project_statuses(db)
     return APIListResponse.ok(items=items, total=len(items))
 
-@router.post("/project-statuses", response_model=ProjectStatusOut)
+@router.post("/project-statuses", response_model=APIResponse[ProjectStatusOut])
 def create_project_status(payload: ProjectStatusIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
-        return _svc.create_project_status(payload.model_dump(), db)
+        return APIResponse.ok(data=_svc.create_project_status(payload.model_dump(), db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
-@router.patch("/project-statuses/{item_id}", response_model=ProjectStatusOut)
+@router.patch("/project-statuses/{item_id}", response_model=APIResponse[ProjectStatusOut])
 def update_project_status(item_id: str, payload: ProjectStatusIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
-        return _svc.update_project_status(item_id, payload.model_dump(), db)
+        return APIResponse.ok(data=_svc.update_project_status(item_id, payload.model_dump(), db))
     except ValueError:
         raise HTTPException(404, "No encontrado")
 
@@ -208,7 +208,7 @@ def update_project_status(item_id: str, payload: ProjectStatusIn, db: Session = 
 def delete_project_status(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
         enforce_abac(db, _, "custom_project_status", item_id, action="delete")
-        return _svc.delete_project_status(item_id, db)
+        return APIResponse.ok(data=_svc.delete_project_status(item_id, db))
     except ValueError:
         raise HTTPException(404, "No encontrado")
 
@@ -219,17 +219,17 @@ def get_task_statuses(db: Session = Depends(get_db), _: User = Depends(get_curre
     items = _svc.get_task_statuses(db)
     return APIListResponse.ok(items=items, total=len(items))
 
-@router.post("/task-statuses", response_model=TaskStatusOut)
+@router.post("/task-statuses", response_model=APIResponse[TaskStatusOut])
 def create_task_status(payload: TaskStatusIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
-        return _svc.create_task_status(payload.model_dump(), db)
+        return APIResponse.ok(data=_svc.create_task_status(payload.model_dump(), db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
-@router.patch("/task-statuses/{item_id}", response_model=TaskStatusOut)
+@router.patch("/task-statuses/{item_id}", response_model=APIResponse[TaskStatusOut])
 def update_task_status(item_id: str, payload: TaskStatusIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
-        return _svc.update_task_status(item_id, payload.model_dump(), db)
+        return APIResponse.ok(data=_svc.update_task_status(item_id, payload.model_dump(), db))
     except ValueError:
         raise HTTPException(404, "No encontrado")
 
@@ -237,7 +237,7 @@ def update_task_status(item_id: str, payload: TaskStatusIn, db: Session = Depend
 def delete_task_status(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
         enforce_abac(db, _, "custom_task_status", item_id, action="delete")
-        return _svc.delete_task_status(item_id, db)
+        return APIResponse.ok(data=_svc.delete_task_status(item_id, db))
     except ValueError:
         raise HTTPException(404, "No encontrado")
 
@@ -248,17 +248,17 @@ def get_departments(db: Session = Depends(get_db), _: User = Depends(get_current
     items = _svc.get_departments(db)
     return APIListResponse.ok(items=items, total=len(items))
 
-@router.post("/departments", response_model=DepartmentOut)
+@router.post("/departments", response_model=APIResponse[DepartmentOut])
 def create_department(payload: DepartmentIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     try:
-        return _svc.create_department(payload.model_dump(), db)
+        return APIResponse.ok(data=_svc.create_department(payload.model_dump(), db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
-@router.patch("/departments/{item_id}", response_model=DepartmentOut)
+@router.patch("/departments/{item_id}", response_model=APIResponse[DepartmentOut])
 def update_department(item_id: str, payload: DepartmentIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     try:
-        return _svc.update_department(item_id, payload.model_dump(), db)
+        return APIResponse.ok(data=_svc.update_department(item_id, payload.model_dump(), db))
     except ValueError:
         raise HTTPException(404, "No encontrado")
 
@@ -266,7 +266,7 @@ def update_department(item_id: str, payload: DepartmentIn, db: Session = Depends
 def delete_department(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     try:
         enforce_abac(db, _, "department", item_id, action="delete")
-        return _svc.delete_department(item_id, db)
+        return APIResponse.ok(data=_svc.delete_department(item_id, db))
     except ValueError:
         raise HTTPException(404, "No encontrado")
 
@@ -277,14 +277,14 @@ def get_holidays(db: Session = Depends(get_db), _: User = Depends(get_current_us
     items = _svc.get_holidays(db)
     return APIListResponse.ok(items=items, total=len(items))
 
-@router.post("/holidays", response_model=HolidayOut)
+@router.post("/holidays", response_model=APIResponse[HolidayOut])
 def create_holiday(payload: HolidayIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
-    return _svc.create_holiday(payload.model_dump(), db)
+    return APIResponse.ok(data=_svc.create_holiday(payload.model_dump(), db))
 
-@router.patch("/holidays/{item_id}", response_model=HolidayOut)
+@router.patch("/holidays/{item_id}", response_model=APIResponse[HolidayOut])
 def update_holiday(item_id: str, payload: HolidayIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     try:
-        return _svc.update_holiday(item_id, payload.model_dump(), db)
+        return APIResponse.ok(data=_svc.update_holiday(item_id, payload.model_dump(), db))
     except ValueError:
         raise HTTPException(404, "No encontrado")
 
@@ -292,7 +292,7 @@ def update_holiday(item_id: str, payload: HolidayIn, db: Session = Depends(get_d
 def delete_holiday(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     try:
         enforce_abac(db, _, "holiday", item_id, action="delete")
-        return _svc.delete_holiday(item_id, db)
+        return APIResponse.ok(data=_svc.delete_holiday(item_id, db))
     except ValueError:
         raise HTTPException(404, "No encontrado")
 
@@ -308,14 +308,14 @@ def get_log_level(_: User = Depends(require_admin)):
     uvicorn_level = logging.getLevelName(logging.getLogger("uvicorn").level)
     uvicorn_error_level = logging.getLevelName(logging.getLogger("uvicorn.error").level)
     uvicorn_access_level = logging.getLevelName(logging.getLogger("uvicorn.access").level)
-    return {
+    return APIResponse.ok(data={
         "root": root_level,
         "contecflow": contecflow_level if contecflow_level != "NOTSET" else root_level,
         "uvicorn": uvicorn_level if uvicorn_level != "NOTSET" else root_level,
         "uvicorn_error": uvicorn_error_level if uvicorn_error_level != "NOTSET" else root_level,
         "uvicorn_access": uvicorn_access_level if uvicorn_access_level != "NOTSET" else root_level,
         "valid_levels": sorted(VALID_LOG_LEVELS),
-    }
+    })
 
 
 @router.post("/log-level", summary="Cambiar nivel de log en tiempo real (requiere admin)")
@@ -339,9 +339,9 @@ def set_log_level(payload: LogLevelPayload, _: User = Depends(require_admin)):
     logging.getLogger("contecflow").info(
         f"Log level changed to {level_name} for logger '{payload.logger or 'root'}'"
     )
-    return {
+    return APIResponse.ok(data={
         "ok": True,
         "logger": payload.logger or "global",
         "level": level_name,
         "affected": affected,
-    }
+    })

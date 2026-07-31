@@ -57,7 +57,7 @@ def test_portal_fr_multi_project_estimate_approve_start_dev(client, pm_token, db
     # Confirmar que el portal ve ambos proyectos
     me_res = client.get("/api/v1/portal/auth/me")
     assert me_res.status_code == 200, me_res.text
-    me = me_res.json()
+    me = me_res.json()["data"]
     assert set(me.get("project_ids") or []) == {p1, p2}
 
     # 4) Crear FR para el segundo proyecto
@@ -71,7 +71,7 @@ def test_portal_fr_multi_project_estimate_approve_start_dev(client, pm_token, db
         },
     )
     assert fr_create.status_code == 200, fr_create.text
-    fr = fr_create.json()
+    fr = fr_create.json()["data"]
     fr_id = fr["id"]
     assert fr["project_id"] == p2
     assert fr["status"] in ("new", "reviewing")
@@ -97,7 +97,7 @@ def test_portal_fr_multi_project_estimate_approve_start_dev(client, pm_token, db
         headers=auth(pm_token),
     )
     assert est.status_code == 200, est.text
-    assert est.json()["status"] == "estimated"
+    assert est.json()["data"]["status"] == "estimated"
 
     # 7) Cliente aprueba
     approve = client.post(
@@ -105,7 +105,7 @@ def test_portal_fr_multi_project_estimate_approve_start_dev(client, pm_token, db
         json={"approved": True},
     )
     assert approve.status_code == 200, approve.text
-    assert approve.json()["status"] == "approved"
+    assert approve.json()["data"]["status"] == "approved"
 
     # 8) Backoffice inicia desarrollo SIN pm_response (regresión del 422)
     start_dev = client.post(
@@ -114,7 +114,7 @@ def test_portal_fr_multi_project_estimate_approve_start_dev(client, pm_token, db
         headers=auth(pm_token),
     )
     assert start_dev.status_code == 200, start_dev.text
-    assert start_dev.json()["status"] == "in_development"
+    assert start_dev.json()["data"]["status"] == "in_development"
 
     # 9) Backoffice marca done SIN pm_response
     done = client.post(
@@ -123,4 +123,4 @@ def test_portal_fr_multi_project_estimate_approve_start_dev(client, pm_token, db
         headers=auth(pm_token),
     )
     assert done.status_code == 200, done.text
-    assert done.json()["status"] == "done"
+    assert done.json()["data"]["status"] == "done"

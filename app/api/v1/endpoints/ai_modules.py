@@ -9,6 +9,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.ai_modules_service as _svc
 
@@ -82,7 +83,7 @@ def list_predictions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.list_predictions(db, severity=severity, prediction_type=prediction_type, only_unacked=only_unacked)
+    return APIListResponse.ok(items=_svc.list_predictions(db, severity=severity, prediction_type=prediction_type, only_unacked=only_unacked))
 
 
 @router.post("/oracle/run", summary="Alertas Inteligentes — ejecutar análisis de alertas")
@@ -90,7 +91,7 @@ def run_oracle(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.run_oracle_analysis(db, current_user)
+    return APIResponse.ok(data=_svc.run_oracle_analysis(db, current_user))
 
 
 @router.post("/oracle/predictions/{pred_id}/acknowledge", summary="Reconocer predicción")
@@ -100,7 +101,7 @@ def acknowledge_prediction(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.acknowledge_prediction(db, pred_id, current_user.id)
+        return APIResponse.ok(data=_svc.acknowledge_prediction(db, pred_id, current_user.id))
     except ValueError:
         raise HTTPException(404)
 
@@ -115,7 +116,7 @@ def list_meetings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.list_meetings(db, project_id=project_id)
+    return APIListResponse.ok(items=_svc.list_meetings(db, project_id=project_id))
 
 
 from app.schemas.ai_modules import MeetingProcessPayload
@@ -128,7 +129,7 @@ def process_meeting(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.process_meeting(db, payload, current_user)
+        return APIResponse.ok(data=_svc.process_meeting(db, payload, current_user))
     except ValueError as e:
         if "invalid_meeting_date" in str(e):
             raise HTTPException(400, "Formato de meeting_date inválido, se espera YYYY-MM-DD[T]HH:MM:SS")
@@ -143,7 +144,7 @@ def create_tasks_from_meeting(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.create_tasks_from_meeting(db, meeting_id, payload, current_user)
+        return APIResponse.ok(data=_svc.create_tasks_from_meeting(db, meeting_id, payload, current_user))
     except ValueError as e:
         err = str(e)
         if "not_found" in err: raise HTTPException(404)
@@ -158,7 +159,7 @@ def get_meeting(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.get_meeting(db, meeting_id)
+        return APIResponse.ok(data=_svc.get_meeting(db, meeting_id))
     except ValueError:
         raise HTTPException(404)
 
@@ -173,7 +174,7 @@ def list_ai_contracts(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_ai_contracts(db, project_id=project_id, current_user=current_user)
+    return APIListResponse.ok(items=_svc.list_ai_contracts(db, project_id=project_id, current_user=current_user))
 
 
 @router.get("/contracts-ai/{contract_id}", summary="Detalle de un contrato analizado")
@@ -185,7 +186,7 @@ def get_ai_contract(
     result = _svc.get_ai_contract(db, contract_id, current_user=current_user)
     if result is None:
         raise HTTPException(404, "Contrato no encontrado o sin permisos")
-    return result
+    return APIResponse.ok(data=result)
 
 
 from app.schemas.ai_modules import ContractAnalyzePayload
@@ -197,7 +198,7 @@ def analyze_contract(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.analyze_contract(db, payload, current_user)
+    return APIResponse.ok(data=_svc.analyze_contract(db, payload, current_user))
 
 
 @router.post("/contracts-ai/analyze-pdf", summary="Analizar contrato con IA desde PDF")
@@ -233,7 +234,7 @@ def analyze_contract_pdf(
         filename=file.filename or "contract.pdf",
         contract_text=text,
     )
-    return _svc.analyze_contract(db, payload, current_user)
+    return APIResponse.ok(data=_svc.analyze_contract(db, payload, current_user))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -247,7 +248,7 @@ def list_kb(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.list_kb(db, published_only=published_only, category=category)
+    return APIListResponse.ok(items=_svc.list_kb(db, published_only=published_only, category=category))
 
 
 @router.post("/kb/generate/{ticket_id}", summary="Generar artículo KB desde ticket resuelto")
@@ -257,7 +258,7 @@ def generate_kb_from_ticket(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.generate_kb_from_ticket(db, ticket_id, current_user)
+        return APIResponse.ok(data=_svc.generate_kb_from_ticket(db, ticket_id, current_user))
     except ValueError:
         raise HTTPException(404)
 
@@ -270,7 +271,7 @@ def search_kb(
 ):
     query = payload.get("query", "")
     if not query: raise HTTPException(400, "query required")
-    return _svc.search_kb(db, query)
+    return APIListResponse.ok(items=_svc.search_kb(db, query))
 
 
 @router.post("/kb/rebuild-embeddings", summary="Reconstruir embeddings de todos los artículos KB")
@@ -278,7 +279,7 @@ def rebuild_kb_embeddings(
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
-    return _svc.rebuild_kb_embeddings(db)
+    return APIResponse.ok(data=_svc.rebuild_kb_embeddings(db))
 
 
 @router.patch("/kb/{article_id}", summary="Actualizar artículo KB")
@@ -289,7 +290,7 @@ def update_kb(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.update_kb(db, article_id, payload, current_user)
+        return APIResponse.ok(data=_svc.update_kb(db, article_id, payload, current_user))
     except ValueError:
         raise HTTPException(404)
 
@@ -360,7 +361,7 @@ def transcribe_voice_audio(
     # /voice/transcribe entra siempre en modo dry-run: requiere confirmación
     # humana después de ver la transcripción.
     result = _process_voice_core(transcript, db, current_user, confirm=False)
-    return {**result, "whisper_transcript": transcript}
+    return APIResponse.ok(data={**result, "whisper_transcript": transcript})
 
 
 from app.schemas.ai_modules import VoiceCommandPayload
@@ -372,10 +373,10 @@ def process_voice_command(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _process_voice_core(
+    return APIResponse.ok(data=_process_voice_core(
         payload.transcript.strip(), db, current_user,
         confirm=bool(payload.confirm),
-    )
+    ))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -397,7 +398,7 @@ def client_portal_chat(
     db: Session = Depends(get_db),
 ):
     try:
-        return _svc.client_portal_chat(db, payload)
+        return APIResponse.ok(data=_svc.client_portal_chat(db, payload))
     except ValueError as e:
         err = str(e)
         if "missing_fields" in err: raise HTTPException(400, "client_token and message required")
@@ -413,7 +414,7 @@ def revenue_forecast(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return _svc.revenue_forecast(db, months_ahead=months_ahead)
+    return APIResponse.ok(data=_svc.revenue_forecast(db, months_ahead=months_ahead))
 
 
 # ─── Smart schedule ───────────────────────────────────────────────────────────
@@ -427,7 +428,7 @@ def smart_schedule(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.smart_schedule(db, payload, current_user)
+    return APIResponse.ok(data=_svc.smart_schedule(db, payload, current_user))
 
 
 # ── AI Overrun Prediction ──────────────────────────────────────────────────────
@@ -458,7 +459,7 @@ def overrun_prediction(
         team_load_pct=85.0,
     )
 
-    return {
+    return APIResponse.ok(data={
         "project_id":   project_id,
         "project_name": project.name,
         "cpi": round(data["cpi"], 3),
@@ -468,4 +469,4 @@ def overrun_prediction(
         "task_completion_pct":   round(data["task_completion_pct"], 1),
         "overdue_task_ratio":    round(data["overdue_ratio"], 3),
         **result,
-    }
+    })

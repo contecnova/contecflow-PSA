@@ -160,7 +160,7 @@ def test_kb_rollback_nonexistent_version_returns_404(client, admin_token):
         json={"title": "KB rollback test", "body": "v1", "status": "draft"},
     )
     assert created.status_code == 200
-    article_id = created.json()["id"]
+    article_id = created.json()["data"]["id"]
 
     r = client.post(f"/api/v1/sd/kb/{article_id}/rollback/999", headers=auth(admin_token))
     assert r.status_code == 404

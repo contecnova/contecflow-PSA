@@ -17,6 +17,7 @@ from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
 from app.core.config import settings
 from app.core.abac_enforce import enforce_abac
+from app.core.responses import APIListResponse, APIResponse
 import app.services.mfa_service as _svc
 from app.schemas.auth_payloads import (
     AssignUserOrgIn, SlackTestIn, SlackNotifyIn, AcceptFlagIn, ExportPdfIn,
@@ -50,7 +51,7 @@ def remove_user_from_org(
 ):
     enforce_abac(db, current_user, "organization", org_id, action="delete")
     try:
-        return _svc.remove_user_from_org(org_id, user_id, db)
+        return APIResponse.ok(data=_svc.remove_user_from_org(org_id, user_id, db))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -68,7 +69,7 @@ def mfa_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_mfa_status(current_user.id, db)
+    return APIResponse.ok(data=_svc.get_mfa_status(current_user.id, db))
 
 
 @router.post("/mfa/setup", summary="Iniciar configuración MFA — genera secret y QR URL")
@@ -77,7 +78,7 @@ def mfa_setup(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.setup_mfa(current_user, db)
+        return APIResponse.ok(data=_svc.setup_mfa(current_user, db))
     except ValueError as e:
         msg = str(e)
         if "pyotp" in msg:
@@ -99,7 +100,7 @@ def mfa_verify(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.verify_and_activate_mfa(current_user, payload.code, db)
+        return APIResponse.ok(data=_svc.verify_and_activate_mfa(current_user, payload.code, db))
     except ValueError as e:
         msg = str(e)
         if "pyotp" in msg:
@@ -117,7 +118,7 @@ def mfa_validate(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.validate_mfa_code(current_user, payload.code, db)
+        return APIResponse.ok(data=_svc.validate_mfa_code(current_user, payload.code, db))
     except ValueError as e:
         msg = str(e)
         if "pyotp" in msg:
@@ -133,7 +134,7 @@ def mfa_disable(
 ):
     enforce_abac(db, current_user, "mfa", str(current_user.id), action="delete")
     try:
-        return _svc.disable_mfa(current_user, payload.code, db)
+        return APIResponse.ok(data=_svc.disable_mfa(current_user, payload.code, db))
     except ValueError as e:
         msg = str(e)
         if "pyotp" in msg:
@@ -150,7 +151,7 @@ def list_organizations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.list_organizations(db)
+    return APIListResponse.ok(items=_svc.list_organizations(db))
 
 
 class OrgCreate(BaseModel):
@@ -191,7 +192,7 @@ def create_organization(
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.create_organization(payload.model_dump(), current_user, db)
+        return APIResponse.ok(data=_svc.create_organization(payload.model_dump(), current_user, db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -203,7 +204,7 @@ def get_organization(
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.get_organization(org_id, db)
+        return APIResponse.ok(data=_svc.get_organization(org_id, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -216,7 +217,7 @@ def update_organization(
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.update_organization(org_id, payload.model_dump(exclude_unset=True), db)
+        return APIResponse.ok(data=_svc.update_organization(org_id, payload.model_dump(exclude_unset=True), db))
     except ValueError:
         raise HTTPException(404)
 
@@ -229,7 +230,7 @@ def assign_user_to_org(
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.assign_user_to_org(org_id, payload.user_id, db)
+        return APIResponse.ok(data=_svc.assign_user_to_org(org_id, payload.user_id, db))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -246,7 +247,7 @@ def get_slack_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.get_slack_config(db)
+    return APIListResponse.ok(items=_svc.get_slack_config(db))
 
 
 class SlackConfigCreate(BaseModel):
@@ -264,7 +265,7 @@ def create_slack_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.create_or_update_slack_config(payload.model_dump(), db)
+    return APIResponse.ok(data=_svc.create_or_update_slack_config(payload.model_dump(), db))
 
 
 @router.post("/slack/test", summary="Enviar mensaje de prueba a Slack/Teams")
@@ -277,7 +278,7 @@ def test_slack(
         config_id = payload.config_id
         message = payload.message or "🔔 Mensaje de prueba desde Contecflow v15"
         channel = payload.channel or "#contecflow-alerts"
-        return _svc.test_slack_config(config_id, message, channel, db)
+        return APIResponse.ok(data=_svc.test_slack_config(config_id, message, channel, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -289,13 +290,13 @@ def slack_notify(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.notify_slack(
+        return APIResponse.ok(data=_svc.notify_slack(
             payload.event_type or "manual",
             payload.message or "Notificación de Contecflow",
             payload.channel,
             payload.source_id,
             db,
-        )
+        ))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -306,7 +307,7 @@ def slack_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.get_slack_logs(limit, db)
+    return APIListResponse.ok(items=_svc.get_slack_logs(limit, db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -320,7 +321,7 @@ def list_budgets(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_budgets(year, department, db)
+    return APIListResponse.ok(items=_svc.list_budgets(year, department, db))
 
 
 class BudgetCreate(BaseModel):
@@ -349,7 +350,7 @@ def create_budget(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.create_budget(payload.model_dump(), current_user.id, db)
+    return APIResponse.ok(data=_svc.create_budget(payload.model_dump(), current_user.id, db))
 
 
 @router.patch("/budgets/{budget_id}/entry", summary="Actualizar entrada mensual de presupuesto")
@@ -360,7 +361,7 @@ def update_budget_entry(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.update_budget_entry(budget_id, payload.model_dump(exclude_unset=True), db)
+        return APIResponse.ok(data=_svc.update_budget_entry(budget_id, payload.model_dump(exclude_unset=True), db))
     except ValueError as e:
         msg = str(e)
         if msg == "not_found":
@@ -375,7 +376,7 @@ def approve_budget(
     current_user: User = Depends(require_admin),
 ):
     try:
-        return _svc.approve_budget(budget_id, current_user, db)
+        return APIResponse.ok(data=_svc.approve_budget(budget_id, current_user, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -386,7 +387,7 @@ def budget_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_budget_summary(year, db)
+    return APIResponse.ok(data=_svc.get_budget_summary(year, db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -400,7 +401,7 @@ def estimate_task_hours(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.estimate_task_hours(task_id, db)
+        return APIResponse.ok(data=_svc.estimate_task_hours(task_id, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -413,7 +414,7 @@ def accept_estimate(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.accept_task_estimate(task_id, payload.accepted, db)
+        return APIResponse.ok(data=_svc.accept_task_estimate(task_id, payload.accepted, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -429,7 +430,7 @@ def ai_triage_ticket(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return _svc.triage_ticket(ticket_id, db)
+        return APIResponse.ok(data=_svc.triage_ticket(ticket_id, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -442,7 +443,7 @@ def accept_triage(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.accept_ticket_triage(ticket_id, payload.accepted, current_user.id, db)
+        return APIResponse.ok(data=_svc.accept_ticket_triage(ticket_id, payload.accepted, current_user.id, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -456,7 +457,7 @@ def list_scenarios(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_scenarios(db)
+    return APIListResponse.ok(items=_svc.list_scenarios(db))
 
 
 class ScenarioCreate(BaseModel):
@@ -473,7 +474,7 @@ def create_scenario(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.create_scenario(payload.model_dump(), current_user.id, db)
+    return APIResponse.ok(data=_svc.create_scenario(payload.model_dump(), current_user.id, db))
 
 
 @router.post("/scenarios/{scenario_id}/compute", summary="Calcular impacto del escenario")
@@ -483,7 +484,7 @@ def compute_scenario(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.compute_scenario(scenario_id, db)
+        return APIResponse.ok(data=_svc.compute_scenario(scenario_id, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -495,7 +496,7 @@ def get_scenario(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return _svc.get_scenario(scenario_id, db)
+        return APIResponse.ok(data=_svc.get_scenario(scenario_id, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -508,7 +509,7 @@ def delete_scenario(
 ):
     enforce_abac(db, current_user, "scenario", scenario_id, action="delete")
     try:
-        return _svc.delete_scenario(scenario_id, db)
+        return APIResponse.ok(data=_svc.delete_scenario(scenario_id, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -550,7 +551,7 @@ def list_pdf_jobs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.list_pdf_jobs(current_user.id, db)
+    return APIListResponse.ok(items=_svc.list_pdf_jobs(current_user.id, db))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -562,7 +563,7 @@ def list_bi_tokens(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.list_bi_tokens(db)
+    return APIListResponse.ok(items=_svc.list_bi_tokens(db))
 
 
 class BITokenCreate(BaseModel):
@@ -578,7 +579,7 @@ def create_bi_token(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return _svc.create_bi_token(payload.model_dump(), current_user.id, db)
+    return APIResponse.ok(data=_svc.create_bi_token(payload.model_dump(), current_user.id, db))
 
 
 @router.delete("/bi/tokens/{token_id}", summary="Revocar token BI")
@@ -589,7 +590,7 @@ def revoke_bi_token(
 ):
     enforce_abac(db, current_user, "bi_token", token_id, action="delete")
     try:
-        return _svc.revoke_bi_token(token_id, db)
+        return APIResponse.ok(data=_svc.revoke_bi_token(token_id, db))
     except ValueError:
         raise HTTPException(404)
 
@@ -600,6 +601,8 @@ def bi_data_projects(
     db: Session = Depends(get_db),
 ):
     try:
+        # Contrato externo consumido por herramientas BI (PowerBI) vía tokens bi_*:
+        # NO se envuelve en el envelope canónico (rompería a esos consumidores externos).
         return _svc.bi_data_projects(bi_token, db)
     except ValueError:
         raise HTTPException(401, "Token BI inválido o caducado")
@@ -615,6 +618,7 @@ def bi_data_timesheets(
     db: Session = Depends(get_db),
 ):
     try:
+        # Contrato externo BI (PowerBI): sin envelope.
         return _svc.bi_data_timesheets(bi_token, date_from, date_to, page, page_size, db)
     except ValueError:
         raise HTTPException(401, "Token BI inválido")
@@ -626,6 +630,7 @@ def bi_data_kpis(
     db: Session = Depends(get_db),
 ):
     try:
+        # Contrato externo BI (PowerBI): sin envelope.
         return _svc.bi_data_kpis(bi_token, db)
     except ValueError:
         raise HTTPException(401, "Token BI inválido")

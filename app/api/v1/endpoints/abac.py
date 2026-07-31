@@ -1,7 +1,7 @@
 """
 ABAC (Attribute-Based Access Control) API endpoints for policy and attribute management.
 """
-from typing import Optional, Dict, Any
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_user
@@ -12,7 +12,7 @@ from app.services.abac import ABACService, DEFAULT_ABAC_ATTRIBUTES
 from app.schemas.abac import (
     AttributeDefinitionSchema, UserAttributeAssignSchema, UserAttributeSchema, ABACPolicyCreateSchema, ABACPolicySchema, AccessEvaluationRequestSchema, AccessEvaluationResponseSchema
 )
-from app.core.responses import APIListResponse
+from app.core.responses import APIListResponse, APIResponse
 
 
 # ============================================================================
@@ -63,7 +63,7 @@ def create_attribute_definition(
         possible_values=schema.possible_values,
         created_by=current_user.id,
     )
-    return AttributeDefinitionSchema.model_validate(attr_def)
+    return APIResponse.ok(data=AttributeDefinitionSchema.model_validate(attr_def))
 
 
 @router.post("/attribute-definitions/initialize")
@@ -94,7 +94,7 @@ def initialize_default_attributes(
             )
             created.append(AttributeDefinitionSchema.model_validate(attr_def))
 
-    return {"created": len(created), "attributes": created}
+    return APIResponse.ok(data={"created": len(created), "attributes": created})
 
 
 # ============================================================================
@@ -106,7 +106,7 @@ def get_user_attributes(
     user_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+):
     """Get all attributes for a user (non-expired)."""
     # Check permission: user can view their own, admins can view others
     if current_user.id != user_id and current_user.role != "admin":
@@ -117,7 +117,7 @@ def get_user_attributes(
 
     service = ABACService(db, org_id)
     attrs = service.get_user_attributes(user_id)
-    return {"user_id": user_id, "attributes": attrs}
+    return APIResponse.ok(data={"user_id": user_id, "attributes": attrs})
 
 
 @router.post("/users/{user_id}/attributes")
@@ -126,7 +126,7 @@ def assign_user_attribute(
     schema: UserAttributeAssignSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> UserAttributeSchema:
+):
     """Assign an attribute to a user (admin/governance only)."""
     verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
@@ -142,7 +142,7 @@ def assign_user_attribute(
         reason=schema.reason,
         expires_at=schema.expires_at,
     )
-    return UserAttributeSchema.model_validate(attr)
+    return APIResponse.ok(data=UserAttributeSchema.model_validate(attr))
 
 
 @router.delete("/users/{user_id}/attributes/{attribute_key}")
@@ -161,7 +161,7 @@ def revoke_user_attribute(
 
     service = ABACService(db, org_id)
     count = service.revoke_user_attribute(user_id, attribute_key)
-    return {"revoked": count}
+    return APIResponse.ok(data={"revoked": count})
 
 
 # ============================================================================
@@ -189,7 +189,7 @@ def create_policy(
     schema: ABACPolicyCreateSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> ABACPolicySchema:
+):
     """Create new ABAC policy (admin/governance only)."""
     verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
@@ -210,7 +210,7 @@ def create_policy(
         expires_at=schema.expires_at,
         created_by=current_user.id,
     )
-    return ABACPolicySchema.model_validate(policy)
+    return APIResponse.ok(data=ABACPolicySchema.model_validate(policy))
 
 
 @router.get("/policies/{policy_id}")
@@ -218,7 +218,7 @@ def get_policy(
     policy_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> ABACPolicySchema:
+):
     """Get a specific policy."""
     org_id = current_user.organization_id
     if not org_id:
@@ -227,7 +227,7 @@ def get_policy(
     policy = service.get_policy_by_id(policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
-    return ABACPolicySchema.model_validate(policy)
+    return APIResponse.ok(data=ABACPolicySchema.model_validate(policy))
 
 
 @router.put("/policies/{policy_id}")
@@ -236,7 +236,7 @@ def update_policy(
     schema: ABACPolicyCreateSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> ABACPolicySchema:
+):
     """Update an ABAC policy (admin/governance only)."""
     verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
@@ -257,7 +257,7 @@ def update_policy(
         priority=schema.priority,
         expires_at=schema.expires_at,
     )
-    return ABACPolicySchema.model_validate(policy)
+    return APIResponse.ok(data=ABACPolicySchema.model_validate(policy))
 
 
 @router.delete("/policies/{policy_id}")
@@ -275,7 +275,7 @@ def delete_policy(
 
     service = ABACService(db, org_id)
     service.delete_policy(policy_id)
-    return {"deleted": True}
+    return APIResponse.ok(data={"deleted": True})
 
 
 # ============================================================================
@@ -287,7 +287,7 @@ def evaluate_access(
     schema: AccessEvaluationRequestSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> AccessEvaluationResponseSchema:
+):
     """
     Evaluate if current user can access a resource based on ABAC policies.
 
@@ -319,11 +319,11 @@ def evaluate_access(
         details=details,
     )
 
-    return AccessEvaluationResponseSchema(
+    return APIResponse.ok(data=AccessEvaluationResponseSchema(
         decision=decision,
         matched_policies=matched_policies,
         details=details,
-    )
+    ))
 
 
 @router.post("/evaluate/{user_id}")
@@ -332,7 +332,7 @@ def evaluate_access_for_user(
     schema: AccessEvaluationRequestSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> AccessEvaluationResponseSchema:
+):
     """
     Evaluate access for a specific user (admin/governance only).
     Useful for testing and debugging access policies.
@@ -354,11 +354,11 @@ def evaluate_access_for_user(
         context=schema.context,
     )
 
-    return AccessEvaluationResponseSchema(
+    return APIResponse.ok(data=AccessEvaluationResponseSchema(
         decision=decision,
         matched_policies=matched_policies,
         details=details,
-    )
+    ))
 
 
 @router.get("/audit-log")
@@ -379,7 +379,7 @@ def get_audit_log(
     result = service.list_audit_log(user_id=user_id, limit=limit, offset=offset)
     logs = result["logs"]
 
-    return {
+    return APIResponse.ok(data={
         "total": result["total"],
         "offset": offset,
         "limit": limit,
@@ -395,4 +395,4 @@ def get_audit_log(
             }
             for log in logs
         ],
-    }
+    })
