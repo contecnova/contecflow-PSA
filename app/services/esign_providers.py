@@ -18,6 +18,8 @@ import logging
 import urllib.error
 import urllib.parse
 import urllib.request
+
+from app.core.outbound_url import validate_outbound_url
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -34,6 +36,10 @@ _ADOBE_DEFAULT_BASE = "https://api.na1.adobesign.com/api/rest/v6"
 
 def _http(method: str, url: str, headers: dict, body=None) -> dict:
     """Execute an HTTP request; return {"ok": True, "data": ...} or {"ok": False, "error": ...}."""
+    # Punto único por el que salen todas las llamadas de este módulo: validar aquí
+    # cubre DocuSign y Adobe Sign de una vez. `urlopen` aceptaría file:// y ftp://
+    # si la URL base de proveedor estuviera mal configurada o manipulada.
+    url = validate_outbound_url(url, field="URL de proveedor eSign")
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers=headers)  # noqa: S310
     try:
@@ -96,7 +102,7 @@ def docusign_exchange_code(
         "redirect_uri": redirect_uri,
     })
     req = urllib.request.Request(  # noqa: S310
-        f"{base}/oauth/token",
+        validate_outbound_url(f"{base}/oauth/token", field="URL de proveedor eSign"),
         data=body_str.encode(),
         method="POST",
         headers={
@@ -139,7 +145,7 @@ def docusign_refresh_token(
         "refresh_token": refresh_token,
     })
     req = urllib.request.Request(  # noqa: S310
-        f"{base}/oauth/token",
+        validate_outbound_url(f"{base}/oauth/token", field="URL de proveedor eSign"),
         data=body_str.encode(),
         method="POST",
         headers={
@@ -325,7 +331,7 @@ def adobe_sign_exchange_code(
         "redirect_uri": redirect_uri,
     })
     req = urllib.request.Request(  # noqa: S310
-        f"{base}/oauth/v2/token",
+        validate_outbound_url(f"{base}/oauth/v2/token", field="URL de proveedor eSign"),
         data=body_str.encode(),
         method="POST",
         headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -366,7 +372,7 @@ def adobe_sign_refresh_token(
         "refresh_token": refresh_token,
     })
     req = urllib.request.Request(  # noqa: S310
-        f"{base}/oauth/v2/token",
+        validate_outbound_url(f"{base}/oauth/v2/token", field="URL de proveedor eSign"),
         data=body_str.encode(),
         method="POST",
         headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -415,7 +421,7 @@ def adobe_sign_upload_document(
     body = b"\r\n" + header_part + b"\r\n" + doc_content + footer
 
     req = urllib.request.Request(  # noqa: S310
-        url, data=body, method="POST",
+        validate_outbound_url(url, field="URL de proveedor eSign"), data=body, method="POST",
         headers={
             "Authorization": f"Bearer {access_token}",
             "Content-Type": f"multipart/form-data; boundary={boundary}",

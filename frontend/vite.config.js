@@ -61,6 +61,16 @@ export default defineConfig(({ mode }) => {
               if (id.includes('AIHubPage') || id.includes('NexusAgentPage') || id.includes('OraclePage') || id.includes('MeetingsAIPage') || id.includes('ContractsAIPage') || id.includes('SemanticEnginePage')) return 'route-ai'
               if (id.includes('ProjectsPage') || id.includes('TasksPage') || id.includes('GanttPage') || id.includes('Sprint') || id.includes('Kanban')) return 'route-delivery'
               if (id.includes('ProfitabilityPage') || id.includes('RevenuePage') || id.includes('BudgetsPage') || id.includes('InvoicesPage') || id.includes('ExpensesPage')) return 'route-finance'
+              // NO trocear route-misc por dominio todavía (auditoría 2026-08 §7.b).
+              // Se probó agrupando en route-settings/collab/process/people/itsm/
+              // governance: el tamaño mejora (route-misc 666 -> 481 kB gzip), pero
+              // los avisos de "Circular chunk" de rollup pasan de 7 a 11, porque las
+              // páginas se importan entre sí a través de componentes compartidos.
+              // Nota: esos 7 ya existen hoy, no los introduce el troceo — pero
+              // añadir 4 ciclos más a un grafo ya circular por 185 kB no compensa,
+              // y el orden de carga resultante no es verificable sin probar la app.
+              // Requisito previo: extraer lo compartido entre páginas a módulos
+              // propios, resolver los 7 ciclos actuales, y luego reintentar.
               return 'route-misc'
             }
             if (!id.includes('node_modules')) return

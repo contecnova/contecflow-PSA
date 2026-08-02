@@ -323,8 +323,10 @@ que es criterio de producto más que técnico.
 | 6 | Rate limit en `/portal-ai/chat` + moverlo a `Depends(get_current_portal_client)` | 🟠 | 1 h |
 | 7 | Guard-test: toda función de servicio del portal recibe la identidad del cliente | 🟠 | 0,5 d |
 | 8 | Repartir `vendor-core` (1,95 MB gzip) y trocear `route-misc` | 🟠 | 0,5 d |
-| 9 | Triar los 115 posibles N+1, empezando por los endpoints de listado | 🟡 | iterativo |
-| 10 | Acotar `update_uat_issue` por organización | 🟡 | 30 min |
+| 9 | Resolver los **7 `Circular chunk`** que el build ya emite hoy (prerrequisito para trocear `route-misc`) | 🟠 | 0,5 d |
+| 10 | Revisar las columnas `organization_id` del audit #7 que ningún código rellena | 🟠 | 0,5 d |
+| 11 | Triar los 115 posibles N+1 (límite superior: hay falsos positivos) | 🟡 | iterativo |
+| 12 | Acotar `update_uat_issue` por organización | 🟡 | 30 min |
 
 La acción 7 es la que cierra la **clase** de fallo en lugar de la instancia. Las
 acciones 1 y 9 son instancias concretas; sin la 7, seguirán apareciendo.
@@ -402,6 +404,76 @@ por cookie de portal o cabecera `Authorization`, como el resto del portal.
 El frontend **no se ve afectado**: ya usaba la variante por cookie
 (`POST /portal/ai-chat`). Sí afectaría a integraciones externas que siguieran
 enviando `client_token` en el body — no consta ninguna en el repo.
+
+## 9.d Registro de resolución — P2 (2026-08-02)
+
+| Acción | Estado | Detalle |
+|---|---|---|
+| `update_uat_issue` acotado por organización | ✅ | Vía `session → project → organization` |
+| Validador de URLs salientes + aplicado en eSign e integraciones | ✅ | `app/core/outbound_url.py`; 17 de los 45 sitios S310 |
+| N+1 en la status page **pública** | ✅ | Una consulta en vez de una por componente |
+| N+1 en el catálogo de marketplace | ✅ | `in_()` en vez de una consulta por instancia |
+| PII: email completo en logs → solo dominio | ✅ | `service_desk/templates.py` |
+| Trocear `route-misc` por dominio | ⛔ revertido | Introducía chunks circulares — ver abajo |
+| Triaje de los 85 `S110` | ⏸ | No abordado |
+| i18n inglés (1.419 claves) | ⏸ | No abordado |
+| Triaje de los ~1.900 hallazgos de tenancy | ⏸ | Trabajo de días |
+
+### `update_uat_issue`: por qué no se filtra por `organization_id`
+
+`UATIssue` **tiene** columna `organization_id`, y filtrar por ella habría sido lo
+obvio. No sirve: no se rellena al crear la incidencia
+(`UATIssue(session_id=..., reported_by=..., **payload)`), así que está a `NULL` en
+todas las filas y el filtro las habría excluido todas. El scoping va por
+`session → project → organization`, igual que `respond_to_fr`.
+
+Es un aviso más general: **hay columnas `organization_id` añadidas por el audit #7
+que ningún código rellena**. Filtrar por ellas «porque existen» rompe cosas de forma
+silenciosa. Merece su propia revisión.
+
+### SSRF: 17 de 45, no los 45
+
+`app/core/outbound_url.py` generaliza la comprobación que ya existía solo para la URL
+de discovery de OIDC (esquema http/https, sin hosts locales, sin IPs privadas). Se
+aplicó en los puntos por donde pasan más llamadas: `esign_providers._http` y sus 5
+sitios OAuth, y los 5 de `integrations.py`.
+
+Quedan ~28 sitios (sobre todo `mfa_service.py`, `scheduled_reports.py`,
+`bookings_service.py`). No se resuelve DNS a propósito: sería TOCTOU y añadiría un
+fallo externo a una validación. Defensa completa frente a DNS rebinding necesita
+control de egreso a nivel de red.
+
+### Por qué se revirtió el troceo de `route-misc`
+
+Funcionaba en tamaño: `route-misc` bajaba de 666 a 481 kB gzip y aparecían seis
+chunks de dominio (`settings` 19 kB, `itsm` 27, `governance` 28, `process` 38,
+`collab` 40, `people` 43).
+
+Pero los avisos de `Circular chunk` de rollup pasan de **7 a 11**.
+
+> **Hallazgo nuevo, medido al comprobar esto:** el build **ya emite hoy 7 avisos de
+> `Circular chunk`** con la configuración de `main`, p. ej.
+> `route-delivery -> route-misc -> route-service-desk -> route-delivery`.
+> No los introduce este cambio; estaban ahí y nadie los veía porque el filtro
+> habitual de la salida del build no los muestra. Un grafo de chunks circular puede
+> alterar el orden de carga en runtime. **Merece revisión propia.**
+
+Las páginas se importan entre sí a través de componentes compartidos, así que
+agruparlas por dominio añade 4 ciclos más. Meter más ciclos en un grafo ya circular
+a cambio de 185 kB, sin poder verificar el orden de carga en un navegador, no
+compensa.
+
+**Requisito previo para reintentarlo:** extraer a módulos propios lo que las páginas
+comparten, resolver los 7 ciclos actuales, y luego volver a agrupar. El troceo de
+*vendors*, que es el que dio el −91%, no tiene este problema y se mantiene.
+
+### Sobre el detector de N+1
+
+Los «115 bucles con `db.query`» del §7 son un límite superior, no un recuento de
+fallos. Al mirarlos uno a uno aparecen falsos positivos claros: por ejemplo
+`client_service.list_contacts()` es una comprehension cuya *fuente* es la consulta,
+que se ejecuta una sola vez. De los 22 que caían en funciones de listado, se
+corrigieron los dos con impacto real; el resto necesita revisión caso a caso.
 
 ## 10. Qué NO cubre esta pasada
 

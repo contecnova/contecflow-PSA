@@ -1274,11 +1274,31 @@ def report_uat_issue(uat_id: str, payload, current_client, db: Session) -> dict:
     return {"id": issue.id, "title": issue.title}
 
 
-def update_uat_issue(issue_id: str, status: str, db: Session) -> dict:
+def update_uat_issue(issue_id: str, status: str, current_user, db: Session) -> dict:
+    """Actualiza el estado de una incidencia de UAT (equipo interno).
 
+    current_user es OBLIGATORIO: sin acotar por organización, un manager de la
+    organización A podía cambiar el estado de una incidencia de la organización B
+    conociendo su id (auditoría 2026-08, docs/AUDIT_2026_08_SECOND_PASS.md §7).
+
+    El scoping va por session -> project -> organization, no por
+    UATIssue.organization_id: esa columna existe pero NO se rellena al crear la
+    incidencia, así que filtrar por ella dejaría fuera todas las filas.
+    Mismo criterio que `respond_to_fr`.
+    """
     issue = db.query(UATIssue).filter(UATIssue.id == issue_id).first()
     if not issue:
         raise ValueError("Incidencia no encontrada")
+
+    if getattr(current_user, "organization_id", None) and not getattr(current_user, "is_superadmin", False):
+        owner_org = (
+            db.query(ProjectModel.organization_id)
+            .join(UATSession, UATSession.project_id == ProjectModel.id)
+            .filter(UATSession.id == issue.session_id)
+            .scalar()
+        )
+        if owner_org and owner_org != current_user.organization_id:
+            raise ValueError("Incidencia no encontrada")
     issue.status = status
     if status == "fixed":
         issue.fixed_at = datetime.now(timezone.utc)

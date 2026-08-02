@@ -32,16 +32,26 @@ def build_public_status_page_payload(db: Session) -> dict:
         if status_severity.get(component.status, 0) > status_severity.get(worst, 0):
             worst = component.status
 
+    # N+1 eliminado (auditoría 2026-08 §7): antes se lanzaba una consulta de
+    # incidencias POR COMPONENTE. Este endpoint es público y sin autenticar
+    # (GET /api/v1/sd/status-page), así que cualquiera podía multiplicar la carga de
+    # base de datos por el número de componentes con una sola petición.
+    incidents_by_component: dict[str, list] = {}
+    if components:
+        rows = db.query(StatusPageIncident).filter(
+            StatusPageIncident.component_id.in_([c.id for c in components]),
+            StatusPageIncident.resolved_at == None,
+        ).all()
+        for row in rows:
+            incidents_by_component.setdefault(row.component_id, []).append(row)
+
     groups = {}
     for component in components:
         group_name = component.group_name or "General"
         if group_name not in groups:
             groups[group_name] = []
 
-        active_incidents = db.query(StatusPageIncident).filter(
-            StatusPageIncident.component_id == component.id,
-            StatusPageIncident.resolved_at == None,
-        ).all()
+        active_incidents = incidents_by_component.get(component.id, [])
 
         groups[group_name].append(
             {
