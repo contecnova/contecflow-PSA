@@ -96,8 +96,8 @@ def get_auto_resolution_config(db: Session) -> dict:
         if row and row.value:
             return _normalize_auto_resolution_config(json.loads(row.value))
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        _logger.debug("get_auto_resolution_config: fallo best-effort ignorado", exc_info=True)
     return _normalize_auto_resolution_config(None)
 
 
@@ -124,8 +124,8 @@ def _load_feedback_stats(db: Session, key: str = FEEDBACK_SETTING_KEY) -> dict:
         if row and row.value:
             return json.loads(row.value)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        _logger.debug("_load_feedback_stats: fallo best-effort ignorado", exc_info=True)
     return {}
 
 
@@ -259,8 +259,8 @@ def validate_auto_resolution(db: Session, ticket: Ticket) -> dict:
             ))
             db.flush()
         # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            _logger.debug("validate_auto_resolution: fallo best-effort ignorado", exc_info=True)
 
     return {
         "validated": True,
@@ -570,8 +570,8 @@ def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
         if scored:
             return [a for _, a in scored[:5]]
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        _logger.debug("_scope_kb: fallo best-effort ignorado", exc_info=True)
 
     # Keyword fallback
     search_terms = (ticket.title or "") + " " + (ticket.description or "")
@@ -650,16 +650,16 @@ def _apply_auto_resolution(
         from app.services.service_desk.sla_event_service import record_sla_event  # noqa: PLC0415
         record_sla_event(db, ticket, event_type="resolved", actor="ai_auto_resolution")
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        _logger.debug("_apply_auto_resolution: fallo best-effort ignorado", exc_info=True)
 
     # Notify watchers if notification service is available
     try:
         from app.services.service_desk.watcher_service import notify_watchers  # noqa: PLC0415
         notify_watchers(db, ticket, event="resolved", message=analysis["suggestion"][:300])
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        _logger.debug("_apply_auto_resolution: fallo best-effort ignorado", exc_info=True)
 
     db.flush()
     _logger.info(

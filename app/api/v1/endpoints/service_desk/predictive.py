@@ -17,6 +17,9 @@ from app.services.service_desk.predictive_analytics_service import (
     predict_ticket,
     run_predictive_scan,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/predictive", tags=["Predictive Analytics ITSM"])
 
@@ -95,8 +98,8 @@ def predictive_stats(
             sla = predict_sla_breach(db, ticket)
             if sla.get("breach_probability", 0) >= 0.55:
                 sla_at_risk += 1
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("predictive_stats: fallo best-effort ignorado", exc_info=True)
 
     return APIResponse.ok(data={
         "open_tickets": len(open_tickets),

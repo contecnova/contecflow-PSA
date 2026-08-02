@@ -26,6 +26,9 @@ from typing import Any, Optional
 from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
+import logging
+
+logger = logging.getLogger(__name__)
 
 _KEY_CONSENT = "bi.gdpr.consent"
 _KEY_CONSENT_HISTORY = "bi.gdpr.consent_history"
@@ -217,8 +220,8 @@ def get_dsr_stats(db: Session, *, org_id: Optional[str]) -> dict:
             if now > dl:
                 overdue.append(d)
         # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("get_dsr_stats: fallo best-effort ignorado", exc_info=True)
     consents = list(_get_setting(db, _KEY_CONSENT, org_id, {}).values())
     consented_count = sum(1 for c in consents if c.get("consented"))
     by_type: dict[str, int] = {}

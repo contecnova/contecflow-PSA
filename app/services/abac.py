@@ -15,6 +15,9 @@ import uuid
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy import text
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ABACEngine:
@@ -420,8 +423,8 @@ class ABACService:
                     matched_policies=deny_policies or [],
                 )
             # intentional: best-effort fallback, log noise outweighs diagnostic value
-            except Exception:  # noqa: BLE001, S110
-                pass
+            except Exception:  # noqa: BLE001
+                logger.debug("audit_access_decision: fallo best-effort ignorado", exc_info=True)
 
         self.db.commit()
         return audit

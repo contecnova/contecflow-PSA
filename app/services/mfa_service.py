@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.core.config import settings
+from app.core.outbound_url import validate_outbound_url
 from app.core.encryption import encrypt_value, decrypt_value
 from app.models.user import User
 from app.models.user import UserOrganizationMembership
@@ -239,7 +240,7 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
                 "icon_emoji": ":rocket:",
             }).encode("utf-8")
             req = urllib.request.Request(  # noqa: S310
-                f"{settings.SLACK_API_BASE}/chat.postMessage",
+                validate_outbound_url(f"{settings.SLACK_API_BASE}/chat.postMessage", field="SLACK_API_BASE"),
                 data=data,
                 headers={
                     "Content-Type": "application/json",
@@ -261,7 +262,7 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
             else:
                 body = json.dumps({"text": text, "channel": ch}).encode("utf-8")
             req = urllib.request.Request(  # noqa: S310
-                config.webhook_url, data=body,
+                validate_outbound_url(config.webhook_url, field="webhook_url"), data=body,
                 headers={"Content-Type": "application/json"}
             )
             with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
@@ -367,7 +368,7 @@ Responde SOLO con JSON: {{"hours": <número>, "confidence": <0-100>, "reasoning"
                 "messages": [{"role": "user", "content": prompt}]
             }).encode()
             req = urllib.request.Request(  # noqa: S310
-                settings.ANTHROPIC_API_URL,
+                validate_outbound_url(settings.ANTHROPIC_API_URL, field="ANTHROPIC_API_URL"),
                 data=data,
                 headers={
                     "Content-Type": "application/json",
@@ -494,7 +495,7 @@ Responde SOLO con JSON:
                 "messages": [{"role": "user", "content": prompt}]
             }).encode()
             req = urllib.request.Request(  # noqa: S310
-                settings.ANTHROPIC_API_URL,
+                validate_outbound_url(settings.ANTHROPIC_API_URL, field="ANTHROPIC_API_URL"),
                 data=data,
                 headers={
                     "Content-Type": "application/json",
@@ -993,10 +994,28 @@ def get_slack_config(db: Session) -> list:
     } for c in configs]
 
 
-def create_or_update_slack_config(payload_dict: dict, db: Session) -> dict:
+def create_or_update_slack_config(payload_dict: dict, db: Session, organization_id=None) -> dict:
+    """Crea o actualiza la configuración de Slack/Teams de UNA organización.
+
+    Auditoría 2026-08 §7 — aquí había dos fallos de tenencia:
+
+    1. La búsqueda de la config existente se hacía solo por `platform`, sin acotar
+       por organización, así que configurar Slack en la organización B **sobrescribía
+       la de la A** (incluido su webhook y su bot_token).
+    2. `organization_id` no se rellenaba al crear, pero `get_slack_webhook_url()` sí
+       filtra por esa columna. Resultado: el webhook nunca se encontraba cuando se
+       consultaba acotado por organización, y las notificaciones no salían.
+    """
     platform = payload_dict.get("platform", "slack")
     subs = json.dumps(payload_dict.get("subscriptions") or ["task_overdue", "budget_alert", "ticket_sla"])
-    existing = db.query(SlackConfig).filter(SlackConfig.platform == platform).first()
+    q = db.query(SlackConfig).filter(SlackConfig.platform == platform)
+    if organization_id:
+        q = q.filter(SlackConfig.organization_id == organization_id)
+    else:
+        # Sin organización sólo se puede tocar la config que tampoco la tiene, para
+        # no pisar la de un tenant concreto.
+        q = q.filter(SlackConfig.organization_id.is_(None))
+    existing = q.first()
     if existing:
         existing.workspace_name = payload_dict.get("workspace_name")
         existing.bot_token = payload_dict.get("bot_token")
@@ -1008,6 +1027,7 @@ def create_or_update_slack_config(payload_dict: dict, db: Session) -> dict:
         return {"ok": True, "id": existing.id, "updated": True}
     config = SlackConfig(
         platform=platform,
+        organization_id=organization_id,
         workspace_name=payload_dict.get("workspace_name"),
         bot_token=payload_dict.get("bot_token"),
         webhook_url=payload_dict.get("webhook_url"),

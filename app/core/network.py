@@ -4,6 +4,9 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_ip(value: Optional[str]) -> Optional[str]:
@@ -46,8 +49,8 @@ def _effective_proxy_config() -> tuple[bool, str]:
                 cidrs_raw = ui_cidrs
         finally:
             db.close()
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("_effective_proxy_config: fallo best-effort ignorado", exc_info=True)
     _PROXY_CACHE["expires_at"] = now + _PROXY_CACHE_TTL
     _PROXY_CACHE["trust"] = trust
     _PROXY_CACHE["cidrs_raw"] = cidrs_raw

@@ -117,13 +117,13 @@ def _subscriber_loop() -> None:
             try:
                 if pubsub is not None:
                     pubsub.close()
-            except Exception:  # noqa: S110
-                pass
+            except Exception:
+                logger.debug("_subscriber_loop: fallo best-effort ignorado", exc_info=True)
             try:
                 if client is not None:
                     client.close()
-            except Exception:  # noqa: S110
-                pass
+            except Exception:
+                logger.debug("_subscriber_loop: fallo best-effort ignorado", exc_info=True)
 
 
 def _dispatch_invalidation(raw_payload) -> None:

@@ -28,8 +28,8 @@ def _resolve_duckdb_path() -> str:
         if os.access(preferred_dir, os.W_OK):
             return preferred
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("_resolve_duckdb_path: fallo best-effort ignorado", exc_info=True)
 
     # Local/dev fallback when /var is not writable (common on macOS without root).
     fallback = "/tmp/contecflow/olap.duckdb"  # noqa: S108
@@ -156,8 +156,8 @@ def _load_fact_imputations(db, conn, since: date) -> int:
             u = db.query(User).filter(User.id == imp.user_id).first()
             cost_ph = getattr(u, "cost_per_hour", None)
         # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("_load_fact_imputations: fallo best-effort ignorado", exc_info=True)
         cost = (imp.hours or 0) * (cost_ph or 0)
 
         project_org = None
@@ -165,8 +165,8 @@ def _load_fact_imputations(db, conn, since: date) -> int:
             proj = db.query(Project).filter(Project.id == imp.project_id).first()
             project_org = getattr(proj, "organization_id", None) if proj else None
         # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("_load_fact_imputations: fallo best-effort ignorado", exc_info=True)
 
         conn.execute("""
             INSERT OR REPLACE INTO fact_imputations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

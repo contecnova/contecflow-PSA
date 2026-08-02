@@ -11,6 +11,9 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _extract_model_class(entity):
@@ -24,8 +27,8 @@ def _extract_model_class(entity):
     if hasattr(entity, "property") and hasattr(entity.property, "parent"):
         try:
             return entity.property.parent.class_
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("_extract_model_class: fallo best-effort ignorado", exc_info=True)
     return None
 
 
@@ -227,8 +230,8 @@ class TenantSession(Session):
         for model in models:
             try:
                 q = _tenant_filter_for_model(q, model, org_id)
-            except Exception:  # noqa: S110
-                pass
+            except Exception:
+                logger.debug("query: fallo best-effort ignorado", exc_info=True)
 
         return q
 
@@ -252,8 +255,8 @@ class TenantSession(Session):
                     for model in _extract_models_from_select(statement):
                         try:
                             statement = _tenant_where_for_model(statement, model, org_id)
-                        except Exception:  # noqa: S110
-                            pass
+                        except Exception:
+                            logger.debug("execute: fallo best-effort ignorado", exc_info=True)
         return super().execute(statement, *args, **kwargs)
 
 _url = settings.DATABASE_URL

@@ -18,6 +18,40 @@ from app.models.user import User, UserRole, UserStatus
 logger = logging.getLogger(__name__)
 
 
+def derive_alert_org_id(db: Session, *, user_id=None, project_id=None, task_id=None):
+    """Deriva la organización de una alerta a partir de su ámbito.
+
+    Por qué existe (auditoría 2026-08 §7): `_scope_alert_to_org` considera visibles
+    para TODAS las organizaciones las alertas que tienen `organization_id`, `user_id`
+    y `project_id` a NULL — un fallback pensado solo para datos anteriores a la
+    migración 076. El problema es que había sitios creando alertas nuevas sin
+    ninguno de los tres (p. ej. una automatización global sin project_id en su
+    contexto), y esas alertas caían en ese fallback y se filtraban entre
+    organizaciones.
+
+    La solución correcta no es tocar el fallback, es dejar de crear filas
+    ambiguas: si el ámbito permite deducir la organización, se persiste.
+    """
+    if project_id:
+        org = db.query(Project.organization_id).filter(Project.id == project_id).scalar()
+        if org:
+            return org
+    if user_id:
+        org = db.query(User.organization_id).filter(User.id == user_id).scalar()
+        if org:
+            return org
+    if task_id:
+        org = (
+            db.query(Project.organization_id)
+            .join(Task, Task.project_id == Project.id)
+            .filter(Task.id == task_id)
+            .scalar()
+        )
+        if org:
+            return org
+    return None
+
+
 class AlertEngine:
     """Core engine that generates alerts based on current data state."""
 
@@ -63,6 +97,9 @@ class AlertEngine:
             severity=severity,
             title=title,
             description=description,
+            organization_id=derive_alert_org_id(
+                self.db, user_id=user_id, project_id=project_id, task_id=task_id,
+            ),
             user_id=user_id,
             project_id=project_id,
             task_id=task_id,

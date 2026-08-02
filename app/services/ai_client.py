@@ -11,6 +11,7 @@ import logging
 from typing import Optional
 
 from app.core.config import settings
+from app.core.outbound_url import validate_outbound_url
 
 _logger = logging.getLogger("ai_client")
 
@@ -28,8 +29,8 @@ def get_api_key(db=None, org_id: Optional[str] = None) -> Optional[str]:
             ui_key = get_credential(db, "ai_providers", "anthropic_api_key", org_id=org_id)
             if ui_key:
                 return ui_key
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            _logger.debug("get_api_key: fallo best-effort ignorado", exc_info=True)
     key = settings.ANTHROPIC_API_KEY
     if not key:
         _logger.warning("ANTHROPIC_API_KEY not configured — AI features unavailable")
@@ -44,8 +45,8 @@ def get_default_model(db=None, org_id: Optional[str] = None) -> str:
             ui_val = get_runtime_str(db, "CONTECFLOW_AI_MODEL", org_id)
             if ui_val:
                 return ui_val
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            _logger.debug("get_default_model: fallo best-effort ignorado", exc_info=True)
     return settings.CONTECFLOW_AI_MODEL
 
 
@@ -99,7 +100,10 @@ def call_claude(
         body["tools"] = tools
 
     data = json.dumps(body).encode()
-    req = urllib.request.Request(settings.ANTHROPIC_API_URL, data=data, headers=headers)  # noqa: S310
+    req = urllib.request.Request(  # noqa: S310
+        validate_outbound_url(settings.ANTHROPIC_API_URL, field="ANTHROPIC_API_URL"),
+        data=data, headers=headers,
+    )
     from app.services.settings_service import outbound_ai_timeout
     with urllib.request.urlopen(req, timeout=outbound_ai_timeout(db)) as resp:  # noqa: S310
         return json.loads(resp.read())

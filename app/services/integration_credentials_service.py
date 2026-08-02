@@ -180,8 +180,8 @@ def invalidate_cache(provider: Optional[str] = None) -> None:
     try:
         from app.core.settings_pubsub import publish_invalidation
         publish_invalidation("integration", provider)
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("invalidate_cache: fallo best-effort ignorado", exc_info=True)
 
 
 def _read_row(db: Session, provider: str, key: str, org_id: Optional[str]) -> Optional[IntegrationCredential]:
@@ -390,8 +390,8 @@ def set_credential(
             actor_ua=actor_ua,
             organization_id=org_id,
         )
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("set_credential: fallo best-effort ignorado", exc_info=True)
 
     if row is None:
         return {"provider": provider, "key": key, "configured": False, "source": "unset"}

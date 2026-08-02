@@ -189,8 +189,8 @@ def _get_multi_role_factor(db=None) -> float:
             v = get_runtime_float(db, "SEM_MULTI_ROLE_FACTOR")
             if v is not None:
                 return v
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("_get_multi_role_factor: fallo best-effort ignorado", exc_info=True)
     return _cfg.SEM_MULTI_ROLE_FACTOR
 
 

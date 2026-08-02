@@ -13,6 +13,7 @@ import subprocess
 import time as _time_sleep
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
+from app.core.outbound_url import validate_outbound_url
 from app.core.config import settings
 from app.core.security import create_access_token
 from app.models.billing_reports import Invoice, InvoiceLine
@@ -920,11 +921,17 @@ def process_oidc_callback(payload: dict, db) -> dict:
             if not jwks_uri and issuer:
                 # OpenID Connect standard discovery endpoint
                 disc_url = issuer.rstrip("/") + "/.well-known/openid-configuration"
+                # HTTPS obligatorio: lo exige OIDC y el issuer viene de configuración.
+                disc_url = validate_outbound_url(disc_url, field="issuer OIDC", require_https=True)
                 with _ureq.urlopen(disc_url, timeout=5) as _r:  # noqa: S310
                     jwks_uri = _json.loads(_r.read())["jwks_uri"]
             if not jwks_uri:
                 raise HTTPException(502, "No se pudo obtener JWKS del IdP OIDC")
 
+            # jwks_uri sale del documento de discovery REMOTO, así que lo controla un
+            # tercero: sin validarlo, un IdP malicioso (o un MITM sobre el discovery)
+            # podría apuntarlo a la red interna o a file:// (auditoría 2026-08 §1.9).
+            jwks_uri = validate_outbound_url(jwks_uri, field="jwks_uri", require_https=True)
             with _ureq.urlopen(jwks_uri, timeout=5) as _r:  # noqa: S310
                 jwks = _json.loads(_r.read())
 
@@ -1216,12 +1223,17 @@ def _execute_step_action(config: dict, context: dict, db) -> dict:
     action_type = str(config.get("type", "create_alert")).lower()
     if action_type == "create_alert":
         from app.models.alert import Alert  # noqa: PLC0415
+        from app.services.alert_service import derive_alert_org_id  # noqa: PLC0415
 
         db.add(
             Alert(
                 alert_type="workflow",
                 message=config.get("message", "Workflow ejecutado"),
                 severity=config.get("severity", "info"),
+                # Sin esto, un workflow sin project_id en contexto crea una alerta
+                # con los tres campos de ámbito a NULL, que _scope_alert_to_org
+                # trata como visible para todas las organizaciones.
+                organization_id=derive_alert_org_id(db, project_id=context.get("project_id")),
                 project_id=context.get("project_id"),
             )
         )

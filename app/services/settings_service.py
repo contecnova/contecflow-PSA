@@ -93,8 +93,8 @@ def invalidate_cache(key: Optional[str] = None) -> None:
     try:
         from app.core.settings_pubsub import publish_invalidation
         publish_invalidation("runtime", key)
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("invalidate_cache: fallo best-effort ignorado", exc_info=True)
 
 
 def get_runtime_str(db: Session, key: str, org_id: Optional[str] = None, default: Any = _MISSING) -> Optional[str]:
@@ -309,8 +309,8 @@ def outbound_http_timeout(db=None, default: float = 10.0) -> float:
             v = get_runtime_float(db, "OUTBOUND_HTTP_TIMEOUT_SECONDS")
             if v is not None:
                 return v
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("outbound_http_timeout: fallo best-effort ignorado", exc_info=True)
     return getattr(app_settings, "OUTBOUND_HTTP_TIMEOUT_SECONDS", default)
 
 
@@ -321,8 +321,8 @@ def outbound_ai_timeout(db=None, default: float = 30.0) -> float:
             v = get_runtime_float(db, "OUTBOUND_AI_TIMEOUT_SECONDS")
             if v is not None:
                 return v
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("outbound_ai_timeout: fallo best-effort ignorado", exc_info=True)
     return getattr(app_settings, "OUTBOUND_AI_TIMEOUT_SECONDS", default)
 
 
@@ -425,8 +425,8 @@ def set_runtime_value(
             actor_ua=actor_ua,
             organization_id=org_id,
         )
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("set_runtime_value: fallo best-effort ignorado", exc_info=True)
 
     return {"key": key, "value": updated.value, "organization_id": updated.organization_id}
 

@@ -43,8 +43,8 @@ def _ticket_category_value(t) -> Optional[str]:
         if cat_id:
             return str(cat_id)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("_ticket_category_value: fallo best-effort ignorado", exc_info=True)
     tt = getattr(t, "ticket_type", None)
     if tt is None:
         return None

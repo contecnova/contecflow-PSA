@@ -10,7 +10,9 @@ import json
 logger = logging.getLogger(__name__)
 
 from app.models.automations import AutomationRule, AutomationExecution, ActionType
+from app.core.outbound_url import validate_outbound_url
 from app.models.alert import Alert, AlertType, AlertSeverity
+from app.services.alert_service import derive_alert_org_id
 from app.models.task import Task
 from app.models.user import User
 from app.models.financial import Timesheet
@@ -80,6 +82,12 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
                     title=params.get("title", "Automatización activada"),
                     description=params.get("message", action.get("message", "")),
                     severity=AlertSeverity.warning if params.get("severity") == "warning" else AlertSeverity.info,
+                    # Sin organization_id la alerta cae en el fallback "visible para
+                    # todas las organizaciones" de _scope_alert_to_org, y una regla
+                    # global sin project_id en contexto la dejaba ahí.
+                    organization_id=derive_alert_org_id(
+                        db, project_id=context.get("project_id"), task_id=context.get("task_id"),
+                    ),
                     project_id=context.get("project_id"),
                     task_id=context.get("task_id"),
                 )
@@ -104,6 +112,9 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
                         title=message,
                         description=params.get("description", ""),
                         severity=AlertSeverity.info,
+                        organization_id=derive_alert_org_id(
+                            db, user_id=u.id, project_id=context.get("project_id"),
+                        ),
                         project_id=context.get("project_id"),
                         user_id=u.id,
                     )
@@ -118,6 +129,9 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
                         title=params.get("message", "Tienes una notificación automática"),
                         description=params.get("description", ""),
                         severity=AlertSeverity.info,
+                        organization_id=derive_alert_org_id(
+                            db, user_id=user_id, project_id=context.get("project_id"),
+                        ),
                         project_id=context.get("project_id"),
                         user_id=user_id,
                     )
@@ -185,7 +199,7 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
                         import urllib.request as _ur
                         import json as _json
                         _data = _json.dumps(payload).encode()
-                        _req  = _ur.Request(url, data=_data, method=method,  # noqa: S310
+                        _req  = _ur.Request(validate_outbound_url(url, field="URL de webhook"), data=_data, method=method,  # noqa: S310
                                             headers={"Content-Type": "application/json", **headers})
                         try:
                             with _ur.urlopen(_req, timeout=10):  # noqa: S310

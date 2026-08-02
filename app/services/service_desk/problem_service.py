@@ -294,8 +294,8 @@ def create_change_from_problem(
         if problem.affected_services_json:
             affected_cis = _json.loads(problem.affected_services_json)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("create_change_from_problem: fallo best-effort ignorado", exc_info=True)
 
     title = custom_title or f"[RFC] Resolver causa raíz: {problem.title[:200]}"
     description = custom_description or (

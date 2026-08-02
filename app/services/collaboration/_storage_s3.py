@@ -84,8 +84,8 @@ class S3FileStorage(FileStorage):
         try:
             self._client.delete_object(Bucket=self._bucket, Key=self._full(key))
         # intentional: cleanup path, logging would cascade
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("delete: fallo best-effort ignorado", exc_info=True)
 
     def size(self, key: str) -> int:
         try:

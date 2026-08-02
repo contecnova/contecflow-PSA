@@ -34,6 +34,9 @@ from app.services.collaboration._permissions import (
 )
 from app.services.collaboration._search import search_engine
 from app.services.collaboration._storage import scan_dlp
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 MENTION_RE = re.compile(r"@([a-zA-Z0-9_.\-]+)")
@@ -304,8 +307,8 @@ def send_message(
                 if delivered:
                     n.delivered_push = True
             # intentional: best-effort fallback, log noise outweighs diagnostic value
-            except Exception:  # noqa: S110
-                pass
+            except Exception:
+                logger.debug("send_message: fallo best-effort ignorado", exc_info=True)
         if n.client_user_id:
             _publish_async(client_user_channel(n.client_user_id), {"type": "notification.new", "payload": {"id": n.id}})
     db.commit()

@@ -19,6 +19,9 @@ from app.services.collaboration import messages as msg_svc
 from app.services.collaboration._permissions import _org, assert_conversation_access
 from app.services.traffic_control_service import consume_quota
 from app.core.responses import APIListResponse, APIResponse
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -100,8 +103,8 @@ def send_message(payload: MessageCreate, current_user: User = Depends(get_curren
     try:
         from app.services.collaboration import bots as bot_svc
         bot_svc.maybe_handle_inline_command(db, current_user, msg)
-    except Exception:  # noqa: S110
-        pass  # bots are best-effort
+    except Exception:
+        logger.debug("send_message: bots are best-effort", exc_info=True)
     return APIResponse.ok(data=MessageOut(**msg_svc._serialize_message(db, msg)))
 
 

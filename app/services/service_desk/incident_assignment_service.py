@@ -231,8 +231,8 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
             try:
                 db.rollback()
             # intentional: cleanup path, logging would cascade
-            except Exception:  # noqa: S110
-                pass
+            except Exception:
+                logger.debug("get_assignment_stats: fallo best-effort ignorado", exc_info=True)
             members = []
 
         if members:
@@ -260,8 +260,8 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
                 try:
                     db.rollback()
                 # intentional: cleanup path, logging would cascade
-                except Exception:  # noqa: S110
-                    pass
+                except Exception:
+                    logger.debug("get_assignment_stats: fallo best-effort ignorado", exc_info=True)
                 load_by_user = {}
 
             # Aggregate by user (a user may appear in several groups)
@@ -308,8 +308,8 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
                 try:
                     db.rollback()
                 # intentional: cleanup path, logging would cascade
-                except Exception:  # noqa: S110
-                    pass
+                except Exception:
+                    logger.debug("get_assignment_stats: fallo best-effort ignorado", exc_info=True)
                 total_unassigned = 0
 
             agent_loads = sorted(agg.values(), key=lambda a: a["open_tickets"], reverse=True)
@@ -328,8 +328,8 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
         try:
             db.rollback()
         # intentional: cleanup path, logging would cascade
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("get_assignment_stats: fallo best-effort ignorado", exc_info=True)
         return {
             "agent_loads": [],
             "total_unassigned": 0,

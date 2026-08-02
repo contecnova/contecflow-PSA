@@ -264,8 +264,8 @@ def next_ticket_number(ticket_type: str, db: Session) -> str:
         lock_key = advisory_lock_key(f"ticket_number_{ticket_type}")
         db.execute(func.pg_advisory_xact_lock(lock_key))
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass  # SQLite / non-PG — best-effort
+    except Exception:
+        logger.debug("next_ticket_number: SQLite / non-PG — best-effort", exc_info=True)
     last_num = (
         db.query(func.max(cast(func.substr(Ticket.number, len(prefix) + 2), Integer)))
         .filter(Ticket.number.like(f"{prefix}-%"))
@@ -278,8 +278,8 @@ def next_problem_number(db: Session) -> str:
     try:
         db.execute(func.pg_advisory_xact_lock(advisory_lock_key("problem_number")))
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("next_problem_number: fallo best-effort ignorado", exc_info=True)
     last = db.query(func.max(cast(func.substr(Problem.number, 5), Integer))).scalar() or 0
     return f"PRB-{(last + 1):04d}"
 
@@ -288,8 +288,8 @@ def next_kb_number(db: Session) -> str:
     try:
         db.execute(func.pg_advisory_xact_lock(advisory_lock_key("kb_number")))
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("next_kb_number: fallo best-effort ignorado", exc_info=True)
     last = db.query(func.max(cast(func.substr(KBArticle.number, 4), Integer))).scalar() or 0
     return f"KB-{(last + 1):04d}"
 
