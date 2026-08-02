@@ -129,8 +129,8 @@ async def collaboration_ws(
                 log.warning("collab ws closing user=%s: access revoked", user_id)
                 try:
                     await websocket.close(code=4403)
-                except Exception:  # noqa: S110
-                    pass
+                except Exception:
+                    log.debug("_ensure_user_still_active: fallo best-effort ignorado", exc_info=True)
                 return False
             return True
 
@@ -232,12 +232,12 @@ async def collaboration_ws(
             for t in pending:
                 try:
                     await t
-                except (asyncio.CancelledError, Exception):  # noqa: S110
-                    pass
+                except (asyncio.CancelledError, Exception):
+                    log.debug("revocation_watchdog: fallo best-effort ignorado", exc_info=True)
         finally:
             try:
                 await sub.close()
-            except Exception:  # noqa: S110
-                pass
+            except Exception:
+                log.debug("revocation_watchdog: fallo best-effort ignorado", exc_info=True)
     finally:
         db.close()

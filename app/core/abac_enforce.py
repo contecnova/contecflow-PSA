@@ -106,8 +106,8 @@ def enforce_abac(
                     resource_type=resource_type or "unknown",
                     action=action or "unknown",
                 ).inc()
-            except Exception:  # noqa: S110
-                pass
+            except Exception:
+                logger.debug("enforce_abac: fallo best-effort ignorado", exc_info=True)
             raise HTTPException(
                 status_code=403,
                 detail="Access denied",

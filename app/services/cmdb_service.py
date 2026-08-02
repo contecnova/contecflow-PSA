@@ -407,8 +407,8 @@ def create_agent_snapshot(agent_id: str, db: Session) -> dict:
             Ticket.status.notin_(["resolved", "closed"])
         ).count()
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("create_agent_snapshot: fallo best-effort ignorado", exc_info=True)
 
     db.query(AgentMetricSnapshot).filter(
         AgentMetricSnapshot.agent_id == agent_id,

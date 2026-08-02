@@ -94,8 +94,8 @@ def _fetch_current_data(db: Session, org_id: str, dataset_key: str) -> list[dict
             cols = [d[0] for d in conn.description]
             return [dict(zip(cols, r)) for r in rows]  # noqa: B905
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("_fetch_current_data: fallo best-effort ignorado", exc_info=True)
 
     # Fallback: demo snapshot data
     return [

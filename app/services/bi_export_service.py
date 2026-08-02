@@ -38,8 +38,8 @@ def _get_kpi_data(db: Session, org_id: str, period_days: int) -> dict:
         if row and row.value:
             return json.loads(row.value)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("_get_kpi_data: fallo best-effort ignorado", exc_info=True)
     # Demo data for orgs without ETL configured
     return {
         "revenue": [120_000, 135_000, 140_000, 128_000, 155_000, 162_000],

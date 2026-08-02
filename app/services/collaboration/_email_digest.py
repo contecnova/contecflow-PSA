@@ -44,8 +44,8 @@ def _send(to_email: str, subject: str, html: str) -> bool:
             try:
                 s.starttls()
             # intentional: best-effort fallback, log noise outweighs diagnostic value
-            except Exception:  # noqa: S110
-                pass
+            except Exception:
+                logger.debug("_send: fallo best-effort ignorado", exc_info=True)
             if settings.SMTP_USER:
                 s.login(settings.SMTP_USER, settings.SMTP_PASS)
             s.send_message(msg)

@@ -74,8 +74,8 @@ def record_change(
         # Audit must not block business writes — log and swallow.
         try:
             db.rollback()
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("record_change: fallo best-effort ignorado", exc_info=True)
         logger.warning("settings audit log failed (scope=%s key=%s): %s", scope, key, exc)
 
 

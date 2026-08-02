@@ -399,15 +399,15 @@ async def lifespan(_app: FastAPI):
     try:
         from app.services.collaboration._scheduler import stop as _collab_stop
         _collab_stop()
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("lifespan: fallo best-effort ignorado", exc_info=True)
 
     logger.info("🛑 Apagando Contecflow PSA...")
     try:
         from app.core.settings_pubsub import stop_subscriber as _stop_settings_sub
         _stop_settings_sub()
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("lifespan: fallo best-effort ignorado", exc_info=True)
     if _scheduler:
         try:
             if _scheduler.running:

@@ -265,7 +265,9 @@ def create_slack_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return APIResponse.ok(data=_svc.create_or_update_slack_config(payload.model_dump(), db))
+    return APIResponse.ok(data=_svc.create_or_update_slack_config(
+        payload.model_dump(), db, organization_id=getattr(current_user, "organization_id", None),
+    ))
 
 
 @router.post("/slack/test", summary="Enviar mensaje de prueba a Slack/Teams")

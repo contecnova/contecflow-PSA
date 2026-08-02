@@ -48,8 +48,8 @@ def _test_smtp(cfg: dict, db: Session) -> dict:
             try:
                 server.starttls()
                 server.ehlo()
-            except Exception:  # noqa: S110
-                pass
+            except Exception:
+                logger.debug("_test_smtp: fallo best-effort ignorado", exc_info=True)
             if user and password:
                 server.login(user, password)
             server.noop()

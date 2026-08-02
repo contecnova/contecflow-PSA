@@ -271,6 +271,6 @@ def parse_risk_reasons(raw: Optional[str]) -> list[str]:
         if isinstance(value, list):
             return [str(v) for v in value]
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("parse_risk_reasons: fallo best-effort ignorado", exc_info=True)
     return []

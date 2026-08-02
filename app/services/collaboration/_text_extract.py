@@ -48,8 +48,8 @@ def _from_pdf(data: bytes) -> str:
         from pdfminer.high_level import extract_text as pdf_extract
         return pdf_extract(io.BytesIO(data)) or ""
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("_from_pdf: fallo best-effort ignorado", exc_info=True)
     # Fallback: pdftotext binary
     if shutil.which("pdftotext"):
         with tempfile.NamedTemporaryFile(suffix=".pdf") as f:

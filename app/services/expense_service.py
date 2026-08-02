@@ -15,6 +15,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.outbound_url import validate_outbound_url
 from app.models.user import User
 from app.models.expenses import Expense, ExpenseStatus
 from app.models.project import Project
@@ -222,7 +223,7 @@ async def ocr_receipt(image_bytes: bytes, content_type: str) -> dict:
     }
     data = _json.dumps(payload).encode()
     req = urllib.request.Request(  # noqa: S310
-        f"{settings.ANTHROPIC_API_URL}/messages",
+        validate_outbound_url(f"{settings.ANTHROPIC_API_URL}/messages", field="ANTHROPIC_API_URL"),
         data=data,
         headers={
             "Content-Type": "application/json",

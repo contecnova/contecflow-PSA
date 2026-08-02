@@ -81,16 +81,16 @@ def _request_origin(request: Request) -> str | None:
             p = urlparse(origin)
             if p.scheme and p.netloc:
                 return f"{p.scheme}://{p.netloc}".lower()
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("_request_origin: fallo best-effort ignorado", exc_info=True)
     referer = request.headers.get("referer")
     if referer:
         try:
             p = urlparse(referer)
             if p.scheme and p.netloc:
                 return f"{p.scheme}://{p.netloc}".lower()
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("_request_origin: fallo best-effort ignorado", exc_info=True)
     return None
 
 

@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from app.core.config import settings
+from app.core.outbound_url import validate_outbound_url
 from app.models.billing_reports import ScheduledReport
 
 logger = logging.getLogger("contecflow.scheduled_reports")
@@ -112,7 +113,7 @@ def _send_slack(webhook_url: str, report_name: str, report_type: str, kpis: dict
         payload = {"text": "\n".join(lines)}
         data = json.dumps(payload).encode()
         req = urllib.request.Request(  # noqa: S310
-            webhook_url, data=data,
+            validate_outbound_url(webhook_url, field="webhook_url"), data=data,
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310

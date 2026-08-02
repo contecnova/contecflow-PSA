@@ -454,16 +454,16 @@ def _nexus_answer(db: Session, user, query: str) -> tuple[Optional[str], Optiona
         if rows:
             top = rows[0]
             return (top.summary or top.title, f"KB: {top.title}")
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("_nexus_answer: fallo best-effort ignorado", exc_info=True)
     # Try AI provider next (best-effort)
     try:
         from app.services.ai_chat_service import quick_answer  # may not exist
         ans = quick_answer(query)
         if ans:
             return ans, "Nexus IA"
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("_nexus_answer: fallo best-effort ignorado", exc_info=True)
     return None, None
 
 

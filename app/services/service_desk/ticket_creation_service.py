@@ -35,8 +35,8 @@ def _emit_ticket_created_metric(ticket: Ticket) -> None:
             priority=str(_v("priority")),
             source=str(_v("source")),
         ).inc()
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("_v: fallo best-effort ignorado", exc_info=True)
 
 
 def _semantic_assignee_if_enabled(db: Session, ticket: Ticket, candidate_user_ids: list[str]) -> str | None:

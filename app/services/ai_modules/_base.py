@@ -23,8 +23,8 @@ def api_key(db=None, org_id: Optional[str] = None) -> Optional[str]:
             ui_key = get_credential(db, "ai_providers", "anthropic_api_key", org_id=org_id)
             if ui_key:
                 return ui_key
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            _log.debug("api_key: fallo best-effort ignorado", exc_info=True)
     return settings.ANTHROPIC_API_KEY or None
 
 
@@ -35,8 +35,8 @@ def _default_model(db=None, org_id: Optional[str] = None) -> str:
             ui_val = get_runtime_str(db, "CONTECFLOW_AI_MODEL", org_id)
             if ui_val:
                 return ui_val
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            _log.debug("_default_model: fallo best-effort ignorado", exc_info=True)
     return settings.CONTECFLOW_AI_MODEL
 
 

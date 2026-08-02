@@ -355,8 +355,8 @@ def discover_azure(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                     if status.code and status.code.startswith("PowerState/"):
                         power_state = status.code.replace("PowerState/", "")
                         break
-            except Exception:  # noqa: BLE001, S110
-                pass
+            except Exception:  # noqa: BLE001
+                logger.debug("discover_azure: fallo best-effort ignorado", exc_info=True)
 
             discovered.append({
                 "external_id": vm_id,

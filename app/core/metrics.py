@@ -118,8 +118,8 @@ class track_external_call:
         try:
             external_api_latency_seconds.labels(provider=self.provider).observe(elapsed)
             external_api_calls_total.labels(provider=self.provider, outcome=outcome).inc()
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("__exit__: fallo best-effort ignorado", exc_info=True)
 
 
 def attach_apscheduler_metrics(scheduler) -> None:
@@ -147,8 +147,8 @@ def attach_apscheduler_metrics(scheduler) -> None:
     def _on_submitted(event) -> None:
         try:
             _starts[event.job_id] = _t.perf_counter()
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("_on_submitted: fallo best-effort ignorado", exc_info=True)
 
     def _on_finished(event) -> None:
         try:
@@ -160,8 +160,8 @@ def attach_apscheduler_metrics(scheduler) -> None:
             scheduled_job_duration_seconds.labels(
                 job_name=event.job_id, status=status
             ).observe(elapsed)
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("_on_finished: fallo best-effort ignorado", exc_info=True)
 
     scheduler.add_listener(_on_submitted, EVENT_JOB_SUBMITTED)
     scheduler.add_listener(_on_finished, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
@@ -285,8 +285,8 @@ def setup_metrics(app: FastAPI) -> bool:
             version=settings.VERSION,
             environment=settings.ENVIRONMENT,
         ).set(1)
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        logger.debug("setup_metrics: fallo best-effort ignorado", exc_info=True)
 
     auth_state = "with Bearer auth" if settings.METRICS_AUTH_TOKEN else "unauthenticated"
     logger.info("✅ Prometheus metrics activos en /metrics (%s)", auth_state)

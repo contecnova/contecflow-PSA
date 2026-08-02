@@ -9,6 +9,8 @@ import logging
 import secrets
 import urllib.parse
 import urllib.request
+
+from app.core.outbound_url import validate_outbound_url
 import json as _json
 import hmac as _hmac
 import hashlib as _hashlib
@@ -222,7 +224,7 @@ def sso_callback(
             "client_secret": decrypt_value(config.oidc_client_secret) if config.oidc_client_secret else "",
         }).encode()
 
-        req = urllib.request.Request(token_url, data=token_data,  # noqa: S310
+        req = urllib.request.Request(validate_outbound_url(token_url, field="token_url"), data=token_data,  # noqa: S310
                                      headers={"Content-Type": "application/x-www-form-urlencoded"})
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310

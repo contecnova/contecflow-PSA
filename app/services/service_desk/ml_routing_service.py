@@ -264,8 +264,8 @@ def score_agent_for_ticket_ml(db: Session, user: User, ticket: Ticket) -> dict[s
             if si:
                 category_id = si.category_id
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        _logger.debug("_enum_val: fallo best-effort ignorado", exc_info=True)
 
     # Multi-tenant: aislamos el histórico por organization_id del ticket.
     org_id = getattr(ticket, "organization_id", None)
@@ -368,11 +368,17 @@ def record_routing_event(db: Session, ticket: Ticket) -> None:
                 if si:
                     category_id = si.category_id
         # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            _logger.debug("_enum_val: fallo best-effort ignorado", exc_info=True)
 
         row = RoutingFeedback(
             id=str(uuid.uuid4()),
+            # Se persiste la organización del ticket porque las consultas de arriba
+            # filtran por RoutingFeedback.organization_id. Sin rellenarla, ese filtro
+            # no encontraba NINGUNA fila y las métricas de rendimiento por agente
+            # quedaban vacías en silencio: el scoping multi-tenant estaba a medias
+            # (auditoría 2026-08 §7).
+            organization_id=getattr(ticket, "organization_id", None),
             ticket_id=ticket.id,
             assigned_agent_id=ticket.assigned_to_user_id,
             ticket_type=str(_enum_val(ticket.ticket_type)) if ticket.ticket_type else None,

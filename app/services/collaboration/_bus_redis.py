@@ -89,8 +89,8 @@ class RedisBus(EventBus):
                 if not self._subs.get(ch):
                     await self._pubsub.unsubscribe(ch)
                     self._channel_index.pop(ch, None)
-        except Exception:  # noqa: S110
-            pass
+        except Exception:
+            logger.debug("_unsubscribe: fallo best-effort ignorado", exc_info=True)
 
 
 def build_redis_bus() -> EventBus:

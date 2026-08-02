@@ -550,8 +550,8 @@ def _update_change_status_on_rollback(db: Session, change_id: str) -> None:
             change.status = ChangeStatus.closed_failed
             change.actual_end = datetime.now(timezone.utc)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        _log.debug("_update_change_status_on_rollback: fallo best-effort ignorado", exc_info=True)
 
 
 def _update_change_status_on_complete(db: Session, change_id: str) -> None:
@@ -562,8 +562,8 @@ def _update_change_status_on_complete(db: Session, change_id: str) -> None:
             change.status = ChangeStatus.implemented
             change.actual_end = datetime.now(timezone.utc)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        pass
+    except Exception:
+        _log.debug("_update_change_status_on_complete: fallo best-effort ignorado", exc_info=True)
 
 
 def trigger_change_rollback(
