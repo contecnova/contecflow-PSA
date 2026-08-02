@@ -219,7 +219,7 @@ def select_best_agent_ml(db: Session, members, ticket: Ticket) -> str:
         if best_id:
             return best_id
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     # fallback
     return select_best_agent_id_by_open_load(db, members)

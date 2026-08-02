@@ -524,7 +524,7 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
             tenant_id=str(getattr(inv, "organization_id", None) or "unknown"),
             status=str(getattr(_status, "value", _status) or "draft"),
         ).inc()
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     inv = db.query(Invoice).options(
         joinedload(Invoice.project), joinedload(Invoice.lines)

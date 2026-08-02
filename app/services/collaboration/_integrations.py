@@ -58,35 +58,35 @@ class OAuthProvider:
 PROVIDERS: dict[str, OAuthProvider] = {
     "jira": OAuthProvider(
         kind="jira",
-        client_id_env="JIRA_CLIENT_ID", client_secret_env="JIRA_CLIENT_SECRET",
+        client_id_env="JIRA_CLIENT_ID", client_secret_env="JIRA_CLIENT_SECRET",  # noqa: S106
         redirect_env="JIRA_REDIRECT_URI",
         auth_url="https://auth.atlassian.com/authorize",
-        token_url="https://auth.atlassian.com/oauth/token",
+        token_url="https://auth.atlassian.com/oauth/token",  # noqa: S106
         scopes=["read:jira-work", "write:jira-work", "offline_access"],
         extra_auth_params={"audience": "api.atlassian.com", "prompt": "consent"},
     ),
     "github": OAuthProvider(
         kind="github",
-        client_id_env="GITHUB_CLIENT_ID", client_secret_env="GITHUB_CLIENT_SECRET",
+        client_id_env="GITHUB_CLIENT_ID", client_secret_env="GITHUB_CLIENT_SECRET",  # noqa: S106
         redirect_env="GITHUB_REDIRECT_URI",
         auth_url="https://github.com/login/oauth/authorize",
-        token_url="https://github.com/login/oauth/access_token",
+        token_url="https://github.com/login/oauth/access_token",  # noqa: S106
         scopes=["repo", "read:user", "read:org"],
     ),
     "gitlab": OAuthProvider(
         kind="gitlab",
-        client_id_env="GITLAB_CLIENT_ID", client_secret_env="GITLAB_CLIENT_SECRET",
+        client_id_env="GITLAB_CLIENT_ID", client_secret_env="GITLAB_CLIENT_SECRET",  # noqa: S106
         redirect_env="GITLAB_REDIRECT_URI",
         auth_url="https://gitlab.com/oauth/authorize",
-        token_url="https://gitlab.com/oauth/token",
+        token_url="https://gitlab.com/oauth/token",  # noqa: S106
         scopes=["api", "read_user", "read_repository"],
     ),
     "google_calendar": OAuthProvider(
         kind="google_calendar",
-        client_id_env="GOOGLE_CLIENT_ID", client_secret_env="GOOGLE_CLIENT_SECRET",
+        client_id_env="GOOGLE_CLIENT_ID", client_secret_env="GOOGLE_CLIENT_SECRET",  # noqa: S106
         redirect_env="GOOGLE_REDIRECT_URI",
         auth_url="https://accounts.google.com/o/oauth2/v2/auth",
-        token_url="https://oauth2.googleapis.com/token",
+        token_url="https://oauth2.googleapis.com/token",  # noqa: S106
         scopes=[
             "https://www.googleapis.com/auth/calendar.readonly",
             "https://www.googleapis.com/auth/calendar.events",
@@ -95,10 +95,10 @@ PROVIDERS: dict[str, OAuthProvider] = {
     ),
     "microsoft_365": OAuthProvider(
         kind="microsoft_365",
-        client_id_env="MS365_CLIENT_ID", client_secret_env="MS365_CLIENT_SECRET",
+        client_id_env="MS365_CLIENT_ID", client_secret_env="MS365_CLIENT_SECRET",  # noqa: S106
         redirect_env="MS365_REDIRECT_URI",
         auth_url="https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize",
-        token_url="https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
+        token_url="https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",  # noqa: S106
         scopes=["offline_access", "Calendars.ReadWrite", "Mail.Send", "User.Read"],
     ),
 }

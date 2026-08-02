@@ -117,12 +117,12 @@ def _subscriber_loop() -> None:
             try:
                 if pubsub is not None:
                     pubsub.close()
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
             try:
                 if client is not None:
                     client.close()
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
 

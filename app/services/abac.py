@@ -420,7 +420,7 @@ class ABACService:
                     matched_policies=deny_policies or [],
                 )
             # intentional: best-effort fallback, log noise outweighs diagnostic value
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001, S110
                 pass
 
         self.db.commit()

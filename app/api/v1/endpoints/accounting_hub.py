@@ -17,6 +17,7 @@ import json
 
 from app.db.session import get_db
 from app.core.deps import require_any_manager
+from app.core.responses import APIResponse
 from app.models.user import User
 from app.core.config import settings
 from app.services import accounting_hub_service
@@ -52,7 +53,7 @@ def test_xero(
     result = test_xero_connection(cfg)
     if not result["ok"]:
         raise HTTPException(400, f"Error Xero: {result.get('error')}")
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.post("/qb/test", summary="Verificar conexión con QuickBooks")
@@ -67,7 +68,7 @@ def test_qb(
     result = test_quickbooks_connection(cfg)
     if not result["ok"]:
         raise HTTPException(400, f"Error QuickBooks: {result.get('error')}")
-    return result
+    return APIResponse.ok(data=result)
 
 
 # ── Push de facturas ───────────────────────────────────────────────────────────
@@ -126,13 +127,13 @@ def push_invoice(
     sync_id = result.get("xero_invoice_id") or result.get("qb_invoice_id", "")
     accounting_hub_service.mark_invoice_synced(db, inv, provider, sync_id)
 
-    return {
+    return APIResponse.ok(data={
         "ok":             True,
         "provider":       provider,
         "invoice_id":     invoice_id,
         "invoice_number": inv.number,
         **result,
-    }
+    })
 
 
 @router.post("/push-invoices-bulk", summary="Sincronizar facturas pendientes en lote")
@@ -178,14 +179,14 @@ def push_invoices_bulk(
     accounting_hub_service.commit(db)
 
     synced = sum(1 for r in results if r["status"] == "synced")
-    return {
+    return APIResponse.ok(data={
         "ok":      True,
         "provider": provider,
         "total":   len(results),
         "synced":  synced,
         "errors":  sum(1 for r in results if r["status"] == "error"),
         "results": results,
-    }
+    })
 
 
 # ── Pull de contactos ──────────────────────────────────────────────────────────
@@ -211,7 +212,7 @@ def pull_xero_contacts(
         imported = accounting_hub_service.import_xero_contacts(db, result["contacts"])
         result["imported_to_contecflow"] = imported
 
-    return result
+    return APIResponse.ok(data=result)
 
 
 # ── Estado de sincronización ───────────────────────────────────────────────────
@@ -221,4 +222,4 @@ def sync_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return accounting_hub_service.get_sync_status(db)
+    return APIResponse.ok(data=accounting_hub_service.get_sync_status(db))

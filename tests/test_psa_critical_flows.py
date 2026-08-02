@@ -39,7 +39,7 @@ def _create_task(client, token, project_id, title, assignee_id=None):
         headers=auth(token),
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()["id"]
+    return res.json()["data"]["id"]
 
 
 def _approve_week_timesheet(client, pm_token, dev_token, db, project_code):
@@ -95,7 +95,7 @@ def _approve_week_timesheet(client, pm_token, dev_token, db, project_code):
         "timesheet_id": ts_id,
         "week_start": week_start,
         "work_day": work_day,
-        "imputation_id": create_imp.json()["id"],
+        "imputation_id": create_imp.json()["data"]["id"],
     }
 
 
@@ -115,7 +115,7 @@ def test_timesheet_approval_to_invoice_preview_flow(client, pm_token, dev_token,
         headers=auth(pm_token),
     )
     assert task.status_code in (200, 201), task.text
-    task_id = task.json()["id"]
+    task_id = task.json()["data"]["id"]
 
     work_day = date.today()
     create_imp = client.post(
@@ -158,7 +158,7 @@ def test_timesheet_approval_to_invoice_preview_flow(client, pm_token, dev_token,
         headers=auth(pm_token),
     )
     assert preview.status_code == 200, preview.text
-    data = preview.json()
+    data = preview.json()["data"]
     assert data["imputation_count"] >= 1
     assert data["subtotal"] > 0
     assert data["total"] >= data["subtotal"]
@@ -186,7 +186,7 @@ def test_timesheet_send_back_and_resubmit_flow(client, pm_token, dev_token, db):
         "/api/v1/imputations",
         json={
             "project_id": project_id,
-            "task_id": task.json()["id"],
+            "task_id": task.json()["data"]["id"],
             "date": str(work_day),
             "hours": 4,
             "description": "Primera version",
@@ -199,7 +199,7 @@ def test_timesheet_send_back_and_resubmit_flow(client, pm_token, dev_token, db):
     week_start = work_day - timedelta(days=work_day.weekday())
     submit_first = client.post(f"/api/v1/timesheets/my/{week_start}/submit", headers=auth(dev_token))
     assert submit_first.status_code == 200, submit_first.text
-    assert submit_first.json()["status"] == "submitted"
+    assert submit_first.json()["data"]["status"] == "submitted"
 
     pending = client.get("/api/v1/timesheets/pending", headers=auth(pm_token))
     assert pending.status_code == 200
@@ -211,11 +211,11 @@ def test_timesheet_send_back_and_resubmit_flow(client, pm_token, dev_token, db):
         headers=auth(pm_token),
     )
     assert send_back.status_code == 200, send_back.text
-    assert send_back.json()["status"] == "rejected"
+    assert send_back.json()["data"]["status"] == "rejected"
 
     resubmit = client.post(f"/api/v1/timesheets/my/{week_start}/submit", headers=auth(dev_token))
     assert resubmit.status_code == 200, resubmit.text
-    assert resubmit.json()["status"] == "submitted"
+    assert resubmit.json()["data"]["status"] == "submitted"
 
 
 def test_sprint_close_generates_velocity_metrics_flow(client, pm_token, db):
@@ -231,7 +231,7 @@ def test_sprint_close_generates_velocity_metrics_flow(client, pm_token, db):
         headers=auth(pm_token),
     )
     assert sprint.status_code in (200, 201), sprint.text
-    sprint_id = sprint.json()["id"]
+    sprint_id = sprint.json()["data"]["id"]
 
     t1 = client.post(
         "/api/v1/tasks",
@@ -248,14 +248,14 @@ def test_sprint_close_generates_velocity_metrics_flow(client, pm_token, db):
 
     add_tasks = client.post(
         f"/api/v1/sprints/{project_id}/sprints/{sprint_id}/tasks",
-        json={"task_ids": [t1.json()["id"], t2.json()["id"]]},
+        json={"task_ids": [t1.json()["data"]["id"], t2.json()["data"]["id"]]},
         headers=auth(pm_token),
     )
     assert add_tasks.status_code == 200, add_tasks.text
 
     close = client.post(f"/api/v1/sprints/{project_id}/sprints/{sprint_id}/close", headers=auth(pm_token))
     assert close.status_code == 200, close.text
-    payload = close.json()
+    payload = close.json()["data"]
     assert payload["completed_points"] == 8
     assert payload["velocity"] > 0
     assert payload["incomplete_tasks"] == 1
@@ -269,7 +269,7 @@ def test_sprint_close_generates_velocity_metrics_flow(client, pm_token, db):
         backlog_tasks = backlog_data
     else:
         backlog_tasks = backlog_data.get("items") or backlog_data.get("tasks") or []
-    open_task_id = t2.json()["id"]
+    open_task_id = t2.json()["data"]["id"]
     # If backlog is empty (stub), skip the assertion — the sprint close itself was validated above
     if backlog_tasks:
         assert any(task["id"] == open_task_id for task in backlog_tasks), "La tarea incompleta no está en el backlog tras cerrar el sprint"
@@ -408,7 +408,7 @@ def test_delete_imputation_updates_draft_timesheet_totals_immediately(client, pm
     week_start = work_day - timedelta(days=work_day.weekday())
     client.get("/api/v1/timesheets/my", headers=auth(dev_token))
 
-    delete = client.delete(f"/api/v1/imputations/{second.json()['id']}", headers=auth(dev_token))
+    delete = client.delete(f"/api/v1/imputations/{second.json()["data"]['id']}", headers=auth(dev_token))
     assert delete.status_code in (200, 204), delete.text
 
     ts = db.query(Timesheet).filter(

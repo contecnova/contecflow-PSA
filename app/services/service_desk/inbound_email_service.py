@@ -108,7 +108,7 @@ def build_inbound_ticket(db: Session, payload: dict, configured_secret: str, pro
         if suggestion and suggestion.get("suggested_user_id") and not suggestion.get("needs_review"):
             ticket.assigned_to_user_id = suggestion["suggested_user_id"]
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         # Best-effort: si el motor semántico falla, mantenemos el assignment legacy.
         pass
 

@@ -304,7 +304,7 @@ def send_message(
                 if delivered:
                     n.delivered_push = True
             # intentional: best-effort fallback, log noise outweighs diagnostic value
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
         if n.client_user_id:
             _publish_async(client_user_channel(n.client_user_id), {"type": "notification.new", "payload": {"id": n.id}})

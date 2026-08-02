@@ -1,5 +1,4 @@
 """Tests for Timesheets — submission, review, team views."""
-import pytest
 from tests.conftest import auth
 from datetime import date, timedelta
 
@@ -62,7 +61,7 @@ def test_get_timesheet_lines(client, dev_token, pm_token, db):
     week = str(next_monday())
     res = client.get(f"/api/v1/timesheets/my/{week}/lines", headers=auth(dev_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["items"]
     assert isinstance(data, list)
     if data:
         assert "date" in data[0]
@@ -75,7 +74,7 @@ def test_get_timesheet_lines_empty_week(client, dev_token, db):
     past_week = str(next_monday() - timedelta(weeks=3))
     res = client.get(f"/api/v1/timesheets/my/{past_week}/lines", headers=auth(dev_token))
     assert res.status_code == 200
-    assert res.json() == []
+    assert res.json()["items"] == []
 
 
 # ── Submit Timesheet ───────────────────────────────────────────────────────
@@ -96,7 +95,7 @@ def test_submit_timesheet_with_hours(client, dev_token, pm_token, db):
     week = str(next_monday())
     res = client.post(f"/api/v1/timesheets/my/{week}/submit", headers=auth(dev_token))
     assert res.status_code == 200
-    assert res.json()["status"] in ("submitted", "approved", "rejected", "draft")
+    assert res.json()["data"]["status"] in ("submitted", "approved", "rejected", "draft")
 
 
 def test_submit_timesheet_twice_fails(client, dev_token, pm_token, db):
@@ -174,7 +173,7 @@ def test_review_timesheet_approve(client, dev_token, pm_token, db):
         json={"approved": True, "notes": "Looks good"},
         headers=auth(pm_token))
     assert res.status_code == 200
-    assert "approved" in res.json()["message"].lower() or res.json()["status"] == "approved"
+    assert "approved" in res.json()["data"]["message"].lower() or res.json()["data"]["status"] == "approved"
 
 
 def test_review_timesheet_reject(client, dev_token, pm_token, db):
@@ -195,7 +194,7 @@ def test_review_timesheet_reject(client, dev_token, pm_token, db):
         json={"approved": False, "notes": "Missing details"},
         headers=auth(pm_token))
     assert res.status_code == 200
-    assert "rechazado" in res.json()["message"].lower() or res.json()["status"] == "rejected"
+    assert "rechazado" in res.json()["data"]["message"].lower() or res.json()["data"]["status"] == "rejected"
 
 
 def test_review_nonexistent_timesheet(client, pm_token, db):

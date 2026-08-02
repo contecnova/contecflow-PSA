@@ -164,7 +164,7 @@ async def calendar_events(
                         "source": "m365",
                         "link": ev.get("webLink"),
                     })
-        except Exception:
+        except Exception:  # noqa: S112
             continue
     out.sort(key=lambda e: e.get("start") or "")
     return APIResponse.ok(data={"events": out, "providers_connected": [it.kind for it in rows]})

@@ -63,5 +63,5 @@ def test_invoice_numbering_sequential_uniqueness(client, pm_token, db):
     )
 
     # Numbers must be strictly increasing (format INV-YYYY-####)
-    for a, b in zip(numbers, numbers[1:]):
+    for a, b in zip(numbers, numbers[1:]):  # noqa: B905
         assert a < b, f"Numbers not monotonically increasing: {a} >= {b}"

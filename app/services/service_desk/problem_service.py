@@ -294,7 +294,7 @@ def create_change_from_problem(
         if problem.affected_services_json:
             affected_cis = _json.loads(problem.affected_services_json)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     title = custom_title or f"[RFC] Resolver causa raíz: {problem.title[:200]}"

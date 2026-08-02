@@ -431,7 +431,7 @@ class Settings(
         return (
             "localhost" in u
             or "127.0.0.1" in u
-            or "0.0.0.0" in u
+            or "0.0.0.0" in u  # noqa: S104
             or u.startswith("http://[::1]")
         )
 

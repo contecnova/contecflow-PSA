@@ -146,7 +146,7 @@ def generate_invoice_pdf(
         return Paragraph(str(txt), PS("C", fontSize=9, fontName="Helvetica", textColor=TEXT_GREY, alignment=TA_CENTER))
 
     table_rows = [table_header]
-    for i, line in enumerate(lines):
+    for i, line in enumerate(lines):  # noqa: B007
         row = [
             Paragraph(str(line.get("description", "")), PS("LineDesc", fontSize=9, fontName="Helvetica", textColor=TEXT_MAIN, leading=13)),
             mk_center(str(line.get("unit", "h"))),

@@ -1,5 +1,4 @@
 """Tests for Office 365 BI integration endpoints."""
-import pytest
 from unittest.mock import patch, MagicMock
 from tests.conftest import auth
 

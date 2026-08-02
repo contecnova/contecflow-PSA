@@ -87,8 +87,11 @@ smoke: ## Verificación integral: health + docs + login + ticket sin cliente
 	@$(PYTHON) scripts/smoke_check.py
 
 # ── Tests ──────────────────────────────────────────────────────────────────────
-test: ## Ejecuta todos los tests de API
+test: ## Ejecuta todos los tests de API (en paralelo con xdist)
 	@echo "$(CYAN)Ejecutando tests de backend...$(RESET)"
+	$(PYTHON) -m pytest tests/ -n auto --tb=short
+
+test-serial: ## Igual que test, pero en un solo proceso (para depurar)
 	$(PYTHON) -m pytest tests/ -v --tb=short
 
 test-fast: ## Tests rápidos (excluye los lentos)

@@ -68,7 +68,7 @@ def _normalised_origins() -> Set[str]:
             p = urlparse(origin)
             if p.scheme and p.netloc:
                 out.add(f"{p.scheme}://{p.netloc}".lower())
-        except Exception:
+        except Exception:  # noqa: S112
             continue
     return out
 
@@ -81,7 +81,7 @@ def _request_origin(request: Request) -> str | None:
             p = urlparse(origin)
             if p.scheme and p.netloc:
                 return f"{p.scheme}://{p.netloc}".lower()
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     referer = request.headers.get("referer")
     if referer:
@@ -89,7 +89,7 @@ def _request_origin(request: Request) -> str | None:
             p = urlparse(referer)
             if p.scheme and p.netloc:
                 return f"{p.scheme}://{p.netloc}".lower()
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     return None
 

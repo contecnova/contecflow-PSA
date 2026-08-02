@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Optional
 from app.services.olap.etl import DUCKDB_PATH as _DUCKDB_PATH
 
@@ -30,13 +31,30 @@ def _try_olap():
 
 def _rows_to_dicts(cursor) -> list[dict]:
     cols = [d[0] for d in cursor.description]
-    return [dict(zip(cols, row)) for row in cursor.fetchall()]
+    return [dict(zip(cols, row)) for row in cursor.fetchall()]  # noqa: B905
+
+
+_SAFE_ORG_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def _safe_org_id(org_id: str) -> str:
+    """Valida el org_id antes de interpolarlo en SQL.
+
+    Estas consultas se construyen por interpolación de cadena (DuckDB), y el org_id
+    va justo en el filtro de aislamiento multi-tenant. Una comilla aquí no sería un
+    bug cualquiera: rompería el filtro y expondría datos de otras organizaciones en
+    el almacén analítico. Los ids son slugs/UUID, así que exigimos ese formato y
+    fallamos en vez de generar SQL con contenido arbitrario.
+    """
+    if not _SAFE_ORG_ID.match(org_id):
+        raise ValueError(f"organization_id con formato no admitido para OLAP: {org_id!r}")
+    return org_id
 
 
 def _org_filter(org_id: Optional[str], table_alias: str = "") -> str:
     prefix = f"{table_alias}." if table_alias else ""
     if org_id:
-        return f"AND {prefix}organization_id = '{org_id}'"
+        return f"AND {prefix}organization_id = '{_safe_org_id(org_id)}'"
     return ""
 
 
@@ -59,7 +77,7 @@ def get_margin_evolution(org_id: Optional[str] = None, months: int = 12) -> list
         {_org_filter(org_id, 'fi')}
         GROUP BY d.yyyymm
         ORDER BY d.yyyymm
-        """
+        """  # noqa: S608
         cur = conn.execute(sql)
         return _rows_to_dicts(cur)
     finally:
@@ -97,7 +115,7 @@ def get_utilization_by_user(
         {_org_filter(org_id, 'fi')}
         GROUP BY u.user_id, u.full_name, u.department, u.weekly_capacity
         ORDER BY utilization_pct DESC
-        """
+        """  # noqa: S608
         cur = conn.execute(sql)
         return _rows_to_dicts(cur)
     finally:
@@ -131,7 +149,7 @@ def get_portfolio_health(org_id: Optional[str] = None) -> list[dict]:
         WHERE dp.status NOT IN ('cancelled', 'archived')
         {org_f}
         ORDER BY fp.margin_pct ASC
-        """
+        """  # noqa: S608
         cur = conn.execute(sql)
         return _rows_to_dicts(cur)
     finally:
@@ -165,7 +183,7 @@ def get_pipeline_funnel(org_id: Optional[str] = None) -> list[dict]:
                 WHEN 'negotiation' THEN 4
                 ELSE 5
             END
-        """
+        """  # noqa: S608
         cur = conn.execute(sql)
         return _rows_to_dicts(cur)
     finally:
@@ -178,7 +196,7 @@ def get_kpi_summary(org_id: Optional[str] = None) -> dict:
     if conn is None:
         return _pg_kpi_summary(org_id)
     try:
-        org_f_bare = f"organization_id = '{org_id}'" if org_id else "1=1"
+        org_f_bare = f"organization_id = '{_safe_org_id(org_id)}'" if org_id else "1=1"
 
         # Current month
         imp_sql = f"""
@@ -191,7 +209,7 @@ def get_kpi_summary(org_id: Optional[str] = None) -> dict:
         JOIN dim_date d ON d.date_key = fi.date_key
         WHERE d.yyyymm = strftime(CURRENT_DATE, '%Y-%m')
         AND {org_f_bare.replace('organization_id', 'fi.organization_id')}
-        """
+        """  # noqa: S608
         cur = conn.execute(imp_sql)
         imp = (_rows_to_dicts(cur) or [{}])[0]
 
@@ -202,7 +220,7 @@ def get_kpi_summary(org_id: Optional[str] = None) -> dict:
             ROUND(SUM(expected_revenue) FILTER (WHERE is_won), 0) AS won_revenue
         FROM fact_pipeline
         WHERE {org_f_bare}
-        """
+        """  # noqa: S608
         cur2 = conn.execute(pipe_sql)
         pipe = (_rows_to_dicts(cur2) or [{}])[0]
 
@@ -213,7 +231,7 @@ def get_kpi_summary(org_id: Optional[str] = None) -> dict:
             COUNT(*) FILTER (WHERE risk_level = 'high')    AS high_risk_projects
         FROM fact_projects
         WHERE {org_f_bare}
-        """
+        """  # noqa: S608
         cur3 = conn.execute(proj_sql)
         proj = (_rows_to_dicts(cur3) or [{}])[0]
 

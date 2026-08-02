@@ -1,5 +1,4 @@
 """tests/test_bi_anomaly.py — Tests for BI Anomaly Detection + Churn Prediction endpoints."""
-import pytest
 from tests.conftest import auth
 
 

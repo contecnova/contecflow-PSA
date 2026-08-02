@@ -60,7 +60,7 @@ def sync_ecb_rates(db: Session, force: bool = False) -> dict:
         return {"ok": False, "error": str(exc), "source": "ecb"}
 
     try:
-        root = _xml_fromstring(resp.content)
+        root = _xml_fromstring(resp.content)  # noqa: S314
         cube_time = root.find(f".//{{{ECB_NS}}}Cube[@time]")
         if cube_time is None:
             return {"ok": False, "error": "Unexpected ECB XML format", "source": "ecb"}

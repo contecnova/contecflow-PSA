@@ -399,14 +399,14 @@ async def lifespan(_app: FastAPI):
     try:
         from app.services.collaboration._scheduler import stop as _collab_stop
         _collab_stop()
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     logger.info("🛑 Apagando Contecflow PSA...")
     try:
         from app.core.settings_pubsub import stop_subscriber as _stop_settings_sub
         _stop_settings_sub()
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     if _scheduler:
         try:

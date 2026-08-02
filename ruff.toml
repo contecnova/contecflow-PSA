@@ -1,14 +1,35 @@
 [lint]
-select = ["E", "F", "W"]
+# S = flake8-bandit (seguridad), B = flake8-bugbear (bugs reales).
+# Añadidos en la auditoría 2026-07 (docs/AUDIT_2026_07_FULL.md §1.4): antes solo
+# había E/F/W, así que el proyecto no tenía NINGÚN linter de seguridad.
+select = ["E", "F", "W", "S", "B"]
 ignore = [
     "E501",   # line-too-long
     "E401",   # multiple-imports-on-one-line
     "E402",   # module-import-not-at-top-of-file
     "E701",   # multiple-statements-on-one-line-colon
     "E702",   # multiple-statements-on-one-line-semicolon
-    "E711",   # none-comparison
-    "E712",   # true-false-comparison
+    "E711",   # none-comparison — con SQLAlchemy `Column == None` es idiomático (IS NULL)
+    "E712",   # true-false-comparison — idem para `Column == True`
     "E741",   # ambiguous-variable-name
     # F401/F811/F841 removed — these catch real dead code and should not be silenced globally.
     # Use per-line "# noqa: F401" for intentional re-exports or conditional imports.
+
+    # ── Falsos positivos estructurales, no deuda ────────────────────────────────
+    "B008",   # function-call-in-default-argument: `Depends(...)`/`Query(...)` ES el
+              # idioma de FastAPI. 3.900 avisos, todos falsos positivos aquí.
+    "S311",   # pseudo-random no cripto: solo en seeds de demo y en simulación
+              # estadística de BI (bi_anomaly, bi_intelligence). No hay uso cripto.
+    "S603",   # subprocess-without-shell-equals-true: pasar lista SIN shell es
+              # precisamente la forma segura; ruff avisa de todas formas.
+
+    # ── Deuda reconocida, con volumen medido (auditoría 2026-07) ────────────────
+    "B904",   # raise-without-from dentro de except: 423 casos. Afecta a la
+              # trazabilidad del stack, no a la seguridad. Reducir por dominios y
+              # luego retirar este ignore.
 ]
+
+# Los tests usan assert por definición, y credenciales de prueba embebidas.
+[lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S108"]
+"app/db/seed_parts/**" = ["S105", "S106"]  # datos de demo

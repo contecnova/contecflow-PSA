@@ -217,7 +217,7 @@ def get_dsr_stats(db: Session, *, org_id: Optional[str]) -> dict:
             if now > dl:
                 overdue.append(d)
         # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     consents = list(_get_setting(db, _KEY_CONSENT, org_id, {}).values())
     consented_count = sum(1 for c in consents if c.get("consented"))

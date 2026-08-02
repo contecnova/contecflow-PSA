@@ -8,7 +8,6 @@ import base64
 import hashlib
 import hmac
 
-import pytest
 
 from app.core.config import settings
 from app.services import esign_service, jira_service

@@ -105,7 +105,6 @@ def test_legacy_global_token_bound_to_allowed_org(db, monkeypatch):
 
 
 def test_legacy_global_token_rejected_in_prod_without_allowed_org(db, monkeypatch):
-    import os
     org = _make_org(db)
     monkeypatch.setattr(settings, "SCIM_BEARER_TOKEN", "global-secret", raising=False)
     monkeypatch.setattr(settings, "SCIM_ALLOWED_ORG_ID", "", raising=False)

@@ -454,7 +454,7 @@ def _nexus_answer(db: Session, user, query: str) -> tuple[Optional[str], Optiona
         if rows:
             top = rows[0]
             return (top.summary or top.title, f"KB: {top.title}")
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     # Try AI provider next (best-effort)
     try:
@@ -462,7 +462,7 @@ def _nexus_answer(db: Session, user, query: str) -> tuple[Optional[str], Optiona
         ans = quick_answer(query)
         if ans:
             return ans, "Nexus IA"
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     return None, None
 

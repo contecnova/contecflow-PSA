@@ -1,5 +1,4 @@
 """tests/test_bi_forecasting.py — Tests for BI Forecasting endpoints."""
-import pytest
 from tests.conftest import auth
 
 

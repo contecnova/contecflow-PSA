@@ -3,7 +3,6 @@ Test AI Auto-Resolution Service.
 """
 import pytest
 import uuid
-from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import Ticket, TicketType, TicketStatus, TicketPriority
@@ -18,7 +17,7 @@ def create_test_ticket(db: Session, title: str, description: str, number: str = 
     """Create a test ticket."""
     if not number:
         number = f"TEST-{uuid.uuid4().hex[:8].upper()}"
-    
+
     ticket = Ticket(
         number=number,
         ticket_type=TicketType.incident,

@@ -93,7 +93,7 @@ def invalidate_cache(key: Optional[str] = None) -> None:
     try:
         from app.core.settings_pubsub import publish_invalidation
         publish_invalidation("runtime", key)
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
 
@@ -309,7 +309,7 @@ def outbound_http_timeout(db=None, default: float = 10.0) -> float:
             v = get_runtime_float(db, "OUTBOUND_HTTP_TIMEOUT_SECONDS")
             if v is not None:
                 return v
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     return getattr(app_settings, "OUTBOUND_HTTP_TIMEOUT_SECONDS", default)
 
@@ -321,7 +321,7 @@ def outbound_ai_timeout(db=None, default: float = 30.0) -> float:
             v = get_runtime_float(db, "OUTBOUND_AI_TIMEOUT_SECONDS")
             if v is not None:
                 return v
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     return getattr(app_settings, "OUTBOUND_AI_TIMEOUT_SECONDS", default)
 
@@ -425,7 +425,7 @@ def set_runtime_value(
             actor_ua=actor_ua,
             organization_id=org_id,
         )
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     return {"key": key, "value": updated.value, "organization_id": updated.organization_id}

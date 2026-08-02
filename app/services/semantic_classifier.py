@@ -137,7 +137,7 @@ class TFIDFEncoder:
 def _cosine(a: list, b: list) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
-    dot = sum(x*y for x, y in zip(a, b))
+    dot = sum(x*y for x, y in zip(a, b))  # noqa: B905
     na  = math.sqrt(sum(x*x for x in a))
     nb  = math.sqrt(sum(x*x for x in b))
     return dot / (na * nb) if na and nb else 0.0
@@ -189,7 +189,7 @@ def _get_multi_role_factor(db=None) -> float:
             v = get_runtime_float(db, "SEM_MULTI_ROLE_FACTOR")
             if v is not None:
                 return v
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     return _cfg.SEM_MULTI_ROLE_FACTOR
 

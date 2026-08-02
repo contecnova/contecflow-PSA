@@ -326,7 +326,7 @@ class TestBIV238:
             "dimensions": ["status"],
         }, headers=auth(admin_token))
         assert r.status_code == 200
-        assert "results" in r.json()
+        assert "results" in r.json()["data"]
 
     def test_adhoc_query_invalid_metric_rejected(self, client, admin_token, db):
         r = client.post("/api/v1/analytics/adhoc", json={

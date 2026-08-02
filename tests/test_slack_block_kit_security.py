@@ -4,7 +4,6 @@ from tests.conftest import auth
 
 
 def test_slack_block_kit_error_is_sanitized(monkeypatch, client, admin_token, db):
-    import app.api.v1.endpoints.slack_block_kit as slack_ep
 
     req = httpx.Request("POST", "https://hooks.slack.com/services/test")
     resp = httpx.Response(400, text='{"error":"sensitive-slack-detail"}', request=req)

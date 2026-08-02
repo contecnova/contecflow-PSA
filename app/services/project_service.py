@@ -494,7 +494,7 @@ def create_project_record(db: Session, payload, current_user):
         from app.services.collaboration._project_sync import on_project_created
         on_project_created(db, project, current_user)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         # No bloquear creación de proyecto si collaboration falla
         pass
 

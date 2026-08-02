@@ -325,7 +325,7 @@ def build_bpmn_xml(process_key: str, process_name: str, steps: list[str]) -> str
 
     di_edges: list[str] = []
     cursor_x = 180
-    for i, (fid, src, tgt) in enumerate(flows):
+    for i, (fid, src, tgt) in enumerate(flows):  # noqa: B007
         src_kind = elements[i][1]
         src_w = 36 if src_kind in ("startEvent", "endEvent") else 110
         tgt_x = cursor_x + src_w + 60

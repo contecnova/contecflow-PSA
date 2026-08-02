@@ -149,7 +149,7 @@ def _linear_regression_forecast(values: list[float], points_ahead: int) -> list[
     sum_x = sum(xs)
     sum_y = sum(values)
     sum_xx = sum(x * x for x in xs)
-    sum_xy = sum(x * y for x, y in zip(xs, values))
+    sum_xy = sum(x * y for x, y in zip(xs, values))  # noqa: B905
     den = (n * sum_xx - sum_x * sum_x)
     if den == 0:
         slope = 0.0
@@ -653,7 +653,7 @@ def ml_detect_anomalies_multivariate(
         preds = clf.predict(X)
 
         items = []
-        for i, (row, pred, score) in enumerate(zip(history, preds, scores)):
+        for i, (row, pred, score) in enumerate(zip(history, preds, scores)):  # noqa: B007, B905
             if pred == -1:
                 items.append({
                     "month": row["month"],
@@ -771,7 +771,7 @@ def ml_predict_project_overrun_lgbm(
         engine = "heuristic_fallback"
 
     predictions = []
-    for m, risk in zip(meta, proba):
+    for m, risk in zip(meta, proba):  # noqa: B905
         predictions.append({
             **m,
             "overrun_probability": round(float(risk), 3),

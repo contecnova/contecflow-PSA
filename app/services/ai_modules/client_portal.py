@@ -222,7 +222,7 @@ def revenue_forecast(db: Session, months_ahead: int = 3) -> dict:
     xs  = list(range(n))
     ys  = [h["amount"] for h in history]
     sx  = sum(xs);      sy  = sum(ys)
-    sxy = sum(x * y for x, y in zip(xs, ys))
+    sxy = sum(x * y for x, y in zip(xs, ys))  # noqa: B905
     sxx = sum(x * x for x in xs)
     denom = n * sxx - sx * sx
     if denom == 0:
@@ -232,7 +232,7 @@ def revenue_forecast(db: Session, months_ahead: int = 3) -> dict:
 
     y_mean = sy / n
     ss_tot = sum((y - y_mean) ** 2 for y in ys)
-    ss_res = sum((y - (a + b * x)) ** 2 for x, y in zip(xs, ys))
+    ss_res = sum((y - (a + b * x)) ** 2 for x, y in zip(xs, ys))  # noqa: B905
     r2     = 1 - ss_res / ss_tot if ss_tot > 0 else 1.0
 
     forecast = []

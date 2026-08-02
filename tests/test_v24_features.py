@@ -37,7 +37,7 @@ def _create_task(client, token, project_id, title="Task A", estimated_hours=8, d
         "due_date": str(date.today() + timedelta(days=due_offset)),
     }, headers=auth(token))
     assert r.status_code in (200, 201), r.text
-    return r.json()["id"]
+    return r.json()["data"]["id"]
 
 
 def _create_opportunity(client, token, prob=70):
@@ -189,7 +189,7 @@ def test_health_overdue_tasks_lower_score(client, admin_token, pm_token, db):
             "title": f"Overdue Task {i}",
             "priority": "high",
         }, headers=auth(pm_token))
-        task_ids.append(r.json()["id"])
+        task_ids.append(r.json()["data"]["id"])
 
     # Set due dates to the past via the bulk-dates endpoint
     past_date = str(date.today() - timedelta(days=10))
@@ -663,4 +663,4 @@ def test_simulation_is_read_only(client, admin_token, pm_token, db):
     }, headers=auth(admin_token))
     r = client.get(f"/api/v1/tasks/{tid}", headers=auth(admin_token))
     assert r.status_code == 200
-    assert r.json()["id"] == tid
+    assert r.json()["data"]["id"] == tid

@@ -99,7 +99,7 @@ def test_create_capacity_plan_with_project(client, pm_token, db):
     project = client.post("/api/v1/projects", json={
         "name": "Cap Project", "code": "CP01",
         "status": "active", "billing_type": "time_material",
-    }, headers=auth(pm_token)).json()
+    }, headers=auth(pm_token)).json()["data"]
 
     res = client.post("/api/v1/capacity/plans", json={
         "user_id": "pm-test-id",

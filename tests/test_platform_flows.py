@@ -53,7 +53,7 @@ def _make_task(client, token, project_id, title="Tarea test"):
         headers=auth(token),
     )
     assert res.status_code in (200, 201), res.text
-    return res.json()["id"]
+    return res.json()["data"]["id"]
 
 
 # ── 1. Ciclo completo de gasto ────────────────────────────────────────────────
@@ -76,13 +76,13 @@ def test_expense_full_lifecycle(client, admin_token, pm_token, dev_token, db):
         headers=auth(dev_token),
     )
     assert create.status_code in (200, 201), create.text
-    exp_id = create.json()["id"]
-    assert create.json()["status"] == "draft"
+    exp_id = create.json()["data"]["id"]
+    assert create.json()["data"]["status"] == "draft"
 
     # Envío para aprobación (returns {"ok": True})
     submit = client.post(f"/api/v1/expenses/my/{exp_id}/submit", headers=auth(dev_token))
     assert submit.status_code == 200, submit.text
-    assert submit.json().get("ok") is True
+    assert submit.json()["data"].get("ok") is True
 
     # Verificar que el estado cambió a 'submitted' vía listado
     my_expenses = client.get("/api/v1/expenses/my", headers=auth(dev_token))
@@ -107,7 +107,7 @@ def test_expense_full_lifecycle(client, admin_token, pm_token, dev_token, db):
         headers=auth(pm_token),
     )
     assert review.status_code == 200, review.text
-    assert review.json()["status"] == "approved"
+    assert review.json()["data"]["status"] == "approved"
 
     # Marcar como reembolsado
     reimburse = client.post(f"/api/v1/expenses/{exp_id}/reimburse", headers=auth(pm_token))
@@ -122,7 +122,7 @@ def test_expense_full_lifecycle(client, admin_token, pm_token, dev_token, db):
     # El resumen del proyecto refleja el gasto
     summary = client.get(f"/api/v1/expenses/summary/{project_id}", headers=auth(pm_token))
     assert summary.status_code == 200
-    data = summary.json()
+    data = summary.json()["data"]
     assert data["total"] >= 185.50
     assert data["count"] >= 1
 
@@ -143,17 +143,17 @@ def test_expense_rejected_can_be_recalled(client, pm_token, dev_token, db):
         headers=auth(dev_token),
     )
     assert create.status_code in (200, 201), create.text
-    exp_id = create.json()["id"]
+    exp_id = create.json()["data"]["id"]
 
     # Enviar
     submit = client.post(f"/api/v1/expenses/my/{exp_id}/submit", headers=auth(dev_token))
     assert submit.status_code == 200
-    assert submit.json().get("ok") is True
+    assert submit.json()["data"].get("ok") is True
 
     # Retirar (recall — returns {"ok": True})
     recall = client.post(f"/api/v1/expenses/my/{exp_id}/recall", headers=auth(dev_token))
     assert recall.status_code == 200, recall.text
-    assert recall.json().get("ok") is True
+    assert recall.json()["data"].get("ok") is True
 
     # Verify status reverted to draft
     my_exp = client.get("/api/v1/expenses/my", headers=auth(dev_token))
@@ -273,8 +273,8 @@ def test_change_request_full_lifecycle(client, pm_token, admin_token, db):
         headers=auth(pm_token),
     )
     assert cr.status_code in (200, 201), cr.text
-    cr_id = cr.json()["id"]
-    assert cr.json()["status"] == "draft"
+    cr_id = cr.json()["data"]["id"]
+    assert cr.json()["data"]["status"] == "draft"
 
     # Enviar para revisión
     submit = client.post(
@@ -282,7 +282,7 @@ def test_change_request_full_lifecycle(client, pm_token, admin_token, db):
         headers=auth(pm_token),
     )
     assert submit.status_code == 200, submit.text
-    assert submit.json()["status"] == "submitted"
+    assert submit.json()["data"]["status"] == "submitted"
 
     # Aparece en la lista de pendientes globales
     pending = client.get("/api/v1/changes/all/pending", headers=auth(admin_token))
@@ -297,7 +297,7 @@ def test_change_request_full_lifecycle(client, pm_token, admin_token, db):
         headers=auth(admin_token),
     )
     assert review.status_code == 200, review.text
-    assert review.json()["status"] == "approved"
+    assert review.json()["data"]["status"] == "approved"
 
     # Marcar como implementada (returns {"message": "CR marcada como implementada"})
     implement = client.post(
@@ -305,7 +305,7 @@ def test_change_request_full_lifecycle(client, pm_token, admin_token, db):
         headers=auth(admin_token),
     )
     assert implement.status_code == 200, implement.text
-    assert "implementada" in implement.json().get("message", "").lower()
+    assert "implementada" in implement.json()["data"].get("message", "").lower()
 
 
 def test_change_request_rejection_flow(client, pm_token, admin_token, db):
@@ -320,7 +320,7 @@ def test_change_request_rejection_flow(client, pm_token, admin_token, db):
         },
         headers=auth(pm_token),
     )
-    cr_id = cr.json()["id"]
+    cr_id = cr.json()["data"]["id"]
 
     client.post(f"/api/v1/changes/{project_id}/{cr_id}/submit", headers=auth(pm_token))
 
@@ -330,7 +330,7 @@ def test_change_request_rejection_flow(client, pm_token, admin_token, db):
         headers=auth(admin_token),
     )
     assert review.status_code == 200, review.text
-    assert review.json()["status"] == "rejected"
+    assert review.json()["data"]["status"] == "rejected"
 
     # Intentar implementar una CR rechazada debe fallar
     implement = client.post(
@@ -381,7 +381,7 @@ def test_project_delivery_and_profitability_flow(client, pm_token, dev_token, db
         headers=auth(pm_token),
     )
     assert profitability.status_code == 200, profitability.text
-    data = profitability.json()
+    data = profitability.json()["data"]
     assert data["total_hours"] >= 24
     assert data["billable_hours"] >= 24
 
@@ -441,7 +441,7 @@ def test_project_full_crud_lifecycle(client, pm_token, admin_token, db):
         headers=auth(pm_token),
     )
     assert close_res.status_code == 200, close_res.text
-    assert close_res.json()["status"] == "completed"
+    assert close_res.json()["data"]["status"] == "completed"
 
 
 # ── 5. Ciclo de vida de riesgo ────────────────────────────────────────────────
@@ -465,7 +465,7 @@ def test_risk_lifecycle_identify_mitigate_close(client, pm_token, admin_token, d
         headers=auth(pm_token),
     )
     assert create.status_code in (200, 201), create.text
-    risk = create.json()
+    risk = create.json()["data"]
     risk_id = risk["id"]
     # score es float: 0.7 × 5 = 3.5
     assert risk["risk_score"] == 3.5
@@ -480,7 +480,7 @@ def test_risk_lifecycle_identify_mitigate_close(client, pm_token, admin_token, d
         headers=auth(pm_token),
     )
     assert update.status_code == 200, update.text
-    assert update.json()["status"] == "mitigating"
+    assert update.json()["data"]["status"] == "mitigating"
 
     # Verificar que el riesgo aparece en el portafolio
     portfolio = client.get("/api/v1/risks/all/portfolio", headers=auth(admin_token))
@@ -495,7 +495,7 @@ def test_risk_lifecycle_identify_mitigate_close(client, pm_token, admin_token, d
         headers=auth(pm_token),
     )
     assert close.status_code == 200, close.text
-    assert close.json()["status"] == "closed"
+    assert close.json()["data"]["status"] == "closed"
 
 
 def test_multiple_risks_scored_and_sorted(client, pm_token, db):
@@ -525,12 +525,12 @@ def test_multiple_risks_scored_and_sorted(client, pm_token, db):
             headers=auth(pm_token),
         )
         assert res.status_code in (200, 201), res.text
-        assert res.json()["risk_score"] == cfg["expected_score"]
+        assert res.json()["data"]["risk_score"] == cfg["expected_score"]
 
     # Listar todos los riesgos del proyecto (returns {"risks": [...], "summary": {...}})
     lst = client.get(f"/api/v1/risks/{project_id}", headers=auth(pm_token))
     assert lst.status_code == 200
-    assert len(lst.json()["risks"]) >= 3
+    assert len(lst.json()["data"]["risks"]) >= 3
 
 
 # ── 6. Portal de cliente — Solicitud de Funcionalidad completa ────────────────
@@ -690,7 +690,7 @@ def test_deliverable_client_approval_flow(client, pm_token, db):
         headers=auth(pm_token),
     )
     assert deliv.status_code in (200, 201), deliv.text
-    deliv_id = deliv.json()["id"]
+    deliv_id = deliv.json()["data"]["id"]
 
     # Marcar como listo para revisión — PATCH /{project_id}/{del_id}
     ready = client.patch(
@@ -703,7 +703,7 @@ def test_deliverable_client_approval_flow(client, pm_token, db):
     # Listar entregables del proyecto — GET /{project_id} returns {"deliverables": [...]}
     lst = client.get(f"/api/v1/deliverables/{project_id}", headers=auth(pm_token))
     assert lst.status_code == 200
-    ids = [d["id"] for d in lst.json()["deliverables"]]
+    ids = [d["id"] for d in lst.json()["data"]["deliverables"]]
     assert deliv_id in ids
 
 
@@ -739,7 +739,7 @@ def test_okr_full_progress_flow(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert kr.status_code == 201, kr.text
-    kr_id = kr.json()["id"]
+    kr_id = kr.json()["data"]["id"]
 
     # Registrar progreso — {"value": ..., "note": ...}  (status_code=201)
     checkin = client.post(
@@ -748,7 +748,7 @@ def test_okr_full_progress_flow(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert checkin.status_code == 201, checkin.text
-    assert checkin.json()["current_value"] == 4.2
+    assert checkin.json()["data"]["current_value"] == 4.2
 
     # Verificar objetivo aparece en la lista (year=2025 is the default)
     obj_list = client.get("/api/v1/okrs?year=2025", headers=auth(admin_token))
@@ -835,7 +835,7 @@ def test_employee_cannot_access_admin_endpoints(client, dev_token, db):
         ("GET", "/api/v1/dashboard/kpis"),      # requires require_admin
     ]
 
-    for method, endpoint in admin_only_endpoints:
+    for method, endpoint in admin_only_endpoints:  # noqa: B007
         res = client.get(endpoint, headers=auth(dev_token))
         assert res.status_code in (403, 401), \
             f"{endpoint}: employee no debería poder acceder, recibido: {res.status_code}"

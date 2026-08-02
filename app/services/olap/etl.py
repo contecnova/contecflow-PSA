@@ -28,11 +28,11 @@ def _resolve_duckdb_path() -> str:
         if os.access(preferred_dir, os.W_OK):
             return preferred
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # Local/dev fallback when /var is not writable (common on macOS without root).
-    fallback = "/tmp/contecflow/olap.duckdb"
+    fallback = "/tmp/contecflow/olap.duckdb"  # noqa: S108
     os.makedirs(os.path.dirname(fallback), exist_ok=True)
     return fallback
 
@@ -156,7 +156,7 @@ def _load_fact_imputations(db, conn, since: date) -> int:
             u = db.query(User).filter(User.id == imp.user_id).first()
             cost_ph = getattr(u, "cost_per_hour", None)
         # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except Exception:
+        except Exception:  # noqa: S110
             pass
         cost = (imp.hours or 0) * (cost_ph or 0)
 
@@ -165,7 +165,7 @@ def _load_fact_imputations(db, conn, since: date) -> int:
             proj = db.query(Project).filter(Project.id == imp.project_id).first()
             project_org = getattr(proj, "organization_id", None) if proj else None
         # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         conn.execute("""

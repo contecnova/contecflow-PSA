@@ -48,7 +48,7 @@ def _from_pdf(data: bytes) -> str:
         from pdfminer.high_level import extract_text as pdf_extract
         return pdf_extract(io.BytesIO(data)) or ""
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     # Fallback: pdftotext binary
     if shutil.which("pdftotext"):
@@ -56,7 +56,7 @@ def _from_pdf(data: bytes) -> str:
             f.write(data)
             f.flush()
             try:
-                proc = subprocess.run(["pdftotext", "-q", f.name, "-"], capture_output=True, timeout=30)
+                proc = subprocess.run(["pdftotext", "-q", f.name, "-"], capture_output=True, timeout=30)  # noqa: S607
                 return proc.stdout.decode("utf-8", errors="ignore")
             except Exception:
                 return ""

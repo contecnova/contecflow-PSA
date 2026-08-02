@@ -311,7 +311,7 @@ def count_working_days(start, end, holidays: list) -> float:
             try:
                 holiday_dates.add(date.fromisoformat(h))
             # intentional: best-effort fallback, log noise outweighs diagnostic value
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
     count = 0
     current = start

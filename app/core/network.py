@@ -46,7 +46,7 @@ def _effective_proxy_config() -> tuple[bool, str]:
                 cidrs_raw = ui_cidrs
         finally:
             db.close()
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     _PROXY_CACHE["expires_at"] = now + _PROXY_CACHE_TTL
     _PROXY_CACHE["trust"] = trust

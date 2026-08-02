@@ -1,5 +1,4 @@
 """tests/test_bi_query_builder.py — Tests for BI self-service Query Builder endpoints."""
-import pytest
 from tests.conftest import auth
 
 

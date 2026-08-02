@@ -154,7 +154,7 @@ async def upload_attachment(
                 att.text_index = text
                 db.commit()
         # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
     download_url = None if is_quarantined else storage.signed_url(stored.storage_key, ttl_seconds=3600)

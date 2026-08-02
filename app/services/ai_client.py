@@ -28,7 +28,7 @@ def get_api_key(db=None, org_id: Optional[str] = None) -> Optional[str]:
             ui_key = get_credential(db, "ai_providers", "anthropic_api_key", org_id=org_id)
             if ui_key:
                 return ui_key
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     key = settings.ANTHROPIC_API_KEY
     if not key:
@@ -44,7 +44,7 @@ def get_default_model(db=None, org_id: Optional[str] = None) -> str:
             ui_val = get_runtime_str(db, "CONTECFLOW_AI_MODEL", org_id)
             if ui_val:
                 return ui_val
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     return settings.CONTECFLOW_AI_MODEL
 
@@ -99,9 +99,9 @@ def call_claude(
         body["tools"] = tools
 
     data = json.dumps(body).encode()
-    req = urllib.request.Request(settings.ANTHROPIC_API_URL, data=data, headers=headers)
+    req = urllib.request.Request(settings.ANTHROPIC_API_URL, data=data, headers=headers)  # noqa: S310
     from app.services.settings_service import outbound_ai_timeout
-    with urllib.request.urlopen(req, timeout=outbound_ai_timeout(db)) as resp:
+    with urllib.request.urlopen(req, timeout=outbound_ai_timeout(db)) as resp:  # noqa: S310
         return json.loads(resp.read())
 
 

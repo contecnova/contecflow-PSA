@@ -70,7 +70,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                else [float(f.get("operand_b", 0) or 0)] * len(a_s))
         scale = float(f.get("scale", 1) or 1)
         result = []
-        for a, b in zip(a_s, b_s):
+        for a, b in zip(a_s, b_s):  # noqa: B905
             try:
                 v = {"+": a+b, "-": a-b, "*": a*b, "/": a/b if b else 0.0}.get(op, a)
             except Exception:
@@ -102,38 +102,38 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                             Invoice.status, Invoice.total).filter(Invoice.due_date >= start_date).all()
             if metric_key == "invoice_overdue_count":
                 bkt: dict[str,float] = defaultdict(float)
-                for due, iss, paid, st, tot in rows:
+                for due, iss, paid, st, tot in rows:  # noqa: B007
                     if due and str(getattr(st,"value",st)) == "overdue":
                         bkt[f"{due.year:04d}-{due.month:02d}"] += 1.0
                 return [float(bkt.get(m["month"],0.0)) for m in series]
             if metric_key == "invoice_overdue_amount":
                 bkt = defaultdict(float)
-                for due, iss, paid, st, tot in rows:
+                for due, iss, paid, st, tot in rows:  # noqa: B007
                     if due and str(getattr(st,"value",st)) == "overdue":
                         bkt[f"{due.year:04d}-{due.month:02d}"] += float(tot or 0)
                 return [float(bkt.get(m["month"],0.0)) for m in series]
             if metric_key == "invoices_draft_count":
                 bkt = defaultdict(float)
-                for due, iss, paid, st, tot in rows:
+                for due, iss, paid, st, tot in rows:  # noqa: B007
                     if iss and str(getattr(st,"value",st)) == "draft":
                         bkt[f"{iss.year:04d}-{iss.month:02d}"] += 1.0
                 return [float(bkt.get(m["month"],0.0)) for m in series]
             if metric_key == "invoices_sent_count":
                 bkt = defaultdict(float)
-                for due, iss, paid, st, tot in rows:
+                for due, iss, paid, st, tot in rows:  # noqa: B007
                     if iss and str(getattr(st,"value",st)) == "sent":
                         bkt[f"{iss.year:04d}-{iss.month:02d}"] += 1.0
                 return [float(bkt.get(m["month"],0.0)) for m in series]
             if metric_key == "invoices_paid_count":
                 bkt = defaultdict(float)
-                for due, iss, paid, st, tot in rows:
+                for due, iss, paid, st, tot in rows:  # noqa: B007
                     if (iss or paid) and str(getattr(st,"value",st)) == "paid":
                         d = paid or iss
                         bkt[f"{d.year:04d}-{d.month:02d}"] += 1.0
                 return [float(bkt.get(m["month"],0.0)) for m in series]
             if metric_key == "invoices_paid_total":
                 bkt = defaultdict(float)
-                for due, iss, paid, st, tot in rows:
+                for due, iss, paid, st, tot in rows:  # noqa: B007
                     if (iss or paid) and str(getattr(st,"value",st)) == "paid":
                         d = paid or iss
                         bkt[f"{d.year:04d}-{d.month:02d}"] += float(tot or 0)
@@ -141,7 +141,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             if metric_key == "invoice_days_to_pay_avg":
                 bkt_sum: dict[str,float] = defaultdict(float)
                 bkt_cnt: dict[str,float] = defaultdict(float)
-                for due, iss, paid, st, tot in rows:
+                for due, iss, paid, st, tot in rows:  # noqa: B007
                     if iss and paid and str(getattr(st,"value",st)) == "paid":
                         days = (paid - iss).days
                         k = f"{iss.year:04d}-{iss.month:02d}"
@@ -345,7 +345,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
     if metric_key == "billable_pct":
         t = _fetch_metric_series(db, "hours_logged", organization_id)
         b = _fetch_metric_series(db, "hours_billable", organization_id)
-        return [round(bv/tv*100,2) if tv > 0 else 0.0 for tv,bv in zip(t,b)]
+        return [round(bv/tv*100,2) if tv > 0 else 0.0 for tv,bv in zip(t,b)]  # noqa: B905
     if metric_key == "utilization":
         return [min(100.0, round(float(m.get("hours",0) or 0)/160.0*100.0,2)) for m in series]
     if metric_key == "overloaded_users":
@@ -357,7 +357,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                             ).filter(Imputation.date >= start_date
                             ).group_by("mo",Imputation.user_id).all()
             bkt: dict[str,float] = defaultdict(float)
-            for mo, uid, tot in rows:
+            for mo, uid, tot in rows:  # noqa: B007
                 if tot and tot > 160: bkt[str(mo)] += 1.0
             return [float(bkt.get(m["month"],0.0)) for m in series]
         except Exception:
@@ -430,18 +430,18 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 if metric_key == "pending_timesheets":
                     n = db.query(Timesheet).filter(Timesheet.status == TimesheetStatus.submitted).count()
                     return _current(float(n))
-                for ws, st, h, c in rows:
+                for ws, st, h, c in rows:  # noqa: B007
                     if ws and str(getattr(st,"value",st)) == STATUS[metric_key]:
                         bkt[f"{ws.year:04d}-{ws.month:02d}"] += 1.0
                 return [float(bkt.get(m["month"],0.0)) for m in series]
             if metric_key == "timesheet_cost_total":
                 bkt = defaultdict(float)
-                for ws, st, h, c in rows:
+                for ws, st, h, c in rows:  # noqa: B007
                     if ws: bkt[f"{ws.year:04d}-{ws.month:02d}"] += float(c or 0)
                 return [float(bkt.get(m["month"],0.0)) for m in series]
             if metric_key == "timesheet_avg_hours":
                 bkt_s: dict[str,float] = defaultdict(float); bkt_c: dict[str,float] = defaultdict(float)
-                for ws, st, h, c in rows:
+                for ws, st, h, c in rows:  # noqa: B007
                     if ws and h: k=f"{ws.year:04d}-{ws.month:02d}"; bkt_s[k]+=float(h); bkt_c[k]+=1.0
                 return [round(bkt_s[m["month"]]/bkt_c[m["month"]],2)
                         if bkt_c.get(m["month"],0)>0 else 0.0 for m in series]
@@ -458,7 +458,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             TYPE_MAP = {"absence_vacation_days":"vacation","absence_sick_days":"sick","absence_training_days":"training"}
             if metric_key == "absence_pending_count":
                 bkt: dict[str,float] = defaultdict(float)
-                for sd, wd, tp, st in rows:
+                for sd, wd, tp, st in rows:  # noqa: B007
                     if sd and str(getattr(st,"value",st)) == "pending":
                         bkt[f"{sd.year:04d}-{sd.month:02d}"] += 1.0
                 return [float(bkt.get(m["month"],0.0)) for m in series]
@@ -676,7 +676,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
     if metric_key == "task_completion_rate":
         c = _fetch_metric_series(db, "tasks_completed", organization_id)
         o = _fetch_metric_series(db, "tasks_overdue", organization_id)
-        return [round(cv/(cv+ov)*100,2) if (cv+ov) > 0 else 0.0 for cv,ov in zip(c,o)]
+        return [round(cv/(cv+ov)*100,2) if (cv+ov) > 0 else 0.0 for cv,ov in zip(c,o)]  # noqa: B905
 
     # ── Service Desk / ITSM ────────────────────────────────────────────────────
     if metric_key in ("tickets_open","tickets_created","tickets_resolved",

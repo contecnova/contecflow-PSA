@@ -8,9 +8,8 @@ Verifica que ``_project_internal_cost`` aplique la cascada correcta:
 from __future__ import annotations
 
 from datetime import date, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 
 from app.services.ai_modules_service import _project_internal_cost
 

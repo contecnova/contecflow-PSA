@@ -355,7 +355,7 @@ def discover_azure(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                     if status.code and status.code.startswith("PowerState/"):
                         power_state = status.code.replace("PowerState/", "")
                         break
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001, S110
                 pass
 
             discovered.append({
@@ -500,7 +500,7 @@ def discover_snmp(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                 authProtocol=usmHMACSHAAuthProtocol,
                 privProtocol=usmAesCfb128Protocol,
             )
-        return CommunityData(community, mpModel=1)
+        return CommunityData(community, mpModel=1)  # noqa: S508
 
     engine = SnmpEngine()
 
@@ -634,7 +634,7 @@ def discover_snmp_network(provider_config: dict[str, Any]) -> list[dict[str, Any
                 authProtocol=usmHMACSHAAuthProtocol,
                 privProtocol=usmAesCfb128Protocol,
             )
-        return CommunityData(community, mpModel=1)
+        return CommunityData(community, mpModel=1)  # noqa: S508
 
     engine = SnmpEngine()
 

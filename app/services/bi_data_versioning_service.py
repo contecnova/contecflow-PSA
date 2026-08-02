@@ -92,9 +92,9 @@ def _fetch_current_data(db: Session, org_id: str, dataset_key: str) -> list[dict
             conn.execute("CREATE TABLE IF NOT EXISTS _demo AS SELECT * FROM (VALUES (1,'demo',100.0)) t(id,label,value)")
             rows = conn.execute("SELECT * FROM _demo").fetchall()
             cols = [d[0] for d in conn.description]
-            return [dict(zip(cols, r)) for r in rows]
+            return [dict(zip(cols, r)) for r in rows]  # noqa: B905
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # Fallback: demo snapshot data

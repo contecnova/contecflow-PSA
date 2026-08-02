@@ -114,7 +114,52 @@ sprintsApi.list(...).then(r => r.data?.items ?? r.data ?? [])
 `CalendarPage.jsx` y `KanbanAdvancedPage.jsx` ya usaban `unwrapList` o un fallback que
 detecta `.items`, así que no requieren cambios.
 
-## Scope total estimado
+## Estado a 2026-07-31 — oleada masiva completada
+
+La migración ya no es incremental por dominio: se ejecutó en lotes grandes.
+
+| Lote | Alcance | Estado |
+|---|---|---|
+| Piloto | `skills.py` | ✅ commit `2f07641` |
+| Lote 1 | ~18 dominios | ✅ commit `7f8bb96` |
+| Lote 2 | ~26 dominios | ✅ commit `4e2aade` |
+| Lote 3 | ~108 ficheros de endpoints + 65 de tests | ✅ (este commit) |
+| Lote 4 | `accounting_hub`, `currency_sync` | ✅ (este commit) |
+
+**Cobertura: 151 de 163 ficheros de endpoints usan `app.core.responses`.**
+
+### Exentos a propósito — no migrar
+
+Los 12 restantes están exentos por motivos que están escritos también en el
+docstring de cada fichero:
+
+| Fichero | Motivo |
+|---|---|
+| `ws.py`, `collaboration/ws.py` | WebSocket: no hay body HTTP |
+| `collaboration/tus.py` | Protocolo TUS: headers y status los fija la spec |
+| `scim.py` | Shape impuesta por el RFC de SCIM 2.0 |
+| `slack_block_kit.py` | Payload Block Kit de Slack |
+| `bi_embed.py` | Contrato con embebedores externos (iframes de terceros, JS SDK); `/sdk-config` es público |
+| `v2/meta.py` | Descubrimiento de versión público: consumidores externos leen `api_version` en la raíz |
+| `v2/profitability.py` | Consumidor: desenvuelve el envelope de v1 y mantiene su propia shape v2 |
+| `auth.py`, `projects/projects.py` | Agregadores de routers, 0 rutas propias |
+| `labels.py`, `collaborative.py` | Stubs que solo lanzan 501 |
+
+Nota: los endpoints de BI para PowerBI en `mfa.py` también son contrato externo y
+devuelven la shape cruda (ver comentario inline «Contrato externo BI»).
+
+### Cómo se hizo el fallout de tests
+
+Los tests se arreglaron con pases dirigidos **solo a las líneas que el informe de
+pytest marcaba como fallidas** (evidencia, no barrido ciego sobre el árbol):
+
+1. `.json()["k"]` → `.json()["data"]["k"]` en la línea que falla.
+2. Indirección: si falla `V["k"]`, arreglar la asignación `V = res.json()` y los
+   `return r.json()` de los helpers.
+3. `data` vs `items` **inferido del dict que imprime el propio error** de pytest.
+4. Cola manual para los casos con lógica defensiva (`data.get("x", data)`).
+
+## Scope total estimado (histórico)
 
 - **~134 endpoints** en `app/api/v1/endpoints/*.py` con respuestas de lista o single-object
 - **~135 archivos frontend** que consumen esos endpoints (hooks + pages + components)

@@ -254,7 +254,7 @@ class SalesforceConnector(BaseConnector):
         )
 
     def extract(self, client: Any, entity: str = "Opportunity", filters: Optional[Dict] = None) -> List[Dict]:
-        soql = f"SELECT Id, Name, Amount, CloseDate, StageName, AccountId FROM {entity} LIMIT 500"
+        soql = f"SELECT Id, Name, Amount, CloseDate, StageName, AccountId FROM {entity} LIMIT 500"  # noqa: S608
         result = client.query_all(soql)
         records = result.get("records", [])
         return [{k: v for k, v in r.items() if k != "attributes"} for r in records]
@@ -617,7 +617,7 @@ class QuickBooksConnector(BaseConnector):
     def extract(self, client: Any, entity: str = "Invoice", filters: Optional[Dict] = None) -> List[Dict]:
         try:
             base = "sandbox-quickbooks.api.intuit.com" if client["sandbox"] else "quickbooks.api.intuit.com"
-            url = f"https://{base}/v3/company/{client['realm_id']}/query?query=select * from {entity} MAXRESULTS 100"
+            url = f"https://{base}/v3/company/{client['realm_id']}/query?query=select * from {entity} MAXRESULTS 100"  # noqa: S608
             data = _http_get(
                 url,
                 headers={"Authorization": f"Bearer {client['access_token']}", "Accept": "application/json"},

@@ -3,7 +3,6 @@
 Cubre los 6 endpoints de /m365/bi/* con mocks de Graph API y servicios BI
 para garantizar el comportamiento sin dependencias externas.
 """
-import io
 import pytest
 from tests.conftest import auth
 
@@ -112,7 +111,6 @@ def test_teams_tab_config_graph_register_no_m365(client, admin_token, monkeypatc
 def test_teams_card_graph_success(client, admin_token, monkeypatch):
     """Cuando Graph está configurado, posta via Graph API."""
     import app.services.m365_bi_embed_service as embed_svc
-    import httpx
 
     monkeypatch.setattr(embed_svc, "m365_configured", lambda: True)
     monkeypatch.setattr(embed_svc, "get_graph_token_sync", lambda: "bearer-token")

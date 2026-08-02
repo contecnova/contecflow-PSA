@@ -222,7 +222,7 @@ class TestGanttBaselines:
     def test_list_baselines_empty(self, client, admin_headers, project):
         resp = client.get(f"/api/v1/projects/{project.id}/baselines", headers=admin_headers)
         assert resp.status_code == 200
-        assert resp.json() == []
+        assert resp.json()["items"] == []
 
     def test_create_baseline(self, client, admin_headers, project):
         resp = client.post(
@@ -265,7 +265,7 @@ class TestGanttBaselines:
             headers=admin_headers,
         )
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         assert "summary" in data
         assert "task_deltas" in data
 

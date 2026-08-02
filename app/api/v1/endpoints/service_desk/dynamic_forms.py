@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Cookie, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -20,7 +20,7 @@ from app.models.clients import Client
 from app.models.settings import AppSetting
 from app.models.service_desk import ConfigurationItem, ServiceItem
 from app.models.user import User
-from app.services.service_desk.portal_auth_service import require_portal_client
+from app.services.service_desk.portal_auth_service import get_current_portal_client
 
 router = APIRouter()
 
@@ -335,11 +335,9 @@ def get_dynamic_forms(db: Session = Depends(get_db), current_user: User = Depend
 
 @router.get("/dynamic-forms/public", summary="Obtener configuración dinámica para portal cliente")
 def get_dynamic_forms_public(
-    authorization: Optional[str] = Header(None),
-    portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
+    _client=Depends(get_current_portal_client),
 ):
-    _ = require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
     # Portal clients currently use the global baseline rules.
     rules = _get_json(db, _RULES_KEY, None, fallback=None)
     if not isinstance(rules, dict):
@@ -375,11 +373,9 @@ def get_dynamic_forms_public_context_options(
     service_item_id: Optional[str] = None,
     q: Optional[str] = None,
     limit: int = 40,
-    authorization: Optional[str] = Header(None),
-    portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
+    client=Depends(get_current_portal_client),
 ):
-    client = require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
     return APIResponse.ok(data=_context_options_payload(
         db,
         portal_client=client,

@@ -48,7 +48,7 @@ LOGIN_LOCK_PREFIX = "contecflow:login:lock:"
 PASSWORD_RESET_TTL_SECONDS = 30 * 60
 PASSWORD_RESET_REQUEST_WINDOW_SECONDS = 15 * 60
 PASSWORD_RESET_REQUEST_MAX_PER_WINDOW = 5
-PASSWORD_RESET_JTI_PREFIX = "contecflow:password_reset:jti:"
+PASSWORD_RESET_JTI_PREFIX = "contecflow:password_reset:jti:"  # noqa: S105
 
 # In-memory fallback stores  ──────────────────────────────────────────────────
 _sso_states_fallback: dict[str, float] = {}
@@ -546,7 +546,7 @@ def issue_password_reset_token(user: User) -> str:
     jti = uuid.uuid4().hex
     store_password_reset_jti(user.id, jti, PASSWORD_RESET_TTL_SECONDS)
     return create_ephemeral_token(
-        token_type="password_reset",
+        token_type="password_reset",  # noqa: S106
         subject=user.id,
         challenge=challenge,
         ttl_seconds=PASSWORD_RESET_TTL_SECONDS,

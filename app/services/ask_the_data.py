@@ -204,7 +204,7 @@ def _execute_on_olap(sql: str, params: Optional[dict] = None) -> list[dict]:
     try:
         cur = conn.execute(sql, params) if params else conn.execute(sql)
         cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, row)) for row in cur.fetchall()]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]  # noqa: B905
     finally:
         conn.close()
 

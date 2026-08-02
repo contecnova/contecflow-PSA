@@ -1,5 +1,4 @@
 """tests/test_bi_dashboard_collab.py — Tests for BI Dashboard Collaboration endpoints."""
-import pytest
 from tests.conftest import auth
 
 

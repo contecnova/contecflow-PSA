@@ -32,7 +32,7 @@ def _task(client, token, project_id, title="T", status=None):
         body["status"] = status
     r = client.post("/api/v1/tasks", json=body, headers=auth(token))
     assert r.status_code in (200, 201), r.text
-    return r.json()
+    return r.json()["data"]
 
 
 def _invoice(client, token, lines=None, tax_rate=21.0):
@@ -67,21 +67,21 @@ class TestTaskStateMachine:
         t = _task(client, pm_token, pid)
         r = client.patch(f"/api/v1/tasks/{t['id']}", json={"status": "in_progress"}, headers=auth(pm_token))
         assert r.status_code == 200
-        assert r.json()["status"] == "in_progress"
+        assert r.json()["data"]["status"] == "in_progress"
 
     def test_in_progress_to_in_review(self, client, pm_token, db):
         pid = _project(client, pm_token)
         t = _task(client, pm_token, pid, status="in_progress")
         r = client.patch(f"/api/v1/tasks/{t['id']}", json={"status": "in_review"}, headers=auth(pm_token))
         assert r.status_code == 200
-        assert r.json()["status"] == "in_review"
+        assert r.json()["data"]["status"] == "in_review"
 
     def test_in_review_to_done(self, client, pm_token, db):
         pid = _project(client, pm_token)
         t = _task(client, pm_token, pid, status="in_review")
         r = client.patch(f"/api/v1/tasks/{t['id']}", json={"status": "done"}, headers=auth(pm_token))
         assert r.status_code == 200
-        assert r.json()["status"] == "done"
+        assert r.json()["data"]["status"] == "done"
 
     def test_in_review_back_to_in_progress(self, client, pm_token, db):
         """Failed review → back to in_progress is a common real-world workflow."""
@@ -95,7 +95,7 @@ class TestTaskStateMachine:
         t = _task(client, pm_token, pid)
         r = client.patch(f"/api/v1/tasks/{t['id']}", json={"status": "cancelled"}, headers=auth(pm_token))
         assert r.status_code == 200
-        assert r.json()["status"] == "cancelled"
+        assert r.json()["data"]["status"] == "cancelled"
 
     def test_cancelled_is_terminal(self, client, pm_token, db):
         """Cannot leave cancelled state (terminal)."""
@@ -137,7 +137,7 @@ class TestTaskStateMachine:
         ]:
             r = client.patch(f"/api/v1/tasks/{tid}", json={"status": s_to}, headers=auth(pm_token))
             assert r.status_code == 200, f"Failed {s_from}→{s_to}: {r.text}"
-            assert r.json()["status"] == s_to
+            assert r.json()["data"]["status"] == s_to
 
 
 # ─── 2. Invoice calculation invariants ────────────────────────────────────────
@@ -322,7 +322,7 @@ class TestExpenseWorkflow:
             "category": "travel", "description": "Business trip",
         }, headers=auth(token))
         assert r.status_code in (200, 201), r.text
-        return r.json()
+        return r.json()["data"]
 
     def test_expense_created_as_draft(self, client, dev_token, db):
         exp = self._create_expense(client, dev_token)
@@ -350,7 +350,7 @@ class TestExpenseWorkflow:
         r = client.post(f"/api/v1/expenses/{exp['id']}/review",
                         json={"approved": True}, headers=auth(admin_token))
         assert r.status_code == 200
-        assert r.json()["status"] == "approved"
+        assert r.json()["data"]["status"] == "approved"
 
     def test_admin_rejects_expense(self, client, admin_token, dev_token, db):
         """Full rejection flow: create → submit → review (reject)."""
@@ -360,7 +360,7 @@ class TestExpenseWorkflow:
                         json={"approved": False, "rejection_reason": "No receipt attached"},
                         headers=auth(admin_token))
         assert r.status_code == 200
-        assert r.json()["status"] == "rejected"
+        assert r.json()["data"]["status"] == "rejected"
 
 
 # ─── 6. Log level endpoint security ───────────────────────────────────────────
