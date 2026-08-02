@@ -23,7 +23,7 @@ from app.models.client_portal import ClientSurvey
 from app.models.clients import ClientPortalConfig, Client
 from app.models.clients import Client as ClientOrg
 from app.models.settings import AppSetting
-from app.models.epics import WikiPage
+from app.models.epics import WikiPage, WikiSpace
 from app.models.financial import ProjectMilestone
 from app.models.imputation import Imputation
 from app.models.project import Project as ProjectModel
@@ -33,7 +33,7 @@ from app.models.resources import ChangeRequestImpact
 from app.models.service_desk import Ticket, TicketStatus
 from app.services.approval_workflows import find_default_workflow
 from app.services.realtime_notifications import publish_user_notification
-from sqlalchemy import func
+from sqlalchemy import and_, false, func, or_
 from sqlalchemy.orm import joinedload
 
 logger = logging.getLogger("contecflow.client_portal")
@@ -1587,21 +1587,62 @@ def download_signed_pdf(doc_id: str, current_client, db: Session) -> bytes:
 
 # ── Wiki ──────────────────────────────────────────────────────────────────────
 
-def portal_wiki_pages(db: Session) -> list:
+def _portal_visible_wiki_filter(current_client):
+    """Condición de tenencia para el wiki visible desde el portal.
 
-    pages = db.query(WikiPage).filter(
-        WikiPage.visibility == "portal",
-        WikiPage.is_published == True
-    ).order_by(WikiPage.title).all()
+    `visibility == "portal"` solo dice que la página es apta para clientes; NO dice
+    de QUÉ cliente. Sin acotar además por tenencia, cualquier cliente del portal
+    podía listar y leer el wiki de portal de todas las organizaciones
+    (auditoría 2026-08, docs/AUDIT_2026_08_SECOND_PASS.md §1).
+
+    Un espacio wiki es o de proyecto o de organización (ver WikiSpace), así que se
+    admiten los dos casos y se deniega por defecto todo lo demás.
+    """
+    accessible = current_client.get_project_ids()
+    org_id = getattr(current_client, "organization_id", None)
+
+    clauses = []
+    if accessible:
+        clauses.append(WikiSpace.project_id.in_(accessible))
+    if org_id:
+        # Espacio organizacional (sin proyecto) de la propia organización del cliente.
+        clauses.append(and_(WikiSpace.project_id.is_(None), WikiSpace.organization_id == org_id))
+
+    if not clauses:
+        # Cliente sin proyectos ni organización: no ve nada.
+        return false()
+    return or_(*clauses)
+
+
+def portal_wiki_pages(current_client, db: Session) -> list:
+
+    pages = (
+        db.query(WikiPage)
+        .join(WikiSpace, WikiSpace.id == WikiPage.space_id)
+        .filter(
+            WikiPage.visibility == "portal",
+            WikiPage.is_published == True,
+            _portal_visible_wiki_filter(current_client),
+        )
+        .order_by(WikiPage.title)
+        .all()
+    )
     return [{"id": p.id, "title": p.title, "slug": p.slug, "space_id": p.space_id,
              "updated_at": str(p.updated_at)} for p in pages]
 
 
-def portal_wiki_page_detail(page_id: str, db: Session) -> dict:
+def portal_wiki_page_detail(page_id: str, current_client, db: Session) -> dict:
 
-    page = db.query(WikiPage).filter(
-        WikiPage.id == page_id, WikiPage.visibility == "portal"
-    ).first()
+    page = (
+        db.query(WikiPage)
+        .join(WikiSpace, WikiSpace.id == WikiPage.space_id)
+        .filter(
+            WikiPage.id == page_id,
+            WikiPage.visibility == "portal",
+            _portal_visible_wiki_filter(current_client),
+        )
+        .first()
+    )
     if not page:
         raise ValueError("Página no encontrada o no visible")
     return {"id": page.id, "title": page.title, "content": page.content,

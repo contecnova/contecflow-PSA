@@ -741,12 +741,12 @@ def download_signed_pdf(
 # ── Wiki (portal cliente — solo páginas con visibility=portal) ──────────────
 @router.get("/wiki/pages", summary="Páginas wiki visibles al cliente")
 def portal_wiki_pages(db: Session = Depends(get_db), current_client=Depends(get_current_client)):
-    return APIListResponse.ok(items=_svc.portal_wiki_pages(db))
+    return APIListResponse.ok(items=_svc.portal_wiki_pages(current_client, db))
 
 @router.get("/wiki/pages/{page_id}", summary="Contenido de página wiki (portal)")
 def portal_wiki_page_detail(page_id: str, db: Session = Depends(get_db), current_client=Depends(get_current_client)):
     try:
-        return APIResponse.ok(data=_svc.portal_wiki_page_detail(page_id, db))
+        return APIResponse.ok(data=_svc.portal_wiki_page_detail(page_id, current_client, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 
