@@ -15,6 +15,9 @@ import httpx
 
 from app.core.config import settings
 from app.services.stt.base import STTError, STTProvider, STTResult
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAISTTProvider(STTProvider):

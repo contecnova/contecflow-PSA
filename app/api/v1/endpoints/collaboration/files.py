@@ -21,6 +21,9 @@ from app.services.collaboration._permissions import _org, assert_conversation_ac
 from app.services.collaboration._storage import (
     FileStorage, scan_dlp, scan_with_av, storage,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

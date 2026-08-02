@@ -26,6 +26,9 @@ from typing import Any, Optional
 from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
+import logging
+
+logger = logging.getLogger(__name__)
 
 _KEY_CONSENT = "bi.gdpr.consent"
 _KEY_CONSENT_HISTORY = "bi.gdpr.consent_history"

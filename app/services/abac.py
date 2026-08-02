@@ -15,6 +15,9 @@ import uuid
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy import text
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ABACEngine:

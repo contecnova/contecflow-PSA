@@ -23,6 +23,9 @@ import httpx
 
 from app.core.config import settings
 from app.services.stt.base import STTError, STTProvider, STTResult
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _azure_setting(name: str, default: str = "") -> str:

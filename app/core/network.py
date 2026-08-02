@@ -4,6 +4,9 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_ip(value: Optional[str]) -> Optional[str]:

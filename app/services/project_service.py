@@ -35,6 +35,9 @@ from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from app.services.base import ServiceBase
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ── ProjectService class ───────────────────────────────────────────────────────

@@ -34,6 +34,9 @@ from app.services.collaboration._permissions import (
 )
 from app.services.collaboration._search import search_engine
 from app.services.collaboration._storage import scan_dlp
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 MENTION_RE = re.compile(r"@([a-zA-Z0-9_.\-]+)")

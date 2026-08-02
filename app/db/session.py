@@ -11,6 +11,9 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _extract_model_class(entity):

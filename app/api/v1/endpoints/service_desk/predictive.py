@@ -17,6 +17,9 @@ from app.services.service_desk.predictive_analytics_service import (
     predict_ticket,
     run_predictive_scan,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/predictive", tags=["Predictive Analytics ITSM"])
 
