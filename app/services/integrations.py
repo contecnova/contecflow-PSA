@@ -14,6 +14,8 @@ from app.core.network import assert_safe_outbound_url, UnsafeURLError
 import json
 import logging
 import urllib.request
+
+from app.core.outbound_url import validate_outbound_url
 import urllib.parse
 from typing import Optional
 
@@ -55,7 +57,7 @@ def send_slack_message(
 
     data = json.dumps(payload).encode("utf-8")
     req  = urllib.request.Request(  # noqa: S310
-        webhook_url,
+        validate_outbound_url(webhook_url, field="webhook_url"),
         data=data,
         headers={"Content-Type": "application/json"},
     )
@@ -127,7 +129,7 @@ def send_teams_message(
 
     data = json.dumps(payload).encode("utf-8")
     req  = urllib.request.Request(  # noqa: S310
-        webhook_url,
+        validate_outbound_url(webhook_url, field="webhook_url"),
         data=data,
         headers={"Content-Type": "application/json"},
     )
@@ -157,7 +159,7 @@ def _jira_request(config_dict: dict, method: str, path: str, body: Optional[dict
 
     data = json.dumps(body).encode("utf-8") if body else None
     req  = urllib.request.Request(  # noqa: S310
-        url, data=data, method=method,
+        validate_outbound_url(url, field="URL de integración"), data=data, method=method,
         headers={
             "Authorization": f"Basic {credentials}",
             "Content-Type":  "application/json",
@@ -389,7 +391,7 @@ def _xero_request(config_dict: dict, method: str, path: str, body=None) -> dict:
     url  = f"{base_url}{path}"
     data = _json.dumps(body).encode() if body else None
     req  = urllib.request.Request(  # noqa: S310
-        url, data=data, method=method,
+        validate_outbound_url(url, field="URL de integración"), data=data, method=method,
         headers={
             "Authorization": f"Bearer {access_token}",
             "Xero-tenant-id": tenant_id,
@@ -422,7 +424,7 @@ def _qb_request(config_dict: dict, method: str, path: str, body=None) -> dict:
     url  = f"{base_url}{path}?minorversion=65"
     data = _json.dumps(body).encode() if body else None
     req  = urllib.request.Request(  # noqa: S310
-        url, data=data, method=method,
+        validate_outbound_url(url, field="URL de integración"), data=data, method=method,
         headers={
             "Authorization": f"Bearer {access_token}",
             "Accept":        "application/json",

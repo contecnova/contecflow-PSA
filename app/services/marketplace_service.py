@@ -136,12 +136,14 @@ def list_marketplace_connectors(
             IntegrationInstance.organization_id == organization_id,
             IntegrationInstance.is_enabled == True,
         ).all()
-        for inst in instances:
-            conn = db.query(IntegrationConnector).filter(
-                IntegrationConnector.id == inst.connector_id
-            ).first()
-            if conn:
-                installed_slugs.add(conn.slug)
+        # N+1 eliminado (auditoría 2026-08 §7): una consulta por instancia instalada.
+        connector_ids = [inst.connector_id for inst in instances if inst.connector_id]
+        if connector_ids:
+            installed_slugs.update(
+                slug for (slug,) in db.query(IntegrationConnector.slug).filter(
+                    IntegrationConnector.id.in_(connector_ids)
+                ).all()
+            )
 
     return [
         {

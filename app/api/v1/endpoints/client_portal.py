@@ -578,7 +578,7 @@ def update_issue(
     current_user: User = Depends(require_any_manager),
 ):
     try:
-        return APIResponse.ok(data=_svc.update_uat_issue(issue_id, status, db))
+        return APIResponse.ok(data=_svc.update_uat_issue(issue_id, status, current_user, db))
     except ValueError as e:
         raise HTTPException(404, str(e))
 

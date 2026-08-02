@@ -94,5 +94,10 @@ def inbound_email(
 ):
     ticket, req_email = process_inbound_email(db, payload, x_contecflow_email_secret)
     _commit_or_rollback(db); db.refresh(ticket)
-    logger.info("Email-to-ticket: %s from %r - %r", ticket.number, req_email, ticket.title)
+    # El dominio basta para diagnosticar (routing, remitentes no reconocidos) sin
+    # dejar la dirección completa en los logs, que es PII y acaba replicada en
+    # agregadores y backups (auditoría 2026-08 §7). El email completo sigue en el
+    # ticket, que es donde toca y donde aplican borrado y retención.
+    _domain = (req_email or "").rpartition("@")[2] or "desconocido"
+    logger.info("Email-to-ticket: %s from @%s - %r", ticket.number, _domain, ticket.title)
     return {"ticket_id": ticket.id, "number": ticket.number, "status": "created"}
