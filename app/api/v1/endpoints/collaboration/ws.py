@@ -177,8 +177,10 @@ async def collaboration_ws(
                         return
                     if sustained_breach > 5:
                         log.warning("collab ws closing user=%s for sustained rate-limit breaches", user.id)
-                        try: await websocket.close(code=4429)
-                        except Exception: pass  # noqa: S110
+                        try:
+                            await websocket.close(code=4429)
+                        except Exception:
+                            log.debug("collab ws: cierre por rate-limit fallido", exc_info=True)
                         return
                     await asyncio.sleep(0.5)
                     continue

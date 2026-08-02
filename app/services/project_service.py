@@ -496,10 +496,13 @@ def create_project_record(db: Session, payload, current_user):
     try:
         from app.services.collaboration._project_sync import on_project_created
         on_project_created(db, project, current_user)
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:  # noqa: S110
-        # No bloquear creación de proyecto si collaboration falla
-        pass
+    except Exception:
+        # No bloquear creación de proyecto si collaboration falla, pero dejar rastro
+        # diagnosticable: en debug, no en el nivel por defecto.
+        logger.debug(
+            "create_project: no se pudo crear el equipo/canal de colaboración",
+            exc_info=True,
+        )
 
     return project
 
