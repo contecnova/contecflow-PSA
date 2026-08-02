@@ -106,8 +106,29 @@ Combinado con que se commitea directo a `main` sin ramas ni PR, **nada impide qu
 `main` se rompa**. La suite existe, es buena y tarda 11 minutos con `-n auto`: el
 coste de ejecutarla es bajísimo comparado con el riesgo que cubre.
 
-**Corrección:** añadir al workflow un job con `pytest -n auto`, `tsc --noEmit`,
-`vitest run` y el build. Es la acción de mayor retorno de todo este informe.
+**Corrección propuesta:** añadir un job con `pytest -n auto`, `tsc --noEmit`,
+`vitest run` y el build.
+
+> **Estado final: no aplica — CI/CD eliminado por decisión del propietario
+> (2026-08-02).** Se llegó a añadir `.github/workflows/ci.yml` con esos cuatro
+> pasos, y después se eliminó todo `.github/workflows/` a petición expresa.
+>
+> Consecuencia, para que quede escrito: **ninguna verificación es automática**. Los
+> guard-tests que esta auditoría y la anterior añadieron siguen existiendo y siguen
+> siendo válidos, pero solo corren si alguien los lanza a mano:
+>
+> ```
+> make test                  # suite backend completa (-n auto, ~11 min)
+> cd frontend && npm run typecheck && npm run test && npm run build
+> python -m pytest tests/test_route_auth_coverage.py \
+>                  tests/test_portal_principal_is_used.py \
+>                  tests/test_portal_wiki_tenant_isolation.py \
+>                  tests/test_portal_ticket_tenant_isolation.py \
+>                  tests/test_abac_registry_completeness.py -q
+> ```
+>
+> El riesgo descrito arriba (nada impide romper `main`) sigue vigente y pasa a ser
+> un riesgo asumido conscientemente, no un descuido.
 
 ---
 
@@ -121,20 +142,32 @@ Ejecutado hoy:
 EXIT = 1
 ```
 
-- **≥200 hallazgos nuevos** fuera del baseline. Digo «≥» porque el script trunca la
-  salida en 200 (`audit_tenant_isolation.py:78,92`), así que **el número real se
-  desconoce**.
-- El baseline (`scripts/tenant_audit_baseline.txt`, 2.334 líneas) no se actualiza
-  desde **2026-05-17**, mientras el código siguió creciendo.
+Cifras reales:
+
+```
+total queries scanned: 2781
+candidates to review:  2329
+baseline entries:      1902
+new entries:           1913   <- fuera del baseline
+```
+
+- El baseline (`scripts/tenant_audit_baseline.txt`) es del **2026-05-17**, mientras
+  el código siguió creciendo.
 - Ninguno de los hallazgos corresponde a ficheros tocados en la pasada anterior:
   es deuda previa, no una regresión introducida ahora.
 
-Un guardrail de seguridad que lleva meses en rojo deja de ser un guardrail. Y el
-truncado a 200 hace que ni siquiera se pueda dimensionar el problema.
+> **Corrección a una versión anterior de este documento**, que decía «≥200 hallazgos,
+> el número real se desconoce porque el script trunca en 200». Era inexacto: lo que
+> se trunca es el *listado*, pero el script **sí imprime el total**
+> (`new entries: 1913`). El error fue mío al filtrar la salida. El truncado ahora
+> avisa de cuántas entradas omite.
 
-**Corrección:** quitar el truncado (o hacerlo explícito con un contador total),
-triar los hallazgos y regenerar el baseline. El hallazgo §1 es exactamente el tipo
-de fallo que este script existe para detectar.
+Con 1.913 de 2.329 candidatos fuera del baseline, el baseline no está «algo
+desfasado»: ha dejado de describir el código. Regenerarlo sin revisar sería
+sellar 2.329 hallazgos sin mirarlos, que es peor que no tenerlo. El triaje real es
+trabajo de días, no una regeneración.
+
+El hallazgo §1 es exactamente el tipo de fallo que este script existe para detectar.
 
 ---
 
@@ -237,8 +270,29 @@ con 666 kB parece un cajón de sastre de rutas.
 una conexión móvil mediocre son varios segundos de pantalla en blanco. Es el tipo de
 coste que no aparece en ningún test y que sí se nota en producción.
 
-**Corrección:** analizar `vendor-core` (`rollup-plugin-visualizer`) y repartir por
-`manualChunks`; trocear `route-misc` por dominio real.
+**RESUELTO en parte.** La causa era que cinco librerías pesadas no tenían regla de
+`manualChunks` y caían todas en el cajón por defecto: `plotly.js` (99 MB en
+`node_modules`), `livekit-client` (10 MB), `bpmn-js` (6 MB), `@xyflow/react` (3 MB) y
+`d3`. Añadidas sus reglas en `vite.config.js`:
+
+| Chunk | Antes (gzip) | Después (gzip) |
+|---|---:|---:|
+| `vendor-core` | **1.947 kB** | **177 kB** (−91%) |
+| `vendor-plotly` | — | 1.430 kB |
+| `vendor-livekit` | — | 134 kB |
+| `vendor-bpmn` | — | 137 kB |
+| `vendor-d3` | — | 44 kB |
+
+El peso total no baja —el código es el que es—, pero deja de pagarse en la carga
+inicial: cada una de esas librerías ahora solo se descarga en las rutas que la usan.
+
+De paso, `@testing-library/dom`, `/jest-dom` y `/react` estaban declaradas en
+`dependencies` en vez de `devDependencies` (verificado: solo se importan desde
+tests). Movidas — 27 → 24 dependencias de producción.
+
+**Pendiente:** `route-misc` sigue en 666 kB gzip. Es el cajón de sastre de páginas
+del `manualChunks` por ruta; trocearlo exige decidir agrupaciones por dominio real,
+que es criterio de producto más que técnico.
 
 ## 8. ✅ Verificado como sólido en esta pasada
 
@@ -282,7 +336,7 @@ acciones 1 y 9 son instancias concretas; sin la 7, seguirán apareciendo.
 | # | Acción | Estado | Evidencia |
 |---|---|---|---|
 | 1 | Wiki de portal acotado por tenencia (`_portal_visible_wiki_filter`) | ✅ | 3 tests en verde, incluido el caso positivo |
-| 2 | Nuevo workflow `ci.yml`: pytest `-n auto`, tsc, vitest y build | ✅ | `.github/workflows/ci.yml` |
+| 2 | Workflow `ci.yml` con pytest `-n auto`, tsc, vitest y build | ⛔ revertido | CI/CD eliminado por decisión del propietario — ver §2 |
 | 3 | Guard-test de clase: el principal del portal declarado debe usarse | ✅ | `tests/test_portal_principal_is_used.py` |
 
 ### Cómo se acotó el wiki
@@ -311,18 +365,43 @@ Opt-out explícito: nombrar el parámetro `_client` cuando el endpoint solo nece
 autenticar y no autorizar por ese principal (p. ej. `get_dynamic_forms_public`,
 que devuelve configuración global idéntica para todos). Queda visible en el diff.
 
-### Decisión deliberada: dos pasos de CI pasan a no bloqueantes
+### Sobre los pasos no bloqueantes
 
-`Tenant static audit (strict)` y `Dependency vulnerability scan` se han marcado
-`continue-on-error: true`, **con comentario y condición de retirada** en el propio
-workflow.
+Se marcaron temporalmente `Tenant static audit (strict)` y
+`Dependency vulnerability scan` como `continue-on-error`, para que la entrada de la
+suite en CI diera señal creíble en lugar de nacer en rojo permanente.
 
-Motivo: ambos están rojos hoy (§3 y §4) por deuda previa. Con el nuevo `ci.yml`
-ejecutando la suite por primera vez, dejarlos bloqueando significaría que CI nace
-en rojo permanente — y un CI siempre rojo se ignora, que es exactamente el fallo
-descrito en §3. Se dejan informativos para que la señal nueva (tests) sea creíble.
+Quedó sin efecto al eliminarse CI/CD por completo (§2). Ambas comprobaciones siguen
+disponibles como scripts manuales:
 
-**Hay que revertirlo** al cerrar P1 #4, #5 y #6. Es una línea en cada paso.
+```
+python scripts/audit_tenant_isolation.py --strict --baseline scripts/tenant_audit_baseline.txt
+pip-audit --requirement requirements.txt --strict
+```
+
+## 9.c Registro de resolución — P1 (2026-08-02)
+
+| # | Acción | Estado | Resultado |
+|---|---|---|---|
+| 4 | pypdf 6.1.3 → **6.14.2** | ✅ | 27 CVEs cerrados en el parser de PDFs subidos |
+| 4 | pyasn1 → 0.6.4, idna → 3.15, scikit-learn → 1.5.0, pyarrow → 23.0.1 | ✅ | suite verde, sin regresiones |
+| 4 | setuptools 81 → 83 | ⛔ bloqueado | **torch 2.11 exige `setuptools<82`**. Revertido para no romper el grafo (`pip check` limpio) y anotado en `requirements.txt` |
+| 5 | axios → **1.19.0** | ✅ | npm audit: 12 → **3** vulnerabilidades, **0 high, 0 critical** |
+| 5 | ecdsa 0.19.2 | ⚠️ sin arreglo | No existe versión corregida. Decisión pendiente: sustituir la librería o aceptar el riesgo por escrito |
+| 6 | Auditor de tenancy: truncado explícito + cifras reales | ✅ | 1.913 hallazgos nuevos de 2.329 candidatos (ver §3) |
+| 7 | `/portal-ai/chat`: `Depends(get_current_portal_client)` + `20/minute` | ✅ | Sale del allowlist de rutas públicas; **cambia el contrato** (ver abajo) |
+| 8 | `manualChunks` para plotly/livekit/bpmn/xyflow/d3 | ✅ | `vendor-core` 1.947 → **177 kB gzip** (−91%) |
+| 8 | `@testing-library/*` → devDependencies | ✅ | 27 → 24 dependencias de producción |
+| 8 | Trocear `route-misc` (666 kB gzip) | ⏸ | Requiere decidir agrupación por dominio |
+
+### Cambio de contrato en `/portal-ai/chat`
+
+Antes el token de cliente viajaba en el body como `client_token`; ahora se autentica
+por cookie de portal o cabecera `Authorization`, como el resto del portal.
+
+El frontend **no se ve afectado**: ya usaba la variante por cookie
+(`POST /portal/ai-chat`). Sí afectaría a integraciones externas que siguieran
+enviando `client_token` en el body — no consta ninguna en el repo.
 
 ## 10. Qué NO cubre esta pasada
 
