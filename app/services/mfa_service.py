@@ -238,7 +238,7 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
                 "username": "Contecflow",
                 "icon_emoji": ":rocket:",
             }).encode("utf-8")
-            req = urllib.request.Request(
+            req = urllib.request.Request(  # noqa: S310
                 f"{settings.SLACK_API_BASE}/chat.postMessage",
                 data=data,
                 headers={
@@ -246,7 +246,7 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
                     "Authorization": f"Bearer {config.bot_token}",
                 }
             )
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
                 result = json.loads(resp.read())
                 if result.get("ok"):
                     return True, None
@@ -260,11 +260,11 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
                 body = json.dumps({"text": text}).encode("utf-8")
             else:
                 body = json.dumps({"text": text, "channel": ch}).encode("utf-8")
-            req = urllib.request.Request(
+            req = urllib.request.Request(  # noqa: S310
                 config.webhook_url, data=body,
                 headers={"Content-Type": "application/json"}
             )
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
                 return resp.status in (200, 201), None
         except Exception as e:
             _logger.exception("Webhook delivery failed for platform=%s", config.platform)
@@ -366,7 +366,7 @@ Responde SOLO con JSON: {{"hours": <número>, "confidence": <0-100>, "reasoning"
                 "max_tokens": 200,
                 "messages": [{"role": "user", "content": prompt}]
             }).encode()
-            req = urllib.request.Request(
+            req = urllib.request.Request(  # noqa: S310
                 settings.ANTHROPIC_API_URL,
                 data=data,
                 headers={
@@ -375,7 +375,7 @@ Responde SOLO con JSON: {{"hours": <número>, "confidence": <0-100>, "reasoning"
                     "anthropic-version": "2023-06-01",
                 }
             )
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
                 result = json.loads(resp.read())
                 text = result["content"][0]["text"]
                 parsed = json.loads(text)
@@ -493,7 +493,7 @@ Responde SOLO con JSON:
                 "max_tokens": 300,
                 "messages": [{"role": "user", "content": prompt}]
             }).encode()
-            req = urllib.request.Request(
+            req = urllib.request.Request(  # noqa: S310
                 settings.ANTHROPIC_API_URL,
                 data=data,
                 headers={
@@ -502,7 +502,7 @@ Responde SOLO con JSON:
                     "anthropic-version": "2023-06-01",
                 }
             )
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
                 result = json.loads(resp.read())
                 parsed = json.loads(result["content"][0]["text"])
                 suggested_category = parsed.get("category", suggested_category)

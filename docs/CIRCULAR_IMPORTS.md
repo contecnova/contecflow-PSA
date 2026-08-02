@@ -13,6 +13,23 @@ There are **no remaining lazy imports in the audited services for the sole
 purpose of breaking import cycles.** Any future deferred imports should be
 documented inline with the full cycle path and a refactor plan.
 
+> ⚠️ Alcance real de esa afirmación (revisado en la auditoría 2026-07,
+> `docs/AUDIT_2026_07_FULL.md` §2.1). El «TL;DR» de arriba se refiere **solo a los
+> tres módulos auditados en el audit #110**, no al backend completo. A día de hoy
+> hay **~200 imports diferidos dentro de funciones** marcados `# noqa: PLC0415`, y
+> los símbolos más diferidos son **módulos internos**, no dependencias opcionales:
+> `AppSetting` (18), `HTTPException` (12), `settings` (11), `ITSMChangeRequest` (6),
+> `CMDBAgentRegistration` (5), `User` (4), `Project` (3).
+>
+> Diferir `app.models.*` y `app.core.config.settings` dentro de funciones es el
+> patrón clásico de evitar ciclos, y **ninguno de los ~200 documenta la ruta del
+> ciclo**, que es justo lo que esta política exige en el párrafo anterior.
+>
+> Es decir: la política es correcta, pero no se está cumpliendo fuera de los tres
+> módulos originales. Pendiente: mapear el grafo de imports y extraer un módulo de
+> tipos/contratos que rompa los ciclos de verdad, o justificar inline cada
+> deferral que se quede.
+
 ## Investigation methodology
 
 For each suspected lazy import we ran:

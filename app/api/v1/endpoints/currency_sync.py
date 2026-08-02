@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, require_admin
+from app.core.responses import APIResponse
 from app.models.user import User
 
 router = APIRouter(tags=["Currency"])
@@ -18,7 +19,7 @@ def sync_ecb_exchange_rates(
     result = sync_ecb_rates(db, force=force)
     if not result.get("ok"):
         raise HTTPException(status_code=502, detail=result.get("error", "ECB fetch failed"))
-    return result
+    return APIResponse.ok(data=result)
 
 
 @router.post("/currency/sync-openexchangerates", summary="Sync OpenExchangeRates (admin)")
@@ -40,4 +41,4 @@ def sync_openexchangerates(
     result = _sync(db, app_id=app_id, base=base.upper())
     if not result.get("ok"):
         raise HTTPException(status_code=502, detail=result.get("error", "Sync failed"))
-    return result
+    return APIResponse.ok(data=result)

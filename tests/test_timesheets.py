@@ -22,7 +22,7 @@ def test_create_imputation(client, dev_token, pm_token, db):
         "is_billable": True,
     }, headers=auth(dev_token))
     assert res.status_code in (200, 201)
-    data = res.json()
+    data = res.json()["data"]
     assert data["hours"] == 4.5
     assert data["is_billable"] is True
 

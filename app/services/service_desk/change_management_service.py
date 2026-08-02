@@ -550,7 +550,7 @@ def _update_change_status_on_rollback(db: Session, change_id: str) -> None:
             change.status = ChangeStatus.closed_failed
             change.actual_end = datetime.now(timezone.utc)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
 
@@ -562,7 +562,7 @@ def _update_change_status_on_complete(db: Session, change_id: str) -> None:
             change.status = ChangeStatus.implemented
             change.actual_end = datetime.now(timezone.utc)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
 

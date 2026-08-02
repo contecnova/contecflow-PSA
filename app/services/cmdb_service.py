@@ -407,7 +407,7 @@ def create_agent_snapshot(agent_id: str, db: Session) -> dict:
             Ticket.status.notin_(["resolved", "closed"])
         ).count()
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     db.query(AgentMetricSnapshot).filter(

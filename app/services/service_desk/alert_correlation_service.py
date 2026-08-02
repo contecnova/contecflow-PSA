@@ -123,7 +123,7 @@ def _ticket_category(t) -> Optional[str]:
         if cat_id:
             return str(cat_id)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     tt = getattr(t, "ticket_type", None)
     if tt is None:
@@ -172,7 +172,7 @@ def _dbscan_labels(X: list[list[float]]) -> list[int]:
 
 
 def _euclidean(a: list[float], b: list[float]) -> float:
-    return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
+    return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5  # noqa: B905
 
 
 def _greedy_labels(X: list[list[float]]) -> list[int]:
@@ -257,7 +257,7 @@ def cluster_open_alerts(
 
     # Group tickets by cluster label (ignore noise label -1)
     groups: dict[int, list[Ticket]] = {}
-    for ticket, label in zip(tickets, labels):
+    for ticket, label in zip(tickets, labels):  # noqa: B905
         if label == -1:
             continue
         groups.setdefault(label, []).append(ticket)

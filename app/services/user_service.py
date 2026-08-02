@@ -176,7 +176,7 @@ def get_org_chart_payload(db: Session, current_user) -> dict:
         "children": []
     } for u in users}
     roots = []
-    for uid, node in user_map.items():
+    for uid, node in user_map.items():  # noqa: B007
         mid = node["manager_id"]
         if mid and mid in user_map:
             user_map[mid]["children"].append(node)

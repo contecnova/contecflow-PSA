@@ -1,5 +1,5 @@
 """Service Desk — Tickets subdomain router."""
-from fastapi import APIRouter, Depends, Query, Header, Body, BackgroundTasks, Cookie, Response, HTTPException
+from fastapi import APIRouter, Depends, Query, Header, Body, BackgroundTasks, Response, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -23,7 +23,7 @@ from app.services.service_desk.ticket_creation_service import build_internal_tic
 from app.services.service_desk.comment_service import (
     get_scoped_ticket_or_404 as get_scoped_ticket_for_comment_or_404,
     add_internal_comment,
-    get_ticket_or_404 as get_ticket_for_client_comment_or_404,
+    get_client_ticket_or_404 as get_ticket_for_client_comment_or_404,
     add_client_comment as add_client_comment_svc,
 )
 from app.services.service_desk.csat_service import submit_ticket_csat
@@ -48,7 +48,7 @@ from app.services.service_desk.ai_suggest_service import build_ai_ticket_suggest
 from app.services.service_desk.workload_service import score_agent_for_ticket, auto_assign_ticket_ml_command
 from app.services.service_desk.incident_intelligence_service import score_auto_resolution
 from app.services.service_desk.kb_service import create_kb_from_ticket
-from app.services.service_desk.portal_auth_service import require_portal_client
+from app.services.service_desk.portal_auth_service import get_current_portal_client
 from app.services.service_desk.semantic_feedback_service import (
     enqueue_profile_refresh, enqueue_reassign_feedback, enqueue_routing_outcome,
 )
@@ -118,11 +118,9 @@ def client_my_tickets(
     status: Optional[str] = None,
     page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=200),
     response: Response = None,
-    authorization: Optional[str] = Header(None),
-    portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
+    client=Depends(get_current_portal_client),
 ):
-    client = require_portal_client(authorization, portal_access_token, db, detail="No autorizado")
     items = client_my_tickets_payload(db, client.id, _ticket_out, status)
     total = len(items)
     items = items[(page - 1) * page_size:(page - 1) * page_size + page_size]
@@ -136,11 +134,9 @@ def client_my_tickets(
 @router.get("/tickets/client/{ticket_id}", summary="Detalle de ticket (cliente portal)")
 def get_ticket_client(
     ticket_id: str,
-    authorization: Optional[str] = Header(None),
-    portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
+    client=Depends(get_current_portal_client),
 ):
-    client = require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
     return APIResponse.ok(data=client_ticket_detail_payload(db, client.id, ticket_id, _ticket_out))
 
 
@@ -159,11 +155,9 @@ def create_ticket(payload: TicketCreateIn, db: Session = Depends(get_db), curren
 @router.post("/tickets/client", summary="Crear ticket desde portal cliente")
 def create_ticket_client(
     payload: TicketCreateIn,
-    authorization: Optional[str] = Header(None),
-    portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
+    client=Depends(get_current_portal_client),
 ):
-    client = require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
     ticket = build_client_portal_ticket(db, payload, client)
     _commit_or_rollback(db); db.refresh(ticket)
     return APIResponse.ok(data=_ticket_out(ticket))
@@ -213,12 +207,10 @@ def add_comment(
 @router.post("/tickets/{ticket_id}/comments/client", summary="Comentario del cliente")
 def add_client_comment(
     ticket_id: str, payload: CommentIn,
-    authorization: Optional[str] = Header(None),
-    portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
+    client=Depends(get_current_portal_client),
 ):
-    client = require_portal_client(authorization, portal_access_token, db, detail="No autorizado")
-    ticket = get_ticket_for_client_comment_or_404(db, ticket_id)
+    ticket = get_ticket_for_client_comment_or_404(db, ticket_id, client.id)
     comment = add_client_comment_svc(db, ticket, ticket_id, payload.body, client.id)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"id": comment.id, "created_at": str(comment.created_at)[:16]})
@@ -258,12 +250,10 @@ def escalate_ticket(
 @router.post("/tickets/{ticket_id}/csat", summary="Valoración de satisfacción")
 def submit_csat(
     ticket_id: str, payload: CSATIn,
-    authorization: Optional[str] = Header(None),
-    portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
+    client=Depends(get_current_portal_client),
 ):
-    require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
-    result = submit_ticket_csat(db, ticket_id, payload.score, payload.comment)
+    result = submit_ticket_csat(db, ticket_id, client.id, payload.score, payload.comment)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
 

@@ -124,7 +124,7 @@ def test_create_automation_with_project(client, pm_token, db):
     project = client.post("/api/v1/projects", json={
         "name": "Auto Project", "code": "AUTO1",
         "status": "active", "billing_type": "time_material",
-    }, headers=auth(pm_token)).json()
+    }, headers=auth(pm_token)).json()["data"]
 
     res = client.post("/api/v1/automations", json={
         "name": "Project-scoped rule",
@@ -140,7 +140,7 @@ def test_list_automations_by_project(client, pm_token, db):
     project = client.post("/api/v1/projects", json={
         "name": "Filter Project", "code": "FP01",
         "status": "active", "billing_type": "time_material",
-    }, headers=auth(pm_token)).json()
+    }, headers=auth(pm_token)).json()["data"]
 
     client.post("/api/v1/automations", json={
         "name": "Scoped",

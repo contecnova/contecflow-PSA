@@ -114,7 +114,7 @@ def test_jira_webhook_updates_task_status(client, admin_token, pm_token, db):
         json={"project_id": project_id, "title": "Jira linked task", "status": "todo"},
         headers=auth(pm_token),
     )
-    task_id = task_res.json()["id"]
+    task_id = task_res.json()["data"]["id"]
 
     # Attach jira key directly via PATCH
     patch_res = client.patch(

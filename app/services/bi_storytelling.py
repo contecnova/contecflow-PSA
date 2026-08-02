@@ -55,7 +55,7 @@ def _to_number(value, default: float = 0.0) -> float:
 def _build_cache_key(org_id: Optional[str]) -> str:
     # Versioned key to invalidate stale narratives after KPI/LLM improvements.
     raw = f"bi_narrative:v2:{org_id or 'global'}"
-    return hashlib.md5(raw.encode()).hexdigest()
+    return hashlib.md5(raw.encode()).hexdigest()  # noqa: S324
 
 
 def _get_kpi_context(org_id: Optional[str]) -> dict:

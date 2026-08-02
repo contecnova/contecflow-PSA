@@ -2,6 +2,12 @@
 BI Embedded Analytics SDK — endpoints
 ========================================
 Iframes seguros, JS SDK configuration, SSO token exchange.
+
+EXENTO del envelope canónico a propósito (audit #67 / auditoría 2026-07): estos
+endpoints son un contrato con embebedores EXTERNOS (iframes de terceros y el JS SDK),
+no con nuestro frontend. `/sdk-config` es público. Envolver las respuestas en
+{data, meta} rompería a los consumidores del SDK. Mismo criterio que los endpoints
+de BI para PowerBI en app/api/v1/endpoints/mfa.py. No lo migres.
 """
 from __future__ import annotations
 

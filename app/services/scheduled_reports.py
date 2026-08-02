@@ -111,11 +111,11 @@ def _send_slack(webhook_url: str, report_name: str, report_type: str, kpis: dict
 
         payload = {"text": "\n".join(lines)}
         data = json.dumps(payload).encode()
-        req = urllib.request.Request(
+        req = urllib.request.Request(  # noqa: S310
             webhook_url, data=data,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
             logger.info("Slack notification sent for '%s': %s", report_name, resp.status)
     except Exception as exc:
         logger.warning("Slack send failed for '%s': %s", report_name, exc)

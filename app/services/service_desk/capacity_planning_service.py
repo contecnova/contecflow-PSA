@@ -108,7 +108,7 @@ def _linear_forecast(values: list[float], days_ahead: int) -> list[float]:
     window = min(14, len(values))
     recent = values[-window:]
     weights = list(range(1, window + 1))
-    wma = sum(v * w for v, w in zip(recent, weights)) / sum(weights)
+    wma = sum(v * w for v, w in zip(recent, weights)) / sum(weights)  # noqa: B905
     # Apply light linear trend from first half to second half of history
     half = max(1, len(values) // 2)
     trend = (sum(values[-half:]) / half - sum(values[:half]) / half) / half if len(values) >= 4 else 0

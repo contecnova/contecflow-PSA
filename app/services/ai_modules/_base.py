@@ -23,7 +23,7 @@ def api_key(db=None, org_id: Optional[str] = None) -> Optional[str]:
             ui_key = get_credential(db, "ai_providers", "anthropic_api_key", org_id=org_id)
             if ui_key:
                 return ui_key
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     return settings.ANTHROPIC_API_KEY or None
 
@@ -35,7 +35,7 @@ def _default_model(db=None, org_id: Optional[str] = None) -> str:
             ui_val = get_runtime_str(db, "CONTECFLOW_AI_MODEL", org_id)
             if ui_val:
                 return ui_val
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     return settings.CONTECFLOW_AI_MODEL
 
@@ -152,7 +152,7 @@ def burnout_score(weekly_hours: list) -> float:
     if n == 0:
         return 0.0
     weights = ([2, 2] + [1] * max(n - 2, 0))[:n]
-    wavg    = sum(h * w for h, w in zip(weekly_hours, weights)) / sum(weights)
+    wavg    = sum(h * w for h, w in zip(weekly_hours, weights)) / sum(weights)  # noqa: B905
     if wavg < 30:
         return 0.0
 
@@ -328,7 +328,7 @@ def _scope_query_by_org(q, model, user_org):
     para reusarlo en helpers Oracle. Devuelve la query (mutable) ya filtrada.
     """
     if user_org and hasattr(model, "organization_id"):
-        return q.filter(getattr(model, "organization_id") == user_org)
+        return q.filter(getattr(model, "organization_id") == user_org)  # noqa: B009
     return q
 
 

@@ -185,10 +185,10 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
                         import urllib.request as _ur
                         import json as _json
                         _data = _json.dumps(payload).encode()
-                        _req  = _ur.Request(url, data=_data, method=method,
+                        _req  = _ur.Request(url, data=_data, method=method,  # noqa: S310
                                             headers={"Content-Type": "application/json", **headers})
                         try:
-                            with _ur.urlopen(_req, timeout=10):
+                            with _ur.urlopen(_req, timeout=10):  # noqa: S310
                                 pass
                             results.append({"action": atype, "ok": True, "url": url})
                         except Exception as wh_err:

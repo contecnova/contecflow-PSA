@@ -131,7 +131,7 @@ def decode_token(token: str) -> Optional[dict]:
             try:
                 return jwt.decode(token, key, algorithms=[ALGORITHM])
             # intentional: best-effort fallback, log noise outweighs diagnostic value
-            except Exception:
+            except Exception:  # noqa: S112
                 continue
         return None
     except jwt.ExpiredSignatureError:

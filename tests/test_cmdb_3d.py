@@ -1,5 +1,4 @@
 """tests/test_cmdb_3d.py — Tests for CMDB 3D graph and Asset-CI linking endpoints."""
-import pytest
 from tests.conftest import auth
 
 

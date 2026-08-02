@@ -87,7 +87,7 @@ def test_jira_periodic_sync_handles_http_errors(db):
 
     with patch("httpx.post") as mock_post:
         mock_post.side_effect = httpx.ConnectError("Connection refused")
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             jira_periodic_sync()
 
 

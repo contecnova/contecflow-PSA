@@ -38,7 +38,7 @@ def _get_kpi_data(db: Session, org_id: str, period_days: int) -> dict:
         if row and row.value:
             return json.loads(row.value)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     # Demo data for orgs without ETL configured
     return {

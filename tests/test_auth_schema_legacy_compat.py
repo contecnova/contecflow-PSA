@@ -7,7 +7,7 @@ Reglas verificadas:
   2. Un cliente legacy que omite un campo "obligatorio" del schema NO
      recibe 422 — sigue obteniendo el 400 con mensaje legible del endpoint.
 """
-from tests.conftest import auth, _TEST_PASSWORD
+from tests.conftest import auth
 
 
 # ── 1. Extra fields silently ignored ────────────────────────────────────────

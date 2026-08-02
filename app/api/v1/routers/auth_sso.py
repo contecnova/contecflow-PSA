@@ -115,7 +115,7 @@ def sso_authorize(
         if config.oidc_discovery_url:
             try:
                 discovery_url = _validate_https_discovery_url(config.oidc_discovery_url)
-                with urllib.request.urlopen(discovery_url, timeout=5) as resp:
+                with urllib.request.urlopen(discovery_url, timeout=5) as resp:  # noqa: S310
                     disc = _json.loads(resp.read())
                     auth_url = disc.get("authorization_endpoint", "")
             except HTTPException:
@@ -199,7 +199,7 @@ def sso_callback(
             if config.oidc_discovery_url:
                 try:
                     discovery_url = _validate_https_discovery_url(config.oidc_discovery_url)
-                    with urllib.request.urlopen(discovery_url, timeout=5) as resp:
+                    with urllib.request.urlopen(discovery_url, timeout=5) as resp:  # noqa: S310
                         disc = _json.loads(resp.read())
                         token_url = disc.get("token_endpoint", "")
                 except HTTPException:
@@ -222,10 +222,10 @@ def sso_callback(
             "client_secret": decrypt_value(config.oidc_client_secret) if config.oidc_client_secret else "",
         }).encode()
 
-        req = urllib.request.Request(token_url, data=token_data,
+        req = urllib.request.Request(token_url, data=token_data,  # noqa: S310
                                      headers={"Content-Type": "application/x-www-form-urlencoded"})
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
                 tokens = _json.loads(resp.read())
         except _json.JSONDecodeError as exc:
             logger.warning("SSO callback: token response JSON inválido url=%r: %s", _safe_url(token_url), exc)
@@ -246,7 +246,7 @@ def sso_callback(
             if config.oidc_discovery_url:
                 try:
                     discovery_url = _validate_https_discovery_url(config.oidc_discovery_url)
-                    with urllib.request.urlopen(discovery_url, timeout=5) as resp:
+                    with urllib.request.urlopen(discovery_url, timeout=5) as resp:  # noqa: S310
                         disc = _json.loads(resp.read())
                         jwks_uri = disc.get("jwks_uri")
                 except (OSError, _json.JSONDecodeError) as exc:

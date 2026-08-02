@@ -1,5 +1,4 @@
 """tests/test_voice_agent.py — Tests for Voice Agent IVR endpoints."""
-import pytest
 from tests.conftest import auth
 
 

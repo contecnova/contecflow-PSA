@@ -92,9 +92,9 @@ def test_slash_commands(client, admin_token):
     cid = _conv_id(client, h)
     r = client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "poll", "args": "Q? | A | B"}, headers=h).json()["data"]
     assert r["success"]
-    r = client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "decision", "args": "X"}, headers=h).json()
+    r = client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "decision", "args": "X"}, headers=h).json()["data"]
     assert r["success"]
-    r = client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "recap", "args": ""}, headers=h).json()
+    r = client.post("/api/v1/collaboration/slash", json={"conversation_id": cid, "command": "recap", "args": ""}, headers=h).json()["data"]
     assert r["success"]
 
 

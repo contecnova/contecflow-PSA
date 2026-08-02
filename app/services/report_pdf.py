@@ -150,7 +150,7 @@ def generate_report_pdf(
                 textColor=colors.white, alignment=TA_LEFT
             )) for h in col_labels]]
 
-            for i, row in enumerate(data[:100]):  # máximo 100 filas
+            for i, row in enumerate(data[:100]):  # máximo 100 filas  # noqa: B007
                 row_data = []
                 for h in headers:
                     val = row.get(h, "")

@@ -48,7 +48,7 @@ class AzureSTTProvider(STTProvider):
                 ui_key    = get_credential(db, "ai_providers", "azure_speech_key", org_id=org_id)
                 ui_region = get_runtime_str(db, "AZURE_SPEECH_REGION", org_id)
                 ui_lang   = get_runtime_str(db, "AZURE_STT_LANGUAGE", org_id)
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
         self._api_key = api_key or ui_key or _azure_setting("AZURE_SPEECH_KEY")
         self._region = region or ui_region or _azure_setting("AZURE_SPEECH_REGION", "westeurope")

@@ -46,18 +46,18 @@ def test_list_and_delete_instances(client, admin_token, db):
     # List includes the new instance
     res = client.get("/api/v1/integrations/instances", headers=headers)
     assert res.status_code == 200
-    ids = [i["id"] for i in res.json()]
+    ids = [i["id"] for i in res.json()["items"]]
     assert instance_id in ids
 
     # Delete the instance
     res = client.delete(f"/api/v1/integrations/instances/{instance_id}", headers=headers)
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert res.json()["data"]["ok"] is True
 
     # List no longer includes deleted instance
     res = client.get("/api/v1/integrations/instances", headers=headers)
     assert res.status_code == 200
-    ids = [i["id"] for i in res.json()]
+    ids = [i["id"] for i in res.json()["items"]]
     assert instance_id not in ids
 
     # DB row remains but disabled

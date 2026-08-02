@@ -6,7 +6,6 @@ Test soft-delete pattern consistency across 4 critical resource types:
 """
 import pytest
 from sqlalchemy.orm import Session
-from fastapi.testclient import TestClient
 from app.models.custom_fields import WorkflowState, WorkflowTransition
 from app.models.resources import Deliverable, DeliverableStatus
 from app.models.imputation import Imputation

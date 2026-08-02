@@ -59,7 +59,7 @@ def migrate(sqlite_path: str, pg_url: str, batch_size: int = 500):
     for table_name in sorted(tables):
         try:
             with sqlite_eng.connect() as src:
-                rows = src.execute(text(f"SELECT * FROM \"{table_name}\"")).mappings().fetchall()
+                rows = src.execute(text(f"SELECT * FROM \"{table_name}\"")).mappings().fetchall()  # noqa: S608
 
             if not rows:
                 stats["empty"] += 1
@@ -91,8 +91,8 @@ def migrate(sqlite_path: str, pg_url: str, batch_size: int = 500):
     with sqlite_eng.connect() as src, pg_eng.connect() as dst:
         for table_name in sorted(tables)[:10]:
             try:
-                n_src = src.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar()
-                n_dst = dst.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar()
+                n_src = src.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar()  # noqa: S608
+                n_dst = dst.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar()  # noqa: S608
                 match = "✅" if n_src == n_dst else "⚠️ "
                 if n_src > 0:
                     logger.info(f"{match} {table_name}: {n_src} → {n_dst}")

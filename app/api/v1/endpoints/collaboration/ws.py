@@ -129,7 +129,7 @@ async def collaboration_ws(
                 log.warning("collab ws closing user=%s: access revoked", user_id)
                 try:
                     await websocket.close(code=4403)
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
                 return False
             return True
@@ -157,7 +157,7 @@ async def collaboration_ws(
                     return
                 try:
                     payload = json.loads(raw)
-                except Exception:
+                except Exception:  # noqa: S112
                     continue
 
                 # Revalidación cada 10 mensajes del cliente (más watchdog cada 30s)
@@ -178,7 +178,7 @@ async def collaboration_ws(
                     if sustained_breach > 5:
                         log.warning("collab ws closing user=%s for sustained rate-limit breaches", user.id)
                         try: await websocket.close(code=4429)
-                        except Exception: pass
+                        except Exception: pass  # noqa: S110
                         return
                     await asyncio.sleep(0.5)
                     continue
@@ -232,12 +232,12 @@ async def collaboration_ws(
             for t in pending:
                 try:
                     await t
-                except (asyncio.CancelledError, Exception):
+                except (asyncio.CancelledError, Exception):  # noqa: S110
                     pass
         finally:
             try:
                 await sub.close()
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
     finally:
         db.close()

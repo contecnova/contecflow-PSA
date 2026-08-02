@@ -58,6 +58,15 @@ def enforce_abac(
     try:
         svc = ABACService(db=db, org_id=str(org_id))
 
+        # Early-out: si la organización no tiene ninguna política activa, el
+        # resultado sería fail-open de todas formas. Salir aquí evita cargar los
+        # atributos del usuario y, sobre todo, evita el INSERT+COMMIT de auditoría.
+        # Importa desde que ABAC_ROUTE_REGISTRY cubre toda la API (auditoría
+        # 2026-07 §1.5): sin este corte, CADA request autenticada escribiría una
+        # fila en PolicyAudit.
+        if not svc.list_policies(active_only=True):
+            return
+
         user_role = user.role.value if hasattr(user.role, "value") else str(user.role or "employee")
         user_roles = [user_role]
 
@@ -68,15 +77,20 @@ def enforce_abac(
             resource_id   = resource_id,
         )
 
-        # Persist audit record
-        svc.audit_access_decision(
-            user_id         = str(user.id),
-            decision        = allowed,
-            matched_policies= matched_policies,
-            resource_type   = resource_type,
-            resource_id     = resource_id,
-            details         = details,
-        )
+        # Auditar solo cuando alguna política ha aplicado de verdad. Un
+        # "access_allowed" con matched_policies=[] es el camino fail-open: no
+        # aporta señal de seguridad y, con cobertura total del registro, generaría
+        # una fila de auditoría por request. Las denegaciones siempre se auditan,
+        # porque una denegación implica que hubo política que matcheó.
+        if matched_policies:
+            svc.audit_access_decision(
+                user_id         = str(user.id),
+                decision        = allowed,
+                matched_policies= matched_policies,
+                resource_type   = resource_type,
+                resource_id     = resource_id,
+                details         = details,
+            )
 
         if not allowed:
             # Fail-open: if no policies matched at all, RBAC already guards the endpoint
@@ -92,7 +106,7 @@ def enforce_abac(
                     resource_type=resource_type or "unknown",
                     action=action or "unknown",
                 ).inc()
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
             raise HTTPException(
                 status_code=403,

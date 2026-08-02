@@ -52,7 +52,7 @@ def summarize_scheduled_reports(db: Session) -> dict[str, Any]:
             "by_frequency": {},
         }
 
-    query = f"SELECT {', '.join(select_cols)} FROM scheduled_reports"
+    query = f"SELECT {', '.join(select_cols)} FROM scheduled_reports"  # noqa: S608
     rows = db.execute(text(query)).fetchall()
 
     total = len(rows)

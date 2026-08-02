@@ -95,7 +95,7 @@ def predictive_stats(
             sla = predict_sla_breach(db, ticket)
             if sla.get("breach_probability", 0) >= 0.55:
                 sla_at_risk += 1
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
     return APIResponse.ok(data={

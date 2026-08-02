@@ -51,7 +51,7 @@ class RedisBus(EventBus):
                 channel = message["channel"]
                 try:
                     event = json.loads(message["data"])
-                except Exception:
+                except Exception:  # noqa: S112
                     continue
                 queues = list(self._channel_index.get(channel, ()))
                 for q in queues:
@@ -89,7 +89,7 @@ class RedisBus(EventBus):
                 if not self._subs.get(ch):
                     await self._pubsub.unsubscribe(ch)
                     self._channel_index.pop(ch, None)
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
 

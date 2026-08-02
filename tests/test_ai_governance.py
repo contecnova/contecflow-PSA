@@ -262,7 +262,7 @@ class TestAIGovernanceAPI:
 
         get_res = client.get(f"/api/v1/ai-governance/policies/{policy_id}", headers=auth(admin_with_org))
         assert get_res.status_code == 200
-        assert get_res.json()["id"] == policy_id
+        assert get_res.json()["data"]["id"] == policy_id
 
     def test_update_policy(self, client, admin_with_org):
         payload = {
@@ -285,7 +285,7 @@ class TestAIGovernanceAPI:
             headers=auth(admin_with_org),
         )
         assert update_res.status_code == 200
-        assert update_res.json()["priority"] == 99
+        assert update_res.json()["data"]["priority"] == 99
 
     def test_delete_policy_deactivates(self, client, admin_with_org):
         payload = {
@@ -307,14 +307,14 @@ class TestAIGovernanceAPI:
 
         get_res = client.get(f"/api/v1/ai-governance/policies/{policy_id}", headers=auth(admin_with_org))
         assert get_res.status_code == 200
-        assert get_res.json()["is_active"] is False
+        assert get_res.json()["data"]["is_active"] is False
 
     def test_audit_log_accessible_admin(self, client, admin_with_org):
         res = client.get("/api/v1/ai-governance/audit-log", headers=auth(admin_with_org))
         assert res.status_code == 200
-        data = res.json()["items"]
-        assert "items" in data
-        assert "total" in data
+        payload = res.json()
+        assert isinstance(payload["items"], list)
+        assert "total" in payload["meta"]
 
     def test_audit_log_stats(self, client, admin_with_org):
         res = client.get("/api/v1/ai-governance/audit-log/stats", headers=auth(admin_with_org))
@@ -330,7 +330,7 @@ class TestAIGovernanceAPI:
             headers=auth(admin_with_org),
         )
         assert res.status_code == 200
-        assert "allowed" in res.json()
+        assert "allowed" in res.json()["data"]
 
     def test_check_output_admin_tool(self, client, admin_with_org):
         res = client.post(
@@ -339,7 +339,7 @@ class TestAIGovernanceAPI:
             headers=auth(admin_with_org),
         )
         assert res.status_code == 200
-        assert "allowed" in res.json()
+        assert "allowed" in res.json()["data"]
 
     def test_policy_invalid_scope_rejected(self, client, admin_with_org):
         payload = {

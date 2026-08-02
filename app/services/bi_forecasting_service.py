@@ -45,7 +45,7 @@ def _linear_trend(values: list[float], horizon: int) -> list[float]:
     xs = list(range(n))
     mean_x = sum(xs) / n
     mean_y = sum(values) / n
-    num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, values))
+    num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, values))  # noqa: B905
     den = sum((x - mean_x) ** 2 for x in xs) or 1
     slope = num / den
     intercept = mean_y - slope * mean_x

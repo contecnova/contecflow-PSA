@@ -31,7 +31,7 @@ def test_workflow_designer_create_and_publish(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert publish.status_code == 200
-    assert publish.json()["published_version"] == 1
+    assert publish.json()["data"]["published_version"] == 1
 
 
 def test_kb_versioning_and_rollback(client, admin_token, db):

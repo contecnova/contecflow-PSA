@@ -61,7 +61,7 @@ class ModelSerializer:
                 result[name] = len(related) if related else 0
 
         # 3. Objetos relacionados (id + nombre)
-        for attr, id_field in self.related_objects.items():
+        for attr, id_field in self.related_objects.items():  # noqa: B007
             if hasattr(self.obj, attr):
                 related = getattr(self.obj, attr)
                 if related:

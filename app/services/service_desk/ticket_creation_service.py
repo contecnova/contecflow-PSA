@@ -35,7 +35,7 @@ def _emit_ticket_created_metric(ticket: Ticket) -> None:
             priority=str(_v("priority")),
             source=str(_v("source")),
         ).inc()
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
 

@@ -40,7 +40,7 @@ def _create_task(client, token, project_id, title="Task A", start_date=None, due
         payload["due_date"] = str(due_date)
     res = client.post("/api/v1/tasks", json=payload, headers=auth(token))
     assert res.status_code in (200, 201), res.text
-    return res.json()
+    return res.json()["data"]
 
 
 # ── Resource Leveling ─────────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ class TestCascadeReschedule:
             headers=auth(pm_token),
         )
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         assert "rescheduled" in data
         assert len(data["rescheduled"]) >= 1
         # Root task should be in the list
@@ -154,8 +154,10 @@ class TestCascadeReschedule:
             headers=auth(pm_token),
         )
         assert res.status_code == 200
-        data = res.json()
-        assert data["total_shifted"] == 0 or "No hay cambio" in data.get("message", "")
+        data = res.json()["data"]
+        # .get() en los dos lados: cuando no hay reprogramación el servicio devuelve
+        # solo {"message": ...}, así que indexar directo revienta antes del `or`.
+        assert data.get("total_shifted") == 0 or "No hay cambio" in data.get("message", "")
 
 
 # ── Pipeline Forecast ─────────────────────────────────────────────────────────
@@ -279,7 +281,7 @@ class TestAutomationWorkflow:
             "actions": [
                 {"type": "wait_step", "params": {"delay_hours": 1, "label": "Esperar 1h"}},
             ],
-        }, headers=auth(admin_token)).json()
+        }, headers=auth(admin_token)).json()["data"]
 
         res = client.post(f"/api/v1/automations/{rule['id']}/test", headers=auth(admin_token))
         assert res.status_code == 200

@@ -4,7 +4,6 @@ from app.models.settings import AppSetting
 from app.services.predictive_retraining_service import (
     ITSM_META_KEY,
     BI_META_KEY,
-    LAST_EVAL_KEY,
 )
 
 

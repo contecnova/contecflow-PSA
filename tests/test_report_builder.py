@@ -183,7 +183,7 @@ class TestReportTemplates:
         self._create_template(client, admin_token, "Template B")
         res = client.get("/api/v1/reports/templates", headers=auth(admin_token))
         assert res.status_code == 200
-        names = [t.get("name") for t in res.json()]
+        names = [t.get("name") for t in res.json()["items"]]
         assert "Template A" in names
         assert "Template B" in names
 

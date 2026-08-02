@@ -4,7 +4,7 @@ from tests.conftest import auth
 def test_sync_status(client, admin_token, db):
     res = client.get("/api/v1/accounting/sync-status", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()
+    data = res.json()["data"]
     assert "invoices" in data
     assert "active_integrations" in data
 

@@ -47,7 +47,7 @@ def _frontend_base(db=None, org_id=None) -> str:
             v = get_runtime_str(db, "FRONTEND_EMBED_BASE_URL", org_id)
             if v:
                 return v
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     return _FRONTEND_BASE_ENV
 

@@ -1,5 +1,4 @@
 """Tests para Organization.require_mfa enforcement en el login flow."""
-import os
 import json
 from tests.conftest import auth, _TEST_PASSWORD
 

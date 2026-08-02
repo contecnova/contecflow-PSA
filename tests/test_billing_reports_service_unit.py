@@ -366,12 +366,12 @@ class TestValidateImportCsv:
 
     def test_empty_rows_returns_error(self):
         content = b"name,code,status,project_type\n"
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             validate_import_csv("projects", content)
 
     def test_unknown_entity_type_raises(self):
         content = b"col1\nval1\n"
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             validate_import_csv("unknown_type", content)
 
     def test_preview_contains_first_row(self):

@@ -274,7 +274,7 @@ def webauthn_register_start(
     )
     challenge = _b64url_encode(options.challenge)
     challenge_token = _create_ephemeral_token(
-        token_type="webauthn_register_challenge",
+        token_type="webauthn_register_challenge",  # noqa: S106
         subject=current_user.id,
         challenge=challenge,
     )
@@ -407,7 +407,7 @@ def webauthn_auth_start(
     )
     challenge = _b64url_encode(options.challenge)
     webauthn_challenge_token = _create_ephemeral_token(
-        token_type="webauthn_auth_challenge",
+        token_type="webauthn_auth_challenge",  # noqa: S106
         subject=user.id,
         challenge=challenge,
     )

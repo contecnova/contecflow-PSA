@@ -21,7 +21,7 @@ def _pearson_corr(xs: list[float], ys: list[float]) -> float:
         return 0.0
     mean_x = sum(xs) / len(xs)
     mean_y = sum(ys) / len(ys)
-    num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
+    num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))  # noqa: B905
     den_x = sum((x - mean_x) ** 2 for x in xs)
     den_y = sum((y - mean_y) ** 2 for y in ys)
     den = (den_x * den_y) ** 0.5

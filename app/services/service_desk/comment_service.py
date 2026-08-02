@@ -43,10 +43,20 @@ def add_internal_comment(
     return comment
 
 
-def get_ticket_or_404(db: Session, ticket_id: str) -> Ticket:
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+def get_client_ticket_or_404(db: Session, ticket_id: str, client_id: str) -> Ticket:
+    """Ticket acotado al cliente de portal solicitante.
+
+    client_id es OBLIGATORIO: sin este filtro cualquier cliente autenticado del
+    portal podría comentar (is_public=True) en el ticket de otro cliente (IDOR).
+    404 en lugar de 403 para no revelar la existencia del ticket ajeno.
+    """
+    ticket = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket_id, Ticket.requester_client_id == client_id)
+        .first()
+    )
     if not ticket:
-        raise HTTPException(404)
+        raise HTTPException(404, "Ticket no encontrado")
     return ticket
 
 

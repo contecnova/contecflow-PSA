@@ -29,7 +29,7 @@ def test_task_create_with_in_review_status(client, pm_token, db):
         "status": "in_review",
     }, headers=auth(pm_token))
     assert r.status_code in (200, 201), r.text
-    assert r.json()["status"] == "in_review"
+    assert r.json()["data"]["status"] == "in_review"
 
 
 def test_task_patch_to_in_review(client, pm_token, db):
@@ -38,7 +38,7 @@ def test_task_patch_to_in_review(client, pm_token, db):
     task_r = client.post("/api/v1/tasks", json={
         "project_id": pid, "title": "Task A", "priority": "low",
     }, headers=auth(pm_token))
-    tid = task_r.json()["id"]
+    tid = task_r.json()["data"]["id"]
 
     # Advance to in_progress first (todo → in_progress is allowed)
     r = client.patch(f"/api/v1/tasks/{tid}", json={"status": "in_progress"}, headers=auth(pm_token))
@@ -47,7 +47,7 @@ def test_task_patch_to_in_review(client, pm_token, db):
     # Now transition to in_review
     r = client.patch(f"/api/v1/tasks/{tid}", json={"status": "in_review"}, headers=auth(pm_token))
     assert r.status_code == 200, r.text
-    assert r.json()["status"] == "in_review"
+    assert r.json()["data"]["status"] == "in_review"
 
 
 def test_task_status_in_review_in_list(client, pm_token, db):

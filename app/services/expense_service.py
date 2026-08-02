@@ -221,7 +221,7 @@ async def ocr_receipt(image_bytes: bytes, content_type: str) -> dict:
         }],
     }
     data = _json.dumps(payload).encode()
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310
         f"{settings.ANTHROPIC_API_URL}/messages",
         data=data,
         headers={
@@ -231,7 +231,7 @@ async def ocr_receipt(image_bytes: bytes, content_type: str) -> dict:
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
             response_body = _json.loads(resp.read().decode())
 
         raw_text = response_body["content"][0]["text"].strip()

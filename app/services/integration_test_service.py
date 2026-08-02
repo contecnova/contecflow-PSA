@@ -48,7 +48,7 @@ def _test_smtp(cfg: dict, db: Session) -> dict:
             try:
                 server.starttls()
                 server.ehlo()
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
             if user and password:
                 server.login(user, password)

@@ -5,6 +5,7 @@ def seed_enterprise():
     """Seed enterprise demo data: webhooks, SSO config, subcontractors, revenue forecast."""
     from app.db.session import SessionLocal
     import json
+    import secrets
     from datetime import date, timedelta
     from app.models.user import User
     from app.models.project import Project
@@ -50,7 +51,9 @@ def seed_enterprise():
         Webhook(
             name="ERP interno — Sincronización horas",
             url="https://erp.empresa.com/api/contecflow/timesheets",
-            secret="s3cr3t-hmac-key-example",
+            # Secreto HMAC generado en cada seed: nunca un valor fijo en el repo, para
+            # que activar este webhook de demo no implique una clave de firma pública.
+            secret=secrets.token_urlsafe(32),
             events=json.dumps(["timesheet.approved","expense.approved"]),
             is_active=False,
             total_deliveries=12, failed_deliveries=5,

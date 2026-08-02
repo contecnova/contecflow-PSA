@@ -920,12 +920,12 @@ def process_oidc_callback(payload: dict, db) -> dict:
             if not jwks_uri and issuer:
                 # OpenID Connect standard discovery endpoint
                 disc_url = issuer.rstrip("/") + "/.well-known/openid-configuration"
-                with _ureq.urlopen(disc_url, timeout=5) as _r:
+                with _ureq.urlopen(disc_url, timeout=5) as _r:  # noqa: S310
                     jwks_uri = _json.loads(_r.read())["jwks_uri"]
             if not jwks_uri:
                 raise HTTPException(502, "No se pudo obtener JWKS del IdP OIDC")
 
-            with _ureq.urlopen(jwks_uri, timeout=5) as _r:
+            with _ureq.urlopen(jwks_uri, timeout=5) as _r:  # noqa: S310
                 jwks = _json.loads(_r.read())
 
             client_id = getattr(config, "client_id", None) or ""

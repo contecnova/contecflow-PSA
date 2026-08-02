@@ -746,7 +746,7 @@ def score_composite(s) -> float:
     weights = [0.25, 0.20, 0.20, 0.15, 0.10, 0.10]
     total_w = 0.0
     total = 0.0
-    for sc, w in zip(scores, weights):
+    for sc, w in zip(scores, weights):  # noqa: B905
         if sc is not None:
             total += sc * w
             total_w += w

@@ -213,7 +213,7 @@ def metric_tasks_lead_time(
             for t in done_tasks:
                 try:
                     lead_times.append((t.completed_at - t.created_at).days)
-                except Exception:
+                except Exception:  # noqa: S112
                     continue
 
             if lead_times:

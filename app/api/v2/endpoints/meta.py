@@ -1,4 +1,10 @@
-"""v2 meta endpoints — version information and change-log for API consumers."""
+"""v2 meta endpoints — version information and change-log for API consumers.
+
+EXENTO del envelope canónico a propósito (audit #67 / auditoría 2026-07): este es el
+endpoint de descubrimiento de versión, es público y lo consumen clientes externos que
+leen `api_version` en la raíz del body. Envolverlo en {data, meta} rompería a esos
+consumidores sin ningún beneficio. No lo migres.
+"""
 from fastapi import APIRouter
 from app.core.config import settings
 

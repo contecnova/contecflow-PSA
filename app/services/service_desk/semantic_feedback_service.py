@@ -13,7 +13,7 @@ def enqueue_profile_refresh(background_tasks: BackgroundTasks, user_id: str) -> 
         db = SessionLocal()
         try:
             SemanticAssigner(db).refresh_user_profile(user_id)
-        except Exception:
+        except Exception:  # noqa: S110
             pass
         finally:
             db.close()

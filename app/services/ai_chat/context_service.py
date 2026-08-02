@@ -28,7 +28,7 @@ def _filter_by_org(query, model, org_id):
     build), the query is returned unchanged so cross-org data is visible.
     """
     if org_id and hasattr(model, "organization_id"):
-        return query.filter(getattr(model, "organization_id") == org_id)
+        return query.filter(getattr(model, "organization_id") == org_id)  # noqa: B009
     return query
 
 

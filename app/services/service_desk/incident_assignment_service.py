@@ -231,7 +231,7 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
             try:
                 db.rollback()
             # intentional: cleanup path, logging would cascade
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
             members = []
 
@@ -260,7 +260,7 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
                 try:
                     db.rollback()
                 # intentional: cleanup path, logging would cascade
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
                 load_by_user = {}
 
@@ -308,7 +308,7 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
                 try:
                     db.rollback()
                 # intentional: cleanup path, logging would cascade
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
                 total_unassigned = 0
 
@@ -328,7 +328,7 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
         try:
             db.rollback()
         # intentional: cleanup path, logging would cascade
-        except Exception:
+        except Exception:  # noqa: S110
             pass
         return {
             "agent_loads": [],

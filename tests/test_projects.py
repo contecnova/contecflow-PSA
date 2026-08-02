@@ -42,7 +42,7 @@ def test_get_project_by_id(client, pm_token, db):
     pid = create.json()["data"]["id"]
     res = client.get(f"/api/v1/projects/{pid}", headers=auth(pm_token))
     assert res.status_code == 200
-    assert res.json()["id"] == pid
+    assert res.json()["data"]["id"] == pid
 
 
 def test_update_project_status(client, pm_token, db):
@@ -50,7 +50,7 @@ def test_update_project_status(client, pm_token, db):
     pid = create.json()["data"]["id"]
     res = client.patch(f"/api/v1/projects/{pid}", json={"status": "active"}, headers=auth(pm_token))
     assert res.status_code == 200
-    assert res.json()["status"] == "active"
+    assert res.json()["data"]["status"] == "active"
 
 
 def test_project_not_found(client, admin_token, db):
@@ -91,14 +91,14 @@ def test_project_member_remove_is_soft_and_reactivable(client, admin_token, db):
         headers=auth(admin_token),
     )
     assert add.status_code in (200, 201), add.text
-    member_id = add.json()["id"]
+    member_id = add.json()["data"]["id"]
 
     remove = client.delete(f"/api/v1/projects/{pid}/members/{member_id}", headers=auth(admin_token))
     assert remove.status_code == 200
 
     listed = client.get(f"/api/v1/projects/{pid}/members", headers=auth(admin_token))
     assert listed.status_code == 200
-    ids = [m["id"] for m in listed.json()]
+    ids = [m["id"] for m in listed.json()["items"]]
     assert member_id not in ids
 
     # Re-adding same user should reactivate previous row (no duplicate conflict)

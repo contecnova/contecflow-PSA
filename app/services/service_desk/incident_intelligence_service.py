@@ -43,7 +43,7 @@ def _ticket_category_value(t) -> Optional[str]:
         if cat_id:
             return str(cat_id)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     tt = getattr(t, "ticket_type", None)
     if tt is None:
@@ -72,7 +72,7 @@ def _cosine_similarity(v1: list[float], v2: list[float]) -> float:
     """Cosine similarity between two vectors. Returns 0.0 on dimension mismatch."""
     if len(v1) != len(v2) or not v1:
         return 0.0
-    dot = sum(a * b for a, b in zip(v1, v2))
+    dot = sum(a * b for a, b in zip(v1, v2))  # noqa: B905
     norm1 = sum(a * a for a in v1) ** 0.5
     norm2 = sum(b * b for b in v2) ** 0.5
     if norm1 == 0 or norm2 == 0:

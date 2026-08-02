@@ -61,7 +61,7 @@ class TestImputationCostCalculation:
         pid = _make_project(client, admin_token, "FC01")
         r = _log_hours(client, dev_token, pid, 4.0)
         assert r.status_code in (200, 201)
-        data = r.json()
+        data = r.json()["data"]
         assert data["hours"] == 4.0
         # El cost_amount debe ser 4 × 50 = 200 (si está expuesto en la respuesta)
         if "cost_amount" in data:
@@ -263,7 +263,7 @@ class TestContracts:
     def test_create_contract(self, client, admin_token, db):
         r = self._create_contract(client, admin_token)
         assert r.status_code in (200, 201), f"Contract creation failed: {r.text}"
-        data = r.json()
+        data = r.json()["data"]
         assert data["total_amount"] == 75000
 
     def test_employee_cannot_create_contract(self, client, admin_token, dev_token, db):
@@ -280,11 +280,11 @@ class TestContracts:
         assert len(items) >= 1
 
     def test_contract_update_amount(self, client, admin_token, db):
-        cid = self._create_contract(client, admin_token, "CNT-FC04").json()["id"]
+        cid = self._create_contract(client, admin_token, "CNT-FC04").json()["data"]["id"]
         r = client.patch(f"/api/v1/contracts/{cid}", headers=auth(admin_token),
                          json={"total_amount": 90000})
         assert r.status_code == 200
-        assert r.json()["total_amount"] == 90000
+        assert r.json()["data"]["total_amount"] == 90000
 
 
 # ── Profitabilidad — Casos límite ──────────────────────────────────────────────
@@ -377,7 +377,7 @@ class TestExpenseApproval:
             json={"approved": True},
         )
         assert r.status_code == 200, f"Expected 200 approving expense but got {r.status_code}: {r.text}"
-        body = r.json()
+        body = r.json()["data"]
         # El gasto aprobado debe reflejar el cambio de estado
         status = body.get("status") or body.get("expense", {}).get("status")
         assert status in ("approved", "reviewed"), f"Expected approved status, got: {body}"

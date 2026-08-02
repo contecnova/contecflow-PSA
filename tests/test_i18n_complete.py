@@ -207,4 +207,4 @@ def test_no_lang_has_extra_keys_vs_english():
                 report_lines.append(f"    ... and {len(keys) - 10} more")
         # Warn but don't fail — extra keys are less critical than missing ones
         import warnings
-        warnings.warn("i18n extra key warnings (not failures):" + "".join(report_lines))
+        warnings.warn("i18n extra key warnings (not failures):" + "".join(report_lines))  # noqa: B028

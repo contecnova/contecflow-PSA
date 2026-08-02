@@ -1,5 +1,4 @@
 """tests/test_bi_etl.py — Tests for BI ETL Connector endpoints."""
-import pytest
 from tests.conftest import auth
 
 

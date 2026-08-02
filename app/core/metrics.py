@@ -118,7 +118,7 @@ class track_external_call:
         try:
             external_api_latency_seconds.labels(provider=self.provider).observe(elapsed)
             external_api_calls_total.labels(provider=self.provider, outcome=outcome).inc()
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
 
@@ -147,7 +147,7 @@ def attach_apscheduler_metrics(scheduler) -> None:
     def _on_submitted(event) -> None:
         try:
             _starts[event.job_id] = _t.perf_counter()
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
     def _on_finished(event) -> None:
@@ -160,7 +160,7 @@ def attach_apscheduler_metrics(scheduler) -> None:
             scheduled_job_duration_seconds.labels(
                 job_name=event.job_id, status=status
             ).observe(elapsed)
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
     scheduler.add_listener(_on_submitted, EVENT_JOB_SUBMITTED)
@@ -285,7 +285,7 @@ def setup_metrics(app: FastAPI) -> bool:
             version=settings.VERSION,
             environment=settings.ENVIRONMENT,
         ).set(1)
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     auth_state = "with Bearer auth" if settings.METRICS_AUTH_TOKEN else "unauthenticated"

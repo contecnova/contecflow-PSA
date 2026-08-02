@@ -49,7 +49,7 @@ def _setting(name: str, default: str = "", db=None, org_id=None) -> str:
             v = get_runtime_str(db, name, org_id)
             if v:
                 return v
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     return getattr(settings, name, None) or os.environ.get(name, default) or default
 
@@ -140,7 +140,7 @@ def transcribe_audio(
             "Ningún STT provider está disponible. Configura credenciales para "
             f"al menos uno de: {', '.join(_PROVIDER_REGISTRY.keys())}",
         )
-    assert last_error is not None  # defensive
+    assert last_error is not None  # defensive  # noqa: S101
     raise last_error
 
 

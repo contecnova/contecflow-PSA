@@ -264,7 +264,7 @@ def score_agent_for_ticket_ml(db: Session, user: User, ticket: Ticket) -> dict[s
             if si:
                 category_id = si.category_id
     # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # Multi-tenant: aislamos el histórico por organization_id del ticket.
@@ -368,7 +368,7 @@ def record_routing_event(db: Session, ticket: Ticket) -> None:
                 if si:
                     category_id = si.category_id
         # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         row = RoutingFeedback(

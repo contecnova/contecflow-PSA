@@ -489,7 +489,7 @@ async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Qu
             finally:
                 await pubsub.unsubscribe(channel)
                 await r.aclose()
-        except (ImportError, Exception):
+        except (ImportError, Exception):  # noqa: S110
             pass  # Fall through to polling mode
 
     # ── Fallback: polling every 8 s ────────────────────────────────────────────

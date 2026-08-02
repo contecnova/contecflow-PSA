@@ -1,5 +1,4 @@
 """tests/test_bi_governance.py — Tests for BI Governance endpoints."""
-import pytest
 from tests.conftest import auth
 
 

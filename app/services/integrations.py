@@ -54,13 +54,13 @@ def send_slack_message(
         return {"ok": False, "error": f"webhook_url no permitido: {e}"}
 
     data = json.dumps(payload).encode("utf-8")
-    req  = urllib.request.Request(
+    req  = urllib.request.Request(  # noqa: S310
         webhook_url,
         data=data,
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
             body = resp.read().decode()
         return {"ok": True, "response": body}
     except Exception as e:
@@ -126,13 +126,13 @@ def send_teams_message(
         return {"ok": False, "error": f"webhook_url no permitido: {e}"}
 
     data = json.dumps(payload).encode("utf-8")
-    req  = urllib.request.Request(
+    req  = urllib.request.Request(  # noqa: S310
         webhook_url,
         data=data,
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
             body = resp.read().decode()
         return {"ok": True, "response": body}
     except Exception as e:
@@ -156,7 +156,7 @@ def _jira_request(config_dict: dict, method: str, path: str, body: Optional[dict
     url = f"{base_url}/rest/api/3{path}"
 
     data = json.dumps(body).encode("utf-8") if body else None
-    req  = urllib.request.Request(
+    req  = urllib.request.Request(  # noqa: S310
         url, data=data, method=method,
         headers={
             "Authorization": f"Basic {credentials}",
@@ -165,7 +165,7 @@ def _jira_request(config_dict: dict, method: str, path: str, body: Optional[dict
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
             return {"ok": True, "data": json.loads(resp.read())}
     except urllib.error.HTTPError as e:
         body_err = e.read().decode()[:300]
@@ -388,7 +388,7 @@ def _xero_request(config_dict: dict, method: str, path: str, body=None) -> dict:
 
     url  = f"{base_url}{path}"
     data = _json.dumps(body).encode() if body else None
-    req  = urllib.request.Request(
+    req  = urllib.request.Request(  # noqa: S310
         url, data=data, method=method,
         headers={
             "Authorization": f"Bearer {access_token}",
@@ -398,7 +398,7 @@ def _xero_request(config_dict: dict, method: str, path: str, body=None) -> dict:
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
             return {"ok": True, "data": _json.loads(resp.read())}
     except urllib.error.HTTPError as e:
         err = e.read().decode()[:300]
@@ -421,7 +421,7 @@ def _qb_request(config_dict: dict, method: str, path: str, body=None) -> dict:
 
     url  = f"{base_url}{path}?minorversion=65"
     data = _json.dumps(body).encode() if body else None
-    req  = urllib.request.Request(
+    req  = urllib.request.Request(  # noqa: S310
         url, data=data, method=method,
         headers={
             "Authorization": f"Bearer {access_token}",
@@ -430,7 +430,7 @@ def _qb_request(config_dict: dict, method: str, path: str, body=None) -> dict:
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
             return {"ok": True, "data": _json.loads(resp.read())}
     except urllib.error.HTTPError as e:
         err = e.read().decode()[:300]

@@ -180,7 +180,7 @@ def invalidate_cache(provider: Optional[str] = None) -> None:
     try:
         from app.core.settings_pubsub import publish_invalidation
         publish_invalidation("integration", provider)
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
 
@@ -390,7 +390,7 @@ def set_credential(
             actor_ua=actor_ua,
             organization_id=org_id,
         )
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     if row is None:

@@ -339,7 +339,7 @@ def test_dynamic_forms_diff_and_context_options(client, admin_token, db):
         json={},
     )
     assert diff.status_code == 200
-    out = diff.json()
+    out = diff.json()["data"]
     assert "summary" in out
     assert "fields" in out
 
