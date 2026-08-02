@@ -76,6 +76,15 @@ export default defineConfig(({ mode }) => {
             if (id.includes('axios')) return 'vendor-axios'
             if (id.includes('date-fns')) return 'vendor-date'
             if (id.includes('zod')) return 'vendor-validation'
+            // Auditoría 2026-08 §7.b: estas cinco no tenían regla y caían todas en
+            // vendor-core, que llegó a 6,4 MB (1,95 MB gzip). Son librerías pesadas
+            // y de uso puntual (una o dos rutas cada una), así que separarlas evita
+            // pagarlas en la carga inicial.
+            if (id.includes('plotly.js') || id.includes('plotly-')) return 'vendor-plotly'
+            if (id.includes('bpmn-js') || id.includes('diagram-js') || id.includes('bpmn-moddle')) return 'vendor-bpmn'
+            if (id.includes('@xyflow')) return 'vendor-flow'
+            if (id.includes('livekit-client')) return 'vendor-livekit'
+            if (id.includes('/d3-') || id.includes('/d3/')) return 'vendor-d3'
             return 'vendor-core'
           },
         },

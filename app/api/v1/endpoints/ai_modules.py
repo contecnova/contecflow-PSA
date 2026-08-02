@@ -3,14 +3,16 @@ ai_modules — thin router delegating to app.services.ai_modules_service
 """
 import os
 from app.core.config import settings
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Body
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
+from app.services.service_desk.portal_auth_service import get_current_portal_client
 import app.services.ai_modules_service as _svc
 
 router = APIRouter()
@@ -393,15 +395,36 @@ Datos disponibles del proyecto:
 
 
 @router.post("/portal-ai/chat", summary="Chat IA en portal de cliente")
+# Rate limit: esto llama a un LLM de pago. Sin tope, un token de cliente filtrado
+# —o simplemente un bucle— quema presupuesto de proveedor sin freno.
+# (auditoría 2026-08, docs/AUDIT_2026_08_SECOND_PASS.md §6)
+@limiter.limit("20/minute")
 def client_portal_chat(
+    request: Request,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
+    client=Depends(get_current_portal_client),
 ):
+    """Chat IA del portal.
+
+    CAMBIO DE CONTRATO (auditoría 2026-08 §6): antes el token de cliente viajaba en
+    el body como `client_token`. Ahora se autentica por cookie de portal o cabecera
+    `Authorization`, como el resto de la superficie de portal. Motivos: un token en
+    el body acaba en logs con más facilidad, y la authz por dependencia sí es
+    auditable por herramientas (antes esta ruta figuraba como "pública" en el
+    guard-test de cobertura de authz).
+
+    El frontend ya usaba la variante por cookie (`POST /portal/ai-chat`), así que
+    este cambio no afecta a la aplicación; sí afectaría a integraciones externas que
+    siguieran enviando `client_token` en el body.
+    """
     try:
-        return APIResponse.ok(data=_svc.client_portal_chat(db, payload))
+        return APIResponse.ok(data=_svc.client_portal_chat_authenticated(
+            db, client, payload.get("message", ""), payload.get("session_id"),
+        ))
     except ValueError as e:
         err = str(e)
-        if "missing_fields" in err: raise HTTPException(400, "client_token and message required")
+        if "missing_fields" in err: raise HTTPException(400, "message required")
         if "invalid_token" in err: raise HTTPException(401, "Token de cliente inválido")
         raise HTTPException(400, err)
 

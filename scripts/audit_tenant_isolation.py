@@ -77,6 +77,8 @@ def main() -> int:
     print(f"[tenant-audit] candidates to review: {len(flagged)}")
     for rel, line_no, src in flagged[:200]:
         print(f"- {rel}:{line_no}: {src}")
+    if len(flagged) > 200:
+        print(f"[tenant-audit] ... y {len(flagged) - 200} más (listado truncado a 200)")
 
     if flagged:
         if args.strict:
@@ -91,6 +93,8 @@ def main() -> int:
             print(f"[tenant-audit] new entries: {len(new_entries)}")
             for item in new_entries[:200]:
                 print(f"+ {item}")
+            if len(new_entries) > 200:
+                print(f"[tenant-audit] ... y {len(new_entries) - 200} más (listado truncado a 200)")
             if new_entries:
                 print("[tenant-audit] STRICT FAIL: new unreviewed tenant findings detected.")
                 return 1

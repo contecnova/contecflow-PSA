@@ -107,11 +107,9 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     ("OPTIONS", "/api/v1/collaboration/tus"): "descubrimiento de capacidades TUS por spec",
     # ── Tickets WebSocket: la credencial se valida al abrir el socket ────────
     ("GET", "/api/v1/ws/portal-ticket"): "emite ticket WS de un solo uso para el portal",
-    # ── Chat de IA del portal ────────────────────────────────────────────────
-    # DEUDA CONOCIDA: sin autenticación, expuesto a abuso de coste. Debería exigir
-    # get_current_portal_client. Ver docs/AUDIT_2026_07_FULL.md.
-    ("POST", "/api/v1/portal-ai/chat"): "PENDIENTE: debe exigir cliente de portal",
-    ("POST", "/api/v1/ai-modules/portal-ai/chat"): "PENDIENTE: debe exigir cliente de portal",
+    # El chat IA del portal ya NO está aquí: desde la auditoría 2026-08 §6 exige
+    # Depends(get_current_portal_client) y tiene rate limit, así que lo cubre el
+    # camino normal de este test.
 }
 
 
