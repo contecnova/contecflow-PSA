@@ -32,8 +32,8 @@ class OpenAISTTProvider(STTProvider):
                 from app.services.integration_credentials_service import get_credential
                 ui_model = get_runtime_str(db, "OPENAI_STT_MODEL", org_id)
                 ui_key   = get_credential(db, "ai_providers", "openai_api_key", org_id=org_id)
-            except Exception:  # noqa: S110
-                pass
+            except Exception:
+                logger.debug("__init__: fallo best-effort ignorado", exc_info=True)
         self._model = (
             model
             or ui_model

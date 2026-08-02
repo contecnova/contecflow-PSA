@@ -314,8 +314,8 @@ def count_working_days(start, end, holidays: list) -> float:
             try:
                 holiday_dates.add(date.fromisoformat(h))
             # intentional: best-effort fallback, log noise outweighs diagnostic value
-            except Exception:  # noqa: S110
-                pass
+            except Exception:
+                logger.debug("count_working_days: fallo best-effort ignorado", exc_info=True)
     count = 0
     current = start
     while current <= end:

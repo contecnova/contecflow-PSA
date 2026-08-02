@@ -65,8 +65,8 @@ class GoogleSTTProvider(STTProvider):
                 from app.services.integration_credentials_service import get_credential
                 ui_key  = get_credential(db, "ai_providers", "google_stt_api_key", org_id=org_id)
                 ui_lang = get_runtime_str(db, "GOOGLE_STT_LANGUAGE", org_id)
-            except Exception:  # noqa: S110
-                pass
+            except Exception:
+                logger.debug("__init__: fallo best-effort ignorado", exc_info=True)
         self._api_key = api_key or ui_key or _google_setting("GOOGLE_STT_API_KEY")
         self._default_language = language or ui_lang or _google_setting("GOOGLE_STT_LANGUAGE", "es-ES")
 
