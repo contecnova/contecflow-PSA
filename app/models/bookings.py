@@ -156,7 +156,7 @@ class ApiKey(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)    # "Slack integration", "BI dashboard"
     key_hash    = Column(String(255), nullable=False, unique=True)  # bcrypt hash of the key
-    key_prefix  = Column(String(8), nullable=False)      # First 8 chars shown in UI: "nxpm_abc"
+    key_prefix  = Column(String(16), nullable=False)      # First chars shown in UI: "nxpm_abc"
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     scopes      = Column(Text, default='["read"]')        # JSON: ["read", "write", "admin"]
 

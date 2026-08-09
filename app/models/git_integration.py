@@ -1,6 +1,7 @@
 """Git integration models — PR/Deploy events linked to tasks."""
 
 import enum
+import uuid
 from app.core.timeutil import utcnow
 from sqlalchemy import Column, Integer, String, Enum as SAEnum, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
@@ -31,10 +32,10 @@ class GitProvider(str, enum.Enum):
 class GitPullRequest(Base):
     __tablename__ = "git_pull_requests"
 
-    id             = Column(Integer, primary_key=True, index=True)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    task_id        = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
-    project_id     = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
+    id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    task_id        = Column(String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
+    project_id     = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     provider       = Column(SAEnum(GitProvider), default=GitProvider.github)
     repo_full_name = Column(String(256), nullable=False)   # e.g. "org/repo"
     pr_number      = Column(Integer, nullable=False)
@@ -56,11 +57,11 @@ class GitPullRequest(Base):
 class GitDeployment(Base):
     __tablename__ = "git_deployments"
 
-    id             = Column(Integer, primary_key=True, index=True)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    task_id        = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
-    project_id     = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
-    pr_id          = Column(Integer, ForeignKey("git_pull_requests.id", ondelete="SET NULL"), nullable=True)
+    id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    task_id        = Column(String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
+    project_id     = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
+    pr_id          = Column(String(36), ForeignKey("git_pull_requests.id", ondelete="SET NULL"), nullable=True)
     provider       = Column(SAEnum(GitProvider), default=GitProvider.github)
     repo_full_name = Column(String(256))
     environment    = Column(String(128), default="production")

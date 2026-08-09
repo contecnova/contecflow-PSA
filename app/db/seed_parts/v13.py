@@ -111,7 +111,7 @@ def seed_v13():
         db.add(ApiKey(
             name="Integración BI Dashboard",
             key_hash=hashed,
-            key_prefix=raw_key[:12],
+            key_prefix=raw_key[:8],
             user_id=admin.id,
             scopes=json.dumps(["read"]),
             rate_limit_per_hour=500,

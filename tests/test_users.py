@@ -16,6 +16,14 @@ def test_list_users_no_auth(client, db):
     assert res.status_code in (401, 403)
 
 
+def test_list_users_accepts_large_page_size(client, admin_token, db):
+    res = client.get("/api/v1/users?page_size=500", headers=auth(admin_token))
+    assert res.status_code == 200
+    data = res.json()
+    assert isinstance(data, dict)
+    assert data.get("meta", {}).get("page_size") == 500
+
+
 def test_get_me(client, admin_token, db):
     res = client.get("/api/v1/auth/me", headers=auth(admin_token))
     assert res.status_code == 200

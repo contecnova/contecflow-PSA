@@ -84,7 +84,7 @@ class AssetType(str, enum.Enum):
     vm         = "vm"
     other      = "other"
 
-class AssetStatus(str, enum.Enum):
+class ALMAssetStatus(str, enum.Enum):
     in_use    = "in_use"
     available = "available"
     in_repair = "in_repair"
@@ -285,7 +285,7 @@ class ALMAsset(Base):
     serial_number       = Column(String(200), nullable=True, unique=True)
     asset_tag           = Column(String(100), nullable=True, unique=True)  # etiqueta física
 
-    status              = Column(Enum(AssetStatus), default=AssetStatus.available)
+    status              = Column(Enum(ALMAssetStatus, name='alm_assetstatus'), default=ALMAssetStatus.available)
     condition           = Column(Enum(AssetCondition), default=AssetCondition.good)
     is_active           = Column(Boolean, default=True)
 

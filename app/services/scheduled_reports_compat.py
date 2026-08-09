@@ -15,26 +15,28 @@ from sqlalchemy.orm import Session
 
 def summarize_scheduled_reports(db: Session) -> dict[str, Any]:
     """Return safe aggregates from scheduled_reports, tolerating schema drift."""
+    _EMPTY = {"total": 0, "active": 0, "errored": 0, "with_slack": 0, "by_frequency": {}}
     try:
-        pragma_rows = db.execute(text("PRAGMA table_info('scheduled_reports')")).fetchall()
+        from sqlalchemy import inspect as sa_inspect
+        bind = db.get_bind()
+        dialect = bind.dialect.name
+        if dialect == "sqlite":
+            pragma_rows = db.execute(text("PRAGMA table_info('scheduled_reports')")).fetchall()
+            columns = {row[1] for row in pragma_rows}
+        else:
+            # PostgreSQL / other: use information_schema (no PRAGMA support)
+            result = db.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name = 'scheduled_reports' AND table_schema = 'public'"
+                )
+            ).fetchall()
+            columns = {row[0] for row in result}
     except Exception:
-        return {
-            "total": 0,
-            "active": 0,
-            "errored": 0,
-            "with_slack": 0,
-            "by_frequency": {},
-        }
-
-    columns = {row[1] for row in pragma_rows}
+        db.rollback()
+        return _EMPTY
     if not columns:
-        return {
-            "total": 0,
-            "active": 0,
-            "errored": 0,
-            "with_slack": 0,
-            "by_frequency": {},
-        }
+        return _EMPTY
 
     # Read only available columns to avoid selecting missing ones.
     select_cols = []
@@ -44,13 +46,7 @@ def summarize_scheduled_reports(db: Session) -> dict[str, Any]:
 
     if not select_cols:
         # Table exists but none of the expected columns are available.
-        return {
-            "total": 0,
-            "active": 0,
-            "errored": 0,
-            "with_slack": 0,
-            "by_frequency": {},
-        }
+        return _EMPTY
 
     query = f"SELECT {', '.join(select_cols)} FROM scheduled_reports"  # noqa: S608
     rows = db.execute(text(query)).fetchall()

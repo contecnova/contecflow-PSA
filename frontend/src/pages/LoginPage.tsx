@@ -1,338 +1,601 @@
-import { useState } from 'react'
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import type { User } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import LangSelector from '../components/LangSelector'
 import { authApi } from '../services/api'
+import type { LoginResponse } from '../services/api/auth'
+import { resolveLoginResponse } from '../utils/loginFlow'
+import { startAuthentication, webauthnSupported } from '../lib/webauthn'
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function extractUser(data: LoginResponse): User {
+  return (data.user ?? {}) as unknown as User
+}
+
+function extractErrorMsg(
+  e: unknown,
+  fallback: string,
+): string {
+  const raw = (e as { response?: { data?: { detail?: string | Array<{ msg: string }> } } })
+    ?.response?.data?.detail
+  return Array.isArray(raw)
+    ? raw.map(d => d.msg).join(', ')
+    : (raw as string | undefined) ?? fallback
+}
+
+// ── styles (inline, using Contecflow CSS vars) ────────────────────────────────
+
+const st: Record<string, CSSProperties> = {
+  page: {
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'var(--surface-0)',
+    padding: '24px 16px',
+    position: 'relative',
+  },
+  langWrap: { position: 'absolute', top: 20, right: 24, zIndex: 10 },
+  card: {
+    width: '100%',
+    maxWidth: 400,
+    background: 'var(--surface-1)',
+    border: '1px solid var(--surface-4)',
+    borderRadius: 20,
+    padding: '36px 32px',
+    boxShadow: '0 8px 40px rgba(0,0,0,0.35)',
+  },
+  logo: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    gap: 10, marginBottom: 32,
+  },
+  logoIcon: {
+    width: 40, height: 40, background: 'var(--accent)', borderRadius: 12,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  logoText: { fontSize: 22, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.03em' },
+  label: {
+    display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-3)',
+    marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em',
+  },
+  input: {
+    width: '100%', height: 44, padding: '0 14px',
+    background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+    borderRadius: 12, color: 'var(--text-1)', fontSize: 14,
+    fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+    transition: 'border-color 0.15s',
+  },
+  inputTracked: {
+    width: '100%', height: 44, padding: '0 14px',
+    background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+    borderRadius: 12, color: 'var(--text-1)', fontSize: 18,
+    fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+    textAlign: 'center', letterSpacing: '0.3em', transition: 'border-color 0.15s',
+  },
+  btnPrimary: {
+    width: '100%', height: 44,
+    background: 'var(--accent)', color: '#fff', border: 'none',
+    borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+    transition: 'opacity 0.15s', fontFamily: 'inherit',
+  },
+  btnSecondary: {
+    width: '100%', height: 44,
+    background: 'transparent', color: 'var(--text-2)',
+    border: '1px solid var(--surface-4)', borderRadius: 12,
+    fontWeight: 600, fontSize: 14, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+    transition: 'background 0.15s, border-color 0.15s', fontFamily: 'inherit',
+  },
+  errorBanner: {
+    background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
+    borderRadius: 10, padding: '10px 14px', color: 'var(--danger)',
+    fontSize: 13, display: 'flex', alignItems: 'flex-start', gap: 8,
+  },
+  successBanner: {
+    background: 'var(--success-bg)', border: '1px solid var(--success-border)',
+    borderRadius: 10, padding: '10px 14px', color: 'var(--success)',
+    fontSize: 13, display: 'flex', alignItems: 'flex-start', gap: 8,
+  },
+  warningBanner: {
+    background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
+    borderRadius: 10, padding: '10px 14px', color: 'var(--warning)',
+    fontSize: 13, display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 16,
+  },
+  divider: { display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' },
+  dividerLine: { flex: 1, height: 1, background: 'var(--surface-4)' },
+  dividerText: {
+    fontSize: 11, fontWeight: 600, color: 'var(--text-4)',
+    textTransform: 'uppercase', letterSpacing: '0.1em',
+  },
+  footer: {
+    marginTop: 24, paddingTop: 20,
+    borderTop: '1px solid var(--surface-4)',
+    textAlign: 'center', fontSize: 12, color: 'var(--text-4)',
+  },
+  linkBtn: {
+    background: 'none', border: 'none', color: 'var(--accent)',
+    fontSize: 13, cursor: 'pointer', padding: 0, fontFamily: 'inherit', fontWeight: 500,
+  },
+  form: { display: 'flex', flexDirection: 'column', gap: 16 },
+}
+
+// ── SVG icons (inline, no external dependency) ────────────────────────────────
+
+function IconEye() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  )
+}
+
+function IconEyeOff() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  )
+}
+
+function IconPasskey() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="8" r="4"/>
+      <path d="M12 8h4M18 6v4"/>
+      <path d="M12 8v12a1 1 0 001 1h2"/>
+    </svg>
+  )
+}
+
+function IconShield() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+  )
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function LoginPage(): JSX.Element {
-  const { login, sessionExpired } = useAuth()
+  const { acceptSession, sessionExpired } = useAuth()
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const t = useAppT()
-  const [form, setForm] = useState<{ username: string; password: string }>({ username: '', password: '' })
-  const [forgotInput, setForgotInput] = useState<string>('')
-  const [newPassword, setNewPassword] = useState('')
+
+  // credentials
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [trap, setTrap] = useState('') // honeypot
+
+  // feedback
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+
+  // busy states
   const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState(searchParams.get('reset_token') ? 'reset' : 'login')
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
+  const [ssoLoading, setSsoLoading] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
 
-  const resetToken = searchParams.get('reset_token') || ''
+  // MFA challenge
+  const [mfaChallengeToken, setMfaChallengeToken] = useState<string | null>(null)
+  const [mfaMethods, setMfaMethods] = useState<string[]>([])
+  const [mfaCode, setMfaCode] = useState('')
 
-  const handleSubmit = async () => {
-    if (!form.username || !form.password) { setError(t('login.input_error')); return }
-    setLoading(true)
-    setError('')
+  // SSO providers
+  const [ssoProviders, setSsoProviders] = useState<Array<{ id: string; provider: string; name: string; icon?: string }>>([])
+
+  // forgot password inline mode
+  const [forgotMode, setForgotMode] = useState(false)
+  const [forgotInput, setForgotInput] = useState('')
+
+  const logoutReason = searchParams.get('reason') || ''
+  const showSessionBanner = sessionExpired
+    || logoutReason === 'inactivity_timeout'
+    || logoutReason === 'token_reuse'
+    || logoutReason === 'backend_refresh_failed'
+
+  useEffect(() => {
+    let mounted = true
+    authApi.listSsoProviders()
+      .then(({ data }) => { if (mounted) setSsoProviders(Array.isArray(data) ? data : []) })
+      .catch(() => undefined)
+    return () => { mounted = false }
+  }, [])
+
+  // ── navigation helper ──────────────────────────────────────────────────────
+  function navAfterLogin(user: User) {
+    navigate(user.role === 'employee' ? '/imputar' : '/tasks', { replace: true })
+  }
+
+  // ── normal submit ──────────────────────────────────────────────────────────
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (trap.trim()) return
+    if (!username || !password) { setError(t('login.input_error')); return }
+    setLoading(true); setError('')
     try {
-      const user = await login(form.username, form.password)
-      navigate(user.role === 'employee' ? '/imputar' : '/tasks')
+      const { data } = await authApi.login({ username, password })
+      const parsed = resolveLoginResponse(data as Record<string, unknown>)
+      if (parsed.kind === 'mfa') {
+        setMfaChallengeToken(parsed.mfaChallengeToken)
+        setMfaMethods(parsed.mfaMethods)
+        setError('')
+        return
+      }
+      const user = extractUser(data)
+      acceptSession(user)
+      navAfterLogin(user)
     } catch (e) {
-      const raw = (e as { response?: { data?: { detail?: string | { msg: string }[] } } }).response?.data?.detail
-      setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || t('login.credentials_error')))
+      setError(extractErrorMsg(e, t('login.credentials_error')))
     } finally {
       setLoading(false)
     }
   }
 
-  const handleForgotPassword = async () => {
-    if (!forgotInput.trim()) {
-      setError(t('login.forgot_fill_field'))
-      return
+  // ── MFA verify ────────────────────────────────────────────────────────────
+  async function handleMfaVerify(e: FormEvent) {
+    e.preventDefault()
+    if (!mfaChallengeToken || mfaCode.trim().length < 6) {
+      setError(t('login.mfa_code_error')); return
     }
-    setLoading(true)
-    setError('')
-    setMessage('')
+    setLoading(true); setError('')
     try {
-      const { data } = await authApi.forgotPassword({ email_or_username: forgotInput.trim() } as unknown as import('../services/api').ForgotPasswordPayload)
-      setMessage((data as { ok: boolean; message?: string })?.message || t('login.forgot_email_sent'))
+      const { data } = await authApi.validateMfa({
+        mfa_challenge_token: mfaChallengeToken,
+        code: mfaCode.trim(),
+      })
+      const user = extractUser(data)
+      acceptSession(user)
+      navAfterLogin(user)
     } catch (e) {
-      const raw = (e as { response?: { data?: { detail?: string | { msg: string }[] } } }).response?.data?.detail
-      setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || t('login.forgot_error')))
+      setError(extractErrorMsg(e, t('login.mfa_code_error')))
     } finally {
       setLoading(false)
     }
   }
 
-  const handleResetPassword = async () => {
-    if (!resetToken) {
-      setError(t('login.reset_invalid_token'))
-      return
-    }
-    if (!newPassword) {
-      setError(t('login.reset_fill_password'))
-      return
-    }
-    setLoading(true)
-    setError('')
-    setMessage('')
+  function cancelMfa() {
+    setMfaChallengeToken(null); setMfaMethods([]); setMfaCode(''); setError('')
+  }
+
+  // ── SSO ───────────────────────────────────────────────────────────────────
+  async function handleSso(provider: { id: string; name: string }) {
+    setSsoLoading(true); setError('')
     try {
-      const { data } = await authApi.resetPassword({ token: resetToken, new_password: newPassword })
-      setMessage((data as { ok: boolean; message?: string })?.message || t('login.reset_success'))
-      setMode('login')
-      setNewPassword('')
-      setSearchParams({})
+      const { data } = await authApi.authorizeSso(provider.id, `${window.location.origin}/login`)
+      const url = (data as { authorization_url?: string }).authorization_url
+      if (url) { window.location.assign(url); return }
+      setError(t('login.sso_error'))
     } catch (e) {
-      const raw = (e as { response?: { data?: { detail?: string | { msg: string }[] } } }).response?.data?.detail
-      setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || t('login.reset_error')))
+      setError(extractErrorMsg(e, t('login.sso_error')))
     } finally {
-      setLoading(false)
+      setSsoLoading(false)
     }
   }
 
-  const field = (k: keyof typeof form) => ({
-    value: form[k],
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value })),
-    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSubmit(),
-  })
+  // ── Passkey ───────────────────────────────────────────────────────────────
+  async function handlePasskeyLogin() {
+    if (!username.trim()) { setError(t('login.passkey_no_username')); return }
+    if (!webauthnSupported()) { setError(t('login.passkey_not_supported')); return }
+    setPasskeyLoading(true); setError('')
+    try {
+      // Initial login to obtain MFA challenge token (passkey goes through MFA flow)
+      const { data: loginData } = await authApi.login({ username, password: '' })
+      const parsed = resolveLoginResponse(loginData as Record<string, unknown>)
+      if (parsed.kind !== 'mfa') {
+        setError(t('login.passkey_not_supported')); return
+      }
+      const { data: startData } = await authApi.startPasskeyAuth({
+        mfa_challenge_token: parsed.mfaChallengeToken,
+      })
+      const credential = await startAuthentication(startData.options)
+      const { data: finishData } = await authApi.finishPasskeyAuth({
+        mfa_challenge_token: parsed.mfaChallengeToken,
+        webauthn_challenge_token: startData.webauthn_challenge_token,
+        credential,
+      })
+      const user = extractUser(finishData)
+      acceptSession(user)
+      navAfterLogin(user)
+    } catch (e) {
+      setError(extractErrorMsg(e, t('login.credentials_error')))
+    } finally {
+      setPasskeyLoading(false)
+    }
+  }
 
+  // ── Forgot password ───────────────────────────────────────────────────────
+  async function handleForgotPassword(e: FormEvent) {
+    e.preventDefault()
+    if (!forgotInput.trim()) { setError(t('login.forgot_fill_field')); return }
+    setForgotLoading(true); setError(''); setMessage('')
+    try {
+      const { data } = await authApi.forgotPassword({
+        email_or_username: forgotInput.trim(),
+      } as import('../services/api').ForgotPasswordPayload)
+      setMessage((data as { message?: string }).message ?? t('login.forgot_email_sent'))
+    } catch (e) {
+      setError(extractErrorMsg(e, t('login.forgot_error')))
+    } finally {
+      setForgotLoading(false)
+    }
+  }
+
+  // ── input focus helpers ───────────────────────────────────────────────────
+  function focusIn(e: React.FocusEvent<HTMLInputElement>) {
+    e.target.style.borderColor = 'var(--accent)'
+  }
+  function focusOut(e: React.FocusEvent<HTMLInputElement>) {
+    e.target.style.borderColor = 'var(--surface-4)'
+  }
+
+  // ── render ────────────────────────────────────────────────────────────────
   return (
-    <div className="login-layout" style={{ position: 'relative' }}>
-      {/* ── Language selector (top right) ── */}
-      <div style={{ position: 'absolute', top: 24, right: 32, zIndex: 10 }}>
-        <LangSelector />
-      </div>
-      {/* ── Brand panel (left) ───────────────────────────────── */}
-      <div className="login-brand-panel">
-        {/* Ambient glow */}
-        <div style={{
-          position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)',
-          width: 400, height: 400,
-          background: 'radial-gradient(circle, rgba(0, 180, 255, 0.18) 0%, transparent 65%)',
-          pointerEvents: 'none',
-        }} />
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          {/* Logo Contecflow */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40 }}>
-            <div style={{
-              width: 48, height: 48, background: 'var(--accent)',
-              borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 24px rgba(0,180,255,0.18)',
-            }}>
-              <svg viewBox="0 0 32 32" width="28" height="28" fill="none">
-                <circle cx="16" cy="16" r="14" fill="#fff" fillOpacity="0.13" />
-                <path d="M8 16C8 11.58 11.58 8 16 8C20.42 8 24 11.58 24 16C24 20.42 20.42 24 16 24C11.58 24 8 20.42 8 16Z" fill="#00b4ff" />
-                <path d="M16 12V20M12 16H20" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </div>
-            <span style={{ fontSize: "var(--text-2xl-em)", fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--text-1)', fontFamily: 'Montserrat, Inter, sans-serif' }}>
-              Contecflow
-            </span>
-          </div>
+    <div style={st.page}>
+      <div style={st.langWrap}><LangSelector /></div>
 
-          <h2 style={{ fontSize: "var(--text-30)", fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.15,
-            color: 'var(--text-1)', marginBottom: 14, fontFamily: 'Montserrat, Inter, sans-serif' }}>
-            {t('login.brand_title')}
-            <br />
-            <span style={{ color: 'var(--accent)' }}>{t('login.brand_subtitle')}</span>
-          </h2>
-          <p style={{ color: 'var(--text-2)', fontSize: "var(--text-md-em)", lineHeight: 1.7, marginBottom: 36, maxWidth: 340, fontWeight: 500 }}>
-            {t('login.brand_description')}
-          </p>
-
-          {/* Feature pills marquetinianas */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {[
-              { icon: '🚀', label: t('login.feature_1') },
-              { icon: '🔒', label: t('login.feature_2') },
-              { icon: '💡', label: t('login.feature_3') },
-              { icon: '🌎', label: t('login.feature_4') },
-            ].map((f, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '12px 16px', background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(0,180,255,0.09)', borderRadius: 12,
-                fontWeight: 600, fontSize: "var(--text-md)",
-              }}>
-                <span style={{ fontSize: "var(--text-lg-em)", flexShrink: 0 }}>{f.icon}</span>
-                <span style={{ color: 'var(--text-2)' }}>{f.label}</span>
-              </div>
-            ))}
+      <div style={st.card}>
+        {/* Logo */}
+        <div style={st.logo}>
+          <div style={st.logoIcon}>
+            <svg viewBox="0 0 32 32" width="22" height="22" fill="none">
+              <circle cx="16" cy="16" r="14" fill="rgba(255,255,255,0.12)" />
+              <path d="M8 16C8 11.58 11.58 8 16 8C20.42 8 24 11.58 24 16C24 20.42 20.42 24 16 24C11.58 24 8 20.42 8 16Z" fill="white" />
+              <path d="M16 12V20M12 16H20" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" />
+            </svg>
           </div>
-
-          {/* Version badge */}
-          <div style={{ marginTop: 44, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{
-              fontSize: "var(--text-xs)", fontWeight: 800, background: 'rgba(0,180,255,0.13)',
-              color: 'var(--accent)', borderRadius: 7, padding: '4px 10px',
-              border: '1px solid rgba(0,180,255,0.18)', letterSpacing: '0.06em',
-            }}>v26</span>
-            <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', fontWeight: 500 }}>Enterprise · SOC2 · ISO27001</span>
-          </div>
+          <span style={st.logoText}>Contecflow</span>
         </div>
-      </div>
 
-      {/* ── Form panel (right) ───────────────────────────────── */}
-      <div className="login-form-panel">
-        <div style={{ width: '100%', maxWidth: 380, animation: 'fadeIn 0.35s ease' }}>
-          <h3 style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-1)', marginBottom: 6 }}>
-            {t('login.welcome_title')}
-          </h3>
-          <p style={{ fontSize: "var(--text-base)", color: 'var(--text-3)', marginBottom: 32 }}>
-            {t('login.welcome_subtitle')}
-          </p>
+        {/* Session expired banner */}
+        {showSessionBanner && (
+          <div style={st.warningBanner} role="alert">
+            <span>⚠</span>
+            <span>{t('login.session_expired_message')}</span>
+          </div>
+        )}
 
-          <form
-            onSubmit={e => { e.preventDefault(); mode === 'login' ? handleSubmit() : (mode === 'forgot' ? handleForgotPassword() : handleResetPassword()) }}
-            style={{ display: 'flex', flexDirection: 'column', gap: 18 }}
-            noValidate
-          >
-            {mode === 'login' && (
+        {/* ── MFA step ────────────────────────────────────────── */}
+        {mfaChallengeToken ? (
+          <form onSubmit={handleMfaVerify} style={st.form} noValidate>
+            <p style={{ fontSize: 14, color: 'var(--text-2)', margin: 0, lineHeight: 1.6 }}>
+              {t('login.mfa_prompt')}
+            </p>
+            <div>
+              <label style={st.label} htmlFor="mfa_code">
+                {t('login.mfa_code_placeholder')}
+              </label>
+              <input
+                id="mfa_code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                value={mfaCode}
+                onChange={e => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                style={st.inputTracked as CSSProperties}
+                onFocus={focusIn}
+                onBlur={focusOut}
+              />
+              {mfaMethods.length > 0 && (
+                <p style={{ fontSize: 11, color: 'var(--text-4)', margin: '4px 0 0' }}>
+                  {mfaMethods.join(' · ')}
+                </p>
+              )}
+            </div>
+            {error && (
+              <div style={st.errorBanner} role="alert">
+                <span>⚠</span><span>{error}</span>
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={loading || mfaCode.trim().length < 6}
+              style={{ ...st.btnPrimary, opacity: loading || mfaCode.trim().length < 6 ? 0.6 : 1 }}
+            >
+              {loading ? t('login.mfa_verifying') : t('login.mfa_verify_button')}
+            </button>
+            <button
+              type="button"
+              onClick={cancelMfa}
+              style={{ ...st.linkBtn, textAlign: 'center', width: '100%', fontSize: 12 }}
+            >
+              {t('login.mfa_cancel')}
+            </button>
+          </form>
+
+        ) : forgotMode ? (
+
+          /* ── Forgot password step ────────────────────────────── */
+          <form onSubmit={handleForgotPassword} style={st.form} noValidate>
+            <div>
+              <label style={st.label} htmlFor="forgot_input">
+                {t('login.username_label')}
+              </label>
+              <input
+                id="forgot_input"
+                type="text"
+                autoFocus
+                autoComplete="email"
+                value={forgotInput}
+                onChange={e => setForgotInput(e.target.value)}
+                placeholder={t('login.username_placeholder')}
+                style={st.input as CSSProperties}
+                onFocus={focusIn}
+                onBlur={focusOut}
+              />
+            </div>
+            {error && (
+              <div style={st.errorBanner} role="alert"><span>⚠</span><span>{error}</span></div>
+            )}
+            {message && (
+              <div style={st.successBanner} role="status"><span>✓</span><span>{message}</span></div>
+            )}
+            <button
+              type="submit"
+              disabled={forgotLoading}
+              style={{ ...st.btnPrimary, opacity: forgotLoading ? 0.6 : 1 }}
+            >
+              {forgotLoading ? t('login.forgot_sending') : t('login.forgot_send_button')}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setForgotMode(false); setError(''); setMessage('') }}
+              style={{ ...st.linkBtn, textAlign: 'center', width: '100%', fontSize: 12 }}
+            >
+              {t('login.forgot_back')}
+            </button>
+          </form>
+
+        ) : (
+
+          /* ── Main credentials form ───────────────────────────── */
+          <>
+            {ssoProviders.length > 0 && (
               <>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="login-user">{t('login.username_label')}</label>
-                  <input
-                    id="login-user"
-                    {...field('username')}
-                    placeholder={t('login.username_placeholder')}
-                    autoFocus
-                    autoComplete="username"
-                    style={{
-                      width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
-                      borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)",
-                      outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-                      transition: 'border-color 0.15s',
-                    }}
-                    onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                    onBlur={e => e.target.style.borderColor = 'var(--surface-5)'}
-                  />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 4 }}>
+                  {ssoProviders.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => { void handleSso(p) }}
+                      disabled={ssoLoading}
+                      style={{ ...st.btnSecondary, opacity: ssoLoading ? 0.6 : 1 }}
+                    >
+                      <IconShield />
+                      <span>
+                        {ssoLoading
+                          ? t('login.sso_redirecting')
+                          : t('login.sso_continue_with', { name: p.name })}
+                      </span>
+                    </button>
+                  ))}
                 </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="login-pass">{t('login.password_label')}</label>
-                  <input
-                    id="login-pass"
-                    {...field('password')}
-                    type="password"
-                    placeholder={t('login.password_placeholder')}
-                    autoComplete="current-password"
-                    style={{
-                      width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
-                      borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)",
-                      outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-                      transition: 'border-color 0.15s',
-                    }}
-                    onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                    onBlur={e => e.target.style.borderColor = 'var(--surface-5)'}
-                  />
+                <div style={st.divider}>
+                  <div style={st.dividerLine} />
+                  <span style={st.dividerText}>{t('login.or_credentials')}</span>
+                  <div style={st.dividerLine} />
                 </div>
               </>
             )}
 
-            {mode === 'forgot' && (
-              <div className="form-group">
-                <label className="form-label" htmlFor="forgot-user">Email o usuario</label>
+            <form onSubmit={handleSubmit} style={st.form} noValidate>
+              {/* Honeypot — hidden from humans, catches bots */}
+              <div aria-hidden="true" style={{ position: 'absolute', left: -9999, width: 1, height: 1, overflow: 'hidden' }}>
                 <input
-                  id="forgot-user"
-                  value={forgotInput}
-                  onChange={e => setForgotInput(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                  data-bwignore="true"
+                  value={trap}
+                  onChange={e => setTrap(e.target.value)}
+                />
+              </div>
+
+              {/* Username */}
+              <div>
+                <label style={st.label} htmlFor="login_username">
+                  {t('login.username_label')}
+                </label>
+                <input
+                  id="login_username"
+                  type="text"
+                  autoFocus
+                  autoComplete="username"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
                   placeholder={t('login.username_placeholder')}
-                  autoFocus
-                  style={{
-                    width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
-                    borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)",
-                    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-                  }}
+                  style={st.input as CSSProperties}
+                  onFocus={focusIn}
+                  onBlur={focusOut}
                 />
               </div>
-            )}
 
-            {mode === 'reset' && (
-              <div className="form-group">
-                <label className="form-label" htmlFor="reset-pass">Nueva contraseña</label>
-                <input
-                  id="reset-pass"
-                  type="password"
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  placeholder={t('login.password_placeholder')}
-                  autoFocus
-                  style={{
-                    width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
-                    borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)",
-                    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-                  }}
-                />
+              {/* Password */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ ...st.label, marginBottom: 0 }} htmlFor="login_password">
+                    {t('login.password_label')}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => { setForgotMode(true); setError(''); setMessage('') }}
+                    style={st.linkBtn}
+                  >
+                    {t('login.forgot_password')}
+                  </button>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="login_password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder={t('login.password_placeholder')}
+                    style={{ ...st.input, paddingRight: 44 } as CSSProperties}
+                    onFocus={focusIn}
+                    onBlur={focusOut}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    aria-label={showPassword ? t('login.hide_password_aria') : t('login.show_password_aria')}
+                    style={{
+                      position: 'absolute', right: 12, top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none', border: 'none',
+                      color: 'var(--text-3)', cursor: 'pointer',
+                      padding: 4, display: 'flex', alignItems: 'center',
+                    }}
+                  >
+                    {showPassword ? <IconEyeOff /> : <IconEye />}
+                  </button>
+                </div>
               </div>
-            )}
 
-            {sessionExpired && (
-              <div role="alert" style={{
-                background: 'rgba(255,165,0,0.08)', border: '1px solid rgba(255,165,0,0.3)',
-                borderRadius: 8, padding: '10px 14px', color: '#e08000', fontSize: "var(--text-base)",
-                display: 'flex', alignItems: 'center', gap: 8,
-              }}>
-                <span style={{ flexShrink: 0 }}>🔒</span>
-                <span>{t('login.session_expired_message')}</span>
-              </div>
-            )}
-
-            {error && (
-              <div role="alert" style={{
-                background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.25)',
-                borderRadius: 8, padding: '10px 14px', color: 'var(--danger)', fontSize: "var(--text-base)",
-                display: 'flex', alignItems: 'center', gap: 8,
-              }}>
-                <span style={{ flexShrink: 0 }}>⚠</span>
-                <span>{error}</span>
-              </div>
-            )}
-
-            {message && (
-              <div role="status" style={{
-                background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)',
-                borderRadius: 8, padding: '10px 14px', color: '#2ecc71', fontSize: "var(--text-base)",
-                display: 'flex', alignItems: 'center', gap: 8,
-              }}>
-                <span style={{ flexShrink: 0 }}>✓</span>
-                <span>{message}</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary"
-              style={{ width: '100%', padding: '12px', marginTop: 4, fontSize: "var(--text-md)", fontWeight: 700 }}
-            >
-              {loading ? (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)',
-                    borderTopColor: 'white', borderRadius: '50%',
-                    animation: 'spin 0.7s linear infinite', display: 'inline-block' }} />
-                  {t('login.loading_button')}
-                </span>
-              ) : (mode === 'login' ? t('login.login_button') : (mode === 'forgot' ? 'Enviar enlace' : 'Restablecer contraseña'))}
-            </button>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: -4 }}>
-              {mode === 'login' && (
-                <button
-                  type="button"
-                  onClick={() => { setMode('forgot'); setError(''); setMessage('') }}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", padding: 0 }}
-                >
-                  ¿Olvidaste tu contraseña?
-                </button>
+              {/* Error */}
+              {error && (
+                <div style={st.errorBanner} role="alert">
+                  <span>⚠</span><span>{error}</span>
+                </div>
               )}
-              {mode !== 'login' && (
-                <button
-                  type="button"
-                  onClick={() => { setMode('login'); setError(''); setMessage(''); setSearchParams({}) }}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", padding: 0 }}
-                >
-                  Volver al login
-                </button>
-              )}
-            </div>
-          </form>
 
-          <p style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-xs)", marginTop: 28, lineHeight: 1.5 }}>
-            {t('login.ad_note')}
-            <br />
-            <span style={{ color: 'var(--text-4)' }}>{t('login.help_text')}</span>
-          </p>
-        </div>
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={loading}
+                style={{ ...st.btnPrimary, opacity: loading ? 0.6 : 1 }}
+              >
+                {loading ? t('login.loading_button') : t('login.login_button')}
+              </button>
+
+              {/* Passkey */}
+              <button
+                type="button"
+                onClick={() => { void handlePasskeyLogin() }}
+                disabled={passkeyLoading}
+                style={{ ...st.btnSecondary, opacity: passkeyLoading ? 0.6 : 1 }}
+              >
+                <IconPasskey />
+                <span>{passkeyLoading ? t('login.passkey_busy') : t('login.passkey_button')}</span>
+              </button>
+            </form>
+          </>
+        )}
+
+        {/* Footer */}
+        <div style={st.footer}>{t('login.footer')}</div>
       </div>
     </div>
   )

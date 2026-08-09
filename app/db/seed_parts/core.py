@@ -129,10 +129,11 @@ def seed():
     for ud in users_data:
         u = db.query(User).filter(User.username==ud["username"]).first()
         if not u:
-            # Superadmins span all orgs; everyone else belongs to the default org.
-            org_id = None if ud.get("is_superadmin") else org.id
+            # Assign all users (including superadmin) to the default org.
+            # is_superadmin=True already grants platform-wide elevated access;
+            # organization_id NOT NULL is enforced by PostgreSQL.
             u = User(**ud, hashed_password=get_password_hash(seed_pwd),
-                     organization_id=org_id)
+                     organization_id=org.id)
             db.add(u); db.flush()
             print(f"  User: {ud['full_name']}")
         elif not u.organization_id and not u.is_superadmin:

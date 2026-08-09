@@ -1462,9 +1462,9 @@ export const integrationsHubApi = {
 }
 
 export const apiKeysApi = {
-  list:   ()         => api.get('/api-keys'),
-  create: (data: unknown)     => api.post('/api-keys', data),
-  delete: (id: any)       => api.delete(`/api-keys/${id}`),
+  list:   ()         => api.get('/bookings/api-keys'),
+  create: (data: unknown)     => api.post('/bookings/api-keys', data),
+  delete: (id: any)       => api.delete(`/bookings/api-keys/${id}`),
 }
 
 // ── Client Portal ─────────────────────────────────────────────────────────────

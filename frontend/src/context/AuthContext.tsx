@@ -65,7 +65,10 @@ export interface AuthState {
  */
 export interface AuthContextValue extends AuthState {
   setUser: (user: User | null) => void
+  /** Call after /auth/login succeeds (no MFA) to set state. */
   login: (username: string, password: string) => Promise<User>
+  /** Call after MFA or passkey verification — cookies already set by backend. */
+  acceptSession: (userData: User) => void
   logout: () => Promise<void>
   hasRole: (...roles: Role[]) => boolean
 }
@@ -181,16 +184,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => window.removeEventListener('api:rate-limited', handler)
   }, [toast])
 
+  const acceptSession = useCallback((userData: User): void => {
+    localStorage.setItem(SESSION_HINT_KEY, '1')
+    setUser(userData)
+    setSessionExpired(false)
+  }, [])
+
   const login = useCallback(async (username: string, password: string): Promise<User> => {
     // TODO type: services/api still JS — response shape from /auth/login
     const { data } = await api.post('/auth/login', { username, password }) as { data: { user: User } }
     // Tokens are now stored in httpOnly cookies set by the server.
     // We only keep the user profile in React state (never in localStorage).
-    localStorage.setItem(SESSION_HINT_KEY, '1')
-    setUser(data.user)
-    setSessionExpired(false)
+    acceptSession(data.user)
     return data.user
-  }, [])
+  }, [acceptSession])
 
   const logout = useCallback(async (): Promise<void> => {
     // Notify subscribers (chat presence, etc.) BEFORE invalidating the cookie
@@ -219,7 +226,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   })
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, logout, hasRole, sessionExpired }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, acceptSession, logout, hasRole, sessionExpired }}>
       {children}
       {showWarning && (
         <div style={{

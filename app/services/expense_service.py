@@ -23,6 +23,18 @@ from app.models.project import ProjectStatus
 from app.models.user import User as UserModel
 from app.models.user import UserRole
 from app.services.audit import audit_log
+
+# ── Status alias normalizer ────────────────────────────────────────────────────
+# PostgreSQL enforces enum types strictly. The frontend uses "pending" to mean
+# "submitted" (awaiting approval). Map legacy aliases to canonical enum values.
+_STATUS_ALIASES: dict[str, str] = {
+    "pending": "submitted",
+}
+
+def _normalize_status(status: Optional[str]) -> Optional[str]:
+    if status is None:
+        return None
+    return _STATUS_ALIASES.get(status.lower(), status)
 from app.services.notifications import notify_user
 from app.services.numbering import next_numbered_code
 from datetime import datetime as _dt
@@ -127,8 +139,7 @@ def export_expenses_excel(
     if date_to:
         q = q.filter(Expense.expense_date <= date_to)
     if status:
-        q = q.filter(Expense.status == status)
-    if category:
+        q = q.filter(Expense.status == _normalize_status(status))
         q = q.filter(Expense.category == category)
     expenses = q.order_by(Expense.expense_date.desc()).all()
 
@@ -281,7 +292,7 @@ def list_my_expenses(
         Expense.user_id == user_id,
         Expense.is_active == True,  # audit #36 soft-delete
     )
-    if status:      q = q.filter(Expense.status == status)
+    if status:      q = q.filter(Expense.status == _normalize_status(status))
     if project_id:  q = q.filter(Expense.project_id == project_id)
     if date_from:   q = q.filter(Expense.expense_date >= date_from)
     if date_to:     q = q.filter(Expense.expense_date <= date_to)
@@ -322,7 +333,7 @@ def list_all_expenses(
             Expense.user_id.in_(org_user_ids),
             Expense.project_id.in_(org_project_ids),
         ))
-    if status:   q = q.filter(Expense.status == status)
+    if status:   q = q.filter(Expense.status == _normalize_status(status))
     if user_id:  q = q.filter(Expense.user_id == user_id)
     return q.order_by(Expense.created_at.desc()).limit(200).all()
 
@@ -351,7 +362,7 @@ def list_team_expenses(
             Expense.user_id.in_(org_user_ids),
             Expense.project_id.in_(org_project_ids),
         ))
-    if status:      q = q.filter(Expense.status == status)
+    if status:      q = q.filter(Expense.status == _normalize_status(status))
     if project_id:  q = q.filter(Expense.project_id == project_id)
     if user_id:     q = q.filter(Expense.user_id == user_id)
     if date_from:   q = q.filter(Expense.expense_date >= date_from)

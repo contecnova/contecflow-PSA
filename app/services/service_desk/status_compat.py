@@ -26,14 +26,19 @@ def sanitize_legacy_ticket_statuses(db: Session) -> int:
     """Replace legacy ticket statuses in DB with canonical values.
 
     Uses raw SQL so it can repair rows even when ORM Enum decoding would fail.
+    Casts the status column to text in the WHERE clause so PostgreSQL does not
+    validate the legacy string against the current enum type before we fix it.
     """
     updated_rows = 0
     for legacy, canonical in LEGACY_TICKET_STATUS_MAP.items():
-        result = db.execute(
-            text("UPDATE sd_tickets SET status = :canonical WHERE status = :legacy"),
-            {"canonical": canonical, "legacy": legacy},
-        )
-        updated_rows += int(result.rowcount or 0)
+        try:
+            result = db.execute(
+                text("UPDATE sd_tickets SET status = :canonical WHERE status::text = :legacy"),
+                {"canonical": canonical, "legacy": legacy},
+            )
+            updated_rows += int(result.rowcount or 0)
+        except Exception:
+            logger.debug("sanitize_legacy_ticket_statuses: skipped %s (no rows or already clean)", legacy)
 
     if updated_rows:
         db.commit()

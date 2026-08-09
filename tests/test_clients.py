@@ -21,6 +21,14 @@ def test_list_clients_empty(client, admin_token, db):
     assert isinstance(data, (list, dict))
 
 
+def test_list_clients_accepts_large_page_size(client, admin_token, db):
+    res = client.get("/api/v1/clients?page_size=300", headers=auth(admin_token))
+    assert res.status_code == 200
+    data = res.json()
+    assert isinstance(data, dict)
+    assert data.get("meta", {}).get("page_size") == 300
+
+
 def test_create_client(client, admin_token, db):
     res = client.post("/api/v1/clients", json={
         "name": "Empresa XYZ SL",

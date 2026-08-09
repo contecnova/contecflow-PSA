@@ -7,6 +7,7 @@ The provider does all signing logic; we only store the result.
 """
 
 import enum
+import uuid
 from app.core.timeutil import utcnow
 from sqlalchemy import Column, Integer, String, Text, Enum as SAEnum, DateTime, ForeignKey, Boolean, JSON
 from sqlalchemy.orm import relationship
@@ -33,10 +34,10 @@ class ESignEnvelope(Base):
     """An e-sign envelope linked to a document."""
     __tablename__ = "esign_envelopes"
 
-    id              = Column(Integer, primary_key=True, index=True)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    document_id     = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True)
-    created_by_id   = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    document_id     = Column(String(36), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_by_id   = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     provider        = Column(SAEnum(ESignProvider), default=ESignProvider.docusign)
     provider_envelope_id = Column(String(256), nullable=True, unique=True)  # DocuSign/Adobe envelope ID
     subject         = Column(String(512))
@@ -61,10 +62,10 @@ class ESignSigner(Base):
     """A signer on an e-sign envelope."""
     __tablename__ = "esign_signers"
 
-    id              = Column(Integer, primary_key=True, index=True)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    envelope_id     = Column(Integer, ForeignKey("esign_envelopes.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id         = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    envelope_id     = Column(String(36), ForeignKey("esign_envelopes.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id         = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     name            = Column(String(256), nullable=False)
     email           = Column(String(256), nullable=False)
     routing_order   = Column(Integer, default=1)   # signing order (sequential flow)

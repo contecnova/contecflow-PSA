@@ -27,6 +27,7 @@ PYTHON_MIN="3.10"
 VENV_DIR=""
 PY_BIN=""
 PIP_BIN=""
+USE_DOCKER=0  # Set to 1 if Docker infra is successfully started
 
 print_banner() {
   echo ""
@@ -311,6 +312,198 @@ install_node() {
   fi
 }
 
+# ── Docker infrastructure (Postgres + Redis) ──────────────────────────────────
+docker_compose_cmd() {
+  # Supports both 'docker compose' (plugin v2) and 'docker-compose' (standalone v1).
+  if docker compose version > /dev/null 2>&1; then
+    docker compose "$@"
+  else
+    docker-compose "$@"
+  fi
+}
+
+detect_docker() {
+  # Returns 0 (true) if Docker daemon is running and compose is available.
+  check_command docker && docker info > /dev/null 2>&1 && \
+    (docker compose version > /dev/null 2>&1 || check_command docker-compose)
+}
+
+patch_env_for_docker() {
+  # Updates DATABASE_URL / REDIS_URL in .env to point to Docker containers.
+  # Also writes explicit POSTGRES_* credentials so Docker Compose and
+  # DATABASE_URL always use the same value.
+  # Treats placeholder values (CHANGE_ME / REPLACE_ME) as unset.
+  cd "$SCRIPT_DIR"
+  "$PYTHON" - <<'PY'
+from pathlib import Path
+import os
+
+PLACEHOLDER_PREFIXES = ('CHANGE_ME', 'REPLACE_ME', 'TODO', 'PLACEHOLDER', 'YOUR_')
+
+def is_placeholder(value):
+    if not value:
+        return True
+    return any(value.upper().startswith(p) for p in PLACEHOLDER_PREFIXES)
+
+env_path = Path('.env')
+if not env_path.exists():
+    raise SystemExit(0)
+
+lines = env_path.read_text(encoding='utf-8').splitlines()
+
+def get_var(name):
+    for line in lines:
+        if line.startswith(f'{name}='):
+            return line.split('=', 1)[1]
+    return ''
+
+def set_var(name, value):
+    for idx, line in enumerate(lines):
+        if line.startswith(f'{name}='):
+            lines[idx] = f'{name}={value}'
+            return
+    lines.append(f'{name}={value}')
+
+# Resolve credentials — ignore placeholder values, fall back to safe dev defaults.
+pg_pass_raw = get_var('POSTGRES_PASSWORD')
+pg_pass = pg_pass_raw if not is_placeholder(pg_pass_raw) else 'contecflow_dev'
+
+pg_user_raw = get_var('POSTGRES_USER')
+pg_user = pg_user_raw if not is_placeholder(pg_user_raw) else 'contecflow'
+
+pg_db_raw = get_var('POSTGRES_DB')
+pg_db = pg_db_raw if not is_placeholder(pg_db_raw) else 'contecflow'
+
+# Ports — Contecflow uses 5434/6381 to avoid clashes with Contecmind (5432/6379).
+pg_port  = os.environ.get('CF_POSTGRES_PORT', '5434')
+red_port = os.environ.get('CF_REDIS_PORT', '6381')
+
+# Write canonical credential values so Docker Compose and DATABASE_URL agree.
+set_var('POSTGRES_USER', pg_user)
+set_var('POSTGRES_PASSWORD', pg_pass)
+set_var('POSTGRES_DB', pg_db)
+
+db_url = get_var('DATABASE_URL')
+if not db_url or 'sqlite' in db_url.lower() or is_placeholder(db_url):
+    set_var('DATABASE_URL', f'postgresql+psycopg2://{pg_user}:{pg_pass}@127.0.0.1:{pg_port}/{pg_db}')
+    set_var('REDIS_URL', f'redis://127.0.0.1:{red_port}/0')
+    env_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    print('PATCHED')
+else:
+    env_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    print('SKIP')
+PY
+}
+
+revert_env_to_sqlite() {
+  # Reverts DATABASE_URL / REDIS_URL back to SQLite/local when Docker fails.
+  # Only reverts if the URL was pointing to 127.0.0.1 (i.e. was set by us).
+  cd "$SCRIPT_DIR"
+  "$PYTHON" - <<'PY'
+from pathlib import Path
+
+env_path = Path('.env')
+if not env_path.exists():
+    raise SystemExit(0)
+
+lines = env_path.read_text(encoding='utf-8').splitlines()
+
+def get_var(name):
+    for line in lines:
+        if line.startswith(f'{name}='):
+            return line.split('=', 1)[1]
+    return ''
+
+def set_var(name, value):
+    for idx, line in enumerate(lines):
+        if line.startswith(f'{name}='):
+            lines[idx] = f'{name}={value}'
+            return
+    lines.append(f'{name}={value}')
+
+db_url = get_var('DATABASE_URL')
+# Only revert if we set it (local Docker URL contains 127.0.0.1 and postgresql)
+if db_url and '127.0.0.1' in db_url and 'postgresql' in db_url.lower():
+    set_var('DATABASE_URL', 'sqlite:///./contecflow.db')
+    redis_url = get_var('REDIS_URL')
+    if redis_url and '127.0.0.1' in redis_url:
+        set_var('REDIS_URL', 'redis://127.0.0.1:6379/0')
+    env_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    print('REVERTED')
+else:
+    print('SKIP')
+PY
+}
+
+setup_docker_infra() {
+  section "Infraestructura Docker (Postgres + Redis)"
+  cd "$SCRIPT_DIR"
+
+  if ! detect_docker; then
+    warn "Docker no disponible o no está ejecutándose — usando SQLite como fallback."
+    revert_env_to_sqlite
+    USE_DOCKER=0
+    return 0
+  fi
+
+  if [ ! -f "$SCRIPT_DIR/docker-compose.dev.yml" ]; then
+    warn "docker-compose.dev.yml no encontrado — usando SQLite como fallback."
+    revert_env_to_sqlite
+    USE_DOCKER=0
+    return 0
+  fi
+
+  log "Docker detectado. Levantando Postgres y Redis..."
+  if ! docker_compose_cmd -f "$SCRIPT_DIR/docker-compose.dev.yml" up -d --remove-orphans; then
+    warn "No se pudo levantar la infraestructura Docker — usando SQLite como fallback."
+    revert_env_to_sqlite
+    USE_DOCKER=0
+    return 0
+  fi
+
+  # Wait for Postgres to be ready
+  echo -n "  Esperando Postgres"
+  PG_READY=0
+  for i in $(seq 1 30); do
+    if docker_compose_cmd -f "$SCRIPT_DIR/docker-compose.dev.yml" exec -T postgres \
+        pg_isready -U "${POSTGRES_USER:-contecflow}" > /dev/null 2>&1; then
+      echo " ✓ (${i}s)"
+      PG_READY=1
+      break
+    fi
+    echo -n "."
+    sleep 1
+  done
+  if [ $PG_READY -eq 0 ]; then
+    echo ""
+    warn "Postgres no respondió en 30s — usando SQLite como fallback."
+    revert_env_to_sqlite
+    USE_DOCKER=0
+    return 0
+  fi
+
+  # Wait for Redis to be ready
+  echo -n "  Esperando Redis"
+  for i in $(seq 1 15); do
+    if docker_compose_cmd -f "$SCRIPT_DIR/docker-compose.dev.yml" exec -T redis \
+        redis-cli ping > /dev/null 2>&1; then
+      echo " ✓"
+      break
+    fi
+    echo -n "."
+    sleep 1
+  done
+
+  USE_DOCKER=1
+  log "Postgres (127.0.0.1:5434) y Redis (127.0.0.1:6381) listos"
+
+  # Patch .env to use Docker service URLs (only if .env is still using SQLite)
+  PATCH_RESULT=$(patch_env_for_docker)
+  if [ "$PATCH_RESULT" = "PATCHED" ]; then
+    log ".env actualizado: DATABASE_URL → PostgreSQL  |  REDIS_URL → Redis"
+  fi
+}
+
 # ── Setup backend ─────────────────────────────────────────────────────────────
 setup_backend() {
   section "Configurando backend"
@@ -373,6 +566,11 @@ setup_backend() {
     fi
   fi
 
+  # ── Infraestructura Docker (Postgres + Redis) ─────────────────────────────────────────
+  # Se llama antes de crear .env para que patch_env_for_docker pueda parchear
+  # DATABASE_URL y REDIS_URL justo después si Docker está disponible.
+  setup_docker_infra
+
   # Create .env if not exists
   if [ ! -f ".env" ]; then
     log "Creando archivo .env..."
@@ -395,30 +593,55 @@ ENVEOF
     fi
   fi
 
-  # Patch existing .env: ensure required variables are present
-  for REQUIRED_VAR in CLIENT_PORTAL_SECRET SECRET_KEY SUPERADMIN_EMAIL SUPERADMIN_PASSWORD DEFAULT_USER_PASSWORD; do
-    if ! grep -q "^${REQUIRED_VAR}=" .env 2>/dev/null; then
-      warn "${REQUIRED_VAR} no encontrado en .env — añadiendo valor por defecto"
-      case "$REQUIRED_VAR" in
-        CLIENT_PORTAL_SECRET)
-          VAL=$($PYTHON -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || echo "contecflow-portal-secret-change-in-production!!")
-          ;;
-        SECRET_KEY)
-          VAL=$($PYTHON -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "REPLACE_ME_CHANGE_THIS_NOW")
-          ;;
-        SUPERADMIN_EMAIL)
-          VAL="admin@company.com"
-          ;;
-        SUPERADMIN_PASSWORD)
-          VAL="contecflow2024!"
-          ;;
-        DEFAULT_USER_PASSWORD)
-          VAL="contecflow2024!"
-          ;;
-      esac
-      echo "${REQUIRED_VAR}=${VAL}" >> .env
-    fi
-  done
+  # Patch existing .env: ensure required variables are present and replace placeholders.
+  "$PYTHON" - <<'PY'
+from pathlib import Path
+import secrets
+
+env_path = Path('.env')
+if env_path.exists():
+    lines = env_path.read_text(encoding='utf-8').splitlines()
+else:
+    lines = []
+
+
+def set_var(name: str, value: str) -> None:
+    for idx, line in enumerate(lines):
+        if line.startswith(f'{name}='):
+            lines[idx] = f'{name}={value}'
+            return
+    lines.append(f'{name}={value}')
+
+
+def is_placeholder(value: str | None) -> bool:
+    if not value:
+        return True
+    upper = value.upper()
+    return any(upper.startswith(prefix) for prefix in ('CHANGE_ME', 'REPLACE_ME', 'TODO', 'PLACEHOLDER'))
+
+
+def is_weak(value: str | None) -> bool:
+    if is_placeholder(value):
+        return True
+    return (value or '').lower() in {'password', 'admin', 'admin123', '123456', 'contecflow2024!', 'changeme'}
+
+
+def get_var(name: str) -> str:
+    for line in lines:
+        if line.startswith(f'{name}='):
+            return line.split('=', 1)[1]
+    return ''
+
+set_var('SUPERADMIN_EMAIL', 'admin@company.com')
+set_var('SUPERADMIN_PASSWORD', 'Contecflow2024!')
+set_var('DEFAULT_USER_PASSWORD', 'Contecflow2024!')
+if is_placeholder(get_var('CLIENT_PORTAL_SECRET')):
+    set_var('CLIENT_PORTAL_SECRET', secrets.token_hex(32))
+if is_placeholder(get_var('WEBHOOK_SECRET')):
+    set_var('WEBHOOK_SECRET', secrets.token_hex(32))
+
+env_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+PY
 
   # Rotate SECRET_KEY when it still uses placeholders or weak defaults.
   SECRET_STATUS=$("$PYTHON" - <<'PY'
@@ -460,17 +683,52 @@ PY
     warn "SECRET_KEY insegura detectada en .env — regenerada automáticamente"
   fi
 
-  # Solo migrar si la BD no existe o los modelos cambiaron
+  # ── Migraciones ─────────────────────────────────────────────────────────────────────
   MODELS_HASH_FILE="$VENV_DIR/.models_hash"
   MODELS_HASH=$(find app/models -type f -name "*.py" 2>/dev/null | sort | hash_file_list)
-  if [ ! -f "contecflow.db" ] || [ ! -f "$MODELS_HASH_FILE" ] || [ "$(cat $MODELS_HASH_FILE)" != "$MODELS_HASH" ]; then
-    log "Aplicando migraciones de base de datos..."
-    "$PY_BIN" -m app.db.migrate
-    echo "$MODELS_HASH" > "$MODELS_HASH_FILE"
-  else
-    log "Modelos sin cambios, omitiendo migración"
-  fi
+  if [ "$USE_DOCKER" = "1" ]; then
+    # Con Postgres, la estrategia depende de si la BD es nueva o ya tiene tablas.
+    #
+    # BD NUEVA: usar Base.metadata.create_all() via app.db.migrate — SQLAlchemy
+    # ordena topológicamente las tablas resolviendo FKs circulares. Las migraciones
+    # alembic 001-088 se sellan en HEAD (ya están materializadas por create_all).
+    #
+    # BD EXISTENTE: usar alembic upgrade head para solo aplicar deltas pendientes.
+    PG_TABLES=$("$PY_BIN" -c "
+from app.db.session import engine
+from sqlalchemy import inspect as sa_inspect
+try:
+    tables = sa_inspect(engine).get_table_names()
+    print(len(tables))
+except Exception:
+    print(0)
+" 2>/dev/null || echo "0")
 
+    if [ "$PG_TABLES" -lt 5 ] 2>/dev/null; then
+      log "BD PostgreSQL nueva — creando esquema completo con create_all..."
+      "$PY_BIN" -m app.db.migrate
+      "$PY_BIN" -m alembic stamp head
+      echo "$MODELS_HASH" > "$MODELS_HASH_FILE"
+    else
+      if [ ! -f "$MODELS_HASH_FILE" ] || [ "$(cat $MODELS_HASH_FILE)" != "$MODELS_HASH" ]; then
+        log "Aplicando migraciones pendientes (PostgreSQL)..."
+        "$PY_BIN" -m alembic upgrade head
+        echo "$MODELS_HASH" > "$MODELS_HASH_FILE"
+      else
+        log "Modelos sin cambios (PostgreSQL), omitiendo migración"
+      fi
+    fi
+  else
+    # Con SQLite: migrar solo si el archivo no existe o los modelos cambiaron.
+    if [ ! -f "contecflow.db" ] || [ ! -f "$MODELS_HASH_FILE" ] || [ "$(cat $MODELS_HASH_FILE)" != "$MODELS_HASH" ]; then
+      log "Aplicando migraciones (SQLite)..."
+      "$PY_BIN" -m app.db.migrate
+      echo "$MODELS_HASH" > "$MODELS_HASH_FILE"
+    else
+      log "Modelos sin cambios, omitiendo migración"
+    fi
+  fi
+  # ── Comprobación / seed inicial ──────────────────────────────────────────────────────
   # Check if DB has valid users with passwords
   DB_OK=$("$PY_BIN" -c "
 from app.db.session import SessionLocal
@@ -485,10 +743,12 @@ except:
 " 2>/dev/null || echo "error")
 
   if [ "$DB_OK" != "ok" ]; then
-    log "Inicializando base de datos..."
-    rm -f contecflow.db
-    "$PY_BIN" -m app.db.migrate
-    "$PY_BIN" -m app.db.seed
+    log "Esquema listo. La inicialización de datos la maneja el modo (clean/demo)."
+    if [ "$USE_DOCKER" != "1" ]; then
+      # Solo para SQLite: borrar el archivo corrupto/vacío antes de re-migrar.
+      rm -f contecflow.db
+      "$PY_BIN" -m app.db.migrate
+    fi
   else
     log "Base de datos OK"
   fi
@@ -807,6 +1067,18 @@ stop_services() {
   lsof -ti:$BACKEND_PORT  | xargs kill -9 2>/dev/null || true
   lsof -ti:$FRONTEND_PORT | xargs kill -9 2>/dev/null || true
   log "Parado"
+
+  # La infraestructura Docker (Postgres + Redis) sigue corriendo intencionalmente
+  # para no perder datos entre reinicios. Para pararla manualmente:
+  if detect_docker 2>/dev/null && [ -f "$SCRIPT_DIR/docker-compose.dev.yml" ]; then
+    DOCKER_RUNNING=$(docker_compose_cmd -f "$SCRIPT_DIR/docker-compose.dev.yml" ps --quiet 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$DOCKER_RUNNING" -gt 0 ] 2>/dev/null; then
+      echo ""
+      echo -e "  ${YELLOW}ℹ  Docker (Postgres+Redis) sigue activo.${NC}"
+      echo -e "     Para pararlo: ${BOLD}docker compose -f docker-compose.dev.yml down${NC}"
+      echo -e "     Para borrarlo todo: ${BOLD}docker compose -f docker-compose.dev.yml down -v${NC}"
+    fi
+  fi
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -834,6 +1106,24 @@ case "${1:-}" in
   stop)
     stop_services
     ;;
+  docker-stop)
+    log "Parando infraestructura Docker (Postgres + Redis)..."
+    if detect_docker && [ -f "$SCRIPT_DIR/docker-compose.dev.yml" ]; then
+      docker_compose_cmd -f "$SCRIPT_DIR/docker-compose.dev.yml" down
+      log "Docker detenido (datos conservados en volúmenes)"
+    else
+      warn "Docker no disponible o docker-compose.dev.yml no encontrado"
+    fi
+    ;;
+  docker-clean)
+    log "Parando infraestructura Docker y borrando volúmenes..."
+    if detect_docker && [ -f "$SCRIPT_DIR/docker-compose.dev.yml" ]; then
+      docker_compose_cmd -f "$SCRIPT_DIR/docker-compose.dev.yml" down -v
+      log "Docker detenido y volúmenes eliminados"
+    else
+      warn "Docker no disponible o docker-compose.dev.yml no encontrado"
+    fi
+    ;;
   update)
     log "Modo: actualizar"
     setup_backend
@@ -842,11 +1132,13 @@ case "${1:-}" in
     ;;
   *)
     echo "Uso:"
-    echo "  ./setup.sh demo"
-    echo "  ./setup.sh clean"
-    echo "  ./setup.sh start"
-    echo "  ./setup.sh stop"
-    echo "  ./setup.sh update"
+    echo "  ./setup.sh demo          → instala y arranca con datos demo"
+    echo "  ./setup.sh clean         → instala y arranca con BD vacía (solo admin)"
+    echo "  ./setup.sh start         → solo arranca (BD existente)"
+    echo "  ./setup.sh stop          → para la app (Docker sigue activo)"
+    echo "  ./setup.sh update        → actualiza dependencias"
+    echo "  ./setup.sh docker-stop   → para la infraestructura Docker"
+    echo "  ./setup.sh docker-clean  → para Docker y borra todos los datos"
     exit 1
     ;;
 esac

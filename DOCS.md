@@ -91,7 +91,7 @@ Crear `frontend/.env` desde `frontend/.env.example`.
 ## 7. Arranque local
 ### Modos de `setup.sh` / `setup.bat`
 - `./setup.sh demo` — carga seed y arranca.
-- `./setup.sh clean` — limpia datos y deja solo admin, luego arranca.
+- `./setup.sh clean` — limpia datos y deja solo admin, luego arranca. El reset crea automáticamente una organización base y asigna el usuario admin a esa organización para cumplir la restricción multi-tenant actual.
 - `./setup.sh start` — solo arranca y preserva la base de datos existente.
 - `./setup.sh admin-only-start` — BD limpia conservando solo el usuario `admin` (credenciales de `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD`).
 - `setup.bat` soporta `demo`, `clean`, `start demo`, `start clean` y la variable `SETUP_INIT_MODE=demo|clean` antes de `setup.bat start` para modo no interactivo.
@@ -101,6 +101,11 @@ Crear `frontend/.env` desde `frontend/.env.example`.
 2. Worker Celery: `celery -A app.worker.celery_app worker --loglevel=info`
 3. Beat Celery: `celery -A app.worker.celery_app beat --loglevel=info`
 4. Frontend (en `frontend/`): `npm run dev`
+
+### Paridad de autenticación y despliegue
+- El login ahora soporta MFA por TOTP y passkeys, con un flujo de UI coherente con el patrón de Contecmind.
+- El flujo incluye carga de proveedores SSO, redirección al proveedor y manejo del challenge MFA antes de completar la sesión.
+- El stack de Docker local quedó versionado en `deploy/docker-compose.yml` con PostgreSQL, Redis, backend, worker y frontend para despliegues reproducibles.
 
 ## 8. Base de datos
 ### Migraciones

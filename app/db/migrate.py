@@ -6,6 +6,12 @@ import logging
 from sqlalchemy import text, inspect
 from app.db.session import engine
 from app.db.base import Base
+
+# Must import all model modules so their tables are registered in Base.metadata
+# before calling create_all(). Without this, Base.metadata is empty and no tables
+# are created.
+import app.models  # noqa: F401 — side-effect import that registers all models
+
 import re as _re
 
 logger = logging.getLogger("contecflow.migrate")
@@ -122,6 +128,7 @@ MIGRATIONS = [
 
     # v25 — SSO campos en User
     ("users", "sso_provider", "VARCHAR(30)"),
+    ("organizations", "scim_token_hash", "VARCHAR(64)"),
     ("users", "sso_subject",  "VARCHAR(255)"),
     ("users", "mfa_enabled",  "BOOLEAN DEFAULT FALSE"),
     ("users", "mfa_secret",   "VARCHAR(64)"),
