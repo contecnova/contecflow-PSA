@@ -64,7 +64,7 @@ def test_create_user_with_multiple_organizations_from_profile(client, admin_toke
     assert {str(m.organization_id) for m in memberships} == {"org-extra-2", "org-extra-3"}
 
 
-def test_remove_user_from_last_organization_is_blocked(client, admin_token, db):
+def test_remove_user_from_last_organization_is_blocked(client, superadmin_token, db):
     users = db.query(User).filter(User.username.in_(["admin", "pm_test", "dev_test"])).all()
     by_username = {u.username: u for u in users}
     admin = by_username["admin"]
@@ -83,7 +83,7 @@ def test_remove_user_from_last_organization_is_blocked(client, admin_token, db):
 
     res = client.delete(
         f"/api/v1/organizations/1/remove-user/{dev.id}",
-        headers=auth(admin_token),
+        headers=auth(superadmin_token),
     )
 
     assert res.status_code == 400, res.text

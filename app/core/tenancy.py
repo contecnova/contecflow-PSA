@@ -49,6 +49,29 @@ def assert_same_org(current_user, row_org_id: Optional[str], *, detail: str = "N
         raise HTTPException(404, detail)
 
 
+def assert_org_id_is_own(current_user, org_id: Optional[str], *, detail: str = "Not found") -> None:
+    """Gate for a **client-supplied** organisation id (path or query parameter).
+
+    Deliberately stricter than ``assert_same_org``, and not interchangeable with
+    it. ``assert_same_org`` guards a row that was already fetched through the
+    tenant-scoped session, so it can afford to let a NULL org through as legacy
+    global data. This function guards a raw identifier that the caller chose, so
+    every permissive branch is an authorisation bypass:
+
+    - a caller with no organisation gets 404, never a free pass;
+    - a NULL/blank ``org_id`` gets 404, so an omitted parameter cannot widen access;
+    - only an exact match, or a platform superadmin, proceeds.
+
+    Endpoints that legitimately operate across tenants must use
+    ``require_superadmin`` instead of calling this.
+    """
+    if getattr(current_user, "is_superadmin", False):
+        return
+    user_org = getattr(current_user, "organization_id", None)
+    if not org_id or not user_org or str(org_id) != str(user_org):
+        raise HTTPException(404, detail)
+
+
 def _can_access(current_user, row_org_id: Optional[str]) -> bool:
     if getattr(current_user, "is_superadmin", False):
         return True

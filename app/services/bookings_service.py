@@ -912,8 +912,14 @@ def process_oidc_callback(payload: dict, db) -> dict:
     id_token = payload.get("id_token")
     if id_token:
         try:
+            # PyJWT, no python-jose (auditoría 2026-08, P0-3). python-jose arrastra
+            # `ecdsa`, cuyo PYSEC-2026-1325 no tiene versión corregida publicada, y
+            # este era el único punto del código que lo hacía alcanzable: verificaba
+            # ES256 sobre un id_token que aporta el cliente. PyJWT delega en
+            # `cryptography`, así que ES256 sigue soportado sin pasar por ecdsa.
+            # Mismo patrón que app/api/v1/routers/auth_sso.py.
             import urllib.request as _ureq, json as _json
-            from jose import jwt as _jose_jwt, exceptions as _jose_exc  # type: ignore
+            import jwt as _pyjwt
 
             # Fetch JWKS from the IdP (issuer derived from discovery or config)
             issuer = getattr(config, "issuer", None) or ""
@@ -932,22 +938,33 @@ def process_oidc_callback(payload: dict, db) -> dict:
             # tercero: sin validarlo, un IdP malicioso (o un MITM sobre el discovery)
             # podría apuntarlo a la red interna o a file:// (auditoría 2026-08 §1.9).
             jwks_uri = validate_outbound_url(jwks_uri, field="jwks_uri", require_https=True)
-            with _ureq.urlopen(jwks_uri, timeout=5) as _r:  # noqa: S310
-                jwks = _json.loads(_r.read())
 
             client_id = getattr(config, "client_id", None) or ""
-            claims = _jose_jwt.decode(
+            # timeout=5 conserva el que tenía el urlopen manual que esto sustituye:
+            # sin él, un IdP lento o malicioso cuelga el worker indefinidamente.
+            _jwk_client = _pyjwt.PyJWKClient(jwks_uri, timeout=5)
+            _signing_key = _jwk_client.get_signing_key_from_jwt(id_token)
+            _decode_opts = {
+                "verify_aud": bool(client_id),
+                "verify_iss": bool(issuer),
+                "verify_exp": True,
+            }
+            claims = _pyjwt.decode(
                 id_token,
-                jwks,
+                _signing_key.key,
                 algorithms=["RS256", "ES256"],
                 audience=client_id or None,
                 issuer=issuer or None,
-                options={"verify_aud": bool(client_id), "verify_iss": bool(issuer)},
+                options=_decode_opts,
             )
             user_email = claims.get("email")
             user_name  = claims.get("name") or claims.get("preferred_username") or user_email
             user_role_sso = payload.get("role")  # role claim mapping remains app-level
-        except (_jose_exc.JWTError, _jose_exc.ExpiredSignatureError, Exception) as _e:
+        # La tupla original era (_jose_exc.JWTError, _jose_exc.ExpiredSignatureError,
+        # Exception): `Exception` ya lo capturaba todo, así que el comportamiento no
+        # cambia al retirar las clases de python-jose. PyJWT lanza
+        # jwt.PyJWTError (subclase de Exception) en los mismos casos.
+        except Exception as _e:
             raise HTTPException(401, f"id_token OIDC inválido o no verificable: {_e}")
     else:
         # No id_token provided — reject to prevent email spoofing (SEC-007)

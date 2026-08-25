@@ -86,6 +86,23 @@ class RequireRole:
         return current_user
 
 
+def require_superadmin(current_user: User = Depends(get_current_user)) -> User:
+    """Cross-tenant guard: only the platform superadmin passes.
+
+    `require_admin` is NOT this: `UserRole.admin` is the *tenant* administrator
+    role, so it grants nothing across organisations. Any endpoint that operates
+    on the Organization model — the only mapped model without a tenant column,
+    and therefore the only one TenantSession cannot scope — must use this
+    dependency instead. See app/db/session.py::TenantSession.
+    """
+    if not getattr(current_user, "is_superadmin", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso denegado. Requiere superadministrador de plataforma.",
+        )
+    return current_user
+
+
 # Shortcut dependencies
 require_admin = RequireRole(UserRole.admin)
 require_admin_or_hr = RequireRole(UserRole.admin, UserRole.hr)

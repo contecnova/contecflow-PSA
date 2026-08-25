@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, require_admin
 from app.core.responses import APIResponse
+from app.core.tenancy import assert_org_id_is_own
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 
@@ -99,6 +100,9 @@ def get_branding(
     from app.models.mfa import Organization
     from app.models.white_label import OrgBranding
 
+    # `org_id` viene de la ruta: Organization es el único modelo sin columna de
+    # tenant, así que TenantSession no lo filtra y hay que comprobarlo a mano.
+    assert_org_id_is_own(current_user, org_id, detail="Organization not found")
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise HTTPException(404, "Organization not found")
@@ -129,6 +133,10 @@ def update_branding(
     from app.models.mfa import Organization
     from app.models.white_label import OrgBranding
 
+    # Sin esta comprobación el SELECT de OrgBranding devuelve None para una org
+    # ajena (TenantSession sí lo filtra) y se cae en la rama de creación, donde
+    # el INSERT no lleva filtro: se escribiría el branding de otro tenant.
+    assert_org_id_is_own(current_user, org_id, detail="Organization not found")
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise HTTPException(404, "Organization not found")
@@ -162,6 +170,10 @@ def reset_branding(
 ):
     from app.models.white_label import OrgBranding
 
+    # Hoy el SELECT filtrado ya hace que un org_id ajeno no borre nada, pero eso
+    # convierte al filtro de sesión en el control de autorización — y ese filtro
+    # es fail-open ante excepción (app/db/session.py). Guarda explícita.
+    assert_org_id_is_own(current_user, org_id, detail="Organization not found")
     enforce_abac(db, current_user, "org_branding", org_id, action="delete")
     branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
     if branding:

@@ -126,12 +126,30 @@ resolve_venv_bins() {
 }
 
 get_demo_password() {
-  local pwd
-  pwd=$(grep -E '^DEFAULT_USER_PASSWORD=' .env 2>/dev/null | tail -1 | cut -d'=' -f2-)
-  if [ -z "$pwd" ]; then
-    pwd="contecflow2024!"
+  # Sin fallback: inventar una contraseña por defecto aquí significaba que un
+  # .env sin DEFAULT_USER_PASSWORD acababa con usuarios cuya contraseña estaba
+  # escrita en este script. Si no está definida, quien llama debe abortar.
+  grep -E '^DEFAULT_USER_PASSWORD=' .env 2>/dev/null | tail -1 | cut -d'=' -f2-
+}
+
+# Entorno declarado en .env. Fail-closed: si no se puede determinar, se asume
+# "production" para que ninguna operación destructiva se ejecute por descuido.
+get_environment() {
+  local env_value
+  env_value=$(grep -E '^ENVIRONMENT=' .env 2>/dev/null | tail -1 | cut -d'=' -f2- | tr -d '"'"'"' \r')
+  if [ -z "$env_value" ]; then
+    echo "production"
+  else
+    echo "$env_value"
   fi
-  echo "$pwd"
+}
+
+# ¿Es seguro ejecutar operaciones que reescriben datos o credenciales?
+is_safe_for_destructive_ops() {
+  case "$(get_environment)" in
+    development|dev|local|test|testing|demo) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 preflight_start_checks() {
@@ -632,9 +650,27 @@ def get_var(name: str) -> str:
             return line.split('=', 1)[1]
     return ''
 
-set_var('SUPERADMIN_EMAIL', 'admin@company.com')
-set_var('SUPERADMIN_PASSWORD', 'Contecflow2024!')
-set_var('DEFAULT_USER_PASSWORD', 'Contecflow2024!')
+# Auditoría 2026-08 (P0-4): estas tres eran set_var() incondicionales, así que
+# CADA ejecución de setup.sh sobrescribía las credenciales configuradas en .env
+# con una constante escrita en este script — incluido un .env de producción.
+# Se rellenan solo si faltan o siguen siendo placeholder, que es el patrón que ya
+# usaban CLIENT_PORTAL_SECRET y WEBHOOK_SECRET tres líneas más abajo.
+if is_placeholder(get_var('SUPERADMIN_EMAIL')):
+    set_var('SUPERADMIN_EMAIL', 'admin@company.com')
+# is_weak (no is_placeholder) porque incluye explícitamente 'contecflow2024!':
+# así la constante compartida por todas las instalaciones se sustituye por un
+# valor aleatorio por instalación, y una contraseña real y fuerte se preserva.
+# setup.sh imprime las credenciales resultantes al final, así que el onboarding
+# local sigue funcionando igual.
+if is_weak(get_var('SUPERADMIN_PASSWORD')):
+    set_var('SUPERADMIN_PASSWORD', secrets.token_urlsafe(18) + 'Aa1!')
+if is_weak(get_var('DEFAULT_USER_PASSWORD')):
+    set_var('DEFAULT_USER_PASSWORD', secrets.token_urlsafe(18) + 'Aa1!')
+# ENVIRONMENT gobierna el gate de operaciones destructivas (sync_demo_passwords).
+# Si falta, los scripts asumen production y NO tocan credenciales; para una
+# instalación local hay que declararlo explícitamente.
+if not get_var('ENVIRONMENT'):
+    set_var('ENVIRONMENT', 'development')
 if is_placeholder(get_var('CLIENT_PORTAL_SECRET')):
     set_var('CLIENT_PORTAL_SECRET', secrets.token_hex(32))
 if is_placeholder(get_var('WEBHOOK_SECRET')):
@@ -805,7 +841,23 @@ sync_demo_passwords() {
   cd "$SCRIPT_DIR"
   resolve_venv_bins
 
+  # ── Gate de entorno (auditoría 2026-08, P0-4) ────────────────────────────────
+  # Esta función reescribe el hash de contraseña de admin/ana.torres/luis.vega/
+  # rrhh con DEFAULT_USER_PASSWORD del .env. Sin esta guarda, un ./setup.sh
+  # ejecutado contra producción — algo que la vía Docker soporta — dejaba la
+  # cuenta admin con una contraseña conocida y compartida.
+  if ! is_safe_for_destructive_ops; then
+    warn "ENVIRONMENT=$(get_environment): se OMITE la sincronización de contraseñas demo."
+    warn "Reescribir credenciales solo se permite en development/test/demo."
+    return 0
+  fi
+
   DEMO_PWD=$(get_demo_password)
+  if [ -z "$DEMO_PWD" ]; then
+    warn "DEFAULT_USER_PASSWORD no está definida en .env: se omite la sincronización."
+    return 0
+  fi
+
   # Use a hash of the password as a change-detection sentinel
   if check_command shasum; then
     PWD_HASH=$(echo -n "$DEMO_PWD" | shasum -a 256 | awk '{print $1}')

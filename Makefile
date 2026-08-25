@@ -164,6 +164,21 @@ pip-audit: ## Analiza dependencias Python en busca de vulnerabilidades
 	pip install pip-audit
 	pip-audit
 
+# ── Auditoría local completa ─────────────────────────────────────────────────
+# Envoltorios finos sobre scripts/ci_local.sh, que es la ÚNICA implementación.
+# Este proyecto no usa CI/CD por decisión de diseño, así que ese script es donde
+# están reunidos todos los gates. Ojo: `make` no está disponible en todas las
+# máquinas del equipo (p. ej. Windows sin GNU Make); ahí hay que invocar el
+# script directamente con bash.
+audit: ## Pasa todos los gates de calidad en local (bloqueantes + informativos)
+	@bash scripts/ci_local.sh
+
+audit-fast: ## Igual que audit pero sin pytest ni informativos (~2 min)
+	@bash scripts/ci_local.sh --fast
+
+audit-info: ## Solo los gates informativos (deuda conocida, no bloquean)
+	@bash scripts/ci_local.sh --info
+
 # ── Rotación de claves ───────────────────────────────────────────────────────
 rotate-keys: ## Recordatorio/manual para rotar claves y secretos
 	@echo "Recuerda rotar periódicamente las claves y secretos de API, JWT, OAuth y webhooks."

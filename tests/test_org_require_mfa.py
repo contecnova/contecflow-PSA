@@ -46,11 +46,11 @@ def test_login_passes_to_mfa_challenge_when_user_has_factor(client, db):
 
 # ── Flujo end-to-end PATCH → require_mfa → enforcement ─────────────────────
 
-def test_patch_organization_persists_require_mfa(client, admin_token, db):
+def test_patch_organization_persists_require_mfa(client, superadmin_token, db):
     """PATCH /organizations/{id} con {require_mfa: true} debe actualizar la
     columna (antes el servicio whitelisteaba sin incluirla → silently dropped)."""
     res = client.patch("/api/v1/organizations/1",
-                       headers=auth(admin_token), json={"require_mfa": True})
+                       headers=auth(superadmin_token), json={"require_mfa": True})
     assert res.status_code == 200, res.text
 
     from app.models.mfa import Organization
@@ -59,7 +59,7 @@ def test_patch_organization_persists_require_mfa(client, admin_token, db):
     assert org.require_mfa is True
 
 
-def test_patch_organization_require_mfa_writes_audit(client, admin_token, db):
+def test_patch_organization_require_mfa_writes_audit(client, superadmin_token, db):
     """Cambiar require_mfa deja una entrada en audit_logs."""
     from app.models.enterprise import AuditLog
 
@@ -70,7 +70,7 @@ def test_patch_organization_require_mfa_writes_audit(client, admin_token, db):
     ).count()
 
     client.patch("/api/v1/organizations/1",
-                 headers=auth(admin_token), json={"require_mfa": True})
+                 headers=auth(superadmin_token), json={"require_mfa": True})
 
     after = (
         db.query(AuditLog)
@@ -90,7 +90,7 @@ def test_patch_organization_require_mfa_writes_audit(client, admin_token, db):
     assert meta.get("after") is True
 
 
-def test_patch_organization_require_mfa_no_audit_when_unchanged(client, admin_token, db):
+def test_patch_organization_require_mfa_no_audit_when_unchanged(client, superadmin_token, db):
     """Si require_mfa no cambia, no se escribe audit log para ese campo."""
     from app.models.enterprise import AuditLog
     # require_mfa por defecto es False; PATCH con False no debe disparar audit
@@ -99,7 +99,7 @@ def test_patch_organization_require_mfa_no_audit_when_unchanged(client, admin_to
         AuditLog.resource_id == "1",
     ).count()
     res = client.patch("/api/v1/organizations/1",
-                       headers=auth(admin_token), json={"require_mfa": False})
+                       headers=auth(superadmin_token), json={"require_mfa": False})
     assert res.status_code == 200
     after_count = db.query(AuditLog).filter(
         AuditLog.resource == "organizations",
@@ -108,11 +108,11 @@ def test_patch_organization_require_mfa_no_audit_when_unchanged(client, admin_to
     assert after_count == before_count  # no entries añadidas
 
 
-def test_full_flow_patch_then_login_blocked(client, admin_token, db):
+def test_full_flow_patch_then_login_blocked(client, superadmin_token, db):
     """End-to-end: admin activa require_mfa vía PATCH, usuario sin factor
     intenta login y recibe 403."""
     res = client.patch("/api/v1/organizations/1",
-                       headers=auth(admin_token), json={"require_mfa": True})
+                       headers=auth(superadmin_token), json={"require_mfa": True})
     assert res.status_code == 200
 
     # dev_test no tiene MFA configurado
