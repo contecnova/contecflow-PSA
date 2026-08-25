@@ -13,7 +13,7 @@ import io
 _logger = logging.getLogger(__name__)
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.deps import get_current_user, require_any_manager, require_admin, require_superadmin
 from app.models.user import User
 from app.core.config import settings
 from app.core.abac_enforce import enforce_abac
@@ -47,7 +47,7 @@ def remove_user_from_org(
     org_id: str,
     user_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_superadmin),
 ):
     enforce_abac(db, current_user, "organization", org_id, action="delete")
     try:
@@ -149,7 +149,7 @@ def mfa_disable(
 @router.get("/organizations", summary="Listar organizaciones (super-admin)")
 def list_organizations(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_superadmin),
 ):
     return APIListResponse.ok(items=_svc.list_organizations(db))
 
@@ -189,7 +189,7 @@ class OrgUpdate(BaseModel):
 def create_organization(
     payload: OrgCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_superadmin),
 ):
     try:
         return APIResponse.ok(data=_svc.create_organization(payload.model_dump(), current_user, db))
@@ -201,7 +201,7 @@ def create_organization(
 def get_organization(
     org_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_superadmin),
 ):
     try:
         return APIResponse.ok(data=_svc.get_organization(org_id, db))
@@ -214,7 +214,7 @@ def update_organization(
     org_id: str,
     payload: OrgUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_superadmin),
 ):
     try:
         return APIResponse.ok(data=_svc.update_organization(org_id, payload.model_dump(exclude_unset=True), db))
@@ -227,7 +227,7 @@ def assign_user_to_org(
     org_id: str,
     payload: AssignUserOrgIn = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_superadmin),
 ):
     try:
         return APIResponse.ok(data=_svc.assign_user_to_org(org_id, payload.user_id, db))

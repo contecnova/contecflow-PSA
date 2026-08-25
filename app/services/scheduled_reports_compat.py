@@ -17,7 +17,6 @@ def summarize_scheduled_reports(db: Session) -> dict[str, Any]:
     """Return safe aggregates from scheduled_reports, tolerating schema drift."""
     _EMPTY = {"total": 0, "active": 0, "errored": 0, "with_slack": 0, "by_frequency": {}}
     try:
-        from sqlalchemy import inspect as sa_inspect
         bind = db.get_bind()
         dialect = bind.dialect.name
         if dialect == "sqlite":

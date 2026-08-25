@@ -309,6 +309,12 @@ if not exist ".env" (
     echo [INFO] Creando archivo .env...
     for /f "delims=" %%S in ('powershell -NoProfile -Command "[System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).Replace('-','').ToLower()"') do set "SECRET_KEY=%%S"
     for /f "delims=" %%S in ('powershell -NoProfile -Command "[System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).Replace('-','').ToLower()"') do set "CLIENT_PORTAL_SECRET=%%S"
+    :: Contraseñas iniciales aleatorias por instalación. Antes eran la constante
+    :: 'contecflow2024!', compartida por toda instalación de Contecflow y con el
+    :: valor publicado en este script. El resumen final imprime las credenciales
+    :: generadas, así que el onboarding local no cambia.
+    for /f "delims=" %%S in ('powershell -NoProfile -Command "[System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(15)).Replace('+','x').Replace('/','y').Replace('=','') + 'Aa1!'"') do set "INIT_ADMIN_PWD=%%S"
+    for /f "delims=" %%S in ('powershell -NoProfile -Command "[System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(15)).Replace('+','x').Replace('/','y').Replace('=','') + 'Aa1!'"') do set "INIT_USER_PWD=%%S"
     (
         echo DATABASE_URL=sqlite:///./contecflow.db
         echo SECRET_KEY=!SECRET_KEY!
@@ -316,9 +322,10 @@ if not exist ".env" (
         echo ACCESS_TOKEN_EXPIRE_MINUTES=60
         echo REFRESH_TOKEN_EXPIRE_DAYS=30
         echo ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:5173","http://localhost:8000"]
+        echo ENVIRONMENT=development
         echo SUPERADMIN_EMAIL=admin@company.com
-        echo SUPERADMIN_PASSWORD=contecflow2024^!
-        echo DEFAULT_USER_PASSWORD=contecflow2024^!
+        echo SUPERADMIN_PASSWORD=!INIT_ADMIN_PWD!
+        echo DEFAULT_USER_PASSWORD=!INIT_USER_PWD!
         echo ANTHROPIC_API_KEY=
         echo CONTECFLOW_AI_MODEL=claude-haiku-4-5
     ) > .env
@@ -343,13 +350,20 @@ if errorlevel 1 (
 )
 findstr /b "SUPERADMIN_PASSWORD=" .env >nul 2>&1
 if errorlevel 1 (
-    echo [WARN] SUPERADMIN_PASSWORD no encontrado en .env - añadiendo valor por defecto
-    echo SUPERADMIN_PASSWORD=contecflow2024^! >> .env
+    echo [WARN] SUPERADMIN_PASSWORD no encontrado en .env - generando una aleatoria
+    for /f "delims=" %%S in ('powershell -NoProfile -Command "[System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(15)).Replace('+','x').Replace('/','y').Replace('=','') + 'Aa1!'"') do echo SUPERADMIN_PASSWORD=%%S >> .env
 )
 findstr /b "DEFAULT_USER_PASSWORD=" .env >nul 2>&1
 if errorlevel 1 (
-    echo [WARN] DEFAULT_USER_PASSWORD no encontrado en .env - añadiendo valor por defecto
-    echo DEFAULT_USER_PASSWORD=contecflow2024^! >> .env
+    echo [WARN] DEFAULT_USER_PASSWORD no encontrado en .env - generando una aleatoria
+    for /f "delims=" %%S in ('powershell -NoProfile -Command "[System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(15)).Replace('+','x').Replace('/','y').Replace('=','') + 'Aa1!'"') do echo DEFAULT_USER_PASSWORD=%%S >> .env
+)
+:: ENVIRONMENT gobierna el gate de :sync_demo_passwords. Si falta, los scripts
+:: asumen production y NO reescriben credenciales.
+findstr /b "ENVIRONMENT=" .env >nul 2>&1
+if errorlevel 1 (
+    echo [INFO] ENVIRONMENT no encontrado en .env - estableciendo development
+    echo ENVIRONMENT=development >> .env
 )
 
 :: Regenerar SECRET_KEY si quedó con placeholder/insegura
@@ -721,20 +735,59 @@ goto :wait_port_free_loop
 
 :: -----------------------------------------------------------------------
 :get_demo_password
+:: Sin fallback: inventar una contraseña por defecto aquí significaba que un .env
+:: sin DEFAULT_USER_PASSWORD acababa con usuarios cuya contraseña estaba escrita
+:: en este script. Si queda vacía, quien llama debe abortar.
 set "DEMO_PASSWORD="
 for /f "tokens=1,* delims==" %%A in ('findstr /b "DEFAULT_USER_PASSWORD=" .env 2^>nul') do set "DEMO_PASSWORD=%%B"
-if "!DEMO_PASSWORD!"=="" set "DEMO_PASSWORD=contecflow2024!"
+exit /b 0
+
+:: -----------------------------------------------------------------------
+:: Entorno declarado en .env. Fail-closed: si no se puede determinar, se asume
+:: "production" para que ninguna operación destructiva se ejecute por descuido.
+:get_environment
+set "APP_ENVIRONMENT="
+for /f "tokens=1,* delims==" %%A in ('findstr /b "ENVIRONMENT=" .env 2^>nul') do set "APP_ENVIRONMENT=%%B"
+if "!APP_ENVIRONMENT!"=="" set "APP_ENVIRONMENT=production"
 exit /b 0
 
 :: -----------------------------------------------------------------------
 :sync_demo_passwords
 setlocal EnableDelayedExpansion
+
+:: Gate de entorno (auditoría 2026-08, P0-4). Esta rutina reescribe el hash de
+:: contraseña de admin/ana.torres/luis.vega/rrhh con DEFAULT_USER_PASSWORD. Sin
+:: guarda, ejecutar setup.bat contra producción dejaba la cuenta admin con una
+:: contraseña conocida y compartida.
+call :get_environment
+set "ENV_OK="
+if /i "!APP_ENVIRONMENT!"=="development" set "ENV_OK=1"
+if /i "!APP_ENVIRONMENT!"=="dev"         set "ENV_OK=1"
+if /i "!APP_ENVIRONMENT!"=="local"       set "ENV_OK=1"
+if /i "!APP_ENVIRONMENT!"=="test"        set "ENV_OK=1"
+if /i "!APP_ENVIRONMENT!"=="testing"     set "ENV_OK=1"
+if /i "!APP_ENVIRONMENT!"=="demo"        set "ENV_OK=1"
+if not defined ENV_OK (
+    echo [WARN] ENVIRONMENT=!APP_ENVIRONMENT!: se OMITE la sincronizacion de contrasenas demo.
+    echo [WARN] Reescribir credenciales solo se permite en development/test/demo.
+    endlocal
+    exit /b 0
+)
+
 call :get_demo_password
 set "DEMO_PWD=!DEMO_PASSWORD!"
+if "!DEMO_PWD!"=="" (
+    echo [WARN] DEFAULT_USER_PASSWORD no esta definida en .env: se omite la sincronizacion.
+    endlocal
+    exit /b 0
+)
 
-:: Compute a simple sentinel: write password to tmp, hash it if certutil available
+:: Centinela de cambio. Antes se escribía la contraseña EN CLARO en este fichero
+:: (se llamaba .pwd_hash pero no lo era): ahora se guarda su SHA-256.
 set "PWD_HASH_FILE=.venv\.pwd_hash"
-set "CURRENT_HASH=!DEMO_PWD!"
+set "CURRENT_HASH="
+for /f "delims=" %%H in ('.venv\Scripts\python -c "import hashlib,os;print(hashlib.sha256(os.environ['DEMO_PWD'].encode()).hexdigest())"') do set "CURRENT_HASH=%%H"
+if "!CURRENT_HASH!"=="" set "CURRENT_HASH=nocheck"
 
 if exist "%PWD_HASH_FILE%" (
     set /p STORED_HASH=<"%PWD_HASH_FILE%"

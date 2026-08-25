@@ -222,6 +222,51 @@ def admin_token(client, db):
 
 
 @pytest.fixture(scope="function")
+def superadmin_token(client, db):
+    """Token de un superadministrador DE PLATAFORMA (is_superadmin=True).
+
+    Distinto de `admin_token`: ese es un administrador *de tenant*
+    (UserRole.admin), que no tiene ni debe tener alcance entre organizaciones.
+    Los endpoints de `/organizations` operan sobre el único modelo que
+    TenantSession no puede filtrar, así que exigen este actor.
+
+    Se crea un usuario aparte en lugar de poner is_superadmin=True al `admin`
+    del fixture: ese flag desactiva TODOS los filtros de tenant, y aplicarlo al
+    admin genérico enmascararía fallos de aislamiento en el resto de la suite.
+    """
+    from app.models.user import User, UserRole, UserStatus
+
+    existing = db.query(User).filter(User.username == "superadmin_test").first()
+    if not existing:
+        db.add(User(
+            id="superadmin-test-id",
+            username="superadmin_test",
+            email="superadmin@contecflow.com",
+            full_name="Superadmin Test",
+            role=UserRole.admin,
+            status=UserStatus.active,
+            is_active=True,
+            is_superadmin=True,
+            # users.organization_id es NOT NULL. Pertenecer a la org de test no
+            # limita nada: is_superadmin=True desactiva los filtros de tenant.
+            organization_id="1",
+            hashed_password=get_password_hash(_TEST_PASSWORD),
+            weekly_capacity_hours=40.0,
+            currency="EUR",
+        ))
+        db.commit()
+
+    res = client.post(
+        "/api/v1/auth/login",
+        json={"username": "superadmin_test", "password": _TEST_PASSWORD},
+    )
+    assert res.status_code == 200, f"Login superadmin falló: {res.text}"
+    token = res.cookies.get("access_token")
+    assert token
+    return token
+
+
+@pytest.fixture(scope="function")
 def pm_token(client, db):
     res = client.post("/api/v1/auth/login", json={"username": "pm_test", "password": _TEST_PASSWORD})
     assert res.status_code == 200
