@@ -68,7 +68,7 @@ export default function NetworkChart({ data, width = 900, height = 420 }: Networ
 
   useEffect(() => {
     // d3 selection typing is complex; treat as any inside the effect.
-    /* eslint-disable @typescript-eslint/no-explicit-any */
+     
     const svg = d3.select(svgRef.current as unknown as Element) as any
     svg.selectAll('*').remove()
 
@@ -164,7 +164,7 @@ export default function NetworkChart({ data, width = 900, height = 420 }: Networ
     })
 
     return () => simulation.stop()
-    /* eslint-enable @typescript-eslint/no-explicit-any */
+     
   }, [nodes, links, tokens, dark, width, height])
 
   return (

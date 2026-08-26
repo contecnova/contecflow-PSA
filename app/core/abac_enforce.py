@@ -1,12 +1,40 @@
 """
-ABAC resource enforcement helpers.
+ABAC — capa de política DISCRECIONAL. No es un control de autorización.
 
-Call `enforce_abac(db, user, resource_type, resource_id)` at the start of any
-endpoint that needs ABAC-level access control in addition to RBAC.
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ `enforce_abac()` ES FAIL-OPEN. El nombre engaña: no "enforces" nada por sí.  ║
+║ Si la organización no tiene políticas ABAC activas —el estado POR DEFECTO—   ║
+║ retorna sin comprobar nada. Nunca es el único control de un endpoint.        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 
-If the user has no active ABAC policies for this org, access is allowed by
-default (fail-open) so existing RBAC guards remain in effect.  If at least one
-ABAC policy matches, the usual allow/deny evaluation applies.
+Auditoría 2026-08 (hallazgo P1-25): el endpoint
+`DELETE /organizations/{org_id}/remove-user/{user_id}` llamaba a `enforce_abac`
+y era explotable entre tenants de todas formas. Alguien lo había puesto creyendo
+que aislaba organizaciones. No lo hace, y esta cabecera existe para que no vuelva
+a pasar.
+
+── Dónde vive de verdad la autorización ──────────────────────────────────────
+Tres capas, y hay que mirar las tres para saber si un endpoint está protegido:
+
+1. AISLAMIENTO ENTRE TENANTS — estructural, automático y fail-closed.
+   `app/db/session.py::TenantSession` filtra toda consulta ORM por organización.
+   Cubre 390 de 391 modelos; el único exento (`Organization`) lo declara y sus
+   rutas llevan guarda manual. Esta capa NO se puede olvidar: si un modelo no se
+   puede aislar, la consulta lanza `TenantIsolationError`.
+
+2. RBAC — explícito, por ruta o por servicio.
+   `Depends(require_admin)` y compañía en la firma del endpoint, o bien una
+   comprobación de rol dentro de la función de servicio (p. ej.
+   `client_service.delete_client`). Las dos formas son válidas y ambas se usan;
+   `tests/test_abac_coverage.py` mantiene el inventario de las rutas que sólo
+   la tienen en el servicio, para que ese reparto sea deliberado.
+
+3. ABAC — esta capa. Política de grano fino OPCIONAL que un cliente activa si
+   quiere. Al no haber políticas, no restringe. Es correcto que sea así: es un
+   añadido sobre 1 y 2, no un sustituto.
+
+Uso: `enforce_abac(db, user, resource_type, resource_id, action=...)` al inicio
+del endpoint, SIEMPRE además de 1 y 2 — nunca en lugar de ellas.
 """
 from __future__ import annotations
 
@@ -29,18 +57,22 @@ def enforce_abac(
     resource_id: Optional[str] = None,
     action: str = "read",
 ) -> None:
-    """
-    Raise HTTP 403 if the current user is denied by ABAC policies.
+    """Aplica las políticas ABAC de la organización, si tiene alguna activa.
 
-    This is a no-op when:
-    - The user has no organization (local dev / seed data)
-    - There are no ABAC policies for the org (fail-open)
-    - The user is a superadmin
-    - The resource is a collaboration domain resource (chat tiene su propio
-      modelo de membresía por canal/conversación que es la fuente de verdad)
+    FAIL-OPEN: sin políticas activas no comprueba nada y deja pasar. No sirve
+    como control de autorización por sí solo — ver la cabecera del módulo.
 
-    Any exception from the ABAC service is logged and results in a 403
-    (fail-closed) to avoid granting access when policy evaluation is broken.
+    Es un no-op cuando:
+    - la organización no tiene políticas ABAC activas  ← EL CASO POR DEFECTO
+    - el usuario no tiene organización (dev local / datos de seed)
+    - el usuario es superadmin
+    - el recurso es del dominio de colaboración (chat tiene su propio modelo de
+      membresía por canal/conversación, que es la fuente de verdad)
+
+    Cuando SÍ hay políticas y alguna matchea, se aplica la evaluación
+    allow/deny normal y una denegación lanza 403. Si la evaluación de políticas
+    revienta, se deniega (fail-closed): un motor de políticas roto no debe
+    conceder acceso.
     """
     if getattr(user, "is_superadmin", False):
         return
@@ -61,7 +93,7 @@ def enforce_abac(
         # Early-out: si la organización no tiene ninguna política activa, el
         # resultado sería fail-open de todas formas. Salir aquí evita cargar los
         # atributos del usuario y, sobre todo, evita el INSERT+COMMIT de auditoría.
-        # Importa desde que ABAC_ROUTE_REGISTRY cubre toda la API (auditoría
+        # Importa desde que la cobertura ABAC abarca toda la API (auditoría
         # 2026-07 §1.5): sin este corte, CADA request autenticada escribiría una
         # fila en PolicyAudit.
         if not svc.list_policies(active_only=True):

@@ -87,7 +87,7 @@ export default function CallPage(): JSX.Element {
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
   const remoteRefs = useRef<Record<string, HTMLVideoElement>>({})  // identity -> HTMLVideoElement
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const roomRef = useRef<any>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
 
@@ -102,7 +102,7 @@ export default function CallPage(): JSX.Element {
   useEffect(() => {
     if (!isLiveKitReal) return
     let mounted = true
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     let room: any
 
     ;(async () => {
@@ -130,7 +130,7 @@ export default function CallPage(): JSX.Element {
           }
           refreshParticipants()
         })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         room.on(RoomEvent.TrackSubscribed, (track: any, _pub: any, p: { identity: string }) => {
           if (track.kind === Track.Kind.Video) {
             const el = remoteRefs.current[p.identity]
@@ -154,7 +154,7 @@ export default function CallPage(): JSX.Element {
 
         // Attach local video
         const localTrack = Array.from(room.localParticipant.videoTrackPublications.values())
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           .map((p: any) => p.track).find(Boolean)
         if (localTrack && localVideoRef.current) localTrack.attach(localVideoRef.current)
 
@@ -179,7 +179,7 @@ export default function CallPage(): JSX.Element {
         list.push({
           id: p.identity,
           name: p.name || p.identity,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           audioOnly: !Array.from(p.videoTrackPublications.values()).some((pub: any) => pub.track),
           raised: p.metadata?.includes('raised') || false,
           quality: p.connectionQuality,
@@ -254,7 +254,7 @@ export default function CallPage(): JSX.Element {
       const stream = roomRef.current
         ? new MediaStream([
             ...Array.from(roomRef.current.localParticipant.audioTrackPublications.values())
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               
               .map((p: any) => p.track?.mediaStreamTrack).filter(Boolean),
           ])
         : new MediaStream(localStreamRef.current!.getAudioTracks())
@@ -512,7 +512,7 @@ function Tile({ name, hasVideo, videoRef, raised, quality }: {
 }
 
 function CtrlBtn({ icon: Icon, active, onClick, label, dangerWhenOff }: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   icon: ComponentType<any>
   active?: boolean
   onClick: () => void

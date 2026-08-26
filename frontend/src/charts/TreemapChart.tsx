@@ -29,7 +29,7 @@ export default function TreemapChart({ data, width = 900, height = 380 }: Treema
       .sum((d) => d.value || 0)
       .sort((a, b) => (b.value || 0) - (a.value || 0))
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     ;(treemap() as any).size([width, height]).padding(3)(root)
     return root.leaves()
   }, [data, width, height])
@@ -37,7 +37,7 @@ export default function TreemapChart({ data, width = 900, height = 380 }: Treema
   return (
     <svg width={width} height={height} role="img" aria-label="Treemap chart">
       {nodes.map((n) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const tn = n as any
         return (
           <g key={n.data.name}>

@@ -199,10 +199,14 @@ def test_no_new_model_escapes_tenant_filtering():
     from app.db.base import Base
     import app.models  # noqa: F401 — registra todos los mappers
 
+    # Se excluyen los modelos con prefijo "_": son fixtures de otros ficheros de
+    # test (p. ej. tests/test_tenant_filter_fail_closed.py) que se registran en
+    # Base.registry al importarse y no son modelos de la aplicación.
     unscoped = {
         m.class_.__name__
         for m in Base.registry.mappers
         if not any(hasattr(m.class_, col) for col in _TENANT_COLUMNS)
+        and not m.class_.__name__.startswith("_")
     }
     assert unscoped == set(MODELS_WITHOUT_TENANT_COLUMN), (
         "cambió el conjunto de modelos sin columna de tenant.\n"

@@ -1,35 +1,40 @@
 """
-ABAC route registry.
+Mapa de cobertura ABAC — qué prefijos de la API deben aplicar políticas ABAC.
 
-Maps URL path prefixes to (resource_type, action) tuples that the
-ABACMiddleware will enforce automatically.  The middleware performs an
-opt-in check: only routes whose prefix appears in this dict are verified.
-Routes NOT listed here are left to endpoint-level guards or RBAC.
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ Esto es DOCUMENTACIÓN VERIFICADA, no configuración en tiempo de ejecución.   ║
+║ Nada lo lee en caliente: el control real son los `enforce_abac(...)` que     ║
+║ cada endpoint llama con su resource_type y su action correctos.              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 
-Key format: path prefix (without trailing slash).
-Value format: (resource_type, action)
+Auditoría 2026-08 (hallazgo P1-5). Hasta ahora este dict se llamaba
+`ABAC_ROUTE_REGISTRY` y lo consumía `ABACMiddleware`, que se creía la capa de
+aplicación global. Ese middleware era un no-op absoluto: se saltaba el chequeo
+cuando `request.state.user` era None, y ninguna línea del proyecto asignaba ese
+atributo nunca. Los 110 prefijos de aquí no se comprobaron ni una vez.
 
-────────────────────────────────────────────────────────────────────────────────
-Cobertura (auditoría 2026-07, docs/AUDIT_2026_07_FULL.md §1.5)
-────────────────────────────────────────────────────────────────────────────────
-Antes este registro tenía 13 prefijos de los 127 que expone la API, así que el
-guard-test `test_abac_registry_completeness` solo vigilaba una allowlist mínima.
-Ahora la cobertura es completa: **todo prefijo de primer nivel de /api/v1 y /api/v2
-está en este dict o en ABAC_EXEMPT_PREFIXES con su motivo**, y
-`tests/test_abac_registry_completeness.py` lo verifica.
+Peor: `tests/test_abac_registry_completeness.py` verificaba con cuidado que este
+registro estuviera completo, dando garantía sobre un mecanismo inerte. Es el
+patrón más peligroso del informe — un test verde sobre código muerto.
 
-Semántica importante — esto NO cierra rutas por sorpresa:
-`enforce_abac()` es **fail-open**. Si la organización no tiene ninguna política ABAC
-activa que aplique al resource_type, la petición pasa y el RBAC del endpoint sigue
-siendo la única autoridad. Registrar un prefijo aquí solo significa «si un admin
-define una política para este resource_type, se aplicará también a estas rutas».
+El middleware se borró. Este mapa se conserva porque la clasificación de los 127
+prefijos de la API sí es conocimiento útil, y ahora
+`tests/test_abac_coverage.py` la contrasta contra la realidad: cada prefijo
+listado aquí debe tener al menos una ruta que llame de verdad a
+`enforce_abac()`, o estar en ABAC_EXEMPT_PREFIXES con su motivo.
 
-Sobre `action`: hoy es informativo (log + métrica). `enforce_abac()` no lo pasa a
-`evaluate_access()`, así que el middleware todavía no distingue GET de DELETE. Se
-deja "read" de forma uniforme para no sugerir una granularidad que no existe.
+Formato — clave: prefijo de ruta sin barra final. Valor: (resource_type, action).
+`action` es informativo: se conserva de la versión anterior para no perder la
+intención, pero el action que cuenta es el que pasa cada endpoint en su llamada.
+
+Recordatorio de semántica: `enforce_abac()` es FAIL-OPEN. Que un prefijo esté
+aquí no cierra nada por sorpresa; significa «si un admin define una política para
+este resource_type, se aplicará también a estas rutas». La autorización de verdad
+son el filtro de tenant (estructural, fail-closed) y el RBAC. Ver la cabecera de
+app/core/abac_enforce.py.
 """
 
-ABAC_ROUTE_REGISTRY: dict[str, tuple[str, str]] = {
+ABAC_COVERED_PREFIXES: dict[str, tuple[str, str]] = {
     # ── Entrega: proyectos, trabajo y planificación ─────────────────────────────
     "/api/v1/projects":              ("project",          "read"),
     "/api/v1/project-workflows":     ("project",          "read"),
@@ -194,8 +199,10 @@ ABAC_EXEMPT_PREFIXES: dict[str, str] = {
     "/api/v1/translations":    "catálogo i18n",
     "/api/v1/labels":          "stub 501",
     "/api/v1/collaborative":   "stub 501",
-    "/api/v1/docs":            "documentación OpenAPI",
-    "/api/v1/redoc":           "documentación OpenAPI",
-    "/api/v1/openapi.json":    "esquema OpenAPI",
+    # /api/v1/docs, /api/v1/redoc y /api/v1/openapi.json se retiraron de esta
+    # lista en la auditoría 2026-08: no son rutas del router de la aplicación
+    # (FastAPI las monta aparte, y quedan deshabilitadas por entorno), así que
+    # declararlas exentas de ABAC no describía nada real y hacía fallar el test
+    # de prefijos obsoletos.
     "/api/v2/version":         "descubrimiento de versión, público",
 }

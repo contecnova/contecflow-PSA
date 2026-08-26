@@ -27,11 +27,11 @@ export default function SunburstChart({ data, width = 900, height = 380 }: Sunbu
       ],
     }).sum((d) => d.value || 0)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     return (partition() as any).size([2 * Math.PI, radius])(root).descendants().filter((d: any) => d.depth > 0)
   }, [data, radius])
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const arcPath = (arc() as any)
     .startAngle((d: any) => d.x0)
     .endAngle((d: any) => d.x1)
@@ -41,7 +41,7 @@ export default function SunburstChart({ data, width = 900, height = 380 }: Sunbu
   return (
     <svg width={width} height={height} role="img" aria-label="Sunburst chart">
       <g transform={`translate(${width / 2}, ${height / 2})`}>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        { }
         {chartData.map((d: any, i: number) => (
           <path key={`${d.data.name}-${i}`} d={arcPath(d)} fill={`hsl(${(i * 47) % 360},70%,45%)`} opacity={0.86} />
         ))}

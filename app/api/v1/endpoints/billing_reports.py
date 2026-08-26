@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from typing import Any, Dict, Optional
 
 from app.core.abac_enforce import enforce_abac
+from app.core.uploads import UploadProfile, read_and_validate_upload_sync
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.deps import get_current_user, require_any_manager
@@ -191,7 +192,10 @@ def validate_import(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    content = file.file.read()
+    # Auditoría 2026-08 (P1-8): tope y validación de tipo centralizados. Antes
+    # se leía el fichero completo sin límite y el corte de 5 MB llegaba dentro
+    # del servicio, ya con todo en memoria.
+    content = read_and_validate_upload_sync(file, UploadProfile.CSV_IMPORT)
     try:
         return APIResponse.ok(data=_svc.validate_import_csv(entity_type, content))
     except ValueError as e:
@@ -210,7 +214,10 @@ def execute_import(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    content = file.file.read()
+    # Auditoría 2026-08 (P1-8): tope y validación de tipo centralizados. Antes
+    # se leía el fichero completo sin límite y el corte de 5 MB llegaba dentro
+    # del servicio, ya con todo en memoria.
+    content = read_and_validate_upload_sync(file, UploadProfile.CSV_IMPORT)
     try:
         return APIResponse.ok(data=_svc.execute_import_csv(entity_type, content, file.filename, current_user, db))
     except ValueError as e:

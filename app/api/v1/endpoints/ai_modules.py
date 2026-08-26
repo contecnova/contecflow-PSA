@@ -10,6 +10,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.ratelimit import limiter
+from app.core.uploads import UploadProfile, read_and_validate_upload_sync
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.service_desk.portal_auth_service import get_current_portal_client
@@ -214,13 +215,12 @@ def analyze_contract_pdf(
     # H22: extracción de texto del PDF y delegación al mismo pipeline de análisis.
     # Limit 10MB — los contratos típicos son <2MB; >10MB suele indicar PDF
     # con imágenes (requeriría OCR, fuera de scope).
-    if not (file.filename or "").lower().endswith(".pdf"):
-        raise HTTPException(400, "Solo se aceptan archivos .pdf")
-    pdf_bytes = file.file.read()
+    # Auditoría 2026-08 (P1-8): antes sólo se comprobaba que el NOMBRE acabara en
+    # .pdf. El perfil PDF_ONLY valida además los bytes mágicos (%PDF-) y acota el
+    # tamaño leyendo por trozos, en vez de bufferizar el fichero y medirlo luego.
+    pdf_bytes = read_and_validate_upload_sync(file, UploadProfile.PDF_ONLY)
     if not pdf_bytes:
         raise HTTPException(400, "El archivo está vacío.")
-    if len(pdf_bytes) > 10 * 1024 * 1024:
-        raise HTTPException(413, "El PDF no puede superar 10 MB.")
 
     text = _svc.extract_pdf_text(pdf_bytes)
     if not text or len(text) < 50:

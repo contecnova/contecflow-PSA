@@ -81,7 +81,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
       chunksRef.current = []
     }
     return () => _stopMediaTracks()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open])
 
   function _stopMediaTracks() {

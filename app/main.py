@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import Depends, FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, Response
@@ -505,10 +505,24 @@ app.add_middleware(
 from app.core.csrf import CSRFMiddleware
 app.add_middleware(CSRFMiddleware)
 
-# ABAC middleware — opt-in route-level ABAC enforcement via ABAC_ROUTE_REGISTRY.
-# Must be added AFTER the auth middleware so request.state.user is populated.
-from app.core.abac_middleware import ABACMiddleware
-app.add_middleware(ABACMiddleware)
+# ABACMiddleware retirado en la auditoría 2026-08 (hallazgo P1-5).
+#
+# Era un no-op absoluto: comprobaba `request.state.user` y se saltaba el chequeo
+# cuando era None, pero NINGUNA línea del proyecto asignaba ese atributo. La
+# autenticación vive en una dependencia de FastAPI (app/core/deps.py), que corre
+# DESPUÉS del middleware, así que los 110 prefijos del registro nunca se
+# comprobaron ni una vez.
+#
+# No se cableó, se borró, por dos razones de diseño:
+#   1. Poblar request.state.user obligaría a decodificar el JWT en el middleware:
+#      una segunda vía de autenticación en paralelo a la dependencia. Dos caminos
+#      de auth es peor arquitectura que uno.
+#   2. El registro mapeaba TODOS los prefijos a action="read", así que un DELETE
+#      se habría comprobado como lectura. El permiso evaluado era el equivocado.
+#
+# El control real son los 233 `enforce_abac(...)` a nivel de endpoint, que sí
+# reciben el resource_type y la action correctos. La cobertura de esos puntos la
+# vigila tests/test_abac_coverage.py.
 
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
@@ -589,8 +603,24 @@ async def security_headers_middleware(request: Request, call_next):
         )
     return response
 
-app.include_router(api_router, prefix=settings.API_V1_STR)
-app.include_router(api_v2_router, prefix=settings.API_V2_STR)
+# ABAC por ruta, vía dependencia (auditoría 2026-08, P1-5). Reemplaza al
+# ABACMiddleware borrado: una dependencia se resuelve en la misma fase que
+# get_current_user, así que el usuario autenticado sí está disponible — que es
+# exactamente lo que el middleware nunca tuvo. Registrarla aquí hace que
+# ABAC_COVERED_PREFIXES vuelva a ser configuración con efecto real, en vez de una
+# lista de intenciones. Ver app/core/abac_dependency.py.
+from app.core.abac_dependency import apply_abac_for_route
+
+app.include_router(
+    api_router,
+    prefix=settings.API_V1_STR,
+    dependencies=[Depends(apply_abac_for_route)],
+)
+app.include_router(
+    api_v2_router,
+    prefix=settings.API_V2_STR,
+    dependencies=[Depends(apply_abac_for_route)],
+)
 
 # ── Prometheus metrics (opt-in via METRICS_ENABLED) ────────────────────────
 # Registers RED HTTP metrics + exposes /metrics. Must run after routers are

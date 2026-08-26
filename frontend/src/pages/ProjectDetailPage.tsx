@@ -14,13 +14,13 @@ import { useAppT } from '../i18n/AppLangContext'
 const LoadBar = LoadBarRaw as (props: { value: number; max?: number; height?: number; label?: string; color?: string }) => JSX.Element
 
 // ── Loose project / task / member / risk shapes (API slices are narrowly typed) ──
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 type Project = { [k: string]: any; id: string; name?: string; status?: string }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 type Task = { [k: string]: any; id?: string; status?: string; title?: string; assignee_name?: string; due_date?: string }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 type Member = { [k: string]: any; id?: string; user_id?: string; full_name?: string; name?: string; role?: string; project_role?: string; allocation_pct?: number | null }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 type Risk = { [k: string]: any; id?: string; title?: string; description?: string; impact?: string; severity?: string; status?: string }
 
 const STATUS_COLOR_MAP: Record<string, string> = {
