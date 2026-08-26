@@ -10,7 +10,7 @@
 import React, { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { autoResolutionApi, ticketsApi } from '../../services/api'
-import { Card, Button, Spinner, Modal, EmptyState } from '../ui'
+import { Card, Button, Spinner, Modal} from '../ui'
 import { useToast } from '../../context/ToastContext'
 
 type AutoResolutionConfig = {

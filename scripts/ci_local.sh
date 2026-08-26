@@ -99,6 +99,17 @@ if [[ "$MODE" != "--info" ]]; then
     bash -c 'cd frontend && npx vitest run'
   run_gate bloqueante "build" \
     bash -c 'cd frontend && npm run build --silent'
+
+  # eslint promovido a BLOQUEANTE (auditoría 2026-08, hallazgo 6). Al instalar
+  # @typescript-eslint/parser aparecieron 80 errores que nunca se habían visto;
+  # están todos corregidos, así que un error nuevo es una regresión.
+  #
+  # El tope de warnings es la línea base MEDIDA (1.974: sobre todo etiquetas de
+  # accesibilidad y reglas del sistema de diseño, que el proyecto configuró como
+  # avisos a propósito). Fijarlo así permite que baje y no que suba. Al reducir
+  # la deuda, bajar este número — nunca subirlo.
+  run_gate bloqueante "eslint (0 errores, warnings ≤ 1974)" \
+    bash -c 'cd frontend && npx eslint src --ext .js,.jsx,.ts,.tsx --max-warnings 1974'
 fi
 
 # ── Gates informativos ────────────────────────────────────────────────────────
@@ -108,10 +119,12 @@ if [[ "$MODE" != "--fast" ]]; then
     "$PY_BIN" -m ruff check scripts
   run_gate informativo "tsc estricto — hallazgo 10" \
     bash -c 'cd frontend && npx tsc -p tsconfig.strict.json --noEmit'
-  # OJO: lint:a11y informa "0 findings" porque no puede parsear 304 de 343
-  # ficheros. Es un verde falso y no vale nada hasta arreglar el parser (h. 6).
-  run_gate informativo "eslint — hallazgo 6 (falta @typescript-eslint/parser)" \
-    bash -c 'cd frontend && npm run --silent lint'
+  # lint:a11y ya vale algo: hasta la auditoría 2026-08 informaba "0 findings"
+  # porque no podía parsear 304 de 343 ficheros. Con el parser instalado sus
+  # números son reales (1.480 avisos de etiquetas), y son deuda de marcado que
+  # requiere decidir la etiqueta correcta caso por caso.
+  run_gate informativo "auditoría de accesibilidad (deuda de marcado)" \
+    bash -c 'cd frontend && npm run --silent lint:a11y:report'
   run_gate informativo "check i18n — hallazgo 16" \
     bash -c 'cd frontend && npm run --silent check:i18n'
   run_gate informativo "npm audit — hallazgo 17" \

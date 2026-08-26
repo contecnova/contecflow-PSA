@@ -42,14 +42,6 @@ const ACTION_META: Record<string, { label: string; color: string }> = {
   monitor:        { label: 'Monitorizar',      color: 'var(--text-3)' },
 }
 
-const fieldLabel: React.CSSProperties = {
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  color: 'var(--text-3)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  marginBottom: 6,
-}
 const chip = (color: string): React.CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,

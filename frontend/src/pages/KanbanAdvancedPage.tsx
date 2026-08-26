@@ -8,7 +8,7 @@
  *   card subtask count badge · assignee avatar · overdue indicator
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import type { CSSProperties } from 'react'
+import type {} from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import { tasksApi, projectsApi, sprintsApi } from '../services/api'
@@ -361,6 +361,11 @@ function SwimlaneRow({ label, tasks, columns, dragOverCol, wipLimits, projectId,
 
 // ── Main page ────────────────────────────────────────────────────────────────
 
+// Izado fuera del componente (auditoría 2026-08, P1-6): se creaba en cada
+// render, así que añadirlo a las dependencias del useCallback habría roto la
+// memoización en lugar de arreglarla. Es una constante, no estado.
+const SENSITIVE_FROM = new Set(['done', 'cancelled'])
+
 export default function KanbanAdvancedPage(): JSX.Element {
   const t           = useAppT()
   const toast       = useToast()
@@ -416,7 +421,6 @@ export default function KanbanAdvancedPage(): JSX.Element {
     onError:    (e: unknown) => toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('kanban.error_move_task')),
   })
 
-  const SENSITIVE_FROM = new Set(['done', 'cancelled'])
   const requestStatusChange = useCallback((id: string, fromStatus: string, toStatus: string) => {
     if (fromStatus === toStatus) return
     let move_reason

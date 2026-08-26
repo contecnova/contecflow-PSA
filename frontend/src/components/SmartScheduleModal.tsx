@@ -50,7 +50,10 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
   const [unscheduledCount, setUnscheduledCount] = useState(0)
   const [maxTasks, setMaxTasks] = useState(20)
   const [error, setError] = useState<string | null>(null)
-  const [tasksById, setTasksById] = useState<Record<string, string>>({})
+  // `tasksById` no se lee en ninguna parte: se conserva solo el setter para no
+  // alterar el comportamiento existente. Estado de solo escritura, candidato a
+  // retirar cuando se revise este modal.
+  const [, setTasksById] = useState<Record<string, string>>({})
 
   // ── Suggest mutation ─────────────────────────────────────────────────────
   const { mutate: requestSuggestions, isPending: isLoading, reset: resetSuggest } = useMutation({

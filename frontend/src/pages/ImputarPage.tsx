@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -102,8 +102,24 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
           return (
             <div key={d} style={{ flex: 1, textAlign: 'center', position: 'relative' }}>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>{d}</div>
-              <div
-                onClick={dayAnomaly ? onOpenDrawer : undefined}
+              {/* Auditoría 2026-08 (P1-6): era un div con onClick y sin ninguna vía
+                  de teclado, así que la celda no se podía activar sin ratón.
+                  Se renderiza un <button> REAL cuando es interactiva y un div
+                  cuando no: un rol condicional sobre un div deja fuera del orden
+                  de tabulación lo que no hace nada, pero el elemento nativo da
+                  foco, Enter/Espacio y semántica sin reimplementar nada. */}
+              {(() => {
+                const Cell = dayAnomaly ? 'button' : 'div'
+                const interactiveProps = dayAnomaly
+                  ? {
+                      type: 'button' as const,
+                      onClick: onOpenDrawer,
+                      'aria-label': `Ver anomalía del ${d}: ${dayAnomaly.message}`,
+                    }
+                  : {}
+                return (
+              <Cell
+                {...interactiveProps}
                 style={{
                   background: dayAnomaly
                     ? 'var(--warning-glow, rgba(251,146,60,0.18))'
@@ -130,7 +146,9 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
                     }}
                   >!</span>
                 )}
-              </div>
+              </Cell>
+                )
+              })()}
             </div>
           )
         })}
@@ -154,10 +172,22 @@ interface AnomaliesDrawerProps {
 }
 
 function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps) {
+  // Auditoría 2026-08 (P1-6): el panel NO se cerraba con Escape — sólo con el
+  // ratón sobre el fondo o la X. Para quien navega con teclado era una trampa.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
   if (!open) return null
   const items: Anomaly[] = anomaliesData?.anomalies || []
   return (
     <div
+      // El fondo es decorativo: cerrar pulsándolo es un atajo de ratón, no la
+      // vía accesible. Esa la da el Escape de arriba y el botón ✕ del panel.
+      role="presentation"
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
@@ -165,7 +195,12 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Anomalías en imputaciones"
+        // Detiene la propagación para que pulsar dentro no cierre el panel.
         onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
         style={{
           width: 420, maxWidth: '92vw', height: '100%',
           background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',

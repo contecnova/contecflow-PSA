@@ -23,8 +23,8 @@ import {
   Star, Plus, ChevronRight, ChevronDown, Clock, CheckCircle2,
   User, Users as UsersIcon, Crown, ArrowUp, UserPlus, Save, Send,
   Pencil, Trash2, AlertCircle, ListChecks, Target, BarChart3,
-  Eye, EyeOff, Lock, X, TrendingUp, History,
-  Activity, Bell, AlertTriangle, Zap, Map as MapIcon, Flag, FileDown,
+  Lock, X, TrendingUp, History,
+  Activity, Bell, AlertTriangle, Map as MapIcon, Flag, FileDown,
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDate } from '../utils/helpers'
@@ -146,9 +146,9 @@ function ReviewForm({ review, onClose }: { review: Dict; onClose: () => void }) 
   // Solo re-hidratamos cuando cambia la review seleccionada (review.id):
   // depender de review.answers haría que cualquier re-render del padre con
   // una nueva referencia del objeto pisara las ediciones locales del usuario.
-   
   useEffect(() => {
     setAnswers(review.answers || {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- omisión deliberada, ver arriba
   }, [review.id])
 
   const cleanAnswers = () => {
@@ -699,9 +699,9 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
   // evitar pisar una selección manual (la guard `!managerId` ya lo cubre);
   // incluirlo dispararía el efecto cuando el usuario eligiese, y setManagerId
   // es una función creada en cada render que provocaría re-ejecuciones inútiles.
-   
   useEffect(() => {
     if (managerOptions.length === 1 && !managerId) setManagerId(managerOptions[0].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- omisión deliberada, ver arriba
   }, [managerOptions])
 
   // Cuando cambia el subject reseteamos selecciones derivadas
@@ -1122,7 +1122,10 @@ function History360Modal({ subjectId, subjectName, onClose }: {
     queryFn: () => performanceApi.history360(subjectId).then(r => r.data),
   })
 
-  const series: Dict[] = data?.series || []
+  // useMemo (auditoría 2026-08, P1-6): con `?? []` / `|| []` esto creaba un
+  // array nuevo en cada render, así que los useMemo/useEffect que lo tienen
+  // como dependencia se reejecutaban SIEMPRE — no memoizaban nada.
+  const series: Dict[] = useMemo(() => data?.series || [], [data?.series])
   // Recopilamos todas las question keys que aparecen al menos una vez
   const allQs = useMemo<Dict[]>(() => {
     const map = new Map<string, Dict>()
@@ -1256,8 +1259,15 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
             const submitted = camp.submitted || 0
             const pct = total ? Math.round((submitted / total) * 100) : 0
             return (
+              // Auditoría 2026-08 (P1-6): fila clicable sin vía de teclado.
               <div key={camp.id} className="ds-row-between"
                 style={{ ...styles.rowItemTilePadded, cursor: 'pointer' }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Abrir campaña de ${camp.subject_name}`}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDashboard(camp.id) }
+                }}
                 onClick={() => onOpenDashboard(camp.id)}>
                 <div style={styles.flex1MinW0}>
                   <div style={styles.titleSmBolder}>
@@ -1732,7 +1742,14 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
           {plans.map((p: Dict) => {
             const cfg = PLAN_STATUS_CFG[p.status as keyof typeof PLAN_STATUS_CFG] || PLAN_STATUS_CFG.draft
             return (
+              // Auditoría 2026-08 (P1-6): tarjeta clicable sin vía de teclado.
               <div key={p.id} className="ds-card" onClick={() => setOpenPlanId(p.id)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Abrir plan ${p.title}`}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenPlanId(p.id) }
+                }}
                 style={{ cursor: 'pointer' }}>
                 <div className="ds-row-between">
                   <div style={styles.flex1MinW0}>
@@ -1929,7 +1946,6 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
     <Modal open onClose={onClose} title="Plan" width={640}><Spinner /></Modal>
   )
 
-  const cfg = PLAN_STATUS_CFG[plan.status as keyof typeof PLAN_STATUS_CFG] || PLAN_STATUS_CFG.draft
 
   return (
     <Modal open onClose={onClose}
@@ -1971,7 +1987,6 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
           ) : (
             <div className="ds-stack-sm">
               {plan.goals.map((g: Dict) => {
-                const gcfg = GOAL_STATUS_CFG[g.status as keyof typeof GOAL_STATUS_CFG] || GOAL_STATUS_CFG.pending
                 return (
                   <div key={g.id} className="ds-row-between" style={{
                     gap: 8, padding: '8px 10px',

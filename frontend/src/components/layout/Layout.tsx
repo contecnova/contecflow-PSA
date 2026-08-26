@@ -808,7 +808,7 @@ interface TopAppBarProps {
   onVoiceOpen: () => void
 }
 
-function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, chatUnread, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen, onQuickCreate, onVoiceOpen }: TopAppBarProps) {
+function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, chatUnread, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen: _onAlertsOpen, onQuickCreate, onVoiceOpen }: TopAppBarProps) {
   const location = useLocation()
   const [chatBadgeVisible, setChatBadgeVisible] = useState<boolean>(chatUnread > 0)
   const [chatBadgeCount, setChatBadgeCount] = useState<number>(chatUnread)

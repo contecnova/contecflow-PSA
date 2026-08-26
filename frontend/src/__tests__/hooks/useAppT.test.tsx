@@ -10,7 +10,6 @@
 // no localStorage / navigator dependencies.
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import React from 'react';
 import { AppLangContext } from '../../i18n/AppLangContext';
 import { useAppT } from '../../hooks/useAppT';
 

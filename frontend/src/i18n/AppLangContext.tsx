@@ -7,7 +7,7 @@
  *   t('common.save')             → "Guardar" | "Save" | ...
  *   t('tasks.new_task', 'es')    → fuerza español independientemente
  */
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { APP_LANGUAGES, APP_TRANSLATIONS, loadLanguage } from './appTranslations'
 import { deepMergeTranslations, resolveTranslation, getByPath } from './translationRuntime.mjs'

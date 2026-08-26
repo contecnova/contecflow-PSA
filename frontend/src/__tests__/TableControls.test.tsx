@@ -1,10 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen} from '@testing-library/react';
 import { useSort } from '../components/ui/TableControls';
-import React from 'react';
 
 function TestTable({ data }) {
-  const { sort, setSort, sortedData } = useSort(data, 'name');
+  const { setSort, sortedData } = useSort(data, 'name');
   return (
     <table>
       <thead>

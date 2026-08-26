@@ -11,7 +11,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Hash, MessageSquare, Users, Pin, Bookmark, Search,
-  Send, Paperclip, AtSign, Plus, Phone, Video, Settings,
+  Send, Paperclip, AtSign, Plus, Phone, Video,
   ChevronDown, ChevronRight, Bell, Sparkles, Megaphone, Zap,
   Bot, FileText, AlertCircle, MoreVertical, Trash2, Pencil, X,
   Headphones, ListChecks, FileSignature, BellOff, Link as LinkIcon,
@@ -2180,20 +2180,3 @@ function ActivityList() {
 }
 
 // ── Admin panel placeholder (legacy CTA) ────────────────────────────────────
-function AdminPanelEntry() {
-  return (
-    <div style={{ width: 360, background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)', padding: 16, color: 'var(--text-2)' }}>
-      <Section title="Administración Collaboration">
-        <p style={{ fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
-          Configura políticas de retención, legal hold, integraciones y auditoría desde la página dedicada.
-        </p>
-        <a href="/settings/chat-admin" style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10,
-          padding: '8px 14px', borderRadius: 8,
-          background: 'var(--accent)', color: '#fff', fontSize: 'var(--text-sm)',
-          fontWeight: 700, textDecoration: 'none',
-        }}><Settings size={14} /> Abrir admin</a>
-      </Section>
-    </div>
-  )
-}

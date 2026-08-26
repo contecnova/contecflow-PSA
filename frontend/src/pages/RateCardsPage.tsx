@@ -314,6 +314,14 @@ export default function RateCardsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm]           = useState<RateTableCreateForm>({ name: '', description: '', applies_to: 'role', is_default: false })
 
+  // Auditoría 2026-08 (P1-6): `rateTableSchema` estaba definido con sus reglas
+  // (trim, máx. 120 / 500 caracteres) y NO se usaba en ninguna parte — lo delató
+  // ESLint al poder leer TypeScript por primera vez. El formulario enviaba
+  // `create(form)` directo con `disabled={!form.name}` como única comprobación,
+  // así que aceptaba nombres sin recortar y descripciones de cualquier longitud.
+  // Se conecta con el mismo patrón que ya usa EntryForm con rateEntrySchema.
+  const tableValidation = useFormValidation(rateTableSchema)
+
   const { data: tables = [], isLoading } = useQuery<RateTable[]>({
     queryKey: ['rate-cards'],
     queryFn: () => rateCardsApi.list().then(r => r.data?.items ?? r.data ?? []),
@@ -330,6 +338,12 @@ export default function RateCardsPage() {
     },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
+
+  const createTable = () => {
+    const result = tableValidation.validateForm(form)
+    if (!result.success || !result.data) return
+    create(result.data)
+  }
 
   const { mutate: del } = useMutation({
     mutationFn: rateCardsApi.delete,
@@ -416,7 +430,7 @@ export default function RateCardsPage() {
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
-            <Button onClick={() => create(form)} loading={isPending} disabled={!form.name || isPending}>Crear tabla</Button>
+            <Button onClick={createTable} loading={isPending} disabled={!form.name || isPending}>Crear tabla</Button>
           </div>
         </Modal>
       )}

@@ -7,11 +7,11 @@
  *   3. Users table — each row links to its versioned cost profile history
  *   4. Profile editor with live preview (gross salary → SS% → extras → cost/hour)
  */
-import type { CSSProperties, ReactNode, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import type { ReactNode, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { userCostsApi, apiErrorMsg, unwrapList } from '../services/api'
-import { Button, Modal, Spinner, EmptyState, Input as InputRaw, Select } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Input as InputRaw} from '../components/ui'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { useToast } from '../context/ToastContext'
@@ -30,7 +30,6 @@ type ProfileRow = { [k: string]: unknown; id: string; valid_from?: string; valid
 const fmtCur = (v: number | null | undefined, currency = 'EUR', lang = 'es') =>
   v == null ? '—' : new Intl.NumberFormat(lang, { style: 'currency', currency, maximumFractionDigits: 0 }).format(v)
 
-const fmtPct = (v: number | null | undefined) => v == null ? '—' : `${(v * 100).toFixed(1)}%`
 
 export default function UserCostsPage() {
   const { lang } = useAppLang()
@@ -70,7 +69,10 @@ export default function UserCostsPage() {
     [users],
   )
 
-  const summaryRows: SummaryRow[] = (summary?.users || [])
+  // useMemo (auditoría 2026-08, P1-6): con `?? []` / `|| []` esto creaba un
+  // array nuevo en cada render, así que los useMemo/useEffect que lo tienen
+  // como dependencia se reejecutaban SIEMPRE — no memoizaban nada.
+  const summaryRows: SummaryRow[] = useMemo(() => summary?.users || [], [summary?.users])
   const filteredUsers = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return summaryRows

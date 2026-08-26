@@ -109,7 +109,7 @@ describe('Dexie Offline Sync', () => {
 
   describe('Conflict Resolution', () => {
     it('should detect 409 conflicts', async () => {
-      const mockApiFn = vi.fn(async (op) => ({
+      const mockApiFn = vi.fn(async (_op) => ({
         status: 409,
         json: async () => ({ serverValue: 'conflict' }),
       }))
@@ -126,7 +126,7 @@ describe('Dexie Offline Sync', () => {
     })
 
     it('should handle server-wins conflict strategy', async () => {
-      const mockApiFn = vi.fn(async (op) => ({
+      const mockApiFn = vi.fn(async (_op) => ({
         status: 409,
         json: async () => ({ value: 'server' }),
       }))
@@ -149,7 +149,7 @@ describe('Dexie Offline Sync', () => {
     })
 
     it('should handle manual conflict strategy', async () => {
-      const mockApiFn = vi.fn(async (op) => ({
+      const mockApiFn = vi.fn(async (_op) => ({
         status: 409,
         json: async () => ({ value: 'server' }),
       }))
@@ -174,7 +174,7 @@ describe('Dexie Offline Sync', () => {
     })
 
     it('should resolve conflicts manually', async () => {
-      const mockApiFn = vi.fn(async (op) => ({
+      const mockApiFn = vi.fn(async (_op) => ({
         status: 409,
         json: async () => ({ value: 'server' }),
       }))
@@ -208,7 +208,7 @@ describe('Dexie Offline Sync', () => {
   describe('Sync with Exponential Backoff', () => {
     it('should retry failed operations', async () => {
       let callCount = 0
-      const mockApiFn = vi.fn(async (op) => {
+      const mockApiFn = vi.fn(async (_op) => {
         callCount++
         if (callCount < 3) {
           throw new Error('Network error')
@@ -232,7 +232,7 @@ describe('Dexie Offline Sync', () => {
     })
 
     it('should give up after max retries', async () => {
-      const mockApiFn = vi.fn(async (op) => {
+      const mockApiFn = vi.fn(async (_op) => {
         throw new Error('Network error')
       })
 
@@ -261,7 +261,7 @@ describe('Dexie Offline Sync', () => {
         events.push(event)
       })
 
-      const mockApiFn = vi.fn(async (op) => ({ status: 200 }))
+      const mockApiFn = vi.fn(async (_op) => ({ status: 200 }))
 
       await queueOperation({
         method: 'POST',
@@ -300,7 +300,7 @@ describe('Dexie Offline Sync', () => {
     })
 
     it('should track resolved conflicts', async () => {
-      const mockApiFn = vi.fn(async (op) => ({
+      const mockApiFn = vi.fn(async (_op) => ({
         status: 409,
         json: async () => ({}),
       }))

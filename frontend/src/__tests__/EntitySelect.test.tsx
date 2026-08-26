@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
 // No se puede testear EntitySelect sin mock de React Query y API, pero se documenta el patrón:
 describe('EntitySelect (patrón)', () => {
   it('debe renderizar el select y mostrar opciones (mock necesario)', () => {

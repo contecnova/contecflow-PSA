@@ -19,6 +19,9 @@ function toCellText(node: Element | null): string {
   clone.querySelectorAll('button,input,select,textarea,svg,img,[aria-hidden="true"],[role="button"]').forEach(el => el.remove())
   return (clone?.textContent || '')
     .replace(/\s+/g, ' ')
+    // Los caracteres de esta clase son ESPACIOS IRREGULARES a proposito: es el
+    // saneador que normaliza NBSP y caracteres de ancho cero a un espacio normal.
+    // eslint-disable-next-line no-irregular-whitespace
     .replace(/[   ]/g, ' ')
     .trim()
 }

@@ -70,6 +70,18 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
 
+  // Declarada ANTES del efecto que la usa (auditoría 2026-08, P1-6). Estaba
+  // debajo: funcionaba por hoisting, pero leer una función del cuerpo del
+  // componente antes de declararla es el patrón que marca react-hooks.
+  // Sólo toca refs, así que es estable entre renders.
+  function _stopMediaTracks() {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop())
+      streamRef.current = null
+    }
+    mediaRecorderRef.current = null
+  }
+
   // Cleanup al cerrar
   useEffect(() => {
     if (!open) {
@@ -83,14 +95,6 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
     return () => _stopMediaTracks()
      
   }, [open])
-
-  function _stopMediaTracks() {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop())
-      streamRef.current = null
-    }
-    mediaRecorderRef.current = null
-  }
 
   // ── 1. Start recording ─────────────────────────────────────────────────────
   async function handleStart() {

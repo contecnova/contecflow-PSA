@@ -6,7 +6,6 @@
 import { vi, describe, it, expect, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { AppLangProvider, useAppLang } from '../i18n/AppLangContext';
-import React from 'react';
 
 // AppLangProvider hace `useContext(AuthContext)` (no solo useAuth): el mock debe
 // exportar un Context real para que useContext no falle.

@@ -286,7 +286,9 @@ export default function CallPage(): JSX.Element {
       }
       recorder.start(5000)  // chunk de 5s
     } catch (e) { console.warn('captions:', e) }
-  }, [callId])
+    // `t` (traducciones) faltaba: al cambiar de idioma el callback seguía
+    // usando el anterior.
+  }, [callId, t])
 
   useEffect(() => {
     if (captions) startCaptions()
