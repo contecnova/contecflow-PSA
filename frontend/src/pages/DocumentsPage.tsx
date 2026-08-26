@@ -736,7 +736,10 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
 
   useEffect(() => {
     if (doc?.versions?.length && !previewVersion) setPreviewVersion(doc.versions[0]);
-  }, [doc]);
+    // `previewVersion` faltaba (auditoría 2026-08, P1-6). El guard `!previewVersion`
+    // impide reescribirlo, así que incluirlo es seguro y hace que el efecto
+    // reaccione si la vista previa se limpia.
+  }, [doc, previewVersion]);
 
   const approveMutation = useMutation({
     mutationFn: ({ status, note }: { status: string; note?: string }) => documentsApi.approve(documentId, { status, note }),
@@ -796,7 +799,10 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
     fetch(activeVer.download_url, { method: 'HEAD', credentials: 'include' })
       .then(r => { if (!r.ok) setPreviewError(true); })
       .catch(() => setPreviewError(true));
-  }, [activeVer?.download_url]);
+    // Faltaban file_mime_type y file_name (auditoría 2026-08, P1-6): el efecto
+    // los usa para decidir el tipo, así que si cambiaban sin cambiar la URL la
+    // comprobación se hacía con valores obsoletos.
+  }, [activeVer?.download_url, activeVer?.file_mime_type, activeVer?.file_name]);
 
   const tabBtnStyle = (id: string): CSSProperties => ({
     padding: '6px 14px', borderRadius: 7, border: `1px solid ${tab === id ? 'var(--accent)40' : 'var(--surface-4)'}`,

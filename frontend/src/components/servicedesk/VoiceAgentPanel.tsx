@@ -19,7 +19,7 @@
  *   5. Cierre con resolución: resolved / transferred / abandoned / voicemail.
  *   6. La configuración es por organización (greeting, idioma, menú DTMF, keywords de intent).
  */
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -690,7 +690,13 @@ export default function VoiceAgentPanel() {
     enabled: tab === 'config',
   })
 
-  const sessions: VoiceSession[] = (sessionsData as { sessions?: VoiceSession[] } | undefined)?.sessions ?? []
+  // useMemo (auditoría 2026-08, P1-6): con `?? []` / `|| []` esto creaba un
+  // array nuevo en cada render, así que los useMemo/useEffect que lo tienen
+  // como dependencia se reejecutaban SIEMPRE — no memoizaban nada.
+  const sessions: VoiceSession[] = useMemo(
+    () => (sessionsData as { sessions?: VoiceSession[] } | undefined)?.sessions ?? [],
+    [sessionsData],
+  )
   const activeSession = useMemo(
     () => sessions.find((s: VoiceSession) => s.id === activeSessionId),
     [sessions, activeSessionId],

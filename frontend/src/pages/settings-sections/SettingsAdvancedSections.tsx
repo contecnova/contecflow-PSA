@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { Fragment, useState, useEffect } from 'react'
+import { Fragment, useState, useEffect, useMemo } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -1113,7 +1113,10 @@ export function IntegrationCredentialsSection() {
     queryKey: ['integration-providers'],
     queryFn: () => settingsApi.integrations().then(r => r.data),
   })
-  const providers = data?.providers || []
+  // useMemo (auditoría 2026-08, P1-6): con `?? []` / `|| []` esto creaba un
+  // array nuevo en cada render, así que los useMemo/useEffect que lo tienen
+  // como dependencia se reejecutaban SIEMPRE — no memoizaban nada.
+  const providers = useMemo(() => data?.providers || [], [data?.providers])
   const [active, setActive] = useState<any>(null)
   useEffect(() => {
     if (!active && providers.length) setActive(providers[0].provider)

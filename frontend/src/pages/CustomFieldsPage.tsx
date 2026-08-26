@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { CSSProperties, ChangeEvent } from 'react'
+import type { CSSProperties} from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'

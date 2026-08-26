@@ -11,33 +11,8 @@ import { Brain } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 
-interface OraclePrediction {
-  id: string | number
-  type: string
-  severity: string
-  title?: string
-  entity_type?: string
-  entity_name?: string
-  is_acknowledged?: boolean
-  probability?: number
-  explanation?: string
-  recommended_action?: string
-  [key: string]: unknown
-}
 
-interface OracleAlert {
-  type?: string
-  entity?: string
-  probability?: number
-  [key: string]: unknown
-}
 
-interface OracleAnalysis {
-  alerts_generated?: number
-  methodology?: string
-  alerts?: OracleAlert[]
-  [key: string]: unknown
-}
 
 interface SevCfg { label: string; color: string; bg: string }
 interface TypeIcon { icon: string; label: string }

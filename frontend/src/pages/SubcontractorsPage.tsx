@@ -363,7 +363,6 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
   const qc = useQueryClient()
   const t = useAppT()
   const { currency } = useOrgSettings()
-  const fmtMoney = (n?: number) => n?.toLocaleString('es-ES', { style: 'currency', currency })
   const [tab, setTab] = useState('workers')
   const [showTimelog, setShowTimelog] = useState(false)
   const [showInvoice, setShowInvoice] = useState(false)

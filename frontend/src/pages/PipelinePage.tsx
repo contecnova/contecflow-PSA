@@ -361,7 +361,10 @@ export default function PipelinePage() {
   const [detailOpp, setDetailOpp] = useState<Opp | null>(null)
 
   const { data: rawData, isLoading, isError, error, refetch, isFetching } = usePipeline()
-  const data: Opp[] = Array.isArray(rawData) ? (rawData as Opp[]) : []
+  // useMemo (auditoría 2026-08, P1-6): con `?? []` / `|| []` esto creaba un
+  // array nuevo en cada render, así que los useMemo/useEffect que lo tienen
+  // como dependencia se reejecutaban SIEMPRE — no memoizaban nada.
+  const data: Opp[] = useMemo(() => (Array.isArray(rawData) ? (rawData as Opp[]) : []), [rawData])
   const createOpportunity = useCreateOpportunity()
   const updateOpportunity = useUpdateOpportunity()
   const deleteOpportunity = useDeleteOpportunity()

@@ -1,5 +1,4 @@
 import { render, fireEvent } from '@testing-library/react'
-import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { useSwipeGesture } from '../hooks/useSwipeGesture'

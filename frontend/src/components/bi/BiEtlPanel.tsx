@@ -62,14 +62,6 @@ const CONNECTOR_LABEL: Record<string, string> = {
   s3:            'AWS S3',
 }
 
-const fieldLabel: React.CSSProperties = {
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  color: 'var(--text-3)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  marginBottom: 6,
-}
 const chip = (color: string): React.CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,

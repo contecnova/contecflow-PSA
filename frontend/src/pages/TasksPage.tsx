@@ -745,7 +745,10 @@ export default function TasksPage() {
 
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
-  }, [moveTaskStatus, cleanupGhost])
+    // `requestMoveTask` se invoca dentro de onUp y no estaba declarada
+    // (auditoría 2026-08, P1-6): los listeners capturaban una versión antigua
+    // del callback, así que un arrastre podía mover la tarea con estado viejo.
+  }, [cleanupGhost, requestMoveTask])
 
   const handleColumnEnter = useCallback((status: any) => {
     dropTargetRef.current = status

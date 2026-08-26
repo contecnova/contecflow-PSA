@@ -31,7 +31,6 @@
 import { useState, useEffect, useCallback } from 'react'
 
 type ConflictStrategy = 'server-wins' | 'client-wins' | 'merge' | 'manual'
-type SyncEventType = 'optimistic_update' | 'conflict_detected' | 'conflict_resolved' | 'sync_start' | 'sync_progress' | 'sync_complete' | 'offline_data_cleared'
 
 interface SyncResult {
   synced: number

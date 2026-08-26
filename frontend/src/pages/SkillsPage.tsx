@@ -18,7 +18,6 @@ const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', bord
 const _ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 // ── Tipos de dominio ──────────────────────────────────────────────────────────
-type LevelKey = 'basic' | 'intermediate' | 'advanced' | 'expert'
 interface CatalogSkill { id: string; name: string; category: string; user_count?: number }
 interface UserSkill {
   id: string; skill_id?: string; skill_name?: string; category?: string

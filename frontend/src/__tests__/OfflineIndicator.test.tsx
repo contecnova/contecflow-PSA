@@ -1,5 +1,5 @@
 import { vi, describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render} from '@testing-library/react';
 import OfflineIndicator from '../components/OfflineIndicator';
 
 // Mock any i18n/context dependencies that OfflineIndicator may pull in transitively

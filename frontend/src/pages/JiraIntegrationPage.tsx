@@ -40,9 +40,6 @@ interface JiraSyncResult {
   updated?: number
 }
 
-interface JiraPushResult {
-  pushed?: number
-}
 
 interface JiraFormState {
   jira_url: string

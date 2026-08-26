@@ -3,7 +3,7 @@
  * Vista RAG (Red/Amber/Green) de salud + EVM consolidado + hitos cruzados.
  */
 import React, { useState } from 'react';
-import type { ComponentType, CSSProperties, MouseEvent } from 'react';
+import type { ComponentType, CSSProperties} from 'react';
 import PageShell from '../components/layout/PageShell'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

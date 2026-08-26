@@ -218,6 +218,16 @@ export default [
     },
   },
   {
+    // Ficheros de declaración. Un parámetro genérico sin usar es legítimo aquí:
+    // en una ampliación de módulo la firma tiene que coincidir con la original
+    // (p. ej. `interface HTMLAttributes<T>` de React), aunque `T` no aparezca en
+    // el cuerpo que se está sobrescribiendo.
+    files: ['src/**/*.d.ts'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
+  {
     files: ['src/**/__tests__/**/*.{js,jsx,ts,tsx}', 'src/**/*.test.{js,jsx,ts,tsx}'],
     languageOptions: {
       globals: {

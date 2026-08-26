@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { useColVisibility } from '../components/ui/ColVisibility';
-import React from 'react';
 
 function TestColVisibility({ cols, storageKey }) {
   const { visibleCols } = useColVisibility(cols, storageKey);

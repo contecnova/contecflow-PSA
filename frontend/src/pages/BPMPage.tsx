@@ -1320,7 +1320,7 @@ function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: stri
         instanceRef.current = null
       }
     }
-  }, [xml, editMode])
+  }, [xml, editMode, containerRef])
 
   const getXml = async () => {
     if (!instanceRef.current) return null
@@ -1575,7 +1575,11 @@ export default function BPMPage(): JSX.Element {
     if (!selectedProcess) return
     const fresh = allProcesses.find(p => p.id === selectedProcess.id)
     if (fresh && fresh !== selectedProcess) setSelectedProcess(fresh)
-  }, [allProcesses])
+    // `selectedProcess` faltaba (auditoría 2026-08, P1-6): si cambiaba la
+    // selección sin cambiar la lista, el efecto no se reejecutaba y el proceso
+    // seleccionado se quedaba con datos viejos. El guard de desigualdad evita
+    // el bucle al escribir el mismo estado que se lee.
+  }, [allProcesses, selectedProcess])
 
   const filtered = allProcesses.filter(p => {
     const catOk = selectedCat === 'all' || p.category === selectedCat

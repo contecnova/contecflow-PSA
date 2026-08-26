@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { AppLangContext } from '../../i18n/AppLangContext';
 import { useAppT } from '../useAppT';
-import React from 'react';
 
 const mockTranslations = {
   dashboard: {

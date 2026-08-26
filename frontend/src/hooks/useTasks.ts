@@ -20,12 +20,6 @@ export type UpdateArgs<T> = { id: string; data: T }
 export type CommentArgs = { id: string; data: Record<string, unknown> | null }
 export type BulkUpdateArgs = Record<string, unknown>
 
-function unwrapList<T>(r: { data?: { items?: T[] } | T[] | null }): T[] {
-  const d = r?.data
-  if (Array.isArray(d)) return d
-  return d?.items ?? []
-}
-
 export function useTasks(params: TaskListParams = {}): UseQueryResult<Task[]> {
   return useQuery<Task[]>({
     queryKey: queryKeys.tasks.list(params),
