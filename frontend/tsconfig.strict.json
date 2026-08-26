@@ -21,7 +21,11 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["vite/client"]
   },
+  "//7": "Las declaraciones ambientales van primero en el include: al sobreescribir",
+  "//8": "`include` este config NO hereda el src/**/*.d.ts de la base, y sin ellas",
+  "//9": "los módulos sin tipos publicados rompen el gate con TS7016.",
   "include": [
+    "src/types/ts-relaxed-compat.d.ts",
     "src/main.tsx",
     "src/hooks/useAppT.ts",
     "src/context/AuthContext.tsx",

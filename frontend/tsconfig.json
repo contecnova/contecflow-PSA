@@ -18,9 +18,29 @@
     "allowJs": true,
     "checkJs": false,
 
-    /* Linting (estricto pero relajado para empezar) */
+    /* ── Modo estricto, activado flag a flag ────────────────────────────────
+       Auditoría 2026-08 (hallazgo P1-10). El intento anterior era una whitelist
+       de ficheros en tsconfig.strict.json, y ESA ESTRATEGIA NO PUEDE FUNCIONAR:
+       TypeScript sigue el grafo de imports y comprueba también lo importado, así
+       que los 392 errores aparecían en ficheros que ni estaban en el `include`.
+       Añadir ficheros a la lista no acotaba nada.
+
+       El camino que sí funciona es activar los flags de uno en uno sobre TODO el
+       proyecto, empezando por los que ya están en cero. Estado medido:
+         noImplicitThis      0 errores → ACTIVADO
+         strictFunctionTypes 1 error   → corregido y ACTIVADO
+         noImplicitReturns  29 errores → NO se activa, ver abajo
+         strictNullChecks  226 errores → pendiente
+         noImplicitAny     387 errores → pendiente
+
+       `noImplicitReturns` queda descartado a propósito: sus 29 avisos son todos
+       el idioma correcto de un efecto de React (`if (!x) return` temprano y
+       `return cleanup` después). Activarlo obligaría a escribir `return undefined`
+       en 29 sitios sin detectar ni un defecto. */
     "strict": false,
     "noImplicitAny": false,
+    "noImplicitThis": true,
+    "strictFunctionTypes": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,

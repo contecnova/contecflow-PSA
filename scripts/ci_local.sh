@@ -110,6 +110,22 @@ if [[ "$MODE" != "--info" ]]; then
   # la deuda, bajar este número — nunca subirlo.
   run_gate bloqueante "eslint (0 errores, warnings ≤ 1974)" \
     bash -c 'cd frontend && npx eslint src --ext .js,.jsx,.ts,.tsx --max-warnings 1974'
+
+  # tsc estricto promovido a BLOQUEANTE (auditoría 2026-08, hallazgo 10). Se usa
+  # el gate real (scripts/check_strict.mjs), no `tsc -p tsconfig.strict.json` a
+  # secas: ese config comprueba también los ficheros IMPORTADOS por la whitelist,
+  # y sus errores pertenecen a la migración pendiente, no a este gate.
+  #
+  # Corrección al informe de auditoría: dije "392 errores dentro de su propia
+  # whitelist" y era falso — el gate reportaba 3. Los 389 restantes eran de
+  # ficheros no incluidos, que el script descarta a propósito. También dije que
+  # la estrategia de whitelist "no puede funcionar" por el grafo de imports: sí
+  # funciona, porque el script filtra por fichero. Los 3 están corregidos.
+  #
+  # Para avanzar: añadir ficheros al `include` de tsconfig.strict.json y dejar
+  # este gate en verde. Cuando cubra todo src/, activar `strict` en la base.
+  run_gate bloqueante "tsc estricto (whitelist de tsconfig.strict.json)" \
+    bash -c 'cd frontend && node scripts/check_strict.mjs'
 fi
 
 # ── Gates informativos ────────────────────────────────────────────────────────
@@ -117,8 +133,6 @@ if [[ "$MODE" != "--fast" ]]; then
   step "Informativos (deuda medida, no bloquean)"
   run_gate informativo "ruff scripts/ — hallazgo 17" \
     "$PY_BIN" -m ruff check scripts
-  run_gate informativo "tsc estricto — hallazgo 10" \
-    bash -c 'cd frontend && npx tsc -p tsconfig.strict.json --noEmit'
   # lint:a11y ya vale algo: hasta la auditoría 2026-08 informaba "0 findings"
   # porque no podía parsear 304 de 343 ficheros. Con el parser instalado sus
   # números son reales (1.480 avisos de etiquetas), y son deuda de marcado que

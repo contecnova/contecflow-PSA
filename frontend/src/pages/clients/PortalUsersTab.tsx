@@ -81,6 +81,18 @@ const emptyForm = (): PortalForm => ({
   can_view_team: false,
 })
 
+type PortalPermissionKey = keyof Pick<
+  PortalEditForm,
+  'can_approve_deliverables' | 'can_request_changes' | 'can_view_budget' | 'can_view_team'
+>
+
+const PORTAL_PERMISSIONS: { key: PortalPermissionKey; label: string; desc: string }[] = [
+  { key: 'can_approve_deliverables', label: 'Puede aprobar entregables', desc: 'Validar o rechazar entregables del proyecto' },
+  { key: 'can_request_changes',      label: '↩ Puede solicitar cambios',  desc: 'Enviar solicitudes de cambio' },
+  { key: 'can_view_budget',          label: 'Puede ver presupuesto',      desc: 'Ver consumo vs presupuesto' },
+  { key: 'can_view_team',            label: 'Puede ver equipo',           desc: 'Ver miembros del equipo asignado' },
+]
+
 export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
   const toast = useToast()
   const qc = useQueryClient()
@@ -320,12 +332,13 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, marginBottom: 10, color: 'var(--text-2)',
               textTransform: 'uppercase', letterSpacing: '0.05em' }}>Permisos en el portal</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {[
-                { key: 'can_approve_deliverables', label: 'Puede aprobar entregables', desc: 'Validar o rechazar entregables del proyecto' },
-                { key: 'can_request_changes',      label: '↩ Puede solicitar cambios',   desc: 'Enviar solicitudes de cambio' },
-                { key: 'can_view_budget',           label: 'Puede ver presupuesto',    desc: 'Ver consumo vs presupuesto' },
-                { key: 'can_view_team',             label: 'Puede ver equipo',          desc: 'Ver miembros del equipo asignado' },
-              ].map((p: { key: keyof Pick<PortalEditForm, 'can_approve_deliverables' | 'can_request_changes' | 'can_view_budget' | 'can_view_team'>; label: string; desc: string }) => (
+              {/* El tipo se declara en el ARRAY, no en el callback (auditoría 2026-08,
+                  P1-10): así el literal se infiere con la unión estrecha en `key`
+                  y `editForm[p.key]` queda comprobado. Anotarlo sólo en el
+                  callback pedía a TypeScript aceptar un parámetro más estrecho
+                  que el elemento del array — lo que `strictFunctionTypes`
+                  rechaza, con razón. */}
+              {PORTAL_PERMISSIONS.map((p) => (
                 <label key={p.key} style={{
                   display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer',
                   background: editForm[p.key] ? 'var(--accent-muted)' : 'transparent',
