@@ -43,16 +43,20 @@ export default function SurfaceChart({ data, width = 900, height = 420 }: Surfac
       <Plot
         data={[
           {
-            type: 'surface',
+            type: 'surface' as const,
             x,
             y,
             z,
             colorscale: dark ? 'Cividis' : 'Viridis',
             showscale: true,
             opacity: 0.92,
+            // @types/plotly.js modela `contours` sólo para trazas contour (2D);
+            // para una traza `surface` la forma correcta lleva sub-objetos x/y/z.
+            // El código es válido en Plotly, los tipos están incompletos: se
+            // acota el cast a esta propiedad en vez de aflojar la traza entera.
             contours: {
               z: { show: true, usecolormap: true, highlightcolor: tokens.accent, project: { z: false } },
-            },
+            } as unknown as never,
           },
         ]}
         layout={{
@@ -60,9 +64,9 @@ export default function SurfaceChart({ data, width = 900, height = 420 }: Surfac
           height,
           margin: { t: 30, l: 0, r: 0, b: 0 },
           scene: {
-            xaxis: { title: data?.xlabel || 'X', color: tokens.text2, gridcolor: tokens.text3 },
-            yaxis: { title: data?.ylabel || 'Y', color: tokens.text2, gridcolor: tokens.text3 },
-            zaxis: { title: data?.zlabel || 'Z', color: tokens.text2, gridcolor: tokens.text3 },
+            xaxis: { title: { text: data?.xlabel || 'X' }, color: tokens.text2, gridcolor: tokens.text3 },
+            yaxis: { title: { text: data?.ylabel || 'Y' }, color: tokens.text2, gridcolor: tokens.text3 },
+            zaxis: { title: { text: data?.zlabel || 'Z' }, color: tokens.text2, gridcolor: tokens.text3 },
             bgcolor: 'transparent',
           },
           paper_bgcolor: 'transparent',

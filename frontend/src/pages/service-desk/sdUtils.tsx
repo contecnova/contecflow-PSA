@@ -60,7 +60,11 @@ export function fmtMinutes(m: number | null | undefined) {
 }
 
 // ── Tiny badge components ──────────────────────────────────────────────────────
-export function PBadge({ v }: { v: string }) {
+// `v` opcional (auditoría 2026-08, P1-10): el cuerpo ya resuelve el caso
+// ausente con `|| COLOR.text2`, y las prioridades llegan como
+// `string | undefined` desde la API. El tipo era más estrecho que el
+// comportamiento real, igual que en los otros dos PBadge del módulo.
+export function PBadge({ v }: { v?: string }) {
   const color = PRIORITY_COLOR[v as keyof typeof PRIORITY_COLOR] || COLOR.text2
   return (
     <span style={{

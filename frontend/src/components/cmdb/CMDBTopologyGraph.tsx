@@ -11,6 +11,7 @@ import { useMemo, useState, useCallback } from 'react'
 import type { CSSProperties } from 'react'
 // react-plotly.js ships no type declarations of its own; resolved via ambient/module types
 import Plot from 'react-plotly.js'
+import type { Data } from 'plotly.js'
 
 interface RawNode {
   [key: string]: unknown
@@ -386,9 +387,9 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
     edgeZ.push(sp.z, tp.z, null)
   })
 
-  const nodeTrace = {
+  const nodeTrace: Data = {
     type: 'scatter3d',
-    mode: 'markers+text',
+    mode: 'text+markers', // mismo modo; es el orden que declaran los tipos oficiales
     x: nodes.map(n => positions[n.id]?.x ?? 0),
     y: nodes.map(n => positions[n.id]?.y ?? 0),
     z: nodes.map(n => positions[n.id]?.z ?? 0),
@@ -419,7 +420,7 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
     showlegend: false,
   }
 
-  const edgeTrace = {
+  const edgeTrace: Data = {
     type: 'scatter3d',
     mode: 'lines',
     x: edgeX, y: edgeY, z: edgeZ,
@@ -449,12 +450,19 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
         layout={layout}
         config={{ displayModeBar: false, responsive: true }}
         style={{ width: '100%', height: 500 }}
-        onClick={(event: { points?: Array<{ curveNumber: number; customdata: string }> }) => {
+        // Se usa el tipo del paquete oficial y se estrecha DENTRO (auditoría
+        // 2026-08, P1-10): anotar el parámetro con una forma más estrecha que la
+        // del contrato no es asignable bajo strictFunctionTypes, y con razón —
+        // Plotly puede invocarlo con eventos que no encajen en esa forma.
+        onClick={(event) => {
           if (!event.points?.length) return
           const pt = event.points[0]
           // curveNumber 1 = nodeTrace (edgeTrace is 0)
           if (pt.curveNumber === 1) {
-            const nodeId = pt.customdata
+            // `customdata` es un Datum (unión amplia de Plotly). Se estrecha a
+            // texto antes de usarlo como id, en vez de asumir el tipo.
+            const nodeId = typeof pt.customdata === 'string' ? pt.customdata : String(pt.customdata ?? '')
+            if (!nodeId) return
             const node = nodes.find(n => n.id === nodeId)
             if (node) {
               onImpactSourceChange(nodeId)

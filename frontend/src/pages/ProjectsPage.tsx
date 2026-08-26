@@ -1087,7 +1087,7 @@ export default function ProjectsPage() {
               {visCols.includes('type') && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{TYPE_LABELS[p.project_type] || p.project_type}</span>}
               {visCols.includes('pm') && <span style={{ fontSize: "var(--text-sm)" }}>{p.pm_name || '—'}</span>}
               {visCols.includes('status') && <StatusDropdown project={p} onUpdate={(status: any) => updateStatus({ id: p.id, status })} />}
-              {visCols.includes('budget') && <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: p.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)' }}>{p.budget_used_pct?.toFixed(0) ?? 0}%</span>}
+              {visCols.includes('budget') && <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: (p.budget_used_pct ?? 0) > 90 ? 'var(--danger)' : 'var(--text-2)' }}>{p.budget_used_pct?.toFixed(0) ?? 0}%</span>}
               {visCols.includes('progress') && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{p.progress_pct?.toFixed(0) ?? 0}%</span>}
               {visCols.includes('risk') && <Badge label={p.risk_level} display={undefined} _color={undefined} />}
             </div>
