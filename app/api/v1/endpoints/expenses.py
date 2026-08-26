@@ -1,7 +1,7 @@
 """
 Expenses endpoint — project-linked expense management with approval workflow.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
@@ -9,6 +9,7 @@ from datetime import date
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin_or_pm
 from app.core.abac_enforce import enforce_abac
+from app.core.uploads import UploadProfile, read_and_validate_upload
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.expense_service import (
@@ -215,11 +216,11 @@ async def ocr_receipt(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
-    allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"}
-    if file.content_type not in allowed_types:
-        raise HTTPException(400, f"Tipo de archivo no soportado: {file.content_type}. Usa JPEG, PNG, WebP o PDF.")
-    image_bytes = await file.read()
-    if len(image_bytes) > 10 * 1024 * 1024:
-        raise HTTPException(400, "El archivo no puede superar 10 MB.")
+    # Auditoría 2026-08 (P1-8): aquí sólo se comprobaba `file.content_type`, que
+    # es un valor que elige el cliente — renombrar la cabecera bastaba para
+    # colar cualquier contenido. El perfil RECEIPT valida además extensión,
+    # bytes mágicos y que el tipo real coincida con el declarado, y acota el
+    # tamaño ANTES de bufferizar el fichero completo.
+    image_bytes = await read_and_validate_upload(file, UploadProfile.RECEIPT)
     extracted = await svc_ocr_receipt(image_bytes, file.content_type)
     return APIResponse.ok(data={"ok": True, "extracted": extracted})

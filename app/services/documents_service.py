@@ -76,84 +76,22 @@ from sqlalchemy import and_
 logger = logging.getLogger(__name__)
 
 # ── MIME / extension config ───────────────────────────────────────────────────
-
-ALLOWED_MIME_TYPES = {
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.ms-powerpoint",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "application/vnd.oasis.opendocument.text",
-    "application/vnd.oasis.opendocument.spreadsheet",
-    "text/plain", "text/csv", "text/markdown",
-    "application/json", "application/xml", "text/xml",
-    "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml", "image/tiff",
-    "video/mp4", "video/webm", "audio/mpeg", "audio/mp4", "audio/webm",
-}
-
-ALLOWED_EXTENSIONS = {
-    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-    ".odt", ".ods", ".txt", ".csv", ".md", ".json", ".xml",
-    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".tiff", ".tif",
-    ".mp4", ".webm", ".mp3", ".m4a",
-}
-
-BLOCKED_MAGIC_BYTES = {
-    b"MZ", b"\x7fELF", b"\xfe\xed\xfa\xce", b"\xfe\xed\xfa\xcf", b"#!/", b"#!",
-}
-
-BLOCKED_ARCHIVE_EXTENSIONS = {".zip", ".gz", ".tar", ".tgz", ".7z", ".rar"}
-
-
-# ── Magic-byte MIME detection ─────────────────────────────────────────────────
-
-def detect_mime_from_magic(content: bytes) -> Optional[str]:
-    if not content:
-        return None
-    head = content[:16]
-    if head.startswith(b"%PDF-"):             return "application/pdf"
-    if head.startswith(b"\x89PNG\r\n\x1a\n"): return "image/png"
-    if head.startswith(b"\xff\xd8\xff"):      return "image/jpeg"
-    if head.startswith(b"GIF87a") or head.startswith(b"GIF89a"): return "image/gif"
-    if head.startswith(b"RIFF") and content[8:12] == b"WEBP": return "image/webp"
-    if head.startswith(b"\x1aE\xdf\xa3"):     return "video/webm"
-    if head.startswith(b"ID3") or head[:2] == b"\xff\xfb": return "audio/mpeg"
-    if head.startswith(b"PK\x03\x04"):
-        name = (content[:2048].decode("latin-1", errors="ignore")).lower()
-        if "word/" in name: return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        if "xl/" in name:   return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        if "ppt/" in name:  return "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        if "content.xml" in name: return "application/vnd.oasis.opendocument.text"
-        return "application/zip"
-    return None
-
-
-def validate_upload(file_name: str, content_type: str, content: bytes) -> None:
-    import os as _os
-    ext = _os.path.splitext(file_name or "")[1].lower()
-    if ext in BLOCKED_ARCHIVE_EXTENSIONS:
-        raise HTTPException(415, "Subida de archivos comprimidos bloqueada por seguridad (riesgo de fuga de secretos y payloads ocultos).")
-    if ext and ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(415, f"Tipo de archivo no permitido (extensión: {ext}). Sube un PDF, imagen, documento Office u otro formato aprobado.")
-    if content_type and content_type not in ALLOWED_MIME_TYPES:
-        if content_type not in ("application/octet-stream", "binary/octet-stream"):
-            raise HTTPException(415, f"Tipo de contenido no permitido: {content_type}.")
-    if content:
-        header = content[:8]
-        for magic in BLOCKED_MAGIC_BYTES:
-            if header.startswith(magic):
-                raise HTTPException(415, "El contenido del archivo parece ser un ejecutable o script. Subida rechazada por seguridad.")
-    detected = detect_mime_from_magic(content)
-    if detected == "application/zip":
-        raise HTTPException(415, "Contenedor ZIP detectado. Este tipo de archivo está bloqueado por seguridad.")
-    if detected and detected not in ALLOWED_MIME_TYPES:
-        raise HTTPException(415, f"Tipo de archivo detectado no permitido: {detected}")
-    if (detected and content_type
-            and content_type not in ("application/octet-stream", "binary/octet-stream")
-            and detected != content_type):
-        raise HTTPException(415, f"El tipo real del archivo ({detected}) no coincide con el Content-Type enviado ({content_type}).")
+# Auditoría 2026-08 (P1-8): la validación de subidas se movió a
+# app/core/uploads.py. Es una preocupación transversal de seguridad, no de este
+# dominio: aquí sólo la usaban los 2 endpoints de documentos, mientras los otros
+# 4 endpoints con UploadFile del proyecto improvisaban su propia validación (o
+# ninguna). Se re-exporta para no romper a los llamadores ni a los tests que la
+# importan desde aquí, pero la implementación única vive en el core.
+from app.core.uploads import (  # noqa: F401 — re-export por compatibilidad
+    ALLOWED_EXTENSIONS,
+    ALLOWED_MIME_TYPES,
+    BLOCKED_ARCHIVE_EXTENSIONS,
+    BLOCKED_MAGIC_BYTES,
+    UploadProfile,
+    detect_mime_from_magic,
+    read_and_validate_upload,
+    validate_upload,
+)
 
 
 # ── Document access helpers ───────────────────────────────────────────────────

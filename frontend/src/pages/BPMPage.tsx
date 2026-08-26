@@ -1570,7 +1570,7 @@ export default function BPMPage(): JSX.Element {
   // (allProcesses cambia de referencia). Añadir selectedProcess a las deps
   // crearía un bucle: el efecto llama a setSelectedProcess, lo que volvería
   // a disparar el efecto inmediatamente.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional: solo on allProcesses change para evitar bucle
+   
   useEffect(() => {
     if (!selectedProcess) return
     const fresh = allProcesses.find(p => p.id === selectedProcess.id)

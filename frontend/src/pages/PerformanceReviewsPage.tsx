@@ -146,7 +146,7 @@ function ReviewForm({ review, onClose }: { review: Dict; onClose: () => void }) 
   // Solo re-hidratamos cuando cambia la review seleccionada (review.id):
   // depender de review.answers haría que cualquier re-render del padre con
   // una nueva referencia del objeto pisara las ediciones locales del usuario.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional: solo on review.id change
+   
   useEffect(() => {
     setAnswers(review.answers || {})
   }, [review.id])
@@ -699,7 +699,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
   // evitar pisar una selección manual (la guard `!managerId` ya lo cubre);
   // incluirlo dispararía el efecto cuando el usuario eligiese, y setManagerId
   // es una función creada en cada render que provocaría re-ejecuciones inútiles.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional: solo on managerOptions change
+   
   useEffect(() => {
     if (managerOptions.length === 1 && !managerId) setManagerId(managerOptions[0].id)
   }, [managerOptions])

@@ -54,7 +54,7 @@ export default function SankeyChart({ data, width = 900, height = 380 }: SankeyC
       { source: 'Propuestas', target: 'Perdidos', value: 55 },
     ]).map((l) => ({ ...l }))
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     return (d3Sankey() as any)
       .nodeId((d: SankeyNodeInput) => d.id)
       .nodeWidth(12)
@@ -71,7 +71,7 @@ export default function SankeyChart({ data, width = 900, height = 380 }: SankeyC
         {graph.links.map((link, i) => (
           <path
             key={i}
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             
             d={(sankeyLinkHorizontal() as any)(link)}
             stroke={tokens.info}
             strokeWidth={Math.max(1, link.width)}

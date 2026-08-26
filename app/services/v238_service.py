@@ -234,118 +234,217 @@ def get_gantt_leveling(
 # BI — ad-hoc query, drilldown, cross-filter
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _coerce_date(value) -> Optional[date]:
+    """Acepta date o cadena ISO. El endpoint recibe JSON, así que llegan cadenas.
+
+    Antes la función se anotaba `Optional[date]` y comparaba directamente contra
+    columnas de fecha; con una cadena la comparación no fallaba, simplemente no
+    filtraba lo esperado.
+    """
+    if value is None or isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        raise HTTPException(400, f"Fecha no válida: {value!r}. Usa formato ISO (YYYY-MM-DD).")
+
+
+# Métricas soportadas: cada una declara su modelo, la columna que se agrega
+# (None = contar filas), su columna de fecha y las dimensiones admitidas.
+_ADHOC_METRICS: dict = {
+    "hours_logged": {
+        "model": lambda: Imputation,
+        "value_col": lambda m: m.hours,
+        "agg": "sum",
+        "date_col": lambda m: m.date,
+        "value_key": "hours",
+        "total_key": "total_hours",
+        "dimensions": {
+            "month": lambda m: m.date,
+            "user_id": lambda m: m.user_id,
+            "project_id": lambda m: m.project_id,
+        },
+        "filters": {
+            "project_id": lambda m: m.project_id,
+            "user_id": lambda m: m.user_id,
+        },
+    },
+    "revenue": {
+        "model": lambda: Invoice,
+        "value_col": lambda m: m.total,
+        "agg": "sum",
+        "date_col": lambda m: m.issue_date,
+        "value_key": "revenue",
+        "total_key": "total_revenue",
+        "base_filter": lambda m: m.status != "cancelled",
+        "dimensions": {
+            "month": lambda m: m.issue_date,
+            "status": lambda m: m.status,
+            "project_id": lambda m: m.project_id,
+        },
+        "filters": {
+            "project_id": lambda m: m.project_id,
+        },
+    },
+    "task_count": {
+        "model": lambda: Task,
+        "value_col": None,
+        "agg": "count",
+        "date_col": None,
+        "value_key": "count",
+        "total_key": "total_tasks",
+        "dimensions": {
+            "status": lambda m: m.status,
+            "priority": lambda m: m.priority,
+            "project_id": lambda m: m.project_id,
+        },
+        "filters": {
+            "project_id": lambda m: m.project_id,
+            "status": lambda m: m.status,
+        },
+    },
+    "ticket_count": {
+        "model": lambda: Ticket,
+        "value_col": None,
+        "agg": "count",
+        "date_col": lambda m: m.created_at,
+        "value_key": "count",
+        "total_key": "total_tickets",
+        "dimensions": {
+            "status": lambda m: m.status,
+            "priority": lambda m: m.priority,
+        },
+        "filters": {
+            "status": lambda m: m.status,
+        },
+    },
+}
+
+
+def _enum_str(value):
+    return value.value if hasattr(value, "value") else (str(value) if value is not None else "unknown")
+
+
 def run_adhoc_query(
     metric: str,
     dimensions: List[str],
     filters: dict,
-    date_from: Optional[date],
-    date_to: Optional[date],
-    limit: int,
-    db: Session,
+    date_from=None,
+    date_to=None,
+    limit: int = 100,
+    db: Session = None,
 ) -> dict:
+    """Consulta analítica ad-hoc, agregada en SQL.
 
-    results = []
+    Auditoría 2026-08 (hallazgo P1-9). La versión anterior tenía dos defectos:
 
-    if metric == "hours_logged":
-        q = db.query(Imputation)
-        if date_from:
-            q = q.filter(Imputation.date >= date_from)
-        if date_to:
-            q = q.filter(Imputation.date <= date_to)
-        if filters.get("project_id"):
-            q = q.filter(Imputation.project_id == filters["project_id"])
-        if filters.get("user_id"):
-            q = q.filter(Imputation.user_id == filters["user_id"])
-        rows = q.limit(limit).all()
-        if "month" in dimensions:
-            grouped: dict = {}
-            for row in rows:
-                key = str(row.date)[:7] if row.date else "unknown"
-                grouped[key] = grouped.get(key, 0) + (row.hours or 0)
-            results = [{"month": k, "hours": round(v, 2)} for k, v in sorted(grouped.items())]
-        elif "user_id" in dimensions:
-            grouped = {}
-            for row in rows:
-                k = row.user_id or "unknown"
-                grouped[k] = grouped.get(k, 0) + (row.hours or 0)
-            results = [{"user_id": k, "hours": round(v, 2)} for k, v in sorted(grouped.items(), key=lambda x: -x[1])]
-        elif "project_id" in dimensions:
-            grouped = {}
-            for row in rows:
-                k = row.project_id or "unknown"
-                grouped[k] = grouped.get(k, 0) + (row.hours or 0)
-            results = [{"project_id": k, "hours": round(v, 2)} for k, v in sorted(grouped.items(), key=lambda x: -x[1])]
-        else:
-            total = sum(row.hours or 0 for row in rows)
-            results = [{"total_hours": round(total, 2)}]
+    1. AGREGADOS SOBRE DATOS TRUNCADOS. Hacía `rows = q.limit(limit).all()` y
+       después sumaba en Python. Con más filas que el límite, `total_hours` y
+       `total_revenue` salían silenciosamente incompletos: cifras financieras
+       erróneas sin ningún aviso, el peor modo de fallo posible en un PSA. Ahora
+       se agrega con GROUP BY en la base de datos y el `limit` se aplica al
+       resultado agrupado, que es lo que significaba.
 
-    elif metric == "revenue":
-        q = db.query(Invoice).filter(Invoice.status != "cancelled")
-        if date_from:
-            q = q.filter(Invoice.issue_date >= date_from)
-        if date_to:
-            q = q.filter(Invoice.issue_date <= date_to)
-        if filters.get("project_id"):
-            q = q.filter(Invoice.project_id == filters["project_id"])
-        rows = q.limit(limit).all()
-        if "month" in dimensions:
-            grouped = {}
-            for row in rows:
-                key = str(row.issue_date)[:7] if row.issue_date else "unknown"
-                grouped[key] = grouped.get(key, 0) + (row.total or 0)
-            results = [{"month": k, "revenue": round(v, 2)} for k, v in sorted(grouped.items())]
-        elif "status" in dimensions:
-            grouped = {}
-            for row in rows:
-                k = str(row.status.value) if hasattr(row.status, 'value') else str(row.status)
-                grouped[k] = grouped.get(k, 0) + (row.total or 0)
-            results = [{"status": k, "revenue": round(v, 2)} for k, v in grouped.items()]
-        else:
-            results = [{"total_revenue": round(sum(r.total or 0 for r in rows), 2)}]
+    2. Traía todas las filas a memoria para contarlas. Con un histórico grande
+       eso es un problema de rendimiento por sí solo.
 
-    elif metric == "task_count":
-        q = db.query(Task)
-        if filters.get("project_id"):
-            q = q.filter(Task.project_id == filters["project_id"])
-        if filters.get("status"):
-            q = q.filter(Task.status == filters["status"])
-        rows = q.limit(limit).all()
-        if "status" in dimensions:
-            grouped = {}
-            for row in rows:
-                k = str(row.status.value) if hasattr(row.status, 'value') else str(row.status)
-                grouped[k] = grouped.get(k, 0) + 1
-            results = [{"status": k, "count": v} for k, v in grouped.items()]
-        elif "priority" in dimensions:
-            grouped = {}
-            for row in rows:
-                k = str(row.priority.value) if hasattr(row.priority, 'value') else str(row.priority)
-                grouped[k] = grouped.get(k, 0) + 1
-            results = [{"priority": k, "count": v} for k, v in grouped.items()]
-        else:
-            results = [{"total_tasks": len(rows)}]
+    El agrupado por mes usa `extract`, que SQLAlchemy compila tanto para
+    PostgreSQL como para SQLite; el código original usaba `func.strftime`, que es
+    exclusivo de SQLite y habría fallado en producción sobre PostgreSQL.
+    """
+    if db is None:
+        raise HTTPException(500, "run_adhoc_query requiere una sesión de base de datos")
 
-    elif metric == "ticket_count":
-        q = db.query(Ticket)
-        if date_from:
-            q = q.filter(Ticket.created_at >= datetime.combine(date_from, datetime.min.time()))
-        if date_to:
-            q = q.filter(Ticket.created_at <= datetime.combine(date_to, datetime.max.time()))
-        rows = q.limit(limit).all()
-        if "status" in dimensions:
-            grouped = {}
-            for row in rows:
-                k = str(row.status.value) if hasattr(row.status, 'value') else str(row.status)
-                grouped[k] = grouped.get(k, 0) + 1
-            results = [{"status": k, "count": v} for k, v in grouped.items()]
-        else:
-            results = [{"total_tickets": len(rows)}]
+    spec = _ADHOC_METRICS.get(metric)
+    if spec is None:
+        raise HTTPException(
+            400,
+            f"Métrica no soportada: {metric!r}. Disponibles: "
+            f"{', '.join(sorted(_ADHOC_METRICS))}.",
+        )
+
+    model = spec["model"]()
+    filters = filters or {}
+    date_from = _coerce_date(date_from)
+    date_to = _coerce_date(date_to)
+    try:
+        limit = max(1, min(int(limit or 100), 10_000))
+    except (TypeError, ValueError):
+        limit = 100
+
+    # Expresión agregada
+    if spec["agg"] == "sum":
+        agg_expr = func.coalesce(func.sum(spec["value_col"](model)), 0.0)
+    else:
+        agg_expr = func.count(model.id)
+
+    # Dimensión: sólo la primera reconocida, como hacía la versión anterior
+    dim_name = next((d for d in (dimensions or []) if d in spec["dimensions"]), None)
+
+    def _apply_common(q):
+        if "base_filter" in spec:
+            q = q.filter(spec["base_filter"](model))
+        date_col_fn = spec.get("date_col")
+        if date_col_fn is not None:
+            col = date_col_fn(model)
+            if date_from:
+                q = q.filter(col >= date_from)
+            if date_to:
+                q = q.filter(col <= date_to)
+        for key, value in filters.items():
+            col_fn = spec["filters"].get(key)
+            if col_fn is not None and value is not None:
+                q = q.filter(col_fn(model) == value)
+        return q
+
+    if dim_name is None:
+        # Total global: una sola fila desde la base de datos.
+        total = _apply_common(db.query(agg_expr)).scalar() or 0
+        value = round(float(total), 2) if spec["agg"] == "sum" else int(total)
+        results = [{spec["total_key"]: value}]
+        return {
+            "metric": metric,
+            "dimensions": dimensions,
+            "filters": filters,
+            "results": results,
+            "total_rows": len(results),
+        }
+
+    value_key = spec["value_key"]
+
+    if dim_name == "month":
+        date_col = spec["dimensions"]["month"](model)
+        y = func.extract("year", date_col)
+        m = func.extract("month", date_col)
+        q = _apply_common(db.query(y.label("y"), m.label("m"), agg_expr.label("v")))
+        rows = q.group_by(y, m).order_by(y, m).limit(limit).all()
+        results = [
+            {
+                "month": f"{int(r.y):04d}-{int(r.m):02d}" if r.y is not None else "unknown",
+                value_key: round(float(r.v or 0), 2) if spec["agg"] == "sum" else int(r.v or 0),
+            }
+            for r in rows
+        ]
+    else:
+        dim_col = spec["dimensions"][dim_name](model)
+        q = _apply_common(db.query(dim_col.label("k"), agg_expr.label("v")))
+        # Mayor primero para las sumas (era el orden de la versión anterior en
+        # user_id/project_id); alfabético para los recuentos por estado.
+        order = agg_expr.desc() if spec["agg"] == "sum" else dim_col
+        rows = q.group_by(dim_col).order_by(order).limit(limit).all()
+        results = [
+            {
+                dim_name: _enum_str(r.k),
+                value_key: round(float(r.v or 0), 2) if spec["agg"] == "sum" else int(r.v or 0),
+            }
+            for r in rows
+        ]
 
     return {
         "metric": metric,
         "dimensions": dimensions,
         "filters": filters,
-        "results": results[:limit],
+        "results": results,
         "total_rows": len(results),
     }
 

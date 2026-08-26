@@ -31,6 +31,20 @@ class Organization(Base):
     """Root tenant entity — every org has its own isolated data space."""
     __tablename__ = "organizations"
 
+    # Exención explícita del filtro automático de tenant (auditoría 2026-08, P1-7).
+    # Organization ES el tenant, así que no tiene columna de tenant a la que
+    # filtrar. TenantSession ya no deja pasar sin filtrar a un modelo sólo porque
+    # le falte la columna — eso era un fail-open silencioso —, así que la exención
+    # tiene que declararse aquí, donde se ve al leer el modelo.
+    #
+    # Consecuencia: cualquier endpoint que reciba un organization_id del cliente y
+    # lo use contra este modelo DEBE guardarlo a mano, con require_superadmin (si
+    # la operación es legítimamente entre tenants) o con assert_org_id_is_own (si
+    # es del propio tenant). El inventario de esas rutas está cerrado por
+    # tests/test_organization_tenant_isolation.py.
+    _tenant_exempt = True
+    _tenant_exempt_reason = "Organization es la propia entidad tenant; no hay columna a la que filtrar"
+
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name         = Column(String(255), nullable=False)
     slug         = Column(String(100), nullable=False, unique=True, index=True)

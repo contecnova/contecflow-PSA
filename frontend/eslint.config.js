@@ -2,6 +2,8 @@ import js from '@eslint/js'
 import reactPlugin from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
 import jsxA11y from 'eslint-plugin-jsx-a11y'
+import tsParser from '@typescript-eslint/parser'
+import tsPlugin from '@typescript-eslint/eslint-plugin'
 
 export default [
   js.configs.recommended,
@@ -105,8 +107,18 @@ export default [
         confirm: 'readonly',
         prompt: 'readonly',
       },
+      // Auditoría 2026-08 (hallazgo P1-6). Sin este parser, ESLint intentaba
+      // leer .ts/.tsx con el parser de JavaScript y se atragantaba en la primera
+      // anotación de tipo: 304 de 343 ficheros fallaban con "Parsing error", así
+      // que react-hooks, jsx-a11y y no-unused-vars no se aplicaban al 89% del
+      // frontend. Y el informe de accesibilidad cantaba "0 findings" sobre esos
+      // mismos ficheros ilegibles — un verde falso, peor que no tener el control.
+      parser: tsParser,
       parserOptions: {
         ecmaFeatures: { jsx: true },
+        // Sin `project`: el análisis con tipos multiplica el tiempo de ejecución
+        // y las reglas que se usan aquí (react-hooks, jsx-a11y, no-unused-vars)
+        // no lo necesitan. El chequeo de tipos ya lo hace `tsc`.
       },
     },
     settings: {
@@ -181,6 +193,28 @@ export default [
           message: 'Card armada inline detectada (background var(--surface-2) + borderRadius). Usa className="ds-card" o el componente <Card>.',
         },
       ],
+    },
+  },
+  {
+    // Reglas específicas de TypeScript. `no-unused-vars` de ESLint base no
+    // entiende TS: marca como no usados los identificadores que sólo aparecen en
+    // posición de tipo (interfaces, genéricos, `import type`). La versión del
+    // plugin sí, así que en .ts/.tsx se apaga la base y se usa aquélla.
+    files: ['src/**/*.{ts,tsx}'],
+    plugins: { '@typescript-eslint': tsPlugin },
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+      }],
+      // `no-redeclare` da falsos positivos con las sobrecargas y con la fusión
+      // de declaraciones de TypeScript.
+      'no-redeclare': 'off',
+      // Los enums y namespaces de TS se declaran antes de usarse en runtime.
+      'no-use-before-define': 'off',
     },
   },
   {

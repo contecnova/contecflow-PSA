@@ -1,6 +1,6 @@
 
 
-from fastapi import status, Body, APIRouter, Depends, Query
+from fastapi import status, Body, APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta, timezone
@@ -27,23 +27,37 @@ def adhoc_analytics(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Auditoría 2026-08 (P1-9). Aquí había un
+    # `if hasattr(v238_service, "run_analytics_adhoc")` — y esa función NO
+    # EXISTE: la implementación real se llama `run_adhoc_query`. El hasattr daba
+    # False siempre, así que este endpoint devolvía SIEMPRE
+    # {"results": [], "total_rows": 0} con un 200, sin error ni log. Los tests
+    # pasaban porque sólo comprobaban que las claves existieran, no que hubiera
+    # datos. La llamada además tenía el orden de argumentos equivocado y omitía
+    # `limit`, así que tampoco habría funcionado si el nombre hubiese acertado.
+    #
+    # Se llama directo, sin hasattr: si algún día se renombra, queremos un
+    # ImportError al arrancar y no un endpoint que miente en silencio.
     try:
         metric = payload.get("metric")
         dimensions = payload.get("dimensions", [])
-        date_from = payload.get("date_from")
-        date_to = payload.get("date_to")
-        filters = payload.get("filters", {})
-        if hasattr(v238_service, "run_analytics_adhoc"):
-            result = v238_service.run_analytics_adhoc(metric, dimensions, date_from, date_to, filters, db)
-            if result:
-                return APIResponse.ok(data=result)
-        return APIResponse.ok(data={"metric": metric, "dimensions": dimensions, "results": [], "total_rows": 0})
+        result = v238_service.run_adhoc_query(
+            metric=metric,
+            dimensions=dimensions,
+            filters=payload.get("filters", {}) or {},
+            date_from=payload.get("date_from"),
+            date_to=payload.get("date_to"),
+            limit=payload.get("limit", 100),
+            db=db,
+        )
+        return APIResponse.ok(data=result)
+    except HTTPException:
+        raise
     except ValueError as e:
         return JSONResponse(status_code=400, content={"detail": f"Error de datos: {str(e)}"})
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"Error inesperado en analytics_adhoc: {e}", exc_info=True)
-        return JSONResponse(status_code=500, content={"detail": f"Error interno: {str(e)}"})
+        logger.error("Error inesperado en analytics_adhoc: %s", e, exc_info=True)
+        return JSONResponse(status_code=500, content={"detail": "Error interno al ejecutar la consulta."})
 
 @router.get("/drilldown", summary="Analytics drilldown", status_code=status.HTTP_200_OK)
 def analytics_drilldown(

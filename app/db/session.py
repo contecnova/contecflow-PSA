@@ -32,6 +32,26 @@ def _extract_model_class(entity):
     return None
 
 
+class TenantIsolationError(RuntimeError):
+    """No se puede demostrar el aislamiento de tenant para una consulta.
+
+    Se lanza en vez de devolver la consulta sin filtrar. Un 500 es un incidente
+    que se investiga; una consulta sin filtro de tenant es una fuga silenciosa
+    entre clientes que nadie ve (auditoría 2026-08, P1-7).
+    """
+
+
+def _is_tenant_exempt(model) -> bool:
+    """¿Está el modelo exento del filtro automático, de forma declarada?
+
+    La exención se declara en el propio modelo con ``_tenant_exempt = True`` (ver
+    app/models/mfa.py::Organization), no aquí, para que se vea al leerlo. Un
+    modelo al que simplemente le falte la columna de tenant NO está exento: eso
+    era el fail-open que este cambio elimina.
+    """
+    return getattr(model, "_tenant_exempt", False) is True
+
+
 def _tenant_filter_for_model(query, model, org_id):
     """Inject tenant isolation filter into *query* for the given *model*.
 
@@ -40,7 +60,13 @@ def _tenant_filter_for_model(query, model, org_id):
     2. Model has ``org_id`` column → filter by it.
     3. Model has a ``project_id`` FK column → use a subquery against projects.
     4. Model has a direct FK to users → use a subquery against users.
-    5. Fall through (no filter — safer than crashing).
+    5. Model has ``actor_id`` → use a subquery against users.
+    6. Model declares ``_tenant_exempt = True`` → pasa sin filtrar, con motivo.
+    7. Nada de lo anterior → ``TenantIsolationError`` (fail-closed).
+
+    El paso 7 antes era "devolver la consulta sin filtrar, más seguro que
+    petar". No lo era: convertía cada modelo nuevo sin columna de tenant en una
+    fuga entre clientes que ninguna prueba detectaba.
     """
     if org_id is None:
         return query
@@ -90,7 +116,15 @@ def _tenant_filter_for_model(query, model, org_id):
         )
         return query.filter(model.actor_id.in_(user_ids_sq))
 
-    return query
+    if _is_tenant_exempt(model):
+        return query
+
+    raise TenantIsolationError(
+        f"{getattr(model, '__name__', model)} no tiene columna de tenant "
+        "(organization_id / org_id / project_id / user_id / actor_id) ni declara "
+        "_tenant_exempt = True. No se puede aislar por organización: revisa el "
+        "modelo antes de consultarlo desde una petición de usuario."
+    )
 
 
 def _extract_models_from_select(stmt):
@@ -134,7 +168,7 @@ def _tenant_where_for_model(stmt, model, org_id):
     """Inject tenant isolation into a SA 2.0 Select statement via .where().
 
     Mirrors _tenant_filter_for_model but operates on Select objects instead
-    of legacy Query objects.
+    of legacy Query objects — incluida la misma política fail-closed.
     """
     if org_id is None:
         return stmt
@@ -178,7 +212,13 @@ def _tenant_where_for_model(stmt, model, org_id):
         )
         return stmt.where(model.actor_id.in_(user_ids_sq))
 
-    return stmt
+    if _is_tenant_exempt(model):
+        return stmt
+
+    raise TenantIsolationError(
+        f"{getattr(model, '__name__', model)} no tiene columna de tenant ni declara "
+        "_tenant_exempt = True. No se puede aislar por organización."
+    )
 
 
 class TenantSession(Session):
@@ -227,11 +267,13 @@ class TenantSession(Session):
         # Apply tenant isolation for every resolved model so that all tables
         # in a multi-entity JOIN are scoped to the current tenant, not just
         # the first one.
+        # Fail-closed (auditoría 2026-08, P1-7). Antes esto era
+        # `except Exception: logger.debug(...)`, así que si el filtro fallaba para
+        # un modelo la consulta seguía SIN filtro de tenant y solo quedaba rastro
+        # en un log de nivel debug. Un error propagado es un incidente que se
+        # investiga; una consulta sin filtrar es una fuga que nadie ve.
         for model in models:
-            try:
-                q = _tenant_filter_for_model(q, model, org_id)
-            except Exception:
-                logger.debug("query: fallo best-effort ignorado", exc_info=True)
+            q = _tenant_filter_for_model(q, model, org_id)
 
         return q
 
@@ -252,11 +294,9 @@ class TenantSession(Session):
                     from sqlalchemy import false as sql_false
                     statement = statement.where(sql_false())
                 else:
+                    # Fail-closed, igual que en query(). Ver el comentario de allí.
                     for model in _extract_models_from_select(statement):
-                        try:
-                            statement = _tenant_where_for_model(statement, model, org_id)
-                        except Exception:
-                            logger.debug("execute: fallo best-effort ignorado", exc_info=True)
+                        statement = _tenant_where_for_model(statement, model, org_id)
         return super().execute(statement, *args, **kwargs)
 
 _url = settings.DATABASE_URL

@@ -76,7 +76,20 @@ def _can_access(current_user, row_org_id: Optional[str]) -> bool:
     if getattr(current_user, "is_superadmin", False):
         return True
     user_org = getattr(current_user, "organization_id", None)
-    # NULL row org → legacy/global, accessible. Otherwise must match.
-    if row_org_id is None or user_org is None:
+
+    # Auditoría 2026-08 (P1-7): antes `user_org is None` devolvía True, es decir
+    # un usuario sin organización asignada accedía a las filas de CUALQUIER
+    # tenant. Contradecía la política de app/db/session.py::TenantSession, que
+    # para ese mismo caso devuelve el conjunto vacío, y contradecía el propio
+    # comentario de app/core/deps.py ("must see zero rows, not all rows").
+    # Ahora: sin organización, sin acceso.
+    if user_org is None:
+        return False
+
+    # NULL en la fila → dato legacy/global, accesible. Es un concepto real del
+    # esquema, no un descuido: TenantSession tiene el mismo comportamiento vía
+    # `_tenant_filter_include_global` para modelos como AppSetting.
+    if row_org_id is None:
         return True
+
     return row_org_id == user_org

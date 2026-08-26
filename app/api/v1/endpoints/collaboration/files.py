@@ -8,6 +8,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.uploads import UploadProfile, read_and_validate_upload
 from app.db.session import get_db
 from app.models.user import User
 from app.models.collaboration import (
@@ -28,7 +29,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-MAX_FILE_BYTES = 500 * 1024 * 1024  # 500 MB per the SLO
+# Auditoría 2026-08 (P1-8): aquí había un MAX_FILE_BYTES propio de 500 MB, muy
+# por encima de settings.MAX_FILE_SIZE_MB (100) que este módulo ignoraba, y se
+# comprobaba DESPUÉS de `await file.read()` — para rechazar 499 MB había que
+# metérselos antes en memoria. Ahora el tope y la validación de contenido salen
+# de app/core/uploads.py, que lee por trozos y aborta al pasarse.
 
 
 def _safe_filename(name: Optional[str]) -> str:
@@ -51,10 +56,10 @@ async def upload_attachment(
     assert_conversation_access(db, current_user, conversation_id)
     org = _org(current_user)
 
-    # Read full body — for prod swap to streaming + multipart resumable
-    data = await file.read()
-    if len(data) > MAX_FILE_BYTES:
-        raise HTTPException(413, "Archivo demasiado grande (máx 500 MB)")
+    # Lectura acotada + validación de tipo (extensión, MIME declarado, bytes
+    # mágicos y coherencia entre ellos). Antes esto no validaba NADA del
+    # contenido: bastaba renombrar un ejecutable para subirlo.
+    data = await read_and_validate_upload(file, UploadProfile.ATTACHMENT)
 
     # Run AV + DLP synchronously (in prod this becomes a background pipeline).
     av_status, av_details = scan_with_av(data)
@@ -184,7 +189,9 @@ async def upload_new_version(
     if not att:
         raise HTTPException(404, "Adjunto no encontrado")
     assert_conversation_access(db, current_user, att.conversation_id)
-    data = await file.read()
+    # Esta vía (subir una versión nueva de un adjunto) no tenía ni el tope de
+    # 500 MB que sí tenía la de creación: era un `await file.read()` sin límite.
+    data = await read_and_validate_upload(file, UploadProfile.ATTACHMENT)
     av_status, av_details = scan_with_av(data)
     dlp_status, dlp_findings = scan_dlp(data.decode("utf-8", errors="ignore")[:200_000])
     is_quarantined = (av_status == "infected") or (dlp_status == "blocked")
