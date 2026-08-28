@@ -16,6 +16,7 @@ Design invariants:
 """
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import date
 from typing import Optional
@@ -30,6 +31,11 @@ from app.models.revenue import (
 )
 from app.models.financial import ProjectMilestone
 from app.models.project import Project
+from app.core import timeutil
+
+# Un dato que falta —un proyecto sin tarifa— no puede ser silencio: quien opera
+# el cierre mensual tiene que poder ver qué contratos no se han podido reconocer.
+_logger = logging.getLogger("contecflow.revenue")
 
 
 # ── Contract CRUD ──────────────────────────────────────────────────────────────
@@ -265,7 +271,7 @@ def recognize_on_milestone(db: Session, milestone_id: str, user_id: Optional[str
     if not milestone:
         return
 
-    today = date.today()
+    today = timeutil.today()
     year, month = today.year, today.month
 
     contracts = (
@@ -325,21 +331,77 @@ def recognize_on_milestone(db: Session, milestone_id: str, user_id: Optional[str
 
 # ── Recognition: over_time / consumption ──────────────────────────────────────
 
-def _recognize_over_time(db: Session, contract: RevenueContract, year: int, month: int, user_id: Optional[str]) -> float:
+def _ya_reconocido(db: Session, contract: RevenueContract, year: int, month: int) -> bool:
+    """¿Existe ya asiento de reconocimiento para este contrato y este periodo?
+
+    Auditoría 2026-08. Extraído de `_recognize_straight_line`, que era la única
+    de las dos vías de reconocimiento que lo comprobaba. Compartirlo evita que la
+    próxima vía que se añada vuelva a olvidarlo, que es lo que pasó con
+    `_recognize_over_time`.
+
+    Esta guarda NO basta por sí sola contra concurrencia —dos transacciones
+    pueden leer «no hay» y ambas insertar—, por eso la tabla lleva además una
+    restricción única sobre (contrato, año, mes, tipo). Ver la revisión 091.
     """
-    T&M / consumption: recognize based on approved imputation hours × project cost rate.
-    Uses Imputation model (hours logged against project in the period).
+    return (
+        db.query(RevenueEntry.id)
+        .filter(
+            RevenueEntry.rev_contract_id == contract.id,
+            RevenueEntry.period_year == year,
+            RevenueEntry.period_month == month,
+            RevenueEntry.entry_type == EntryType.recognized,
+        )
+        .first()
+        is not None
+    )
+
+
+def _recognize_over_time(db: Session, contract: RevenueContract, year: int, month: int, user_id: Optional[str]) -> float:
+    """T&M / consumo: horas imputadas APROBADAS del periodo × tarifa del proyecto.
+
+    Auditoría 2026-08. Esta función tenía tres defectos, y el primero la dejaba
+    inservible por completo:
+
+    1. Leía la tarifa con
+       `getattr(proj, "hourly_rate", None) or getattr(proj, "daily_rate", None) or 0.0`
+       y **ninguno de esos dos campos existe** en `Project` — el real es
+       `billing_rate`. Como los dos `getattr` llevaban valor por defecto, no
+       lanzaba: `avg_rate` valía siempre 0.0, `recognized` siempre 0.0 y el
+       `if recognized > 0` nunca entraba. El reconocimiento ASC 606 de T&M y
+       consumo llevaba reconociendo **cero euros, siempre**, sin un solo error en
+       los registros. Comprobado ejecutándolo: el lote creaba 0 asientos.
+       Ahora se accede al atributo directamente, sin `getattr` con defecto, para
+       que un renombrado futuro lance en vez de devolver silencio.
+
+    2. No comprobaba si ya existía asiento para (contrato, periodo), así que una
+       segunda pasada del lote reconocía otra vez los mismos ingresos hasta
+       agotar el valor del contrato. Su hermana `_recognize_straight_line`, 40
+       líneas más abajo, sí lo hacía: era un olvido, no una decisión.
+
+    3. Su propia documentación decía «approved imputation hours» y la consulta no
+       filtraba `is_approved`. Reconocer ingresos sobre horas todavía sin aprobar
+       es precisamente lo que un auditor de ASC 606 / IFRS 15 marca.
+
+    Sobre la tarifa: se usa `billing_rate` del proyecto, que es la pactada con el
+    cliente y la fuente que ya usan el resto de módulos (`dashboard_service`,
+    `bi_intelligence_service`, `cab_service`). Una tarifa por rol vía
+    `rate_card_service.get_effective_rate` sería más precisa, pero exige resolver
+    el rol de cada persona imputación a imputación; queda como mejora, no se
+    inventa aquí. Si el proyecto no tiene tarifa no se reconoce nada y se AVISA:
+    antes ese caso era indistinguible del «no hay horas».
     """
     from sqlalchemy import extract
-    try:
-        from app.models.imputation import Imputation
-    except ImportError:
-        return 0.0
 
+    from app.models.imputation import Imputation
+
+    # Sólo horas aprobadas: es lo que dice el contrato de esta función y lo que
+    # exige la norma. `is_approved` puede ser NULL en filas antiguas, así que se
+    # compara explícitamente con True.
     total_hours = (
         db.query(func.sum(Imputation.hours))
         .filter(
             Imputation.project_id == contract.project_id,
+            Imputation.is_approved.is_(True),
             extract("year", Imputation.date) == year,
             extract("month", Imputation.date) == month,
         )
@@ -350,12 +412,35 @@ def _recognize_over_time(db: Session, contract: RevenueContract, year: int, mont
     if total_hours <= 0:
         return 0.0
 
-    # Get project avg cost rate
+    # Idempotencia: mismo criterio que `_recognize_straight_line`. Sin esto, un
+    # reintento de Celery o un disparo manual duplicaban los ingresos del mes.
+    if _ya_reconocido(db, contract, year, month):
+        return 0.0
+
     proj = db.query(Project).filter(Project.id == contract.project_id).first()
-    avg_rate = getattr(proj, "hourly_rate", None) or getattr(proj, "daily_rate", None) or 0.0
+    if proj is None:
+        _logger.warning(
+            "Contrato %s apunta a un proyecto inexistente (%s): no se reconoce nada",
+            contract.id, contract.project_id,
+        )
+        return 0.0
+
+    # Acceso directo, sin `getattr(..., None)`: si el campo se renombra, que
+    # falle en voz alta. Ése fue exactamente el defecto que ocultó este fallo.
+    avg_rate = float(proj.billing_rate or 0.0)
+    if avg_rate <= 0:
+        # Antes esto era silencio absoluto. Es un dato que falta, no un cero
+        # legítimo, y quien opera el cierre necesita saberlo.
+        _logger.warning(
+            "Proyecto %s sin billing_rate: %.1f h del contrato %s no se pueden "
+            "reconocer en %d-%02d",
+            proj.id, total_hours, contract.id, year, month,
+        )
+        return 0.0
+
     recognized = round(total_hours * avg_rate, 2)
 
-    # Cap at remaining contract value
+    # Tope en el valor de contrato que queda por reconocer.
     already_recognized = (
         db.query(func.sum(RevenueEntry.amount))
         .filter(
@@ -394,18 +479,10 @@ def _recognize_straight_line(db: Session, contract: RevenueContract, year: int, 
     if contract.end_date and period_date > date(contract.end_date.year, contract.end_date.month, 1):
         return 0.0
 
-    # Avoid double-recognition for the same period
-    already = (
-        db.query(RevenueEntry)
-        .filter(
-            RevenueEntry.rev_contract_id == contract.id,
-            RevenueEntry.period_year == year,
-            RevenueEntry.period_month == month,
-            RevenueEntry.entry_type == EntryType.recognized,
-        )
-        .first()
-    )
-    if already:
+    # Evitar doble reconocimiento del mismo periodo. Extraído a `_ya_reconocido`
+    # para que las dos vías de reconocimiento compartan el criterio: estaba sólo
+    # aquí y `_recognize_over_time` se lo había dejado.
+    if _ya_reconocido(db, contract, year, month):
         return 0.0
 
     amount = round(contract.contract_value / n, 2)
@@ -418,20 +495,34 @@ def _recognize_straight_line(db: Session, contract: RevenueContract, year: int, 
 
 # ── Monthly batch recognition (Celery) ────────────────────────────────────────
 
-def run_monthly_recognition(db: Session, year: int, month: int, user_id: Optional[str] = None) -> dict:
+def run_monthly_recognition(
+    db: Session,
+    year: int,
+    month: int,
+    user_id: Optional[str] = None,
+    organization_id: Optional[str] = None,
+) -> dict:
+    """Reconoce el periodo indicado para los contratos activos.
+
+    Los contratos por HITOS se excluyen: se reconocen al completarse el hito.
+
+    `organization_id` acota el lote a una organización (auditoría 2026-08). Hace
+    falta porque el cierre ya no se dispara una vez para todo el mundo: el mes de
+    cada organización empieza en SU zona horaria, así que la tarea recorre las
+    organizaciones y llama aquí una vez por cada una. Sin este filtro, cada
+    llamada recorrería los contratos de todas las demás — N veces el trabajo, y
+    reconociendo el periodo de una organización con el calendario de otra.
+
+    Sin `organization_id` mantiene el comportamiento anterior (todas), que es lo
+    que usan el endpoint de recálculo manual y los tests.
     """
-    Process all active contracts across all orgs for a given period.
-    Called from the Celery beat task on the 1st of each month.
-    Milestone-method contracts are skipped (triggered on milestone completion instead).
-    """
-    contracts = (
-        db.query(RevenueContract)
-        .filter(
-            RevenueContract.is_active == True,
-            RevenueContract.method != ASCMethod.milestone,
-        )
-        .all()
+    q = db.query(RevenueContract).filter(
+        RevenueContract.is_active == True,
+        RevenueContract.method != ASCMethod.milestone,
     )
+    if organization_id is not None:
+        q = q.filter(RevenueContract.organization_id == organization_id)
+    contracts = q.all()
 
     totals = {"over_time": 0.0, "consumption": 0.0, "straight_line": 0.0, "skipped": 0}
 

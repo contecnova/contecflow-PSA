@@ -18,6 +18,7 @@ import urllib.request
 from app.core.outbound_url import validate_outbound_url
 import urllib.parse
 from typing import Optional
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 from app.models.cab import IntegrationConfig
@@ -27,7 +28,6 @@ from app.models.service_desk import Ticket, TicketType, TicketStatus, TicketPrio
 from app.models.task import Task
 from app.models.task import TaskStatus, TaskPriority
 from app.models.user import User
-from datetime import date as _date
 from sqlalchemy import func, cast, Integer
 
 
@@ -637,7 +637,7 @@ def slack_log_time_from_text(db, text: str, user) -> dict:
 
     imp = Imputation(
         id=str(uuid.uuid4()), user_id=user.id, project_id=project_id,
-        hours=hours, date=_date.today(), description=description,
+        hours=hours, date=timeutil.today(), description=description,
     )
     db.add(imp)
     db.commit()

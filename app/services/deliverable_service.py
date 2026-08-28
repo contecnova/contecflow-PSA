@@ -1,4 +1,3 @@
-from datetime import date
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
@@ -6,6 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.resources import Deliverable, DeliverableStatus
 from app.services.numbering import next_numbered_code
 import logging
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +67,9 @@ def update_deliverable(db: Session, d: Deliverable, updates: dict) -> Deliverabl
         setattr(d, k, v)
 
     if updates.get("status") == "delivered" and not d.delivered_date:
-        d.delivered_date = date.today()
+        d.delivered_date = timeutil.today()
     if updates.get("status") == "accepted" and not d.accepted_date:
-        d.accepted_date = date.today()
+        d.accepted_date = timeutil.today()
 
     db.commit()
     db.refresh(d)
@@ -80,7 +80,7 @@ def mark_delivered(
     db: Session, d: Deliverable, document_url: Optional[str] = None
 ) -> Deliverable:
     d.status = DeliverableStatus.delivered
-    d.delivered_date = date.today()
+    d.delivered_date = timeutil.today()
     if document_url:
         d.document_url = document_url
     db.commit()
@@ -89,7 +89,7 @@ def mark_delivered(
 
 def mark_accepted(db: Session, d: Deliverable) -> Deliverable:
     d.status = DeliverableStatus.accepted
-    d.accepted_date = date.today()
+    d.accepted_date = timeutil.today()
     db.commit()
     return d
 
@@ -127,7 +127,7 @@ def serialize_deliverable(d) -> dict:
     if d.planned_date and d.delivered_date:
         on_time = d.delivered_date <= d.planned_date
     elif d.planned_date and d.status not in ["delivered", "accepted"]:
-        on_time = date.today() <= d.planned_date
+        on_time = timeutil.today() <= d.planned_date
     return {
         "id": d.id, "code": d.code, "project_id": d.project_id,
         "phase_id": d.phase_id, "name": d.name, "description": d.description,
@@ -148,5 +148,5 @@ def serialize_deliverable(d) -> dict:
         "document_url": d.document_url,
         "sort_order": d.sort_order,
         "on_time": on_time,
-        "overdue": d.planned_date and date.today() > d.planned_date and d.status not in ["delivered", "accepted"],
+        "overdue": d.planned_date and timeutil.today() > d.planned_date and d.status not in ["delivered", "accepted"],
     }

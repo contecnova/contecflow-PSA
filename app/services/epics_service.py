@@ -22,12 +22,12 @@ from app.models.epics import WikiTemplate as _WT
 from app.models.project import Project
 from app.models.task import Task
 from app.models.service_desk import Ticket
-from datetime import date
 from datetime import timedelta
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import joinedload as _jl
+from app.core import timeutil
 
 
 # ── Wiki page serialisers ─────────────────────────────────────────────────────
@@ -544,7 +544,7 @@ def delete_saved_filter(filter_id: str, user_id, db) -> dict:
 # ── CFD (Cumulative Flow Diagram) ─────────────────────────────────────────────
 
 def take_cfd_snapshot(project_id: str, sprint_id, db) -> dict:
-    today = date.today().isoformat()
+    today = timeutil.today().isoformat()
     db.query(TaskStateSnapshot).filter(
         TaskStateSnapshot.project_id == project_id,
         TaskStateSnapshot.snap_date  == today,
@@ -561,7 +561,7 @@ def take_cfd_snapshot(project_id: str, sprint_id, db) -> dict:
 
 
 def get_cfd_data(project_id: str, sprint_id, days: int, db) -> dict:
-    since = (date.today() - timedelta(days=days)).isoformat()
+    since = (timeutil.today() - timedelta(days=days)).isoformat()
     q = db.query(TaskStateSnapshot).filter(
         TaskStateSnapshot.project_id == project_id,
         TaskStateSnapshot.snap_date  >= since)

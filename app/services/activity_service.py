@@ -27,6 +27,7 @@ from app.models.nps import ClientHealthSnapshot
 from app.models.pipeline import Opportunity, OpportunityStage
 from app.models.project import Project, ProjectStatus
 from app.models.task import Task, TaskStatus
+from app.core import timeutil
 TaskModel = Task
 from fastapi import HTTPException
 
@@ -282,7 +283,7 @@ def compute_health(db: Session, project_id: str) -> dict:
     """Compute composite health score (0-100) from live signals."""
     from app.services.settings_service import get_runtime_namespace
 
-    today = date.today()
+    today = timeutil.today()
     _project_for_org = db.query(Project).filter(Project.id == project_id).first()
     _org_id = getattr(_project_for_org, "organization_id", None) if _project_for_org else None
     _s = get_runtime_namespace(db, _PROJECT_HEALTH_KEYS, org_id=_org_id)
@@ -494,7 +495,7 @@ def materialize_recurring_tasks_cmd(db: Session, dry_run: bool, current_user: Us
             n = 1
         return f"TSK-{n:05d}"
 
-    today = date.today()
+    today = timeutil.today()
     active = db.query(RecurringTask).filter(
         RecurringTask.is_active == True,
         RecurringTask.start_date <= today,
@@ -657,7 +658,7 @@ def critical_path_payload(db: Session, project_id: str) -> dict:
 
 def resource_demand_payload(db: Session, horizon_months: int, min_probability: float) -> dict:
 
-    today = date.today()
+    today = timeutil.today()
     date(
         today.year + (today.month + horizon_months - 1) // 12,
         (today.month + horizon_months - 1) % 12 + 1,
@@ -891,10 +892,10 @@ def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
 
     remaining_tasks = [t for t in tasks if t.id not in cut_ids and t.id not in defer_ids]
     total_hours = sum((t.estimated_hours or 0) for t in remaining_tasks)
-    overdue = [t for t in remaining_tasks if t.due_date and t.due_date < date.today()]
+    overdue = [t for t in remaining_tasks if t.due_date and t.due_date < timeutil.today()]
 
     due_dates = [t.due_date for t in remaining_tasks if t.due_date]
-    base_end = max(due_dates) if due_dates else date.today()
+    base_end = max(due_dates) if due_dates else timeutil.today()
 
     sim_end = base_end
     notes = []
@@ -906,9 +907,9 @@ def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
     effective_compression = 1.0
     if payload.compress_pct and payload.compress_pct > 0:
         effective_compression = 1 - (payload.compress_pct / 100)
-        remaining_days = (sim_end - date.today()).days
+        remaining_days = (sim_end - timeutil.today()).days
         new_days = int(remaining_days * effective_compression)
-        sim_end = date.today() + timedelta(days=new_days)
+        sim_end = timeutil.today() + timedelta(days=new_days)
         notes.append(
             f"Team expansion at {payload.compress_pct}% → duration compressed "
             f"from {remaining_days}d to {new_days}d"
@@ -947,7 +948,7 @@ def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
         cost_delta += sum(
             r.get("hours_per_week", 40) * r.get("rate_per_hour", avg_rate)
             for r in payload.add_resources
-        ) * ((sim_end - date.today()).days / 5)
+        ) * ((sim_end - timeutil.today()).days / 5)
 
     at_risk = [{
         "id": t.id, "code": t.code, "title": t.title,

@@ -1,5 +1,5 @@
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from app.services.sla_service import (
     TYPE_LABELS,
     aware as _aware,
 )
+from app.core import timeutil
 
 
 def get_service_desk_stats(db: Session, current_user: User, days: int) -> dict:
@@ -112,7 +113,7 @@ def get_service_desk_stats(db: Session, current_user: User, days: int) -> dict:
 
     trend = []
     for i in range(min(days, 30), 0, -1):
-        d = date.today() - timedelta(days=i)
+        d = timeutil.today() - timedelta(days=i)
         count = scoped_tickets.filter(func.date(Ticket.created_at) == d).count()
         trend.append({"date": str(d)[5:], "count": count})
 

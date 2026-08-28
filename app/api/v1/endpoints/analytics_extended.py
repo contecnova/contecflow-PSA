@@ -13,6 +13,7 @@ from app.core.deps import get_db, get_current_user, require_any_manager
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from pydantic import BaseModel
+from app.core import timeutil
 
 
 
@@ -178,7 +179,7 @@ def get_imputation_analytics(
     # Permission: employees see only their own, managers see their projects, admins see all
     query_user_id = user_id if user_id and current_user.role in ["admin", "pm"] else current_user.id
 
-    cutoff_date = date.today() - timedelta(days=days_back)
+    cutoff_date = timeutil.today() - timedelta(days=days_back)
 
     imputations = analytics_service.get_imputations_for_analytics(db, query_user_id, cutoff_date)
 

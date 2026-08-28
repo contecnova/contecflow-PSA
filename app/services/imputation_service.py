@@ -46,6 +46,7 @@ from fastapi import HTTPException
 
 # ── Cost ───────────────────────────────────────────────────────────────────────
 import app.services.cost_service as _cost_svc
+from app.core import timeutil
 
 
 def resolve_user_rate(db: Session, user: User, on_date: Optional[date] = None) -> float:
@@ -86,7 +87,7 @@ def get_lockout_cutoff(current_user: User, db: Session) -> date:
         else settings.DEFAULT_IMPUTATION_LOCKOUT_DAYS
     )
     # El día de corte se calcula en la zona del usuario (auditoría 2026-08,
-    # hallazgo 14). Con `date.today()` lo decidía la zona del servidor: un
+    # hallazgo 14). Con `timeutil.today()` lo decidía la zona del servidor: un
     # empleado en México a las 23:30 del día 28 veía el corte del día 29 del
     # servidor, así que podía perder un día completo de plazo para imputar.
     return today_for_user(current_user, org) - timedelta(days=lockout_days)
@@ -745,7 +746,7 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
 def lockout_status_payload(current_user: User, db: Session):
     """Return LockoutStatusOut for the current user."""
     lockout_cutoff = get_lockout_cutoff(current_user, db)
-    today = date.today()
+    today = timeutil.today()
     lockout_days = (today - lockout_cutoff).days
     return LockoutStatusOut(
         lockout_days=lockout_days,
@@ -790,7 +791,7 @@ def dismiss_alert_record(db: Session, alert_id: str, current_user: User) -> dict
 def get_week_summary(week_start: Optional[date], current_user: User, db: Session) -> dict:
 
     if not week_start:
-        today = date.today()
+        today = timeutil.today()
         week_start = today - timedelta(days=today.weekday())
     week_end = week_start + timedelta(days=6)
 

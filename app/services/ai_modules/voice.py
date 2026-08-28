@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import time
 import logging
-from datetime import datetime, timedelta, date, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func
 
@@ -16,6 +16,7 @@ from app.models.project import Project
 from app.models.service_desk import Ticket
 from app.models.task import Task
 from app.worker import run_agent_task
+from app.core import timeutil
 
 _log = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ def _voice_handle_log_hours(db, current_user, transcript: str, entities: dict,
     imp = Imputation(
         user_id=current_user.id, project_id=project.id,
         hours=float(entities["hours"]),
-        date=date.today(),
+        date=timeutil.today(),
         description=f"Imputado por voz: {transcript[:100]}",
         is_billable=True,
     )
@@ -123,7 +124,7 @@ def _voice_handle_create_ticket(db, current_user, entities: dict,
 
 def _voice_handle_query_hours(db, current_user, result: dict) -> None:
     """Handler para intent ``query_hours`` (sólo lectura, no requiere confirm)."""
-    week_start = (date.today() - timedelta(days=date.today().weekday()))
+    week_start = (timeutil.today() - timedelta(days=timeutil.today().weekday()))
     hours = db.query(func.sum(Imputation.hours)).filter(
         Imputation.user_id == current_user.id,
         Imputation.date >= week_start,

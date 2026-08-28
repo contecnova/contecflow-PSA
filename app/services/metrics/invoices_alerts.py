@@ -8,6 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import register_metric
+from app.core import timeutil
 
 
 @register_metric("invoices_by_status")
@@ -140,7 +141,7 @@ def metric_invoice_overdue_amount(
     try:
         from app.models.billing_reports import Invoice
 
-        today = date.today()
+        today = timeutil.today()
         q = db.query(Invoice).filter(
             Invoice.status.in_(["sent", "overdue"]),
             Invoice.due_date < today,

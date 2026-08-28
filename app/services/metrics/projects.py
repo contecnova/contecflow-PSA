@@ -11,6 +11,7 @@ from app.models.project import Project
 from app.models.task import Task
 from app.models.resources import Deliverable
 from . import register_metric
+from app.core import timeutil
 
 
 STATUS_TASK_LABELS = {
@@ -279,7 +280,7 @@ def metric_tasks_overdue(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Tareas retrasadas (vencidas pero no completadas) por proyecto."""
-    today = date.today()
+    today = timeutil.today()
 
     # Optimized: Single query with GROUP BY
     overdue = db.query(

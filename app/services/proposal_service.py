@@ -12,13 +12,14 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.pipeline import Opportunity, ProposalTemplate
+from app.core import timeutil
 
 # ── Template variable map ──────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ def _build_vars(opp: Opportunity) -> dict:
         "duration_weeks":    str(opp.expected_duration_weeks) if opp.expected_duration_weeks else "—",
         "owner_name":        opp.owner.full_name if opp.owner else "—",
         "description":       opp.description or "",
-        "today":             str(date.today()),
+        "today":             str(timeutil.today()),
         "contract_type":     CONTRACT_TYPE_LABELS.get(opp.contract_type or "", "—"),
         "hourly_rate":       f"{opp.hourly_rate} €/h" if opp.hourly_rate else "—",
     }

@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from app.models.imputation import Imputation
 from app.models.project import Project, ProjectStatus
 from app.models.task import Task
+from app.core import timeutil
 
 FEATURE_COLUMNS = [
     "cpi", "spi", "budget_used_pct", "elapsed_pct",
@@ -45,7 +46,7 @@ def extract_project_features(db: Session, project_id: str, reference_date: Optio
     if not project:
         return None
 
-    today = reference_date or date.today()
+    today = reference_date or timeutil.today()
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     if not tasks:
         return None
@@ -142,7 +143,7 @@ def extract_training_dataset(db: Session, organization_id: Optional[str] = None)
     X, y, ids = [], [], []
     for proj in completed:
         # Use the real end date as reference to get final EVM snapshot
-        ref = proj.end_date_real or proj.end_date_planned or date.today()
+        ref = proj.end_date_real or proj.end_date_planned or timeutil.today()
         features = extract_project_features(db, proj.id, reference_date=ref)
         if features is None:
             continue

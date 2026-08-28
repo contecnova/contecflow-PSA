@@ -3,9 +3,10 @@ Automations service — business logic extracted from automations.py router.
 """
 import logging
 from typing import Optional
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 import json
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -69,224 +70,289 @@ def check_conditions(conditions: Optional[dict], context: dict) -> bool:
     return True
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+# Acciones de automatización
+#
+# Auditoría 2026-08 (hallazgo 18). `execute_actions` eran 218 líneas de
+# complejidad 38: un `if/elif` de diez ramas sobre `atype`, todas dentro del
+# mismo `try`. Cada acción es ahora su propia función, con el cuerpo movido
+# verbatim, y `_ACCIONES` es la tabla que las relaciona con su tipo.
+#
+# El `try/except` sigue en el bucle, donde estaba: envolver cada acción por
+# separado habría cambiado el comportamiento ante errores, y eso es una decisión
+# de producto (¿una acción que falla detiene el resto de la regla?), no parte de
+# esta reorganización.
+#
+# Todas comparten firma —aunque alguna no use todos los argumentos— para que la
+# tabla pueda invocarlas de forma uniforme.
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _accion_create_alert(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    """Acciones `create_alert`, `send_alert` (mismo efecto)."""
+    alert = Alert(
+        alert_type=AlertType.budget_exceeded,
+        title=params.get("title", "Automatización activada"),
+        description=params.get("message", action.get("message", "")),
+        severity=AlertSeverity.warning if params.get("severity") == "warning" else AlertSeverity.info,
+        # Sin organization_id la alerta cae en el fallback "visible para
+        # todas las organizaciones" de _scope_alert_to_org, y una regla
+        # global sin project_id en contexto la dejaba ahí.
+        organization_id=derive_alert_org_id(
+            db, project_id=context.get("project_id"), task_id=context.get("task_id"),
+        ),
+        project_id=context.get("project_id"),
+        task_id=context.get("task_id"),
+    )
+    db.add(alert)
+    results.append({"action": atype, "ok": True})
+
+
+def _accion_change_task_status(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    """Accion `change_task_status`."""
+    task_id = context.get("task_id") or params.get("task_id")
+    if task_id:
+        task = db.query(Task).filter(Task.id == task_id).first()
+        if task:
+            task.status = params.get("status", task.status)
+            results.append({"action": atype, "ok": True, "task": task.code})
+
+
+def _accion_notify_role(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    """Accion `notify_role`."""
+    role = params.get("role", "pm")
+    message = params.get("message", "Notificación de automatización")
+    users = db.query(User).filter(User.role == role, User.is_active == True).all()
+    for u in users:
+        alert = Alert(
+            alert_type=AlertType.no_imputation,
+            title=message,
+            description=params.get("description", ""),
+            severity=AlertSeverity.info,
+            organization_id=derive_alert_org_id(
+                db, user_id=u.id, project_id=context.get("project_id"),
+            ),
+            project_id=context.get("project_id"),
+            user_id=u.id,
+        )
+        db.add(alert)
+    results.append({"action": atype, "ok": True, "notified": len(users)})
+
+
+def _accion_notify_user(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    """Accion `notify_user`."""
+    user_id = params.get("user_id") or context.get("user_id")
+    if user_id:
+        alert = Alert(
+            alert_type=AlertType.no_imputation,
+            title=params.get("message", "Tienes una notificación automática"),
+            description=params.get("description", ""),
+            severity=AlertSeverity.info,
+            organization_id=derive_alert_org_id(
+                db, user_id=user_id, project_id=context.get("project_id"),
+            ),
+            project_id=context.get("project_id"),
+            user_id=user_id,
+        )
+        db.add(alert)
+        results.append({"action": atype, "ok": True})
+
+
+def _accion_send_email(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    """Accion `send_email`."""
+    to_addr = params.get("to") or params.get("email")
+    subject = params.get("subject", "Notificación automática — Contecflow")
+    body    = params.get("body") or params.get("message", "")
+    if to_addr:
+        try:
+            from app.services.notification_service import send_email_notification
+            send_email_notification(to=to_addr, subject=subject, body=body)
+            results.append({"action": atype, "ok": True, "to": to_addr})
+        except Exception as email_err:
+            logger.exception("Automation send_email action failed for to=%s", to_addr)
+            results.append({"action": atype, "ok": False, "error": str(email_err)})
+    else:
+        results.append({"action": atype, "ok": False, "error": "Missing 'to' parameter"})
+
+
+def _accion_call_webhook(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    """Accion `call_webhook`."""
+    url    = params.get("url")
+    method = params.get("method", "POST").upper()
+    headers = params.get("headers", {})
+    payload = params.get("payload") or {
+        "event": context.get("event_type", "automation"),
+        "rule_id": context.get("rule_id"),
+        "project_id": context.get("project_id"),
+        "task_id": context.get("task_id"),
+    }
+    if url:
+        # SSRF protection: only allow HTTPS to public hosts
+        import ipaddress
+        from urllib.parse import urlparse
+        import socket as _socket
+        _ssrf_err = None
+        try:
+            _parsed = urlparse(url)
+            if _parsed.scheme != "https":
+                raise ValueError("Solo se permiten URLs HTTPS para webhooks")
+            _host = _parsed.hostname or ""
+            try:
+                _ip = ipaddress.ip_address(_host)
+                if _ip.is_private or _ip.is_loopback or _ip.is_link_local or _ip.is_reserved:
+                    raise ValueError("El webhook apunta a una dirección IP privada/interna")
+            except ValueError as _ve:
+                if "Solo se permiten" in str(_ve) or "dirección IP" in str(_ve):
+                    raise
+                try:
+                    _resolved = _socket.getaddrinfo(_host, None)
+                    for _r in _resolved:
+                        _rip = ipaddress.ip_address(_r[4][0])
+                        if _rip.is_private or _rip.is_loopback or _rip.is_link_local:
+                            raise ValueError("El webhook resuelve a una dirección IP interna")
+                except ValueError:
+                    raise
+                except Exception:
+                    logger.warning("Fallo resolviendo getaddrinfo para webhook host=%s en SSRF check", _host)
+        except ValueError as ssrf_e:
+            _ssrf_err = str(ssrf_e)
+        if _ssrf_err:
+            results.append({"action": atype, "ok": False, "error": _ssrf_err})
+        else:
+            import urllib.request as _ur
+            import json as _json
+            _data = _json.dumps(payload).encode()
+            _req  = _ur.Request(validate_outbound_url(url, field="URL de webhook"), data=_data, method=method,  # noqa: S310
+                                headers={"Content-Type": "application/json", **headers})
+            try:
+                with _ur.urlopen(_req, timeout=10):  # noqa: S310
+                    pass
+                results.append({"action": atype, "ok": True, "url": url})
+            except Exception as wh_err:
+                logger.exception("Automation webhook POST failed url=%s", url)
+                results.append({"action": atype, "ok": False, "error": str(wh_err)})
+    else:
+        results.append({"action": atype, "ok": False, "error": "Missing 'url' parameter"})
+
+
+def _accion_send_slack_message(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    """Accion `send_slack_message`."""
+    webhook_url = params.get("webhook_url")
+    message     = params.get("message", "Notificación automática de Contecflow")
+    if webhook_url:
+        from app.services.integrations import send_slack_message
+        res = send_slack_message(webhook_url, message)
+        results.append({"action": atype, "ok": res.get("ok", False),
+                        "error": res.get("error") if not res.get("ok") else None})
+    else:
+        from app.models.cab import IntegrationConfig, IntegrationType
+        cfg = db.query(IntegrationConfig).filter(
+            IntegrationConfig.integration_type == IntegrationType.slack,
+            IntegrationConfig.is_active == True,
+        ).first()
+        if cfg:
+            import json as _j
+            config_data = _j.loads(cfg.config or "{}")
+            wh = config_data.get("webhook_url")
+            if wh:
+                from app.services.integrations import send_slack_message
+                res = send_slack_message(wh, message)
+                results.append({"action": atype, "ok": res.get("ok", False)})
+                return  # era `continue` del bucle de acciones
+        results.append({"action": atype, "ok": False, "error": "No Slack webhook_url configured"})
+
+
+def _accion_send_teams_message(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    """Accion `send_teams_message`."""
+    webhook_url = params.get("webhook_url")
+    title   = params.get("title", "Contecflow — Automatización")
+    message = params.get("message", "")
+    if webhook_url:
+        from app.services.integrations import send_teams_message
+        res = send_teams_message(webhook_url, title, message)
+        results.append({"action": atype, "ok": res.get("ok", False)})
+    else:
+        from app.models.cab import IntegrationConfig, IntegrationType
+        cfg = db.query(IntegrationConfig).filter(
+            IntegrationConfig.integration_type == IntegrationType.teams,
+            IntegrationConfig.is_active == True,
+        ).first()
+        if cfg:
+            import json as _j
+            config_data = _j.loads(cfg.config or "{}")
+            wh = config_data.get("webhook_url")
+            if wh:
+                from app.services.integrations import send_teams_message
+                res = send_teams_message(wh, title, message)
+                results.append({"action": atype, "ok": res.get("ok", False)})
+                return  # era `continue` del bucle de acciones
+        results.append({"action": atype, "ok": False, "error": "No Teams webhook_url configured"})
+
+
+def _accion_wait_step(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    """Accion `wait_step`."""
+    delay_hours = params.get("delay_hours", 0)
+    label = params.get("label", f"Esperar {delay_hours}h")
+    results.append({"action": atype, "ok": True, "label": label,
+                    "delay_hours": delay_hours, "status": "logged"})
+
+
+def _accion_conditional_branch(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    """Accion `conditional_branch`."""
+    condition = params.get("condition", {})
+    if_true_actions = params.get("if_true", [])
+    if_false_actions = params.get("if_false", [])
+    branch_result = check_conditions(condition, context)
+    branch_actions = if_true_actions if branch_result else if_false_actions
+    branch_label = "if_true" if branch_result else "if_false"
+    if branch_actions:
+        branch_results = execute_actions(branch_actions, context, db)
+        results.append({"action": atype, "ok": True,
+                        "branch_taken": branch_label, "branch_results": branch_results})
+    else:
+        results.append({"action": atype, "ok": True,
+                        "branch_taken": branch_label, "branch_results": []})
+
+# Tipo de acción → función que la ejecuta. Añadir una acción es añadir su función
+# y una línea aquí; antes era otra rama más en la cadena de `elif`.
+_ACCIONES = {
+    ActionType.create_alert: _accion_create_alert,
+    ActionType.send_alert: _accion_create_alert,
+    ActionType.change_task_status: _accion_change_task_status,
+    ActionType.notify_role: _accion_notify_role,
+    ActionType.notify_user: _accion_notify_user,
+    ActionType.send_email: _accion_send_email,
+    ActionType.call_webhook: _accion_call_webhook,
+    ActionType.send_slack_message: _accion_send_slack_message,
+    ActionType.send_teams_message: _accion_send_teams_message,
+    ActionType.wait_step: _accion_wait_step,
+    ActionType.conditional_branch: _accion_conditional_branch,
+}
+
+
 def execute_actions(actions: list, context: dict, db: Session) -> list:
-    """Execute the list of actions for a triggered rule."""
+    """Ejecuta la lista de acciones de una regla que se ha disparado.
+
+    Una acción de tipo desconocido se registra y se salta: una regla guardada con
+    una acción que después se retiró no puede impedir que se ejecuten las demás.
+    """
     results = []
     for action in actions:
         atype = action.get("type")
         params = action.get("params", {})
         try:
-            if atype == ActionType.create_alert or atype == ActionType.send_alert:
-                alert = Alert(
-                    alert_type=AlertType.budget_exceeded,
-                    title=params.get("title", "Automatización activada"),
-                    description=params.get("message", action.get("message", "")),
-                    severity=AlertSeverity.warning if params.get("severity") == "warning" else AlertSeverity.info,
-                    # Sin organization_id la alerta cae en el fallback "visible para
-                    # todas las organizaciones" de _scope_alert_to_org, y una regla
-                    # global sin project_id en contexto la dejaba ahí.
-                    organization_id=derive_alert_org_id(
-                        db, project_id=context.get("project_id"), task_id=context.get("task_id"),
-                    ),
-                    project_id=context.get("project_id"),
-                    task_id=context.get("task_id"),
-                )
-                db.add(alert)
-                results.append({"action": atype, "ok": True})
-
-            elif atype == ActionType.change_task_status:
-                task_id = context.get("task_id") or params.get("task_id")
-                if task_id:
-                    task = db.query(Task).filter(Task.id == task_id).first()
-                    if task:
-                        task.status = params.get("status", task.status)
-                        results.append({"action": atype, "ok": True, "task": task.code})
-
-            elif atype == ActionType.notify_role:
-                role = params.get("role", "pm")
-                message = params.get("message", "Notificación de automatización")
-                users = db.query(User).filter(User.role == role, User.is_active == True).all()
-                for u in users:
-                    alert = Alert(
-                        alert_type=AlertType.no_imputation,
-                        title=message,
-                        description=params.get("description", ""),
-                        severity=AlertSeverity.info,
-                        organization_id=derive_alert_org_id(
-                            db, user_id=u.id, project_id=context.get("project_id"),
-                        ),
-                        project_id=context.get("project_id"),
-                        user_id=u.id,
-                    )
-                    db.add(alert)
-                results.append({"action": atype, "ok": True, "notified": len(users)})
-
-            elif atype == ActionType.notify_user:
-                user_id = params.get("user_id") or context.get("user_id")
-                if user_id:
-                    alert = Alert(
-                        alert_type=AlertType.no_imputation,
-                        title=params.get("message", "Tienes una notificación automática"),
-                        description=params.get("description", ""),
-                        severity=AlertSeverity.info,
-                        organization_id=derive_alert_org_id(
-                            db, user_id=user_id, project_id=context.get("project_id"),
-                        ),
-                        project_id=context.get("project_id"),
-                        user_id=user_id,
-                    )
-                    db.add(alert)
-                    results.append({"action": atype, "ok": True})
-
-            elif atype == ActionType.send_email:
-                to_addr = params.get("to") or params.get("email")
-                subject = params.get("subject", "Notificación automática — Contecflow")
-                body    = params.get("body") or params.get("message", "")
-                if to_addr:
-                    try:
-                        from app.services.notification_service import send_email_notification
-                        send_email_notification(to=to_addr, subject=subject, body=body)
-                        results.append({"action": atype, "ok": True, "to": to_addr})
-                    except Exception as email_err:
-                        logger.exception("Automation send_email action failed for to=%s", to_addr)
-                        results.append({"action": atype, "ok": False, "error": str(email_err)})
-                else:
-                    results.append({"action": atype, "ok": False, "error": "Missing 'to' parameter"})
-
-            elif atype == ActionType.call_webhook:
-                url    = params.get("url")
-                method = params.get("method", "POST").upper()
-                headers = params.get("headers", {})
-                payload = params.get("payload") or {
-                    "event": context.get("event_type", "automation"),
-                    "rule_id": context.get("rule_id"),
-                    "project_id": context.get("project_id"),
-                    "task_id": context.get("task_id"),
-                }
-                if url:
-                    # SSRF protection: only allow HTTPS to public hosts
-                    import ipaddress
-                    from urllib.parse import urlparse
-                    import socket as _socket
-                    _ssrf_err = None
-                    try:
-                        _parsed = urlparse(url)
-                        if _parsed.scheme != "https":
-                            raise ValueError("Solo se permiten URLs HTTPS para webhooks")
-                        _host = _parsed.hostname or ""
-                        try:
-                            _ip = ipaddress.ip_address(_host)
-                            if _ip.is_private or _ip.is_loopback or _ip.is_link_local or _ip.is_reserved:
-                                raise ValueError("El webhook apunta a una dirección IP privada/interna")
-                        except ValueError as _ve:
-                            if "Solo se permiten" in str(_ve) or "dirección IP" in str(_ve):
-                                raise
-                            try:
-                                _resolved = _socket.getaddrinfo(_host, None)
-                                for _r in _resolved:
-                                    _rip = ipaddress.ip_address(_r[4][0])
-                                    if _rip.is_private or _rip.is_loopback or _rip.is_link_local:
-                                        raise ValueError("El webhook resuelve a una dirección IP interna")
-                            except ValueError:
-                                raise
-                            except Exception:
-                                logger.warning("Fallo resolviendo getaddrinfo para webhook host=%s en SSRF check", _host)
-                    except ValueError as ssrf_e:
-                        _ssrf_err = str(ssrf_e)
-                    if _ssrf_err:
-                        results.append({"action": atype, "ok": False, "error": _ssrf_err})
-                    else:
-                        import urllib.request as _ur
-                        import json as _json
-                        _data = _json.dumps(payload).encode()
-                        _req  = _ur.Request(validate_outbound_url(url, field="URL de webhook"), data=_data, method=method,  # noqa: S310
-                                            headers={"Content-Type": "application/json", **headers})
-                        try:
-                            with _ur.urlopen(_req, timeout=10):  # noqa: S310
-                                pass
-                            results.append({"action": atype, "ok": True, "url": url})
-                        except Exception as wh_err:
-                            logger.exception("Automation webhook POST failed url=%s", url)
-                            results.append({"action": atype, "ok": False, "error": str(wh_err)})
-                else:
-                    results.append({"action": atype, "ok": False, "error": "Missing 'url' parameter"})
-
-            elif atype == ActionType.send_slack_message:
-                webhook_url = params.get("webhook_url")
-                message     = params.get("message", "Notificación automática de Contecflow")
-                if webhook_url:
-                    from app.services.integrations import send_slack_message
-                    res = send_slack_message(webhook_url, message)
-                    results.append({"action": atype, "ok": res.get("ok", False),
-                                    "error": res.get("error") if not res.get("ok") else None})
-                else:
-                    from app.models.cab import IntegrationConfig, IntegrationType
-                    cfg = db.query(IntegrationConfig).filter(
-                        IntegrationConfig.integration_type == IntegrationType.slack,
-                        IntegrationConfig.is_active == True,
-                    ).first()
-                    if cfg:
-                        import json as _j
-                        config_data = _j.loads(cfg.config or "{}")
-                        wh = config_data.get("webhook_url")
-                        if wh:
-                            from app.services.integrations import send_slack_message
-                            res = send_slack_message(wh, message)
-                            results.append({"action": atype, "ok": res.get("ok", False)})
-                            continue
-                    results.append({"action": atype, "ok": False, "error": "No Slack webhook_url configured"})
-
-            elif atype == ActionType.send_teams_message:
-                webhook_url = params.get("webhook_url")
-                title   = params.get("title", "Contecflow — Automatización")
-                message = params.get("message", "")
-                if webhook_url:
-                    from app.services.integrations import send_teams_message
-                    res = send_teams_message(webhook_url, title, message)
-                    results.append({"action": atype, "ok": res.get("ok", False)})
-                else:
-                    from app.models.cab import IntegrationConfig, IntegrationType
-                    cfg = db.query(IntegrationConfig).filter(
-                        IntegrationConfig.integration_type == IntegrationType.teams,
-                        IntegrationConfig.is_active == True,
-                    ).first()
-                    if cfg:
-                        import json as _j
-                        config_data = _j.loads(cfg.config or "{}")
-                        wh = config_data.get("webhook_url")
-                        if wh:
-                            from app.services.integrations import send_teams_message
-                            res = send_teams_message(wh, title, message)
-                            results.append({"action": atype, "ok": res.get("ok", False)})
-                            continue
-                    results.append({"action": atype, "ok": False, "error": "No Teams webhook_url configured"})
-
-            elif atype == ActionType.wait_step:
-                delay_hours = params.get("delay_hours", 0)
-                label = params.get("label", f"Esperar {delay_hours}h")
-                results.append({"action": atype, "ok": True, "label": label,
-                                "delay_hours": delay_hours, "status": "logged"})
-
-            elif atype == ActionType.conditional_branch:
-                condition = params.get("condition", {})
-                if_true_actions = params.get("if_true", [])
-                if_false_actions = params.get("if_false", [])
-                branch_result = check_conditions(condition, context)
-                branch_actions = if_true_actions if branch_result else if_false_actions
-                branch_label = "if_true" if branch_result else "if_false"
-                if branch_actions:
-                    branch_results = execute_actions(branch_actions, context, db)
-                    results.append({"action": atype, "ok": True,
-                                    "branch_taken": branch_label, "branch_results": branch_results})
-                else:
-                    results.append({"action": atype, "ok": True,
-                                    "branch_taken": branch_label, "branch_results": []})
+            ejecutar = _ACCIONES.get(atype)
+            if ejecutar is None:
+                logger.warning("Tipo de acción de automatización desconocido: %s", atype)
+                results.append({"action": atype, "ok": False, "error": "tipo desconocido"})
+                continue
+            ejecutar(db, atype, action, params, context, results)
 
         except Exception as e:
             logger.exception("Automation action %s execution failed", atype)
             results.append({"action": atype, "ok": False, "error": str(e)})
 
     return results
+
 
 
 def fire_trigger(trigger_type: str, context: dict, db: Session):
@@ -326,7 +392,7 @@ def run_scheduled_automations(db: Session) -> dict:
     """Execute scheduled automations (timesheet reminders, overdue tasks)."""
 
     results = {"executed": 0, "errors": 0}
-    today = date.today()
+    today = timeutil.today()
 
     if today.weekday() == 4:  # Friday
         week_start = today - timedelta(days=4)

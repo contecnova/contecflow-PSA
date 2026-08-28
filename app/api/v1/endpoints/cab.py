@@ -18,6 +18,7 @@ from datetime import date, datetime
 from pydantic import BaseModel
 import json
 import logging
+from app.core import timeutil
 
 logger = logging.getLogger("contecflow.v14")
 
@@ -587,7 +588,7 @@ def compute_revenue_period(
     current_user: User = Depends(require_any_manager),
 ):
     """Compute and record revenue recognition for a given month."""
-    period_str = payload.get("period", str(date.today().replace(day=1)))
+    period_str = payload.get("period", str(timeutil.today().replace(day=1)))
     try:
         return APIResponse.ok(data=_svc.compute_revenue_period(rule_id, period_str, db))
     except ValueError as e:
@@ -602,7 +603,7 @@ def auto_compute_revenue(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    period_str = period or str(date.today().replace(day=1))
+    period_str = period or str(timeutil.today().replace(day=1))
     return APIResponse.ok(data=_svc.auto_compute_revenue(period_str, db))
 
 

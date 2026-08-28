@@ -1,75 +1,37 @@
+"""MFA (TOTP): segundo factor de autenticacion.
+
+Auditoria 2026-08 (hallazgo 22). Estas rutas vivian en
+`app/api/v1/endpoints/mfa.py`, un fichero de 640 lineas con **38 rutas de ocho
+dominios** —MFA, organizaciones, Slack, presupuestos, planificacion asistida,
+escenarios, PDF y tokens de BI— servidas por un router llamado «mfa».
+
+La mala ubicacion no fue solo desorden: el CRUD de organizaciones estaba
+escondido ahi, y por eso nadie noto que a esos endpoints les faltaba la guarda de
+superadministrador que su propio `summary` anunciaba. Fue la causa proxima del P0
+numero 1 de la auditoria.
+
+**Los paths no han cambiado.** ABAC y GRC derivan el modulo de la ruta, asi que
+tocarlos alteraria los permisos en silencio.
 """
-mfa: thin router delegating to app.services.mfa_service
-"""
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks, Body
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional, List
-from datetime import date
 from pydantic import BaseModel
-import logging
-import io
-
-_logger = logging.getLogger(__name__)
-
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin, require_superadmin
+from app.core.deps import get_current_user
 from app.models.user import User
-from app.core.config import settings
 from app.core.abac_enforce import enforce_abac
-from app.core.responses import APIListResponse, APIResponse
-import app.services.mfa_service as _svc
-from app.schemas.auth_payloads import (
-    AssignUserOrgIn, SlackTestIn, SlackNotifyIn, AcceptFlagIn, ExportPdfIn,
-)
+from app.core.responses import APIResponse
+import app.services.mfa_service as _mfa
 
 router = APIRouter()
 
-
-def get_bi_token(request: Request) -> Optional[str]:
-    """Extrae el BI Personal Access Token del header Authorization.
-
-    Los endpoints `/bi/data/*` usan un esquema propio (tokens `bi_*`) en lugar
-    del JWT estándar de usuarios. Centralizar aquí el parseo evita repetir la
-    misma lógica en cada handler y facilita testear/instrumentar la entrada.
-    Devuelve `None` si no hay token BI; el servicio decide cómo responder
-    (típicamente 401 vía ValueError).
-    """
-    auth_header = request.headers.get("Authorization", "")
-    if "bi_" not in auth_header:
-        return None
-    # Acepta tanto "Bearer bi_xxx" como "bi_xxx" para compatibilidad legacy.
-    return auth_header.replace("Bearer bi_", "bi_")
-
-# Quitar usuario de organización
-@router.delete("/organizations/{org_id}/remove-user/{user_id}", summary="Quitar usuario de organización")
-def remove_user_from_org(
-    org_id: str,
-    user_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_superadmin),
-):
-    enforce_abac(db, current_user, "organization", org_id, action="delete")
-    try:
-        return APIResponse.ok(data=_svc.remove_user_from_org(org_id, user_id, db))
-    except ValueError as e:
-        msg = str(e)
-        if msg.startswith("404:"):
-            raise HTTPException(404, msg[4:])
-        raise HTTPException(400, msg)
-
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MFA / 2FA — TOTP
-# ═══════════════════════════════════════════════════════════════════════════════
 
 @router.get("/mfa/status", summary="Estado MFA del usuario actual")
 def mfa_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return APIResponse.ok(data=_svc.get_mfa_status(current_user.id, db))
+    return APIResponse.ok(data=_mfa.get_mfa_status(current_user.id, db))
 
 
 @router.post("/mfa/setup", summary="Iniciar configuración MFA — genera secret y QR URL")
@@ -78,7 +40,7 @@ def mfa_setup(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return APIResponse.ok(data=_svc.setup_mfa(current_user, db))
+        return APIResponse.ok(data=_mfa.setup_mfa(current_user, db))
     except ValueError as e:
         msg = str(e)
         if "pyotp" in msg:
@@ -100,7 +62,7 @@ def mfa_verify(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return APIResponse.ok(data=_svc.verify_and_activate_mfa(current_user, payload.code, db))
+        return APIResponse.ok(data=_mfa.verify_and_activate_mfa(current_user, payload.code, db))
     except ValueError as e:
         msg = str(e)
         if "pyotp" in msg:
@@ -118,7 +80,7 @@ def mfa_validate(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return APIResponse.ok(data=_svc.validate_mfa_code(current_user, payload.code, db))
+        return APIResponse.ok(data=_mfa.validate_mfa_code(current_user, payload.code, db))
     except ValueError as e:
         msg = str(e)
         if "pyotp" in msg:
@@ -134,507 +96,9 @@ def mfa_disable(
 ):
     enforce_abac(db, current_user, "mfa", str(current_user.id), action="delete")
     try:
-        return APIResponse.ok(data=_svc.disable_mfa(current_user, payload.code, db))
+        return APIResponse.ok(data=_mfa.disable_mfa(current_user, payload.code, db))
     except ValueError as e:
         msg = str(e)
         if "pyotp" in msg:
             raise HTTPException(503, msg)
         raise HTTPException(400, msg)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MULTI-TENANCY — Organizations
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@router.get("/organizations", summary="Listar organizaciones (super-admin)")
-def list_organizations(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_superadmin),
-):
-    return APIListResponse.ok(items=_svc.list_organizations(db))
-
-
-class OrgCreate(BaseModel):
-    name: str
-    slug: str
-    plan: str = "starter"
-    max_users: int = 25
-    max_projects: int = 100
-    admin_email: Optional[str] = None
-    timezone: str = settings.DEFAULT_TIMEZONE
-    locale: str = settings.DEFAULT_LANGUAGE
-    primary_color: Optional[str] = None
-
-
-class OrgUpdate(BaseModel):
-    """Tipado explícito de campos editables de una organización.
-
-    El servicio `_svc.update_organization` ya tenía un whitelist de campos —
-    este schema lo hace explícito en el contrato API y previene mass-assignment.
-    """
-    name: Optional[str] = None
-    plan: Optional[str] = None
-    max_users: Optional[int] = None
-    max_projects: Optional[int] = None
-    is_active: Optional[bool] = None
-    admin_email: Optional[str] = None
-    timezone: Optional[str] = None
-    locale: Optional[str] = None
-    primary_color: Optional[str] = None
-    logo_url: Optional[str] = None
-    require_mfa: Optional[bool] = None
-
-
-@router.post("/organizations", summary="Crear nueva organización (tenant)")
-def create_organization(
-    payload: OrgCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_superadmin),
-):
-    try:
-        return APIResponse.ok(data=_svc.create_organization(payload.model_dump(), current_user, db))
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-
-
-@router.get("/organizations/{org_id}", summary="Detalle de organización")
-def get_organization(
-    org_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_superadmin),
-):
-    try:
-        return APIResponse.ok(data=_svc.get_organization(org_id, db))
-    except ValueError:
-        raise HTTPException(404)
-
-
-@router.patch("/organizations/{org_id}", summary="Actualizar organización")
-def update_organization(
-    org_id: str,
-    payload: OrgUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_superadmin),
-):
-    try:
-        return APIResponse.ok(data=_svc.update_organization(org_id, payload.model_dump(exclude_unset=True), db))
-    except ValueError:
-        raise HTTPException(404)
-
-
-@router.post("/organizations/{org_id}/assign-user", summary="Asignar usuario a organización")
-def assign_user_to_org(
-    org_id: str,
-    payload: AssignUserOrgIn = Body(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_superadmin),
-):
-    try:
-        return APIResponse.ok(data=_svc.assign_user_to_org(org_id, payload.user_id, db))
-    except ValueError as e:
-        msg = str(e)
-        if msg.startswith("404:"):
-            raise HTTPException(404, msg[4:])
-        raise HTTPException(400, msg)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SLACK / TEAMS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@router.get("/slack/config", summary="Configuración Slack/Teams")
-def get_slack_config(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return APIListResponse.ok(items=_svc.get_slack_config(db))
-
-
-class SlackConfigCreate(BaseModel):
-    platform: str = "slack"
-    workspace_name: Optional[str] = None
-    bot_token: Optional[str] = None
-    webhook_url: Optional[str] = None
-    default_channel: str = "#contecflow-alerts"
-    subscriptions: Optional[List[str]] = None
-
-
-@router.post("/slack/config", summary="Crear/actualizar configuración Slack")
-def create_slack_config(
-    payload: SlackConfigCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return APIResponse.ok(data=_svc.create_or_update_slack_config(
-        payload.model_dump(), db, organization_id=getattr(current_user, "organization_id", None),
-    ))
-
-
-@router.post("/slack/test", summary="Enviar mensaje de prueba a Slack/Teams")
-def test_slack(
-    payload: SlackTestIn = Body(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    try:
-        config_id = payload.config_id
-        message = payload.message or "🔔 Mensaje de prueba desde Contecflow v15"
-        channel = payload.channel or "#contecflow-alerts"
-        return APIResponse.ok(data=_svc.test_slack_config(config_id, message, channel, db))
-    except ValueError:
-        raise HTTPException(404)
-
-
-@router.post("/slack/notify", summary="Enviar notificación de evento Slack")
-def slack_notify(
-    payload: SlackNotifyIn = Body(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    try:
-        return APIResponse.ok(data=_svc.notify_slack(
-            payload.event_type or "manual",
-            payload.message or "Notificación de Contecflow",
-            payload.channel,
-            payload.source_id,
-            db,
-        ))
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-
-
-@router.get("/slack/logs", summary="Historial de notificaciones Slack")
-def slack_logs(
-    limit: int = Query(50, le=200),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return APIListResponse.ok(items=_svc.get_slack_logs(limit, db))
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MULTI-PERIOD BUDGETS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@router.get("/budgets", summary="Listar presupuestos")
-def list_budgets(
-    year: Optional[int] = None,
-    department: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    return APIListResponse.ok(items=_svc.list_budgets(year, department, db))
-
-
-class BudgetCreate(BaseModel):
-    name: str
-    year: int
-    department: Optional[str] = None
-    project_id: Optional[str] = None
-    total_amount: float = 0
-    currency: str = settings.DEFAULT_CURRENCY
-    notes: Optional[str] = None
-    monthly_planned: Optional[List[float]] = None
-
-
-class BudgetEntryUpdate(BaseModel):
-    """Campos editables de una entrada mensual de presupuesto."""
-    month: int
-    planned: Optional[float] = None
-    actual: Optional[float] = None
-    committed: Optional[float] = None
-    notes: Optional[str] = None
-
-
-@router.post("/budgets", summary="Crear presupuesto anual")
-def create_budget(
-    payload: BudgetCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    return APIResponse.ok(data=_svc.create_budget(payload.model_dump(), current_user.id, db))
-
-
-@router.patch("/budgets/{budget_id}/entry", summary="Actualizar entrada mensual de presupuesto")
-def update_budget_entry(
-    budget_id: str,
-    payload: BudgetEntryUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    try:
-        return APIResponse.ok(data=_svc.update_budget_entry(budget_id, payload.model_dump(exclude_unset=True), db))
-    except ValueError as e:
-        msg = str(e)
-        if msg == "not_found":
-            raise HTTPException(404)
-        raise HTTPException(400, msg)
-
-
-@router.post("/budgets/{budget_id}/approve", summary="Aprobar presupuesto")
-def approve_budget(
-    budget_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    try:
-        return APIResponse.ok(data=_svc.approve_budget(budget_id, current_user, db))
-    except ValueError:
-        raise HTTPException(404)
-
-
-@router.get("/budgets/summary", summary="Resumen anual de presupuestos")
-def budget_summary(
-    year: int = Query(default=None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    return APIResponse.ok(data=_svc.get_budget_summary(year, db))
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# AI — TASK ESTIMATION
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@router.post("/ai-planning/estimate/{task_id}", summary="Estimar horas de tarea con IA")
-def estimate_task_hours(
-    task_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    try:
-        return APIResponse.ok(data=_svc.estimate_task_hours(task_id, db))
-    except ValueError:
-        raise HTTPException(404)
-
-
-@router.post("/ai-planning/estimate/{task_id}/accept", summary="Aceptar o rechazar estimación IA")
-def accept_estimate(
-    task_id: str,
-    payload: AcceptFlagIn = Body(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    try:
-        return APIResponse.ok(data=_svc.accept_task_estimate(task_id, payload.accepted, db))
-    except ValueError:
-        raise HTTPException(404)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# AI — TICKET TRIAGE
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@router.post("/ai-planning/triage/{ticket_id}", summary="Triaje automático de ticket con IA")
-def ai_triage_ticket(
-    ticket_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    try:
-        return APIResponse.ok(data=_svc.triage_ticket(ticket_id, db))
-    except ValueError:
-        raise HTTPException(404)
-
-
-@router.post("/ai-planning/triage/{ticket_id}/accept", summary="Aplicar triaje IA al ticket")
-def accept_triage(
-    ticket_id: str,
-    payload: AcceptFlagIn = Body(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    try:
-        return APIResponse.ok(data=_svc.accept_ticket_triage(ticket_id, payload.accepted, current_user.id, db))
-    except ValueError:
-        raise HTTPException(404)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SCENARIO PLANNING / WHAT-IF
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@router.get("/scenarios", summary="Listar escenarios what-if")
-def list_scenarios(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    return APIListResponse.ok(items=_svc.list_scenarios(db))
-
-
-class ScenarioCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    base_date: Optional[date] = None
-    horizon_weeks: int = 12
-    projects: Optional[List[dict]] = None
-
-
-@router.post("/scenarios", summary="Crear escenario what-if")
-def create_scenario(
-    payload: ScenarioCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    return APIResponse.ok(data=_svc.create_scenario(payload.model_dump(), current_user.id, db))
-
-
-@router.post("/scenarios/{scenario_id}/compute", summary="Calcular impacto del escenario")
-def compute_scenario(
-    scenario_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    try:
-        return APIResponse.ok(data=_svc.compute_scenario(scenario_id, db))
-    except ValueError:
-        raise HTTPException(404)
-
-
-@router.get("/scenarios/{scenario_id}", summary="Detalle de escenario")
-def get_scenario(
-    scenario_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    try:
-        return APIResponse.ok(data=_svc.get_scenario(scenario_id, db))
-    except ValueError:
-        raise HTTPException(404)
-
-
-@router.delete("/scenarios/{scenario_id}", summary="Eliminar escenario")
-def delete_scenario(
-    scenario_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    enforce_abac(db, current_user, "scenario", scenario_id, action="delete")
-    try:
-        return APIResponse.ok(data=_svc.delete_scenario(scenario_id, db))
-    except ValueError:
-        raise HTTPException(404)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PDF EXPORT
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@router.post("/pdf/export", summary="Exportar informe o factura a PDF con logo")
-def export_pdf(
-    background_tasks: BackgroundTasks,
-    payload: ExportPdfIn = Body(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    export_type = payload.export_type or "generic"
-    source_id = payload.source_id
-    params = {
-        "company_name": payload.company_name or "Contecflow",
-        "primary_color": payload.primary_color or "#1C2833",
-        "logo_b64": payload.logo_b64,
-    }
-
-    try:
-        pdf_bytes, filename = _svc.create_and_run_pdf_export(
-            export_type, source_id, params, current_user.id, db
-        )
-        return StreamingResponse(
-            io.BytesIO(pdf_bytes),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-        )
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-
-
-@router.get("/pdf/jobs", summary="Historial de exportaciones PDF")
-def list_pdf_jobs(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return APIListResponse.ok(items=_svc.list_pdf_jobs(current_user.id, db))
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# BI CONNECTOR
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@router.get("/bi/tokens", summary="Listar tokens BI")
-def list_bi_tokens(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return APIListResponse.ok(items=_svc.list_bi_tokens(db))
-
-
-class BITokenCreate(BaseModel):
-    name: str
-    tool: str = "powerbi"
-    scopes: Optional[List[str]] = None
-    expires_days: Optional[int] = None
-
-
-@router.post("/bi/tokens", summary="Crear token BI")
-def create_bi_token(
-    payload: BITokenCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return APIResponse.ok(data=_svc.create_bi_token(payload.model_dump(), current_user.id, db))
-
-
-@router.delete("/bi/tokens/{token_id}", summary="Revocar token BI")
-def revoke_bi_token(
-    token_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    enforce_abac(db, current_user, "bi_token", token_id, action="delete")
-    try:
-        return APIResponse.ok(data=_svc.revoke_bi_token(token_id, db))
-    except ValueError:
-        raise HTTPException(404)
-
-
-@router.get("/bi/data/projects", summary="Datos de proyectos para BI")
-def bi_data_projects(
-    bi_token: Optional[str] = Depends(get_bi_token),
-    db: Session = Depends(get_db),
-):
-    try:
-        # Contrato externo consumido por herramientas BI (PowerBI) vía tokens bi_*:
-        # NO se envuelve en el envelope canónico (rompería a esos consumidores externos).
-        return _svc.bi_data_projects(bi_token, db)
-    except ValueError:
-        raise HTTPException(401, "Token BI inválido o caducado")
-
-
-@router.get("/bi/data/timesheets", summary="Datos de imputaciones para BI")
-def bi_data_timesheets(
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(500, ge=1, le=5000),
-    bi_token: Optional[str] = Depends(get_bi_token),
-    db: Session = Depends(get_db),
-):
-    try:
-        # Contrato externo BI (PowerBI): sin envelope.
-        return _svc.bi_data_timesheets(bi_token, date_from, date_to, page, page_size, db)
-    except ValueError:
-        raise HTTPException(401, "Token BI inválido")
-
-
-@router.get("/bi/data/kpis", summary="KPIs globales para BI")
-def bi_data_kpis(
-    bi_token: Optional[str] = Depends(get_bi_token),
-    db: Session = Depends(get_db),
-):
-    try:
-        # Contrato externo BI (PowerBI): sin envelope.
-        return _svc.bi_data_kpis(bi_token, db)
-    except ValueError:
-        raise HTTPException(401, "Token BI inválido")
-
-

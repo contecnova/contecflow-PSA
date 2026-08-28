@@ -1,7 +1,7 @@
 """
 client_portal_service.py — Business logic extracted from client_portal router.
 """
-from datetime import datetime, timedelta, timezone, date
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import logging
 
@@ -36,6 +36,7 @@ from app.services.realtime_notifications import publish_user_notification
 from sqlalchemy import and_, false, func, or_
 from sqlalchemy.orm import joinedload
 from app.core.background import spawn
+from app.core import timeutil
 
 logger = logging.getLogger("contecflow.client_portal")
 
@@ -276,7 +277,7 @@ def uat_out(s) -> dict:
         "test_cases": _uat_test_cases_out(s.test_cases),
         "issues": _uat_issues_out(s.issues),
         "stats": _uat_stats(s.test_cases),
-        "overdue": s.deadline and date.today() > s.deadline and s.status in ["pending", "in_progress"],
+        "overdue": s.deadline and timeutil.today() > s.deadline and s.status in ["pending", "in_progress"],
     }
 
 
@@ -822,7 +823,7 @@ def _dashboard_sla_stats(project, current_client, ticket_query, db: Session) -> 
 
 
 def _dashboard_progress_pct(project) -> float:
-    days_elapsed = (date.today() - project.start_date).days if project.start_date else 0
+    days_elapsed = (timeutil.today() - project.start_date).days if project.start_date else 0
     days_total = (
         (project.end_date_planned - project.start_date).days
         if project.end_date_planned and project.start_date else None
@@ -839,7 +840,7 @@ def _dashboard_next_milestone(milestones) -> Optional[dict]:
         "name": nm.name,
         "title": nm.name,
         "due_date": str(nm.due_date),
-        "days_remaining": (nm.due_date - date.today()).days,
+        "days_remaining": (nm.due_date - timeutil.today()).days,
     }
 
 

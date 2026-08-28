@@ -1,13 +1,45 @@
-"""Metric time-series extraction for the BI Smart Alerts engine.
+"""Series temporales de metricas para el motor de alertas inteligentes.
 
-Pulls monthly series for every supported metric (and composite/custom metrics)
-directly from real DB data.
+Devuelve la serie mensual de cada metrica soportada —y de las compuestas que
+define el cliente— a partir de datos reales de la base.
+
+── Como esta organizado y por que ───────────────────────────────────────────
+Auditoria 2026-08 (hallazgo 18). `_fetch_metric_series` era la funcion mas
+compleja de la solucion con enorme diferencia: complejidad ciclomatica **247** en
+945 lineas, cuando la siguiente del proyecto esta en 67. Eran 55 `if metric_key
+== ...` secuenciales al mismo nivel, cada uno con su consulta y su `return`: una
+tabla de despacho escrita como una unica funcion.
+
+Eso tenia tres costes concretos, no esteticos:
+
+  · una clave del catalogo sin rama caia al `return _empty_like()` del final, asi
+    que la metrica presentaba una linea plana en vez de fallar — el mismo patron
+    que dejo muerto el endpoint `/analytics/adhoc` y el reconocimiento ASC 606;
+  · las 945 lineas compartian un unico ambito, asi que cualquier variable de una
+    rama era visible para las 54 siguientes;
+  · ninguna rama se podia probar por separado.
+
+Ahora cada grupo de metricas es una funcion con nombre, registrada en
+`_RESOLUTORES`. La logica de cada una se movio VERBATIM —misma condicion, mismo
+cuerpo, mismos comentarios— y la equivalencia se verifico comparando las 133
+series del catalogo antes y despues, valor a valor. Lo unico que se anadio a cada
+funcion es el preambulo que reenlaza los nombres que tomaba del entorno.
+
+El contexto compartido (`_Ctx`) lleva la serie de meses de referencia y los cuatro
+ayudantes de agregacion que antes eran cierres. Se llama `ctx` y no `c` porque el
+codigo original usa `c` como variable propia en cinco sitios.
+
+Ver tests/test_bi_metrics_catalog.py: comprueba que las 133 claves del catalogo se
+resuelven, que todas devuelven series de la misma longitud y que catalogo y
+codigo no se pueden separar.
 """
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import date, datetime, timezone
+from typing import Callable, Optional
 
 from sqlalchemy.orm import Session
 
@@ -16,47 +48,108 @@ from .persistence import _get_json
 
 logger = logging.getLogger(__name__)
 
+# Metricas del perfil de coste de personal. Estaba definido DENTRO de la funcion,
+# recreandose en cada llamada; izado aqui porque el registro lo necesita para
+# saber que claves atiende `_serie_cost_profile`.
+COST_PROFILE_KEYS = frozenset({
+        "cost_profile_avg_per_hour", "cost_profile_max_per_hour",
+        "cost_profile_p95_per_hour", "cost_profile_dept_max_per_hour",
+        "cost_profile_country_max_per_hour",
+        "cost_profile_total_annual", "cost_profile_top_person_annual",
+        "cost_profile_top_country_annual",
+        "cost_profile_users_with", "cost_profile_users_legacy",
+        "cost_profile_users_missing",
+        "cost_profile_employer_pct_avg", "cost_profile_employer_pct_max",
+})
 
-def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional[str]) -> list[float]:
-    """Pull last 24 months of the requested metric from real DB data."""
-    from collections import defaultdict
-    from datetime import date
 
-    from app.services.bi_intelligence_service import _month_series
-    try:
-        series = _month_series(db, organization_id, months_history=24)
-    except Exception:
-        logger.warning("Failed to load _month_series for smart alerts org=%s", organization_id, exc_info=True)
-        series = []
-    if not series:
-        _cur_year = datetime.now(timezone.utc).year
-        series = [{"month": f"{_cur_year}-{m:02d}", "revenue": 0.0, "cost": 0.0, "hours": 0.0} for m in range(1, 13)]
+@dataclass
+class _Ctx:
+    """Lo que toda metrica necesita del entorno para calcular su serie.
 
-    def _empty_like() -> list[float]:
-        return [0.0 for _ in series]
+    `series` es la rejilla de meses de referencia: todas las metricas devuelven
+    una serie de su misma longitud para que los paneles puedan compararlas entre
+    si. Los cuatro ayudantes eran cierres dentro de la funcion original y su
+    cuerpo se conserva igual.
+    """
 
-    def _bucket_count(rows, date_field_idx=0, *, start: date) -> list[float]:
+    db: Session
+    key: str
+    org_id: Optional[str]
+    series: list[dict] = field(default_factory=list)
+    start_date: Optional[date] = None
+
+    def empty_like(self) -> list[float]:
+        """Serie a cero de la longitud correcta. Es la respuesta a «no hay dato»."""
+        return [0.0 for _ in self.series]
+
+    def bucket_count(self, rows, date_field_idx=0, *, start: date) -> list[float]:
+        """Cuenta filas por mes. `start` se conserva en la firma por
+        compatibilidad con las llamadas: el cuerpo original no lo usaba."""
         bkt: dict[str, float] = defaultdict(float)
         for row in rows:
             d = row[date_field_idx] if isinstance(row, (list, tuple)) else row
             if d:
                 bkt[f"{d.year:04d}-{d.month:02d}"] += 1.0
-        return [float(bkt.get(m["month"], 0.0)) for m in series]
+        return [float(bkt.get(m["month"], 0.0)) for m in self.series]
 
-    def _bucket_sum(rows, date_idx=0, value_idx=1, *, start: date) -> list[float]:
+    def bucket_sum(self, rows, date_idx=0, value_idx=1, *, start: date) -> list[float]:
+        """Suma un valor por mes. `start`, igual que arriba."""
         bkt: dict[str, float] = defaultdict(float)
         for row in rows:
             d, v = row[date_idx], row[value_idx]
             if d and v is not None:
                 bkt[f"{d.year:04d}-{d.month:02d}"] += float(v)
-        return [float(bkt.get(m["month"], 0.0)) for m in series]
+        return [float(bkt.get(m["month"], 0.0)) for m in self.series]
 
-    def _current(val: float) -> list[float]:
-        return [val] * len(series)
+    def current(self, val: float) -> list[float]:
+        """Un valor instantaneo repetido en toda la serie.
 
-    start_date = date.fromisoformat(series[0]["month"] + "-01")
+        Se usa en las metricas que solo tienen «ahora» (cuantos proyectos hay
+        activos), donde no existe historico mensual que reconstruir.
+        """
+        return [val] * len(self.series)
 
-    # ── custom metric ──────────────────────────────────────────────────────────
+
+def _construir_contexto(db: Session, metric_key: str, organization_id: Optional[str]) -> _Ctx:
+    """Prepara la rejilla de meses. Era el prologo de la funcion original."""
+    from app.services.bi_intelligence_service import _month_series
+
+    try:
+        series = _month_series(db, organization_id, months_history=24)
+    except Exception:
+        logger.warning(
+            "Failed to load _month_series for smart alerts org=%s",
+            organization_id, exc_info=True,
+        )
+        series = []
+    if not series:
+        # Sin historico se devuelve una rejilla del ano en curso a cero, para que
+        # las series sigan teniendo la misma longitud y los paneles no se
+        # descuadren.
+        _cur_year = datetime.now(timezone.utc).year
+        series = [
+            {"month": f"{_cur_year}-{m:02d}", "revenue": 0.0, "cost": 0.0, "hours": 0.0}
+            for m in range(1, 13)
+        ]
+
+    return _Ctx(
+        db=db,
+        key=metric_key,
+        org_id=organization_id,
+        series=series,
+        start_date=date.fromisoformat(series[0]["month"] + "-01"),
+    )
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Resolutores. Uno por metrica o por grupo de metricas que comparten consulta.
+# El cuerpo de cada uno viene VERBATIM de la funcion original.
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _serie_custom(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas compuestas definidas por el cliente (prefijo `custom_`)."""
+    _empty_like, db, metric_key, organization_id = ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key.startswith("custom_"):
         customs = _get_json(db, CUSTOM_METRICS_KEY, organization_id, default=[])
         cm = next((c for c in customs if c.get("key") == metric_key), None)
@@ -79,21 +172,50 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             result.append(round(v * scale, 4))
         return result
 
-    # ── Financial ──────────────────────────────────────────────────────────────
+def _serie_revenue(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `revenue`."""
+    metric_key, series = ctx.key, ctx.series
     if metric_key == "revenue":
         return [float(m.get("revenue", 0)) for m in series]
+
+def _serie_cost(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `cost`."""
+    metric_key, series = ctx.key, ctx.series
     if metric_key == "cost":
         return [float(m.get("cost", 0)) for m in series]
+
+def _serie_margin(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `margin`."""
+    metric_key, series = ctx.key, ctx.series
     if metric_key == "margin":
         return [float(m.get("revenue", 0)) - float(m.get("cost", 0)) for m in series]
+
+def _serie_margin_pct(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `margin_pct`."""
+    metric_key, series = ctx.key, ctx.series
     if metric_key == "margin_pct":
         return [round((float(m.get("revenue",0))-float(m.get("cost",0)))/float(m.get("revenue",0))*100,2)
                 if float(m.get("revenue",0)) > 0 else 0.0 for m in series]
+
+def _serie_budget_used_pct(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `budget_used_pct`."""
+    metric_key, series = ctx.key, ctx.series
     if metric_key == "budget_used_pct":
         return [round(float(m.get("cost",0))/float(m.get("revenue",0))*100,2)
                 if float(m.get("revenue",0)) > 0 else 0.0 for m in series]
 
-    # invoices
+def _serie_invoice(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · invoice_overdue_count
+    · invoice_overdue_amount
+    · invoices_draft_count
+    · invoices_sent_count
+    · invoices_paid_count
+    · invoices_paid_total
+    · invoice_days_to_pay_avg
+    """
+    _empty_like, db, metric_key, organization_id, series, start_date = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
     if metric_key in ("invoice_overdue_count","invoice_overdue_amount","invoices_draft_count",
                        "invoices_sent_count","invoices_paid_count","invoices_paid_total","invoice_days_to_pay_avg"):
         try:
@@ -152,7 +274,21 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
-    # expenses
+def _serie_expense(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · expense_total
+    · expenses_travel
+    · expenses_software
+    · expenses_hardware
+    · expenses_subcontract
+    · expenses_training_exp
+    · expenses_draft_count
+    · expenses_submitted_count
+    · expenses_approved_count
+    · expenses_rejected_count
+    """
+    _empty_like, db, metric_key, organization_id, series, start_date = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
     if metric_key in ("expense_total","expenses_travel","expenses_software","expenses_hardware",
                        "expenses_subcontract","expenses_training_exp",
                        "expenses_draft_count","expenses_submitted_count",
@@ -187,12 +323,22 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
-    # imputations financial
+def _serie_imputations_approved_hours(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · imputations_approved_hours
+    · imputations_invoiced_count
+    · imputations_cost_total
+    · hourly_rate_avg
+    """
+    _bucket_count, _bucket_sum, _empty_like, db, metric_key, organization_id, series, start_date = ctx.bucket_count, ctx.bucket_sum, ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
     if metric_key in ("imputations_approved_hours","imputations_invoiced_count",
                        "imputations_cost_total","hourly_rate_avg"):
         try:
+            # `func as sqf` estaba aquí y no se usa en ninguna de estas cuatro
+            # métricas. Era deuda que el ámbito único de 945 líneas ocultaba:
+            # ruff veía el nombre usado en otra rama y no lo marcaba.
             from app.models.imputation import Imputation
-            from sqlalchemy import func as sqf
             if metric_key == "imputations_approved_hours":
                 rows = db.query(Imputation.date, Imputation.hours).filter(
                     Imputation.date >= start_date, Imputation.is_approved == True
@@ -223,17 +369,9 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
-    # ── Cost structure (UserCostProfile snapshots end-of-month) ────────────────
-    COST_PROFILE_KEYS = {
-        "cost_profile_avg_per_hour", "cost_profile_max_per_hour",
-        "cost_profile_p95_per_hour", "cost_profile_dept_max_per_hour",
-        "cost_profile_country_max_per_hour",
-        "cost_profile_total_annual", "cost_profile_top_person_annual",
-        "cost_profile_top_country_annual",
-        "cost_profile_users_with", "cost_profile_users_legacy",
-        "cost_profile_users_missing",
-        "cost_profile_employer_pct_avg", "cost_profile_employer_pct_max",
-    }
+def _serie_cost_profile(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas del perfil de coste de personal (COST_PROFILE_KEYS)."""
+    _empty_like, db, metric_key, organization_id, series = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series
     if metric_key in COST_PROFILE_KEYS:
         try:
             from datetime import date as _D, timedelta as _T
@@ -329,9 +467,15 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
-    # ── Resource / Capacity ────────────────────────────────────────────────────
+def _serie_hours_logged(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `hours_logged`."""
+    metric_key, series = ctx.key, ctx.series
     if metric_key == "hours_logged":
         return [float(m.get("hours", 0) or 0) for m in series]
+
+def _serie_hours_billable(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `hours_billable`."""
+    _bucket_sum, _empty_like, db, metric_key, organization_id, start_date = ctx.bucket_sum, ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.start_date
     if metric_key == "hours_billable":
         try:
             from app.models.imputation import Imputation
@@ -342,12 +486,24 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_billable_pct(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `billable_pct`."""
+    db, metric_key, organization_id = ctx.db, ctx.key, ctx.org_id
     if metric_key == "billable_pct":
         t = _fetch_metric_series(db, "hours_logged", organization_id)
         b = _fetch_metric_series(db, "hours_billable", organization_id)
         return [round(bv/tv*100,2) if tv > 0 else 0.0 for tv,bv in zip(t,b)]  # noqa: B905
+
+def _serie_utilization(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `utilization`."""
+    metric_key, series = ctx.key, ctx.series
     if metric_key == "utilization":
         return [min(100.0, round(float(m.get("hours",0) or 0)/160.0*100.0,2)) for m in series]
+
+def _serie_overloaded_users(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `overloaded_users`."""
+    _empty_like, db, metric_key, organization_id, series, start_date = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
     if metric_key == "overloaded_users":
         try:
             from app.models.imputation import Imputation
@@ -363,6 +519,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_avg_user_load_pct(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `avg_user_load_pct`."""
+    _empty_like, db, metric_key, organization_id, series = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series
     if metric_key == "avg_user_load_pct":
         try:
             from app.models.resources import ResourceUtilizationSnapshot
@@ -378,6 +538,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_users_at_capacity(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `users_at_capacity`."""
+    _empty_like, db, metric_key, organization_id, series = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series
     if metric_key == "users_at_capacity":
         try:
             from app.models.resources import ResourceUtilizationSnapshot
@@ -390,6 +554,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_users_underutilized(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `users_underutilized`."""
+    _empty_like, db, metric_key, organization_id, series = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series
     if metric_key == "users_underutilized":
         try:
             from app.models.resources import ResourceUtilizationSnapshot
@@ -402,6 +570,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_snapshot_billable_pct(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `snapshot_billable_pct`."""
+    _empty_like, db, metric_key, organization_id, series = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series
     if metric_key == "snapshot_billable_pct":
         try:
             from app.models.resources import ResourceUtilizationSnapshot
@@ -416,6 +588,18 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_pending_timesheets(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · pending_timesheets
+    · timesheets_draft_count
+    · timesheets_submitted_count
+    · timesheets_rejected_count
+    · timesheet_cost_total
+    · timesheet_avg_hours
+    """
+    _current, _empty_like, db, metric_key, organization_id, series, start_date = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
     if metric_key in ("pending_timesheets","timesheets_draft_count","timesheets_submitted_count",
                        "timesheets_rejected_count","timesheet_cost_total","timesheet_avg_hours"):
         try:
@@ -448,6 +632,17 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_absence(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · absence_days
+    · absence_vacation_days
+    · absence_sick_days
+    · absence_training_days
+    · absence_pending_count
+    """
+    _empty_like, db, metric_key, organization_id, series, start_date = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
     if metric_key in ("absence_days","absence_vacation_days","absence_sick_days",
                        "absence_training_days","absence_pending_count"):
         try:
@@ -475,6 +670,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_certified_users_count(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `certified_users_count`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "certified_users_count":
         try:
             from app.models.resources import UserSkill
@@ -486,6 +685,14 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_resource_alerts(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · resource_alerts_overload
+    · resource_alerts_skill_gap
+    """
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key in ("resource_alerts_overload","resource_alerts_skill_gap"):
         try:
             from app.models.resources import ResourceAlert, ResourceAlertType
@@ -498,7 +705,9 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
-    # ── Projects ───────────────────────────────────────────────────────────────
+def _serie_active_projects(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `active_projects`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "active_projects":
         try:
             from app.models.project import Project, ProjectStatus as PS
@@ -506,6 +715,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_projects_at_risk(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `projects_at_risk`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "projects_at_risk":
         try:
             from app.models.project import Project, ProjectStatus as PS, ProjectRisk as PR
@@ -515,6 +728,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_projects_over_budget(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `projects_over_budget`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "projects_over_budget":
         try:
             from app.models.project import Project, ProjectStatus as PS
@@ -530,6 +747,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_projects_overdue(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `projects_overdue`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "projects_overdue":
         try:
             from app.models.project import Project, ProjectStatus as PS
@@ -543,6 +764,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_projects_on_hold(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `projects_on_hold`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "projects_on_hold":
         try:
             from app.models.project import Project, ProjectStatus as PS
@@ -550,6 +775,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_projects_cancelled(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `projects_cancelled`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "projects_cancelled":
         try:
             from app.models.project import Project, ProjectStatus as PS
@@ -557,6 +786,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_projects_completed_count(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `projects_completed_count`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "projects_completed_count":
         try:
             from app.models.project import Project, ProjectStatus as PS
@@ -564,6 +797,17 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_milestones(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · milestones_overdue
+    · milestones_pending
+    · milestones_completed
+    · milestones_invoiced
+    · milestones_pending_approval
+    """
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key in ("milestones_overdue","milestones_pending","milestones_completed",
                        "milestones_invoiced","milestones_pending_approval"):
         try:
@@ -595,6 +839,16 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_deliverables(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · deliverables_in_progress
+    · deliverables_in_review
+    · deliverables_accepted
+    · deliverables_rejected
+    """
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key in ("deliverables_in_progress","deliverables_in_review",
                        "deliverables_accepted","deliverables_rejected"):
         try:
@@ -609,6 +863,16 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_change_requests(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · change_requests_total
+    · change_requests_pending
+    · change_requests_cost_impact
+    · change_requests_schedule
+    """
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key in ("change_requests_total","change_requests_pending",
                        "change_requests_cost_impact","change_requests_schedule"):
         try:
@@ -631,7 +895,9 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
-    # ── Tasks ──────────────────────────────────────────────────────────────────
+def _serie_tasks_overdue(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `tasks_overdue`."""
+    _empty_like, db, metric_key, organization_id, series, start_date = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
     if metric_key == "tasks_overdue":
         try:
             from app.models.task import Task
@@ -646,6 +912,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_tasks_blocked(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `tasks_blocked`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "tasks_blocked":
         try:
             from app.models.task import Task, TaskStatus
@@ -653,6 +923,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_tasks_created(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `tasks_created`."""
+    _bucket_count, _empty_like, db, metric_key, organization_id, start_date = ctx.bucket_count, ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.start_date
     if metric_key == "tasks_created":
         try:
             from app.models.task import Task
@@ -661,6 +935,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_tasks_completed(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `tasks_completed`."""
+    _bucket_count, _empty_like, db, metric_key, organization_id, start_date = ctx.bucket_count, ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.start_date
     if metric_key == "tasks_completed":
         try:
             from app.models.task import Task, TaskStatus
@@ -673,12 +951,32 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_task_completion_rate(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `task_completion_rate`."""
+    db, metric_key, organization_id = ctx.db, ctx.key, ctx.org_id
     if metric_key == "task_completion_rate":
         c = _fetch_metric_series(db, "tasks_completed", organization_id)
         o = _fetch_metric_series(db, "tasks_overdue", organization_id)
         return [round(cv/(cv+ov)*100,2) if (cv+ov) > 0 else 0.0 for cv,ov in zip(c,o)]  # noqa: B905
 
-    # ── Service Desk / ITSM ────────────────────────────────────────────────────
+def _serie_tickets_open(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · tickets_open
+    · tickets_created
+    · tickets_resolved
+    · tickets_p1_count
+    · tickets_p2_count
+    · first_response_time_avg
+    · resolution_time_avg
+    · csat_avg
+    · sla_response_breached
+    · sla_resolution_breached
+    · auto_resolved_count
+    · ticket_time_spent_total
+    """
+    _empty_like, db, metric_key, organization_id, series, start_date = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
     if metric_key in ("tickets_open","tickets_created","tickets_resolved",
                        "tickets_p1_count","tickets_p2_count",
                        "first_response_time_avg","resolution_time_avg","csat_avg",
@@ -731,6 +1029,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_ticket_time_log_total(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `ticket_time_log_total`."""
+    _bucket_sum, _empty_like, db, metric_key, organization_id, start_date = ctx.bucket_sum, ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.start_date
     if metric_key == "ticket_time_log_total":
         try:
             from app.models.service_desk import TicketTimeLog
@@ -741,6 +1043,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_sla_breach_count(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `sla_breach_count`."""
+    _bucket_count, _empty_like, db, metric_key, organization_id, start_date = ctx.bucket_count, ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.start_date
     if metric_key == "sla_breach_count":
         try:
             from app.models.billing_reports import SLABreachLog
@@ -751,6 +1057,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_sla_compliance_pct(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `sla_compliance_pct`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "sla_compliance_pct":
         try:
             from app.models.service_desk import ITSMMetricSnapshot
@@ -761,6 +1071,15 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_kb(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · kb_articles_published
+    · kb_views_total
+    · kb_helpful_count
+    """
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key in ("kb_articles_published","kb_views_total","kb_helpful_count"):
         try:
             from app.models.service_desk import KBArticle, KBStatus
@@ -776,6 +1095,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_problems_open(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `problems_open`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "problems_open":
         try:
             from app.models.service_desk import Problem, ProblemStatus
@@ -785,6 +1108,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_known_errors_active(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `known_errors_active`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "known_errors_active":
         try:
             from app.models.service_desk import KnownError
@@ -792,6 +1119,15 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_itsm_changes(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · itsm_changes_total
+    · itsm_changes_emergency
+    · itsm_changes_downtime
+    """
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key in ("itsm_changes_total","itsm_changes_emergency","itsm_changes_downtime"):
         try:
             from app.models.service_desk import ITSMChangeRequest, ChangeType
@@ -808,6 +1144,18 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_assets_total(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · assets_total
+    · assets_deployed
+    · assets_in_repair
+    · license_seats_total
+    · license_used_total
+    · asset_value_total
+    """
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key in ("assets_total","assets_deployed","assets_in_repair",
                        "license_seats_total","license_used_total","asset_value_total"):
         try:
@@ -831,6 +1179,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_major_incidents_active(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `major_incidents_active`."""
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key == "major_incidents_active":
         try:
             from app.models.service_desk import MajorIncident, MajorIncidentStatus
@@ -840,6 +1192,10 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_escalations_total(ctx: _Ctx) -> Optional[list[float]]:
+    """Metrica `escalations_total`."""
+    _bucket_count, _empty_like, db, metric_key, organization_id, start_date = ctx.bucket_count, ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.start_date
     if metric_key == "escalations_total":
         try:
             from app.models.service_desk import EscalationLog
@@ -850,6 +1206,14 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_playbook(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · playbook_success_count
+    · playbook_failure_count
+    """
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key in ("playbook_success_count","playbook_failure_count"):
         try:
             from app.models.service_desk import AutonomousPlaybook
@@ -861,7 +1225,14 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
-    # ── Approvals & Workflows ──────────────────────────────────────────────────
+def _serie_pending_approvals(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · pending_approvals
+    · approvals_approved_count
+    · approvals_rejected_count
+    """
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key in ("pending_approvals","approvals_approved_count","approvals_rejected_count"):
         try:
             from app.models.billing_reports import ApprovalRequest
@@ -872,6 +1243,15 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_workflow(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · workflow_runs_total
+    · workflow_success_total
+    · workflow_error_total
+    """
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key in ("workflow_runs_total","workflow_success_total","workflow_error_total"):
         try:
             from app.models.billing_reports import AutomationWorkflow
@@ -885,7 +1265,13 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
-    # ── GRC & Compliance ──────────────────────────────────────────────────────
+def _serie_sod_violations(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · sod_violations_total
+    · sod_violations_unresolved
+    """
+    _current, _empty_like, db, metric_key, organization_id = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id
     if metric_key in ("sod_violations_total","sod_violations_unresolved"):
         try:
             from app.models.billing_reports import SodViolation
@@ -896,6 +1282,14 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
+
+def _serie_grc(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · grc_audit_events_total
+    · grc_critical_events
+    """
+    _empty_like, db, metric_key, organization_id, series, start_date = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
     if metric_key in ("grc_audit_events_total","grc_critical_events"):
         try:
             from app.models.billing_reports import GrcAuditLog
@@ -914,7 +1308,14 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
-    # ── Imports & Data ────────────────────────────────────────────────────────
+def _serie_imports(ctx: _Ctx) -> Optional[list[float]]:
+    """Metricas que comparten consulta:
+
+    · imports_completed_count
+    · imports_failed_count
+    · imports_success_rate
+    """
+    _empty_like, db, metric_key, organization_id, series, start_date = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
     if metric_key in ("imports_completed_count","imports_failed_count","imports_success_rate"):
         try:
             from app.models.billing_reports import ImportJob
@@ -942,4 +1343,184 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
-    return _empty_like()
+# ═════════════════════════════════════════════════════════════════════════════
+# Tabla de despacho
+# ═════════════════════════════════════════════════════════════════════════════
+
+_Resolutor = Callable[[_Ctx], Optional[list[float]]]
+
+# Clave exacta → resolutor. Es la tabla que antes era una cadena de 55 `if`.
+_RESOLUTORES: dict[str, _Resolutor] = {
+    "revenue": _serie_revenue,
+    "cost": _serie_cost,
+    "margin": _serie_margin,
+    "margin_pct": _serie_margin_pct,
+    "budget_used_pct": _serie_budget_used_pct,
+    "invoice_days_to_pay_avg": _serie_invoice,
+    "invoice_overdue_amount": _serie_invoice,
+    "invoice_overdue_count": _serie_invoice,
+    "invoices_draft_count": _serie_invoice,
+    "invoices_paid_count": _serie_invoice,
+    "invoices_paid_total": _serie_invoice,
+    "invoices_sent_count": _serie_invoice,
+    "expense_total": _serie_expense,
+    "expenses_approved_count": _serie_expense,
+    "expenses_draft_count": _serie_expense,
+    "expenses_hardware": _serie_expense,
+    "expenses_rejected_count": _serie_expense,
+    "expenses_software": _serie_expense,
+    "expenses_subcontract": _serie_expense,
+    "expenses_submitted_count": _serie_expense,
+    "expenses_training_exp": _serie_expense,
+    "expenses_travel": _serie_expense,
+    "hourly_rate_avg": _serie_imputations_approved_hours,
+    "imputations_approved_hours": _serie_imputations_approved_hours,
+    "imputations_cost_total": _serie_imputations_approved_hours,
+    "imputations_invoiced_count": _serie_imputations_approved_hours,
+    "hours_logged": _serie_hours_logged,
+    "hours_billable": _serie_hours_billable,
+    "billable_pct": _serie_billable_pct,
+    "utilization": _serie_utilization,
+    "overloaded_users": _serie_overloaded_users,
+    "avg_user_load_pct": _serie_avg_user_load_pct,
+    "users_at_capacity": _serie_users_at_capacity,
+    "users_underutilized": _serie_users_underutilized,
+    "snapshot_billable_pct": _serie_snapshot_billable_pct,
+    "pending_timesheets": _serie_pending_timesheets,
+    "timesheet_avg_hours": _serie_pending_timesheets,
+    "timesheet_cost_total": _serie_pending_timesheets,
+    "timesheets_draft_count": _serie_pending_timesheets,
+    "timesheets_rejected_count": _serie_pending_timesheets,
+    "timesheets_submitted_count": _serie_pending_timesheets,
+    "absence_days": _serie_absence,
+    "absence_pending_count": _serie_absence,
+    "absence_sick_days": _serie_absence,
+    "absence_training_days": _serie_absence,
+    "absence_vacation_days": _serie_absence,
+    "certified_users_count": _serie_certified_users_count,
+    "resource_alerts_overload": _serie_resource_alerts,
+    "resource_alerts_skill_gap": _serie_resource_alerts,
+    "active_projects": _serie_active_projects,
+    "projects_at_risk": _serie_projects_at_risk,
+    "projects_over_budget": _serie_projects_over_budget,
+    "projects_overdue": _serie_projects_overdue,
+    "projects_on_hold": _serie_projects_on_hold,
+    "projects_cancelled": _serie_projects_cancelled,
+    "projects_completed_count": _serie_projects_completed_count,
+    "milestones_completed": _serie_milestones,
+    "milestones_invoiced": _serie_milestones,
+    "milestones_overdue": _serie_milestones,
+    "milestones_pending": _serie_milestones,
+    "milestones_pending_approval": _serie_milestones,
+    "deliverables_accepted": _serie_deliverables,
+    "deliverables_in_progress": _serie_deliverables,
+    "deliverables_in_review": _serie_deliverables,
+    "deliverables_rejected": _serie_deliverables,
+    "change_requests_cost_impact": _serie_change_requests,
+    "change_requests_pending": _serie_change_requests,
+    "change_requests_schedule": _serie_change_requests,
+    "change_requests_total": _serie_change_requests,
+    "tasks_overdue": _serie_tasks_overdue,
+    "tasks_blocked": _serie_tasks_blocked,
+    "tasks_created": _serie_tasks_created,
+    "tasks_completed": _serie_tasks_completed,
+    "task_completion_rate": _serie_task_completion_rate,
+    "auto_resolved_count": _serie_tickets_open,
+    "csat_avg": _serie_tickets_open,
+    "first_response_time_avg": _serie_tickets_open,
+    "resolution_time_avg": _serie_tickets_open,
+    "sla_resolution_breached": _serie_tickets_open,
+    "sla_response_breached": _serie_tickets_open,
+    "ticket_time_spent_total": _serie_tickets_open,
+    "tickets_created": _serie_tickets_open,
+    "tickets_open": _serie_tickets_open,
+    "tickets_p1_count": _serie_tickets_open,
+    "tickets_p2_count": _serie_tickets_open,
+    "tickets_resolved": _serie_tickets_open,
+    "ticket_time_log_total": _serie_ticket_time_log_total,
+    "sla_breach_count": _serie_sla_breach_count,
+    "sla_compliance_pct": _serie_sla_compliance_pct,
+    "kb_articles_published": _serie_kb,
+    "kb_helpful_count": _serie_kb,
+    "kb_views_total": _serie_kb,
+    "problems_open": _serie_problems_open,
+    "known_errors_active": _serie_known_errors_active,
+    "itsm_changes_downtime": _serie_itsm_changes,
+    "itsm_changes_emergency": _serie_itsm_changes,
+    "itsm_changes_total": _serie_itsm_changes,
+    "asset_value_total": _serie_assets_total,
+    "assets_deployed": _serie_assets_total,
+    "assets_in_repair": _serie_assets_total,
+    "assets_total": _serie_assets_total,
+    "license_seats_total": _serie_assets_total,
+    "license_used_total": _serie_assets_total,
+    "major_incidents_active": _serie_major_incidents_active,
+    "escalations_total": _serie_escalations_total,
+    "playbook_failure_count": _serie_playbook,
+    "playbook_success_count": _serie_playbook,
+    "approvals_approved_count": _serie_pending_approvals,
+    "approvals_rejected_count": _serie_pending_approvals,
+    "pending_approvals": _serie_pending_approvals,
+    "workflow_error_total": _serie_workflow,
+    "workflow_runs_total": _serie_workflow,
+    "workflow_success_total": _serie_workflow,
+    "sod_violations_total": _serie_sod_violations,
+    "sod_violations_unresolved": _serie_sod_violations,
+    "grc_audit_events_total": _serie_grc,
+    "grc_critical_events": _serie_grc,
+    "imports_completed_count": _serie_imports,
+    "imports_failed_count": _serie_imports,
+    "imports_success_rate": _serie_imports,
+}
+
+# Las metricas del perfil de coste comparten una consulta pesada, asi que se
+# registran en bloque desde su propio conjunto de claves.
+_RESOLUTORES.update({_k: _serie_cost_profile for _k in COST_PROFILE_KEYS})
+
+# Resolutores por PREFIJO, para las metricas que el cliente define y cuyo nombre
+# exacto no se puede conocer de antemano.
+_POR_PREFIJO: tuple[tuple[str, _Resolutor], ...] = (
+    ("custom_", _serie_custom),
+)
+
+
+def claves_atendidas() -> frozenset[str]:
+    """Claves exactas que este modulo sabe resolver.
+
+    Existe para que un test pueda comprobar que el catalogo (`SUPPORTED_METRICS`)
+    y el codigo no se separan. Antes no habia forma de saberlo: las claves estaban
+    incrustadas en 55 condiciones y una metrica anadida al catalogo sin
+    implementar devolvia ceros en silencio.
+    """
+    return frozenset(_RESOLUTORES)
+
+
+def _resolutor_para(metric_key: str) -> Optional[_Resolutor]:
+    directo = _RESOLUTORES.get(metric_key)
+    if directo is not None:
+        return directo
+    for prefijo, fn in _POR_PREFIJO:
+        if metric_key.startswith(prefijo):
+            return fn
+    return None
+
+
+def _fetch_metric_series(
+    db: Session, metric_key: str, organization_id: Optional[str]
+) -> list[float]:
+    """Serie de los ultimos 24 meses de la metrica pedida.
+
+    Una clave desconocida devuelve una serie a cero en vez de lanzar: una regla
+    de alerta guardada con una metrica que despues se retiro no puede tumbar el
+    motor entero.
+    """
+    ctx = _construir_contexto(db, metric_key, organization_id)
+
+    resolutor = _resolutor_para(metric_key)
+    if resolutor is None:
+        return ctx.empty_like()
+
+    resultado = resolutor(ctx)
+    # Un resolutor puede devolver None si su propia condicion no se cumple (los
+    # grupos discriminan dentro). Se trata igual que «sin dato».
+    return resultado if resultado is not None else ctx.empty_like()

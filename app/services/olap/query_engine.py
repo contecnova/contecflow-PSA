@@ -10,6 +10,7 @@ import os
 import re
 from typing import Optional
 from app.services.olap.etl import DUCKDB_PATH as _DUCKDB_PATH
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +254,7 @@ def _pg_margin_evolution(org_id: Optional[str], months: int) -> list[dict]:
         from app.models.project import Project
         from datetime import date
 
-        today = date.today()
+        today = timeutil.today()
         # First day of the month, `months` months back.
         start_year = today.year + (today.month - 1 - (months - 1)) // 12
         start_month = (today.month - 1 - (months - 1)) % 12 + 1
@@ -302,11 +303,10 @@ def _pg_utilization_by_user(org_id: Optional[str]) -> list[dict]:
         from app.models.imputation import Imputation
         from app.models.resources import Resource
         from sqlalchemy import func
-        from datetime import date
 
         db = SessionLocal()
         try:
-            today = date.today()
+            today = timeutil.today()
             month_start = today.replace(day=1)
 
             query = (
@@ -475,7 +475,6 @@ def _pg_kpi_summary(org_id: Optional[str]) -> dict:
         from app.models.pipeline import Opportunity
         from app.models.imputation import Imputation
         from sqlalchemy import case, false, func
-        from datetime import date
 
         db = SessionLocal()
         try:
@@ -533,7 +532,7 @@ def _pg_kpi_summary(org_id: Optional[str]) -> dict:
                 won_filters.append(Opportunity.organization_id == org_id)
             won_revenue = db.query(func.round(func.sum(Opportunity.expected_revenue), 0)).filter(*won_filters).scalar() or 0
 
-            today = date.today()
+            today = timeutil.today()
             month_start = today.replace(day=1)
             imp_filters = [Imputation.date >= month_start, Imputation.date <= today]
             if active_project_ids:

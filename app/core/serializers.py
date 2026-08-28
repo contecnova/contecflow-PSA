@@ -17,6 +17,7 @@ Ejemplo de uso:
     vendor_dict = VendorSerializer(vendor).to_dict()
 """
 from typing import Any, Dict, List, Optional
+from app.core import timeutil
 
 
 class ModelSerializer:
@@ -129,8 +130,7 @@ class ContractSerializer(ModelSerializer):
               'project_id', 'document_url', 'notes', 'tags']
 
     def get_extra_fields(self, obj):
-        from datetime import date
-        today = date.today()
+        today = timeutil.today()
         days_to_renewal = None
         if obj.renewal_date:
             days_to_renewal = (obj.renewal_date - today).days
@@ -152,11 +152,10 @@ class LicenseSerializer(ModelSerializer):
               'notes']
 
     def get_extra_fields(self, obj):
-        from datetime import date
         used = sum(1 for a in obj.assignments if a.is_active) if obj.assignments else 0
         avail = (obj.total_seats - used) if obj.total_seats else None
         status = obj.status
-        if obj.expiry_date and obj.expiry_date < date.today():
+        if obj.expiry_date and obj.expiry_date < timeutil.today():
             status = "expired"
         elif obj.total_seats and used > obj.total_seats:
             status = "overallocated"
@@ -168,7 +167,7 @@ class LicenseSerializer(ModelSerializer):
             'used_seats': used,
             'available_seats': avail,
             'assignments_count': used,
-            'days_to_expiry': (obj.expiry_date - date.today()).days if obj.expiry_date else None,
+            'days_to_expiry': (obj.expiry_date - timeutil.today()).days if obj.expiry_date else None,
         }
 
 
@@ -181,18 +180,17 @@ class AssetSerializer(ModelSerializer):
               'cpu', 'ram_gb', 'storage_gb', 'notes']
 
     def get_extra_fields(self, obj):
-        from datetime import date
         age_years = None
         book_value = None
         if obj.purchase_date:
-            age_years = (date.today() - obj.purchase_date).days / 365
+            age_years = (timeutil.today() - obj.purchase_date).days / 365
             if obj.purchase_price and obj.depreciation_years:
                 depreciated = obj.purchase_price * (age_years / obj.depreciation_years)
                 book_value = max(0, obj.purchase_price - depreciated)
         return {
             'assigned_to_name': obj.assigned_to.full_name if obj.assigned_to else None,
             'vendor_name': obj.vendor.name if obj.vendor else None,
-            'warranty_expired': obj.warranty_expiry < date.today() if obj.warranty_expiry else False,
+            'warranty_expired': obj.warranty_expiry < timeutil.today() if obj.warranty_expiry else False,
             'age_years': round(age_years, 1) if age_years else None,
             'book_value': round(book_value, 2) if book_value is not None else None,
             'installed_licenses': len(obj.installs) if obj.installs else 0,

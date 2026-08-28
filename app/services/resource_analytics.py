@@ -20,6 +20,7 @@ from fastapi import HTTPException
 from sqlalchemy import func as sqlfunc
 from app.core.config import settings
 from sqlalchemy import case as sa_case
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class ResourceAnalyticsService:
         except (ValueError, AttributeError) as e:
             logger.error(f"Invalid week_iso format: {week_iso}. Error: {e}")
             # Return current week as fallback
-            today = date.today()
+            today = timeutil.today()
             monday = today - timedelta(days=today.weekday())
             return monday, monday + timedelta(days=6)
 
@@ -156,7 +157,7 @@ class ResourceAnalyticsService:
             List of availability records per user per week
         """
         result = []
-        today = date.today()
+        today = timeutil.today()
 
         for i in range(weeks_ahead):
             week_start = today + timedelta(weeks=i)
@@ -183,7 +184,7 @@ class ResourceAnalyticsService:
         users = users.all()
 
         scoring = []
-        current_week = ResourceAnalyticsService.get_week_iso(date.today())
+        current_week = ResourceAnalyticsService.get_week_iso(timeutil.today())
 
         for user in users:
             avail = ResourceAnalyticsService.get_user_availability(db, user.id, current_week)
@@ -256,7 +257,7 @@ class ResourceAnalyticsService:
         ).all()
 
         result = []
-        current_week = ResourceAnalyticsService.get_week_iso(date.today())
+        current_week = ResourceAnalyticsService.get_week_iso(timeutil.today())
 
         for us in user_skills:
             avail = ResourceAnalyticsService.get_user_availability(db, us.user_id, current_week)
@@ -279,7 +280,7 @@ class ResourceAnalyticsService:
         Returns: Number of alerts created
         """
         users = db.query(User).filter(User.is_active == True).all()
-        current_week = ResourceAnalyticsService.get_week_iso(date.today())
+        current_week = ResourceAnalyticsService.get_week_iso(timeutil.today())
         count = 0
 
         for user in users:
@@ -417,7 +418,7 @@ def get_utilization_history_records(
     """Devuelve snapshots históricos de utilización."""
 
     # Calcular el week_iso más antiguo a incluir
-    cutoff = date.today() - timedelta(weeks=weeks_back)
+    cutoff = timeutil.today() - timedelta(weeks=weeks_back)
     cutoff_iso = f"{cutoff.isocalendar()[0]}-W{cutoff.isocalendar()[1]:02d}"
 
     q = db.query(ResourceUtilizationSnapshot).filter(

@@ -17,6 +17,7 @@ from app.models.sprints import Sprint, SprintStatus, SprintTask
 from app.models.user import User, UserRole
 from app.services.notifications import notify_user
 import logging
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -300,7 +301,7 @@ def close_sprint_flow(db: Session, project_id: str, sprint_id: str) -> dict:
     sprint.status = SprintStatus.completed
     sprint.closed_at = datetime.now(timezone.utc)
     if not sprint.end_date:
-        sprint.end_date = date.today()
+        sprint.end_date = timeutil.today()
 
     sprint.completed_points = sum(
         st.task.story_points or 0

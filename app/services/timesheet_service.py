@@ -7,6 +7,7 @@ from datetime import date, timedelta
 
 from app.models.financial import Timesheet, TimesheetStatus
 from app.models.imputation import Imputation
+from app.core import timeutil
 
 
 def get_timesheet_lines(db: Session, user_id: str, week_start: date) -> list:
@@ -97,6 +98,6 @@ def _enrich(timesheets) -> list:
 def get_week_bounds(week_start) -> tuple:
     """Return (week_start, week_end) for the given date, defaulting to current week."""
     if not week_start:
-        today = date.today()
+        today = timeutil.today()
         week_start = today - timedelta(days=today.weekday())
     return week_start, week_start + timedelta(days=6)

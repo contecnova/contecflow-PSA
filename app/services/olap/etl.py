@@ -10,6 +10,7 @@ import logging
 import os
 from datetime import date, timedelta
 from typing import Optional
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -278,7 +279,7 @@ def _load_fact_pipeline(db, conn) -> int:
         created_date = (
             o.created_at.date() if hasattr(o.created_at, "date") else o.created_at
         ) if o.created_at else None
-        days_in = (date.today() - created_date).days if created_date else None
+        days_in = (timeutil.today() - created_date).days if created_date else None
 
         conn.execute("""
             INSERT OR REPLACE INTO fact_pipeline VALUES
@@ -372,7 +373,7 @@ def run_full_etl(db, since: Optional[date] = None) -> dict:
                Pass date(2023, 1, 1) for a full historical load.
     """
     if since is None:
-        since = date.today() - timedelta(days=2)
+        since = timeutil.today() - timedelta(days=2)
 
     conn = get_duckdb_conn()
     try:

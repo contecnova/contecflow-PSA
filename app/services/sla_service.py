@@ -23,6 +23,7 @@ from app.models.service_desk import ConfigurationItem
 from app.models.service_desk import SDSLAHoliday
 from app.models.service_desk import TicketHistory
 from jose import jwt, JWTError
+from app.core import timeutil
 
 if TYPE_CHECKING:
     from app.models.service_desk import SLAPolicy, Ticket, TicketHistory
@@ -151,8 +152,8 @@ def add_working_hours(
         holidays = set()
 
     day_seconds = (
-        datetime.combine(date.today(), work_end)
-        - datetime.combine(date.today(), work_start)
+        datetime.combine(timeutil.today(), work_end)
+        - datetime.combine(timeutil.today(), work_start)
     ).total_seconds()
     if day_seconds <= 0:
         raise ValueError("work_end must be after work_start")

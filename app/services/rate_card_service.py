@@ -2,7 +2,6 @@
 rate_card_service.py — Service layer for Rate Cards (RateTable / RateEntry / RateOverride).
 """
 import uuid
-from datetime import date
 from typing import Optional
 
 from fastapi import HTTPException
@@ -10,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.advanced_config import RateTable
 from app.models.advanced_config import RateEntry
 from app.models.advanced_config import RateOverride
+from app.core import timeutil
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -110,7 +110,7 @@ def duplicate_rate_table(
             billing_rate=new_rate,
             cost_rate=new_cost,
             escalation_pct=escalation_pct,
-            valid_from=str(date.today()),
+            valid_from=str(timeutil.today()),
         ))
     db.commit()
     db.refresh(new_table)
@@ -202,7 +202,7 @@ def get_effective_rate(
     is_superadmin: bool,
 ) -> dict:
 
-    today = as_of or str(date.today())
+    today = as_of or str(timeutil.today())
 
     # 1 & 2: Overrides
     for scope_id, scope_col in [(project_id, "project_id"), (client_id, "client_id")]:
@@ -240,7 +240,7 @@ def get_effective_rate(
                 if _date_valid(entry.valid_from, entry.valid_to, today):
                     rate = entry.billing_rate or 0
                     if entry.escalation_pct and entry.valid_from:
-                        years = date.today().year - int(entry.valid_from[:4])
+                        years = timeutil.today().year - int(entry.valid_from[:4])
                         rate = rate * ((1 + entry.escalation_pct / 100) ** max(0, years))
                         rate = round(rate, 2)
                     return {

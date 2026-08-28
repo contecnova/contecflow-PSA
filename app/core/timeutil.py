@@ -29,6 +29,28 @@ Son distintas a propósito, porque responden a preguntas distintas.
 Ambas terminan en UTC como último recurso: es determinista y auditable, y nunca
 lanza por una zona mal configurada.
 
+── Por qué hay una zona en el contexto y no un parámetro en 198 firmas ───────
+Los 198 `date.today()` que quedaban viven casi todos en funciones de servicio
+que no reciben —ni deben recibir— el usuario: `_calcular_vencimientos(db,
+project_id)` no tiene por qué saber quién pregunta. Enhebrar un `user` o un
+`zone` por esas 198 firmas, y por las que las llaman, habría contaminado media
+capa de servicios con un parámetro de presentación y habría dejado la corrección
+dependiendo de que nadie se olvide de pasarlo.
+
+La zona resuelta se publica una vez por petición en un `ContextVar` y `today()`
+la lee. Comprobado empíricamente antes de construir nada encima: un `ContextVar`
+puesto en una dependencia **async** de FastAPI es visible en el endpoint —sea
+async o sync en threadpool— y en las funciones que éste llame, a cualquier
+profundidad. Puesto en una dependencia *sync* se pierde, porque corre en un hilo
+trabajador; de ahí que `bind_request_timezone` sea `async def` y lo diga en su
+propia documentación. Ver `app/core/timezone_context.py`.
+
+Fuera de una petición —tareas programadas, seeds, scripts— no hay nadie a quien
+preguntar, así que el contexto vale UTC y `today()` se comporta exactamente como
+el `date.today()` de un servidor en UTC. Quien procesa por organización debe
+abrir `using_zone(...)` explícitamente; es visible en el código en lugar de
+depender de la zona del servidor.
+
 ── Sobre las fechas-hora ya almacenadas ──────────────────────────────────────
 Se interpretan como UTC, porque lo son. Se comprobó antes de tocar nada: de las
 escrituras a columnas de fecha-hora, 139 usan `utcnow()`, 374
@@ -43,9 +65,11 @@ servidor y corrompería el histórico de forma irreversible.
 """
 from __future__ import annotations
 
+import contextvars
 import logging
+from contextlib import contextmanager
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Optional
+from typing import Iterator, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger("contecflow.timeutil")
@@ -183,6 +207,83 @@ def period_bounds_for_client(
     return month_bounds_in(year, month, zone_for_client(client, organization))
 
 
+# ── La zona del contexto actual ───────────────────────────────────────────────
+# Publicada una vez por petición (ver la cabecera del módulo y
+# app/core/timezone_context.py). UTC por defecto: fuera de una petición no hay a
+# quién preguntar, y UTC reproduce el comportamiento anterior exactamente.
+_ZONE: contextvars.ContextVar = contextvars.ContextVar("contecflow_zone", default=UTC)
+
+
+def current_zone() -> timezone | ZoneInfo:
+    """Zona del contexto actual. UTC si nadie la ha fijado."""
+    return _ZONE.get()
+
+
+def set_current_zone(zone) -> contextvars.Token:
+    """Fija la zona del contexto. Devuelve el token para restaurarla.
+
+    Sólo debe llamarlo la dependencia que enlaza la petición, o
+    `using_zone` para un bloque acotado. En cualquier otro sitio, usar
+    `using_zone`: dejar la zona fijada al salir contamina lo que venga después en
+    la misma tarea.
+    """
+    return _ZONE.set(zone)
+
+
+def reset_current_zone(token: contextvars.Token) -> None:
+    """Restaura la zona anterior a partir del token de `set_current_zone`."""
+    _ZONE.reset(token)
+
+
+@contextmanager
+def using_zone(zone) -> Iterator[None]:
+    """Fija la zona para un bloque y la restaura al salir, incluso si hay error.
+
+    Es la forma correcta de procesar por organización en una tarea programada:
+
+        for org in organizaciones:
+            with using_zone(resolve_zone(org.timezone)):
+                generar_informe_mensual(db, org)
+
+    Así el corte de cada organización se hace en SU zona y queda visible en el
+    código, en vez de depender de la zona en que corra el servidor.
+    """
+    token = _ZONE.set(zone)
+    try:
+        yield
+    finally:
+        _ZONE.reset(token)
+
+
+@contextmanager
+def using_organization_zone(organization) -> Iterator[None]:
+    """`using_zone` a partir de una organización. Atajo para las tareas
+    programadas, que es donde más se necesita."""
+    with using_zone(resolve_zone(getattr(organization, "timezone", None))):
+        yield
+
+
+def today() -> date:
+    """El día de HOY en la zona del contexto.
+
+    Sustituto directo de `date.today()`: misma firma, mismo tipo de retorno, y
+    fuera de una petición se comporta igual que `date.today()` en un servidor
+    UTC. Dentro de una petición devuelve el día del usuario que la hizo.
+    """
+    return datetime.now(_ZONE.get()).date()
+
+
+def now_local() -> datetime:
+    """'Ahora' con zona, en la del contexto.
+
+    Para cuando se necesita la hora y no sólo el día: la cabecera de un informe,
+    el nombre de un fichero exportado, un `.year`/`.month`. Para lo que se
+    ALMACENA en una columna de fecha-hora hay que seguir usando `utcnow()` o
+    `utcnow_aware()`: la base guarda UTC.
+    """
+    return datetime.now(_ZONE.get())
+
+
 def as_utc(value: datetime) -> datetime:
     """Normaliza a UTC con zona.
 
@@ -198,14 +299,21 @@ def as_utc(value: datetime) -> datetime:
 __all__ = (
     "UTC",
     "as_utc",
+    "current_zone",
     "day_bounds_in",
     "month_bounds_in",
+    "now_local",
     "period_bounds_for_client",
+    "reset_current_zone",
     "resolve_zone",
+    "set_current_zone",
+    "today",
     "today_for_client",
     "today_for_organization",
     "today_for_user",
     "today_in",
+    "using_organization_zone",
+    "using_zone",
     "utcnow",
     "utcnow_aware",
     "zone_for_client",

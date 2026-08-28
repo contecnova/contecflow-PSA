@@ -11,6 +11,7 @@ from app.models.user import User
 from app.core.config import settings
 from app.services.psa_flows import create_capacity_plan_flow
 from app.services import capacity_service
+from app.core import timeutil
 
 router = APIRouter()
 
@@ -26,7 +27,7 @@ def get_capacity_overview(
     """
     Returns a grid: users x weeks with planned hours, actual hours and load %.
     """
-    today = date.today()
+    today = timeutil.today()
     week_list = _get_weeks(today, weeks)
 
     users = capacity_service.get_active_users(db, current_user.organization_id)
@@ -130,7 +131,7 @@ def get_availability(
     current_user: User = Depends(require_any_manager),
 ):
     """Shows available hours per person for the next N weeks."""
-    today = date.today()
+    today = timeutil.today()
     week_list = _get_weeks(today, weeks)
 
     users = capacity_service.get_active_users(db, current_user.organization_id)

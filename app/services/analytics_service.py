@@ -25,6 +25,7 @@ from app.models.user import User
 from app.services.metrics import METRICS_REGISTRY as MODULAR_METRICS_REGISTRY
 from fastapi import HTTPException
 from sqlalchemy import func
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -115,8 +116,8 @@ def build_cache_key(namespace: str, current_user, payload: dict) -> str:
 # ── Date helpers ──────────────────────────────────────────────────────────────
 
 def parse_date_range(date_from: Optional[str], date_to: Optional[str]):
-    d_from = date.fromisoformat(date_from) if date_from else date.today().replace(day=1) - timedelta(days=90)
-    d_to   = date.fromisoformat(date_to)   if date_to   else date.today()
+    d_from = date.fromisoformat(date_from) if date_from else timeutil.today().replace(day=1) - timedelta(days=90)
+    d_to   = date.fromisoformat(date_to)   if date_to   else timeutil.today()
     return d_from, d_to
 
 
@@ -175,7 +176,7 @@ def compute_summary(rows: list) -> dict:
 # ── Hours by week ─────────────────────────────────────────────────────────────
 
 def get_hours_by_week(weeks: int, current_user, db) -> dict:
-    today  = date.today()
+    today  = timeutil.today()
     result = []
     for i in range(weeks - 1, -1, -1):
         week_start = today - timedelta(days=today.weekday()) - timedelta(weeks=i)
@@ -199,7 +200,7 @@ def get_hours_by_week(weeks: int, current_user, db) -> dict:
 # ── Advanced utilization ──────────────────────────────────────────────────────
 
 def get_advanced_utilization(weeks_ahead: int, project_id, project_type, client_id, current_user, db) -> dict:
-    today = date.today()
+    today = timeutil.today()
     period_start = today - timedelta(days=today.weekday())
     period_end   = period_start + timedelta(days=6)
     project_ids  = get_filtered_project_ids(db, current_user,

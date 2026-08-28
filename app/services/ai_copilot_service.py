@@ -6,7 +6,7 @@ detection and service-desk KB article recommendations.
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+from datetime import timedelta
 from app.core.timeutil import utcnow
 from typing import Dict
 
@@ -16,6 +16,7 @@ from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.service_desk import Ticket, KBArticle
 from app.models.task import Task
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ def get_ai_gantt_suggestions(project_id: str, db: Session, current_user=None) ->
             raise HTTPException(404, "Project not found")
 
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
-    today = date.today()
+    today = timeutil.today()
     suggestions = []
 
     for t in tasks:
@@ -99,7 +100,7 @@ def get_ai_timesheet_anomalies(user_id: str, db: Session, current_user=None) -> 
             if cu_org and getattr(target, "organization_id", None) != cu_org:
                 raise HTTPException(404, "User not found")
 
-    cutoff = date.today() - timedelta(days=30)
+    cutoff = timeutil.today() - timedelta(days=30)
     entries = db.query(Imputation).filter(
         Imputation.user_id == user_id,
         Imputation.date >= cutoff,
@@ -166,7 +167,7 @@ def get_ai_timesheet_anomalies(user_id: str, db: Session, current_user=None) -> 
 
     return {
         "user_id": user_id,
-        "period": {"from": str(cutoff), "to": str(date.today())},
+        "period": {"from": str(cutoff), "to": str(timeutil.today())},
         "total_entries": len(entries),
         "anomalies_count": len(anomalies),
         "anomalies": anomalies,

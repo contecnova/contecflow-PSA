@@ -42,6 +42,7 @@ from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.services import revenue_service as svc
+from app.core import timeutil
 
 router = APIRouter(tags=["Revenue Recognition"])
 
@@ -216,8 +217,7 @@ def run_monthly(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from datetime import date
-    today = date.today()
+    today = timeutil.today()
     year  = int(payload.get("year",  today.year))
     month = int(payload.get("month", today.month))
     result = svc.run_monthly_recognition(db, year, month, user_id=current_user.id)
@@ -233,6 +233,5 @@ def asc606_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from datetime import date
-    y = year or date.today().year
+    y = year or timeutil.today().year
     return APIResponse.ok(data=svc.get_asc606_dashboard(db, y, months))

@@ -14,6 +14,7 @@ from app.services.audit import audit_log
 from app.services import currency_rates_service
 from app.schemas.currency_rates import ExchangeRateCreate
 from app.core.responses import APIListResponse, APIResponse
+from app.core import timeutil
 
 router = APIRouter()
 
@@ -68,7 +69,7 @@ def upsert_exchange_rate(
     to_c = _validate_currency_code(payload.to_currency)
     if payload.rate <= 0:
         raise HTTPException(status_code=400, detail="Rate must be positive")
-    eff = payload.effective_date or date.today()
+    eff = payload.effective_date or timeutil.today()
     rate_obj, created, previous_snapshot = currency_rates_service.upsert_exchange_rate(
         db,
         from_currency=from_c,
@@ -138,7 +139,7 @@ def _convert_currency_impl(
             "converted_amount": amount,
         }
 
-    ref_date = as_of_date or date.today()
+    ref_date = as_of_date or timeutil.today()
     snapshot = currency_rates_service.resolve_rate_with_snapshot(db, from_c, to_c, ref_date)
     if snapshot["source"] == "fallback":
         raise HTTPException(status_code=404, detail=f"No exchange rate found for {from_c}->{to_c}")
@@ -213,7 +214,7 @@ def multicurrency_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    ref_date = as_of_date or date.today()
+    ref_date = as_of_date or timeutil.today()
     target = report_currency.upper()
 
     def _get_rate(from_c: str) -> float:

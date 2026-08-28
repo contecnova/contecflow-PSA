@@ -4,7 +4,7 @@ from typing import Optional
 import uuid as _uuid
 
 from app.models.training import Course, CourseEnrollment, Certification
-from datetime import date as dt_date
+from app.core import timeutil
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +159,7 @@ def serialize_enrollment(e) -> dict:
 
 
 def serialize_certification(c) -> dict:
-    today = dt_date.today()
+    today = timeutil.today()
     days_left = (c.expires_at - today).days if c.expires_at else None
     return {
         "id": c.id, "user_id": c.user_id,
