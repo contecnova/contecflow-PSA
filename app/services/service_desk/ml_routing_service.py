@@ -193,7 +193,7 @@ def _csat_score(
     count = count_q.scalar() or 0
     if count < _MIN_SAMPLES:
         # Fallback: average CSAT from tickets table (also scoped if posible)
-        from app.models.service_desk import Ticket as _Ticket  # noqa: PLC0415
+        from app.models.service_desk import Ticket as _Ticket
         ticket_q = (
             db.query(sqlfunc.avg(_Ticket.csat_score))
             .filter(
@@ -219,7 +219,7 @@ def _skill_match(db: Session, user_id: str, category_id: str | None) -> float:
     if not category_id:
         return 0.5
     try:
-        from app.models.service_desk import ServiceCategory  # noqa: PLC0415
+        from app.models.service_desk import ServiceCategory
         cat = db.query(ServiceCategory).filter(ServiceCategory.id == category_id).first()
         cat_name = (cat.name if cat else "") or ""
         cat_words = set(cat_name.lower().split())
@@ -259,7 +259,7 @@ def score_agent_for_ticket_ml(db: Session, user: User, ticket: Ticket) -> dict[s
     category_id = None
     try:
         if ticket.service_item_id:
-            from app.models.service_desk import ServiceItem  # noqa: PLC0415
+            from app.models.service_desk import ServiceItem
             si = db.query(ServiceItem).filter(ServiceItem.id == ticket.service_item_id).first()
             if si:
                 category_id = si.category_id
@@ -363,7 +363,7 @@ def record_routing_event(db: Session, ticket: Ticket) -> None:
         category_id = None
         try:
             if ticket.service_item_id:
-                from app.models.service_desk import ServiceItem  # noqa: PLC0415
+                from app.models.service_desk import ServiceItem
                 si = db.query(ServiceItem).filter(ServiceItem.id == ticket.service_item_id).first()
                 if si:
                     category_id = si.category_id

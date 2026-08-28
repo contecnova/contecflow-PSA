@@ -63,7 +63,7 @@ def send_sms(to: str, body: str) -> bool:
             message = client.messages.create(body=body[:1600], from_=from_num, to=to)
         logger.info("SMS sent to %s — SID: %s", to, message.sid)
         return True
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("SMS send failed to %s: %s", to, exc)
         return False
 

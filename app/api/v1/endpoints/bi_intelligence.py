@@ -523,7 +523,7 @@ async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Qu
 
 # ── BI Phase 2: Scheduled delivery management ──────────────────────────────────
 
-from app.services import bi_report_delivery_service as delivery_svc  # noqa: E402
+from app.services import bi_report_delivery_service as delivery_svc
 
 
 class DeliveryScheduleCreateIn(BaseModel):

@@ -123,7 +123,7 @@ def seed_v13():
     # ── Recurring Invoice demo ─────────────────────────────────────────────────
     if project and admin:
         import calendar
-        last_day = calendar.monthrange(today.year, today.month)[1] # noqa: F841 F401
+        last_day = calendar.monthrange(today.year, today.month)[1] # noqa: F841
         next_month_1 = date(today.year if today.month < 12 else today.year+1,
                            today.month % 12 + 1, 1)
         db.add(RecurringInvoice(

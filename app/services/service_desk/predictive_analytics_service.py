@@ -441,7 +441,7 @@ def run_predictive_scan(db: Session) -> dict:
             preds = predict_ticket(db, ticket)
             persist_predictions(db, ticket, preds)
             updated += 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Prediction failed for ticket %s: %s", ticket.id, exc)
         scanned += 1
 

@@ -78,7 +78,7 @@ def run_forecast(
 
         values = list(body.values or [])
         if not values:
-            from app.services.bi_smart_alerts_service import _fetch_metric_series  # noqa: PLC0415
+            from app.services.bi_smart_alerts_service import _fetch_metric_series
 
             org_id = getattr(current_user, "organization_id", None)
             values = _fetch_metric_series(db, metric, org_id)

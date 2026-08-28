@@ -185,7 +185,7 @@ async def _get_redis():
 # Movido a `app/services/ws_manager.py` para romper la dependencia
 # `services → endpoints`. Re-exportamos aquí para mantener retrocompatibilidad
 # con cualquier importador externo que hiciera `from app.api.v1.endpoints.ws import manager`.
-from app.services.ws_manager import ConnectionManager, manager  # noqa: F401, E402
+from app.services.ws_manager import ConnectionManager, manager  # noqa: F401
 
 
 async def _validate_jwt(token: str, db) -> str:

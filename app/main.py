@@ -611,15 +611,26 @@ async def security_headers_middleware(request: Request, call_next):
 # lista de intenciones. Ver app/core/abac_dependency.py.
 from app.core.abac_dependency import apply_abac_for_route
 
+# Matriz de permisos GRC, ahora APLICADA (auditoría 2026-08, hallazgo 27). Era una
+# pantalla de administración que escribía en una tabla que nadie leía:
+# grc.check_permission() decía "Used by other API endpoints to enforce GRC" y
+# tenía cero invocaciones. Es un control aditivo — sólo puede quitar permiso, no
+# dar — y sus dos dimensiones se derivan de la ruta, así que cubre los 126
+# dominios de la API sin ninguna lista que mantener.
+# Ver app/core/grc_enforce.py y app/core/grc_catalog.py.
+from app.core.grc_enforce import enforce_grc_matrix
+
+_ROUTER_GUARDS = [Depends(apply_abac_for_route), Depends(enforce_grc_matrix)]
+
 app.include_router(
     api_router,
     prefix=settings.API_V1_STR,
-    dependencies=[Depends(apply_abac_for_route)],
+    dependencies=_ROUTER_GUARDS,
 )
 app.include_router(
     api_v2_router,
     prefix=settings.API_V2_STR,
-    dependencies=[Depends(apply_abac_for_route)],
+    dependencies=_ROUTER_GUARDS,
 )
 
 # ── Prometheus metrics (opt-in via METRICS_ENABLED) ────────────────────────

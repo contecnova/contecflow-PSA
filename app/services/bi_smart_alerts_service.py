@@ -19,16 +19,16 @@ orchestration here ensures that patch is honoured.
 """
 from __future__ import annotations
 
-import json  # noqa: F401  (re-exported for backwards compatibility)
+import json
 import logging
 import uuid
-from datetime import datetime, timezone  # noqa: F401  (re-exported)
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
-from app.models.settings import AppSetting  # noqa: F401  (re-exported)
-from app.models.user import User  # noqa: F401  (re-exported)
+from app.models.settings import AppSetting
+from app.models.user import User
 
 from app.services.bi_smart_alerts.constants import (
     CUSTOM_METRICS_KEY,

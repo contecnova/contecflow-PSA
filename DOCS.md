@@ -235,25 +235,112 @@ Hook frontend: `useOrgSettings` (`frontend/src/hooks/useOrgSettings.js`) — Tan
 - Estado vacío con cabeceras visibles produce `.xls` con cabeceras solas.
 
 ## 12. Seguridad y compliance
-Capacidades activas:
-- JWT, refresh y MFA
-- RBAC y ABAC
-- Aislamiento por `organization_id`
-- Rate limiting
-- Cifrado de secretos
-- Auditoría de eventos
-- GRC y SoD
-- SCIM
+
+### Las cuatro capas de autorización
+
+Para saber si un endpoint está protegido hay que mirar las cuatro. Están
+ordenadas de la más difícil de olvidar a la más discrecional:
+
+| Capa | Qué protege | Fallo | Se puede olvidar |
+|---|---|---|---|
+| Aislamiento de tenant | Que un cliente no vea datos de otro | **cerrado** | No: es automático |
+| RBAC | Qué puede hacer cada rol | cerrado | Sí: hay que escribirlo |
+| Matriz GRC | Restricciones que configura el cliente | abierto (aditivo) | No: es automático |
+| ABAC | Política de grano fino opcional | abierto | No: es automático |
+
+**1. Aislamiento entre tenants** — `app/db/session.py::TenantSession`.
+Filtra toda consulta ORM por organización, en `query()` (SA 1.x) y en `execute()`
+(SA 2.0). Cubre 390 de 391 modelos. Es **fail-closed**: si un modelo no se puede
+aislar, la consulta lanza `TenantIsolationError` en lugar de ejecutarse sin
+filtro. La única exención (`Organization`, que ES el tenant) se declara en el
+propio modelo con `_tenant_exempt = True` y sus rutas llevan guarda manual.
+
+**2. RBAC** — `app/core/deps.py`. `require_admin`, `require_any_manager`,
+`require_superadmin`… en la firma del endpoint, o comprobaciones de rol dentro
+del servicio. Las dos formas se usan; `tests/test_abac_coverage.py` mantiene el
+inventario de las rutas que sólo la tienen en el servicio.
+
+Ojo con la distinción que causó el incidente P0-1 de la auditoría 2026-08:
+`require_admin` es el administrador **de un cliente**, no de la plataforma. Todo
+lo que opere entre organizaciones necesita `require_superadmin`.
+
+**3. Matriz de permisos GRC** — `app/core/grc_enforce.py`.
+Lo que un administrador prohíbe en la pantalla de GRC queda prohibido. Es
+**denegación aditiva**: una fila sólo puede quitar permiso, nunca darlo, así que
+no puede escalar privilegios por encima del RBAC. Sin fila, deciden las demás
+capas.
+
+Módulo y acción se **derivan de la ruta** (`app/core/grc_catalog.py`): el módulo
+del primer segmento del path, la acción del método HTTP matizado por el path para
+distinguir `aprobar` y `exportar`. No hay lista que mantener — un dominio nuevo
+entra en la matriz el día que se añade su primera ruta. Cobertura: los 109
+dominios no exentos de la API.
+
+**4. ABAC** — `app/core/abac_dependency.py` y `abac_enforce.py`.
+Política de grano fino que un cliente activa si quiere. Es **fail-open**: sin
+políticas activas no restringe nada, y por diseño. `enforce_abac()` NO es un
+control de autorización por sí solo, aunque el nombre lo sugiera.
+
+### Qué NO protege qué
+
+Errores que la auditoría 2026-08 encontró y que conviene no repetir:
+
+- `enforce_abac()` no aísla tenants. Es fail-open. Un endpoint cuyo único control
+  fuera esa llamada estaría sin proteger.
+- La matriz GRC no concede permisos, sólo los quita.
+- Un middleware de Starlette no puede leer el usuario autenticado: las
+  dependencias de FastAPI se resuelven después. `ABACMiddleware` se borró por eso
+  — comprobaba un `request.state.user` que nadie poblaba nunca.
+
+### Otras capacidades activas
+- JWT, refresh y MFA (TOTP + WebAuthn), forzado también en SSO
+- SSO OIDC con verificación de firma contra JWKS, PKCE S256, `state` con HMAC de
+  un solo uso y verificación de `nonce`
+- Rate limiting: 116 endpoints con límite explícito, bloqueo por intentos en
+  login, Redis obligatorio en producción
+- CSRF en dos capas: Origin/Referer siempre + double-submit opcional
+- Cifrado de secretos de integraciones
+- Validación de subidas unificada: extensión, MIME, bytes mágicos y coherencia
+  entre ellos, con lectura acotada por perfil (`app/core/uploads.py`)
+- Auditoría de eventos y SCIM
 
 Puntos de entrada:
-- `app/core/security.py`
-- `app/core/deps.py`
-- `app/core/abac.py`
-- `app/api/v1/endpoints/grc.py`
-- `app/api/v1/endpoints/governance.py`
+- `app/core/security.py` — tokens, hashing, política de contraseñas
+- `app/core/deps.py` — RBAC (incluido `require_superadmin`)
+- `app/core/tenancy.py` — guardas para un `org_id` que llega del cliente
+- `app/db/session.py` — aislamiento automático de tenant
+- `app/core/grc_enforce.py` / `grc_catalog.py` — matriz GRC
+- `app/core/abac_dependency.py` / `abac_enforce.py` — ABAC
+- `app/core/uploads.py` — seguridad de subidas
+- `app/api/v1/endpoints/grc.py` — API de GRC y SoD
+
+### Segregación de Funciones (SoD)
+La regla nuclear se aplica en `app/services/approval_engine/requests.py`: el
+solicitante no puede aprobar su propia solicitud (403). Está escrita en el código,
+no sale de la tabla `SodRule`.
+
+Limitación conocida: las reglas SoD que crea un administrador sólo se consultan
+con el patrón `crear`/`aprobar` sobre la misma entidad, y sólo para registrar la
+violación. Una regla entre módulos distintos ("no puede crear facturas y aprobar
+gastos") todavía no se evalúa. Ver `tests/test_grc_coverage.py`.
 
 ### Rotación de claves
 - `scripts/rotate_keys.sh`
+
+### Verificación local
+Este proyecto no usa CI/CD por decisión de diseño. Todos los gates están
+reunidos en `scripts/ci_local.sh`:
+
+```bash
+./scripts/ci_local.sh          # todo
+./scripts/ci_local.sh --fast   # sin pytest ni informativos (~2 min)
+./scripts/ci_local.sh --info   # sólo los informativos
+```
+
+Distingue gates **bloqueantes** (verdes hoy; si uno falla es una regresión que
+acabas de introducir) de **informativos** (deuda medida y documentada). El
+`--max-warnings` de eslint está fijado en la línea base medida: al reducir deuda,
+bajar ese número; nunca subirlo.
 
 ## 13. Testing
 ### Backend

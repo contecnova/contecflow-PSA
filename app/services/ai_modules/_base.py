@@ -249,8 +249,8 @@ def _project_internal_cost(db: Session, project_id: str) -> dict:
     donde ``coverage_pct`` indica qué porcentaje de las horas se calculó con
     datos reales (cost_amount o cost_profile) vs fallback global.
     """
-    from app.models.user_cost import UserCostProfile  # noqa: PLC0415
-    from app.core.config import settings as _s  # noqa: PLC0415
+    from app.models.user_cost import UserCostProfile
+    from app.core.config import settings as _s
 
     fallback_rate = float(getattr(_s, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
     imps = db.query(Imputation).filter(Imputation.project_id == project_id).all()

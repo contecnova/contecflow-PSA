@@ -434,7 +434,7 @@ def create_refresh_ticket(
     Returns the newly created ticket as a dict summary.
     Does NOT commit — caller must commit.
     """
-    from app.models.service_desk import (  # noqa: PLC0415 (avoid circular at top)
+    from app.models.service_desk import (
         Ticket,
         TicketStatus,
         TicketPriority,

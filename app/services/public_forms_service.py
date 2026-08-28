@@ -116,7 +116,7 @@ def list_submissions(db: Session, form_id: str) -> list[PublicFormSubmission]:
 def get_active_form_by_token(db: Session, token: str) -> Optional[PublicForm]:
     return (
         db.query(PublicForm)
-        .filter(PublicForm.token == token, PublicForm.is_active == True)  # noqa: E712
+        .filter(PublicForm.token == token, PublicForm.is_active == True)
         .first()
     )
 

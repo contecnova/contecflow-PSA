@@ -59,7 +59,7 @@ def save_pending_snapshot(db: Session, ticket: Ticket) -> None:
     }
     serialized = json.dumps(snapshot, ensure_ascii=False)
     key = _pending_snapshot_key(ticket.id)
-    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == None).first()  # noqa: E711
+    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == None).first()
     if row:
         row.value = serialized
         row.description = "Ticket pending snapshot"
@@ -69,7 +69,7 @@ def save_pending_snapshot(db: Session, ticket: Ticket) -> None:
 
 def restore_pending_snapshot(db: Session, ticket: Ticket, current_user_id: str) -> dict:
     key = _pending_snapshot_key(ticket.id)
-    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == None).first()  # noqa: E711
+    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == None).first()
     if not row or not row.value:
         return {"ok": False, "restored": False, "detail": "No pending snapshot"}
 

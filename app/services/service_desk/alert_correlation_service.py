@@ -161,8 +161,8 @@ def _build_feature_matrix(tickets: list[Ticket], window_start: datetime) -> list
 def _dbscan_labels(X: list[list[float]]) -> list[int]:
     """Run DBSCAN via sklearn. Returns per-sample cluster labels (-1 = noise)."""
     try:
-        from sklearn.cluster import DBSCAN  # noqa: PLC0415
-        import numpy as np  # noqa: PLC0415
+        from sklearn.cluster import DBSCAN
+        import numpy as np
         arr = np.array(X, dtype=float)
         labels = DBSCAN(eps=DBSCAN_EPS, min_samples=DBSCAN_MIN_SAMPLES, metric="euclidean").fit_predict(arr)
         return labels.tolist()
@@ -205,7 +205,7 @@ def _expand_ci_dependencies(db: Session, ci_ids: list[str]) -> list[str]:
     if not ci_ids:
         return []
     try:
-        from app.models.cmdb import CMDBRelation  # noqa: PLC0415
+        from app.models.cmdb import CMDBRelation
         rows = (
             db.query(CMDBRelation.target_ci_id)
             .filter(
@@ -215,7 +215,7 @@ def _expand_ci_dependencies(db: Session, ci_ids: list[str]) -> list[str]:
             .all()
         )
         return [r[0] for r in rows if r[0]]
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("CI dependency expansion failed: %s", exc)
         return []
 
@@ -334,7 +334,7 @@ def merge_cluster_to_problem(
     Delegates to problem_service.create_problem_from_correlation.
     Does NOT commit — caller must commit.
     """
-    from app.services.service_desk.problem_service import create_problem_from_correlation  # noqa: PLC0415
+    from app.services.service_desk.problem_service import create_problem_from_correlation
 
     # Infer category and priority from the tickets
     tickets = db.query(Ticket).filter(Ticket.id.in_(ticket_ids)).all()
@@ -409,7 +409,7 @@ def _semantic_score(tickets: list[Ticket]) -> float:
     if len(tickets) < 2:
         return 0.0
     try:
-        from app.services.service_desk.incident_intelligence_service import (  # noqa: PLC0415
+        from app.services.service_desk.incident_intelligence_service import (
             _embed_text,
             _cosine_similarity,
         )

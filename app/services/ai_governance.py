@@ -101,7 +101,7 @@ def _estimate_tokens(text: str) -> int:
     if not text:
         return 0
     try:
-        import tiktoken  # type: ignore  # noqa: PLC0415
+        import tiktoken  # type: ignore
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
     except Exception:
@@ -266,7 +266,7 @@ class AIGuardrailEngine:
         self._policies_cache_at = None
 
     def _load_policies(self) -> List[GuardrailPolicy]:
-        import time as _time  # noqa: PLC0415
+        import time as _time
         if (
             self._policies_cache is not None
             and self._policies_cache_at is not None
@@ -297,10 +297,10 @@ class AIGuardrailEngine:
                 )
                 for r in rows
             ]
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Could not load guardrail policies: %s", exc)
             self._policies_cache = []
-        import time as _time  # noqa: PLC0415
+        import time as _time
         self._policies_cache_at = _time.monotonic()
         return self._policies_cache
 
@@ -454,7 +454,7 @@ class AIGuardrailEngine:
             )
             self.db.add(record)
             self.db.flush()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Guardrail audit write failed: %s", exc)
 
 
@@ -505,7 +505,7 @@ def list_policies(db: Session, org_id: str, active_only: bool = False):
         AIGuardrailPolicyModel.org_id == org_id
     )
     if active_only:
-        q = q.filter(AIGuardrailPolicyModel.is_active == True)  # noqa
+        q = q.filter(AIGuardrailPolicyModel.is_active == True)
     return q.order_by(AIGuardrailPolicyModel.priority.desc(),
                       AIGuardrailPolicyModel.created_at.desc()).all()
 
@@ -568,7 +568,7 @@ def get_audit_stats(
         AIGuardrailAuditLog.evaluated_at >= since,
     )
     total          = base.count()
-    total_blocked  = base.filter(AIGuardrailAuditLog.was_blocked == True).count()  # noqa
+    total_blocked  = base.filter(AIGuardrailAuditLog.was_blocked == True).count()
     total_redacted = base.filter(AIGuardrailAuditLog.action_taken == "redacted").count()
     total_warned   = base.filter(AIGuardrailAuditLog.action_taken == "warned").count()
 

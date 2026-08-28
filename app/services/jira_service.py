@@ -225,7 +225,7 @@ def get_tasks_for_push(db: Session, project_id: str, statuses: List[str]) -> lis
         .filter(
             Task.project_id == project_id,
             Task.status.in_(statuses),
-            Task.jira_issue_key == None,  # noqa: E711
+            Task.jira_issue_key == None,
         )
         .all()
     )
@@ -266,7 +266,7 @@ def update_task_from_webhook(
 
 def get_linked_tasks_query(db: Session, project_id: Optional[str]):
     """Return a query for tasks that have a Jira issue key, optionally scoped to a project."""
-    q = db.query(Task).filter(Task.jira_issue_key != None)  # noqa: E711
+    q = db.query(Task).filter(Task.jira_issue_key != None)
     if project_id:
         q = q.filter(Task.project_id == project_id)
     return q

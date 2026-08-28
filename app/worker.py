@@ -986,7 +986,7 @@ def sla_breach_scan():
             at_risk = predict_sla_at_risk_tickets(db)
             _worker_logger.info("SLA breach scan: %d tickets at risk", len(at_risk))
             return {"at_risk_count": len(at_risk), "tickets": [t["ticket_id"] for t in at_risk]}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("sla_breach_scan error: %s", exc)
             return {"error": str(exc)}
 
@@ -1029,12 +1029,12 @@ def problem_auto_detect():
                         len(cluster["ticket_ids"]),
                     )
                     problems_created += 1
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     db.rollback()
                     _worker_logger.error("Failed to create problem for cluster %s: %s", cluster, exc)
 
             return {"clusters_found": len(clusters), "problems_created": problems_created}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("problem_auto_detect error: %s", exc)
             return {"error": str(exc)}
 
@@ -1055,7 +1055,7 @@ def kedb_expiry_scan():
             db.commit()
             _worker_logger.info("KEDB expiry scan: %d entries expired", result.get("expired", 0))
             return result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             db.rollback()
             _worker_logger.error("kedb_expiry_scan error: %s", exc)
             return {"error": str(exc)}
@@ -1078,7 +1078,7 @@ def kedb_effectiveness_scan():
             db.commit()
             _worker_logger.info("KEDB effectiveness scan: %d entries updated", result.get("updated", 0))
             return result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             db.rollback()
             _worker_logger.error("kedb_effectiveness_scan error: %s", exc)
             return {"error": str(exc)}
@@ -1105,7 +1105,7 @@ def alert_correlation_scan():
                 result.get("errors", 0),
             )
             return result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("alert_correlation_scan error: %s", exc)
             return {"error": str(exc)}
 
@@ -1131,7 +1131,7 @@ def cmdb_discovery_run():
             if drifted:
                 _worker_logger.warning("CMDB drift detected in %d provider scan(s)", drifted)
             return {"providers_run": len(results), "results": results}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("cmdb_discovery_run error: %s", exc)
             return {"error": str(exc)}
 
@@ -1144,10 +1144,10 @@ def change_impact_batch_score():
     Also auto-approves standard changes with low risk score.
     Runs every 10 minutes via beat schedule.
     """
-    from app.db.session import worker_db_session  # noqa: PLC0415
-    from app.models.service_desk import ChangeStatus, ITSMChangeRequest  # noqa: PLC0415
-    from app.services.service_desk.change_impact_service import score_and_persist  # noqa: PLC0415
-    from app.services.service_desk.change_service import _maybe_auto_approve  # noqa: PLC0415
+    from app.db.session import worker_db_session
+    from app.models.service_desk import ChangeStatus, ITSMChangeRequest
+    from app.services.service_desk.change_impact_service import score_and_persist
+    from app.services.service_desk.change_service import _maybe_auto_approve
 
     scored = auto_approved = errors = 0
     with worker_db_session() as db:
@@ -1170,7 +1170,7 @@ def change_impact_batch_score():
                         auto_approved += 1
                     db.commit()
                     scored += 1
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     db.rollback()
                     errors += 1
                     _worker_logger.warning(
@@ -1182,7 +1182,7 @@ def change_impact_batch_score():
                 scored, auto_approved, errors,
             )
             return {"scored": scored, "auto_approved": auto_approved, "errors": errors}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("change_impact_batch_score error: %s", exc)
             return {"error": str(exc)}
 
@@ -1195,8 +1195,8 @@ def routing_outcome_scan():
     resolution_minutes + csat_score from the linked Ticket.
     Runs every hour via beat schedule.
     """
-    from app.db.session import worker_db_session  # noqa: PLC0415
-    from app.services.service_desk.ml_routing_service import run_outcome_scan  # noqa: PLC0415
+    from app.db.session import worker_db_session
+    from app.services.service_desk.ml_routing_service import run_outcome_scan
 
     with worker_db_session() as db:
         try:
@@ -1206,7 +1206,7 @@ def routing_outcome_scan():
                 result.get("processed", 0), result.get("updated", 0), result.get("errors", 0),
             )
             return result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("routing_outcome_scan error: %s", exc)
             return {"error": str(exc)}
 
@@ -1232,7 +1232,7 @@ def predictive_scan():
                 result.get("predicted", 0),
             )
             return result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("predictive_scan error: %s", exc)
             return {"error": str(exc)}
 
@@ -1256,7 +1256,7 @@ def predictive_model_eval_retrain():
                 result.get("bi_retrained", 0),
             )
             return result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("predictive_model_eval_retrain error: %s", exc)
             return {"error": str(exc)}
 
@@ -1338,13 +1338,13 @@ def sync_connector_data(self, connector_id: str, org_id: str | None = None):
                         "sync_connector_data: connector=%s org=%s ok=%s records=%d",
                         connector_id, oid, result.get("ok"), result.get("records_ingested", 0),
                     )
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     log.warning("sync_connector_data: error for connector=%s org=%s: %s", connector_id, oid, exc)
                     results.append({"org_id": oid, "ok": False, "error": str(exc)})
 
             return {"connector_id": connector_id, "orgs_processed": len(org_ids), "results": results}
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.error("sync_connector_data fatal error connector=%s: %s", connector_id, exc)
             try:
                 raise self.retry(exc=exc)
@@ -1386,7 +1386,7 @@ def asset_expiry_scan():
                     try:
                         create_refresh_ticket(db, asset_id, acting_user_id=None)
                         created += 1
-                    except Exception as inner:  # noqa: BLE001
+                    except Exception as inner:
                         _worker_logger.warning(
                             "asset_expiry_scan: could not create ticket for %s: %s",
                             asset_id, inner,
@@ -1401,7 +1401,7 @@ def asset_expiry_scan():
                 len(urgent), created, skipped,
             )
             return {"urgent_found": len(urgent), "tickets_created": created, "skipped": skipped}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             db.rollback()
             _worker_logger.error("asset_expiry_scan error: %s", exc)
             return {"error": str(exc)}
@@ -1426,7 +1426,7 @@ def analytics_snapshot():
                 result.get("sla_compliance_pct", 0),
             )
             return result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("analytics_snapshot error: %s", exc)
             return {"error": str(exc)}
 
@@ -1449,7 +1449,7 @@ def catalog_popularity_update():
                 "Catalog popularity updated: %d services", result.get("updated", 0)
             )
             return result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             db.rollback()
             _worker_logger.error("catalog_popularity_update error: %s", exc)
             return {"error": str(exc)}
@@ -1474,7 +1474,7 @@ def compliance_check():
                 result.get("findings_count", 0),
             )
             return result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("compliance_check error: %s", exc)
             return {"error": str(exc)}
 
@@ -1499,7 +1499,7 @@ def bi_scheduled_delivery_run():
                 result.get("total_errors", 0),
             )
             return result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("bi_scheduled_delivery_run error: %s", exc)
             return {"error": str(exc)}
 
@@ -1553,7 +1553,7 @@ def bi_kpi_push():
 
             _worker_logger.info("bi_kpi_push: pushed %d org snapshots", pushed)
             return {"pushed": pushed}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("bi_kpi_push error: %s", exc)
             return {"error": str(exc)}
 
@@ -1592,7 +1592,7 @@ def bi_ml_retrain():
 
             _worker_logger.info("bi_ml_retrain: warmed models for %d orgs", retrained)
             return {"retrained": retrained}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("bi_ml_retrain error: %s", exc)
             return {"error": str(exc)}
 
@@ -1620,7 +1620,7 @@ def autonomous_agent_scan():
                 result.get("skipped", 0),
             )
             return result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _worker_logger.error("autonomous_agent_scan error: %s", exc)
             return {"error": str(exc)}
 

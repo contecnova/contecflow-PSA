@@ -73,6 +73,60 @@ def ensure_matrix_seeded(db: Session, default_matrix: dict) -> None:
         db.commit()
 
 
+def ensure_matrix_covers_all_modules(db: Session, default_matrix: dict) -> int:
+    """Completa la matriz para TODOS los módulos que expone la API.
+
+    Auditoría 2026-08 (hallazgo 28). `default_matrix` opina sobre 15 módulos
+    escritos a mano, frente a los 126 dominios de la API: 111 no tenían ni una
+    casilla que un administrador pudiera configurar. La lista de módulos se
+    DERIVA aquí del router en tiempo de ejecución (ver app/core/grc_catalog.py),
+    así que un dominio nuevo entra en la matriz el día que se añade su primera
+    ruta, sin que nadie tenga que registrarlo.
+
+    Las casillas nuevas se crean con ``allowed=True`` a propósito: la matriz es un
+    control ADITIVO que sólo puede quitar permiso (ver app/core/grc_enforce.py).
+    Sembrarlas en False cerraría de golpe 111 dominios para todos los roles no
+    administradores. Con True, el comportamiento no cambia hasta que un
+    administrador decida restringir algo — y ahora puede, que es lo que faltaba.
+
+    Sólo se crean las acciones que el módulo expone de verdad: una casilla que no
+    corresponde a ninguna ruta es indistinguible de una que no se aplica, y el
+    objetivo es que todo lo que se ve gobierne algo.
+
+    Devuelve el número de filas creadas. Idempotente.
+    """
+    from app.core.grc_catalog import discover_module_actions
+    from app.main import app as fastapi_app
+
+    por_modulo = discover_module_actions(fastapi_app)
+    roles = list(default_matrix.keys())
+
+    existentes = {
+        (r.role, r.module, r.action)
+        for r in db.query(RolePermission.role, RolePermission.module, RolePermission.action).all()
+    }
+
+    nuevas = []
+    for modulo, acciones in por_modulo.items():
+        for rol in roles:
+            declarado = default_matrix.get(rol, {}).get(modulo, {})
+            for accion in sorted(acciones):
+                if (rol, modulo, accion) in existentes:
+                    continue
+                # Si default_matrix opina sobre esta casilla, se respeta su valor;
+                # si no, permisiva (ver el razonamiento del docstring).
+                permitido = declarado.get(accion, True)
+                nuevas.append(RolePermission(
+                    id=str(uuid.uuid4()), role=rol, module=modulo,
+                    action=accion, allowed=bool(permitido),
+                ))
+
+    if nuevas:
+        db.bulk_save_objects(nuevas)
+        db.commit()
+    return len(nuevas)
+
+
 def ensure_sod_seeded(db: Session, default_sod_rules: list) -> None:
     """Seed default_sod_rules into DB if grc_sod_rules is empty."""
     count = db.query(SodRule).count()

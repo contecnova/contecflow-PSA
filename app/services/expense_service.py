@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.core.config import settings
 from app.core.outbound_url import validate_outbound_url
@@ -243,8 +244,14 @@ async def ocr_receipt(image_bytes: bytes, content_type: str) -> dict:
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
-            response_body = _json.loads(resp.read().decode())
+        # Llamada HTTP en un hilo aparte (auditoría 2026-08, P2-15). Era un
+        # urlopen bloqueante dentro de una corrutina: hasta 30 s de event loop
+        # congelado para toda la aplicación por cada OCR de recibo.
+        def _fetch() -> dict:
+            with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+                return _json.loads(resp.read().decode())
+
+        response_body = await run_in_threadpool(_fetch)
 
         raw_text = response_body["content"][0]["text"].strip()
         if raw_text.startswith("```"):

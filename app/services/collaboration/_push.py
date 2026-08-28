@@ -63,7 +63,7 @@ def push_to_user(db: Session, user_id: str, payload: dict) -> int:
         return 0
     subs = db.query(CollaborationPushSubscription).filter(
         CollaborationPushSubscription.user_id == user_id,
-        CollaborationPushSubscription.is_active == True,  # noqa: E712
+        CollaborationPushSubscription.is_active == True,
     ).all()
     delivered = 0
     for s in subs:
@@ -84,7 +84,7 @@ def purge_stale_subscriptions(db: Session, *, days: int = 30) -> int:
     from app.models.collaboration import CollaborationPushSubscription
     cutoff = utcnow() - timedelta(days=days)
     n = db.query(CollaborationPushSubscription).filter(
-        CollaborationPushSubscription.is_active == False,  # noqa: E712
+        CollaborationPushSubscription.is_active == False,
         CollaborationPushSubscription.created_at < cutoff,
     ).delete(synchronize_session=False)
     db.commit()

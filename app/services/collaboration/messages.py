@@ -35,6 +35,7 @@ from app.services.collaboration._permissions import (
 from app.services.collaboration._search import search_engine
 from app.services.collaboration._storage import scan_dlp
 import logging
+from app.core.background import spawn
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +167,8 @@ def _publish_async(channel: str, event: dict) -> None:
     """Fire-and-forget publish."""
     try:
         loop = asyncio.get_event_loop()
-        loop.create_task(bus.publish(channel, event))
+        # auditoría 2026-08, P2-15: referencia fuerte para el publish.
+        spawn(bus.publish(channel, event), name="collab-publish", loop=loop)
     except RuntimeError:
         # No loop (test mode) — best-effort
         asyncio.run(bus.publish(channel, event))

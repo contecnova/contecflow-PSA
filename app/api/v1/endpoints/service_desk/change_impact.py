@@ -32,7 +32,7 @@ from app.services.service_desk.change_impact_service import (
     simulate_change_whatif,
 )
 from app.services.service_desk.change_impact_service import (
-    _get_json_setting,  # noqa: PLC2403
+    _get_json_setting,
 )
 
 
@@ -90,7 +90,7 @@ def get_rollback_plan(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    from fastapi import HTTPException  # noqa: PLC0415
+    from fastapi import HTTPException
     plan = _get_json_setting(db, f"sd.change.rollback.{change_id}")
     if not plan:
         raise HTTPException(404, "Rollback plan no encontrado. Ejecuta POST primero.")
@@ -119,7 +119,7 @@ def get_testing_plan(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    from fastapi import HTTPException  # noqa: PLC0415
+    from fastapi import HTTPException
     plan = _get_json_setting(db, f"sd.change.testing.{change_id}")
     if not plan:
         raise HTTPException(404, "Plan de pruebas no encontrado. Ejecuta POST /testing-plan primero.")
@@ -149,7 +149,7 @@ def get_comms_plan(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    from fastapi import HTTPException  # noqa: PLC0415
+    from fastapi import HTTPException
     plan = _get_json_setting(db, f"sd.change.comms.{change_id}")
     if not plan:
         raise HTTPException(404, "Plan de comunicaciones no encontrado. Ejecuta POST /comms-plan primero.")
@@ -195,8 +195,8 @@ def cab_dashboard(
     Includes `auto_risk_score`, `auto_risk_label`, `impact_analyzed`, and
     `suggested_window` in every item so the CAB can triage without opening each CR.
     """
-    from app.models.service_desk import ITSMChangeRequest, ChangeStatus  # noqa: PLC0415
-    from app.services.service_desk.change_service import serialize_change  # noqa: PLC0415
+    from app.models.service_desk import ITSMChangeRequest, ChangeStatus
+    from app.services.service_desk.change_service import serialize_change
 
     requested_statuses = [s.strip() for s in status.split(",") if s.strip()]
     valid_statuses = [
@@ -247,9 +247,9 @@ def batch_score_changes(
     Also auto-approves standard changes with risk score ≤ 30.
     Returns counts of scored and auto-approved changes.
     """
-    from app.models.service_desk import ITSMChangeRequest, ChangeStatus  # noqa: PLC0415
-    from app.services.service_desk.change_impact_service import score_and_persist  # noqa: PLC0415
-    from app.services.service_desk.change_service import _maybe_auto_approve  # noqa: PLC0415
+    from app.models.service_desk import ITSMChangeRequest, ChangeStatus
+    from app.services.service_desk.change_impact_service import score_and_persist
+    from app.services.service_desk.change_service import _maybe_auto_approve
 
     pending = (
         db.query(ITSMChangeRequest)
@@ -270,7 +270,7 @@ def batch_score_changes(
                 auto_approved += 1
             db.commit()
             scored += 1
-        except Exception:  # noqa: BLE001
+        except Exception:
             db.rollback()
             errors += 1
 

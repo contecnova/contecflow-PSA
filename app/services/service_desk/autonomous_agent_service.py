@@ -317,7 +317,7 @@ def execute_playbook(
             else:
                 steps_executed.append({"type": step_type, "status": "unknown_step_type"})
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Playbook step %s failed for ticket %s: %s", step_type, ticket.id, exc)
             steps_executed.append({"type": step_type, "status": "error", "error": str(exc)})
 
@@ -489,7 +489,7 @@ def run_autonomous_scan(db: Session) -> dict:
                 assisted += 1
             else:
                 skipped += 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Autonomous scan failed for ticket %s: %s", ticket.id, exc)
             skipped += 1
 

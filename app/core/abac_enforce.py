@@ -148,7 +148,7 @@ def enforce_abac(
     # intentional: chained re-raise preserves context
     except HTTPException:
         raise
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error(
             "ABAC evaluation error for %s/%s — denying by default: %s",
             resource_type, resource_id, exc, exc_info=True,

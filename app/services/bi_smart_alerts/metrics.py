@@ -195,12 +195,12 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             from sqlalchemy import func as sqf
             if metric_key == "imputations_approved_hours":
                 rows = db.query(Imputation.date, Imputation.hours).filter(
-                    Imputation.date >= start_date, Imputation.is_approved == True  # noqa: E712
+                    Imputation.date >= start_date, Imputation.is_approved == True
                 ).all()
                 return _bucket_sum(rows, start=start_date)
             if metric_key == "imputations_invoiced_count":
                 rows = db.query(Imputation.date).filter(
-                    Imputation.date >= start_date, Imputation.is_invoiced == True  # noqa: E712
+                    Imputation.date >= start_date, Imputation.is_invoiced == True
                 ).all()
                 return _bucket_count(rows, start=start_date)
             if metric_key == "imputations_cost_total":
@@ -210,7 +210,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 return _bucket_sum(rows, start=start_date)
             if metric_key == "hourly_rate_avg":
                 rows = db.query(Imputation.date, Imputation.hourly_rate_snapshot).filter(
-                    Imputation.date >= start_date, Imputation.hourly_rate_snapshot != None  # noqa: E711
+                    Imputation.date >= start_date, Imputation.hourly_rate_snapshot != None
                 ).all()
                 bkt_s: dict[str,float] = defaultdict(float)
                 bkt_c: dict[str,float] = defaultdict(float)
@@ -336,7 +336,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         try:
             from app.models.imputation import Imputation
             rows = db.query(Imputation.date, Imputation.hours).filter(
-                Imputation.date >= start_date, Imputation.is_billable == True  # noqa: E712
+                Imputation.date >= start_date, Imputation.is_billable == True
             ).all()
             return _bucket_sum(rows, start=start_date)
         except Exception:
@@ -480,7 +480,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             from app.models.resources import UserSkill
             from sqlalchemy import func as sqf
             count = db.query(sqf.count(sqf.distinct(UserSkill.user_id))).filter(
-                UserSkill.certified == True  # noqa: E712
+                UserSkill.certified == True
             ).scalar() or 0
             return _current(float(count))
         except Exception:
@@ -492,7 +492,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             atype = ResourceAlertType.overload_warning if metric_key=="resource_alerts_overload" else ResourceAlertType.skill_gap
             q = db.query(ResourceAlert).filter(ResourceAlert.alert_type == atype)
             if metric_key == "resource_alerts_overload":
-                q = q.filter(ResourceAlert.acknowledged_at == None)  # noqa: E711
+                q = q.filter(ResourceAlert.acknowledged_at == None)
             return _current(float(q.count()))
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
@@ -537,7 +537,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             today = dc.today()
             return _current(float(db.query(Project).filter(
                 Project.status == PS.active,
-                Project.end_date_planned != None,  # noqa: E711
+                Project.end_date_planned != None,
                 Project.end_date_planned < today
             ).count()))
         except Exception:
@@ -572,8 +572,8 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             today = dc.today()
             if metric_key == "milestones_overdue":
                 return _current(float(db.query(ProjectMilestone).filter(
-                    ProjectMilestone.is_completed == False,  # noqa: E712
-                    ProjectMilestone.due_date != None,  # noqa: E711
+                    ProjectMilestone.is_completed == False,
+                    ProjectMilestone.due_date != None,
                     ProjectMilestone.due_date < today
                 ).count()))
             if metric_key == "milestones_pending":
@@ -582,11 +582,11 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
                 ).count()))
             if metric_key == "milestones_completed":
                 return _current(float(db.query(ProjectMilestone).filter(
-                    ProjectMilestone.is_completed == True  # noqa: E712
+                    ProjectMilestone.is_completed == True
                 ).count()))
             if metric_key == "milestones_invoiced":
                 return _current(float(db.query(ProjectMilestone).filter(
-                    ProjectMilestone.is_billed == True  # noqa: E712
+                    ProjectMilestone.is_billed == True
                 ).count()))
             if metric_key == "milestones_pending_approval":
                 return _current(float(db.query(ProjectMilestone).filter(
@@ -636,7 +636,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
         try:
             from app.models.task import Task
             rows = db.query(Task.due_date, Task.status).filter(
-                Task.due_date != None, Task.due_date >= start_date  # noqa: E711
+                Task.due_date != None, Task.due_date >= start_date
             ).all()
             bkt: dict[str,float] = defaultdict(float)
             for dd, st in rows:
@@ -666,7 +666,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             from app.models.task import Task, TaskStatus
             rows = db.query(Task.completed_at).filter(
                 Task.status == TaskStatus.done,
-                Task.completed_at != None,  # noqa: E711
+                Task.completed_at != None,
                 Task.completed_at >= start_date
             ).all()
             return _bucket_count(rows, start=start_date)
@@ -788,7 +788,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
     if metric_key == "known_errors_active":
         try:
             from app.models.service_desk import KnownError
-            return _current(float(db.query(KnownError).filter(KnownError.is_active == True).count()))  # noqa: E712
+            return _current(float(db.query(KnownError).filter(KnownError.is_active == True).count()))
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
@@ -820,13 +820,13 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             if metric_key == "assets_in_repair":
                 return _current(float(db.query(Asset).filter(Asset.status == AssetStatus.in_repair).count()))
             if metric_key == "license_seats_total":
-                v = db.query(sqf.sum(Asset.license_seats)).filter(Asset.license_seats != None).scalar() or 0  # noqa: E711
+                v = db.query(sqf.sum(Asset.license_seats)).filter(Asset.license_seats != None).scalar() or 0
                 return _current(float(v))
             if metric_key == "license_used_total":
-                v = db.query(sqf.sum(Asset.license_used)).filter(Asset.license_used != None).scalar() or 0  # noqa: E711
+                v = db.query(sqf.sum(Asset.license_used)).filter(Asset.license_used != None).scalar() or 0
                 return _current(float(v))
             if metric_key == "asset_value_total":
-                v = db.query(sqf.sum(Asset.current_value)).filter(Asset.current_value != None).scalar() or 0  # noqa: E711
+                v = db.query(sqf.sum(Asset.current_value)).filter(Asset.current_value != None).scalar() or 0
                 return _current(float(v))
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
@@ -891,7 +891,7 @@ def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional
             from app.models.billing_reports import SodViolation
             q = db.query(SodViolation)
             if metric_key == "sod_violations_unresolved":
-                q = q.filter(SodViolation.resolved == False)  # noqa: E712
+                q = q.filter(SodViolation.resolved == False)
             return _current(float(q.count()))
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)

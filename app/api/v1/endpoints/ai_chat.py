@@ -37,17 +37,17 @@ import logging
 _logger = logging.getLogger("v16_core")
 
 # ── Service-layer delegation ──────────────────────────────────────────────────
-from app.services.ai_client import (  # noqa: E402
+from app.services.ai_client import (
     get_api_key as _api_key,
     call_claude as _call_claude,
     extract_text as _extract_text,
     check_prompt_injection as _check_prompt_injection,
 )
-from app.schemas.ai_chat import (  # noqa: E402
+from app.schemas.ai_chat import (
     ChatPayload, AgentPayload, PromptTemplatePayload,
 )
-from app.services.ai_chat.context_service import build_tenant_context as _build_tenant_context  # noqa: E402
-import app.services.ai_chat_service as _svc  # noqa: E402
+from app.services.ai_chat.context_service import build_tenant_context as _build_tenant_context
+import app.services.ai_chat_service as _svc
 
 
 def _log_action(db: Session, user_id: str, module: str, action_type: str,
@@ -510,7 +510,7 @@ def run_agent_stream(
     # Item #55: default conservador (False). Antes era True (override del
     # schema default) → todas las acciones write se ejecutaban sin gate humano.
     auto_approve  = bool(getattr(payload, "auto_approve", False))
-    user_id       = current_user.id # noqa: F841 F401
+    user_id       = current_user.id
 
     active_prov = get_default_provider(
         db,

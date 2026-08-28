@@ -91,7 +91,7 @@ def get_ai_timesheet_anomalies(user_id: str, db: Session, current_user=None) -> 
         is_super = bool(getattr(current_user, "is_superadmin", False))
         cu_id = getattr(current_user, "id", None)
         if not is_super and str(user_id) != str(cu_id):
-            from app.models.user import User as _User  # noqa: PLC0415
+            from app.models.user import User as _User
             target = db.query(_User).filter(_User.id == user_id).first()
             if not target:
                 raise HTTPException(404, "User not found")
@@ -116,7 +116,7 @@ def get_ai_timesheet_anomalies(user_id: str, db: Session, current_user=None) -> 
     # con imputación >0 y marcamos los días que se desvían >2σ (regla 95%).
     # Mantenemos el umbral 12h como límite duro absoluto para casos sin
     # suficiente histórico (n<7).
-    import statistics as _stats  # noqa: PLC0415
+    import statistics as _stats
     positive = [h for h in daily_hours.values() if h > 0]
     if len(positive) >= 7:
         mean_h = _stats.mean(positive)

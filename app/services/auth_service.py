@@ -15,6 +15,7 @@ import threading
 import time
 import uuid
 from typing import Optional
+import json as _json
 from urllib.parse import urlparse
 
 from fastapi import HTTPException, Request, Response
@@ -51,7 +52,9 @@ PASSWORD_RESET_REQUEST_MAX_PER_WINDOW = 5
 PASSWORD_RESET_JTI_PREFIX = "contecflow:password_reset:jti:"  # noqa: S105
 
 # In-memory fallback stores  ──────────────────────────────────────────────────
-_sso_states_fallback: dict[str, float] = {}
+# (expiración, payload JSON) por estado. Antes sólo la expiración: no había
+# dónde llevar el code_verifier de PKCE ni el nonce (auditoría 2026-08, P2-13).
+_sso_states_fallback: dict[str, tuple[float, str]] = {}
 _sso_states_lock = threading.Lock()
 _redis_client = None
 _redis_client_init = False
@@ -284,34 +287,68 @@ def get_sso_redis():
     return _redis_client
 
 
-def register_sso_state(state_raw: str) -> None:
+def register_sso_state(state_raw: str, payload: Optional[dict] = None) -> None:
+    """Guarda el estado OIDC y, opcionalmente, datos ligados a esa transacción.
+
+    Auditoría 2026-08 (P2-13): antes el valor almacenado era la cadena "1", así
+    que no había dónde llevar el `code_verifier` de PKCE ni el `nonce`. Ahora se
+    guarda un JSON con lo que el callback necesita para verificarlos. El estado
+    sigue siendo de un solo uso.
+    """
+    valor = _json.dumps(payload or {})
     r = get_sso_redis()
     if r is not None:
         try:
-            r.setex(f"{SSO_KEY_PREFIX}{state_raw}", SSO_STATE_TTL, "1")
+            r.setex(f"{SSO_KEY_PREFIX}{state_raw}", SSO_STATE_TTL, valor)
             return
         except Exception as _e:
             _redis_circuit_break(f"SSO setex: {_e}")
     with _sso_states_lock:
         now = time.time()
-        expired = [k for k, v in _sso_states_fallback.items() if v < now]
+        expired = [k for k, v in _sso_states_fallback.items() if v[0] < now]
         for k in expired:
             del _sso_states_fallback[k]
-        _sso_states_fallback[state_raw] = now + SSO_STATE_TTL
+        _sso_states_fallback[state_raw] = (now + SSO_STATE_TTL, valor)
 
 
 def consume_sso_state(state_raw: str) -> bool:
-    """Return True and atomically remove the state if it exists and has not expired."""
+    """True si el estado existía y no había expirado. Lo elimina (un solo uso)."""
+    return consume_sso_state_payload(state_raw) is not None
+
+
+def consume_sso_state_payload(state_raw: str) -> Optional[dict]:
+    """Consume el estado y devuelve su payload, o None si no era válido.
+
+    Atómico frente a replay: el estado se borra al leerlo, así que un segundo
+    intento con el mismo `state` no encuentra nada.
+    """
     r = get_sso_redis()
     if r is not None:
         try:
-            deleted = r.delete(f"{SSO_KEY_PREFIX}{state_raw}")
-            return deleted > 0
+            # GETDEL es atómico: lee y borra en una sola operación, así que dos
+            # callbacks simultáneos con el mismo state no pueden pasar los dos.
+            raw = r.getdel(f"{SSO_KEY_PREFIX}{state_raw}")
+            if raw is None:
+                return None
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8", errors="ignore")
+            try:
+                return _json.loads(raw) if raw else {}
+            except ValueError:
+                return {}
         except Exception as _e:
-            _redis_circuit_break(f"SSO delete: {_e}")
+            _redis_circuit_break(f"SSO getdel: {_e}")
     with _sso_states_lock:
-        expiry = _sso_states_fallback.pop(state_raw, None)
-    return expiry is not None and time.time() < expiry
+        entry = _sso_states_fallback.pop(state_raw, None)
+    if entry is None:
+        return None
+    expiry, valor = entry
+    if time.time() >= expiry:
+        return None
+    try:
+        return _json.loads(valor) if valor else {}
+    except ValueError:
+        return {}
 
 
 # ── Login rate-limiting ───────────────────────────────────────────────────────

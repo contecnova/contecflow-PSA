@@ -1124,7 +1124,7 @@ def _execute_provision_action(config: dict, context: dict) -> dict:
       - payload: dict/list/string template rendered from context (optional)
       - timeout_seconds: int (optional, default 15)
     """
-    import httpx  # noqa: PLC0415
+    import httpx
 
     operation = str(config.get("operation") or config.get("type") or "provision").lower()
     url = config.get("url")
@@ -1239,8 +1239,8 @@ def _execute_ansible_action(config: dict, context: dict) -> dict:
 def _execute_step_action(config: dict, context: dict, db) -> dict:
     action_type = str(config.get("type", "create_alert")).lower()
     if action_type == "create_alert":
-        from app.models.alert import Alert  # noqa: PLC0415
-        from app.services.alert_service import derive_alert_org_id  # noqa: PLC0415
+        from app.models.alert import Alert
+        from app.services.alert_service import derive_alert_org_id
 
         db.add(
             Alert(
@@ -1257,7 +1257,7 @@ def _execute_step_action(config: dict, context: dict, db) -> dict:
         return {"ok": True, "action_type": action_type}
 
     if action_type == "notify_role":
-        from app.services.notifications import notify_role  # noqa: PLC0415
+        from app.services.notifications import notify_role
 
         notify_role(
             db,

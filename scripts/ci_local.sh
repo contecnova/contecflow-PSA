@@ -104,12 +104,12 @@ if [[ "$MODE" != "--info" ]]; then
   # @typescript-eslint/parser aparecieron 80 errores que nunca se habían visto;
   # están todos corregidos, así que un error nuevo es una regresión.
   #
-  # El tope de warnings es la línea base MEDIDA (1.974: sobre todo etiquetas de
+  # El tope de warnings es la línea base MEDIDA (1.966: sobre todo etiquetas de
   # accesibilidad y reglas del sistema de diseño, que el proyecto configuró como
   # avisos a propósito). Fijarlo así permite que baje y no que suba. Al reducir
   # la deuda, bajar este número — nunca subirlo.
-  run_gate bloqueante "eslint (0 errores, warnings ≤ 1974)" \
-    bash -c 'cd frontend && npx eslint src --ext .js,.jsx,.ts,.tsx --max-warnings 1974'
+  run_gate bloqueante "eslint (0 errores, warnings ≤ 1966)" \
+    bash -c 'cd frontend && npx eslint src --ext .js,.jsx,.ts,.tsx --max-warnings 1966'
 
   # tsc estricto promovido a BLOQUEANTE (auditoría 2026-08, hallazgo 10). Se usa
   # el gate real (scripts/check_strict.mjs), no `tsc -p tsconfig.strict.json` a
@@ -126,6 +126,12 @@ if [[ "$MODE" != "--info" ]]; then
   # este gate en verde. Cuando cubra todo src/, activar `strict` en la base.
   run_gate bloqueante "tsc estricto (whitelist de tsconfig.strict.json)" \
     bash -c 'cd frontend && node scripts/check_strict.mjs'
+
+  # npm audit promovido a bloqueante en nivel high (auditoría 2026-08, hallazgo
+  # 17): nanoid era el único high y ya está corregido, así que un high nuevo es
+  # una regresión.
+  run_gate bloqueante "npm audit (0 high)" \
+    bash -c 'cd frontend && npm audit --audit-level=high'
 fi
 
 # ── Gates informativos ────────────────────────────────────────────────────────
@@ -141,8 +147,12 @@ if [[ "$MODE" != "--fast" ]]; then
     bash -c 'cd frontend && npm run --silent lint:a11y:report'
   run_gate informativo "check i18n — hallazgo 16" \
     bash -c 'cd frontend && npm run --silent check:i18n'
-  run_gate informativo "npm audit — hallazgo 17" \
-    bash -c 'cd frontend && npm audit --audit-level=high'
+  # Los 3 moderate que quedan exigen saltos de versión MAYOR (echarts 5→6,
+  # react-router-dom 6→7). Cada uno es una migración con riesgo real sobre las
+  # 119 rutas lazy, así que se dejan medidos y no forzados. El gate bloqueante
+  # en nivel high está entre los de arriba.
+  run_gate informativo "npm audit (3 moderate: echarts 6, react-router 7)" \
+    bash -c 'cd frontend && npm audit --audit-level=moderate'
 fi
 
 # ── Resumen ───────────────────────────────────────────────────────────────────

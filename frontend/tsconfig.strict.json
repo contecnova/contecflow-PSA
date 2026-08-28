@@ -78,7 +78,6 @@
     "src/pages/RevenuePage.tsx",
     "src/pages/portal-client/PortalDashboard.tsx",
     "src/pages/CMDBPage.tsx",
-    "src/features/bi/widgets.tsx",
     "src/pages/ApprovalsPage.tsx",
     "src/pages/DocumentsPage.tsx",
     "src/pages/TasksPage.tsx",

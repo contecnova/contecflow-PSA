@@ -31,6 +31,7 @@ from app.models.collaboration import (
     CollaborationSlashCommandLog, CollaborationTranscript,
 )
 from app.services.collaboration._permissions import _org
+from app.core.background import spawn
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,6 @@ def _post_bot_message(
 ) -> CollaborationMessage:
     from app.services.collaboration.messages import _serialize_message  # noqa: F401
     from app.services.collaboration._bus import bus, conv_channel
-    import asyncio
 
     msg = CollaborationMessage(
         organization_id=organization_id,
@@ -80,8 +80,9 @@ def _post_bot_message(
 
     # publish realtime
     try:
-        loop = asyncio.get_event_loop()
-        loop.create_task(bus.publish(conv_channel(conversation_id), {
+        # auditoría 2026-08, P2-15: referencia fuerte para el publish. `spawn`
+        # resuelve el bucle en marcha, así que ya no hace falta obtenerlo aquí.
+        spawn(bus.publish(conv_channel(conversation_id), {
             "type": "message.created",
             "conversation_id": conversation_id,
             "message_id": msg.id,

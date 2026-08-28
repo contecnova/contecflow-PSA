@@ -214,7 +214,7 @@ def generate_share_token(
 
 def get_bookmark_by_share_token(db: Session, token: str) -> dict[str, Any]:
     """Public lookup — no auth required. Searches across all share token blobs."""
-    from app.models.settings import AppSetting  # noqa: PLC0415
+    from app.models.settings import AppSetting
 
     # Find the token mapping row (keyed by org_id)
     rows = db.query(AppSetting).filter(

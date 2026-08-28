@@ -155,13 +155,13 @@ def eligible_reviewers(db: Session, *, reviewee: User, review_type: str) -> list
     if review_type == "manager":
         if not reviewee.manager_id:
             return []
-        manager = db.query(User).filter(User.id == reviewee.manager_id, User.is_active == True).first()  # noqa: E712
+        manager = db.query(User).filter(User.id == reviewee.manager_id, User.is_active == True).first()
         return [manager] if manager else []
 
     if review_type == "peer":
         # Filtramos por team si lo hay; si no, por department.
         q = db.query(User).filter(
-            User.is_active == True,  # noqa: E712
+            User.is_active == True,
             User.organization_id == reviewee.organization_id,
             User.id != reviewee.id,
         )
@@ -177,7 +177,7 @@ def eligible_reviewers(db: Session, *, reviewee: User, review_type: str) -> list
 
     if review_type == "upward":
         return db.query(User).filter(
-            User.is_active == True,  # noqa: E712
+            User.is_active == True,
             User.manager_id == reviewee.id,
         ).all()
 

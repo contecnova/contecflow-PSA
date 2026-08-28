@@ -32,7 +32,7 @@ def _utcnow() -> str:
 def _get_kpi_data(db: Session, org_id: str, period_days: int) -> dict:
     """Pull KPI data from BI intelligence AppSetting or return demo data."""
     try:
-        from app.models.settings import AppSetting  # noqa: PLC0415
+        from app.models.settings import AppSetting
         key = f"bi.etl.sync_data.internal.{org_id}"
         row = db.query(AppSetting).filter(AppSetting.key == key).first()
         if row and row.value:
@@ -65,11 +65,11 @@ def export_dashboard_excel(
     Returns raw bytes of the .xlsx file.
     """
     try:
-        import openpyxl  # noqa: PLC0415
-        from openpyxl.chart import BarChart, LineChart, Reference  # noqa: PLC0415
-        from openpyxl.styles import Alignment, Font, PatternFill  # noqa: PLC0415, F401
-        from openpyxl.utils import get_column_letter  # noqa: PLC0415, F401
-        from openpyxl.worksheet.table import Table, TableStyleInfo  # noqa: PLC0415
+        import openpyxl
+        from openpyxl.chart import BarChart, LineChart, Reference
+        from openpyxl.styles import Alignment, Font, PatternFill  # noqa: F401
+        from openpyxl.utils import get_column_letter  # noqa: F401
+        from openpyxl.worksheet.table import Table, TableStyleInfo
     except ImportError as exc:
         raise HTTPException(500, f"openpyxl no instalado: {exc}") from exc
 
@@ -203,11 +203,11 @@ def export_dashboard_pptx(
     Returns raw bytes of the .pptx file.
     """
     try:
-        from pptx import Presentation  # noqa: PLC0415
-        from pptx.chart.data import ChartData  # noqa: PLC0415
-        from pptx.dml.color import RGBColor  # noqa: PLC0415
-        from pptx.enum.chart import XL_CHART_TYPE  # noqa: PLC0415
-        from pptx.util import Inches, Pt  # noqa: PLC0415
+        from pptx import Presentation
+        from pptx.chart.data import ChartData
+        from pptx.dml.color import RGBColor
+        from pptx.enum.chart import XL_CHART_TYPE
+        from pptx.util import Inches, Pt
     except ImportError as exc:
         raise HTTPException(500, f"python-pptx no instalado: {exc}") from exc
 

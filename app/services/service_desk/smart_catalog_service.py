@@ -256,7 +256,7 @@ def suggest_service_for_query(
     # AI fallback
     if use_ai and services:
         try:
-            from app.services.ai_provider_service import call_ai  # noqa: PLC0415
+            from app.services.ai_provider_service import call_ai
 
             catalog_summary = "\n".join(
                 f"- {svc.id}: {svc.name} ({svc.description or ''})"
@@ -286,7 +286,7 @@ def suggest_service_for_query(
                     "method": "ai",
                     "alternatives": [],
                 }
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("suggest_service_for_query AI call failed: %s", exc)
 
     # Low-confidence fallback

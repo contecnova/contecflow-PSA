@@ -212,7 +212,7 @@ def simulate_rollout_impact(
             rollout_phases=plan.get("rollout_phases", []),
         )
         plan["simulation"] = simulation
-        from app.services.service_desk.change_rollout_service import _get, _set  # noqa: PLC0415
+        from app.services.service_desk.change_rollout_service import _get, _set
 
         plans = _get(db, org_id)
         plans[plan_id] = plan

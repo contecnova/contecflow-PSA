@@ -22,7 +22,7 @@ def seed_v12():
         return
 
     admin = db.query(User).filter(User.username == "admin").first()
-    ana   = db.query(User).filter(User.username == "ana.torres").first() # noqa: F841 F401
+    ana   = db.query(User).filter(User.username == "ana.torres").first() # noqa: F841
 
     # ── Project Templates ──────────────────────────────────────────────────────
     tpl1 = ProjectTemplate(

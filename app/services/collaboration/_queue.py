@@ -11,6 +11,7 @@ import logging
 import os
 import traceback
 from typing import Any, Awaitable, Callable
+from app.core.background import spawn
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,9 @@ class TaskQueue:
         self._workers_started = True
         n = int(os.environ.get("COLLAB_QUEUE_WORKERS", "4"))
         for _ in range(n):
-            loop.create_task(self._worker())
+            # Los workers son de larga vida: perder su referencia era perder
+            # capacidad de proceso en silencio (auditoría 2026-08, P2-15).
+            spawn(self._worker(), name="collab-queue-worker", loop=loop)
 
     async def _worker(self) -> None:
         while True:

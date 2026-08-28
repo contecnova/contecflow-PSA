@@ -49,7 +49,7 @@ _MAX_JOB_HISTORY = 20
 
 
 def _set_runtime_state(db: Session, payload: dict) -> None:
-    from app.models.settings import AppSetting  # noqa: PLC0415
+    from app.models.settings import AppSetting
 
     row = db.query(AppSetting).filter(AppSetting.key == _AUTO_RES_RUNTIME_KEY).first()
     serialized = json.dumps(payload)
@@ -61,7 +61,7 @@ def _set_runtime_state(db: Session, payload: dict) -> None:
 
 
 def _get_runtime_state(db: Session) -> dict:
-    from app.models.settings import AppSetting  # noqa: PLC0415
+    from app.models.settings import AppSetting
 
     row = db.query(AppSetting).filter(AppSetting.key == _AUTO_RES_RUNTIME_KEY).first()
     if not row or not row.value:
@@ -91,7 +91,7 @@ def _get_runtime_state(db: Session) -> dict:
 
 
 def _get_job_history(db: Session) -> list:
-    from app.models.settings import AppSetting  # noqa: PLC0415
+    from app.models.settings import AppSetting
 
     row = db.query(AppSetting).filter(AppSetting.key == _AUTO_RES_HISTORY_KEY).first()
     if not row or not row.value:
@@ -104,7 +104,7 @@ def _get_job_history(db: Session) -> list:
 
 def _append_job_history(db: Session, record: dict) -> None:
     """Prepend *record* to the history list and trim to _MAX_JOB_HISTORY entries."""
-    from app.models.settings import AppSetting  # noqa: PLC0415
+    from app.models.settings import AppSetting
 
     history = _get_job_history(db)
     history.insert(0, record)
@@ -326,7 +326,7 @@ def run_auto_resolution_job(
                     queued_job_id,
                     stats,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 run_finished = datetime.now(timezone.utc)
                 duration_ms = int((run_finished - run_started).total_seconds() * 1000)
                 try:
@@ -399,7 +399,7 @@ def run_auto_resolution_job(
         _set_runtime_state(db, {"running": False, "last_job_id": None, **sync_record})
         _append_job_history(db, sync_record)
         db.commit()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         sync_finished = datetime.now(timezone.utc)
         duration_ms = int((sync_finished - sync_started).total_seconds() * 1000)
         fail_record = {

@@ -15,7 +15,7 @@ def list_courses(db: Session, category: Optional[str] = None) -> list[Course]:
     q = (
         db.query(Course)
         .options(joinedload(Course.enrollments))
-        .filter(Course.is_active == True)  # noqa: E712
+        .filter(Course.is_active == True)
     )
     if category:
         q = q.filter(Course.category == category)

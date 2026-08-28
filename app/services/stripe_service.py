@@ -96,7 +96,7 @@ def create_checkout_session(
     if resp.status_code >= 400:
         try:
             msg = resp.json().get("error", {}).get("message", resp.text)
-        except Exception:  # noqa: BLE001  cuerpo no-JSON
+        except Exception:
             msg = resp.text
         raise StripeError(f"Stripe rechazó la petición ({resp.status_code}): {msg}")
 

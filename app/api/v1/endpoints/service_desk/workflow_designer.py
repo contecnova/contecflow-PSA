@@ -83,7 +83,7 @@ def list_blueprints(
     if process_type:
         q = q.filter(WorkflowBlueprint.process_type == process_type)
     if not include_archived:
-        q = q.filter(WorkflowBlueprint.is_active == True)  # noqa: E712
+        q = q.filter(WorkflowBlueprint.is_active == True)
     return APIListResponse.ok(items=[serialize_blueprint(bp) for bp in q.all()])
 
 

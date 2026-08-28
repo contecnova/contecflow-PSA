@@ -107,13 +107,13 @@ class SecurityEventService:
         # Run detection rules (non-blocking on error)
         try:
             self._run_detections(ev)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Detection rule error for event %s: %s", ev.id, exc)
 
         # Bump hourly snapshot (lightweight counter update)
         try:
             self._bump_snapshot(ev)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Snapshot bump error: %s", exc)
 
         self.db.commit()
@@ -779,7 +779,7 @@ class SecurityAnalyticsService:
             LoginAnomaly.occurred_at >= since,
         )
         if unresolved_only:
-            q = q.filter(LoginAnomaly.is_resolved == False)  # noqa
+            q = q.filter(LoginAnomaly.is_resolved == False)
         q = q.order_by(LoginAnomaly.occurred_at.desc()).limit(100)
 
         return [
@@ -968,7 +968,7 @@ class SecurityAnalyticsService:
             LoginAnomaly.org_id      == self.org_id,
             LoginAnomaly.occurred_at >= since,
         )
-        if unresolved_only: q = q.filter(LoginAnomaly.is_resolved == False)  # noqa
+        if unresolved_only: q = q.filter(LoginAnomaly.is_resolved == False)
         if anomaly_type:    q = q.filter(LoginAnomaly.anomaly_type == anomaly_type)
         if severity:        q = q.filter(LoginAnomaly.severity     == severity)
         total = q.count()

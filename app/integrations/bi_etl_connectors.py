@@ -491,7 +491,7 @@ class ZendeskConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "tickets", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import base64  # noqa: PLC0415
+            import base64
 
             creds = base64.b64encode(f"{client['email']}/token:{client['token']}".encode()).decode()
             url = f"https://{client['subdomain']}.zendesk.com/api/v2/{entity}.json?per_page=100"
@@ -517,7 +517,7 @@ class FreshdeskConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "tickets", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import base64  # noqa: PLC0415
+            import base64
 
             creds = base64.b64encode(f"{client['api_key']}:X".encode()).decode()
             url = f"https://{client['domain']}.freshdesk.com/api/v2/{entity}?per_page=100"
@@ -543,7 +543,7 @@ class ServiceNowConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "incident", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import base64  # noqa: PLC0415
+            import base64
 
             creds = base64.b64encode(f"{client['username']}:{client['password']}".encode()).decode()
             url = (
@@ -862,9 +862,9 @@ class GoogleAnalyticsConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "sessions", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            from google.analytics.data_v1beta import BetaAnalyticsDataClient  # type: ignore  # noqa: PLC0415
-            from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, RunReportRequest  # type: ignore  # noqa: PLC0415
-            import os  # noqa: PLC0415
+            from google.analytics.data_v1beta import BetaAnalyticsDataClient  # type: ignore
+            from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, RunReportRequest  # type: ignore
+            import os
 
             os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", client["credentials_json"])
             ga_client = BetaAnalyticsDataClient()
@@ -967,7 +967,7 @@ class PluginRegistry:
 
     @staticmethod
     def list_plugins(db: Session, org_id: Optional[str]) -> List[Dict[str, Any]]:
-        from app.models.settings import AppSetting  # noqa: PLC0415
+        from app.models.settings import AppSetting
 
         key = PluginRegistry._key(org_id)
         row = db.query(AppSetting).filter(AppSetting.key == key).first()
@@ -981,7 +981,7 @@ class PluginRegistry:
 
     @staticmethod
     def register_plugin(db: Session, org_id: Optional[str], plugin_cfg: Dict[str, Any]) -> Dict[str, Any]:
-        from app.models.settings import AppSetting  # noqa: PLC0415
+        from app.models.settings import AppSetting
 
         name = plugin_cfg.get("name", "").strip()
         if not name:

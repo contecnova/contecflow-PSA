@@ -262,7 +262,7 @@ def get_active_opportunities_for_forecast(db: Session):
 def list_stage_configs(db: Session):
     stages = (
         db.query(PipelineStageConfig)
-        .filter(PipelineStageConfig.is_active == True)  # noqa: E712
+        .filter(PipelineStageConfig.is_active == True)
         .order_by(PipelineStageConfig.order)
         .all()
     )

@@ -102,13 +102,13 @@ def _apply_filters(q, db: Session, *, organization_id: str, parsed, conversation
         q = q.filter(M.sent_at <= (parsed.before or date_to))
 
     if parsed.has_attachment:
-        q = q.filter(M.has_attachments == True)  # noqa: E712
+        q = q.filter(M.has_attachments == True)
     if parsed.has_link:
         q = q.filter(M.body.ilike("%http%"))
     if parsed.has_mention:
         q = q.filter(M.id.in_(db.query(CollaborationMention.message_id).distinct()))
     if parsed.is_pinned:
-        q = q.filter(M.is_pinned == True)  # noqa: E712
+        q = q.filter(M.is_pinned == True)
     if parsed.is_saved:
         q = q.filter(M.id.in_(db.query(CollaborationSavedMessage.message_id).distinct()))
     if parsed.type_filter:

@@ -204,6 +204,12 @@ class Settings(
     DEFAULT_USER_PASSWORD: str = Field(..., env="DEFAULT_USER_PASSWORD")
     DEFAULT_WORKING_HOURS_PER_DAY: float = Field(default=8.0, env="DEFAULT_WORKING_HOURS_PER_DAY")
     DEFAULT_WEEKLY_CAPACITY_HOURS: float = Field(default=40.0, env="DEFAULT_WEEKLY_CAPACITY_HOURS")
+    # Último recurso para valorar simulaciones de proyecto cuando no hay tarifa
+    # de facturación en el proyecto ni tarifas en los usuarios asignados
+    # (auditoría 2026-08, P2-20: antes era un literal 80.0 en activity_service).
+    DEFAULT_SIMULATION_HOURLY_RATE: float = Field(
+        default=80.0, env="DEFAULT_SIMULATION_HOURLY_RATE"
+    )
     DEFAULT_VACATION_DAYS_PER_YEAR: int = Field(default=23, env="DEFAULT_VACATION_DAYS_PER_YEAR")
 
     # NOTE: SLA defaults & breach prediction live in SLASettingsMixin

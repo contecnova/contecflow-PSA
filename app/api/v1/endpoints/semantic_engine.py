@@ -146,7 +146,7 @@ def estimate_sprint_backlog(data: dict = Body(...),
     tasks      = data.get("tasks", [])
     # Default: 2 semanas × DEFAULT_WEEKLY_CAPACITY_HOURS. Antes hardcoded a 80,
     # ignorando la configuración global de capacity (40h/semana × 2 = 80, casual).
-    from app.core.config import settings as _s  # noqa: PLC0415
+    from app.core.config import settings as _s
     _default_h = float(getattr(_s, "DEFAULT_WEEKLY_CAPACITY_HOURS", 40.0) or 40.0) * 2
     capacity_h = data.get("team_capacity_hours", _default_h)
     return APIResponse.ok(data=_svc.estimate_sprint_backlog(tasks, capacity_h, db))

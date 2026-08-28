@@ -13,6 +13,7 @@ from typing import Optional, List
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.user import User
 from app.models.activity import ActivityEvent, ProjectHealthSnapshot, RecurringTask, RecurringFreqType, ResourceDemandForecast, VendorScore
 from app.models.alm import ALMVendor
@@ -838,6 +839,40 @@ def vendor_scorecard_ranking_payload(db: Session) -> list:
 # WHAT-IF SIMULATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _resolve_simulation_rate(db: Session, project, tasks) -> float:
+    """Tarifa €/hora con la que valorar una simulación de proyecto.
+
+    Auditoría 2026-08 (P2-20). Sustituye a un literal de 80.0 que se aplicaba a
+    todos los clientes por igual. Se usa el dato real cuando existe y sólo se
+    recurre al valor configurable cuando no hay ninguno.
+    """
+    # 1. Tarifa de facturación del proyecto: es la que el cliente tiene pactada.
+    if project is not None and getattr(project, "billing_rate", None):
+        return float(project.billing_rate)
+
+    # 2. Media de las tarifas de los usuarios asignados a las tareas del
+    #    proyecto. Refleja la composición real del equipo.
+    assignee_ids = {
+        getattr(t, "assignee_id", None) for t in (tasks or [])
+        if getattr(t, "assignee_id", None)
+    }
+    if assignee_ids:
+        from app.models.user import User
+
+        tarifas = [
+            float(r[0])
+            for r in db.query(User.hourly_rate)
+            .filter(User.id.in_(assignee_ids), User.hourly_rate.isnot(None))
+            .all()
+            if r[0]
+        ]
+        if tarifas:
+            return sum(tarifas) / len(tarifas)
+
+    # 3. Último recurso: valor por defecto de la instalación.
+    return float(settings.DEFAULT_SIMULATION_HOURLY_RATE)
+
+
 def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
 
     tasks = db.query(Task).filter(
@@ -897,7 +932,16 @@ def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
         "estimated_hours": t.estimated_hours,
     } for t in tasks if t.id in cut_ids]
 
-    avg_rate = 80.0
+    # Tarifa para valorar la simulación (auditoría 2026-08, P2-20). Antes era un
+    # literal `avg_rate = 80.0`: cualquier cliente cuyas tarifas no fueran 80 €/h
+    # recibía cifras económicas equivocadas, y nada en la interfaz avisaba de que
+    # el número era una constante y no su dato.
+    #
+    # Orden de preferencia, del dato más específico al más genérico:
+    #   1. la tarifa de facturación del propio proyecto
+    #   2. la media de las tarifas de los usuarios asignados a sus tareas
+    #   3. el valor por defecto configurable de la organización
+    avg_rate = _resolve_simulation_rate(db, project, tasks)
     cost_delta = -sum((t.estimated_hours or 0) * avg_rate for t in tasks if t.id in cut_ids)
     if payload.add_resources:
         cost_delta += sum(
