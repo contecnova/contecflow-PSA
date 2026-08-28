@@ -19,36 +19,35 @@ export function getAllKeys(obj = es) {
 // Copiado automáticamente desde appTranslations.js
 
 
-// partial: true → translation is incomplete; UI shows a β badge and
-// loadLanguage will fill missing keys with English as fallback.
-// enabled: false → locale stays loadable (kept in APP_TRANSLATIONS / langs/*.mjs)
-// but is hidden from user-facing switchers. pl/zh only cover ~340 of ~3000 keys
-// (~90% would render in English), so we don't offer them until coverage improves.
+// ── Idiomas soportados: los tres que se venden ────────────────────────────────
+// Auditoría 2026-08 (hallazgo 16). Antes había SIETE en el selector y ninguno
+// estaba completo: el usuario veía interfaz mezclada castellano-inglés en
+// cualquiera que eligiese. Medido entonces:
+//
+//   es  3756 claves (base)          en  62,2 %
+//   fr / de / pt / it  44,2 %       pl / zh  62,2 % (ocultos con enabled:false)
+//
+// Mantener siete idiomas al 44-62 % era peor que ofrecer tres bien: un cliente
+// internacional lo detecta en la demo. Se retiran fr, de, pt e it —que no se
+// venden— y se conservan los tres que sí: castellano, inglés y chino.
+//
+// El chino estaba oculto con `enabled: false` pese a tener MÁS cobertura que los
+// cuatro que sí se mostraban. Ahora está soportado de primera clase.
 export const APP_LANGUAGES = [
 	{ code: 'es', label: 'Español',    flag: '🇪🇸' },
 	{ code: 'en', label: 'English',    flag: '🇬🇧' },
-	{ code: 'fr', label: 'Français',   flag: '🇫🇷', partial: true },
-	{ code: 'de', label: 'Deutsch',    flag: '🇩🇪', partial: true },
-	{ code: 'pt', label: 'Português',  flag: '🇵🇹', partial: true },
-	{ code: 'it', label: 'Italiano',   flag: '🇮🇹', partial: true },
-	{ code: 'pl', label: 'Polski',     flag: '🇵🇱', partial: true, enabled: false },
-	{ code: 'zh', label: '中文',       flag: '🇨🇳', partial: true, enabled: false },
+	{ code: 'zh', label: '中文',       flag: '🇨🇳' },
 ];
 
-// Locales offered in user-facing language switchers. Excludes locales explicitly
-// flagged enabled:false (insufficient translation coverage). APP_LANGUAGES remains
-// the full list for admin tooling (e.g. the translation editor) and runtime loading.
+// Se conserva como export separado porque lo consumen los selectores de idioma y
+// el editor de traducciones. Ya no filtra nada —los tres idiomas están
+// soportados— pero se mantiene la indirección para no romper a sus llamadores.
 export const AVAILABLE_LANGUAGES = APP_LANGUAGES.filter(l => l.enabled !== false);
 
 // Carga dinámica de traducciones por idioma
 const langFiles = {
 	es: () => import('./langs/es.mjs'),
 	en: () => import('./langs/en.mjs'),
-	fr: () => import('./langs/fr.mjs'),
-	de: () => import('./langs/de.mjs'),
-	pt: () => import('./langs/pt.mjs'),
-	it: () => import('./langs/it.mjs'),
-	pl: () => import('./langs/pl.mjs'),
 	zh: () => import('./langs/zh.mjs'),
 };
 
@@ -56,17 +55,12 @@ const langFiles = {
 // Copiado automáticamente desde appTranslations.js
 import es from './langs/es.mjs';
 import en from './langs/en.mjs';
-import fr from './langs/fr.mjs';
-import de from './langs/de.mjs';
-import pt from './langs/pt.mjs';
-import it from './langs/it.mjs';
-import pl from './langs/pl.mjs';
 import zh from './langs/zh.mjs';
 import { deepMergeTranslations } from './translationRuntime.mjs';
 
-export { es, en, fr, de, pt, it, pl, zh };
+export { es, en, zh };
 
-export const APP_TRANSLATIONS = { es, en, fr, de, pt, it, pl, zh };
+export const APP_TRANSLATIONS = { es, en, zh };
 
 /**
  * Deep merge by namespace and nested keys.

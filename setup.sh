@@ -453,6 +453,110 @@ else:
 PY
 }
 
+# ── Credenciales y volúmenes del stack Docker ─────────────────────────────────
+# Patrón tomado de contecmind y contecweb. El compose declara sus variables
+# obligatorias con `${VAR:?}`, así que si falta alguna `up` falla al arrancar en
+# vez de caer a un valor por defecto silencioso. Estas funciones se aseguran de
+# que existan, generando los secretos UNA VEZ y persistiéndolos en .env.
+generate_local_secret() {
+  "$PY_BIN" -c "import secrets; print(secrets.token_urlsafe(24))" 2>/dev/null \
+    || openssl rand -base64 24 2>/dev/null \
+    || date +%s%N | sha256sum | cut -c1-32
+}
+
+env_read() {
+  grep -E "^$1=" .env 2>/dev/null | tail -1 | cut -d= -f2-
+}
+
+env_upsert() {
+  local key="$1" value="$2"
+  if grep -qE "^${key}=" .env 2>/dev/null; then
+    "$PY_BIN" - "$key" "$value" <<'PYEOF'
+import pathlib, sys
+key, value = sys.argv[1], sys.argv[2]
+p = pathlib.Path('.env')
+lines = p.read_text(encoding='utf-8').splitlines()
+for i, l in enumerate(lines):
+    if l.startswith(key + '='):
+        lines[i] = f'{key}={value}'
+        break
+p.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+PYEOF
+  else
+    printf '%s=%s\n' "$key" "$value" >> .env
+  fi
+}
+
+# Volúmenes con datos irremplazables. Están `external: true` en el compose para
+# que `docker compose down -v` NO pueda borrarlos (la lección del incidente de
+# contecmind: un `down -v` recreó los volúmenes y se perdió todo). El coste es
+# que compose ya no los crea, así que `up` fallaría con "external volume not
+# found" en una máquina nueva. Aquí se crean de forma idempotente: se obtiene la
+# protección sin fricción de arranque.
+CONTECFLOW_PERSISTENT_VOLUMES=(
+  contecflow_postgres_data
+  contecflow_minio_data
+)
+ensure_persistent_volumes() {
+  local creados=0 v
+  for v in "${CONTECFLOW_PERSISTENT_VOLUMES[@]}"; do
+    if ! docker volume inspect "$v" >/dev/null 2>&1; then
+      docker volume create "$v" >/dev/null && creados=1
+      log "Volumen persistente creado: $v"
+    fi
+  done
+  if [ "$creados" -eq 0 ]; then
+    log "Volúmenes persistentes ya presentes (protegidos de 'down -v') ✓"
+  fi
+}
+
+# Si ya existe un volumen de datos, un secreto NUEVO no coincidiría con el que
+# se usó al inicializarlo y el servicio rechazaría la autenticación. En ese caso
+# se conserva el valor histórico de desarrollo en lugar de generar otro.
+ensure_compose_required_env() {
+  cd "$SCRIPT_DIR"
+  [ -f .env ] || touch .env
+
+  local key actual
+
+  # No secretas: valor local determinista.
+  for key in POSTGRES_USER POSTGRES_DB MINIO_ROOT_USER; do
+    actual="$(env_read "$key")"
+    if [ -z "$actual" ]; then
+      actual="contecflow"
+      env_upsert "$key" "$actual"
+      warn "${key} no estaba definida; se fijó '${actual}' en .env"
+    fi
+    export "$key=$actual"
+  done
+
+  # Secretas: se generan una vez y se persisten.
+  for key in POSTGRES_PASSWORD MINIO_ROOT_PASSWORD; do
+    actual="$(env_read "$key")"
+    if [ -z "$actual" ]; then
+      if [ "$key" = "POSTGRES_PASSWORD" ] && docker volume inspect contecflow_postgres_data >/dev/null 2>&1; then
+        actual="contecflow_dev"
+        env_upsert "$key" "$actual"
+        warn "${key} faltaba con el volumen de Postgres ya creado; se aplicó el valor local histórico para no romper la autenticación"
+      elif [ "$key" = "MINIO_ROOT_PASSWORD" ] && docker volume inspect contecflow_minio_data >/dev/null 2>&1; then
+        actual="contecflow_dev"
+        env_upsert "$key" "$actual"
+        warn "${key} faltaba con el volumen de MinIO ya creado; se aplicó el valor local histórico"
+      else
+        actual="$(generate_local_secret)"
+        env_upsert "$key" "$actual"
+        warn "${key} no estaba definida; se generó automáticamente y se guardó en .env"
+      fi
+    fi
+    export "$key=$actual"
+  done
+
+  # ENVIRONMENT gobierna el gate de operaciones destructivas.
+  if [ -z "$(env_read ENVIRONMENT)" ]; then
+    env_upsert ENVIRONMENT development
+  fi
+}
+
 setup_docker_infra() {
   section "Infraestructura Docker (Postgres + Redis)"
   cd "$SCRIPT_DIR"
@@ -464,15 +568,19 @@ setup_docker_infra() {
     return 0
   fi
 
-  if [ ! -f "$SCRIPT_DIR/docker-compose.dev.yml" ]; then
-    warn "docker-compose.dev.yml no encontrado — usando SQLite como fallback."
+  if [ ! -f "$SCRIPT_DIR/docker-compose.yml" ]; then
+    warn "docker-compose.yml no encontrado — usando SQLite como fallback."
     revert_env_to_sqlite
     USE_DOCKER=0
     return 0
   fi
 
-  log "Docker detectado. Levantando Postgres y Redis..."
-  if ! docker_compose_cmd -f "$SCRIPT_DIR/docker-compose.dev.yml" up -d --remove-orphans; then
+  # El compose exige estas variables con `${VAR:?}`: sin ellas `up` aborta.
+  ensure_compose_required_env
+  ensure_persistent_volumes
+
+  log "Docker detectado. Levantando la infraestructura (Postgres + Redis + MinIO)..."
+  if ! docker_compose_cmd up -d --remove-orphans; then
     warn "No se pudo levantar la infraestructura Docker — usando SQLite como fallback."
     revert_env_to_sqlite
     USE_DOCKER=0
@@ -483,7 +591,7 @@ setup_docker_infra() {
   echo -n "  Esperando Postgres"
   PG_READY=0
   for i in $(seq 1 30); do
-    if docker_compose_cmd -f "$SCRIPT_DIR/docker-compose.dev.yml" exec -T postgres \
+    if docker_compose_cmd exec -T postgres \
         pg_isready -U "${POSTGRES_USER:-contecflow}" > /dev/null 2>&1; then
       echo " ✓ (${i}s)"
       PG_READY=1
@@ -503,7 +611,7 @@ setup_docker_infra() {
   # Wait for Redis to be ready
   echo -n "  Esperando Redis"
   for i in $(seq 1 15); do
-    if docker_compose_cmd -f "$SCRIPT_DIR/docker-compose.dev.yml" exec -T redis \
+    if docker_compose_cmd exec -T redis \
         redis-cli ping > /dev/null 2>&1; then
       echo " ✓"
       break
@@ -719,51 +827,31 @@ PY
     warn "SECRET_KEY insegura detectada en .env — regenerada automáticamente"
   fi
 
-  # ── Migraciones ─────────────────────────────────────────────────────────────────────
-  MODELS_HASH_FILE="$VENV_DIR/.models_hash"
-  MODELS_HASH=$(find app/models -type f -name "*.py" 2>/dev/null | sort | hash_file_list)
-  if [ "$USE_DOCKER" = "1" ]; then
-    # Con Postgres, la estrategia depende de si la BD es nueva o ya tiene tablas.
-    #
-    # BD NUEVA: usar Base.metadata.create_all() via app.db.migrate — SQLAlchemy
-    # ordena topológicamente las tablas resolviendo FKs circulares. Las migraciones
-    # alembic 001-088 se sellan en HEAD (ya están materializadas por create_all).
-    #
-    # BD EXISTENTE: usar alembic upgrade head para solo aplicar deltas pendientes.
-    PG_TABLES=$("$PY_BIN" -c "
-from app.db.session import engine
-from sqlalchemy import inspect as sa_inspect
-try:
-    tables = sa_inspect(engine).get_table_names()
-    print(len(tables))
-except Exception:
-    print(0)
-" 2>/dev/null || echo "0")
-
-    if [ "$PG_TABLES" -lt 5 ] 2>/dev/null; then
-      log "BD PostgreSQL nueva — creando esquema completo con create_all..."
-      "$PY_BIN" -m app.db.migrate
-      "$PY_BIN" -m alembic stamp head
-      echo "$MODELS_HASH" > "$MODELS_HASH_FILE"
-    else
-      if [ ! -f "$MODELS_HASH_FILE" ] || [ "$(cat $MODELS_HASH_FILE)" != "$MODELS_HASH" ]; then
-        log "Aplicando migraciones pendientes (PostgreSQL)..."
-        "$PY_BIN" -m alembic upgrade head
-        echo "$MODELS_HASH" > "$MODELS_HASH_FILE"
-      else
-        log "Modelos sin cambios (PostgreSQL), omitiendo migración"
-      fi
-    fi
-  else
-    # Con SQLite: migrar solo si el archivo no existe o los modelos cambiaron.
-    if [ ! -f "contecflow.db" ] || [ ! -f "$MODELS_HASH_FILE" ] || [ "$(cat $MODELS_HASH_FILE)" != "$MODELS_HASH" ]; then
-      log "Aplicando migraciones (SQLite)..."
-      "$PY_BIN" -m app.db.migrate
-      echo "$MODELS_HASH" > "$MODELS_HASH_FILE"
-    else
-      log "Modelos sin cambios, omitiendo migración"
-    fi
+  # ── Migraciones: Alembic es la ÚNICA fuente de verdad ───────────────────────
+  # Auditoría 2026-08 (hallazgo 11). Antes había dos caminos:
+  #   BD nueva     → Base.metadata.create_all() + `alembic stamp head`
+  #   BD existente → `alembic upgrade head`
+  # `stamp head` marca las revisiones como aplicadas SIN ejecutarlas, así que la
+  # cadena de Alembic no se ejercitaba nunca de principio a fin. Al probarla
+  # sobre una base vacía resultó que producía 374 tablas frente a las 392 de los
+  # modelos: faltaban 19 (expenses, email_templates, automation_rules,
+  # revenue_recognition_*, gdpr_requests, webhook_triggers…). Se cerró con la
+  # revisión 089 y ahora `upgrade head` construye el esquema completo.
+  #
+  # Ya no se usa `app.db.migrate` (create_all + ALTER TABLE a mano con sintaxis
+  # de SQLite) en ningún caso: era el segundo camino que ocultaba el hueco.
+  #
+  # No hay atajo por hash de modelos: `alembic upgrade head` es idempotente y
+  # barato cuando no hay revisiones pendientes, y saltárselo era justo lo que
+  # dejaba bases sin migrar tras un `git pull`.
+  log "Aplicando migraciones con Alembic..."
+  if ! "$PY_BIN" -m alembic upgrade head; then
+    error "Las migraciones han fallado. La aplicación NO se arranca con un esquema a medias."
+    error "Revisa el error de arriba; si la base está corrupta, restaura una copia antes de reintentar."
+    exit 1
   fi
+  log "Esquema al día ✓"
+
   # ── Comprobación / seed inicial ──────────────────────────────────────────────────────
   # Check if DB has valid users with passwords
   DB_OK=$("$PY_BIN" -c "
@@ -781,9 +869,11 @@ except:
   if [ "$DB_OK" != "ok" ]; then
     log "Esquema listo. La inicialización de datos la maneja el modo (clean/demo)."
     if [ "$USE_DOCKER" != "1" ]; then
-      # Solo para SQLite: borrar el archivo corrupto/vacío antes de re-migrar.
+      # Sólo para SQLite: si el fichero quedó corrupto o vacío, se rehace desde
+      # cero con Alembic (antes se usaba app.db.migrate, el camino que ocultaba
+      # el hueco de esquema).
       rm -f contecflow.db
-      "$PY_BIN" -m app.db.migrate
+      "$PY_BIN" -m alembic upgrade head
     fi
   else
     log "Base de datos OK"
@@ -1122,13 +1212,13 @@ stop_services() {
 
   # La infraestructura Docker (Postgres + Redis) sigue corriendo intencionalmente
   # para no perder datos entre reinicios. Para pararla manualmente:
-  if detect_docker 2>/dev/null && [ -f "$SCRIPT_DIR/docker-compose.dev.yml" ]; then
-    DOCKER_RUNNING=$(docker_compose_cmd -f "$SCRIPT_DIR/docker-compose.dev.yml" ps --quiet 2>/dev/null | wc -l | tr -d ' ')
+  if detect_docker 2>/dev/null && [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
+    DOCKER_RUNNING=$(docker_compose_cmd ps --quiet 2>/dev/null | wc -l | tr -d ' ')
     if [ "$DOCKER_RUNNING" -gt 0 ] 2>/dev/null; then
       echo ""
       echo -e "  ${YELLOW}ℹ  Docker (Postgres+Redis) sigue activo.${NC}"
-      echo -e "     Para pararlo: ${BOLD}docker compose -f docker-compose.dev.yml down${NC}"
-      echo -e "     Para borrarlo todo: ${BOLD}docker compose -f docker-compose.dev.yml down -v${NC}"
+      echo -e "     Para pararlo: ${BOLD}docker compose down${NC}"
+      echo -e "     Para borrarlo todo: ${BOLD}docker compose down -v${NC}"
     fi
   fi
 }
@@ -1160,20 +1250,20 @@ case "${1:-}" in
     ;;
   docker-stop)
     log "Parando infraestructura Docker (Postgres + Redis)..."
-    if detect_docker && [ -f "$SCRIPT_DIR/docker-compose.dev.yml" ]; then
-      docker_compose_cmd -f "$SCRIPT_DIR/docker-compose.dev.yml" down
+    if detect_docker && [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
+      docker_compose_cmd down
       log "Docker detenido (datos conservados en volúmenes)"
     else
-      warn "Docker no disponible o docker-compose.dev.yml no encontrado"
+      warn "Docker no disponible o docker-compose.yml no encontrado"
     fi
     ;;
   docker-clean)
     log "Parando infraestructura Docker y borrando volúmenes..."
-    if detect_docker && [ -f "$SCRIPT_DIR/docker-compose.dev.yml" ]; then
-      docker_compose_cmd -f "$SCRIPT_DIR/docker-compose.dev.yml" down -v
+    if detect_docker && [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
+      docker_compose_cmd down -v
       log "Docker detenido y volúmenes eliminados"
     else
-      warn "Docker no disponible o docker-compose.dev.yml no encontrado"
+      warn "Docker no disponible o docker-compose.yml no encontrado"
     fi
     ;;
   update)

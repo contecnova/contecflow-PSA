@@ -103,17 +103,46 @@ class S3Service:
         self._access_key = settings.AWS_ACCESS_KEY
         self._secret_key = settings.AWS_SECRET_KEY
 
+        self._endpoint_url = settings.AWS_S3_ENDPOINT_URL
         try:
-            import boto3
-            self.client = boto3.client(
-                "s3",
-                region_name=self.region,
-                aws_access_key_id=self._access_key,
-                aws_secret_access_key=self._secret_key,
+            self.client = self._build_client()
+            logger.info(
+                "S3Service initialized: bucket=%s, region=%s, endpoint=%s",
+                self.bucket, self.region, self._endpoint_url or "AWS",
             )
-            logger.info(f"S3Service initialized: bucket={self.bucket}, region={self.region}")
         except Exception as e:
             logger.warning(f"S3 client could not be initialised: {e}")
+
+    def _build_client(self):
+        """Construye el cliente boto3. ÚNICO sitio donde se hace.
+
+        Antes había dos bloques idénticos (aquí y en `reload_from_db`) y añadir
+        un parámetro en uno y olvidarlo en el otro dejaba el cliente recargado
+        con una configuración distinta a la inicial — el tipo de divergencia que
+        sólo se manifiesta después de cambiar credenciales en caliente.
+        """
+        import boto3
+        from botocore.config import Config as BotoConfig
+
+        kwargs = {
+            "region_name": self.region,
+            "aws_access_key_id": self._access_key,
+            "aws_secret_access_key": self._secret_key,
+        }
+        endpoint = getattr(self, "_endpoint_url", None)
+        if endpoint:
+            kwargs["endpoint_url"] = endpoint
+
+        # Direccionamiento por ruta: obligatorio en MinIO y compatibles, que no
+        # resuelven `bucket.host`. Si no se fuerza explícitamente, se deduce:
+        # con endpoint propio, por ruta; contra AWS, el suyo por defecto.
+        forzar_ruta = settings.AWS_S3_FORCE_PATH_STYLE
+        if forzar_ruta is None:
+            forzar_ruta = bool(endpoint)
+        if forzar_ruta:
+            kwargs["config"] = BotoConfig(s3={"addressing_style": "path"})
+
+        return boto3.client("s3", **kwargs)
 
     def reload_from_db(self, db, org_id=None) -> None:
         """Re-read credentials from `app_settings` + integration_credentials registry.
@@ -131,18 +160,24 @@ class S3Service:
             new_secret = cfg.get("secret_key") or settings.AWS_SECRET_KEY
             self.url_expiration_hours = get_runtime_int(db, "S3_URL_EXPIRATION_HOURS", org_id) or settings.S3_URL_EXPIRATION_HOURS
 
-            if (new_bucket, new_region, new_access, new_secret) == (self.bucket, self.region, self._access_key, self._secret_key):
-                return  # no change, keep current client
+            # El endpoint entra en la comparación: si sólo cambiara él, el
+            # early-return dejaría el cliente apuntando al almacén anterior.
+            new_endpoint = cfg.get("endpoint_url") or settings.AWS_S3_ENDPOINT_URL
+            if (new_bucket, new_region, new_access, new_secret, new_endpoint) == (
+                self.bucket, self.region, self._access_key, self._secret_key,
+                getattr(self, "_endpoint_url", None),
+            ):
+                return  # sin cambios, se conserva el cliente actual
             self.bucket, self.region = new_bucket, new_region
             self._access_key, self._secret_key = new_access, new_secret
-            import boto3
-            self.client = boto3.client(
-                "s3",
-                region_name=self.region,
-                aws_access_key_id=self._access_key,
-                aws_secret_access_key=self._secret_key,
+            # El endpoint también puede venir de la configuración por
+            # organización: un cliente puede tener su propio almacén S3.
+            self._endpoint_url = new_endpoint
+            self.client = self._build_client()
+            logger.info(
+                "S3Service reloaded: bucket=%s, region=%s, endpoint=%s",
+                self.bucket, self.region, self._endpoint_url or "AWS",
             )
-            logger.info("S3Service reloaded: bucket=%s, region=%s", self.bucket, self.region)
         except Exception as exc:
             logger.warning("S3Service reload failed: %s", exc)
 

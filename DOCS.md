@@ -108,15 +108,121 @@ Crear `frontend/.env` desde `frontend/.env.example`.
 - El stack de Docker local quedó versionado en `deploy/docker-compose.yml` con PostgreSQL, Redis, backend, worker y frontend para despliegues reproducibles.
 
 ## 8. Base de datos
-### Migraciones
-- `alembic upgrade head`
+
+### Migraciones: Alembic es la ÚNICA fuente de verdad
+
+```bash
+alembic upgrade head          # aplica lo pendiente (idempotente)
+alembic revision -m "…"       # nueva revisión
+alembic heads                 # debe devolver UNA sola cabeza
+```
+
+Auditoría 2026-08 (hallazgo 11). Antes había **dos** caminos para construir el
+esquema y sólo uno estaba completo:
+
+| Caso | Camino anterior | Problema |
+|---|---|---|
+| BD nueva | `Base.metadata.create_all()` + `alembic stamp head` | `stamp` marca las revisiones aplicadas **sin ejecutarlas** |
+| BD existente | `alembic upgrade head` | Es el único que ejercitaba la cadena |
+
+Consecuencia: la cadena de revisiones **no se ejecutó nunca de principio a fin**.
+Al probarla sobre una base vacía producía 374 tablas frente a las 392 de los
+modelos — faltaban 19, entre ellas `expenses`, `email_templates`,
+`automation_rules`, `revenue_recognition_entries`, `gdpr_requests` y
+`webhook_triggers`. Un despliegue que hubiera pasado por Alembic se quedaba sin
+esas funcionalidades. Se cerró con la revisión `089_schema_gap_missing_tables`.
+
+Reglas que se derivan de eso:
+
+- **Nunca** `create_all` en el arranque ni en el despliegue. Cada modelo nuevo
+  necesita su revisión. `app/db/migrate.py` ya no se usa en ningún flujo.
+- `tests/test_alembic_schema_parity.py` levanta una base vacía, corre
+  `upgrade head` de verdad y compara con los modelos. Es el test que faltaba.
+- Una sola cabeza de migración. Dos significan ramas divergentes sin fusionar y
+  `upgrade head` fallaría.
 
 ### Seed
 - `python scripts/seed_full_data.py`
+- Los usuarios por defecto viven en `app/db/seed_parts/core.py::default_seed_users()`,
+  extraída para poder verificar sus propiedades de seguridad sin ejecutar el seed
+  (ver `tests/test_seed_fixture_parity.py`).
 
 Notas:
 - SQLite local genera `.db-wal` y `.db-shm` durante ejecución.
 - No versionar artefactos de BD local.
+
+## 8bis. Stack Docker
+
+Un único `docker-compose.yml` en la raíz, con la misma estrategia que contecmind
+y contecweb. Los dos escenarios se distinguen con perfiles, no con ficheros
+duplicados:
+
+```bash
+./setup.sh                              # crea .env, volúmenes y levanta la infra
+docker compose up -d                    # DESARROLLO: postgres + redis + minio.
+                                        # La app corre en local (uvicorn).
+docker compose --profile app up -d      # PRODUCCIÓN: + migrate, api, worker,
+                                        # beat y web (nginx)
+docker compose --profile observability up -d   # + prometheus y exporters
+docker compose down                     # apaga, conserva los datos
+docker compose down -v                  # borra SÓLO los volúmenes regenerables
+```
+
+### Decisiones de diseño, y por qué
+
+**Puertos siempre en `127.0.0.1`.** Con `"5434:5432"` Docker publica en 0.0.0.0.
+Este fichero se copia para demos y preproducciones, y ahí eso significa un
+Postgres, un Redis sin contraseña y un MinIO accesibles desde toda la red con
+credenciales de desarrollo.
+
+**Variables críticas con `${VAR:?}`.** Un valor por defecto silencioso en una
+credencial es levantar el stack con credenciales conocidas sin enterarse. Con
+`:?` el `up` aborta con un mensaje claro. `setup.sh` las rellena y genera los
+secretos una vez, así que en desarrollo no hay fricción.
+
+**Volúmenes de datos `external: true`.** Un `docker compose down -v` no puede
+borrarlos. Es la lección de un incidente en contecmind, donde un `down -v`
+recreó los volúmenes y se perdieron los metadatos y el índice de golpe. El coste
+es que compose ya no los crea, así que `setup.sh::ensure_persistent_volumes` los
+crea de forma idempotente.
+
+**Imágenes con versión fija, algunas por digest.** Con un tag móvil dos
+despliegues del mismo commit pueden levantar imágenes distintas y un fallo deja
+de ser reproducible.
+
+**`beat` es un servicio aparte.** Antes iba como `worker --beat` en el mismo
+contenedor: con más de una réplica del worker, varios planificadores disparaban
+la misma tarea periódica — informes y correos duplicados. Beat debe ser
+singleton.
+
+**Las migraciones son un servicio del que depende la API**
+(`service_completed_successfully`), así que la aplicación no arranca con un
+esquema a medias.
+
+**La API no publica puerto al host.** Quien entra es nginx; publicarla saltaría
+las cabeceras de seguridad y el tope de tamaño de cuerpo.
+
+**MinIO en el stack.** `S3Service` no tenía `endpoint_url` configurable, así que
+el backend de objetos nunca se ejercitaba fuera de AWS y los documentos caían
+siempre al sistema de ficheros local. Con `AWS_S3_ENDPOINT_URL` el mismo código
+sirve contra MinIO en local y contra AWS en producción.
+
+### nginx
+
+`frontend/nginx.frontend.conf` sirve el frontend **y** hace de proxy inverso a
+la API. Antes servía sólo estáticos, sin ninguna directiva `proxy_pass`: el
+navegador cargaba la aplicación y ninguna llamada llegaba a destino — el
+despliegue no podía funcionar.
+
+Que la API salga por el mismo origen elimina CORS, permite cookies httpOnly sin
+`SameSite=None`, y encaja con la comprobación de Origin del middleware CSRF.
+Incluye negociación de WebSocket (sin ella el chat queda en reconexión perpetua),
+`client_max_body_size`, y propagación de `X-Forwarded-For` — sin la cual el rate
+limiting por IP contaría todas las peticiones como procedentes de nginx.
+
+`tests/test_docker_stack.py` fija estas invariantes. **Aviso honesto:** valida la
+definición del stack, no que levante. Un `docker compose --profile app up` en un
+host con Docker sigue siendo imprescindible antes de publicar.
 
 ## 9. Módulos funcionales
 ### 9.1 Proyectos y delivery

@@ -1,0 +1,57 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Contecflow PSA — configuración de Prometheus (perfil `observability`)
+#
+# La aplicación expone /metrics en formato Prometheus cuando METRICS_ENABLED=1
+# (ver app/core/metrics.py). Sin este fichero, esas métricas no las recogía nadie.
+#
+# Se levanta con:
+#   docker compose --profile observability up -d
+#
+# Los objetivos se resuelven por nombre de servicio dentro de la red de compose,
+# así que no hay ninguna IP ni puerto de host escrito aquí.
+# ══════════════════════════════════════════════════════════════════════════════
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    app: contecflow
+
+scrape_configs:
+  # ── La propia aplicación ────────────────────────────────────────────────────
+  # Requiere METRICS_ENABLED=1 en el .env. Si está a 0, este objetivo aparece
+  # como "down" en Prometheus: es visible a propósito, en lugar de silencioso.
+  - job_name: contecflow-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+        labels:
+          component: api
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          component: database
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+        labels:
+          component: cache
+
+  # ── MinIO ───────────────────────────────────────────────────────────────────
+  # Con MINIO_PROMETHEUS_AUTH_TYPE=public (el defecto local) no hace falta token.
+  # En producción, ponerlo a `jwt` y añadir aquí el bearer_token correspondiente.
+  - job_name: minio
+    metrics_path: /minio/v2/metrics/cluster
+    static_configs:
+      - targets: ["minio:9000"]
+        labels:
+          component: storage
+
+  # ── Prometheus vigilándose a sí mismo ───────────────────────────────────────
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

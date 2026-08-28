@@ -24,6 +24,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
+from app.core.timeutil import today_for_user
 from app.models.user import User, UserRole
 from app.models.financial import Timesheet, TimesheetStatus
 from app.models.imputation import Imputation
@@ -84,7 +85,11 @@ def get_lockout_cutoff(current_user: User, db: Session) -> date:
         if org and org.imputation_lockout_days is not None
         else settings.DEFAULT_IMPUTATION_LOCKOUT_DAYS
     )
-    return date.today() - timedelta(days=lockout_days)
+    # El día de corte se calcula en la zona del usuario (auditoría 2026-08,
+    # hallazgo 14). Con `date.today()` lo decidía la zona del servidor: un
+    # empleado en México a las 23:30 del día 28 veía el corte del día 29 del
+    # servidor, así que podía perder un día completo de plazo para imputar.
+    return today_for_user(current_user, org) - timedelta(days=lockout_days)
 
 
 # ── Membership guard ───────────────────────────────────────────────────────────
@@ -189,7 +194,7 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
     if current_user.role != UserRole.admin:
         earliest_allowed = get_lockout_cutoff(current_user, db)
         if payload.date < earliest_allowed:
-            lockout_days = (date.today() - earliest_allowed).days
+            lockout_days = (today_for_user(current_user) - earliest_allowed).days
             raise HTTPException(
                 status_code=400,
                 detail=(
@@ -353,7 +358,7 @@ def validate_imputation_edit_allowed(imp, current_user: User, db: Session) -> No
     if current_user.role != UserRole.admin:
         earliest_allowed = get_lockout_cutoff(current_user, db)
         if imp.date < earliest_allowed:
-            lockout_days = (date.today() - earliest_allowed).days
+            lockout_days = (today_for_user(current_user) - earliest_allowed).days
             raise HTTPException(
                 status_code=400,
                 detail=f"No puedes editar imputaciones de hace más de {lockout_days} días.",
@@ -536,7 +541,7 @@ def stop_timer_session(payload, current_user: User, db: Session):
     if current_user.role != UserRole.admin:
         earliest_allowed = get_lockout_cutoff(current_user, db)
         if imputation_date < earliest_allowed:
-            lockout_days = (date.today() - earliest_allowed).days
+            lockout_days = (today_for_user(current_user) - earliest_allowed).days
             raise HTTPException(
                 status_code=400,
                 detail=(

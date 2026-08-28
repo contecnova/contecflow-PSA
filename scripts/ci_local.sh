@@ -132,6 +132,14 @@ if [[ "$MODE" != "--info" ]]; then
   # una regresión.
   run_gate bloqueante "npm audit (0 high)" \
     bash -c 'cd frontend && npm audit --audit-level=high'
+
+  # Cobertura de traducción (hallazgo 16). Se venden tres idiomas —castellano,
+  # inglés y chino— y el suelo está en la cobertura MEDIDA, así que sólo puede
+  # subir. Sin este gate, añadir claves al castellano sin traducirlas diluye los
+  # otros dos en silencio y se vuelve al punto de partida: siete idiomas a
+  # medias y ninguno completo.
+  run_gate bloqueante "cobertura i18n (es/en/zh, no puede bajar)" \
+    bash -c 'cd frontend && node scripts/check_i18n_coverage.mjs'
 fi
 
 # ── Gates informativos ────────────────────────────────────────────────────────
@@ -145,7 +153,9 @@ if [[ "$MODE" != "--fast" ]]; then
   # requiere decidir la etiqueta correcta caso por caso.
   run_gate informativo "auditoría de accesibilidad (deuda de marcado)" \
     bash -c 'cd frontend && npm run --silent lint:a11y:report'
-  run_gate informativo "check i18n — hallazgo 16" \
+  # Informativo, no bloqueante: detecta literales sueltos sin traducir en el
+  # marcado. El gate que SÍ bloquea es el de cobertura, arriba.
+  run_gate informativo "check i18n (literales sueltos por traducir)" \
     bash -c 'cd frontend && npm run --silent check:i18n'
   # Los 3 moderate que quedan exigen saltos de versión MAYOR (echarts 5→6,
   # react-router-dom 6→7). Cada uno es una migración con riesgo real sobre las

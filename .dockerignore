@@ -1,0 +1,105 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Contecflow PSA — contexto de build de Docker
+#
+# Auditoría 2026-08 (hallazgo 12): este fichero NO EXISTÍA. El `COPY . .` del
+# Dockerfile metía dentro de la imagen `.env` (con SECRET_KEY, credenciales de
+# base de datos y la clave de Anthropic), el historial completo de `.git`, la
+# base de datos SQLite de desarrollo con datos reales, `uploads/` con ficheros de
+# clientes y los `node_modules`/`.venv` locales.
+#
+# Cualquiera con acceso a la imagen —un registro, un compañero, un atacante que
+# la extraiga de un host— tenía los secretos de producción. Además engordaba la
+# imagen con cientos de MB inútiles y rompía la caché de capas en cada commit.
+#
+# Regla: aquí se listan las EXCLUSIONES. Todo lo que la aplicación necesita en
+# tiempo de ejecución debe quedar fuera de esta lista.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Secretos: nunca, bajo ningún concepto ─────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# ── Historial y metadatos de git ──────────────────────────────────────────────
+.git
+.gitignore
+.gitattributes
+.gitleaks.toml
+.github
+
+# ── Datos: bases de desarrollo y ficheros de clientes ─────────────────────────
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+uploads/
+pdf_storage/
+backup_pre_fix_*.db
+
+# ── Entornos virtuales y dependencias locales ─────────────────────────────────
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+node_modules/
+frontend/node_modules/
+
+# ── Artefactos de build ───────────────────────────────────────────────────────
+# El frontend se construye DENTRO de su propia imagen multi-etapa: copiar un
+# dist/ local haría que la imagen dependiera de lo que hubiera compilado el
+# desarrollador en su máquina, en lugar de del código del repositorio.
+dist/
+build/
+frontend/dist/
+
+# ── Cachés y resultados de herramientas ───────────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+htmlcov/
+.coverage
+.coverage.*
+frontend/reports/
+reports/qa/
+.playwright-mcp/
+
+# ── Tests: no van en la imagen de ejecución ───────────────────────────────────
+# Se ejecutan en el flujo de verificación local (scripts/ci_local.sh), no en el
+# contenedor de producción. Sacarlos reduce la superficie de la imagen.
+tests/
+tests_e2e/
+pytest.ini
+
+# ── Documentación y utilidades de desarrollo ──────────────────────────────────
+docs/
+DOCS.md
+*.md
+!README.md
+Makefile
+setup.sh
+setup.bat
+scripts/ci_local.sh
+frontend/ts_errors*.txt
+
+# ── Editores y sistema operativo ──────────────────────────────────────────────
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Docker: evita que el contexto se incluya a sí mismo ───────────────────────
+docker-compose*.yml
+Dockerfile*
+.dockerignore
