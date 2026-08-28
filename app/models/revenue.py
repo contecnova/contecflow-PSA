@@ -12,7 +12,7 @@ import uuid
 
 from sqlalchemy import (
     Boolean, Column, Date, DateTime, Enum, Float,
-    ForeignKey, Integer, String, Text, UniqueConstraint,
+    ForeignKey, Index, Integer, String, Text, UniqueConstraint, text,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -119,6 +119,22 @@ class RevenueEntry(Base):
     """
     Entrada contable de reconocimiento de ingresos.
     Inmutable — nunca se elimina; las correcciones crean una entrada de tipo 'reversal'.
+
+    Auditoría 2026-08. El lote mensual (`run_monthly_recognition`) no era
+    idempotente y podía reconocer dos veces los ingresos del mismo periodo. La
+    guarda de código (`_ya_reconocido`) cubre reintentos, pero no la concurrencia:
+    dos transacciones pueden leer «no hay asiento» y ambas insertar. Sólo un
+    índice único lo impide de verdad.
+
+    El índice tiene que ser PARCIAL, y esto es importante: los otros caminos de
+    reconocimiento crean legítimamente VARIOS asientos `recognized` para el mismo
+    contrato y periodo —el de hitos, uno por obligación satisfecha— y las
+    reversiones también comparten periodo con lo que revierten. Un único sobre
+    (contrato, año, mes, tipo) rompería ambos.
+
+    Las filas del lote mensual son exactamente las que llevan `milestone_id`
+    NULL y tipo `recognized`, así que el índice se limita a ese conjunto. Ver la
+    revisión 091.
     """
     __tablename__ = "rev_entries"
 
@@ -147,3 +163,18 @@ class RevenueEntry(Base):
 
     contract     = relationship("RevenueContract",    back_populates="entries")
     period_close = relationship("RevenuePeriodClose", back_populates="entries")
+
+    __table_args__ = (
+        # Un solo asiento del LOTE MENSUAL por contrato y periodo. Parcial a
+        # propósito (ver el docstring de la clase): las filas con `milestone_id`
+        # son las del reconocimiento por hitos, que crea varias por periodo de
+        # forma legítima, y las reversiones comparten periodo con su origen.
+        # PostgreSQL y SQLite (≥3.8) admiten ambos índices parciales.
+        Index(
+            "uq_rev_entries_lote_periodo",
+            "rev_contract_id", "period_year", "period_month",
+            unique=True,
+            sqlite_where=text("milestone_id IS NULL AND entry_type = 'recognized'"),
+            postgresql_where=text("milestone_id IS NULL AND entry_type = 'recognized'"),
+        ),
+    )

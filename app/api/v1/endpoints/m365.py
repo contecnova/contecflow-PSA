@@ -35,6 +35,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import m365_service
+from app.core import timeutil
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -153,9 +154,8 @@ def sync_milestones_to_calendar(
 ):
     """Push upcoming project milestones as Microsoft 365 calendar events."""
     _require_m365()
-    from datetime import date
 
-    cutoff = date.today() + timedelta(days=req.days_ahead)
+    cutoff = timeutil.today() + timedelta(days=req.days_ahead)
     milestones = m365_service.get_upcoming_milestones(db, cutoff, limit=50)
 
     created = []

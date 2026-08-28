@@ -6,6 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import register_metric
+from app.core import timeutil
 
 
 @register_metric("license_cost_by_vendor")
@@ -120,7 +121,7 @@ def metric_license_expiry_timeline(
     try:
         from app.models.alm import ALMLicense
 
-        today = date.today()
+        today = timeutil.today()
         end = today.replace(month=12, day=31) if today.month <= 6 else today.replace(year=today.year + 1, month=6, day=30)
 
         lics = db.query(ALMLicense).filter(

@@ -16,6 +16,7 @@ from app.models.alm import (
     ALMVendor, ALMContract, ALMLicense, ALMLicenseAssignment,
     ALMAsset, ALMCostCenter, ALMSoftwareInstall,
 )
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +151,7 @@ def serialize_asset(a: ALMAsset) -> dict[str, Any]:
 
 def get_alm_dashboard(db: Session) -> dict:
 
-    today = date.today()
+    today = timeutil.today()
     in_60 = today + timedelta(days=60)
     in_90 = today + timedelta(days=90)
 
@@ -294,11 +295,11 @@ def list_contracts_records(
     if status:
         query = query.filter(ALMContract.status == status)
     if expiring_days:
-        cutoff = date.today() + timedelta(days=expiring_days)
+        cutoff = timeutil.today() + timedelta(days=expiring_days)
         query = query.filter(
             ALMContract.renewal_date.isnot(None),
             ALMContract.renewal_date <= cutoff,
-            ALMContract.renewal_date >= date.today(),
+            ALMContract.renewal_date >= timeutil.today(),
         )
     return [serialize_contract(c, db) for c in query.order_by(ALMContract.renewal_date.nullsfirst()).all()]
 
@@ -382,7 +383,7 @@ def list_licenses_records(
     if status:
         query = query.filter(ALMLicense.status == status)
     if expiring_days:
-        cutoff = date.today() + timedelta(days=expiring_days)
+        cutoff = timeutil.today() + timedelta(days=expiring_days)
         query = query.filter(
             ALMLicense.expiry_date.isnot(None),
             ALMLicense.expiry_date <= cutoff,
@@ -739,7 +740,7 @@ def remove_install_record(aid: str, iid: str, db: Session) -> dict:
 
 def get_compliance_report(db: Session) -> dict:
 
-    today = date.today()
+    today = timeutil.today()
     issues = []
     for lic in db.query(ALMLicense).filter(ALMLicense.is_compliance_req == True, ALMLicense.is_active == True).all():
         used = sum(1 for a in lic.assignments if a.is_active)

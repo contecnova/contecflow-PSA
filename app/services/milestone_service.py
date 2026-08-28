@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import func
@@ -30,6 +30,7 @@ from app.models.pipeline import Contract
 from app.models.project import Project
 from app.models.project import Project as Proj
 from app.services.notifications import notify_user
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 from fastapi import HTTPException
@@ -129,7 +130,7 @@ def complete_milestone(milestone_id: str, current_user: User, db: Session):
         raise HTTPException(400, f"No se puede completar en estado '{m.billing_status}'")
 
     m.is_completed = True
-    m.completed_date = date.today()
+    m.completed_date = timeutil.today()
     m.completed_by = current_user.id
     m.billing_status = "completed"
     db.commit()
@@ -275,7 +276,7 @@ def generate_milestone_invoice(milestone_id: str, current_user: User, db: Sessio
             client_id=getattr(proj, "client_id", None),
             client_name=getattr(proj, "client_name", ""),
             number=invoice_num,
-            issue_date=date.today(),
+            issue_date=timeutil.today(),
             subtotal=amount,
             tax_rate=settings.DEFAULT_TAX_RATE,
             tax_amount=round(amount * settings.DEFAULT_TAX_RATE / 100, 2),
@@ -301,7 +302,7 @@ def generate_milestone_invoice(milestone_id: str, current_user: User, db: Sessio
 
         m.invoice_id = inv.id
         m.is_billed = True
-        m.billed_at = date.today()
+        m.billed_at = timeutil.today()
         m.billing_status = "invoiced"
 
     return {

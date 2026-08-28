@@ -620,7 +620,19 @@ from app.core.abac_dependency import apply_abac_for_route
 # Ver app/core/grc_enforce.py y app/core/grc_catalog.py.
 from app.core.grc_enforce import enforce_grc_matrix
 
-_ROUTER_GUARDS = [Depends(apply_abac_for_route), Depends(enforce_grc_matrix)]
+# Zona horaria de la petición (auditoría 2026-08, P2-14). Publica
+# `usuario → organización → UTC` en un ContextVar para que `timeutil.today()`
+# devuelva el día de QUIEN pregunta y no el del servidor. Va primero a propósito:
+# ABAC y GRC pueden evaluar condiciones con fecha, así que necesitan la zona ya
+# resuelta. Ver app/core/timezone_context.py — tiene que ser `async def` o el
+# ContextVar se pierde en el threadpool, en silencio.
+from app.core.timezone_context import bind_request_timezone
+
+_ROUTER_GUARDS = [
+    Depends(bind_request_timezone),
+    Depends(apply_abac_for_route),
+    Depends(enforce_grc_matrix),
+]
 
 app.include_router(
     api_router,

@@ -8,6 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import register_metric
+from app.core import timeutil
 
 
 @register_metric("sprint_velocity_trend")
@@ -167,7 +168,7 @@ def metric_tasks_overdue_by_assignee(
         from app.models.task import Task
         from app.models.user import User
 
-        today = date.today()
+        today = timeutil.today()
         q = db.query(Task.assignee_id, func.count(Task.id).label("cnt")).filter(
             Task.due_date < today,
             Task.status.notin_(["done", "closed", "cancelled"]),

@@ -18,6 +18,7 @@ from app.models.performance import (
 )
 from app.models.enterprise import Notification, NotificationType
 from app.models.user import User
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ def _has_recent_reminder(db: Session, *, user_id: str, cycle_id: str) -> bool:
 def send_pending_review_reminders(db: Session, *, today: date | None = None) -> dict:
     """Envía recordatorios a reviewers con reviews pendientes en ciclos próximos
     al cierre. Devuelve estadísticas de la ejecución."""
-    today = today or date.today()
+    today = today or timeutil.today()
     horizon = today + timedelta(days=REMINDER_WINDOW_DAYS)
 
     cycles = (
@@ -175,7 +176,7 @@ def cycle_kpis(db: Session, cycle_id: str) -> dict:
         key=lambda x: -x["pending"],
     )[:10]
 
-    today = date.today()
+    today = timeutil.today()
     days_to_close = (c.end_date - today).days if c.end_date else None
 
     return {
@@ -210,7 +211,7 @@ def org_perf_kpis(db: Session) -> dict:
 
     # Ciclos atascados: activos con completion <50% y end_date pasada o
     # creados hace más de 45 días sin mucho avance
-    today = date.today()
+    today = timeutil.today()
     stalled = []
     for c in active:
         total = len(c.reviews or [])

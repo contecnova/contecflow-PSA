@@ -20,6 +20,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services import portfolio_service
 from app.services.portfolio_service import serialize_portfolio as _serialize_portfolio
+from app.core import timeutil
 
 router = APIRouter()
 
@@ -164,7 +165,7 @@ def portfolio_dashboard(portfolio_id: str, db: Session = Depends(get_db),
     projects_data = []
     total_budget  = 0.0
     total_ac      = 0.0
-    today         = date.today()
+    today         = timeutil.today()
 
     for pp in port.members:
         if not pp.is_active:

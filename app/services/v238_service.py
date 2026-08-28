@@ -26,6 +26,7 @@ from app.models.imputation import Imputation
 from app.models.service_desk import Ticket
 from app.models.task import Task
 from collections import defaultdict
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -682,7 +683,7 @@ def handle_stripe_webhook(raw_body: bytes, stripe_signature: Optional[str], db: 
             inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
             if inv and inv.status != "paid":
                 inv.status = "paid"
-                inv.paid_date = date.today()
+                inv.paid_date = timeutil.today()
                 inv.stripe_paid_at = datetime.now(timezone.utc)
                 if data.get("payment_intent"):
                     inv.stripe_payment_intent_id = data["payment_intent"]

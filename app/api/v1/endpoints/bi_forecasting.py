@@ -20,6 +20,7 @@ from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_forecasting_service as svc
+from app.core import timeutil
 
 router = APIRouter()
 
@@ -91,8 +92,7 @@ def run_forecast(
         if method == "prophet" and not timestamps:
             # Synthesize monthly timestamps ending at the current month (handles
             # len(values) > 12 correctly, unlike a fixed-year/month formatting).
-            from datetime import date as _date
-            _today = _date.today()
+            _today = timeutil.today()
             _base = _today.year * 12 + (_today.month - 1)
             _n = len(values)
             timestamps = []

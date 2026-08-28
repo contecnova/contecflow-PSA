@@ -5,6 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import register_metric
+from app.core import timeutil
 
 
 @register_metric("forecast_revenue")
@@ -27,7 +28,7 @@ def metric_forecast_revenue(
         from app.models.project import Project
         from app.models.imputation import Imputation
 
-        today = date.today()
+        today = timeutil.today()
         forecast_days = 90
         forecast_end = today + timedelta(days=forecast_days)
 
@@ -132,7 +133,7 @@ def metric_burnout_index(
         from app.models.task import Task
         from app.core.config import settings
 
-        today = date.today()
+        today = timeutil.today()
         four_weeks_ago = today - timedelta(days=28)
         seven_weeks_ago = today - timedelta(days=49)
 

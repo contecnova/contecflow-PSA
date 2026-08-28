@@ -14,6 +14,7 @@ from app.services.absence_service import (
     TYPE_LABELS, count_working_days as _working_days, serialize_absence as _absence_out,
 )
 from app.schemas.absences import AbsenceIn, AbsenceReview
+from app.core import timeutil
 
 router = APIRouter()
 
@@ -110,7 +111,7 @@ def cancel_absence(
     if not a:
         raise HTTPException(404, "Ausencia no encontrada")
     enforce_abac(db, current_user, "absence", absence_id, action="delete")
-    if a.status == AbsenceStatus.approved and a.start_date <= date.today():
+    if a.status == AbsenceStatus.approved and a.start_date <= timeutil.today():
         raise HTTPException(400, "No puedes cancelar una ausencia ya iniciada")
     absence_service.cancel_absence(db, a)
     return APIResponse.ok(data={"ok": True, "message": "Ausencia cancelada correctamente"})

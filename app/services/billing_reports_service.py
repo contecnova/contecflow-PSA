@@ -44,6 +44,7 @@ from app.models.billing_reports import InvoiceLine as _InvoiceLine
 from app.services.billing_reports.data_source_service import run_skills_report, run_pipeline_report
 from app.services.scheduled_reports import _get_next_run
 from app.db.session import is_postgres
+from app.core import timeutil
 
 _logger = logging.getLogger(__name__)
 
@@ -352,7 +353,7 @@ def run_capacity_report(db: Session, filters: dict, date_from, date_to, org_id=N
 
 def run_system_report(db: Session, report_id: str, filters: dict, date_from, date_to) -> dict:
 
-    today = date.today()
+    today = timeutil.today()
     df = date_from or str(today - timedelta(days=90))
     dt = date_to or str(today)
     if report_id == "utilization_by_person":  return run_imputations_report(db, filters, "user", df, dt, None)
@@ -563,7 +564,7 @@ def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db
         _logger.warning("Estado de factura no es enum válido, usando string crudo: %s", new_status)
         inv.status = new_status
     if new_status == "paid":
-        inv.paid_date = date.today()
+        inv.paid_date = timeutil.today()
     audit_log(db, current_user, "UPDATE", "invoices", inv.id, inv.number,
               old_values={"status": old_status}, new_values={"status": inv.status.value if isinstance(inv.status, enum.Enum) else str(inv.status)})
     try:
@@ -586,7 +587,7 @@ def get_invoice_summary(db: Session) -> dict:
         by_status[s]["count"] += 1
         by_status[s]["total"] += inv.total or 0
 
-    overdue = [i for i in invoices if i.status == "sent" and i.due_date and i.due_date < date.today()]
+    overdue = [i for i in invoices if i.status == "sent" and i.due_date and i.due_date < timeutil.today()]
     return {
         "by_status": {k: {"count": v["count"], "total": round(v["total"], 2)} for k, v in by_status.items()},
         "total_invoiced": round(sum(i.total or 0 for i in invoices), 2),
@@ -1168,8 +1169,8 @@ def instantiate_template(template_id: str, payload: dict, current_user: User, db
     if not tpl:
         raise ValueError("template_not_found")
 
-    project_name = payload.get("name", f"{tpl.name} — {date.today()}")
-    start = date.fromisoformat(payload["start_date"]) if payload.get("start_date") else date.today()
+    project_name = payload.get("name", f"{tpl.name} — {timeutil.today()}")
+    start = date.fromisoformat(payload["start_date"]) if payload.get("start_date") else timeutil.today()
 
     last = db.query(Project).order_by(Project.created_at.desc()).first()
     next_num = 1

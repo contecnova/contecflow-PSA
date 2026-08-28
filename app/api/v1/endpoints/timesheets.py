@@ -20,6 +20,7 @@ from app.schemas.timesheets import (
     TimesheetReview,
     TimesheetSendBackPayload as SendBackPayload,
 )
+from app.core import timeutil
 
 router = APIRouter()
 
@@ -36,7 +37,7 @@ def get_my_timesheets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    today = date.today()
+    today = timeutil.today()
     results = []
     for w in range(weeks):
         ws = today - timedelta(days=today.weekday()) - timedelta(weeks=w)

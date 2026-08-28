@@ -8,8 +8,8 @@ from typing import Optional, List
 from app.models.task import Task
 from app.models.sprints import Sprint, SprintTask, SprintStatus
 from app.models.project import Project
-from datetime import date
 from datetime import timedelta
+from app.core import timeutil
 
 
 def list_all_sprints(
@@ -260,7 +260,7 @@ def serialize_task(t) -> dict:
 
 def serialize_sprint(s, include_tasks: bool = False) -> dict:
     duration_days = (s.end_date - s.start_date).days if s.start_date and s.end_date else 0
-    today = date.today()
+    today = timeutil.today()
     days_remaining = (s.end_date - today).days if s.end_date and s.status == SprintStatus.active else None
     result = {
         "id": s.id, "number": s.number, "name": s.name,
@@ -289,7 +289,7 @@ def compute_sprint_burndown(sprint, db) -> list:
         return []
     tasks = [st.task for st in sprint.sprint_tasks if st.task and st.is_active == True]
     total_points = sum(t.story_points or 0 for t in tasks)
-    today = date.today()
+    today = timeutil.today()
     end = min(sprint.end_date, today)
     start = sprint.start_date
     burndown = []

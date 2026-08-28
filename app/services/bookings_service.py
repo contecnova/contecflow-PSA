@@ -38,6 +38,7 @@ from datetime import time as _time
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +156,7 @@ def list_bookings_records(user_id, project_id, start_date, end_date, booking_typ
 
 
 def get_bookings_heatmap(weeks: int, org_id, db) -> dict:
-    today = date.today()
+    today = timeutil.today()
     monday = today - timedelta(days=today.weekday())
     users_q = db.query(User).filter(User.is_active == True)
     if org_id:
@@ -307,7 +308,7 @@ def get_exchange_rates_data(base: str, db) -> dict:
                 "effective_date": str(rate.effective_date),
                 "source": rate.source,
             }
-    latest_rates[base] = {"rate": 1.0, "effective_date": str(date.today()), "source": "base"}
+    latest_rates[base] = {"rate": 1.0, "effective_date": str(timeutil.today()), "source": "base"}
     return {"base": base, "rates": latest_rates, "currencies": SUPPORTED_CURRENCIES}
 
 
@@ -322,7 +323,7 @@ def upsert_exchange_rate_record(payload: dict, db) -> dict:
     if rate_value <= 0:
         raise HTTPException(400, "El tipo de cambio debe ser mayor que cero")
     source = payload.get("source", "manual")
-    effective_date = date.fromisoformat(payload.get("effective_date", str(date.today())))
+    effective_date = date.fromisoformat(payload.get("effective_date", str(timeutil.today())))
     primary_obj = None
     for idx, (fc, tc, r) in enumerate([(from_currency, to_currency, rate_value), (to_currency, from_currency, round(1 / rate_value, 6))]):
         existing = db.query(ExchangeRate).filter(
@@ -356,7 +357,7 @@ def convert_currency_amount(payload: dict, db) -> dict:
     amount    = float(payload.get("amount", 0))
     from_curr = (payload.get("from_currency") or payload.get("from") or settings.DEFAULT_CURRENCY).upper()
     to_curr   = (payload.get("to_currency") or payload.get("to") or settings.DEFAULT_CURRENCY).upper()
-    on_date   = date.fromisoformat(payload.get("date", str(date.today()))) if payload.get("date") else date.today()
+    on_date   = date.fromisoformat(payload.get("date", str(timeutil.today()))) if payload.get("date") else timeutil.today()
     if from_curr == to_curr:
         return {"converted_amount": amount, "amount": amount, "from_currency": from_curr, "to_currency": to_curr, "rate": 1.0}
     rate_row = db.query(ExchangeRate).filter(
@@ -568,7 +569,7 @@ def update_recurring_record(rec_id: str, payload: dict, db) -> dict:
 
 
 def process_due_recurring_records(db, current_user) -> dict:
-    today = date.today()
+    today = timeutil.today()
     due = db.query(RecurringInvoice).filter(
         RecurringInvoice.is_active == True,
         RecurringInvoice.next_date <= today,
@@ -604,8 +605,8 @@ def generate_recurring_now_record(rec_id: str, db, current_user) -> dict:
         number=inv_number, project_id=r.project_id, contract_id=r.contract_id,
         client_name=r.client_name or (r.project.client_name if r.project else None),
         client_email=r.client_email, client_vat=r.client_vat,
-        issue_date=date.today(),
-        due_date=date.today() + timedelta(days=r.payment_terms_days),
+        issue_date=timeutil.today(),
+        due_date=timeutil.today() + timedelta(days=r.payment_terms_days),
         tax_rate=r.tax_rate, tax_amount=tax_amount,
         subtotal=subtotal, total=total, currency=r.currency,
         notes=f"Generada automáticamente de serie: {r.name}",
@@ -672,7 +673,7 @@ def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, cu
         client_id=getattr(opp, "client_id", None),
         project_type=payload.get("project_type", _proj_type),
         status=ProjectStatus.planning,
-        start_date=date.fromisoformat(payload["start_date"]) if payload.get("start_date") else date.today(),
+        start_date=date.fromisoformat(payload["start_date"]) if payload.get("start_date") else timeutil.today(),
         end_date_planned=date.fromisoformat(payload["end_date"]) if payload.get("end_date") else None,
         budget_amount=opp.amount,
         billing_type=payload.get("billing_type", _bill_type),

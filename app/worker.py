@@ -54,10 +54,22 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.process_approval_timeouts",
         "schedule": crontab(minute=0),  # every hour at :00
     },
-    # ASC 606 monthly revenue recognition — 1st of every month at 02:00
+    # Reconocimiento ASC 606: se COMPRUEBA a diario, no una vez al mes.
+    #
+    # Auditoría 2026-08. Antes era `crontab(day_of_month=1, hour=2)`, un único
+    # disparo para todo el mundo, y eso desplazaba el periodo de las
+    # organizaciones al oeste de UTC: a las 02:00 UTC del día 1, en UTC−6 es
+    # todavía el día 31 del mes anterior, así que su «mes anterior» salía un mes
+    # antes de lo debido y el mes que de verdad acababa de cerrar no se reconocía
+    # nunca. La tarea recorre ahora las organizaciones y sólo actúa sobre las que
+    # están en su día 1, así que cada una recibe exactamente un cierre por mes.
+    #
+    # Correr a diario es seguro porque el lote es idempotente: la guarda de
+    # `revenue_service._ya_reconocido` más el índice único de la revisión 091.
+    # Antes de ese arreglo, repetirlo duplicaba ingresos.
     "revenue-monthly-recognition": {
         "task": "app.worker.revenue_monthly_recognition",
-        "schedule": crontab(day_of_month=1, hour=2, minute=0),
+        "schedule": crontab(hour=2, minute=0),  # a diario a las 02:00 UTC
     },
     # ML model retraining — 1st of every month at 03:00 (after revenue recognition)
     "ml-model-retrain": {
@@ -457,16 +469,22 @@ def run_alert_engine():
 
 @celery_app.task(name="app.worker.check_missing_imputations")
 def check_missing_imputations():
-    """Reminder to employees who haven't logged their expected hours today."""
-    from app.db.session import worker_db_session
-    from app.models.user import User, UserRole, UserStatus
-    from app.models.imputation import Imputation
-    from sqlalchemy import func
-    from datetime import date
+    """Aviso a quien no ha imputado sus horas de hoy.
 
-    today = date.today()
-    if today.weekday() >= 5:  # Skip weekends
-        return
+    «Hoy» es el día de CADA empleado, no el del servidor (auditoría 2026-08,
+    P2-14). Antes esta tarea calculaba un único `date.today()` y además cortaba
+    en seco los fines de semana con `today.weekday() >= 5`, así que en el sábado
+    del servidor **nadie recibía aviso** — incluidos los empleados en zonas donde
+    todavía era viernes por la tarde. Ahora la zona se resuelve por empleado y el
+    descarte de fin de semana también, que es lo que el aviso quiere decir.
+    """
+    from sqlalchemy import func
+
+    from app.core import timeutil
+    from app.core.timeutil import using_zone, zone_for_user
+    from app.db.session import worker_db_session
+    from app.models.imputation import Imputation
+    from app.models.user import User, UserRole, UserStatus
 
     with worker_db_session() as db:
         employees = db.query(User).filter(
@@ -475,16 +493,36 @@ def check_missing_imputations():
             User.role == UserRole.employee,
         ).all()
 
+        # Las organizaciones se cachean: sin esto sería una consulta por empleado
+        # sólo para leer su zona.
+        orgs: dict = {}
+
+        def _org(org_id):
+            if org_id and org_id not in orgs:
+                from app.models.mfa import Organization
+
+                orgs[org_id] = db.query(Organization).filter(
+                    Organization.id == org_id
+                ).first()
+            return orgs.get(org_id)
+
         missing = []
         for emp in employees:
-            # Daily capacity = weekly_capacity / 5 working days
-            daily_capacity = (emp.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS) / 5
-            hours_today = db.query(func.sum(Imputation.hours)).filter(
-                Imputation.user_id == emp.id,
-                Imputation.date == today,
-            ).scalar() or 0.0
-            if hours_today < daily_capacity:
-                missing.append(emp.email)
+            zona = zone_for_user(emp, _org(getattr(emp, "organization_id", None)))
+            with using_zone(zona):
+                hoy = timeutil.today()
+                if hoy.weekday() >= 5:  # su fin de semana, no el del servidor
+                    continue
+                # Capacidad diaria = capacidad semanal / 5 días laborables
+                daily_capacity = (
+                    emp.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+                ) / 5
+                hours_today = db.query(func.sum(Imputation.hours)).filter(
+                    Imputation.user_id == emp.id,
+                    Imputation.date == hoy,
+                ).scalar() or 0.0
+                if hours_today < daily_capacity:
+                    missing.append(emp.email)
 
         return {"missing_today": len(missing), "users": missing}
 
@@ -509,15 +547,23 @@ def generate_retainer_invoices():
     Auto-generate monthly invoices for recurring_retainer projects.
     Runs daily; only creates an invoice if today matches project.retainer_day
     and no invoice has been created this month yet.
+
+    El día se resuelve en la zona del CLIENTE del proyecto (auditoría 2026-08,
+    P2-14). Con un único `date.today()` del servidor, un proyecto con
+    `retainer_day = 1` y cliente en Asia se facturaba el día equivocado: cuando
+    para el cliente es ya día 1, para un servidor en UTC todavía es día 30, así
+    que la comparación `retainer_day != today.day` fallaba ese día y acertaba al
+    siguiente. El mes de `period_from` tenía el mismo desfase.
     """
     import uuid
     from datetime import date
 
+    from app.core import timeutil
+    from app.core.timeutil import using_zone, zone_for_client
     from app.db.session import worker_db_session
-    from app.models.project import Project
     from app.models.billing_reports import Invoice, InvoiceStatus
+    from app.models.project import Project
 
-    today = date.today()
     generated = []
     with worker_db_session() as db:
         retainer_projects = db.query(Project).filter(
@@ -527,7 +573,31 @@ def generate_retainer_invoices():
             Project.is_billable == True,
         ).all()
 
+        # Cachés: sin ellas serían dos consultas por proyecto sólo para la zona.
+        clientes: dict = {}
+        orgs: dict = {}
+
+        def _zona_de(proj):
+            from app.models.client import Client
+            from app.models.mfa import Organization
+
+            cid = getattr(proj, "client_id", None)
+            if cid and cid not in clientes:
+                clientes[cid] = db.query(Client).filter(Client.id == cid).first()
+            oid = getattr(proj, "organization_id", None)
+            if oid and oid not in orgs:
+                orgs[oid] = db.query(Organization).filter(Organization.id == oid).first()
+            return zone_for_client(clientes.get(cid), orgs.get(oid))
+
         for proj in retainer_projects:
+            # El `with` se acota a resolver el día porque es lo único del cuerpo
+            # que depende de la zona: `next_numbered_code` fija su año en UTC de
+            # forma explícita y no lee el contexto. Ese año de la numeración se
+            # deja como está a propósito — cambiarlo desplazaría secuencias de
+            # numeración de facturas ya emitidas, que es un asunto contable, no
+            # una corrección de zona horaria.
+            with using_zone(_zona_de(proj)):
+                today = timeutil.today()
             if proj.retainer_day != today.day:
                 continue
             # Evitar facturas duplicadas este mes
@@ -915,21 +985,46 @@ def revenue_monthly_recognition():
     previous calendar month across all organizations.
     Milestone-method contracts are skipped (recognized on milestone completion).
     """
-    from datetime import date
+    from app.core.timeutil import resolve_zone, today_in
     from app.db.session import worker_db_session
     from app.services.revenue_service import run_monthly_recognition
 
-    today = date.today()
-    # Recognize the previous month (this task runs on the 1st)
-    if today.month == 1:
-        year, month = today.year - 1, 12
-    else:
-        year, month = today.year, today.month - 1
-
     with worker_db_session() as db:
-        result = run_monthly_recognition(db, year, month)
-        _worker_logger.info("ASC 606 recognition complete: %s", result)
-        return result
+        from app.models.mfa import Organization
+
+        organizaciones = db.query(Organization).filter(
+            Organization.is_active.is_(True)
+        ).all()
+
+        resultados = {}
+        for org in organizaciones:
+            hoy = today_in(resolve_zone(getattr(org, "timezone", None)))
+            # Sólo se reconoce cuando es día 1 EN SU zona. La tarea corre a diario
+            # a propósito: con la ejecución mensual a las 02:00 UTC del día 1, una
+            # organización en UTC−6 estaba todavía en el día 31 del mes anterior,
+            # así que su «mes anterior» salía desplazado un mes y ese periodo no
+            # se reconocía nunca. Repartir el disparo por zonas es lo que da
+            # exactamente una ejecución correcta por organización y mes.
+            if hoy.day != 1:
+                continue
+            if hoy.month == 1:
+                year, month = hoy.year - 1, 12
+            else:
+                year, month = hoy.year, hoy.month - 1
+
+            # El lote es idempotente (revenue_service._ya_reconocido + el índice
+            # único de la revisión 091), así que un disparo repetido no duplica
+            # ingresos. Antes sí lo hacía.
+            resultados[org.id] = run_monthly_recognition(
+                db, year, month, organization_id=org.id
+            )
+
+        if resultados:
+            _worker_logger.info(
+                "ASC 606: reconocido para %d organizaciones: %s",
+                len(resultados), resultados,
+            )
+        return resultados
 
 
 @celery_app.task(name="app.worker.olap_nightly_etl")

@@ -21,6 +21,7 @@ from app.models.project import Project
 from app.models.project import Project as _Proj
 from app.models.settings import AppSetting
 from app.models.task import Task
+from app.core import timeutil
 
 # ── Entity catalog (static config) ───────────────────────────────────────────
 
@@ -660,7 +661,7 @@ def build_csv_response(columns: List[str], rows: List[Dict], entity: str, pagina
     writer.writeheader()
     writer.writerows(rows)
     buf.seek(0)
-    filename = f"report_{entity}_{date.today().isoformat()}.csv"
+    filename = f"report_{entity}_{timeutil.today().isoformat()}.csv"
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
     if pagination:
         headers["X-Total-Count"] = str(pagination.get("total", 0))

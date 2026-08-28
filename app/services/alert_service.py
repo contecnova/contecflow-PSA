@@ -2,7 +2,7 @@
 Alert service — business logic for alert generation and management.
 Called by both the API endpoint and the Celery worker.
 """
-from datetime import date, timedelta, datetime, timezone, time
+from datetime import timedelta, datetime, timezone, time
 import logging
 
 from sqlalchemy.orm import Session
@@ -14,6 +14,7 @@ from app.models.imputation import Imputation
 from app.models.project import Project, ProjectStatus
 from app.models.task import Task, TaskStatus
 from app.models.user import User, UserRole, UserStatus
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ class AlertEngine:
         self.db.add(alert)
 
     def _check_overload(self) -> int:
-        today = date.today()
+        today = timeutil.today()
         week_start = today - timedelta(days=today.weekday())
         count = 0
 
@@ -192,7 +193,7 @@ class AlertEngine:
 
     def _check_blocked_tasks(self) -> int:
         count = 0
-        two_days_ago = date.today() - timedelta(days=2)
+        two_days_ago = timeutil.today() - timedelta(days=2)
 
         blocked = self.db.query(Task).filter(
             Task.status == TaskStatus.blocked,
@@ -216,7 +217,7 @@ class AlertEngine:
 
     def _check_no_imputation(self) -> int:
         count = 0
-        two_days_ago = date.today() - timedelta(days=2)
+        two_days_ago = timeutil.today() - timedelta(days=2)
 
         users = self.db.query(User).filter(
             User.is_active == True, User.status == UserStatus.active,
@@ -243,7 +244,7 @@ class AlertEngine:
                         f"Sin imputaciones: {user.full_name}",
                         f"{user.full_name} no ha registrado horas desde {last_imp}",
                         user_id=user.id,
-                        value=(date.today() - last_imp).days,
+                        value=(timeutil.today() - last_imp).days,
                     )
                     count += 1
         self.db.commit()
@@ -251,7 +252,7 @@ class AlertEngine:
 
     def _check_deadline(self) -> int:
         count = 0
-        today = date.today()
+        today = timeutil.today()
         warning_threshold = today + timedelta(days=7)
 
         at_risk = self.db.query(Project).filter(

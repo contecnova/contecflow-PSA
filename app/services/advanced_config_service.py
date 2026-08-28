@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
 from app.core.config import settings
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 from app.models.advanced_config import AlertConfig
@@ -219,7 +220,7 @@ def apply_template_to_project(
     if not project:
         raise HTTPException(404, "Proyecto no encontrado")
 
-    base_date = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else date.today()
+    base_date = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else timeutil.today()
     created_phases = 0
     created_tasks = 0
     created_risks = 0

@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import date as _date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin
@@ -9,6 +8,7 @@ from app.models.user import User
 from app.core.config import settings
 from app.api.v1.endpoints import profitability as profitability_v1
 from app.services.profitability_service import get_fx_rate
+from app.core import timeutil
 
 router = APIRouter(prefix="/profitability", tags=["Rentabilidad v2"])
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/profitability", tags=["Rentabilidad v2"])
 def _normalize_project_revenues(projects: list, db: Session, org_currency: str) -> list:
     """Convert billing_revenue (and derived margin fields) to org base currency for each project."""
     fx_cache: dict = {}
-    today = _date.today()
+    today = timeutil.today()
     for proj in projects:
         project_currency = proj.get("project_currency") or org_currency
         if project_currency == org_currency:
@@ -108,7 +108,7 @@ def get_project_profitability_v2(
     if project_currency != org_currency:
         billing_rev = data.get("billing_revenue") or 0
         if billing_rev:
-            fx = get_fx_rate(db, project_currency, org_currency, _date.today())
+            fx = get_fx_rate(db, project_currency, org_currency, timeutil.today())
             data["billing_revenue"] = round(billing_rev * fx, 2)
             gross_margin = data["billing_revenue"] - (data.get("internal_cost") or 0)
             data["gross_margin"] = round(gross_margin, 2)

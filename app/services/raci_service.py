@@ -33,6 +33,7 @@ from app.models.task import Task as _Task, TaskPriority
 from app.models.user import User as _User
 from app.models.user import UserStatus
 from datetime import timezone
+from app.core import timeutil
 
 if TYPE_CHECKING:
     pass   # avoid circular imports at runtime
@@ -440,7 +441,7 @@ def save_sprint_retrospective(
 # ── Burnout Risk ──────────────────────────────────────────────────────────────
 
 def get_burnout_risk(department: "Optional[str]", min_risk_level: "Optional[str]", db: Session) -> dict:
-    today = date.today()
+    today = timeutil.today()
     q = db.query(_User).filter(_User.is_active == True, _User.status == UserStatus.active)
     if department:
         q = q.filter(_User.department == department)
@@ -470,7 +471,7 @@ def get_burnout_risk(department: "Optional[str]", min_risk_level: "Optional[str]
 
 def compute_and_save_burnout_snapshots(db: Session) -> dict:
     import json as _json
-    today = date.today()
+    today = timeutil.today()
     week_start = today - timedelta(days=today.weekday())
     users = db.query(_User).filter(_User.is_active == True, _User.status == UserStatus.active).all()
     saved_count = 0
@@ -565,7 +566,7 @@ def generate_changelog(
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")
-    since = date.today() - timedelta(weeks=weeks)
+    since = timeutil.today() - timedelta(weeks=weeks)
     since_dt = datetime.combine(since, datetime.min.time())
     completed_tasks = (
         db.query(_Task)
@@ -604,7 +605,7 @@ def generate_changelog(
         entry = PCE(
             project_id=project_id,
             version_tag=version_tag,
-            entry_date=(task.updated_at or task.created_at).date() if (task.updated_at or task.created_at) else date.today(),
+            entry_date=(task.updated_at or task.created_at).date() if (task.updated_at or task.created_at) else timeutil.today(),
             entry_type=_guess_type(task),
             title=task.title,
             description=task.description,

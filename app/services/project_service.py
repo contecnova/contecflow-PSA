@@ -36,6 +36,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from app.services.base import ServiceBase
 import logging
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +145,7 @@ class ProjectService(ServiceBase):
         if not proj:
             return None  # caller raises 404
 
-        today = date.today()
+        today = timeutil.today()
 
         bac = proj.budget_amount or 0.0
         if bac == 0:
@@ -236,7 +237,7 @@ class ProjectService(ServiceBase):
         ).all()
 
         results = []
-        today = date.today()
+        today = timeutil.today()
         for proj in active:
             bac = proj.budget_amount or 0.0
             if bac == 0:

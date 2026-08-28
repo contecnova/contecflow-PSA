@@ -16,6 +16,7 @@ from datetime import date
 from typing import Optional
 
 import httpx
+from app.core import timeutil
 
 # defusedxml protects against XXE / billion-laughs attacks when parsing the ECB feed.
 # It is listed in requirements.txt; the stdlib fallback is kept only for offline tests.
@@ -161,7 +162,7 @@ def sync_openexchangerates(db: Session, app_id: str,
         return {"ok": False, "error": str(exc), "source": "openexchangerates"}
 
     rates_dict: dict = data.get("rates", {})
-    rate_date = date.today()
+    rate_date = timeutil.today()
     upserted = 0
 
     for currency, rate_val in rates_dict.items():
@@ -190,7 +191,7 @@ def get_rate(db: Session, from_c: str, to_c: str,
     # rates in the same transaction are visible to this read.
     db.flush()
 
-    ref = as_of or date.today()
+    ref = as_of or timeutil.today()
     row = db.query(ExchangeRate).filter(
         ExchangeRate.from_currency == from_c,
         ExchangeRate.to_currency   == to_c,

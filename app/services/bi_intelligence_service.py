@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.settings import AppSetting
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 from app.models.user import User
@@ -82,7 +83,7 @@ def _month_key(d: date) -> str:
 
 
 def _month_series(db: Session, organization_id: Optional[str], months_history: int = 12) -> list[dict[str, Any]]:
-    today = date.today()
+    today = timeutil.today()
     start_year = today.year - 1
     start = date(start_year, today.month, 1)
 
@@ -700,7 +701,7 @@ def ml_predict_project_overrun_lgbm(
     if not projects:
         return {"generated_at": _iso_now(), "engine": "none", "predictions": []}
 
-    today = date.today()
+    today = timeutil.today()
     features = []
     meta = []
 

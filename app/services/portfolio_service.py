@@ -12,6 +12,7 @@ from app.models.task import Task, TaskStatus
 from app.models.imputation import Imputation
 from app.models.financial import ProjectMilestone
 from app.models.user import User
+from app.core import timeutil
 
 
 # ── EVM ───────────────────────────────────────────────────────────────────────
@@ -45,7 +46,7 @@ def get_evm_quick(db: Session, project_id: str) -> dict:
     pct = (done_est / total_est) if total_est > 0 else 0.0
     ev = bac * pct
 
-    today = date.today()
+    today = timeutil.today()
     s, e = proj.start_date, proj.end_date_planned
     pct_t = min((today - s).days / (e - s).days, 1.0) if s and e and e > s else pct
     pv = bac * max(pct_t, 0)

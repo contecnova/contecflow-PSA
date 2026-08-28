@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.service_desk import Asset, AssetHistory, AssetStatus, AssetType, ConfigurationItem
 from app.models.user import User
 import logging
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -101,14 +102,14 @@ def asset_stats_payload(db: Session) -> dict:
 
     expiring_warranty = db.query(func.count(Asset.id)).filter(
         Asset.warranty_expiry.isnot(None),
-        Asset.warranty_expiry <= (date.today() + timedelta(days=90)).isoformat(),
-        Asset.warranty_expiry >= date.today().isoformat(),
+        Asset.warranty_expiry <= (timeutil.today() + timedelta(days=90)).isoformat(),
+        Asset.warranty_expiry >= timeutil.today().isoformat(),
     ).scalar() or 0
 
     eol_soon = db.query(func.count(Asset.id)).filter(
         Asset.eol_date.isnot(None),
-        Asset.eol_date <= (date.today() + timedelta(days=180)).isoformat(),
-        Asset.eol_date >= date.today().isoformat(),
+        Asset.eol_date <= (timeutil.today() + timedelta(days=180)).isoformat(),
+        Asset.eol_date >= timeutil.today().isoformat(),
     ).scalar() or 0
 
     return {
@@ -294,7 +295,7 @@ def _days_until(date_str: Optional[str]) -> Optional[int]:
         return None
     try:
         target = date.fromisoformat(date_str)
-        delta = (target - date.today()).days
+        delta = (target - timeutil.today()).days
         return delta
     except ValueError:
         return None
@@ -361,7 +362,7 @@ def calculate_depreciation(asset: Asset) -> Optional[float]:
     except ValueError:
         return None
 
-    years_elapsed = (date.today() - pd).days / 365.25
+    years_elapsed = (timeutil.today() - pd).days / 365.25
     dep_type = getattr(asset, "depreciation_type", None) or "linear"
     dep_rate = getattr(asset, "depreciation_rate", None)
 

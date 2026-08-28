@@ -30,8 +30,8 @@ from app.models.task import Task
 from app.models.user import User
 from app.services.base import ServiceBase
 from app.services.resource_analytics import ResourceAnalyticsService
-from datetime import date
 from datetime import datetime, timezone
+from app.core import timeutil
 
 logger = logging.getLogger("semantic_classifier")
 
@@ -554,7 +554,7 @@ class SemanticAssigner(ServiceBase):
             return self._result(None, 0.0, "llm", {}, True, "LLM no disponible")
 
         # Bug 1 fix: real-time load from ResourceAnalyticsService
-        current_week = ResourceAnalyticsService.get_week_iso(date.today())
+        current_week = ResourceAnalyticsService.get_week_iso(timeutil.today())
 
         # Nivel 3 — Motor semantico (or rules-only, see branch below)
         item_emb = self._encode_single(text)

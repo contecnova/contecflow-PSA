@@ -17,6 +17,7 @@ from app.services.psa_flows import close_sprint_flow
 import app.services.sprint_service as svc
 
 from typing import Any, Dict
+from app.core import timeutil
 
 router = APIRouter()
 
@@ -165,7 +166,7 @@ def start_sprint(
 
     sprint.status = SprintStatus.active
     if not sprint.start_date:
-        sprint.start_date = date.today()
+        sprint.start_date = timeutil.today()
 
     # Calculate planned points
     sprint.planned_points = sum(st.task.story_points or 0 for st in sprint.sprint_tasks if st.task)
@@ -261,7 +262,7 @@ def get_burnup(
     tasks = [st.task for st in sprint.sprint_tasks if st.task]
     total_scope = sum(t.story_points or 0 for t in tasks)
 
-    today  = date.today()
+    today  = timeutil.today()
     end    = min(sprint.end_date, today)
     start  = sprint.start_date
 

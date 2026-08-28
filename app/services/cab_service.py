@@ -66,6 +66,7 @@ from app.services.integrations import get_jira_issue, update_jira_issue
 from collections import defaultdict
 from fastapi import HTTPException
 from sqlalchemy import or_ as _or
+from app.core import timeutil
 
 logger = logging.getLogger("contecflow.v14")
 
@@ -311,7 +312,7 @@ def compute_risk_score(db: Session, project: Project) -> dict:
     """
     Rule-based risk scoring. Returns score components and overall risk level.
     """
-    today = date.today()
+    today = timeutil.today()
     score = {
         "schedule_risk": round(_risk_schedule(db, project, today), 1),
         "budget_risk": round(_risk_budget(db, project), 1),
@@ -785,7 +786,7 @@ def list_gdpr_requests(db: Session) -> list:
 
 
 def create_gdpr_request(payload, current_user, db: Session) -> dict:
-    deadline = date.today() + timedelta(days=30)
+    deadline = timeutil.today() + timedelta(days=30)
     req = GDPRRequest(
         request_type=payload.request_type,
         subject_user_id=payload.subject_user_id,
@@ -838,7 +839,7 @@ def _gdpr_portability_export(db: Session, user) -> dict:
             "created_at": str(user.created_at)[:10] if user.created_at else None,
         },
         "data_summary": {"imputations": imputations},
-        "export_date": str(date.today()),
+        "export_date": str(timeutil.today()),
         "format": "JSON",
         "note": "Solicite el fichero completo al administrador del sistema.",
     }

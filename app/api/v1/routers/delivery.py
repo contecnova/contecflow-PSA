@@ -6,6 +6,10 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     billing_reports, bookings, cab, mfa, custom_fields, epics,
+    # Auditoria 2026-08 (hallazgo 22): estos siete estaban dentro de `mfa`,
+    # un router de 38 rutas y ocho dominios. Los paths no han cambiado.
+    organizations, slack, budgets, ai_planning, scenarios, pdf_export,
+    bi_tokens,
     issue_types, cmdb, activity, raci,
     alm, clients, rate_cards, milestones, resource_forecast, approvals,
     accounting_hub, okrs, performance, training, documents, resources,
@@ -28,7 +32,19 @@ router = APIRouter()
 router.include_router(billing_reports.router,  prefix="/billing-reports",  tags=["Billing & Reports"])
 router.include_router(bookings.router,         prefix="/bookings",         tags=["Bookings & Currency"])
 router.include_router(cab.router,                                          tags=["CAB & Webhooks"])
-router.include_router(mfa.router,                                          tags=["MFA & Budgets"])
+# Auditoria 2026-08 (hallazgo 22). Antes esto era una sola linea con
+# tags=["MFA & Budgets"], y detras habia 38 rutas de ocho dominios distintos: el
+# CRUD de organizaciones estaba escondido ahi, y por eso nadie noto que le faltaba
+# la guarda de superadministrador — fue la causa proxima del P0 numero 1.
+# Los paths son EXACTAMENTE los mismos: ABAC y GRC derivan el modulo de la ruta.
+router.include_router(mfa.router,                                          tags=["MFA"])
+router.include_router(organizations.router,                                tags=["Organizaciones"])
+router.include_router(slack.router,                                        tags=["Slack"])
+router.include_router(budgets.router,                                      tags=["Presupuestos"])
+router.include_router(ai_planning.router,                                  tags=["Planificación asistida"])
+router.include_router(scenarios.router,                                    tags=["Escenarios"])
+router.include_router(pdf_export.router,                                   tags=["Exportación PDF"])
+router.include_router(bi_tokens.router,                                    tags=["BI externo"])
 router.include_router(custom_fields.router,                        tags=["Custom Fields"])
 router.include_router(epics.router,            prefix="/epics",            tags=["Epics & Wiki"])
 router.include_router(issue_types.router,                                  tags=["Issue Types & FTS"])

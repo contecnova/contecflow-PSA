@@ -36,6 +36,7 @@ from app.models.user import UserOrganizationMembership
 from app.models.mfa import Organization
 from app.schemas import UserLoad, UserPublic
 from fastapi import HTTPException
+from app.core import timeutil
 
 
 # ── Query helpers ──────────────────────────────────────────────────────────────
@@ -101,7 +102,7 @@ def _sync_user_memberships(user: User, org_ids: list[str], db: Session) -> None:
 def get_load_map_payload(db: Session, current_user, week_start: Optional[date] = None) -> list:
 
     if not week_start:
-        today = date.today()
+        today = timeutil.today()
         week_start = today - timedelta(days=today.weekday())
     week_end = week_start + timedelta(days=6)
     month_start = week_start.replace(day=1)
@@ -351,9 +352,9 @@ def get_user_productivity_payload(
     ensure_same_org_user_access(user, current_user)
 
     if not date_from:
-        date_from = date.today().replace(day=1)
+        date_from = timeutil.today().replace(day=1)
     if not date_to:
-        date_to = date.today()
+        date_to = timeutil.today()
 
     total_logged = db.query(func.sum(Imputation.hours)).filter(
         Imputation.user_id == user_id,

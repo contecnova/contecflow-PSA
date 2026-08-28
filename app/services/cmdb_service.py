@@ -24,6 +24,7 @@ from app.models.cmdb import (
     SLACalendar, V21SLAHoliday,
 )
 from app.models.sprints import SprintTask
+from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
@@ -363,7 +364,7 @@ def delete_cmdb_relation(relation_id: str, db: Session) -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 
 def get_agent_dashboard(agent_id: str, days: int, db: Session) -> dict:
-    since = (date.today() - timedelta(days=days)).isoformat()
+    since = (timeutil.today() - timedelta(days=days)).isoformat()
     snaps = db.query(AgentMetricSnapshot).filter(
         AgentMetricSnapshot.agent_id == agent_id,
         AgentMetricSnapshot.snap_date >= since
@@ -398,7 +399,7 @@ def get_agent_dashboard(agent_id: str, days: int, db: Session) -> dict:
 
 
 def create_agent_snapshot(agent_id: str, db: Session) -> dict:
-    today_str = date.today().isoformat()
+    today_str = timeutil.today().isoformat()
     open_tickets = 0
     try:
         from app.models.service_desk import Ticket

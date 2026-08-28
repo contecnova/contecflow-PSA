@@ -12,6 +12,7 @@ from app.core.deps import get_current_user, get_db, require_any_manager
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core import timeutil
 
 router = APIRouter()
 
@@ -73,7 +74,7 @@ def create_baseline(
 
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     snapshot = {
-        "frozen_at": str(date.today()),
+        "frozen_at": str(timeutil.today()),
         "tasks": [
             {
                 "task_id": t.id,
@@ -103,7 +104,7 @@ def create_baseline(
         project_id=project_id,
         name=payload.name,
         description=payload.description,
-        baseline_date=date.today(),
+        baseline_date=timeutil.today(),
         schedule_snapshot=json.dumps(snapshot),
         total_tasks=len(tasks),
         completed_tasks=done,

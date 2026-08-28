@@ -35,6 +35,7 @@ from app.services.resource_analytics import (
     get_forecast_project_names,
     get_forecast_past_imputations,
 )
+from app.core import timeutil
 
 router = APIRouter(tags=["resource-forecast"])
 
@@ -68,7 +69,7 @@ def forecast_heatmap(
       cell → { load_pct, committed_hours, available_hours, status }
     """
     start = _monday(
-        date.fromisoformat(from_date) if from_date else date.today()
+        date.fromisoformat(from_date) if from_date else timeutil.today()
     )
     week_dates = _weeks_range(start, weeks)
 
@@ -141,7 +142,7 @@ def forecast_user_detail(
         from fastapi import HTTPException
         raise HTTPException(404)
 
-    start      = _monday(date.fromisoformat(from_date) if from_date else date.today())
+    start      = _monday(date.fromisoformat(from_date) if from_date else timeutil.today())
     week_dates = _weeks_range(start, weeks)
     capacity   = u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
 
@@ -194,7 +195,7 @@ def find_available(
     current_user: User = Depends(require_any_manager),
 ):
     """Devuelve personas con suficiente disponibilidad media en el rango dado."""
-    start = _monday(date.fromisoformat(from_date) if from_date else date.today())
+    start = _monday(date.fromisoformat(from_date) if from_date else timeutil.today())
     end   = date.fromisoformat(to_date) if to_date else start + timedelta(weeks=4)
     week_dates = []
     w = start
@@ -245,7 +246,7 @@ def forecast_summary(
     current_user: User = Depends(require_any_manager),
 ):
     """KPIs ejecutivos: carga media, semanas de riesgo, personas saturadas, capacidad libre."""
-    start      = _monday(date.today())
+    start      = _monday(timeutil.today())
     week_dates = _weeks_range(start, weeks)
 
     users = get_forecast_active_users(db, department=department)
@@ -326,7 +327,7 @@ def utilization_trend(
         users: [{user_id, user_name, series: [{week, pct, hours, capacity, is_future}]}]
     }
     """
-    today = date.today()
+    today = timeutil.today()
     past_start  = _monday(today) - timedelta(weeks=weeks_past)
     future_end  = _monday(today) + timedelta(weeks=weeks_future)
 

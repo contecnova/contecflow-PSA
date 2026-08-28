@@ -11,13 +11,13 @@ Exports:
 """
 from __future__ import annotations
 
-from datetime import date as _date
 from typing import Optional, TYPE_CHECKING
 
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.project import Project
 from app.models.task import Task, TaskStatus
+from app.core import timeutil
 
 if TYPE_CHECKING:
     pass
@@ -141,7 +141,7 @@ def build_task_list_query(
 
     if overdue_only:
         q = q.filter(
-            Task.due_date < _date.today(),
+            Task.due_date < timeutil.today(),
             Task.status.not_in([TaskStatus.done, TaskStatus.cancelled]),
         )
 

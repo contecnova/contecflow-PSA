@@ -27,6 +27,7 @@ from app.models.user import User, UserStatus
 from app.schemas import DashboardKPIs
 from app.schemas import ProjectHealthItem
 from app.schemas import ResourceLoadItem
+from app.core import timeutil
 
 
 def _org_id(current_user: Optional[User]) -> Optional[str]:
@@ -47,12 +48,12 @@ _kpi_cache_lock = Lock()
 def get_global_kpis(db: Session, current_user: Optional[User] = None):
 
     org = _org_id(current_user)
-    cache_key = f"{date.today().isoformat()}:{org}"
+    cache_key = f"{timeutil.today().isoformat()}:{org}"
     with _kpi_cache_lock:
         if cache_key in _kpi_cache:
             return _kpi_cache[cache_key]
 
-    today = date.today()
+    today = timeutil.today()
     week_start = today - timedelta(days=today.weekday())
 
     proj_base = db.query(Project.id).filter(Project.status == ProjectStatus.active)
@@ -213,7 +214,7 @@ def get_projects_health(db: Session, current_user: Optional[User] = None) -> lis
         return []
 
     project_ids = [p.id for p in projects]
-    today = date.today()
+    today = timeutil.today()
 
     cost_rows = db.query(
         Imputation.project_id,
@@ -295,7 +296,7 @@ def get_resource_load(
 
     org = _org_id(current_user)
     if not week_start:
-        today = date.today()
+        today = timeutil.today()
         week_start = today - timedelta(days=today.weekday())
     week_end = week_start + timedelta(days=6)
 
@@ -420,9 +421,9 @@ def get_team_productivity(
 ) -> dict:
 
     if not date_from:
-        date_from = date.today().replace(day=1)
+        date_from = timeutil.today().replace(day=1)
     if not date_to:
-        date_to = date.today()
+        date_to = timeutil.today()
 
     org = _org_id(current_user)
     q = db.query(User).filter(User.is_active == True)

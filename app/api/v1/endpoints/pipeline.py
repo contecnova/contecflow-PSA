@@ -11,6 +11,7 @@ from app.services.pipeline_service import STAGE_LABELS, serialize_opportunity as
 from app.services import proposal_service as proposal_svc
 from app.schemas.pipeline import OpportunityIn, OpportunityUpdate, PipelineActivityIn as ActivityIn, StageConfigIn
 from app.core.responses import APIListResponse, APIResponse
+from app.core import timeutil
 
 router = APIRouter()
 
@@ -244,9 +245,8 @@ def get_weighted_forecast(
     Only includes active opportunities (not won/lost/cancelled).
     """
     from calendar import month_abbr
-    from datetime import date as _date
 
-    today = _date.today()
+    today = timeutil.today()
     opps = pipeline_service.get_active_opportunities_for_forecast(db)
 
     # Build month buckets

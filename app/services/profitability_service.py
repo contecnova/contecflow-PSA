@@ -17,6 +17,7 @@ from app.models.bookings import ExchangeRate
 from app.models.project import Project, ProjectStatus
 from app.models.task import TaskStatus
 from app.models.user import User
+from app.core import timeutil
 
 # ── FX helper ──────────────────────────────────────────────────────────────────
 
@@ -149,7 +150,7 @@ def calc_project_profitability(
     elif total_hours > 0 and project.budget_hours:
         forecast_cost = round((internal_cost / total_hours) * project.budget_hours, 2)
 
-    today = date.today()
+    today = timeutil.today()
     if project.start_date and project.end_date_planned and project.end_date_planned > project.start_date:
         total_days = (project.end_date_planned - project.start_date).days
         elapsed_days = max(0, (today - project.start_date).days)
