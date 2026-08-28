@@ -166,7 +166,7 @@ def create_envelope(
         message=body.message,
     )
     # Attach signers to temp envelope so provider can use them
-    from app.models.esign import ESignSigner as _ESignSigner  # noqa: PLC0415
+    from app.models.esign import ESignSigner as _ESignSigner
     _tmp.signers = [
         _ESignSigner(name=s.name, email=s.email, routing_order=s.routing_order)
         for s in body.signers
@@ -494,8 +494,8 @@ def docusign_oauth_authorize(
     Return the DocuSign OAuth authorization URL. Admin opens this URL to grant access.
     After consent DocuSign redirects to /esign/auth/docusign/callback with ?code=...
     """
-    from app.services.esign_providers import docusign_auth_url  # noqa: PLC0415
-    from app.core.config import settings as _s  # noqa: PLC0415
+    from app.services.esign_providers import docusign_auth_url
+    from app.core.config import settings as _s
 
     integration_key = _get_esign_setting(db, "esign.docusign_integration_key") or _s.DOCUSIGN_INTEGRATION_KEY
     if not integration_key:
@@ -517,8 +517,8 @@ def docusign_oauth_callback(
     _: User = Depends(require_admin),
 ):
     """Exchange authorization code for DocuSign access + refresh tokens and store them."""
-    from app.services.esign_providers import docusign_exchange_code  # noqa: PLC0415
-    from app.core.config import settings as _s  # noqa: PLC0415
+    from app.services.esign_providers import docusign_exchange_code
+    from app.core.config import settings as _s
 
     integration_key = _get_esign_setting(db, "esign.docusign_integration_key") or _s.DOCUSIGN_INTEGRATION_KEY
     secret_key = _get_esign_setting(db, "esign.docusign_secret_key") or _s.DOCUSIGN_SECRET_KEY
@@ -548,8 +548,8 @@ def adobe_oauth_authorize(
     _: User = Depends(require_admin),
 ):
     """Return the Adobe Sign OAuth authorization URL."""
-    from app.services.esign_providers import adobe_sign_auth_url  # noqa: PLC0415
-    from app.core.config import settings as _s  # noqa: PLC0415
+    from app.services.esign_providers import adobe_sign_auth_url
+    from app.core.config import settings as _s
 
     client_id = _get_esign_setting(db, "esign.adobe_sign_client_id") or _s.ADOBE_SIGN_CLIENT_ID
     if not client_id:
@@ -571,8 +571,8 @@ def adobe_oauth_callback(
     _: User = Depends(require_admin),
 ):
     """Exchange authorization code for Adobe Sign access + refresh tokens and store them."""
-    from app.services.esign_providers import adobe_sign_exchange_code  # noqa: PLC0415
-    from app.core.config import settings as _s  # noqa: PLC0415
+    from app.services.esign_providers import adobe_sign_exchange_code
+    from app.core.config import settings as _s
 
     client_id = _get_esign_setting(db, "esign.adobe_sign_client_id") or _s.ADOBE_SIGN_CLIENT_ID
     client_secret = _get_esign_setting(db, "esign.adobe_sign_client_secret") or _s.ADOBE_SIGN_CLIENT_SECRET

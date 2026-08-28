@@ -361,7 +361,7 @@ def get_team_user_ids(db: Session, current_user: User, project_id: Optional[str]
     Devuelve los IDs de usuarios del equipo visibles para current_user.
     Si se proporciona project_id, filtra a los miembros de ese proyecto.
     """
-    q = db.query(User.id).filter(User.is_active == True)  # noqa: E712
+    q = db.query(User.id).filter(User.is_active == True)
 
     if current_user.organization_id:
         q = q.filter(User.organization_id == current_user.organization_id)

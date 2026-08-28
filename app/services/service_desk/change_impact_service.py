@@ -416,11 +416,11 @@ def score_and_persist(db: Session, change_id: str) -> dict:
 # v23.10.44 — Automated Change Impact Analysis + Rollback Plan (new)
 # ══════════════════════════════════════════════════════════════════════════════
 
-import math  # noqa: E402
+import math
 
 
 def _get_json_setting(db: Session, key: str) -> dict:
-    from app.models.settings import AppSetting  # noqa: PLC0415
+    from app.models.settings import AppSetting
     row = db.query(AppSetting).filter(AppSetting.key == key).first()
     if not row or not row.value:
         return {}
@@ -431,7 +431,7 @@ def _get_json_setting(db: Session, key: str) -> dict:
 
 
 def _set_json_setting(db: Session, key: str, data: dict) -> None:
-    from app.models.settings import AppSetting  # noqa: PLC0415
+    from app.models.settings import AppSetting
     row = db.query(AppSetting).filter(AppSetting.key == key).first()
     serialized = json.dumps(data, ensure_ascii=False)
     if row:
@@ -517,7 +517,7 @@ def analyze_change_impact_full(
 
 def get_cached_impact_analysis(db: Session, change_id: str) -> dict:
     """Return cached impact analysis or 404."""
-    from fastapi import HTTPException  # noqa: PLC0415
+    from fastapi import HTTPException
     result = _get_json_setting(db, f"sd.change.impact.{change_id}")
     if not result:
         raise HTTPException(404, "Análisis de impacto no encontrado. Ejecuta POST /impact-analysis primero.")
@@ -532,7 +532,7 @@ def generate_rollback_plan(
     """Generate a structured rollback plan for the change."""
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
-        from fastapi import HTTPException  # noqa: PLC0415
+        from fastapi import HTTPException
         raise HTTPException(404, f"Change {change_id} not found")
 
     cached = _get_json_setting(db, f"sd.change.impact.{change_id}")
@@ -587,7 +587,7 @@ def generate_testing_plan(
     """
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
-        from fastapi import HTTPException  # noqa: PLC0415
+        from fastapi import HTTPException
         raise HTTPException(404, f"Change {change_id} not found")
 
     risk_data = score_change_risk(db, change)
@@ -819,7 +819,7 @@ def generate_comms_plan(
     """
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
-        from fastapi import HTTPException  # noqa: PLC0415
+        from fastapi import HTTPException
         raise HTTPException(404, f"Change {change_id} not found")
 
     risk_data = score_change_risk(db, change)
@@ -1101,11 +1101,11 @@ def simulate_change_whatif(
           "overrides_applied": {...},
         }
     """
-    from types import SimpleNamespace  # noqa: PLC0415
+    from types import SimpleNamespace
 
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
-        from fastapi import HTTPException  # noqa: PLC0415
+        from fastapi import HTTPException
         raise HTTPException(404, f"Change {change_id} not found")
 
     # ── ORIGINAL ──────────────────────────────────────────────────────────────

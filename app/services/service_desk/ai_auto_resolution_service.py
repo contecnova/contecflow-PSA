@@ -90,7 +90,7 @@ def _normalize_auto_resolution_config(raw: dict | None) -> dict:
 def get_auto_resolution_config(db: Session) -> dict:
     """Return persisted auto-resolution config with defaults and normalization."""
     try:
-        from app.models.settings import AppSetting  # noqa: PLC0415
+        from app.models.settings import AppSetting
 
         row = db.query(AppSetting).filter(AppSetting.key == AUTO_CONFIG_SETTING_KEY).first()
         if row and row.value:
@@ -103,7 +103,7 @@ def get_auto_resolution_config(db: Session) -> dict:
 
 def save_auto_resolution_config(db: Session, payload: dict) -> dict:
     """Persist auto-resolution config into AppSetting."""
-    from app.models.settings import AppSetting  # noqa: PLC0415
+    from app.models.settings import AppSetting
 
     current = get_auto_resolution_config(db)
     updated = _normalize_auto_resolution_config({**current, **(payload or {})})
@@ -119,7 +119,7 @@ def save_auto_resolution_config(db: Session, payload: dict) -> dict:
 def _load_feedback_stats(db: Session, key: str = FEEDBACK_SETTING_KEY) -> dict:
     """Load per-category/priority feedback counters from AppSetting."""
     try:
-        from app.models.settings import AppSetting  # noqa: PLC0415
+        from app.models.settings import AppSetting
         row = db.query(AppSetting).filter(AppSetting.key == key).first()
         if row and row.value:
             return json.loads(row.value)
@@ -132,7 +132,7 @@ def _load_feedback_stats(db: Session, key: str = FEEDBACK_SETTING_KEY) -> dict:
 def _save_feedback_stats(db: Session, stats: dict, key: str = FEEDBACK_SETTING_KEY) -> None:
     """Persist feedback counters to AppSetting."""
     try:
-        from app.models.settings import AppSetting  # noqa: PLC0415
+        from app.models.settings import AppSetting
         row = db.query(AppSetting).filter(AppSetting.key == key).first()
         if row:
             row.value = json.dumps(stats)
@@ -181,7 +181,7 @@ def _composite_confidence(ai_confidence: float, db: Session, ticket: Ticket) -> 
     # KB similarity component from incident_intelligence_service
     kb_score = 0.0
     try:
-        from app.services.service_desk.incident_intelligence_service import (  # noqa: PLC0415
+        from app.services.service_desk.incident_intelligence_service import (
             _get_top_kb_similarity,
         )
         query_text = f"{ticket.title or ''}\n{ticket.description or ''}".strip()
@@ -249,7 +249,7 @@ def validate_auto_resolution(db: Session, ticket: Ticket) -> dict:
             ticket.number,
         )
         try:
-            from app.models.service_desk import TicketHistory  # noqa: PLC0415
+            from app.models.service_desk import TicketHistory
             db.add(TicketHistory(
                 ticket_id=ticket.id,
                 field_name="auto_resolution_validation",
@@ -272,11 +272,11 @@ def validate_auto_resolution(db: Session, ticket: Ticket) -> dict:
 
 def get_auto_resolution_stats(db: Session) -> dict:
     """Return aggregate auto-resolution stats: overall + per-bucket success rates."""
-    from sqlalchemy import func as sqlfunc  # noqa: PLC0415
+    from sqlalchemy import func as sqlfunc
 
     total_auto = (
         db.query(sqlfunc.count(Ticket.id))
-        .filter(Ticket.auto_resolved == True)  # noqa: E712
+        .filter(Ticket.auto_resolved == True)
         .scalar()
     ) or 0
 
@@ -333,7 +333,7 @@ def run_auto_close_job(db: Session) -> dict:
         candidates = (
             db.query(Ticket)
             .filter(
-                Ticket.auto_resolved == True,  # noqa: E712
+                Ticket.auto_resolved == True,
                 Ticket.status == TicketStatus.resolved,
                 Ticket.auto_resolved_at <= cutoff,
             )
@@ -357,7 +357,7 @@ def run_auto_close_job(db: Session) -> dict:
         validation_candidates = (
             db.query(Ticket)
             .filter(
-                Ticket.auto_resolved == True,  # noqa: E712
+                Ticket.auto_resolved == True,
                 Ticket.auto_resolved_at >= validation_cutoff,
                 Ticket.auto_resolved_at <= cutoff,  # not yet in auto-close window
             )
@@ -545,7 +545,7 @@ def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
 
     # Try semantic cosine similarity first
     try:
-        from app.services.service_desk.incident_intelligence_service import (  # noqa: PLC0415
+        from app.services.service_desk.incident_intelligence_service import (
             _embed_text, _cosine_similarity,
         )
         query_text = f"{ticket.title or ''}\n{ticket.description or ''}".strip()
@@ -555,7 +555,7 @@ def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
             db.query(KBArticle)
             .filter(
                 KBArticle.status == KBStatus.published,
-                KBArticle.is_public == True,  # noqa: E712
+                KBArticle.is_public == True,
             )
         ).all()
         scored = []
@@ -581,7 +581,7 @@ def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
         db.query(KBArticle)
         .filter(
             KBArticle.status == KBStatus.published,
-            KBArticle.is_public == True,  # noqa: E712
+            KBArticle.is_public == True,
         )
     ).all()
 
@@ -606,7 +606,7 @@ def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
 def _post_resolution_comment(db: Session, ticket: Ticket, suggestion: str, *, is_auto: bool) -> None:
     """Add a public comment to the ticket with the AI suggestion/resolution."""
     try:
-        from app.models.service_desk import TicketComment  # noqa: PLC0415
+        from app.models.service_desk import TicketComment
         prefix = "🤖 **Resolución automática por IA:**" if is_auto else "🤖 **Sugerencia de resolución por IA (revisión manual recomendada):**"
         body = f"{prefix}\n\n{suggestion}"
         comment = TicketComment(
@@ -616,7 +616,7 @@ def _post_resolution_comment(db: Session, ticket: Ticket, suggestion: str, *, is
             author_name="AI Auto-Resolution",
         )
         db.add(comment)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _logger.debug("Could not post resolution comment: %s", exc)
 
 
@@ -647,7 +647,7 @@ def _apply_auto_resolution(
 
     # Trigger SLA close event if available
     try:
-        from app.services.service_desk.sla_event_service import record_sla_event  # noqa: PLC0415
+        from app.services.service_desk.sla_event_service import record_sla_event
         record_sla_event(db, ticket, event_type="resolved", actor="ai_auto_resolution")
     # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
@@ -655,7 +655,7 @@ def _apply_auto_resolution(
 
     # Notify watchers if notification service is available
     try:
-        from app.services.service_desk.watcher_service import notify_watchers  # noqa: PLC0415
+        from app.services.service_desk.watcher_service import notify_watchers
         notify_watchers(db, ticket, event="resolved", message=analysis["suggestion"][:300])
     # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
@@ -703,8 +703,8 @@ def run_daily_auto_resolution_job(db: Session, *, limit: int | None = None,
         )
         if organization_id:
             # FIX: Ticket no tiene organization_id propia; scope vía Project.
-            from app.models.project import Project as _Project  # noqa: PLC0415
-            from sqlalchemy import or_ as _or  # noqa: PLC0415
+            from app.models.project import Project as _Project
+            from sqlalchemy import or_ as _or
             q = q.outerjoin(_Project, Ticket.project_id == _Project.id).filter(
                 _or(Ticket.project_id.is_(None), _Project.organization_id == organization_id)
             )

@@ -49,7 +49,7 @@ def _image_thumbnail(data: bytes) -> bytes | None:
 
 def _pdf_thumbnail(data: bytes) -> bytes | None:
     try:
-        from pdf2image import convert_from_bytes  # noqa: F401
+        from pdf2image import convert_from_bytes
     except Exception:
         return None
     try:

@@ -56,7 +56,7 @@ def _validate_webhook_url(url: str) -> None:
     try:
         parsed = _urlparse.urlparse(url)
     # intentional: chained re-raise preserves context
-    except Exception as exc:  # noqa: BLE001 — urlparse rarely raises, be safe
+    except Exception as exc:
         raise ValueError(f"URL malformada: {url!r}") from exc
 
     if parsed.scheme != "https":

@@ -353,8 +353,8 @@ def routing_candidates(
 
     Requires the ticket to have an assigned_group_id.
     """
-    from app.models.service_desk import AgentGroupMember  # noqa: PLC0415
-    from app.services.service_desk.ml_routing_service import get_routing_candidates  # noqa: PLC0415
+    from app.models.service_desk import AgentGroupMember
+    from app.services.service_desk.ml_routing_service import get_routing_candidates
 
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:

@@ -32,6 +32,7 @@ from app.services.collaboration._bus import (
 from app.services.collaboration.workspaces import (
     get_or_create_workspace, list_conversations_for_user,
 )
+from app.core.background import spawn
 
 router = APIRouter(tags=["Collaboration"])
 log = logging.getLogger(__name__)
@@ -144,7 +145,9 @@ async def collaboration_ws(
             await sub.close()
             channels = new_channels
             sub = await bus.subscribe(channels)
-            asyncio.create_task(producer())
+            # spawn conserva la referencia: asyncio sólo guarda una débil y el GC
+            # podía llevarse este productor a medias (auditoría 2026-08, P2-15).
+            spawn(producer(), name="collab-ws-producer")
 
         async def consumer():
             bucket = _bucket_for(user.id)

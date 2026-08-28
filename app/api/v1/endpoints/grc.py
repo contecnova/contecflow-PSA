@@ -1,14 +1,55 @@
 """
 grc.py — Governance, Risk & Compliance API
 
+La matriz de permisos por rol SE APLICA en el camino de la petición desde la
+auditoría 2026-08 (hallazgo 27). Antes no: `check_permission()` llevaba escrito
+"Used by other API endpoints to enforce GRC" y tenía cero invocaciones, y en el
+frontend sólo la leía la propia pantalla de GRC. Era un bucle cerrado —
+desmarcar una casilla no cambiaba nada.
+
+── Cómo se aplica ahora ──────────────────────────────────────────────────────
+`app/core/grc_enforce.py::enforce_grc_matrix` cuelga como dependencia de los
+routers v1 y v2 (registrado en app/main.py). Es una dependencia y no un
+middleware por la misma razón que ABAC: las dependencias se resuelven después de
+la autenticación, los middlewares antes.
+
+El modelo es DENEGACIÓN ADITIVA: una fila sólo puede quitar permiso, nunca darlo.
+Sin fila, deciden los controles de siempre. Con `allowed=True` tampoco se
+promueve nada por encima del RBAC. El razonamiento completo está en la cabecera
+de grc_enforce.py.
+
+── Cobertura ─────────────────────────────────────────────────────────────────
+El módulo y la acción de cada permiso se DERIVAN de la ruta (ver
+app/core/grc_catalog.py): el módulo del primer segmento del path, la acción del
+método HTTP matizado por el path para distinguir `aprobar` y `exportar`.
+
+Eso lleva la cobertura de los 15 módulos que enumeraba DEFAULT_MATRIX a los 109
+dominios no exentos que expone la API — antes quedaban fuera áreas
+financieramente sensibles como budgets, revenue, profitability, accounting,
+revenue-recognition, user-costs, rate-cards, imputations, pipeline, gdpr y
+organizations. Y no hay lista que mantener: un dominio nuevo entra en la matriz
+el día que se añade su primera ruta.
+
+DEFAULT_MATRIX sigue siendo la opinión inicial sobre esos 15 módulos; el resto se
+siembra permisivo para que activar la aplicación no cierre de golpe lo que nunca
+se configuró. `tests/test_grc_enforcement.py` prueba por HTTP que denegar una
+casilla produce un 403 de verdad.
+
+── Segregación de Funciones (SoD) ────────────────────────────────────────────
+Su regla nuclear se aplica en el motor de aprobaciones: el solicitante no puede
+aprobar su propia solicitud (403). Esa regla está escrita en el código, no sale
+de la tabla SodRule. Las reglas SoD que se crean aquí se consultan con el patrón
+crear/aprobar sobre la misma entidad para registrar la violación; una regla entre
+módulos distintos aún no se evalúa (limitación conocida, ver
+tests/test_grc_coverage.py).
+
 Expone:
-  - Matriz de permisos por rol (RolePermission) — lectura y escritura
-  - Reglas SoD (SodRule) — CRUD
+  - Matriz de permisos por rol (RolePermission) — lectura y escritura, APLICADA
+  - Reglas SoD (SodRule) — CRUD (aplicación parcial, ver arriba)
   - Violaciones SoD (SodViolation) — listado, resolución
   - Audit log GRC — lectura paginada
   - Comprobación SoD ad-hoc
 
-La GRC es la columna vertebral de seguridad de la plataforma.
 Todos los cambios de permisos y violaciones quedan registrados en grc_audit_log.
 """
 import json
@@ -139,6 +180,11 @@ def _log_grc(db: Session, user_id: Optional[str], action_type: str,
 
 def _ensure_matrix_seeded(db: Session):
     grc_svc.ensure_matrix_seeded(db, DEFAULT_MATRIX)
+    # Completa la matriz para los 109 módulos que expone la API, derivados del
+    # router (auditoría 2026-08, hallazgo 28). DEFAULT_MATRIX sólo opina sobre 15,
+    # así que sin esto un administrador no tenía ni una casilla que configurar en
+    # budgets, revenue, profitability, accounting, gdpr… Es idempotente.
+    grc_svc.ensure_matrix_covers_all_modules(db, DEFAULT_MATRIX)
 
 
 def _ensure_sod_seeded(db: Session):
@@ -355,16 +401,6 @@ def get_audit_log(
         for e in rows
     ]
     return APIListResponse.ok(items=items, total=len(items))
-
-
-# ── Utility: check_permission (for internal use by other endpoints) ───────────
-def check_permission(db: Session, role: str, module: str, action: str) -> bool:
-    """
-    Returns True if the given role has permission for (module, action).
-    Falls back to DEFAULT_MATRIX if DB has no data yet.
-    Used by other API endpoints to enforce GRC.
-    """
-    return grc_svc.check_permission_db(db, role, module, action, DEFAULT_MATRIX)
 
 
 def record_sod_violation(

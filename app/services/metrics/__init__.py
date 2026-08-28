@@ -529,8 +529,8 @@ from .revenue_expenses import (
 # === SPRINTS & TASKS (sprints_tasks.py) ===
 from .sprints_tasks import (
     metric_sprint_velocity_trend,
-    metric_sprint_completion_rate as metric_sprint_completion_rate_v2,  # noqa: F811
-    metric_tasks_by_status as metric_tasks_by_status_v2,  # noqa: F811
+    metric_sprint_completion_rate as metric_sprint_completion_rate_v2,
+    metric_tasks_by_status as metric_tasks_by_status_v2,
     metric_tasks_by_priority,
     metric_tasks_overdue_by_assignee,
     metric_task_completion_trend,

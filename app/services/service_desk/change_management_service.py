@@ -30,9 +30,9 @@ def _notify_change_stakeholders(
 ) -> None:
     """Send email + Slack notifications to the change requester and approver."""
     try:
-        from app.models.service_desk import ITSMChangeRequest  # noqa: PLC0415
-        from app.models.user import User  # noqa: PLC0415
-        from app.services.notification_service import NotificationService  # noqa: PLC0415
+        from app.models.service_desk import ITSMChangeRequest
+        from app.models.user import User
+        from app.services.notification_service import NotificationService
 
         change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
         if not change:
@@ -44,9 +44,9 @@ def _notify_change_stakeholders(
             if user and user.email:
                 NotificationService.send_email(to=user.email, subject=subject, html_body=body_html)
 
-        from app.core.config import settings  # noqa: PLC0415
+        from app.core.config import settings
         if getattr(settings, "SLACK_WEBHOOK_URL", None):
-            import asyncio  # noqa: PLC0415
+            import asyncio
             try:
                 loop = asyncio.get_event_loop()
             except RuntimeError:
@@ -369,7 +369,7 @@ def _get_rollout_state(db: Session, change_id: str) -> dict | None:
     """Load rollout execution state from AppSetting JSON blob."""
     import json as _json
     try:
-        from app.models.settings import AppSetting  # noqa: PLC0415
+        from app.models.settings import AppSetting
         row = db.query(AppSetting).filter(AppSetting.key == _rollout_state_key(change_id)).first()
         if not row or not row.value:
             return None
@@ -381,7 +381,7 @@ def _get_rollout_state(db: Session, change_id: str) -> dict | None:
 def _save_rollout_state(db: Session, change_id: str, state: dict) -> None:
     import json as _json
     try:
-        from app.models.settings import AppSetting  # noqa: PLC0415
+        from app.models.settings import AppSetting
         key = _rollout_state_key(change_id)
         row = db.query(AppSetting).filter(AppSetting.key == key).first()
         if row:
@@ -439,7 +439,7 @@ def start_rollout_execution(
 
     # Mark the ITSMChangeRequest as in_progress
     try:
-        from app.models.service_desk import ITSMChangeRequest, ChangeStatus  # noqa: PLC0415
+        from app.models.service_desk import ITSMChangeRequest, ChangeStatus
         change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
         if change:
             change.status = ChangeStatus.in_progress
@@ -544,7 +544,7 @@ def advance_rollout_phase(
 
 def _update_change_status_on_rollback(db: Session, change_id: str) -> None:
     try:
-        from app.models.service_desk import ITSMChangeRequest, ChangeStatus  # noqa: PLC0415
+        from app.models.service_desk import ITSMChangeRequest, ChangeStatus
         change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
         if change:
             change.status = ChangeStatus.closed_failed
@@ -556,7 +556,7 @@ def _update_change_status_on_rollback(db: Session, change_id: str) -> None:
 
 def _update_change_status_on_complete(db: Session, change_id: str) -> None:
     try:
-        from app.models.service_desk import ITSMChangeRequest, ChangeStatus  # noqa: PLC0415
+        from app.models.service_desk import ITSMChangeRequest, ChangeStatus
         change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
         if change:
             change.status = ChangeStatus.implemented
@@ -631,7 +631,7 @@ def fast_track_emergency_cab(
     """
     import json as _json
     import logging
-    from app.models.service_desk import ITSMChangeRequest, ChangeType, ChangeStatus  # noqa: PLC0415
+    from app.models.service_desk import ITSMChangeRequest, ChangeType, ChangeStatus
 
     _log = logging.getLogger(__name__)
 

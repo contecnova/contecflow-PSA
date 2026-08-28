@@ -194,7 +194,7 @@ def patch_discovery_provider(
         provider.scan_interval_minutes = max(1, data["scan_interval_minutes"])
         # Recalculate next_run_at if provider has already run
         if provider.last_run_at:
-            from datetime import timedelta  # noqa: PLC0415
+            from datetime import timedelta
             provider.next_run_at = provider.last_run_at + timedelta(
                 minutes=provider.scan_interval_minutes
             )
@@ -383,7 +383,7 @@ def approve_baseline(
     Limpia `drift_detected_at` — el CI ya no aparecerá como drifted hasta el
     próximo scan que detecte diferencias respecto a este baseline.
     """
-    from app.models.cmdb import CMDBItem  # noqa: PLC0415
+    from app.models.cmdb import CMDBItem
 
     q = db.query(CMDBItem).filter(CMDBItem.discovery_provider == provider_id)
     if ci_id:
@@ -407,7 +407,7 @@ def approve_baseline(
 # On-Premise Agent Management Endpoints  (ITSM discovery gap)
 # ══════════════════════════════════════════════════════════════════════════════
 
-from app.services.service_desk.cmdb_discovery_service import (  # noqa: E402
+from app.services.service_desk.cmdb_discovery_service import (
     generate_agent_token,
     process_agent_checkin,
     list_agent_registrations,
@@ -550,10 +550,10 @@ def snmp_network_scan(
     When `persist=true` (default), discovered devices are upserted into CMDB
     via the same reconcile_cis() logic as the scheduled discovery jobs.
     """
-    from app.services.service_desk.cmdb_discovery_service import (  # noqa: PLC0415
+    from app.services.service_desk.cmdb_discovery_service import (
         discover_snmp_network, reconcile_cis,
     )
-    from fastapi import HTTPException  # noqa: PLC0415
+    from fastapi import HTTPException
 
     if not payload.hosts:
         raise HTTPException(status_code=400, detail="hosts list is required")

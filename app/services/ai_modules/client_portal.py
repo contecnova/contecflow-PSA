@@ -175,7 +175,7 @@ def revenue_forecast(db: Session, months_ahead: int = 3) -> dict:
         SQLite el query rompía. Sustituido por extracción YYYY-MM en
         Python para compatibilidad dialect-agnóstica.
     """
-    from app.models.billing_reports import Invoice  # noqa: PLC0415
+    from app.models.billing_reports import Invoice
 
     now   = utcnow()
     start = (now.replace(day=1) - timedelta(days=365)).replace(day=1)
@@ -301,7 +301,7 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
     today_str = now.strftime("%Y-%m-%d")
 
     # Item #70: prompts en español (alineado con el resto del sistema).
-    from app.core.config import settings as _s_for_cap  # noqa: PLC0415
+    from app.core.config import settings as _s_for_cap
     _weekly_cap = float(getattr(_s_for_cap, "DEFAULT_WEEKLY_CAPACITY_HOURS", 40.0) or 40.0)
     system = (
         "Eres una IA experta en planificación de proyectos. Recibes una lista "

@@ -149,7 +149,7 @@ def _get_published_version(db: Session, blueprint_id: str) -> Optional[WorkflowB
         db.query(WorkflowBlueprintVersion)
         .filter(
             WorkflowBlueprintVersion.blueprint_id == blueprint_id,
-            WorkflowBlueprintVersion.is_published == True,  # noqa: E712
+            WorkflowBlueprintVersion.is_published == True,
         )
         .first()
     )
@@ -390,7 +390,7 @@ def tick_waiting(db: Session) -> int:
         db.query(WorkflowRun)
         .filter(
             WorkflowRun.status == WorkflowRunStatus.waiting,
-            WorkflowRun.wake_at != None,  # noqa: E711
+            WorkflowRun.wake_at != None,
             WorkflowRun.wake_at <= now,
         )
         .all()
@@ -456,7 +456,7 @@ def _execute_node(ntype: str, config: dict, run: WorkflowRun, db: "Session") -> 
     if ntype == "notify":
         # Real in-app notification via app.services.notifications. `recipients`
         # may be a role name (notify_role) or a list of user ids (notify_user).
-        from app.services.notifications import notify_role, notify_user  # noqa: PLC0415
+        from app.services.notifications import notify_role, notify_user
 
         title = _render_template(config.get("title") or config.get("template_id") or "Workflow notification", ctx)
         body = _render_template(config.get("body") or config.get("message"), ctx)
@@ -504,8 +504,8 @@ def _execute_node(ntype: str, config: dict, run: WorkflowRun, db: "Session") -> 
     if ntype == "create_ticket":
         # Real ticket creation. Inherits the run's organization for tenant
         # isolation; ticket number is allocated via the canonical generator.
-        from app.models.service_desk import Ticket, TicketType, TicketPriority  # noqa: PLC0415
-        from app.services.sla_service import next_ticket_number  # noqa: PLC0415
+        from app.models.service_desk import Ticket, TicketType, TicketPriority
+        from app.services.sla_service import next_ticket_number
 
         title = _render_template(config.get("title_template") or config.get("title") or "Workflow-created ticket", ctx)
         try:

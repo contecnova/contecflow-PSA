@@ -423,7 +423,7 @@ class ABACService:
                     matched_policies=deny_policies or [],
                 )
             # intentional: best-effort fallback, log noise outweighs diagnostic value
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.debug("audit_access_decision: fallo best-effort ignorado", exc_info=True)
 
         self.db.commit()
@@ -485,7 +485,7 @@ class ABACService:
 def get_admin_overview(db: Session, org: str, since: datetime, days: int) -> dict:
     total_policies = db.query(func.count(ABACPolicy.id)).filter(ABACPolicy.org_id == org).scalar() or 0
     active_policies = db.query(func.count(ABACPolicy.id)).filter(
-        ABACPolicy.org_id == org, ABACPolicy.is_active == True  # noqa
+        ABACPolicy.org_id == org, ABACPolicy.is_active == True
     ).scalar() or 0
     total_users_with_attrs = db.query(func.count(func.distinct(UserAttribute.user_id))).filter(
         UserAttribute.org_id == org
@@ -641,7 +641,7 @@ def get_user_access_profile(db: Session, org: str, user_id: str, resource_type: 
 
     all_policies = db.query(ABACPolicy).filter(
         ABACPolicy.org_id == org,
-        ABACPolicy.is_active == True,  # noqa
+        ABACPolicy.is_active == True,
     ).all()
 
     applicable = []

@@ -77,7 +77,7 @@ def get_unread_notifications(
 
     q = (
         db.query(Notification)
-        .filter(Notification.user_id == user_id, Notification.is_read == False)  # noqa: E712
+        .filter(Notification.user_id == user_id, Notification.is_read == False)
         .order_by(Notification.created_at.desc())
         .limit(50)
     )
@@ -155,8 +155,8 @@ def get_portal_poll_data(db: Session, client_id: str) -> Dict[str, Any]:
         db.query(ClientMessage)
         .filter(
             ClientMessage.sender_client_id != client_id,
-            ClientMessage.is_read_by_client == False,  # noqa: E712
-            ClientMessage.is_internal == False,  # noqa: E712
+            ClientMessage.is_read_by_client == False,
+            ClientMessage.is_internal == False,
         )
         .count()
     )
@@ -183,7 +183,7 @@ def get_portal_poll_data(db: Session, client_id: str) -> Dict[str, Any]:
         db.query(TicketComment)
         .filter(
             TicketComment.ticket_id.in_(client_ticket_ids),
-            TicketComment.is_public == True,  # noqa: E712
+            TicketComment.is_public == True,
             TicketComment.author_client_id != client_id,
             TicketComment.created_at >= since,
         )

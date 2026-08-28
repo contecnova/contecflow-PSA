@@ -105,7 +105,7 @@ def apply_abac_for_route(
 
     from app.models.user import User
 
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()  # noqa: E712
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if user is None:
         return
 

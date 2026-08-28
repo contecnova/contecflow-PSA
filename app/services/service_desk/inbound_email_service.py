@@ -98,7 +98,7 @@ def build_inbound_ticket(db: Session, payload: dict, configured_secret: str, pro
 
     # ── Mejora: usar semantic engine para reasignar si hay perfiles ──────
     try:
-        from app.services.semantic_classifier import SemanticAssigner  # noqa: PLC0415
+        from app.services.semantic_classifier import SemanticAssigner
         asg = SemanticAssigner(db)
         suggestion = asg.suggest_for_ticket(
             ticket_title=ticket.title or "",

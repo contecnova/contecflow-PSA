@@ -132,7 +132,7 @@ async def calendar_events(
     from app.core.async_db import run_db
     rows = await run_db(lambda: db.query(CollaborationIntegration).filter(
         CollaborationIntegration.organization_id == current_user.organization_id,
-        CollaborationIntegration.is_enabled == True,  # noqa: E712
+        CollaborationIntegration.is_enabled == True,
         CollaborationIntegration.kind.in_(["google_calendar", "microsoft_365"]),
     ).all())
     out = []

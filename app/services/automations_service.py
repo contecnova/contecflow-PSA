@@ -448,7 +448,7 @@ def list_rules_for_user(db: Session, current_user, project_id, is_active):
         )
     if project_id:
         q = q.filter(
-            (AutomationRule.project_id == project_id) | (AutomationRule.is_global == True)  # noqa
+            (AutomationRule.project_id == project_id) | (AutomationRule.is_global == True)
         )
     if is_active is None:
         q = q.filter(AutomationRule.is_active == True)

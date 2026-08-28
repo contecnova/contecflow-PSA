@@ -382,7 +382,7 @@ def audit_access_reviews(db: Session, days: int = 90) -> dict:
 
     # ── Finding 2: Inactive users with active accounts ────────────────────────
     try:
-        from app.models.user import User  # noqa: PLC0415
+        from app.models.user import User
 
         inactive_users = (
             db.query(User)
@@ -491,7 +491,7 @@ def generate_compliance_report(
 
     # Asset/CMDB score — basic: check % CIs with is_discovered
     try:
-        from app.models.cmdb import CMDBItem  # noqa: PLC0415
+        from app.models.cmdb import CMDBItem
         total_cis = db.query(func.count(CMDBItem.id)).scalar() or 0
         discovered_cis = db.query(func.count(CMDBItem.id)).filter(
             CMDBItem.is_discovered.is_(True)
@@ -561,7 +561,7 @@ def generate_compliance_report(
 def _persist_compliance_report(db: Session, report: dict) -> None:
     """Save compliance report to sd_compliance_reports if table/model exists."""
     try:
-        from app.models.service_desk import ComplianceReport  # noqa: PLC0415
+        from app.models.service_desk import ComplianceReport
         rec = ComplianceReport(
             id=str(uuid4()),
             generated_at=datetime.now(tz=timezone.utc),
@@ -572,7 +572,7 @@ def _persist_compliance_report(db: Session, report: dict) -> None:
         )
         db.add(rec)
         db.commit()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         db.rollback()
         logger.warning("Could not persist compliance report: %s", exc)
 

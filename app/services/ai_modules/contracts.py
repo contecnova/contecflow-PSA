@@ -112,8 +112,8 @@ def get_ai_contract(db: Session, contract_id: str, current_user=None) -> dict:
 def extract_pdf_text(pdf_bytes: bytes) -> str:
     """Extrae texto plano de un PDF (pypdf). Devuelve "" si falla."""
     try:
-        from pypdf import PdfReader  # noqa: PLC0415
-        from io import BytesIO  # noqa: PLC0415
+        from pypdf import PdfReader
+        from io import BytesIO
         reader = PdfReader(BytesIO(pdf_bytes))
         chunks = []
         for page in reader.pages:
@@ -124,7 +124,7 @@ def extract_pdf_text(pdf_bytes: bytes) -> str:
                 continue
         return "\n\n".join(chunks).strip()
     except Exception as exc:
-        import logging  # noqa: PLC0415
+        import logging
         logging.getLogger(__name__).warning("PDF extraction failed: %s", exc)
         return ""
 

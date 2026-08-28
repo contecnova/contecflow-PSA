@@ -232,7 +232,7 @@ def routing_ml_stats(
     current_user: User = Depends(require_any_manager),
 ):
     """Return aggregate ML routing statistics: coverage, avg resolution time, top agents."""
-    from app.services.service_desk.ml_routing_service import get_routing_stats  # noqa: PLC0415
+    from app.services.service_desk.ml_routing_service import get_routing_stats
 
     return APIResponse.ok(data=get_routing_stats(db))
 
@@ -243,7 +243,7 @@ def run_routing_outcome_scan(
     current_user: User = Depends(require_admin),
 ):
     """Manually trigger the routing outcome backfill job."""
-    from app.services.service_desk.ml_routing_service import run_outcome_scan  # noqa: PLC0415
+    from app.services.service_desk.ml_routing_service import run_outcome_scan
 
     result = run_outcome_scan(db)
     return APIResponse.ok(data={"ok": True, **result})
@@ -466,7 +466,7 @@ def add_status_incident_update(incident_id: str, payload: StatusIncidentUpdateIn
 
 # ── Problem → Change (RFC) flow ───────────────────────────────────────────────
 
-from pydantic import BaseModel as _BaseModel, Field as _Field  # noqa: E402
+from pydantic import BaseModel as _BaseModel, Field as _Field
 
 
 class ProblemToChangeIn(_BaseModel):
@@ -490,7 +490,7 @@ def correlate_alerts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.services.service_desk.alert_correlation_service import cluster_open_alerts  # noqa: PLC0415
+    from app.services.service_desk.alert_correlation_service import cluster_open_alerts
     org_id = getattr(current_user, "organization_id", None)
     clusters = cluster_open_alerts(db, organization_id=org_id, window_hours=window_hours, min_cluster_size=min_cluster_size)
     return APIResponse.ok(data={
@@ -521,7 +521,7 @@ def correlation_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.services.service_desk.alert_correlation_service import get_correlation_stats  # noqa: PLC0415
+    from app.services.service_desk.alert_correlation_service import get_correlation_stats
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=get_correlation_stats(db, organization_id=org_id))
 
@@ -537,7 +537,7 @@ def merge_cluster_to_problem(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.services.service_desk.alert_correlation_service import merge_cluster_to_problem as _svc  # noqa: PLC0415
+    from app.services.service_desk.alert_correlation_service import merge_cluster_to_problem as _svc
     try:
         result = _svc(db, ticket_ids=payload.ticket_ids, current_user=current_user, auto_rca=payload.auto_rca)
     except ValueError as exc:
@@ -573,7 +573,7 @@ def start_rollout(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.services.service_desk.change_management_service import start_rollout_execution  # noqa: PLC0415
+    from app.services.service_desk.change_management_service import start_rollout_execution
     state = start_rollout_execution(db, change_id=change_id, rollout_plan=payload.rollout_plan, current_user=current_user)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True, "state": state})
@@ -585,7 +585,7 @@ def get_rollout_state(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.services.service_desk.change_management_service import get_rollout_execution_state  # noqa: PLC0415
+    from app.services.service_desk.change_management_service import get_rollout_execution_state
     state = get_rollout_execution_state(db, change_id)
     if not state:
         raise HTTPException(404, "No hay ejecución de rollout para este cambio")
@@ -600,7 +600,7 @@ def advance_phase(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.services.service_desk.change_management_service import advance_rollout_phase  # noqa: PLC0415
+    from app.services.service_desk.change_management_service import advance_rollout_phase
     try:
         state = advance_rollout_phase(db, change_id=change_id, phase_number=phase_number, phase_status=payload.status, notes=payload.notes, current_user=current_user)
     except ValueError as exc:
@@ -616,7 +616,7 @@ def trigger_rollback(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.services.service_desk.change_management_service import trigger_change_rollback  # noqa: PLC0415
+    from app.services.service_desk.change_management_service import trigger_change_rollback
     result = trigger_change_rollback(db, change_id=change_id, reason=payload.reason, current_user=current_user)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True, **result})
@@ -629,7 +629,7 @@ def emergency_cab_fast_track(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.services.service_desk.change_management_service import fast_track_emergency_cab  # noqa: PLC0415
+    from app.services.service_desk.change_management_service import fast_track_emergency_cab
     try:
         result = fast_track_emergency_cab(db, change_id=change_id, approver_ids=payload.approver_ids, justification=payload.justification, current_user=current_user)
     except ValueError as exc:

@@ -79,7 +79,7 @@ def detect_anomalies(
             values = [float(v) for v in body.data_points]
 
         if not values and body.metric:
-            from app.services.bi_smart_alerts_service import _fetch_metric_series  # noqa: PLC0415
+            from app.services.bi_smart_alerts_service import _fetch_metric_series
 
             org_id = getattr(current_user, "organization_id", None)
             values = _fetch_metric_series(db, str(body.metric), org_id)

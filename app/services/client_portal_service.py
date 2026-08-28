@@ -35,6 +35,7 @@ from app.services.approval_workflows import find_default_workflow
 from app.services.realtime_notifications import publish_user_notification
 from sqlalchemy import and_, false, func, or_
 from sqlalchemy.orm import joinedload
+from app.core.background import spawn
 
 logger = logging.getLogger("contecflow.client_portal")
 
@@ -1070,8 +1071,9 @@ def respond_to_fr(fr_id: str, payload, current_user, db: Session) -> dict:
             "title": fr.title,
             "ts": datetime.now(timezone.utc).isoformat(),
         }
-        import asyncio
-        asyncio.create_task(publish_user_notification(user_id, notif))
+        # spawn conserva la referencia (auditoría 2026-08, P2-15): sin ella el GC
+        # podía descartar la notificación antes de enviarse.
+        spawn(publish_user_notification(user_id, notif), name="portal-notif")
     except Exception as e:
         logger.warning(f"No se pudo enviar notificación WS: {e}")
     return fr_out(fr)

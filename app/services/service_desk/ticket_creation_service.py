@@ -45,8 +45,8 @@ def _semantic_assignee_if_enabled(db: Session, ticket: Ticket, candidate_user_id
     This preserves semantic engine value without replacing the ML routing fallback.
     """
     try:
-        from app.models.semantic_engine import SemConfig  # noqa: PLC0415
-        from app.services.semantic_classifier import SemanticAssigner  # noqa: PLC0415
+        from app.models.semantic_engine import SemConfig
+        from app.services.semantic_classifier import SemanticAssigner
 
         cfg = db.query(SemConfig).first()
         if not cfg or not bool(getattr(cfg, "auto_assign_tickets", False)):
@@ -72,8 +72,8 @@ def _auto_assign_ticket_on_create(db: Session, ticket: Ticket) -> None:
 
     If a manual assignee already exists, preserve it and just normalize status/event.
     """
-    from app.models.service_desk import AgentGroupMember, TicketStatus  # noqa: PLC0415
-    from app.services.service_desk.ml_routing_service import (  # noqa: PLC0415
+    from app.models.service_desk import AgentGroupMember, TicketStatus
+    from app.services.service_desk.ml_routing_service import (
         predict_best_agent,
         record_routing_event,
     )

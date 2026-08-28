@@ -36,6 +36,7 @@ from app.models.collaboration import (
 from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import _org, assert_conversation_access
 from app.services.collaboration._storage import scan_dlp, scan_with_av, storage
+from starlette.concurrency import run_in_threadpool
 
 router = APIRouter()
 
@@ -186,15 +187,24 @@ async def tus_patch(
     body = await request.body()
     if meta["offset"] + len(body) > meta["size"]:
         raise HTTPException(413, "Excede tamaño declarado")
-    with open(_data_path(uid), "ab") as f:
-        f.write(body)
+    # E/S de fichero en un hilo aparte (auditoría 2026-08, P2-15). Estaba dentro
+    # de la corrutina: una subida grande bloqueaba el event loop y con él a TODOS
+    # los usuarios, no sólo a quien subía.
+    def _append() -> None:
+        with open(_data_path(uid), "ab") as f:
+            f.write(body)
+
+    await run_in_threadpool(_append)
     meta["offset"] += len(body)
     _write_meta(uid, meta)
 
     # Si completo, materializa el adjunto
     if meta["offset"] == meta["size"]:
-        with open(_data_path(uid), "rb") as f:
-            data = f.read()
+        def _read_all() -> bytes:
+            with open(_data_path(uid), "rb") as f:
+                return f.read()
+
+        data = await run_in_threadpool(_read_all)
         av_status, av_details = scan_with_av(data)
         dlp_status, dlp_findings = scan_dlp(data.decode("utf-8", errors="ignore")[:200_000])
         is_quarantined = (av_status == "infected") or (dlp_status == "blocked")

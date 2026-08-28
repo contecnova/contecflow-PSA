@@ -151,9 +151,9 @@ def get_agent_performance_payload(
 
 # ── Phase 3 — Advanced Analytics + BI Storytelling (Sprint 19-20) ────────────
 
-import json as _json  # noqa: E402
-import logging as _logging  # noqa: E402
-from collections import defaultdict  # noqa: E402
+import json as _json
+import logging as _logging
+from collections import defaultdict
 
 _bi_logger = _logging.getLogger(__name__)
 
@@ -179,7 +179,7 @@ def get_trend_analysis(
           "period_days": int,
         }
     """
-    from app.services.service_desk.metrics_service import compute_itil_metrics  # noqa: PLC0415
+    from app.services.service_desk.metrics_service import compute_itil_metrics
 
     d_from, d_to = _parse_range(date_from, date_to)
     period_len = d_to - d_from
@@ -336,7 +336,7 @@ def generate_bi_story(
           "generated_at": str,
         }
     """
-    from app.services.ai_provider_service import call_ai  # noqa: PLC0415
+    from app.services.ai_provider_service import call_ai
 
     metrics = get_itil_metrics_payload(db, date_from, date_to, client_id)
     trend = get_trend_analysis(db, date_from, date_to, client_id)
@@ -369,7 +369,7 @@ def generate_bi_story(
     try:
         result = call_ai(db, messages=messages, system=system_prompt, max_tokens=600)
         narrative = result if isinstance(result, str) else str(result)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _bi_logger.warning("BI story AI call failed: %s", exc)
         # Fallback: template-based narrative
         sla = metrics["sla_compliance_pct"]
@@ -402,9 +402,9 @@ def persist_metric_snapshot(db: Session) -> dict:
 
     Returns summary of snapshot saved.
     """
-    from app.models.service_desk import ITSMMetricSnapshot  # noqa: PLC0415
-    from app.services.service_desk.metrics_service import compute_itil_metrics  # noqa: PLC0415
-    import uuid as _uuid  # noqa: PLC0415
+    from app.models.service_desk import ITSMMetricSnapshot
+    from app.services.service_desk.metrics_service import compute_itil_metrics
+    import uuid as _uuid
 
     # Last 24h window for KPI snapshot
     now = datetime.now(tz=timezone.utc)

@@ -98,8 +98,8 @@ def run(db: Session, *, dry_run: bool = False, frequency: Optional[str] = None) 
         r[0]
         for r in db.query(CollaborationNotification.user_id).filter(
             CollaborationNotification.user_id.isnot(None),
-            CollaborationNotification.is_read == False,  # noqa: E712
-            CollaborationNotification.delivered_email == False,  # noqa: E712
+            CollaborationNotification.is_read == False,
+            CollaborationNotification.delivered_email == False,
         ).distinct().all()
     }
 
@@ -113,8 +113,8 @@ def run(db: Session, *, dry_run: bool = False, frequency: Optional[str] = None) 
         cutoff = cutoff_daily if freq == "daily" else cutoff_weekly
         notifs = db.query(CollaborationNotification).filter(
             CollaborationNotification.user_id == uid,
-            CollaborationNotification.is_read == False,  # noqa: E712
-            CollaborationNotification.delivered_email == False,  # noqa: E712
+            CollaborationNotification.is_read == False,
+            CollaborationNotification.delivered_email == False,
             CollaborationNotification.created_at >= cutoff,
         ).order_by(CollaborationNotification.created_at.desc()).limit(100).all()
         if not notifs:

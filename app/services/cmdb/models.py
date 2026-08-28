@@ -425,7 +425,7 @@ def generate_agent_token(
             "name": str,
         }
     """
-    from app.models.cmdb import CMDBAgentRegistration  # noqa: PLC0415
+    from app.models.cmdb import CMDBAgentRegistration
 
     raw_token = secrets.token_hex(32)          # 64-char hex = 256-bit entropy
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
@@ -456,7 +456,7 @@ def generate_agent_token(
 
 def list_agent_registrations(db: Session) -> list[dict]:
     """Return all agent registrations with last check-in info."""
-    from app.models.cmdb import CMDBAgentRegistration  # noqa: PLC0415
+    from app.models.cmdb import CMDBAgentRegistration
 
     rows = db.query(CMDBAgentRegistration).order_by(CMDBAgentRegistration.created_at.desc()).all()
     return [
@@ -479,8 +479,8 @@ def list_agent_registrations(db: Session) -> list[dict]:
 
 def revoke_agent_token(db: Session, agent_id: str) -> None:
     """Deactivate an agent registration (revoke its token)."""
-    from fastapi import HTTPException  # noqa: PLC0415
-    from app.models.cmdb import CMDBAgentRegistration  # noqa: PLC0415
+    from fastapi import HTTPException
+    from app.models.cmdb import CMDBAgentRegistration
 
     reg = db.query(CMDBAgentRegistration).filter(CMDBAgentRegistration.id == agent_id).first()
     if not reg:
@@ -494,8 +494,8 @@ def rotate_agent_token(db: Session, agent_id: str) -> dict:
 
     The old token is immediately invalidated.  Returns the new raw token once.
     """
-    from fastapi import HTTPException  # noqa: PLC0415
-    from app.models.cmdb import CMDBAgentRegistration  # noqa: PLC0415
+    from fastapi import HTTPException
+    from app.models.cmdb import CMDBAgentRegistration
 
     reg = db.query(CMDBAgentRegistration).filter(CMDBAgentRegistration.id == agent_id).first()
     if not reg:
@@ -530,8 +530,8 @@ def process_agent_checkin(
 
     Returns summary dict with `agent_id`, `ci_id`, `created`/`updated` flags.
     """
-    from fastapi import HTTPException  # noqa: PLC0415
-    from app.services.cmdb.parser import resolve_agent_by_token, normalize_agent_payload  # noqa: PLC0415
+    from fastapi import HTTPException
+    from app.services.cmdb.parser import resolve_agent_by_token, normalize_agent_payload
 
     reg = resolve_agent_by_token(db, raw_token)
     if not reg:

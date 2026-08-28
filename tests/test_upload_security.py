@@ -135,7 +135,7 @@ def test_la_lectura_no_bufferiza_mas_alla_del_tope():
     consumido = {"bytes": 0}
 
     class _Contador(io.BytesIO):
-        def read(self, n=-1):  # noqa: D102
+        def read(self, n=-1):
             data = super().read(n)
             consumido["bytes"] += len(data)
             return data

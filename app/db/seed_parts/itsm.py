@@ -26,7 +26,7 @@ def seed_itsm_v2():
     users = {u.username: u for u in db.query(User).all()}
     admin = users.get('admin')
     ana   = users.get('ana.torres')
-    luis  = users.get('luis.vega') # noqa: F841 F401
+    luis  = users.get('luis.vega') # noqa: F841
 
     l1_group = db.query(AgentGroup).filter(AgentGroup.name.ilike('%helpdesk%')).first()
     l2_group = db.query(AgentGroup).filter(AgentGroup.name.ilike('%tecnico%')).first()

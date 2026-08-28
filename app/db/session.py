@@ -457,7 +457,7 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-from contextlib import contextmanager  # noqa: E402
+from contextlib import contextmanager
 
 
 @contextmanager

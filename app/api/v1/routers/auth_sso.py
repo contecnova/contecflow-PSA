@@ -14,6 +14,7 @@ from app.core.outbound_url import validate_outbound_url
 import json as _json
 import hmac as _hmac
 import hashlib as _hashlib
+import base64 as _b64
 from urllib.parse import urlparse
 
 from app.db.session import get_db
@@ -26,7 +27,7 @@ import app.services.auth_service as _svc
 from app.services.auth_service import (
     issue_mfa_challenge as _issue_mfa_challenge,
     register_sso_state as _register_sso_state,
-    consume_sso_state as _consume_sso_state,
+    consume_sso_state_payload as _consume_sso_state_payload,
     validate_https_discovery_url as _validate_https_discovery_url,
     set_auth_cookies as _set_auth_cookies,
 )
@@ -111,7 +112,24 @@ def sso_authorize(
         state_raw = secrets.token_urlsafe(32)
         sig = _hmac.new(settings.SECRET_KEY.encode(), state_raw.encode(), _hashlib.sha256).hexdigest()
         state = f"{state_raw}.{sig}"
-        _register_sso_state(state_raw)
+
+        # PKCE S256 (auditoría 2026-08, P2-13). Sin él, un `code` interceptado
+        # —en el historial del navegador, en un log de proxy, por una app
+        # maliciosa que registre el esquema de redirección— es canjeable por
+        # tokens sin más. Con PKCE hay que presentar además el verificador, que
+        # nunca sale de este servidor.
+        code_verifier = secrets.token_urlsafe(64)
+        code_challenge = (
+            _b64.urlsafe_b64encode(_hashlib.sha256(code_verifier.encode()).digest())
+            .decode()
+            .rstrip("=")
+        )
+
+        # El nonce ya se generaba pero NO se verificaba en el callback, así que no
+        # protegía de nada. Se guarda para poder compararlo.
+        nonce = secrets.token_urlsafe(16)
+
+        _register_sso_state(state_raw, {"code_verifier": code_verifier, "nonce": nonce})
 
         # Determine authorization endpoint via OIDC discovery document
         if config.oidc_discovery_url:
@@ -133,12 +151,14 @@ def sso_authorize(
 
         scope = "openid profile email"
         params = {
-            "client_id":     config.oidc_client_id,
-            "response_type": "code",
-            "scope":         scope,
-            "redirect_uri":  redirect_uri,
-            "state":         state,
-            "nonce":         secrets.token_urlsafe(16),
+            "client_id":             config.oidc_client_id,
+            "response_type":        "code",
+            "scope":                 scope,
+            "redirect_uri":          redirect_uri,
+            "state":                 state,
+            "nonce":                 nonce,
+            "code_challenge":        code_challenge,
+            "code_challenge_method": "S256",
         }
         url = auth_url + "?" + urllib.parse.urlencode(params)
         return {"authorization_url": url, "state": state, "provider": config.provider}
@@ -184,9 +204,13 @@ def sso_callback(
         ).hexdigest()
         if not _hmac.compare_digest(expected_sig, state_sig):
             raise HTTPException(400, "State inválido: posible ataque CSRF")
-        # Consume the state (prevents replay attacks)
-        if not _consume_sso_state(state_raw):
+        # Consume el estado (evita replay) Y recupera lo que se guardó con él:
+        # el verificador de PKCE y el nonce esperado.
+        sso_payload = _consume_sso_state_payload(state_raw)
+        if sso_payload is None:
             raise HTTPException(400, "State expirado o ya utilizado")
+        code_verifier = sso_payload.get("code_verifier")
+        expected_nonce = sso_payload.get("nonce")
 
         # Determinar token_endpoint
         if config.provider == "azure_ad":
@@ -216,13 +240,19 @@ def sso_callback(
                 raise HTTPException(400, "Falta oidc_discovery_url")
 
         # Intercambiar code por tokens
-        token_data = urllib.parse.urlencode({
+        _token_params = {
             "grant_type":    "authorization_code",
             "code":          code,
             "redirect_uri":  redirect_uri,
             "client_id":     config.oidc_client_id,
             "client_secret": decrypt_value(config.oidc_client_secret) if config.oidc_client_secret else "",
-        }).encode()
+        }
+        # PKCE: el proveedor comprueba que el verificador corresponde al
+        # challenge que se envió en /authorize. Sólo se manda si el estado lo
+        # traía, para no romper una transacción iniciada antes de este cambio.
+        if code_verifier:
+            _token_params["code_verifier"] = code_verifier
+        token_data = urllib.parse.urlencode(_token_params).encode()
 
         req = urllib.request.Request(validate_outbound_url(token_url, field="token_url"), data=token_data,  # noqa: S310
                                      headers={"Content-Type": "application/x-www-form-urlencoded"})
@@ -283,6 +313,17 @@ def sso_callback(
         except Exception as jwt_err:
             logger.warning("SSO callback id_token verification failed for config=%s", config_id, exc_info=True)
             raise HTTPException(502, f"id_token inválido o firma incorrecta: {jwt_err}")
+
+        # Verificación del NONCE (auditoría 2026-08, P2-13). Se generaba en
+        # /authorize y no se comprobaba aquí, así que no protegía de replay del
+        # id_token: un id_token capturado podía reutilizarse en otra sesión.
+        if expected_nonce:
+            token_nonce = claims.get("nonce")
+            if not token_nonce or not _hmac.compare_digest(str(token_nonce), str(expected_nonce)):
+                logger.warning(
+                    "SSO callback: nonce del id_token no coincide para config=%s", config_id
+                )
+                raise HTTPException(400, "Nonce inválido: posible reutilización del id_token")
 
         # Extraer email y nombre según configuración del proveedor
         email_claim = config.saml_attribute_email or "email"

@@ -230,7 +230,7 @@ def auto_assign_ticket_ml_command(db: Session, ticket_id: str, current_user_id: 
 
     Records a RoutingFeedback event for the chosen assignment.
     """
-    from app.services.service_desk.ml_routing_service import (  # noqa: PLC0415
+    from app.services.service_desk.ml_routing_service import (
         predict_best_agent,
         record_routing_event,
         get_routing_candidates,

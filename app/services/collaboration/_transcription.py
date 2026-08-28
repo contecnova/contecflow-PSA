@@ -26,7 +26,7 @@ def transcribe_audio_chunk(data: bytes, filename: str = "chunk.webm") -> str:
     pequeños del módulo de colaboración.
     """
     try:
-        from app.services.stt import transcribe_audio as _factory_transcribe, STTError as _STTError  # noqa: PLC0415
+        from app.services.stt import transcribe_audio as _factory_transcribe, STTError as _STTError
         result = _factory_transcribe(data, filename, "audio/webm", language="es")
         return (result.text or "").strip()
     except _STTError as exc:

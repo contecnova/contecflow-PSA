@@ -333,7 +333,7 @@ def _read_document_bytes(doc: Document, db: Optional[Session]) -> tuple[bytes, s
     if doc.versions:
         latest_version = sorted(doc.versions, key=lambda v: v.version_num, reverse=True)[0]
     elif db is not None:
-        from app.models.documents import DocumentVersion  # noqa: PLC0415
+        from app.models.documents import DocumentVersion
         latest_version = (
             db.query(DocumentVersion)
             .filter(DocumentVersion.document_id == doc.id)
@@ -353,7 +353,7 @@ def _read_document_bytes(doc: Document, db: Optional[Session]) -> tuple[bytes, s
 
     # Try S3
     try:
-        import boto3  # noqa: PLC0415
+        import boto3
         bucket = getattr(settings, "AWS_S3_BUCKET", None) or os.environ.get("AWS_S3_BUCKET")
         if bucket and file_key:
             s3 = boto3.client("s3")
@@ -394,7 +394,7 @@ def create_provider_envelope(envelope, doc, db: Optional[Session] = None) -> dic
     Returns dict with {provider_envelope_id, signing_url, status}.
     Falls back to manual mode when provider is not configured or API call fails.
     """
-    from app.services.esign_providers import (  # noqa: PLC0415
+    from app.services.esign_providers import (
         docusign_create_envelope as _ds_create,
         adobe_sign_create_agreement as _ab_create,
     )

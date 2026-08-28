@@ -83,7 +83,7 @@ def resolve_agent_by_token(db, raw_token: str):
 
     Returns the registration object or None if token is invalid/revoked.
     """
-    from app.models.cmdb import CMDBAgentRegistration  # noqa: PLC0415
+    from app.models.cmdb import CMDBAgentRegistration
 
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
     return (
@@ -106,7 +106,7 @@ def normalize_agent_payload(payload: dict, agent_id: str) -> dict:
         services: [str],
         tags: {k: v},
     """
-    from app.services.cmdb.utils import utcnow, AGENT_CI_TYPE_MAP, PROVIDER_AGENT  # noqa: PLC0415
+    from app.services.cmdb.utils import utcnow, AGENT_CI_TYPE_MAP, PROVIDER_AGENT
 
     os_type = (payload.get("os_type") or "").lower()
     hostname = payload.get("hostname") or payload.get("fqdn") or agent_id
@@ -164,7 +164,7 @@ def snmp_get_interfaces(ip: str, port: int, auth_data, engine) -> list[dict]:
     Silently returns [] if the walk fails or pysnmp is not available.
     """
     try:
-        from pysnmp.hlapi import (  # noqa: PLC0415
+        from pysnmp.hlapi import (
             ContextData, ObjectIdentity, ObjectType,
             UdpTransportTarget, nextCmd,
         )
@@ -216,7 +216,7 @@ def snmp_get_interfaces(ip: str, port: int, auth_data, engine) -> list[dict]:
                     interfaces[idx] = {"ifIndex": idx}
                 interfaces[idx][field] = val_str
 
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("SNMP ifTable walk %s: %s", ip, exc)
 
     return list(interfaces.values())

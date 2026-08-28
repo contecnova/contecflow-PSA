@@ -22,7 +22,7 @@ def save_ticket_dynamic_fields(db: Session, ticket_id: str, fields: dict | None)
         serialized = "{}"
 
     key = _key(ticket_id)
-    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == None).first()  # noqa: E711
+    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == None).first()
     if row:
         row.value = serialized
         row.description = "Service Desk dynamic fields for ticket"
@@ -37,7 +37,7 @@ def save_ticket_dynamic_fields(db: Session, ticket_id: str, fields: dict | None)
 
 def get_ticket_dynamic_fields(db: Session, ticket_id: str) -> dict:
     key = _key(ticket_id)
-    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == None).first()  # noqa: E711
+    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == None).first()
     if not row or not row.value:
         return {}
     try:

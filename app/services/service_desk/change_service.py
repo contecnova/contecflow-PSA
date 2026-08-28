@@ -147,9 +147,9 @@ def _load_window(suggested_window_json: str | None) -> dict | None:
     if not suggested_window_json:
         return None
     try:
-        import json  # noqa: PLC0415
+        import json
         return json.loads(suggested_window_json)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -231,10 +231,10 @@ def _auto_score_change(db: Session, change: ITSMChangeRequest) -> None:
     Failures are silenced so they never block change creation.
     """
     try:
-        from app.services.service_desk.change_impact_service import score_and_persist  # noqa: PLC0415
+        from app.services.service_desk.change_impact_service import score_and_persist
         score_and_persist(db, change.id)
-    except Exception as exc:  # noqa: BLE001
-        import logging  # noqa: PLC0415
+    except Exception as exc:
+        import logging
         logging.getLogger(__name__).warning(
             "Auto-score failed for change %s: %s", change.id, exc
         )
@@ -253,10 +253,10 @@ def _maybe_auto_approve(
 
     Returns True if the change was auto-approved.
     """
-    from app.models.service_desk import ChangeStatus  # noqa: PLC0415
+    from app.models.service_desk import ChangeStatus
     try:
         change_type_val = change.change_type.value if hasattr(change.change_type, "value") else change.change_type
-    except Exception:  # noqa: BLE001
+    except Exception:
         change_type_val = ""
 
     if change_type_val != "standard":

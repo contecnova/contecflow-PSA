@@ -103,8 +103,8 @@ def recommend_assignment(
         method_used, reasoning
       }
     """
-    from app.models.service_desk import AgentGroupMember, Ticket  # noqa: PLC0415
-    from app.services.service_desk.ml_routing_service import (  # noqa: PLC0415
+    from app.models.service_desk import AgentGroupMember, Ticket
+    from app.services.service_desk.ml_routing_service import (
         get_routing_candidates,
         predict_best_agent,
     )
@@ -205,12 +205,12 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
     agents (so the UI can render a workload chart and use them as candidates
     for a new recommendation).
     """
-    from sqlalchemy import func as sqlfunc  # noqa: PLC0415
+    from sqlalchemy import func as sqlfunc
 
-    from app.models.service_desk import (  # noqa: PLC0415
+    from app.models.service_desk import (
         Ticket, TicketStatus, AgentGroupMember,
     )
-    from app.models.user import User  # noqa: PLC0415
+    from app.models.user import User
 
     try:
         stats = _get_setting(db, _KEY_ASSIGNMENT_STATS, org_id)
@@ -245,8 +245,8 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
             )
             # Ticket no tiene columna organization_id propia; scope vía Project.
             if org_id:
-                from app.models.project import Project as _Project  # noqa: PLC0415
-                from sqlalchemy import or_ as _or  # noqa: PLC0415
+                from app.models.project import Project as _Project
+                from sqlalchemy import or_ as _or
                 load_q = load_q.outerjoin(_Project, Ticket.project_id == _Project.id).filter(
                     _or(Ticket.project_id.is_(None), _Project.organization_id == org_id)
                 )
@@ -294,8 +294,8 @@ def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
                 Ticket.status.notin_(active_states),
             )
             if org_id:
-                from app.models.project import Project as _Project  # noqa: PLC0415
-                from sqlalchemy import or_ as _or  # noqa: PLC0415
+                from app.models.project import Project as _Project
+                from sqlalchemy import or_ as _or
                 unassigned_q = unassigned_q.outerjoin(
                     _Project, Ticket.project_id == _Project.id
                 ).filter(

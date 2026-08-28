@@ -41,7 +41,7 @@ def _utcnow() -> str:
 # ── AppSetting helpers ────────────────────────────────────────────────────────
 
 def _get_row(db: Session, key: str):
-    from app.models.settings import AppSetting  # noqa: PLC0415
+    from app.models.settings import AppSetting
     return db.query(AppSetting).filter(AppSetting.key == key).first()
 
 
@@ -56,7 +56,7 @@ def _get_json(db: Session, key: str, default: Any = None) -> Any:
 
 
 def _set_json(db: Session, key: str, value: Any, description: str = "") -> None:
-    from app.models.settings import AppSetting  # noqa: PLC0415
+    from app.models.settings import AppSetting
     row = _get_row(db, key)
     serialized = json.dumps(value, ensure_ascii=False)
     if row:
@@ -87,7 +87,7 @@ def _fetch_current_data(db: Session, org_id: str, dataset_key: str) -> list[dict
 
     # Try DuckDB if dataset maps to an in-memory query
     try:
-        import duckdb  # noqa: PLC0415
+        import duckdb
         with duckdb.connect() as conn:
             conn.execute("CREATE TABLE IF NOT EXISTS _demo AS SELECT * FROM (VALUES (1,'demo',100.0)) t(id,label,value)")
             rows = conn.execute("SELECT * FROM _demo").fetchall()
@@ -200,7 +200,7 @@ def diff_versions(
 
     # Try DuckDB set diff
     try:
-        import duckdb  # noqa: PLC0415
+        import duckdb
 
         with duckdb.connect() as conn:
             if records_a and records_b:

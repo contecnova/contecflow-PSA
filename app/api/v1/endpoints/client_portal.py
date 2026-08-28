@@ -806,7 +806,7 @@ def get_portal_stats(
 # OrgBranding.portal_translations (JSON). Antes vivían en un dict en memoria
 # per-proceso: se perdían al reiniciar y no se compartían entre workers.
 # Shape: { <lang>: { <module>: { <key>: <value> } } }.
-import json  # noqa: E402
+import json
 
 
 def _org_key(current_user: User) -> str:
@@ -877,7 +877,7 @@ def portal_ai_chat(
     ``client_token`` en el body. Este endpoint usa ``get_current_client`` como
     dependencia y delega la lógica al servicio compartido.
     """
-    import app.services.ai_modules_service as _ai_svc  # noqa: PLC0415
+    import app.services.ai_modules_service as _ai_svc
     try:
         return APIResponse.ok(data=_ai_svc.client_portal_chat_authenticated(
             db, current_client, payload.message, payload.session_id
@@ -897,5 +897,5 @@ def portal_ai_chat_history(
     current_client: ClientUser = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
-    import app.services.ai_modules_service as _ai_svc  # noqa: PLC0415
+    import app.services.ai_modules_service as _ai_svc
     return APIListResponse.ok(items=_ai_svc.list_client_chat_messages(db, current_client, session_id))

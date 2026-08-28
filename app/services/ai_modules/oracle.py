@@ -30,7 +30,7 @@ def _oracle_project_delay(db: Session, projects: list, now: datetime) -> list:
     Devuelve la lista de alertas generadas (dicts) y muta la DB añadiendo /
     actualizando ``AIPrediction(prediction_type='project_delay')``. No commit.
     """
-    from app.core.config import settings as _s  # noqa: PLC0415
+    from app.core.config import settings as _s
     _rate_fb = float(getattr(_s, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
 
     generated: list = []
@@ -110,7 +110,7 @@ def _oracle_project_delay(db: Session, projects: list, now: datetime) -> list:
 
 def _oracle_sla_breach(db: Session, open_tickets: list, now: datetime) -> list:
     """Sección 2 de Oracle: detección de riesgo de incumplimiento SLA por ticket."""
-    from app.core.config import settings as _env  # noqa: PLC0415
+    from app.core.config import settings as _env
     from app.services.settings_service import get_runtime_namespace
     _s = get_runtime_namespace(db, {
         "SLA_PREDICTION_HOURS_CRITICAL": "int",
@@ -217,7 +217,7 @@ def _oracle_budget_overrun(db: Session, projects: list) -> list:
     Alerta dispara cuando CUALQUIERA supera 85%. Severidad usa el peor ratio.
     Si cost_ratio > revenue_ratio + 0.10, marcamos margen erosionado.
     """
-    from app.core.config import settings as _s_oracle  # noqa: PLC0415
+    from app.core.config import settings as _s_oracle
     _rate_fb_oracle = float(getattr(_s_oracle, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
 
     generated: list = []

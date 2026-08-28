@@ -36,7 +36,7 @@ def discover_aws(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
         Lista de diccionarios con atributos de instancias descubiertas
     """
     try:
-        import boto3  # noqa: PLC0415
+        import boto3
     except ImportError as exc:
         raise ImportError(
             "El proveedor AWS requiere boto3. Instálalo con: pip install boto3"
@@ -81,7 +81,7 @@ def discover_aws(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                 "discovery_provider": PROVIDER_AWS,
                 "last_discovered_at": utcnow().isoformat(),
             })
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("AWS EC2 discovery error: %s", exc)
 
     # RDS instances
@@ -109,7 +109,7 @@ def discover_aws(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                     "discovery_provider": PROVIDER_AWS,
                     "last_discovered_at": utcnow().isoformat(),
                 })
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("AWS RDS discovery error: %s", exc)
 
     logger.info("AWS discovery: %d activos encontrados", len(discovered))
@@ -123,8 +123,8 @@ def discover_aws(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
 def discover_kubernetes(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
     """Descubre nodos y namespaces de un cluster Kubernetes."""
     try:
-        from kubernetes import client as k8s_client  # noqa: PLC0415
-        from kubernetes import config as k8s_config  # noqa: PLC0415
+        from kubernetes import client as k8s_client
+        from kubernetes import config as k8s_config
     except ImportError as exc:
         raise ImportError(
             "El proveedor Kubernetes requiere: pip install kubernetes"
@@ -178,7 +178,7 @@ def discover_kubernetes(provider_config: dict[str, Any]) -> list[dict[str, Any]]
                 "discovery_provider": PROVIDER_K8S,
                 "last_discovered_at": utcnow().isoformat(),
             })
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("K8s nodes discovery error: %s", exc)
 
     # Namespaces
@@ -200,7 +200,7 @@ def discover_kubernetes(provider_config: dict[str, Any]) -> list[dict[str, Any]]
                 "discovery_provider": PROVIDER_K8S,
                 "last_discovered_at": utcnow().isoformat(),
             })
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("K8s namespaces discovery error: %s", exc)
 
     logger.info("K8s discovery: %d activos encontrados", len(discovered))
@@ -222,9 +222,9 @@ def discover_vsphere(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
     discovered: list[dict] = []
 
     try:
-        from pyVim.connect import SmartConnect, Disconnect  # noqa: PLC0415
-        from pyVmomi import vim  # noqa: PLC0415
-        import ssl  # noqa: PLC0415
+        from pyVim.connect import SmartConnect, Disconnect
+        from pyVmomi import vim
+        import ssl
 
         ssl_ctx = ssl.create_default_context()
         if disable_ssl:
@@ -275,7 +275,7 @@ def discover_vsphere(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                 connection_state = getattr(runtime, "connectionState", "disconnected")
 
                 discovered.append({
-                    "external_id": obj._moId or hostname,  # noqa: SLF001
+                    "external_id": obj._moId or hostname,
                     "name": hostname,
                     "ci_type": "server",
                     "status": "active" if connection_state == "connected" else "maintenance",
@@ -298,7 +298,7 @@ def discover_vsphere(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
 
     except ImportError:
         logger.warning("pyVmomi no instalado — vSphere discovery no disponible")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("vSphere discovery error: %s", exc)
 
     logger.info("vSphere discovery: %d activos encontrados", len(discovered))
@@ -320,8 +320,8 @@ def discover_azure(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
     discovered: list[dict] = []
 
     try:
-        from azure.identity import ClientSecretCredential, DefaultAzureCredential  # noqa: PLC0415
-        from azure.mgmt.compute import ComputeManagementClient  # noqa: PLC0415
+        from azure.identity import ClientSecretCredential, DefaultAzureCredential
+        from azure.mgmt.compute import ComputeManagementClient
     except ImportError as exc:
         raise ImportError(
             "Azure discovery requiere: pip install azure-mgmt-compute azure-identity"
@@ -355,7 +355,7 @@ def discover_azure(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                     if status.code and status.code.startswith("PowerState/"):
                         power_state = status.code.replace("PowerState/", "")
                         break
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.debug("discover_azure: fallo best-effort ignorado", exc_info=True)
 
             discovered.append({
@@ -378,7 +378,7 @@ def discover_azure(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                 "discovery_provider": PROVIDER_AZURE,
                 "last_discovered_at": utcnow().isoformat(),
             })
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("Azure discovery error: %s", exc)
 
     logger.info("Azure discovery: %d activos encontrados", len(discovered))
@@ -398,8 +398,8 @@ def discover_gcp(provider_config: dict) -> list[dict]:
     discovered: list[dict] = []
 
     try:
-        from google.cloud import compute_v1  # noqa: PLC0415
-        from google.oauth2 import service_account  # noqa: PLC0415
+        from google.cloud import compute_v1
+        from google.oauth2 import service_account
     except ImportError as exc:
         raise ImportError(
             "GCP discovery requiere: pip install google-cloud-compute"
@@ -441,7 +441,7 @@ def discover_gcp(provider_config: dict) -> list[dict]:
                     "discovery_provider": PROVIDER_GCP,
                     "last_discovered_at": utcnow().isoformat(),
                 })
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("GCP discovery error: %s", exc)
 
     logger.info("GCP discovery: %d activos encontrados", len(discovered))
@@ -455,17 +455,17 @@ def discover_gcp(provider_config: dict) -> list[dict]:
 def discover_snmp(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
     """Descubre activos de red mediante SNMP v2c/v3."""
     try:
-        from pysnmp.hlapi import (  # noqa: PLC0415
+        from pysnmp.hlapi import (
             CommunityData, ContextData, ObjectIdentity, ObjectType,
             SnmpEngine, UdpTransportTarget, getCmd,
         )
-        from pysnmp.hlapi import UsmUserData, usmHMACSHAAuthProtocol, usmAesCfb128Protocol  # noqa: PLC0415
+        from pysnmp.hlapi import UsmUserData, usmHMACSHAAuthProtocol, usmAesCfb128Protocol
     except ImportError as exc:
         raise ImportError(
             "SNMP discovery requiere: pip install pysnmp"
         ) from exc
 
-    import ipaddress  # noqa: PLC0415
+    import ipaddress
 
     community = provider_config.get("community", "public")
     port = int(provider_config.get("port", 161))
@@ -574,7 +574,7 @@ def discover_snmp(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                 "last_discovered_at": utcnow().isoformat(),
             })
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("SNMP host %s error: %s", ip, exc)
 
     logger.info("SNMP discovery: %d activos encontrados de %d hosts sondeados", len(discovered), len(host_ips))
@@ -588,17 +588,17 @@ def discover_snmp(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
 def discover_snmp_network(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
     """Enhanced SNMP discovery with interface-level data via ifTable walk."""
     try:
-        from pysnmp.hlapi import (  # noqa: PLC0415
+        from pysnmp.hlapi import (
             CommunityData, ContextData, ObjectIdentity, ObjectType,
             SnmpEngine, UdpTransportTarget, getCmd,
         )
-        from pysnmp.hlapi import UsmUserData, usmHMACSHAAuthProtocol, usmAesCfb128Protocol  # noqa: PLC0415
+        from pysnmp.hlapi import UsmUserData, usmHMACSHAAuthProtocol, usmAesCfb128Protocol
     except ImportError as exc:
         raise ImportError(
             "SNMP discovery requiere: pip install pysnmp"
         ) from exc
 
-    import ipaddress  # noqa: PLC0415
+    import ipaddress
 
     community = provider_config.get("community", "public")
     port = int(provider_config.get("port", 161))
@@ -724,7 +724,7 @@ def discover_snmp_network(provider_config: dict[str, Any]) -> list[dict[str, Any
                 "last_discovered_at": utcnow().isoformat(),
             })
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("SNMP host %s error: %s", ip, exc)
 
     logger.info("SNMP network scan: %d activos encontrados de %d hosts sondeados", len(discovered), len(host_ips))
@@ -773,7 +773,7 @@ def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> 
         job.cis_deactivated = stats["deactivated"]
         job.summary_json = json.dumps(stats)
 
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("Discovery error for provider %s: %s", provider.id, exc)
         job.status = "error"
         job.error_message = str(exc)[:2000]
@@ -811,7 +811,7 @@ def run_all_active_discoveries(db: Session) -> list[dict]:
                 "deactivated": job.cis_deactivated,
                 "error": job.error_message,
             })
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Fatal error for provider %s: %s", provider.id, exc)
             results.append({
                 "provider_id": provider.id,
@@ -853,7 +853,7 @@ def run_due_discoveries(db: Session) -> list[dict]:
                 "drift_detected": job.status == "ok",
                 "error": job.error_message,
             })
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Fatal error for provider %s: %s", provider.id, exc)
             results.append({
                 "provider_id": provider.id,

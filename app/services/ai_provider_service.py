@@ -588,7 +588,7 @@ def get_default_provider(
         ).first()
         if not p:
             # active > otros estados; luego más antiguo primero, id como tie-breaker
-            from sqlalchemy import case as sql_case  # noqa: PLC0415
+            from sqlalchemy import case as sql_case
             order_status = sql_case((AIProvider.status == "active", 0), else_=1)
             p = q.order_by(order_status, AIProvider.created_at.asc(), AIProvider.id.asc()).first()
         return p
@@ -735,7 +735,7 @@ def call_ai(
         )
         if last_user_msg and isinstance(last_user_msg.get("content"), str):
             try:
-                from app.services.ai_governance import check_prompt as _gr_check_prompt  # noqa: PLC0415
+                from app.services.ai_governance import check_prompt as _gr_check_prompt
                 gr = _gr_check_prompt(last_user_msg["content"], governance_user, module, db)
                 if not gr.allowed:
                     blocked = (
@@ -858,7 +858,7 @@ def call_ai(
     if (not skip_guardrails and governance_user and final_text
             and error_msg is None):
         try:
-            from app.services.ai_governance import check_output as _gr_check_output  # noqa: PLC0415
+            from app.services.ai_governance import check_output as _gr_check_output
             gr_out = _gr_check_output(final_text, governance_user, module, db)
             if not gr_out.allowed:
                 final_text = "[Respuesta bloqueada por política de gobernanza]"

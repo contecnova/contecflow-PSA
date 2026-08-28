@@ -206,7 +206,7 @@ def notify_requester(
                     results["sms"] = False
             else:
                 results[channel] = False
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Notification via %s failed for ticket %s: %s", channel, ticket_id, exc)
             results[channel] = False
 

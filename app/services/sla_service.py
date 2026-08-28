@@ -243,7 +243,7 @@ def calculate_sla_due(
     if db is not None and policy is not None:
         rows = db.query(SDSLAHoliday).filter(
             (SDSLAHoliday.sla_policy_id == policy.id)
-            | (SDSLAHoliday.sla_policy_id == None)  # noqa: E711
+            | (SDSLAHoliday.sla_policy_id == None)
         ).all()
         for r in rows:
             try:
