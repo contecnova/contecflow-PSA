@@ -16,6 +16,7 @@ import { useToast } from '../../context/ToastContext'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Avatar } from '../ui'
+import { AVAILABLE_LANGUAGES } from '../../i18n/appTranslations'
 
 // ── Temas disponibles ─────────────────────────────────────────────────────────
 const THEMES = [
@@ -39,16 +40,12 @@ const ACCENT_PRESETS = [
   { label: 'Coral',   color: '#fb923c' },
 ]
 
-const LANGUAGES = [
-  { code: 'es', label: 'Español',   flag: '🇪🇸' },
-  { code: 'en', label: 'English',   flag: '🇬🇧' },
-  { code: 'fr', label: 'Français',  flag: '🇫🇷' },
-  { code: 'de', label: 'Deutsch',   flag: '🇩🇪' },
-  { code: 'pt', label: 'Português', flag: '🇵🇹' },
-  { code: 'it', label: 'Italiano',  flag: '🇮🇹' },
-  { code: 'pl', label: 'Polski',    flag: '🇵🇱' },
-  { code: 'zh', label: '中文',       flag: '🇨🇳' },
-]
+// Auditoría 2026-08 (hallazgo 16): aquí había una lista de idiomas escrita a
+// mano, distinta del registro de src/i18n. Dos fuentes de verdad para lo mismo:
+// este panel ofrecía siete idiomas mientras el registro marcaba dos como
+// ocultos, así que un usuario podía elegir uno que la aplicación no soportaba.
+// Ahora sale del registro único.
+const LANGUAGES = AVAILABLE_LANGUAGES
 
 const IS: React.CSSProperties = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',

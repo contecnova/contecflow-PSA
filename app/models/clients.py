@@ -50,6 +50,12 @@ class Client(Base):
     contact_phone = Column(String(50),  nullable=True)
     contact_role  = Column(String(100), nullable=True)  # Cargo del contacto
 
+    # Zona horaria del cliente (auditoría 2026-08, hallazgo 14). Decide los
+    # cortes de periodo de SU facturación e informes: el cierre de agosto de un
+    # cliente es agosto en su zona, no en la del servidor ni en la de la sede.
+    # NULL → se hereda la de la organización. Ver app/core/timeutil.py.
+    timezone    = Column(String(50),  nullable=True)   # p. ej. 'Europe/Madrid'
+
     # Empresa
     website     = Column(String(500), nullable=True)
     address     = Column(Text,        nullable=True)

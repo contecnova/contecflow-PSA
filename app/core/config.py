@@ -173,6 +173,21 @@ class Settings(
     AWS_REGION: str = Field(default="eu-west-1", env="AWS_REGION")
     AWS_ACCESS_KEY: Optional[str] = Field(default=None, env="AWS_ACCESS_KEY")
     AWS_SECRET_KEY: Optional[str] = Field(default=None, env="AWS_SECRET_KEY")
+    # Endpoint S3 alternativo (auditoría 2026-08, hallazgo 12). Sin esto, boto3
+    # sólo podía hablar con AWS, así que el backend de objetos no se ejercitaba
+    # nunca fuera de producción y los documentos caían siempre al sistema de
+    # ficheros local. Con este ajuste el MISMO código sirve contra MinIO en
+    # local y contra AWS en producción: vacío = AWS.
+    #   local (docker compose): http://minio:9000
+    #   AWS:                    dejar vacío
+    #   otro proveedor S3:      su URL de endpoint
+    AWS_S3_ENDPOINT_URL: Optional[str] = Field(default=None, env="AWS_S3_ENDPOINT_URL")
+    # MinIO y la mayoría de alternativas exigen el direccionamiento por ruta
+    # (bucket en el path); AWS usa el virtual-hosted (bucket en el subdominio).
+    # Se deduce de si hay endpoint propio, pero se puede forzar.
+    AWS_S3_FORCE_PATH_STYLE: Optional[bool] = Field(
+        default=None, env="AWS_S3_FORCE_PATH_STYLE"
+    )
     S3_URL_EXPIRATION_HOURS: int = Field(default=24, env="S3_URL_EXPIRATION_HOURS")
     MAX_FILE_SIZE_MB: int = Field(default=100, env="MAX_FILE_SIZE_MB")
 

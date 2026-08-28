@@ -1,0 +1,350 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# CONTECFLOW PSA — stack completo
+#
+# Infra:  postgres · redis · minio (+ minio-init)
+# App:    api · worker · beat · web (nginx + frontend construido)
+# Opt-in: prometheus · alertmanager · exporters   (--profile observability)
+#
+# Misma estrategia que contecmind y contecweb:
+#   · Todos los puertos se publican en 127.0.0.1, nunca en 0.0.0.0.
+#   · Las variables obligatorias usan `${VAR:?}` para fallar al arrancar en vez
+#     de caer a un valor por defecto silencioso.
+#   · Los volúmenes con datos irremplazables son `external: true`, así que un
+#     `docker compose down -v` NO los borra. `setup.sh` los crea de forma
+#     idempotente, así que `up` no falla en una máquina nueva.
+#   · Servicios accesorios detrás de `profiles`, para que `up` por defecto
+#     levante sólo lo necesario.
+#
+# Uso:
+#   ./setup.sh                              # crea .env, volúmenes y levanta la infra
+#   docker compose up -d                    # DESARROLLO: sólo infraestructura.
+#                                           # La app corre en local (uvicorn), así
+#                                           # que se itera sin reconstruir imágenes.
+#   docker compose --profile app up -d      # PRODUCCIÓN: infra + migrate + api +
+#                                           # worker + beat + web
+#   docker compose --profile observability up -d   # + prometheus y exporters
+#   docker compose down                     # apaga, conserva los datos
+#   docker compose down -v                  # borra SÓLO los volúmenes regenerables
+#
+# Un único fichero para los dos escenarios, a propósito: antes había un
+# `docker-compose.dev.yml` y un `deploy/docker-compose.yml` distintos, y esa
+# duplicación es la misma clase de divergencia que dejó al worker apuntando a
+# otra base de datos que la API. Los perfiles resuelven la diferencia sin
+# duplicar la definición de la infraestructura.
+#
+# ── Historia: por qué este fichero está en la raíz ────────────────────────────
+# Antes vivía en `deploy/docker-compose.yml` y la auditoría 2026-08 (hallazgo 12)
+# encontró que NO PODÍA FUNCIONAR: nginx servía sólo estáticos sin proxy a /api
+# mientras el backend escuchaba en 127.0.0.1 dentro de su contenedor, así que el
+# navegador nunca alcanzaba la API. Además no había `.dockerignore`, de modo que
+# el `COPY . .` metía `.env`, `.git` y la base SQLite de desarrollo dentro de la
+# imagen. Sus propios autores anotaron que nunca se había levantado.
+# ══════════════════════════════════════════════════════════════════════════════
+name: contecflow
+
+# ── Configuración común de los servicios de aplicación ───────────────────────
+# Las tres (api, worker, beat) comparten imagen, .env y URLs internas. Un ancla
+# YAML evita que se desincronicen: era el tipo de divergencia que en la versión
+# anterior dejó al worker apuntando a un DATABASE_URL distinto del de la API.
+x-app: &app
+  image: ${CONTECFLOW_APP_IMAGE:-contecflow-api:local}
+  build:
+    context: .
+    dockerfile: deploy/Dockerfile.backend
+  env_file: [.env]
+  environment:
+    # Estas ganan sobre el .env: dentro de la red de compose los servicios se
+    # resuelven por nombre, no por localhost. Si se dejara que el .env manda,
+    # un DATABASE_URL con `localhost` (el habitual en desarrollo) haría que el
+    # contenedor intentara conectarse a sí mismo.
+    DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:?define POSTGRES_USER}:${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?define POSTGRES_DB}
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/1
+    CELERY_RESULT_BACKEND: redis://redis:6379/2
+    AWS_S3_ENDPOINT_URL: http://minio:9000
+    AWS_ACCESS_KEY: ${MINIO_ROOT_USER:?define MINIO_ROOT_USER}
+    AWS_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?define MINIO_ROOT_PASSWORD}
+    AWS_S3_BUCKET: ${MINIO_BUCKET:-contecflow-documents}
+    ENVIRONMENT: ${ENVIRONMENT:-production}
+  depends_on:
+    postgres: {condition: service_healthy}
+    redis: {condition: service_healthy}
+    minio: {condition: service_started}
+  restart: unless-stopped
+
+services:
+  # ── Base de datos transaccional ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: contecflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?define POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?define POSTGRES_DB}
+      # Locale UTF-8 explícito: en Alpine sobre ARM el initdb arranca en
+      # C.UTF-8 y los ORDER BY con acentos ordenan mal. Este proyecto tiene
+      # nombres de proyecto y cliente en castellano por todas partes.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=en_US.utf8 --lc-ctype=en_US.utf8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      # Bind a loopback. Con `${POSTGRES_PORT:-5432}:5432` Docker publica en
+      # 0.0.0.0 y la base queda accesible desde toda la red local.
+      - "${POSTGRES_PORT:-127.0.0.1:5434}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?define POSTGRES_USER} -d ${POSTGRES_DB:?define POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── Redis: rate limiting compartido, tickets de WebSocket y cola de Celery ──
+  # No es opcional en producción: sin él cada worker de uvicorn mantiene sus
+  # propios contadores de rate limit (los límites se multiplican por N) y los
+  # tickets de WebSocket viven en memoria del proceso, así que un WS que aterrice
+  # en otro worker falla. El propio arranque lo avisa por log.
+  redis:
+    image: redis:7-alpine
+    container_name: contecflow-redis
+    restart: unless-stopped
+    # appendonly: durabilidad por operación. Perder contadores de rate limit en
+    # un crash multiplicaría las cuotas durante unos segundos.
+    # maxmemory + allkeys-lru: si algo llenara Redis, evicta lo más antiguo en
+    # vez de empezar a rechazar SETs, que rompería el rate limit en silencio.
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - "${REDIS_MAXMEMORY:-256mb}"
+      - --maxmemory-policy
+      - "allkeys-lru"
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-127.0.0.1:6381}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  # ── Almacenamiento de objetos compatible con S3 ─────────────────────────────
+  # Permite validar en local la misma ruta de código que en producción usa AWS
+  # S3. Antes no era posible: S3Service no tenía `endpoint_url` configurable, así
+  # que los documentos caían siempre al sistema de ficheros local
+  # (`uploads/`) y el backend S3 nunca se ejercitaba fuera de AWS.
+  minio:
+    # Pineado por digest, no por `:latest`: con un tag móvil dos despliegues del
+    # mismo commit pueden levantar imágenes distintas y un fallo deja de ser
+    # reproducible. Para subir versión: `docker pull` y copiar el RepoDigest.
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    container_name: contecflow-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?define MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?define MINIO_ROOT_PASSWORD}
+      MINIO_PROMETHEUS_AUTH_TYPE: ${MINIO_PROMETHEUS_AUTH_TYPE:-public}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_PORT:-127.0.0.1:9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-127.0.0.1:9001}:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # One-shot: crea el bucket para que la primera subida no falle.
+  minio-init:
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    container_name: contecflow-minio-init
+    restart: "no"
+    depends_on:
+      minio: {condition: service_started}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until mc alias set local http://minio:9000 "${MINIO_ROOT_USER:?define MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD:?define MINIO_ROOT_PASSWORD}"; do
+          sleep 1
+        done
+        mc mb -p "local/${MINIO_BUCKET:-contecflow-documents}" || true
+
+  # ── Migraciones: un paso propio, antes de la API ────────────────────────────
+  # Auditoría 2026-08 (hallazgo 11): el esquema se creaba con
+  # `Base.metadata.create_all` + `alembic stamp head`, así que las 88 revisiones
+  # se marcaban aplicadas SIN EJECUTARSE. Cualquier backfill de datos dentro de
+  # una revisión se perdía, y una revisión rota no se descubría hasta necesitarla
+  # en producción. Aquí Alembic es la única fuente de verdad, y corre como
+  # servicio one-shot del que dependen api/worker/beat: si la migración falla,
+  # la aplicación no arranca con un esquema a medias.
+  migrate:
+    <<: *app
+    profiles: ["app"]
+    container_name: contecflow-migrate
+    restart: "no"
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  # ── API ─────────────────────────────────────────────────────────────────────
+  api:
+    <<: *app
+    profiles: ["app"]
+    container_name: contecflow-api
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app.main:app
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      # Varios workers son seguros porque Redis es obligatorio en este stack:
+      # rate limiting y tickets de WS son compartidos. Sin Redis habría que
+      # dejarlo en 1.
+      - --workers
+      - "${API_WORKERS:-4}"
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      minio: {condition: service_started}
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health', timeout=5).status==200 else 1)"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    # No se publica puerto: quien entra es nginx, por la red interna. Publicarlo
+    # dejaría la API accesible saltándose las cabeceras de seguridad y el tope de
+    # tamaño de cuerpo que aplica nginx.
+    expose:
+      - "8000"
+
+  # ── Worker de Celery ────────────────────────────────────────────────────────
+  worker:
+    <<: *app
+    profiles: ["app"]
+    container_name: contecflow-worker
+    command:
+      - python
+      - -m
+      - celery
+      - -A
+      - app.worker.celery_app
+      - worker
+      - --loglevel=info
+      - --concurrency=${WORKER_CONCURRENCY:-4}
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      minio: {condition: service_started}
+      migrate: {condition: service_completed_successfully}
+
+  # ── Planificador de Celery, en proceso APARTE ───────────────────────────────
+  # Antes iba como `worker --beat` en el mismo contenedor. Con más de una réplica
+  # del worker eso significa varios planificadores disparando la misma tarea
+  # periódica a la vez: informes duplicados, correos duplicados. Beat debe ser
+  # singleton, y separarlo lo hace explícito.
+  beat:
+    <<: *app
+    profiles: ["app"]
+    container_name: contecflow-beat
+    command:
+      - python
+      - -m
+      - celery
+      - -A
+      - app.worker.celery_app
+      - beat
+      - --loglevel=info
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
+
+  # ── Frontend + proxy inverso ────────────────────────────────────────────────
+  web:
+    profiles: ["app"]
+    image: ${CONTECFLOW_WEB_IMAGE:-contecflow-web:local}
+    build:
+      context: ./frontend
+      dockerfile: ../deploy/Dockerfile.frontend
+    container_name: contecflow-web
+    restart: unless-stopped
+    depends_on:
+      api: {condition: service_started}
+    ports:
+      - "${WEB_PORT:-127.0.0.1:8080}:80"
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Observabilidad (opt-in: --profile observability)
+  # La aplicación ya expone /metrics con METRICS_ENABLED=1; esto la recoge.
+  # ══════════════════════════════════════════════════════════════════════════
+  prometheus:
+    profiles: ["observability"]
+    image: prom/prometheus:v2.54.1
+    container_name: contecflow-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-127.0.0.1:9090}:9090"
+    depends_on:
+      postgres-exporter: {condition: service_started}
+      redis-exporter: {condition: service_started}
+
+  postgres-exporter:
+    profiles: ["observability"]
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: contecflow-postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:?define POSTGRES_USER}:${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?define POSTGRES_DB}?sslmode=disable
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  redis-exporter:
+    profiles: ["observability"]
+    image: oliver006/redis_exporter:v1.61.0
+    container_name: contecflow-redis-exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    depends_on:
+      redis: {condition: service_healthy}
+
+volumes:
+  # ── Datos irremplazables: PROTEGIDOS de `docker compose down -v` ────────────
+  # `external: true` hace que compose no los cree ni los borre nunca, así que un
+  # `down -v` los deja intactos. El coste es que `up` fallaría con "external
+  # volume not found" en una máquina nueva; `setup.sh::ensure_persistent_volumes`
+  # los crea de forma idempotente, así que se obtiene la protección sin fricción.
+  #
+  # Para crearlos a mano (máquina nueva, sin usar setup.sh):
+  #   docker volume create contecflow_postgres_data contecflow_minio_data
+  postgres_data:
+    name: contecflow_postgres_data
+    external: true
+  minio_data:
+    name: contecflow_minio_data
+    external: true
+
+  # ── Regenerables: se pueden perder sin consecuencias ───────────────────────
+  redis_data:
+    name: contecflow_redis_data
+  prometheus_data:
+    name: contecflow_prometheus_data
