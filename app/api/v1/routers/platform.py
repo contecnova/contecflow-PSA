@@ -16,7 +16,8 @@ from app.api.v1.endpoints import (
     marketplace, collaborative, labels, translations, ui,
     resource_demand, jira_integration,
 )
-from app.api.v1.endpoints.v239 import branding as branding_v239
+# Auditoría 2026-08 (hallazgo 22): antes venía de `endpoints/v239/`.
+from app.api.v1.endpoints import branding
 
 router = APIRouter()
 
@@ -43,7 +44,7 @@ router.include_router(public_forms.router,                                      
 router.include_router(developer_portal.router,                                          tags=["Developer Portal"])
 
 # ── Customisation & platform tooling ──────────────────────────────────────────
-router.include_router(branding_v239.router,                                      tags=["Branding"])
+router.include_router(branding.router,                                      tags=["Branding"])
 router.include_router(marketplace.router,          prefix="/marketplace",           tags=["Marketplace"])
 router.include_router(collaborative.router,        prefix="/collaborative",         tags=["Collaborative"])
 router.include_router(labels.router,               prefix="/labels",                tags=["Labels"])

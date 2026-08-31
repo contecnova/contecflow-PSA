@@ -8,6 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import register_metric
+from ._monthly import agrupar_por_mes, serie_de_cuentas
 from app.core import timeutil
 
 
@@ -272,21 +273,17 @@ def metric_sla_breach_trend(
     """Evolución mensual de incumplimientos de SLA."""
     try:
         from app.models.billing_reports import SLABreachLog
-        from sqlalchemy import extract
 
-        q = db.query(
-            extract("year", SLABreachLog.breached_at).label("year"),
-            extract("month", SLABreachLog.breached_at).label("month"),
-            func.count(SLABreachLog.id).label("cnt"),
-        ).filter(
+        # `breached_at` es DateTime(timezone=True) y guarda UTC, asi que el
+        # `extract("month", ...)` que habia aqui agrupaba por mes UTC: una
+        # incidencia de las 23:30 del 31 de julio en Madrid se contaba en agosto.
+        # Se agrupa en la zona de quien mira el informe. Ver _monthly.py.
+        instantes = db.query(SLABreachLog.breached_at).filter(
             SLABreachLog.breached_at >= d_from,
             SLABreachLog.breached_at <= d_to,
-        ).group_by("year", "month").order_by("year", "month")
+        ).all()
 
-        rows = [
-            {"label": f"{int(r.year)}-{int(r.month):02d}", "value": r.cnt}
-            for r in q.all()
-        ]
+        rows = serie_de_cuentas(agrupar_por_mes(instantes, lambda r: r[0]))
     except Exception:
         rows = []
     return rows, {"y_label": "Incumplimientos SLA"}

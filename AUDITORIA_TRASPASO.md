@@ -6,7 +6,7 @@ reglas de trabajo que hay que respetar.
 
 - **Tabla web viva:** https://claude.ai/code/artifact/7bf42ea8-c707-4dea-a8f9-f85991db3619
 - **Rama:** siempre `main`. No hay ramas ni PRs en este proyecto.
-- **Última actualización de este documento:** 2026-08-28
+- **Última actualización de este documento:** 2026-08-31
 
 ---
 
@@ -33,8 +33,10 @@ aquí:
 ```bash
 cd "contecflow PSA"
 
-# Suite completa de backend (~30 min). Es la red principal.
-./.venv/Scripts/python.exe -m pytest tests/ -q
+# Suite completa de backend. SIEMPRE con -n auto: en serie tarda MAS DE 90
+# MINUTOS y no cabe en ningun timeout razonable. `scripts/ci_local.sh` ya la
+# invoca asi; ejecutarla en serie fue una perdida de tiempo evitable.
+./.venv/Scripts/python.exe -m pytest tests -q --no-header -p no:cacheprovider -n auto
 
 # Linter del backend: tiene que salir "All checks passed!"
 ./.venv/Scripts/python.exe -m ruff check app/
@@ -49,16 +51,29 @@ node scripts/check_i18n_coverage.mjs   # gate de cobertura de traducción
 bash scripts/ci_local.sh
 ```
 
-**Estado en la última verificación completa:** 1984 passed, 17 skipped,
-1 xfailed, **0 fallos**; `ruff` limpio; `tsc` limpio; 89/89 vitest. Los tests
-añadidos después de esa medición suman ~200 más.
+**Estado en la última verificación completa (2026-08-31):**
+**2273 passed, 17 skipped, 1 xfailed, 0 fallos** en 19 min con `-n auto`;
+`ruff check app tests` limpio; `tsc` limpio; 89/89 vitest; los cinco gates de
+frontend en verde.
+
+> **Aviso sobre la verificación anterior.** El commit `b4ba85d` se hizo con la
+> suite corriendo y su resultado nunca se reportó, porque en serie no terminaba
+> dentro de ningún timeout. Dejó **tres tests en rojo** que no se detectaron:
+> dos con la lista de ocho idiomas escrita a mano (obsoleta desde la reducción a
+> tres) y el de paridad de Alembic, que reclamaba como faltantes los dos modelos
+> que existen sólo para tests. Los tres están corregidos y de raíz — ver la
+> sección 6. La lección: **un test que nadie termina de ejecutar no es una red.**
 
 ### Detalles que ahorran tiempo
 
+- **La suite en serie tarda más de 90 minutos.** Con `-n auto` baja
+  drásticamente. La razón: la fixture `db` de `conftest.py` es
+  `scope="function", autouse=True` y **siembra la base en cada test**, así que
+  cada caso parametrizado paga ese coste completo.
 - `pytest --timeout=N` **no existe** en este proyecto (el plugin no está
   instalado). Usar `timeout` del shell.
-- `tests/test_bi_metrics_catalog.py` tarda ~9 min: son 133 casos parametrizados
-  con base de datos.
+- `tests/test_bi_metrics_catalog.py` en serie tarda ~9 min: son 133 casos
+  parametrizados, cada uno resembrando la base.
 - `pip install --dry-run` da falsos OK. Para dependencias, usar `pip check`.
 - **No** ejecutar `ruff --select RUF100` en aislamiento: marca como inútil
   cualquier `noqa` de una regla no activada y destruye cientos de directivas
@@ -196,9 +211,36 @@ Arquitectura, en `app/core/timeutil.py` y `app/core/timezone_context.py`:
 > histórico de forma irreversible. Los 27 `date.today()` de `db/seed_parts/` se
 > dejaron a propósito: generan datos de demostración fuera de cualquier petición.
 
-**Pendiente menor:** `period_bounds_for_client` existe y está probado, pero sólo
-está enganchado en `imputation_service`. Falta usarlo en los cierres de
-`billing_reports_service`.
+**Cerrado por completo, corrigiendo un consejo mío que era erróneo.** Este
+documento decía que faltaba enganchar `period_bounds_for_client` en los cierres
+de `billing_reports_service`. **Eso estaba mal**, y se comprobó columna por
+columna: los cortes de facturación operan sobre columnas `Date`
+—`Invoice.issue_date`, `period_from`, `period_to`, `Imputation.date`—, que son
+días de calendario **sin instante**. No tienen zona que aplicar y su `extract`
+ya era correcto; meter ahí un ayudante de límites *datetime* habría introducido
+un error donde no había ninguno.
+
+Lo que sí estaba mal eran **tres métricas mensuales** que agrupaban con
+`extract("month", …)` sobre columnas de fecha-**hora** que guardan UTC:
+
+| Columna | Métrica | Fichero |
+|---|---|---|
+| `SLABreachLog.breached_at` | incumplimientos de SLA por mes | `metrics/invoices_alerts.py` |
+| `ClientNPS.created_at` | NPS medio por mes | `metrics/okr_nps.py` |
+| `Task.completed_at` | tareas completadas por mes | `metrics/sprints_tasks.py` |
+
+Agrupaban por el mes en que la fila está *almacenada*, no por el mes en que
+ocurrió: una incidencia de las 22:30 UTC del 31 de julio se contaba en julio
+cuando para Madrid era ya agosto. Corregidas con un agrupador compartido
+(`app/services/metrics/_monthly.py`) que trabaja en la zona del contexto.
+`timeutil` tiene ahora `month_key_in` y `month_label_in`. 16 tests en
+`tests/test_monthly_metrics_timezone.py`, con contra-test que verifica que las
+columnas `Date` siguen siendo `Date`.
+
+> **Por qué se agrupa en Python y no en SQL:** `AT TIME ZONE` existe en
+> PostgreSQL pero no en SQLite, así que esa cláusula rompería desarrollo y los
+> tests. Esa divergencia entre motores es justo lo que causó el hallazgo 11.
+> Son series de 12 a 24 puntos: el coste es irrelevante.
 
 ### #16 traducción — parcial, y el resto es trabajo de contenido
 
@@ -223,12 +265,38 @@ Hecho:
 
 ### #18 complejidad — parcial
 
-Hecho, las dos peores:
+Hecho, las cinco peores (dejando aparte `seed`, que es generación de datos de
+demostración):
 
-| Función | Antes | Ahora |
-|---|---|---|
-| `_fetch_metric_series` (`bi_smart_alerts/metrics.py`) | **247** en 945 líneas | peor caso 27 |
-| `execute_actions` (`automations_service.py`) | 38 en 218 líneas | 13 |
+| Función | Antes | Ahora | Verificación |
+|---|---|---|---|
+| `_fetch_metric_series` (`bi_smart_alerts/metrics.py`) | **247** en 945 líneas | peor caso 27 | 133 series a JSON, idénticas |
+| `execute_actions` (`automations_service.py`) | 38 en 218 líneas | 13 | 37 tests existentes |
+| `validate_graph` (`workflow_designer_service.py`) | 42 en 157 líneas | bajo umbral | 38 grafos, salidas idénticas |
+| `collaboration_ws` (`endpoints/collaboration/ws.py`) | 39 en 176 líneas | bajo umbral | **23 tests nuevos** (tenía cero) |
+| `apply_routing_rules` (`routing_rule_service.py`) | 35 en 105 líneas | bajo umbral | 62 casos + **59 tests nuevos** (tenía cero) |
+
+Dos de ellas **no tenían un solo test** antes de tocarlas, y en ambos casos eso
+era un hallazgo por sí mismo:
+
+- El manejo de mensajes del **chat en tiempo real** sólo existía dentro del
+  `async def` del endpoint y ningún test abría el socket. Cada rama del despacho
+  de tipos, el control de caudal y la revalidación de acceso eran código en
+  producción que nadie había ejecutado en una prueba. Ahora son métodos de
+  `_ConexionColab` y se prueban con dobles.
+- `apply_routing_rules` decide **a qué grupo y con qué prioridad llega cada
+  ticket** que entra. Un error ahí manda el trabajo al equipo equivocado sin que
+  nada falle.
+
+Detalles que el método verbatim cazó y que a mano se habrían escapado:
+
+- dos `continue` que pertenecían al bucle **exterior** de acciones (medido por
+  AST: profundidad de bucles 0) y que dentro de un manejador debían ser `return`;
+- el parámetro de contexto no podía llamarse `c`, porque el original asigna a `c`
+  en una rama y lo usa como variable de comprensión en cuatro más;
+- en `validate_graph`, **el orden de los mensajes es parte del contrato** (la
+  interfaz los presenta en lista), de ahí que errores y avisos se pasen por
+  parámetro en lugar de devolverse.
 
 Método usado, y conviene repetirlo: **extracción verbatim con un script**, no
 reescritura a mano. Las 945 líneas son cálculo de métricas de negocio; el script
@@ -247,27 +315,74 @@ Dos cosas que el `compile()` del script cazó y que a mano se habrían escapado:
   comprensión en cuatro más. Se llama `ctx`, que no aparece ni una vez en el
   original.
 
-**Pendiente:** 141 funciones siguen sobre el umbral. Honestamente: el *recuento*
-subió de 138 a 141 porque el monstruo se convirtió en cuatro funciones medianas;
-la métrica que importa es el **exceso total sobre 10, que bajó de 1023 a 828
-(−19 %)**. Las siguientes por orden de valor:
+**Pendiente, con la métrica honesta:** el *recuento* de funciones sobre el
+umbral es **137**, frente a las 138 del inicio — apenas se mueve, porque partir
+una función grande produce varias medianas. La métrica que importa es el **exceso
+total sobre 10, que bajó de 1.023 a 712 (−30 %)**. Las siguientes por orden de
+valor:
 
-| Complejidad | Función | Fichero |
+| Complejidad | Función | Fichero | Nota |
+|---|---|---|---|
+| 67 | `seed` | `db/seed_parts/core.py` | datos de demostración, valor bajo |
+| 34 | `build_tenant_context` | `ai_chat/context_service.py` | **525 líneas**, ~20 secciones independientes; sin tests |
+| 32 | `sso_callback` | `api/v1/routers/auth_sso.py` | tiene tests (PKCE/nonce) |
+| 29 | `lifespan` | `app/main.py` | arranque; cuidado, no es puro |
+| 29 | `apply_ticket_update` | `service_desk/ticket_update_service.py` | |
+| 27 | `_serie_cost_profile` | `bi_smart_alerts/metrics.py` | ya cubierta por el catálogo |
+
+`build_tenant_context` es la más grande que queda: construye ~20 secciones de
+contexto para el asistente, cada una con su consulta, filtro de organización,
+filtro de alcance y transformación a diccionarios. La descomposición natural es
+una función por sección más un objeto de alcance (db, org_id, user,
+user_project_ids, banderas de permiso, now). **Es código de sólo lectura**: un
+error degrada las respuestas del asistente, no corrompe datos. Golden-master
+aplicable con las fixtures de test.
+
+### #19 gráficos — cerrado, con el diagnóstico corregido
+
+**El diagnóstico original de la auditoría estaba equivocado.** Decía «elegir una
+librería y migrar». El troceo por vendor *ya estaba bien hecho* —plotly, echarts,
+recharts y d3 tenían cada uno su chunk en `vite.config.ts`—, así que el problema
+no era cuántas librerías hay sino **quién las importa**.
+
+Lo que de verdad pasaba, medido sobre el grafo del build:
+
+```
+route-misc importaba ESTÁTICAMENTE  →  vendor-plotly  (4.634 kB, 38 % de todo el JS)
+                                    →  vendor-d3      (130 kB)
+```
+
+Causa: `src/pages/CMDBPage.tsx` importaba `CMDBTopologyGraph` y `Cmdb3dGraph` de
+forma estática. Consecuencia: abrir **cualquiera** de las páginas del chunk
+`route-misc` descargaba plotly entero, incluidas las que no muestran ni una
+gráfica.
+
+Arreglado con dos `lazy(() => import(...))` y un límite de `Suspense` — el mismo
+patrón que `charts/DynamicChart` ya usaba para las otras cuatro gráficas de
+plotly. **Medido antes y después:**
+
+| | Antes | Después |
 |---|---|---|
-| 67 | `seed` | `app/db/seed_parts/core.py` — datos de demostración, valor bajo |
-| 42 | `validate_graph` | `service_desk/workflow_designer_service.py` |
-| 39 | `collaboration_ws` | `api/v1/endpoints/collaboration/ws.py` |
-| 35 | `apply_routing_rules` | `service_desk/routing_rule_service.py` |
-| 34 | `build_tenant_context` | `ai_chat/context_service.py` |
-| 32 | `sso_callback` | `api/v1/routers/auth_sso.py` |
-| 29 | `lifespan` | `app/main.py` |
-| 29 | `apply_ticket_update` | `service_desk/ticket_update_service.py` |
+| Abrir una página de `route-misc` | 7.382 kB | **2.385 kB** (−68 %) |
+| Tamaño del chunk `route-misc` | 2.749 kB | 2.385 kB |
+| JS total | 12,0 MB | 11,7 MB |
 
-### #19 gráficos — **no empezado**
+**Gate nuevo:** `frontend/scripts/check_heavy_chunks.mjs`, bloqueante en
+`ci_local.sh`. Ninguna ruta puede depender estáticamente de un vendor de más de
+400 kB. Necesita un build previo, así que se salta si no existe `dist/`.
 
-Cuatro librerías simultáneas: plotly (4,7 MB) + echarts (832 kB) + recharts
-(312 kB) + d3, ~13 MB de `dist`. Hay que decidir una y migrar. Ojo: `echarts`
-5→6 es uno de los saltos mayores pendientes.
+> La primera versión del gate llevaba una lista de librerías «pesadas» escrita a
+> mano e incluía `recharts`. **Eso era un error**: recharts (304 kB) es la
+> librería principal, usada en 18 sitios, y diferirla pondría un indicador de
+> carga en cada panel. El criterio es el **tamaño**, que no hay que mantener a
+> mano. Verificado que el gate se pone rojo inyectando la regresión en el
+> `dist`, no sólo que pasa en verde.
+
+**Lo que NO se ha hecho**, y era el consejo original: consolidar las cuatro
+librerías en una. Con el coste de carga ya resuelto, migrar 25 usos de echarts y
+18 de recharts es riesgo alto y beneficio ahora marginal. Queda como deuda
+medida, no forzada. `echarts` 5→6 sigue siendo uno de los saltos mayores
+pendientes.
 
 ### #22 organización de módulos — parcial
 
@@ -327,9 +442,48 @@ Los modelos Pydantic intercalados se asignaron al dominio de la primera ruta que
 los sigue. `get_bi_token` no tiene decorador de ruta, así que hubo que asignarlo
 a mano (el script aborta si aparece otro caso así, en vez de dejarlo caer).
 
-**Pendiente:**
-- Renombrar los módulos `v2xx` por su dominio.
-- Reducir los 190 `db.query()` y 108 `db.commit()` de la capa API.
+**Los módulos `v2xx`, fuera — y había un tercer caso del mismo patrón.**
+
+`v238_service.py` eran 784 líneas con **seis dominios** dentro. Repartido igual
+que `mfa_service` (cero llamadas entre grupos, cero ciclos, comprobado por AST):
+
+```
+app/services/pipeline_stages_service.py     etapas del embudo comercial
+app/services/capacity_planning_service.py   conflictos de reserva, nivelado Gantt
+app/services/adhoc_analytics_service.py     consultas ad-hoc, drilldown, cross-filter
+app/services/payments_service.py            enlaces de pago, webhook de Stripe
+app/services/collab_snapshots_service.py    instantáneas de edición colaborativa
+app/services/scim_service.py                (+ scim_bulk_error, ver aviso abajo)
+```
+
+Y el directorio `app/api/v1/endpoints/v239/` desaparece: sus tres ficheros ya
+estaban bien nombrados —`approval_builder`, `baselines`, `branding`—, lo que
+agrupaba por versión era la carpeta. **Ya no queda ningún módulo nombrado por
+número de versión.** Verificado que las 2.051 rutas siguen idénticas.
+
+**Dos `hasattr` más eliminados de paso.** `analytics_extended.py` tenía
+`if hasattr(v238_service, "run_analytics_drilldown")` y otro igual para el
+filtrado cruzado: **el mismo patrón que dejó muerto `/analytics/adhoc`**. Con el
+módulo repartido habrían empezado a devolver 200 con filas vacías sin un error en
+los registros.
+
+> **Error mío en este bloque, y la comprobación que lo evita.** El generador creó
+> un `app/services/scim_service.py` y **sobrescribió uno que ya existía con 509
+> líneas**, dejándolo en 32. Se detectó porque la app dejó de importar
+> (`cannot import name 'ensure_org'`), se restauró de git, y el script comprueba
+> ahora colisiones **antes** de escribir. Al generar módulos nuevos: verificar
+> siempre que el nombre está libre.
+>
+> `scim_bulk_error` sí tocaba moverla, y está en el `scim_service` real. Tiene
+> **cero llamantes** en todo el repositorio — comprobado. Se conserva porque el
+> aprovisionamiento SCIM en bloque es funcionalidad declarada, pero documentada
+> como lo que es.
+
+**Pendiente, y es lo único que mantiene esta fila en «parcial»:** los
+**190 `db.query()` y 108 `db.commit()`** de la capa API. Son 298 puntos donde un
+endpoint habla con la base sin pasar por un servicio. Moverlos es trabajo grande
+y de riesgo real sobre código en producción: hacerlo **por dominios, no de
+golpe**, cada tanda con su suite.
 
 ### Otros pendientes con riesgo propio
 
@@ -338,6 +492,23 @@ a mano (el script aborta si aparece otro caso así, en vez de dejarlo caer).
   `npm audit`. Cada uno es una migración con riesgo real sobre las 119 rutas
   lazy, así que están medidos y no forzados. El gate bloqueante está en nivel
   `high`, que está a 0.
+
+---
+
+## 5.b Los tres tests que estaban en rojo sin que nadie lo viera
+
+Aparecieron al ejecutar por primera vez la suite completa **en paralelo**, y los
+tres eran del mismo tipo: código de verificación que había dejado de verificar.
+
+| Test | Causa | Arreglo |
+|---|---|---|
+| `test_i18n_complete::test_all_lang_files_exist` | `EXPECTED_LANGS` con los **ocho** códigos escritos a mano | Lee `APP_LANGUAGES` vía `tests/_i18n_langs.py` |
+| `test_business_logic_v239::test_v239_section_exists_in_all_8_languages` | `_LANGS` con los ocho, igual | Idem, y renombrado sin el «8» |
+| `test_alembic_schema_parity` | Mis modelos de test (`_test_modelo_*`) se registran en `Base.metadata`; con `-n auto` cada worker importa todos los módulos y el test los reclamaba como tablas faltantes | `_modelos()` excluye el prefijo `_test_`, con un contra-test que impide que la exclusión tape un modelo real |
+
+Los dos primeros eran **una tercera y una cuarta fuente de verdad** para la lista
+de idiomas — exactamente el mismo problema que el selector de `UserProfilePanel`,
+que también la llevaba a mano. Ahora las cuatro leen del mismo sitio.
 
 ---
 
@@ -403,13 +574,26 @@ Tests nuevos: `test_organization_tenant_isolation`, `test_tenant_filter_fail_clo
 
 ## 7. Orden sugerido para continuar
 
-1. `period_bounds_for_client` en los cierres de `billing_reports_service` (cierra
-   el último fleco del #14).
-2. **#19** — decidir una librería de gráficos y migrar. Es la que más pesa en la
-   experiencia de usuario.
-3. **#18** — seguir por `validate_graph` (42), `collaboration_ws` (39),
-   `apply_routing_rules` (35), con el mismo método de extracción verbatim.
-4. **#16** — traducción de en/zh en lotes revisables, subiendo el suelo del gate
-   en cada lote.
-5. `strictNullChecks` y los dos saltos de versión mayor, al final: son los de
-   mayor riesgo por menor valor inmediato.
+Quedan **3 de 29** hallazgos en «parcial», y ninguno es un fallo latente: son
+deuda medida. Nada de lo que queda corrompe datos ni abre un agujero.
+
+1. **`build_tenant_context`** (#18) — 525 líneas, complejidad 34, ~20 secciones
+   de contexto independientes y **sin tests**. Es la mayor que queda con valor
+   real, y el método de extracción verbatim ya está probado cinco veces. Es
+   código de sólo lectura: un error degrada las respuestas del asistente, no
+   corrompe datos. Golden-master aplicable con las fixtures.
+2. **#22, los 298 puntos de acceso a base en la capa API** — por dominios, no de
+   golpe, cada tanda con su suite.
+3. **#16, traducción** — en lotes revisables, **subiendo `COBERTURA_MINIMA` en
+   `check_i18n_coverage.mjs` en cada lote**.
+
+Lo demás yo lo dejaría donde está, y digo por qué:
+
+- **Consolidar las cuatro librerías de gráficos en una.** El coste de carga ya
+  está resuelto (#19: −68 % al abrir las páginas afectadas), así que migrar 25
+  usos de echarts y 18 de recharts es riesgo alto por beneficio hoy marginal.
+- **`echarts` 5→6 y `react-router-dom` 6→7** — los 3 avisos `moderate` de
+  `npm audit`. Cada uno es una migración con riesgo sobre 119 rutas lazy. El gate
+  bloqueante está en nivel `high`, que está a 0.
+- **`strictNullChecks` (226) y `noImplicitAny` (387).** El camino es la whitelist
+  de `tsconfig.strict.json`: añadir ficheros y dejar el gate verde.

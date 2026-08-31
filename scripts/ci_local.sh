@@ -140,6 +140,21 @@ if [[ "$MODE" != "--info" ]]; then
   # medias y ninguno completo.
   run_gate bloqueante "cobertura i18n (es/en/zh, no puede bajar)" \
     bash -c 'cd frontend && node scripts/check_i18n_coverage.mjs'
+
+  # Dependencias estaticas de vendors grandes (hallazgo 19). El troceo por vendor
+  # ya estaba bien hecho; el problema era QUIEN los importa: `route-misc` tenia un
+  # import estatico de `vendor-plotly` (4.633 kB, el 38 % de todo el JS) porque
+  # CMDBPage importaba la topologia de forma estatica. Abrir cualquier pagina de
+  # ese chunk descargaba plotly entero.
+  #
+  # Necesita un build previo, asi que solo corre si existe dist/. En --fast no se
+  # construye y el gate se salta: es correcto, no se puede medir lo que no hay.
+  if [[ -d frontend/dist/assets ]]; then
+    run_gate bloqueante "sin vendors grandes en dependencias estaticas" \
+      bash -c 'cd frontend && node scripts/check_heavy_chunks.mjs'
+  else
+    echo "  (omitido: sin frontend/dist — ejecuta npm run build para medirlo)"
+  fi
 fi
 
 # ── Gates informativos ────────────────────────────────────────────────────────

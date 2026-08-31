@@ -284,6 +284,41 @@ def now_local() -> datetime:
     return datetime.now(_ZONE.get())
 
 
+def month_key_in(value: datetime, zone=None) -> tuple[int, int]:
+    """(año, mes) al que pertenece un instante EN LA ZONA dada.
+
+    Auditoría 2026-08 (P2-14). Existe porque agrupar por mes con
+    `extract("month", columna)` en SQL agrupa por el mes **UTC**, que es el mes
+    en que la fila está almacenada, no el mes en que ocurrió para quien mira el
+    informe. Las filas de las primeras o últimas horas de un mes caen en el mes
+    contiguo: una incidencia de SLA de las 23:30 del 31 de julio en Madrid se
+    cuenta en agosto.
+
+    No se resuelve en SQL a propósito. `AT TIME ZONE` existe en PostgreSQL pero
+    no en SQLite, así que una consulta con esa cláusula dejaría de funcionar en
+    desarrollo y en los tests — exactamente el tipo de divergencia entre motores
+    que ya causó el hallazgo 11. Convertir en Python funciona igual en los dos.
+
+    Sólo aplica a columnas de fecha-HORA. Una columna `Date` es un día de
+    calendario sin instante: no tiene zona que aplicar, y su `extract` ya es
+    correcto. Ver el detalle en la cabecera de este módulo.
+    """
+    if value is None:
+        raise ValueError("month_key_in necesita un instante, no None")
+    local = as_utc(value).astimezone(zone if zone is not None else _ZONE.get())
+    return local.year, local.month
+
+
+def month_label_in(value: datetime, zone=None) -> str:
+    """Etiqueta «AAAA-MM» del mes de un instante en la zona dada.
+
+    Es el formato que ya usan los informes, así que centralizarlo evita que cada
+    sitio lo componga a mano y se desalinee.
+    """
+    year, month = month_key_in(value, zone)
+    return f"{year:04d}-{month:02d}"
+
+
 def as_utc(value: datetime) -> datetime:
     """Normaliza a UTC con zona.
 
@@ -302,6 +337,8 @@ __all__ = (
     "current_zone",
     "day_bounds_in",
     "month_bounds_in",
+    "month_key_in",
+    "month_label_in",
     "now_local",
     "period_bounds_for_client",
     "reset_current_zone",

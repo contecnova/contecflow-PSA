@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
@@ -11,8 +11,19 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Database } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
-import CMDBTopologyGraph from '../components/cmdb/CMDBTopologyGraph'
-import Cmdb3dGraph from '../components/servicedesk/Cmdb3dGraph'
+// Auditoría 2026-08 (hallazgo 19). Este import era ESTÁTICO, y
+// CMDBTopologyGraph depende de react-plotly.js → plotly.js. Medido sobre el
+// build: eso ponía un import estático de `vendor-plotly` (4.633 kB, el 38 % de
+// todo el JS) en el chunk `route-misc`, así que abrir CUALQUIER página de ese
+// chunk descargaba plotly entero aunque no mostrase ninguna gráfica.
+//
+// Con `lazy` se paga sólo al abrir la pestaña de topología, que es cuando de
+// verdad hace falta. Es el mismo patrón que ya usaba `charts/DynamicChart` para
+// las otras cuatro gráficas de plotly.
+const CMDBTopologyGraph = lazy(() => import('../components/cmdb/CMDBTopologyGraph'))
+// Mismo caso que arriba: sólo se usa en la pestaña 3D y arrastraba
+// `vendor-d3` (130 kB) al chunk de la ruta.
+const Cmdb3dGraph = lazy(() => import('../components/servicedesk/Cmdb3dGraph'))
 
 const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
 const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
@@ -580,15 +591,17 @@ export default function CMDBPage(): JSX.Element {
             </div>
             {topoLoading
               ? <Spinner />
-              : <CMDBTopologyGraph
-                  nodes={topoData?.nodes || []}
-                  edges={topoData?.edges || []}
-                  centerName={topoCI?.name}
-                  onNodeClick={(n: CI) => {
-                    const ci = sdTopologyItems.find((i: CI) => i.id === n.id) || n
-                    setDrillCI(ci)
-                  }}
-                />
+              : <Suspense fallback={<Spinner />}>
+                  <CMDBTopologyGraph
+                    nodes={topoData?.nodes || []}
+                    edges={topoData?.edges || []}
+                    centerName={topoCI?.name}
+                    onNodeClick={(n: CI) => {
+                      const ci = sdTopologyItems.find((i: CI) => i.id === n.id) || n
+                      setDrillCI(ci)
+                    }}
+                  />
+                </Suspense>
             }
           </div>
 
@@ -892,7 +905,11 @@ export default function CMDBPage(): JSX.Element {
       {historyItem && <ChangelogModal item={historyItem} onClose={() => setHistoryItem(null)} />}
 
       {/* ── CMDB 3D Graph + Blast Radius ── */}
-      {tab === '3d' && <Cmdb3dGraph />}
+      {tab === '3d' && (
+        <Suspense fallback={<Spinner />}>
+          <Cmdb3dGraph />
+        </Suspense>
+      )}
 
       {/* ─── AGENTES ON-PREM ─────────────────────────────────────────────── */}
       {tab === 'agents' && <CMDBAgentsTab />}

@@ -20,7 +20,10 @@ from app.schemas.bookings import (
 )
 from app.services import bookings_service as svc
 
-from app.services import v238_service
+# Auditoría 2026-08 (hallazgo 22): antes `v238_service`, nombrado por número de
+# versión. Los conflictos de reserva y el nivelado del Gantt son planificación de
+# capacidad y viven en su propio módulo.
+from app.services import capacity_planning_service
 
 router = APIRouter()
 
@@ -39,7 +42,7 @@ def get_booking_conflicts(
     # Parse dates if provided
     sd = date.fromisoformat(start_date) if start_date else None
     ed = date.fromisoformat(end_date) if end_date else None
-    return APIResponse.ok(data=v238_service.get_booking_conflicts(user_id, sd, ed, threshold_pct, db))
+    return APIResponse.ok(data=capacity_planning_service.get_booking_conflicts(user_id, sd, ed, threshold_pct, db))
 
 @router.get("/gantt-leveling")
 def get_gantt_leveling(
@@ -52,7 +55,7 @@ def get_gantt_leveling(
     from datetime import date
     sd = date.fromisoformat(start_date) if start_date else None
     ed = date.fromisoformat(end_date) if end_date else None
-    return APIResponse.ok(data=v238_service.get_gantt_leveling(project_id, sd, ed, db))
+    return APIResponse.ok(data=capacity_planning_service.get_gantt_leveling(project_id, sd, ed, db))
 
 
 

@@ -24,7 +24,9 @@ from app.api.v1.endpoints import (
     bi_forecasting, bi_anomaly, bi_gdpr, bi_dashboard_collab,
     bi_query_builder, bi_conditional_delivery, bi_etl, bi_o365,
 )
-from app.api.v1.endpoints.v239 import baselines as baselines_v239, approval_builder as approval_builder_v239
+# Auditoría 2026-08 (hallazgo 22): antes venían de `endpoints/v239/`, un
+# directorio nombrado por número de versión. Las rutas no han cambiado.
+from app.api.v1.endpoints import baselines, approval_builder
 
 router = APIRouter()
 
@@ -98,9 +100,9 @@ router.include_router(export_template.router,  tags=["Export Templates"])
 router.include_router(events.router,           tags=["Events"])
 router.include_router(documents_edit.router,   tags=["Documents"])
 router.include_router(gantt_suggestions.router, tags=["Gantt Suggestions"])
-router.include_router(baselines_v239.router,    tags=["Gantt Baselines"])
+router.include_router(baselines.router,    tags=["Gantt Baselines"])
 router.include_router(templates.router,         prefix="/templates",     tags=["Templates Enhanced"])
-router.include_router(approval_builder_v239.router,                      tags=["Approval Workflow Builder"])
+router.include_router(approval_builder.router,                      tags=["Approval Workflow Builder"])
 router.include_router(revenue.router,          prefix="/revenue-recognition", tags=["Revenue Recognition"])
 router.include_router(predictions.router,      prefix="/predictions",         tags=["AI Predictions"])
 router.include_router(bi_forecasting.router,                                tags=["BI Forecasting"])

@@ -507,3 +507,25 @@ def process_bulk_operations(
                 break
     db.commit()
     return responses
+
+
+# ── Errores de operaciones en bloque ─────────────────────────────────────────
+# Auditoría 2026-08 (hallazgo 22). Esta función vivía en `v238_service.py`, un
+# módulo nombrado por número de versión con seis dominios dentro. SCIM es su
+# dominio y aquí es donde se busca.
+#
+# Aviso honesto: comprobado en todo el repositorio, tiene CERO llamantes. Se
+# conserva porque el aprovisionamiento SCIM en bloque es una funcionalidad
+# declarada de la plataforma, pero nadie la invoca hoy — no asumir que está en
+# uso.
+def scim_bulk_error(bulk_id, status, detail) -> dict:
+    return {
+        "method": "UNKNOWN",
+        "bulkId": bulk_id,
+        "status": str(status),
+        "response": {
+            "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+            "status": str(status),
+            "detail": detail,
+        }
+    }

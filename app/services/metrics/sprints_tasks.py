@@ -8,6 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import register_metric
+from ._monthly import agrupar_por_mes, serie_de_cuentas
 from app.core import timeutil
 
 
@@ -205,13 +206,11 @@ def metric_task_completion_trend(
     """Evolución mensual de tareas completadas."""
     try:
         from app.models.task import Task
-        from sqlalchemy import extract
 
-        q = db.query(
-            extract("year", Task.completed_at).label("year"),
-            extract("month", Task.completed_at).label("month"),
-            func.count(Task.id).label("cnt"),
-        ).filter(
+        # `completed_at` es DateTime(timezone=True) y guarda UTC: el
+        # `extract("month", ...)` anterior agrupaba por mes UTC, asi que una tarea
+        # cerrada a las 23:30 del ultimo dia del mes contaba en el mes siguiente.
+        q = db.query(Task.completed_at).filter(
             Task.completed_at >= d_from,
             Task.completed_at <= d_to,
             Task.status.in_(["done", "closed"]),
@@ -220,12 +219,8 @@ def metric_task_completion_trend(
             q = q.filter(Task.project_id == project_id)
         elif project_ids:
             q = q.filter(Task.project_id.in_(project_ids))
-        q = q.group_by("year", "month").order_by("year", "month")
 
-        rows = [
-            {"label": f"{int(r.year)}-{int(r.month):02d}", "value": r.cnt}
-            for r in q.all()
-        ]
+        rows = serie_de_cuentas(agrupar_por_mes(q.all(), lambda r: r[0]))
     except Exception:
         rows = []
     return rows, {"y_label": "Tareas completadas"}

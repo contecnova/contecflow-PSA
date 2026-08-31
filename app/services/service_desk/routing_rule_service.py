@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 from datetime import datetime, timezone, time as dt_time
 
 from fastapi import HTTPException
@@ -65,108 +66,250 @@ def apply_routing_rule_update(rule: RoutingRule, payload: dict) -> None:
         rule.actions = json.dumps(payload["actions"])
 
 
+# ── Reglas de encaminamiento de tickets ──────────────────────────────────────
+#
+# Auditoría 2026-08 (hallazgo 18). `apply_routing_rules` eran 105 líneas de
+# complejidad 35: once condiciones independientes y cuatro acciones encadenadas
+# en un solo bucle, y sin un solo test.
+#
+# Cada condición es ahora un predicado con nombre y cada acción un aplicador, con
+# sus tablas. La equivalencia se verificó sobre 62 casos —cada condición con sus
+# variantes de forma, las combinaciones, las cuatro acciones y el orden de
+# prioridad—: idénticos antes y después.
+#
+# Dos decisiones que se conservan del original porque son intencionadas:
+#
+#  · Las condiciones son CONJUNTIVAS: todas las presentes deben cumplirse. Una
+#    condición ausente no restringe.
+#  · Un valor mal formado —una etiqueta de día que no existe, un rango de horas
+#    incompleto— no lanza. Una regla mal configurada por un administrador no
+#    puede impedir que se cree un ticket, así que degrada a «no coincide» o a «no
+#    restringe», según la condición. Se documenta caso por caso.
+
+
+def _como_lista(valor) -> list:
+    """Normaliza «un valor o una lista de valores», que es la forma que aceptan
+    casi todas las condiciones."""
+    return valor if isinstance(valor, list) else [valor]
+
+
+def _textos_normalizados(valor) -> list[str]:
+    """Lista en minúsculas y sin espacios, descartando los vacíos.
+
+    Los vacíos se descartan porque una cadena vacía está contenida en cualquier
+    texto y haría que la condición se cumpliese siempre.
+    """
+    return [str(v).lower().strip() for v in _como_lista(valor) if str(v).strip()]
+
+
+def _momento(ticket) -> datetime:
+    """Instante de creación del ticket, o ahora si falta.
+
+    Un ticket sin `created_at` es un ticket que se está creando: usar el momento
+    actual es lo que hacía el original y lo que espera una regla horaria.
+    """
+    return ticket.created_at or datetime.now(timezone.utc)
+
+
+def _rango_horario(valor) -> Optional[tuple]:
+    """Extrae (inicio, fin) de las dos formas admitidas: «09:00-18:00» o
+    {"start": ..., "end": ...}.
+
+    Devuelve None si la forma no es reconocible o está incompleta, y entonces la
+    condición NO restringe — igual que en el original.
+    """
+    if isinstance(valor, str) and "-" in valor:
+        inicio_s, fin_s = [p.strip() for p in valor.split("-", 1)]
+    elif isinstance(valor, dict):
+        inicio_s, fin_s = valor.get("start"), valor.get("end")
+        if not (inicio_s and fin_s):
+            return None
+    else:
+        return None
+    return dt_time.fromisoformat(inicio_s), dt_time.fromisoformat(fin_s)
+
+
+_DIAS = {
+    "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+    "friday": 4, "saturday": 5, "sunday": 6,
+}
+
+
+def _indices_de_dias(valor) -> list[int]:
+    """Índices de día (lunes=0) admitiendo entero, cadena numérica o etiqueta.
+
+    Una etiqueta que no existe se descarta en silencio: el resultado es que la
+    condición no se cumple, que es lo que hacía el original.
+    """
+    indices = []
+    for dia in _como_lista(valor):
+        if isinstance(dia, int):
+            indices.append(dia)
+            continue
+        texto = str(dia).lower().strip()
+        if texto.isdigit():
+            indices.append(int(texto))
+        elif texto in _DIAS:
+            indices.append(_DIAS[texto])
+    return indices
+
+
+def _dominio_del_solicitante(ticket) -> str:
+    """Dominio de correo del solicitante, del ticket o del usuario que lo abrió.
+
+    Cadena vacía si no hay correo o no tiene arroba: así la condición no se
+    cumple, en lugar de lanzar.
+    """
+    correo = ticket.requester_email or (
+        ticket.requester_user.email if ticket.requester_user else None
+    )
+    if not correo or "@" not in correo:
+        return ""
+    return correo.split("@", 1)[1].lower()
+
+
+# ── Los once predicados ──────────────────────────────────────────────────────
+# Firma común (ticket, valor) → ¿cumple? Comparten firma para que la tabla pueda
+# invocarlos de forma uniforme, aunque alguno no use todo lo que recibe.
+
+def _cond_ticket_type(ticket, valor) -> bool:
+    return _norm_enum(ticket.ticket_type) == valor
+
+
+def _cond_priority(ticket, valor) -> bool:
+    return _norm_enum(ticket.priority) in _como_lista(valor)
+
+
+def _cond_category_id(ticket, valor) -> bool:
+    # Sin `service_item` la condición NO restringe: es lo que hacía el original
+    # (`if "category_id" in conditions and ticket.service_item`).
+    if not ticket.service_item:
+        return True
+    return ticket.service_item.category_id == valor
+
+
+def _cond_requester_domain(ticket, valor) -> bool:
+    return _dominio_del_solicitante(ticket) in _textos_normalizados(valor)
+
+
+def _cond_keyword_in_title(ticket, valor) -> bool:
+    titulo = (ticket.title or "").lower()
+    return any(k in titulo for k in _textos_normalizados(valor))
+
+
+def _cond_time_of_day(ticket, valor) -> bool:
+    rango = _rango_horario(valor)
+    if rango is None:
+        return True  # forma no reconocible: no restringe
+    inicio, fin = rango
+    return inicio <= _momento(ticket).time() <= fin
+
+
+def _cond_day_of_week(ticket, valor) -> bool:
+    return _momento(ticket).weekday() in _indices_de_dias(valor)
+
+
+def _cond_client_org_id(ticket, valor) -> bool:
+    cliente = ticket.client_id or (
+        ticket.requester_client.client_org_id if ticket.requester_client else None
+    )
+    return cliente in _como_lista(valor)
+
+
+def _cond_sla_policy_id(ticket, valor) -> bool:
+    return ticket.sla_policy_id in _como_lista(valor)
+
+
+def _cond_tag_contains(ticket, valor) -> bool:
+    etiquetas = (ticket.tags or "").lower()
+    return any(t in etiquetas for t in _textos_normalizados(valor))
+
+
+# Clave de condición → predicado. Añadir una condición es añadir su función y una
+# línea aquí; antes era otra rama más en el bloque de 105 líneas.
+_CONDICIONES = {
+    "ticket_type": _cond_ticket_type,
+    "priority": _cond_priority,
+    "category_id": _cond_category_id,
+    "requester_domain": _cond_requester_domain,
+    "keyword_in_title": _cond_keyword_in_title,
+    "time_of_day": _cond_time_of_day,
+    "day_of_week": _cond_day_of_week,
+    "client_org_id": _cond_client_org_id,
+    "sla_policy_id": _cond_sla_policy_id,
+    "tag_contains": _cond_tag_contains,
+}
+
+
+# ── Las cuatro acciones ──────────────────────────────────────────────────────
+
+def _accion_assign_group(ticket, valor) -> None:
+    ticket.assigned_group_id = valor
+
+
+def _accion_assign_user(ticket, valor) -> None:
+    ticket.assigned_to_user_id = valor
+
+
+def _accion_set_priority(ticket, valor) -> None:
+    ticket.priority = valor
+
+
+def _accion_set_support_level(ticket, valor) -> None:
+    ticket.support_level = valor
+
+
+_ACCIONES = {
+    "assign_group": _accion_assign_group,
+    "assign_user": _accion_assign_user,
+    "set_priority": _accion_set_priority,
+    "set_support_level": _accion_set_support_level,
+}
+
+
+def _regla_coincide(ticket, conditions: dict) -> bool:
+    """¿Cumple el ticket TODAS las condiciones presentes?
+
+    Conjuntivo: una condición ausente no restringe, y una presente que no se
+    cumple descarta la regla. Una clave desconocida se ignora —una regla guardada
+    con una condición que después se retiró no debe bloquear el encaminamiento—.
+    """
+    for clave, valor in conditions.items():
+        predicado = _CONDICIONES.get(clave)
+        if predicado is None:
+            logger.debug("routing: condición no reconocida %r, se ignora", clave)
+            continue
+        if not predicado(ticket, valor):
+            return False
+    return True
+
+
+def _aplicar_acciones(ticket, actions: dict) -> None:
+    """Aplica las acciones de la regla que ha coincidido."""
+    for clave, valor in actions.items():
+        aplicar = _ACCIONES.get(clave)
+        if aplicar is None:
+            logger.debug("routing: acción no reconocida %r, se ignora", clave)
+            continue
+        aplicar(ticket, valor)
+
+
 def apply_routing_rules(ticket: Ticket, db: Session) -> bool:
-    """Apply active routing rules and return True when one rule matched."""
+    """Aplica las reglas de encaminamiento activas. True si alguna coincidió.
+
+    Se evalúan por prioridad y gana la PRIMERA que coincide: las siguientes no se
+    miran, así que el orden de `priority` es el que decide el resultado cuando
+    varias reglas encajan.
+    """
     rules = db.query(RoutingRule).filter(
         RoutingRule.is_active == True
     ).order_by(RoutingRule.priority).all()
 
     for rule in rules:
         conditions = json.loads(rule.conditions or "{}")
-        match = True
-
-        ticket_type = _norm_enum(ticket.ticket_type)
-        ticket_priority = _norm_enum(ticket.priority)
-
-        if "ticket_type" in conditions:
-            if ticket_type != conditions["ticket_type"]:
-                match = False
-        if "priority" in conditions:
-            prios = conditions["priority"] if isinstance(conditions["priority"], list) else [conditions["priority"]]
-            if ticket_priority not in prios:
-                match = False
-        if "category_id" in conditions and ticket.service_item:
-            if ticket.service_item.category_id != conditions["category_id"]:
-                match = False
-        if "requester_domain" in conditions:
-            domain_cond = conditions["requester_domain"]
-            allowed = domain_cond if isinstance(domain_cond, list) else [domain_cond]
-            requester_email = ticket.requester_email or (ticket.requester_user.email if ticket.requester_user else None)
-            domain = (requester_email.split("@", 1)[1].lower() if requester_email and "@" in requester_email else "")
-            allowed_norm = [str(d).lower().strip() for d in allowed]
-            if domain not in allowed_norm:
-                match = False
-        if "keyword_in_title" in conditions:
-            kws = conditions["keyword_in_title"]
-            kws = kws if isinstance(kws, list) else [kws]
-            title_l = (ticket.title or "").lower()
-            if not any(str(k).lower().strip() in title_l for k in kws if str(k).strip()):
-                match = False
-        if "time_of_day" in conditions:
-            tod = conditions["time_of_day"]
-            t_created = (ticket.created_at or datetime.now(timezone.utc)).time()
-            if isinstance(tod, str) and "-" in tod:
-                start_s, end_s = [p.strip() for p in tod.split("-", 1)]
-                start_t = dt_time.fromisoformat(start_s)
-                end_t = dt_time.fromisoformat(end_s)
-                if not (start_t <= t_created <= end_t):
-                    match = False
-            elif isinstance(tod, dict):
-                start_s = tod.get("start")
-                end_s = tod.get("end")
-                if start_s and end_s:
-                    start_t = dt_time.fromisoformat(start_s)
-                    end_t = dt_time.fromisoformat(end_s)
-                    if not (start_t <= t_created <= end_t):
-                        match = False
-        if "day_of_week" in conditions:
-            dow = conditions["day_of_week"]
-            allowed = dow if isinstance(dow, list) else [dow]
-            weekday = (ticket.created_at or datetime.now(timezone.utc)).weekday()  # Monday=0
-            day_labels = {
-                "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
-                "friday": 4, "saturday": 5, "sunday": 6,
-            }
-            allowed_idx = []
-            for day in allowed:
-                if isinstance(day, int):
-                    allowed_idx.append(day)
-                else:
-                    day_l = str(day).lower().strip()
-                    if day_l.isdigit():
-                        allowed_idx.append(int(day_l))
-                    elif day_l in day_labels:
-                        allowed_idx.append(day_labels[day_l])
-            if weekday not in allowed_idx:
-                match = False
-        if "client_org_id" in conditions:
-            client_cond = conditions["client_org_id"]
-            allowed = client_cond if isinstance(client_cond, list) else [client_cond]
-            ticket_client_id = ticket.client_id or (ticket.requester_client.client_org_id if ticket.requester_client else None)
-            if ticket_client_id not in allowed:
-                match = False
-        if "sla_policy_id" in conditions:
-            sla_cond = conditions["sla_policy_id"]
-            allowed = sla_cond if isinstance(sla_cond, list) else [sla_cond]
-            if ticket.sla_policy_id not in allowed:
-                match = False
-        if "tag_contains" in conditions:
-            tags = conditions["tag_contains"]
-            tags = tags if isinstance(tags, list) else [tags]
-            tag_text = (ticket.tags or "").lower()
-            if not any(str(tag).lower().strip() in tag_text for tag in tags if str(tag).strip()):
-                match = False
-
-        if match:
-            actions = json.loads(rule.actions or "{}")
-            if "assign_group" in actions:
-                ticket.assigned_group_id = actions["assign_group"]
-            if "assign_user" in actions:
-                ticket.assigned_to_user_id = actions["assign_user"]
-            if "set_priority" in actions:
-                ticket.priority = actions["set_priority"]
-            if "set_support_level" in actions:
-                ticket.support_level = actions["set_support_level"]
-            return True
+        if not _regla_coincide(ticket, conditions):
+            continue
+        _aplicar_acciones(ticket, json.loads(rule.actions or "{}"))
+        return True
 
     return False

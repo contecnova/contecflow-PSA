@@ -1,0 +1,151 @@
+"""Conflictos de reservas y nivelado de carga en el Gantt.
+
+Auditoria 2026-08 (hallazgo 22). Este codigo vivia en `v238_service.py`, un
+fichero de 784 lineas nombrado por NUMERO DE VERSION y con SEIS dominios sin
+relacion dentro: etapas del embudo, planificacion de capacidad, analitica
+ad-hoc, pagos, instantaneas de colaboracion y SCIM.
+
+Agrupar por version en lugar de por dominio tiene un coste concreto: nadie sabe
+donde buscar, y un fichero con seis dominios no tiene revisor natural — quien
+entra a tocar los pagos no revisa la analitica que hay 300 lineas mas abajo. Fue
+esa misma mala ubicacion la que oculto el P0 numero 1 de la auditoria, escondido
+en un fichero llamado `mfa_service`.
+
+El reparto se pudo hacer mecanicamente porque los seis dominios nunca estuvieron
+acoplados, solo apilados: se comprobo por AST que no habia ni una llamada entre
+grupos ni un solo ciclo. Los cuerpos se movieron verbatim.
+"""
+
+from datetime import date, timedelta
+from typing import Optional
+from sqlalchemy.orm import Session
+from app.core.config import settings
+from app.models.user import User
+from app.models.bookings import ResourceBooking as Booking
+from collections import defaultdict
+
+
+def get_booking_conflicts(
+    user_id: Optional[str],
+    start_date: Optional[date],
+    end_date: Optional[date],
+    threshold_pct: float,
+    db: Session,
+) -> dict:
+
+    q = db.query(Booking)
+    if user_id:
+        q = q.filter(Booking.user_id == user_id)
+    if start_date:
+        q = q.filter(Booking.end_date >= start_date)
+    if end_date:
+        q = q.filter(Booking.start_date <= end_date)
+
+    bookings = q.all()
+    user_bookings: dict = defaultdict(list)
+    for b in bookings:
+        user_bookings[b.user_id].append(b)
+
+    conflicts = []
+    capacity_per_day = settings.DEFAULT_WORKING_HOURS_PER_DAY
+
+    for uid, user_bks in user_bookings.items():
+        daily: dict = defaultdict(float)
+        for b in user_bks:
+            d = b.start_date
+            while d <= b.end_date:
+                daily[d] += (b.hours_per_day or settings.DEFAULT_WORKING_HOURS_PER_DAY)
+                d += timedelta(days=1)
+
+        overloaded_days = [
+            {"date": str(d), "hours": round(h, 1), "utilization_pct": round(h / capacity_per_day * 100, 1)}
+            for d, h in daily.items()
+            if h / capacity_per_day * 100 > threshold_pct
+        ]
+        if overloaded_days:
+            user_obj = db.query(User).filter(User.id == uid).first()
+            conflicts.append({
+                "user_id": uid,
+                "user_name": user_obj.full_name if user_obj else uid,
+                "overloaded_days": sorted(overloaded_days, key=lambda x: x["date"]),
+                "max_utilization_pct": max(d["utilization_pct"] for d in overloaded_days),
+                "bookings_count": len(user_bks),
+            })
+
+    return {
+        "threshold_pct": threshold_pct,
+        "conflicts_count": len(conflicts),
+        "conflicts": sorted(conflicts, key=lambda x: x["max_utilization_pct"], reverse=True),
+    }
+
+
+def get_gantt_leveling(
+    project_id: Optional[str],
+    start_date: Optional[date],
+    end_date: Optional[date],
+    db: Session,
+) -> dict:
+
+    q = db.query(Booking)
+    if project_id:
+        q = q.filter(Booking.project_id == project_id)
+    if start_date:
+        q = q.filter(Booking.end_date >= start_date)
+    if end_date:
+        q = q.filter(Booking.start_date <= end_date)
+
+    bookings = q.order_by(Booking.start_date).all()
+    capacity = settings.DEFAULT_WORKING_HOURS_PER_DAY
+    user_bookings: dict = defaultdict(list)
+    for b in bookings:
+        user_bookings[b.user_id].append(b)
+
+    proposals = []
+    for uid, user_bks in user_bookings.items():
+        sorted_bks = sorted(user_bks, key=lambda x: x.start_date)
+        user_obj = db.query(User).filter(User.id == uid).first()
+        daily: dict = defaultdict(float)
+        for b in sorted_bks:
+            d = b.start_date
+            while d <= b.end_date:
+                daily[d] += (b.hours_per_day or settings.DEFAULT_WORKING_HOURS_PER_DAY)
+                d += timedelta(days=1)
+
+        overloaded = {d for d, h in daily.items() if h / capacity * 100 > 100}
+        if not overloaded:
+            continue
+
+        for b in sorted_bks:
+            bk_days = set()
+            d = b.start_date
+            while d <= b.end_date:
+                bk_days.add(d)
+                d += timedelta(days=1)
+            conflict_days = bk_days & overloaded
+            if conflict_days:
+                latest_conflict = max(conflict_days)
+                suggested_start = latest_conflict + timedelta(days=1)
+                duration_days = (b.end_date - b.start_date).days
+                suggested_end = suggested_start + timedelta(days=duration_days)
+                proposals.append({
+                    "booking_id": b.id,
+                    "user_id": uid,
+                    "user_name": user_obj.full_name if user_obj else uid,
+                    "project_id": b.project_id,
+                    "current_start": str(b.start_date),
+                    "current_end": str(b.end_date),
+                    "suggested_start": str(suggested_start),
+                    "suggested_end": str(suggested_end),
+                    "conflict_days_count": len(conflict_days),
+                    "reason": f"Resource overloaded on {len(conflict_days)} day(s)",
+                })
+
+    return {
+        "analysis_period": {
+            "start": str(start_date or "all"),
+            "end": str(end_date or "all"),
+        },
+        "overloaded_users": len(set(p["user_id"] for p in proposals)),
+        "proposals_count": len(proposals),
+        "proposals": proposals,
+    }

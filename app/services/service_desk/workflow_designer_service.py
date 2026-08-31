@@ -43,32 +43,30 @@ PROCESS_TYPES = ["ticket", "change", "approval"]
 
 
 # ── Validación ────────────────────────────────────────────────────────────────
-def validate_graph(graph: dict) -> dict:
-    """Valida un grafo {nodes:[], edges:[]}.
+# ── Validación de grafos de workflow ─────────────────────────────────────────
+#
+# Auditoría 2026-08 (hallazgo 18). `validate_graph` eran 157 líneas de
+# complejidad 42 con las nueve comprobaciones de su propio docstring encadenadas
+# en un único ámbito. El docstring ya las enumeraba una por una: cada
+# comprobación es ahora su función.
+#
+# El ORDEN de los mensajes es parte del contrato —la interfaz los presenta en
+# lista— así que se conserva exactamente. Verificado comparando la salida de las
+# 38 combinaciones de grafo (los nueve controles, los casos degenerados y un caso
+# por cada tipo de nodo permitido) antes y después: idénticas.
+#
+# Errores y avisos se acumulan en listas que se pasan por parámetro en lugar de
+# devolverse: así el orden de aparición queda determinado por el orden en que se
+# llaman las comprobaciones, que es lo que hay que preservar.
 
-    Comprobaciones:
-      • Estructura básica (listas, ids).
-      • Tipos de nodo permitidos.
-      • Exactamente 1 nodo `start` y al menos 1 `end`.
-      • Sin ids duplicados.
-      • Sin aristas que apunten a nodos inexistentes.
-      • Conectividad: todos los nodos alcanzables desde `start`.
-      • Todos los nodos pueden llegar a algún `end` (no hay caminos sin salida).
-      • Detecta ciclos (warning, no error — los workflows pueden tener loops).
-      • Avisa si decisión / aprobación carece de los puertos esperados.
+
+def _indexar_nodos(nodes: list, errors: list[str]) -> dict[str, dict]:
+    """Valida ids y tipos, y devuelve el índice por id.
+
+    Un nodo sin id o con id repetido se descarta del índice: sin identidad no se
+    puede razonar sobre sus aristas, y seguir con él produciría errores en
+    cascada que esconden el original.
     """
-    errors: list[str] = []
-    warnings: list[str] = []
-
-    nodes = graph.get("nodes")
-    edges = graph.get("edges")
-    if not isinstance(nodes, list) or not isinstance(edges, list):
-        return {"valid": False, "errors": ["graph debe incluir nodes[] y edges[]"], "warnings": []}
-
-    if not nodes:
-        return {"valid": False, "errors": ["el grafo está vacío"], "warnings": []}
-
-    # IDs y tipos
     seen_ids: set[str] = set()
     node_by_id: dict[str, dict] = {}
     for n in nodes:
@@ -84,15 +82,38 @@ def validate_graph(graph: dict) -> dict:
         ntype = str(n.get("type", "")).strip()
         if ntype not in ALLOWED_NODE_TYPES:
             errors.append(f"nodo {nid!r} usa tipo desconocido {ntype!r}")
+    return node_by_id
 
+
+def _comprobar_extremos(nodes: list, errors: list[str]) -> tuple[list, list]:
+    """Exactamente un `start` y al menos un `end`.
+
+    Más de un `start` no es ambigüedad estética: la comprobación de
+    alcanzabilidad parte de uno solo, así que el resto del grafo quedaría sin
+    analizar.
+    """
     starts = [n for n in nodes if n.get("type") == "start"]
     ends = [n for n in nodes if n.get("type") == "end"]
     if len(starts) != 1:
-        errors.append(f"el workflow debe tener exactamente 1 nodo 'start' (encontrados: {len(starts)})")
+        errors.append(
+            f"el workflow debe tener exactamente 1 nodo 'start' (encontrados: {len(starts)})"
+        )
     if not ends:
         errors.append("el workflow debe tener al menos un nodo 'end'")
+    return starts, ends
 
-    # Edges → indexar
+
+def _indexar_aristas(
+    edges: list,
+    node_by_id: dict[str, dict],
+    errors: list[str],
+    warnings: list[str],
+) -> tuple[dict[str, list[tuple[str, str]]], dict[str, list[str]]]:
+    """Valida las aristas y devuelve las adyacencias directa e inversa.
+
+    `branch` acepta también la clave `type` por compatibilidad con grafos
+    guardados por versiones anteriores del diseñador.
+    """
     out_adj: dict[str, list[tuple[str, str]]] = defaultdict(list)  # source → [(target, branch)]
     in_adj: dict[str, list[str]] = defaultdict(list)               # target → [source]
     for idx, e in enumerate(edges):
@@ -110,13 +131,20 @@ def validate_graph(graph: dict) -> dict:
             warnings.append(f"arista en bucle sobre el mismo nodo {src!r}")
         out_adj[src].append((tgt, branch))
         in_adj[tgt].append(src)
+    return out_adj, in_adj
 
-    if errors:
-        # Si la estructura es inválida no merece la pena seguir con análisis avanzado
-        return {"valid": False, "errors": errors, "warnings": warnings,
-                "node_count": len(nodes), "edge_count": len(edges)}
 
-    # Salidas requeridas según tipo
+def _avisar_puertos_y_conexiones(
+    nodes: list,
+    out_adj: dict[str, list[tuple[str, str]]],
+    in_adj: dict[str, list[str]],
+    warnings: list[str],
+) -> None:
+    """Salidas que el tipo de nodo declara, y entradas/salidas mínimas.
+
+    Son avisos y no errores a propósito: un grafo a medio dibujar tiene que poder
+    guardarse. Lo que no puede es guardarse sin que nadie lo señale.
+    """
     catalog_by_type = {n["type"]: n for n in NODE_CATALOG}
     for n in nodes:
         nid = str(n["id"])
@@ -127,7 +155,6 @@ def validate_graph(graph: dict) -> dict:
         for req in required_outputs:
             if req not in actual_branches:
                 warnings.append(f"nodo {nid!r} ({ntype}) no tiene salida '{req}' conectada")
-        # Inputs / outputs según tipo
         if ntype == "start" and in_adj.get(nid):
             warnings.append(f"nodo start {nid!r} tiene aristas de entrada")
         if ntype == "end" and out_adj.get(nid):
@@ -138,60 +165,134 @@ def validate_graph(graph: dict) -> dict:
             if not out_adj.get(nid):
                 warnings.append(f"nodo {nid!r} no tiene salida")
 
-    # Alcanzabilidad desde start
+
+def _avisar_inalcanzables(
+    starts: list,
+    node_by_id: dict[str, dict],
+    out_adj: dict[str, list[tuple[str, str]]],
+    warnings: list[str],
+) -> None:
+    """Nodos a los que no se llega desde `start`: trabajo que nunca se ejecuta."""
     start_id = str(starts[0]["id"]) if starts else None
-    if start_id:
-        seen = {start_id}
-        q = deque([start_id])
-        while q:
-            cur = q.popleft()
-            for tgt, _ in out_adj.get(cur, []):
-                if tgt not in seen:
-                    seen.add(tgt)
-                    q.append(tgt)
-        unreachable = [nid for nid in node_by_id if nid not in seen]
-        if unreachable:
-            warnings.append(f"nodos inalcanzables desde start: {', '.join(sorted(unreachable))}")
+    if not start_id:
+        return
+    seen = {start_id}
+    q = deque([start_id])
+    while q:
+        cur = q.popleft()
+        for tgt, _ in out_adj.get(cur, []):
+            if tgt not in seen:
+                seen.add(tgt)
+                q.append(tgt)
+    unreachable = [nid for nid in node_by_id if nid not in seen]
+    if unreachable:
+        warnings.append(f"nodos inalcanzables desde start: {', '.join(sorted(unreachable))}")
 
-    # Pueden llegar a un end (búsqueda en el grafo invertido desde cada end)
-    if ends:
-        reach_end = set()
-        q = deque(str(e["id"]) for e in ends)
-        for eid in q:
-            reach_end.add(eid)
-        while q:
-            cur = q.popleft()
-            for src in in_adj.get(cur, []):
-                if src not in reach_end:
-                    reach_end.add(src)
-                    q.append(src)
-        dead_ends = [nid for nid in node_by_id if nid not in reach_end]
-        if dead_ends:
-            warnings.append(f"nodos sin camino a un end: {', '.join(sorted(dead_ends))}")
 
-    # Ciclos (warning — no siempre son errores en automation)
-    visiting: dict[str, int] = {nid: 0 for nid in node_by_id}  # 0=no visto · 1=en pila · 2=cerrado
-    cycle_found = False
+def _avisar_sin_camino_a_end(
+    ends: list,
+    node_by_id: dict[str, dict],
+    in_adj: dict[str, list[str]],
+    warnings: list[str],
+) -> None:
+    """Nodos desde los que no se alcanza ningún `end`.
 
-    def dfs(nid: str) -> None:
-        nonlocal cycle_found
+    Se recorre el grafo INVERTIDO partiendo de los `end`: es la forma barata de
+    responder «¿quién puede terminar?» de una sola pasada, en lugar de una
+    búsqueda por cada nodo.
+    """
+    if not ends:
+        return
+    reach_end = set()
+    q = deque(str(e["id"]) for e in ends)
+    for eid in q:
+        reach_end.add(eid)
+    while q:
+        cur = q.popleft()
+        for src in in_adj.get(cur, []):
+            if src not in reach_end:
+                reach_end.add(src)
+                q.append(src)
+    dead_ends = [nid for nid in node_by_id if nid not in reach_end]
+    if dead_ends:
+        warnings.append(f"nodos sin camino a un end: {', '.join(sorted(dead_ends))}")
+
+
+def _hay_ciclo(
+    node_by_id: dict[str, dict],
+    out_adj: dict[str, list[tuple[str, str]]],
+) -> bool:
+    """¿Contiene el grafo algún ciclo?
+
+    Búsqueda en profundidad con marcas de tres estados: 0 = no visto,
+    1 = en la pila actual, 2 = cerrado. Encontrar un nodo en estado 1 significa
+    que se ha vuelto a él sin salir, que es la definición de ciclo.
+
+    Un ciclo es AVISO y no error: los workflows de automatización pueden tener
+    bucles intencionados (reintentos, escalados que vuelven a un paso anterior).
+    """
+    visiting: dict[str, int] = {nid: 0 for nid in node_by_id}
+
+    def dfs(nid: str) -> bool:
         visiting[nid] = 1
         for tgt, _ in out_adj.get(nid, []):
-            if visiting.get(tgt, 0) == 1:
-                cycle_found = True
-                return
-            if visiting.get(tgt, 0) == 0:
-                dfs(tgt)
-                if cycle_found:
-                    return
+            estado = visiting.get(tgt, 0)
+            if estado == 1:
+                return True
+            if estado == 0 and dfs(tgt):
+                return True
         visiting[nid] = 2
+        return False
 
     for nid in node_by_id:
-        if visiting[nid] == 0:
-            dfs(nid)
-            if cycle_found:
-                warnings.append("el grafo contiene un ciclo (asegúrate de que está intencionado)")
-                break
+        if visiting[nid] == 0 and dfs(nid):
+            return True
+    return False
+
+
+def validate_graph(graph: dict) -> dict:
+    """Valida un grafo {nodes:[], edges:[]}.
+
+    Comprobaciones, en el orden en que se aplican —que es el orden en que
+    aparecen los mensajes, y forma parte del contrato con la interfaz:
+
+      • Estructura básica (listas, no vacío).
+      • Ids únicos y tipos de nodo permitidos.
+      • Exactamente 1 nodo `start` y al menos 1 `end`.
+      • Aristas con source/target existentes.
+      • Puertos esperados según el tipo de nodo, y entradas/salidas mínimas.
+      • Conectividad: todos los nodos alcanzables desde `start`.
+      • Todos los nodos pueden llegar a algún `end`.
+      • Ciclos (aviso, no error — los workflows pueden tener bucles).
+
+    Si la estructura tiene ERRORES se corta antes del análisis avanzado: sobre un
+    grafo con aristas a nodos inexistentes, la alcanzabilidad y los ciclos
+    producirían avisos derivados que esconderían el problema real.
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    nodes = graph.get("nodes")
+    edges = graph.get("edges")
+    if not isinstance(nodes, list) or not isinstance(edges, list):
+        return {"valid": False, "errors": ["graph debe incluir nodes[] y edges[]"], "warnings": []}
+
+    if not nodes:
+        return {"valid": False, "errors": ["el grafo está vacío"], "warnings": []}
+
+    node_by_id = _indexar_nodos(nodes, errors)
+    starts, ends = _comprobar_extremos(nodes, errors)
+    out_adj, in_adj = _indexar_aristas(edges, node_by_id, errors, warnings)
+
+    if errors:
+        return {"valid": False, "errors": errors, "warnings": warnings,
+                "node_count": len(nodes), "edge_count": len(edges)}
+
+    _avisar_puertos_y_conexiones(nodes, out_adj, in_adj, warnings)
+    _avisar_inalcanzables(starts, node_by_id, out_adj, warnings)
+    _avisar_sin_camino_a_end(ends, node_by_id, in_adj, warnings)
+    if _hay_ciclo(node_by_id, out_adj):
+        warnings.append("el grafo contiene un ciclo (asegúrate de que está intencionado)")
 
     return {
         "valid": True,

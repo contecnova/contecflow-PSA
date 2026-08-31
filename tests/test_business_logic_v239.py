@@ -16,6 +16,8 @@ import json
 import pytest
 from datetime import date, timedelta
 
+from ._i18n_langs import fichero_de, idiomas_ofrecidos
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Fixtures
@@ -756,18 +758,24 @@ class TestSlackBlockKitPreview:
 
 class TestI18nV239:
 
-    # i18n was refactored from a single appTranslations.js into per-language files
-    # under frontend/src/i18n/langs/{lang}.mjs (8 languages).
-    _LANGS = ["de", "en", "es", "fr", "it", "pl", "pt", "zh"]
+    # i18n vive en un fichero por idioma bajo frontend/src/i18n/langs/{lang}.mjs.
+    #
+    # Auditoría 2026-08 (hallazgo 16). Antes esta lista tenía los OCHO códigos
+    # escritos a mano y quedó obsoleta al reducir a los tres idiomas que se
+    # venden, dejando el test en rojo sin que nadie lo viera: la suite completa
+    # no llegaba a terminar. Ahora se lee de APP_LANGUAGES.
+    @property
+    def _langs(self):
+        return idiomas_ofrecidos()
 
-    def test_v239_section_exists_in_all_8_languages(self):
-        """v239 section must appear in every language file."""
+    def test_v239_section_exists_in_every_offered_language(self):
+        """La sección v239 debe estar en todos los idiomas que se ofrecen."""
         missing = []
-        for lang in self._LANGS:
-            content = open(f"frontend/src/i18n/langs/{lang}.mjs", encoding="utf-8").read()
+        for lang in self._langs:
+            content = fichero_de(lang).read_text(encoding="utf-8")
             if "v239:" not in content:
                 missing.append(lang)
-        assert not missing, f"v239 section missing in language file(s): {missing}"
+        assert not missing, f"falta la sección v239 en: {missing}"
 
     def test_v239_keys_present_in_es(self):
         content = open("frontend/src/i18n/langs/es.mjs", encoding="utf-8").read()
