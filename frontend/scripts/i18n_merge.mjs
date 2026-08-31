@@ -55,8 +55,33 @@ const lineas = fuente.split('\n')
  * Se busca por indentación en lugar de parsear JS: el fichero tiene un formato
  * estable y regular, y un parser completo aquí sería desproporcionado.
  */
+/**
+ * Indentación de los namespaces de PRIMER nivel del fichero.
+ *
+ * Hay que calcularla, no suponerla: es de 4 espacios en `en.mjs` y de 2 en
+ * `zh.mjs`. Con un `\s{2,4}` se aceptan las dos y `findIndex` devuelve la PRIMERA
+ * coincidencia, que puede ser un namespace ANIDADO con el mismo nombre. Pasó: 16
+ * claves de `alerts` se insertaron en un `alerts` anidado de la línea 306,
+ * mientras el de primer nivel —el que gana al cargar el módulo— estaba en la
+ * 2928. La cobertura seguía marcándolas como faltantes y no había ningún error.
+ */
+function sangriaPrimerNivel() {
+  let prof = 0
+  for (const l of lineas) {
+    const m = l.match(/^(\s+)([A-Za-z0-9_]+)\s*:\s*\{\s*$/)
+    if (m && prof === 1) return m[1]
+    prof += (l.match(/\{/g) || []).length
+    prof -= (l.match(/\}/g) || []).length
+    if (prof < 0) prof = 0
+  }
+  return '  '
+}
+
+const SANGRIA_NS = sangriaPrimerNivel()
+
 function bloqueDe(ns) {
-  const apertura = lineas.findIndex((l) => new RegExp(`^\\s{2,4}${ns}:\\s*\\{`).test(l))
+  // Indentación EXACTA del primer nivel: así nunca se acierta un anidado.
+  const apertura = lineas.findIndex((l) => l === `${SANGRIA_NS}${ns}: {`)
   if (apertura === -1) return null
   const sangria = lineas[apertura].match(/^(\s*)/)[1]
   for (let i = apertura + 1; i < lineas.length; i++) {

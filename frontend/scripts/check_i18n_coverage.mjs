@@ -21,12 +21,17 @@ const BASE = 'es'
 // Suelo medido. Sube conforme se traduce; NUNCA baja.
 //
 // 2026-08-28: en 62,0 · zh 62,0 — punto de partida tras reducir a tres idiomas.
-// 2026-08-31: en 100,0 — traducido por completo (1.332 claves en seis lotes,
-//             mas 97 que ya estaban escritas y se recuperaron de declaraciones
-//             duplicadas, ver check_i18n_duplicates.mjs).
+// 2026-08-31: en 100,0 y zh 100,0 — los tres idiomas que se venden estan
+//             traducidos por completo. 1.332 claves de ingles y 1.418 de chino en
+//             seis lotes cada uno, mas las que ya estaban escritas y se
+//             recuperaron de declaraciones duplicadas (ver
+//             check_i18n_duplicates.mjs).
+//
+// A partir de aqui el gate es un invariante, no un objetivo: cualquier clave
+// nueva en castellano sin traducir lo pone en rojo.
 const COBERTURA_MINIMA = {
   en: 100.0,
-  zh: 62.0,
+  zh: 100.0,
 }
 
 function aplanar(obj, prefijo = '', salida = new Set()) {
