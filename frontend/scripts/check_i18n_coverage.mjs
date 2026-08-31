@@ -18,9 +18,14 @@ import { APP_LANGUAGES, APP_TRANSLATIONS } from '../src/i18n/appTranslations.mjs
 
 const BASE = 'es'
 
-// Suelo medido el 2026-08-28. Subirlo conforme se traduzca.
+// Suelo medido. Sube conforme se traduce; NUNCA baja.
+//
+// 2026-08-28: en 62,0 · zh 62,0 — punto de partida tras reducir a tres idiomas.
+// 2026-08-31: en 100,0 — traducido por completo (1.332 claves en seis lotes,
+//             mas 97 que ya estaban escritas y se recuperaron de declaraciones
+//             duplicadas, ver check_i18n_duplicates.mjs).
 const COBERTURA_MINIMA = {
-  en: 62.0,
+  en: 100.0,
   zh: 62.0,
 }
 

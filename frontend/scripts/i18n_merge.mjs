@@ -78,6 +78,7 @@ let insertadas = 0
 const yaExistian = []
 const sinNamespace = []
 const anidadas = []
+const subObjetos = []
 
 // Se procesan los namespaces de ABAJO ARRIBA del fichero para que insertar en uno
 // no desplace los índices de los que quedan por procesar.
@@ -85,7 +86,47 @@ const nsOrdenados = Object.keys(porNs)
   .map((ns) => ({ ns, bloque: bloqueDe(ns) }))
   .sort((a, b) => (b.bloque?.apertura ?? -1) - (a.bloque?.apertura ?? -1))
 
-for (const { ns, bloque } of nsOrdenados) {
+// Namespaces que no existen todavia en el destino: se crean vacios ANTES de
+// insertar, en orden alfabetico al nivel de los demas. La primera version del
+// script los rechazaba, que era prudente al principio pero dejaba fuera 19
+// claves de cuatro pantallas (dashboard, gantt, inbox, semantic_engine).
+const nsQueFaltan = nsOrdenados.filter((x) => !x.bloque).map((x) => x.ns)
+if (nsQueFaltan.length) {
+  // Sangria y posiciones de los namespaces existentes de primer nivel.
+  const primerNivel = []
+  let prof = 0
+  for (let i = 0; i < lineas.length; i++) {
+    const l = lineas[i]
+    const m = l.match(/^(\s+)([A-Za-z0-9_]+)\s*:\s*\{\s*$/)
+    if (m && prof === 1) primerNivel.push({ nombre: m[2], linea: i, sangria: m[1] })
+    prof += (l.match(/\{/g) || []).length
+    prof -= (l.match(/\}/g) || []).length
+    if (prof < 0) prof = 0
+  }
+  if (!primerNivel.length) {
+    console.error('✗ no se pudo determinar la estructura del fichero')
+    process.exit(1)
+  }
+  const sangriaNs = primerNivel[0].sangria
+  // De mayor a menor posicion, para no desplazar indices.
+  const creaciones = nsQueFaltan
+    .map((ns) => {
+      const posterior = primerNivel.find((p) => p.nombre > ns)
+      return { ns, destino: posterior ? posterior.linea : primerNivel[primerNivel.length - 1].linea }
+    })
+    .sort((a, b) => b.destino - a.destino)
+  for (const { ns, destino } of creaciones) {
+    lineas.splice(destino, 0, `${sangriaNs}${ns}: {`, `${sangriaNs}},`)
+    console.log(`  + namespace creado: ${ns}`)
+  }
+}
+
+// Se recalculan los bloques: crear namespaces ha desplazado las lineas.
+const nsFinales = Object.keys(porNs)
+  .map((ns) => ({ ns, bloque: bloqueDe(ns) }))
+  .sort((a, b) => (b.bloque?.apertura ?? -1) - (a.bloque?.apertura ?? -1))
+
+for (const { ns, bloque } of nsFinales) {
   if (!bloque) {
     sinNamespace.push(...porNs[ns])
     continue
@@ -118,10 +159,16 @@ for (const { ns, bloque } of nsOrdenados) {
   const aInsertar = []
   for (const clave of porNs[ns]) {
     const partes = clave.split('.')
-    if (partes.length > 2) {
-      // Clave anidada a más de un nivel: este script sólo maneja el primer nivel
-      // dentro del namespace. Se informa en lugar de colocarla mal.
+    if (partes.length > 3) {
+      // Mas de tres niveles: no aparece en los datos actuales, asi que se informa
+      // en lugar de adivinar donde va.
       anidadas.push(clave)
+      continue
+    }
+    if (partes.length === 3) {
+      // Sub-objeto dentro del namespace. Se procesan aparte porque exigen crear
+      // o localizar el objeto intermedio.
+      subObjetos.push({ ns, sub: partes[1], hoja: partes[2], texto: nuevas[clave] })
       continue
     }
     const nombre = partes[1]
@@ -145,6 +192,62 @@ for (const { ns, bloque } of nsOrdenados) {
     insertadas++
   }
 }
+
+// ── Claves a tres niveles: namespace.subObjeto.hoja ─────────────────────────
+// Se procesan al final porque pueden necesitar crear el objeto intermedio, y eso
+// desplaza lineas: hacerlo antes invalidaria los indices de los bloques.
+let subInsertadas = 0
+const porSub = {}
+for (const it of subObjetos) {
+  const k = `${it.ns}.${it.sub}`
+  ;(porSub[k] ??= []).push(it)
+}
+for (const [ruta, items] of Object.entries(porSub)) {
+  const [ns, sub] = ruta.split('.')
+  const bloqueNs = bloqueDe(ns)
+  if (!bloqueNs) {
+    sinNamespace.push(...items.map((i) => `${ns}.${sub}.${i.hoja}`))
+    continue
+  }
+  const sangriaSub = `${bloqueNs.sangria}  `
+  // ¿Existe ya el sub-objeto dentro del namespace?
+  let aperturaSub = -1
+  for (let i = bloqueNs.apertura + 1; i < bloqueNs.cierre; i++) {
+    if (lineas[i] === `${sangriaSub}${sub}: {`) {
+      aperturaSub = i
+      break
+    }
+  }
+  if (aperturaSub === -1) {
+    // Se crea vacio al final del namespace.
+    lineas.splice(bloqueNs.cierre, 0, `${sangriaSub}${sub}: {`, `${sangriaSub}},`)
+    aperturaSub = bloqueNs.cierre
+    console.log(`  + sub-objeto creado: ${ruta}`)
+  }
+  // Cierre del sub-objeto.
+  let cierreSub = -1
+  for (let i = aperturaSub + 1; i < lineas.length; i++) {
+    if (lineas[i] === `${sangriaSub}},` || lineas[i] === `${sangriaSub}}`) {
+      cierreSub = i
+      break
+    }
+  }
+  const existentesSub = new Set()
+  for (let i = aperturaSub + 1; i < cierreSub; i++) {
+    const m = lineas[i].match(/^\s*([A-Za-z0-9_]+)\s*:/)
+    if (m) existentesSub.add(m[1])
+  }
+  for (const it of items) {
+    if (existentesSub.has(it.hoja)) {
+      yaExistian.push(`${ruta}.${it.hoja}`)
+      continue
+    }
+    lineas.splice(cierreSub, 0, `${sangriaSub}  ${it.hoja}: '${escapar(it.texto)}',`)
+    subInsertadas++
+  }
+}
+if (subInsertadas) console.log(`  insertadas en sub-objetos: ${subInsertadas}`)
+insertadas += subInsertadas
 
 console.log(`  insertadas:     ${insertadas}`)
 if (yaExistian.length) console.log(`  ya existían:    ${yaExistian.length}`)
