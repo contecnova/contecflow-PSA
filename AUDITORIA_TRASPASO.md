@@ -458,8 +458,27 @@ app/services/scim_service.py                (+ scim_bulk_error, ver aviso abajo)
 
 Y el directorio `app/api/v1/endpoints/v239/` desaparece: sus tres ficheros ya
 estaban bien nombrados —`approval_builder`, `baselines`, `branding`—, lo que
-agrupaba por versión era la carpeta. **Ya no queda ningún módulo nombrado por
-número de versión.** Verificado que las 2.051 rutas siguen idénticas.
+agrupaba por versión era la carpeta. Verificado que las 2.051 rutas siguen
+idénticas.
+
+> **Corrección a una afirmación mía demasiado amplia.** Escribí «ya no queda
+> ningún módulo nombrado por número de versión», y en el mensaje del commit
+> `0804bfc` también. Es cierto en las capas de **servicio y API** —de lo que iba
+> este hallazgo— pero no en todo el árbol. Quedan:
+>
+> ```
+> app/db/seed_parts/v10.py  v12.py  v13.py     datos de demostración
+> tests/test_business_logic_v236.py  v238.py  v239.py
+> tests/test_v235_features.py  test_v236_features.py
+> ```
+>
+> **No los he renombrado, y el motivo es el daño real del hallazgo:** el CRUD de
+> organizaciones estaba escondido en el módulo de MFA y por eso nadie vio que le
+> faltaba su guarda de superadministrador. Ese riesgo aplica a código de producto
+> con controles de acceso, no a generadores de datos de demostración ni a tests.
+> Renombrarlos es barato pero no reduce riesgo. Si se hace, los seeds son
+> multi-dominio («Sprints, Expenses, Automations» en uno solo), así que
+> renombrarlos bien exige partirlos primero.
 
 **Dos `hasattr` más eliminados de paso.** `analytics_extended.py` tenía
 `if hasattr(v238_service, "run_analytics_drilldown")` y otro igual para el
