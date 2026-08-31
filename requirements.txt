@@ -153,7 +153,19 @@ shellingham==1.5.4
 typer==0.24.1
 
 # ── Testing ────────────────────────────────────────────────────────────────────
+# Auditoría 2026-08 (hallazgo 22). Estos tres NO estaban fijados y el entorno
+# derivó hasta romper pytest por completo: se había instalado pytest 8.3.4
+# —frente al 9.0.3 fijado aquí— y `schemathesis` 4.25 importa
+# `_pytest.subtests`, un módulo que sólo existe en pytest 9. Resultado:
+# `ModuleNotFoundError` al cargar el plugin, y pytest no arrancaba en absoluto.
+#
+# Hay un triángulo real entre ellos, y de ahí que los tres vayan fijados:
+#   schemathesis 4.25   exige pytest >= 9
+#   pytest-asyncio 0.25 exige pytest <  9   → hay que usar la serie 1.x
+#   pytest-cov          la 6.0 quedó instalada frente a la 7.1 fijada
 pytest==9.0.3
+pytest-asyncio==1.4.0
+pytest-xdist==3.8.0
 playwright==1.55.0
 pytest-playwright==0.9.0
 schemathesis==4.25.2
