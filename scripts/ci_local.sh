@@ -141,6 +141,18 @@ if [[ "$MODE" != "--info" ]]; then
   run_gate bloqueante "cobertura i18n (es/en/zh, no puede bajar)" \
     bash -c 'cd frontend && node scripts/check_i18n_coverage.mjs'
 
+  # Claves duplicadas en los ficheros de idioma (hallazgo 16). Encontrado al
+  # intentar cerrar la traducción: `en.mjs` tenía el namespace `client_portal`
+  # declarado DOS VECES, y en JavaScript gana la última — así que 73 traducciones
+  # escritas y presentes en el repositorio no llegaban al usuario. 204 en total.
+  # Y en castellano `alm.subtitle` estaba declarada 13 veces, así que la pantalla
+  # de Licencias y Activos mostraba el subtítulo de imputaciones.
+  #
+  # El gate de cobertura NO lo detecta: compara el objeto ya colapsado, donde el
+  # duplicado es invisible. Éste lee el fichero como texto y sigue las llaves.
+  run_gate bloqueante "sin claves i18n duplicadas" \
+    bash -c 'cd frontend && node scripts/check_i18n_duplicates.mjs'
+
   # Dependencias estaticas de vendors grandes (hallazgo 19). El troceo por vendor
   # ya estaba bien hecho; el problema era QUIEN los importa: `route-misc` tenia un
   # import estatico de `vendor-plotly` (4.633 kB, el 38 % de todo el JS) porque
