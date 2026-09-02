@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import json
+import operator
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -378,8 +379,74 @@ def cancel_approval_request(db: Session, request_id: str, current_user: User):
          actor=current_user)
     return req
 
+# ── Condiciones de aprobacion ────────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `_check_auto_approval` era complejidad 18 y
+# decide si una solicitud se aprueba SIN REVISION HUMANA. No tenia un solo test.
+#
+# Las MISMAS cuatro condiciones estaban escritas dos veces —aqui y en
+# `_step_condition_met`— con manejo de error OPUESTO, y esa asimetria es
+# correcta y deliberada. Las dos fallan hacia «hace falta aprobacion humana»:
+#
+#   · en la auto-aprobacion, un importe que no se puede leer hace que la regla
+#     NO aplique, asi que no se auto-aprueba;
+#   · en la condicion de un paso, un importe que no se puede leer deja el paso
+#     ACTIVO, asi que se exige la aprobacion de ese paso.
+#
+# Ahora la tabla es una y el sentido del fallo es un parametro con nombre
+# (`si_no_se_puede_evaluar`), para que la asimetria se vea en la llamada en vez
+# de estar escondida en dos copias.
+
+# Comparaciones de importe: `amount_lt` exige que el importe sea MENOR que el
+# umbral, `amount_gt` que sea MAYOR. Estrictas las dos: un importe igual al
+# umbral no cumple ninguna.
+_COMPARACIONES_DE_IMPORTE = {
+    "amount_lt": operator.lt,
+    "amount_gt": operator.gt,
+}
+
+# Condiciones de igualdad exacta sobre el contexto.
+_IGUALDADES = ("department", "category")
+
+
+def _condiciones_cumplidas(
+    conds: dict, ctx: dict, *, si_no_se_puede_evaluar: bool, donde: str
+) -> bool:
+    """Evalua las condiciones presentes en `conds` contra el contexto `ctx`.
+
+    Solo se evaluan las claves que estan en `conds`: una condicion ausente no
+    restringe nada. `si_no_se_puede_evaluar` dice que significa un importe
+    ilegible —ver la nota de cabecera—, y se evaluan TODAS las condiciones
+    aunque una ya haya fallado, para que el registro de diagnostico sea el mismo
+    que antes.
+    """
+    cumple = True
+    for clave, comparar in _COMPARACIONES_DE_IMPORTE.items():
+        if clave not in conds:
+            continue
+        try:
+            if not comparar(float(ctx.get("amount", 0)), float(conds[clave])):
+                cumple = False
+        except Exception:
+            logger.debug(
+                "%s: no se pudo evaluar %s con ctx=%r", donde, clave, ctx, exc_info=True
+            )
+            if not si_no_se_puede_evaluar:
+                cumple = False
+    for clave in _IGUALDADES:
+        if clave in conds and ctx.get(clave) != conds[clave]:
+            cumple = False
+    return cumple
+
+
 def _check_auto_approval(wf, payload) -> Optional[str]:
-    """Return rule label if auto-approval applies, else None."""
+    """Return rule label if auto-approval applies, else None.
+
+    Decide si se salta la revision humana, asi que todo lo dudoso cuenta como
+    «no aplica»: sin reglas, con reglas ilegibles o con una regla SIN
+    condiciones, se devuelve None y la solicitud sigue el flujo normal. Lo
+    ultimo importa: una regla vacia auto-aprobaria todo, y aqui no aprueba nada.
+    """
     if not wf.auto_approval_rules:
         return None
     # Audit #61: validate via Pydantic with BC fallback. Historic rows that
@@ -389,39 +456,26 @@ def _check_auto_approval(wf, payload) -> Optional[str]:
     rules = parse_auto_approval_rules(wf.auto_approval_rules)
     if not rules:
         return None
-    ctx = {}
-    if hasattr(payload, 'context') and payload.context:
-        ctx = payload.context if isinstance(payload.context, dict) else {}
-    for rule in (rules or []):
+
+    # `payload.context` es un campo declarado del esquema, asi que el
+    # `hasattr` que habia aqui siempre era verdadero: octava instancia del
+    # patron de acceso tolerante que la auditoria viene retirando. El
+    # `isinstance` es el control que de verdad hace falta — un contexto que no
+    # sea un diccionario se trata como vacio.
+    ctx = payload.context if isinstance(payload.context, dict) else {}
+
+    for rule in rules:
         if rule.get("action") != "auto_approve":
             continue
         conds = rule.get("conditions", {})
         if not conds:
             continue
-        match = True
-        if "amount_lt" in conds:
-            try:
-                if float(ctx.get("amount", 0)) >= float(conds["amount_lt"]):
-                    match = False
-            except Exception:
-                logger.debug("auto_approve rule amount_lt eval failed for ctx=%r", ctx, exc_info=True)
-                match = False
-        if "amount_gt" in conds:
-            try:
-                if float(ctx.get("amount", 0)) <= float(conds["amount_gt"]):
-                    match = False
-            except Exception:
-                logger.debug("auto_approve rule amount_gt eval failed for ctx=%r", ctx, exc_info=True)
-                match = False
-        if "department" in conds:
-            if ctx.get("department") != conds["department"]:
-                match = False
-        if "category" in conds:
-            if ctx.get("category") != conds["category"]:
-                match = False
-        if match:
+        if _condiciones_cumplidas(
+            conds, ctx, si_no_se_puede_evaluar=False, donde="auto_approve"
+        ):
             return rule.get("label", "auto-rule")
     return None
+
 
 def _first_active_step(steps, req):
     """Return first step whose condition is met (or first step if no conditions)."""
@@ -432,38 +486,40 @@ def _first_active_step(steps, req):
     return ordered[0] if ordered else None
 
 def _step_condition_met(step, req) -> bool:
-    """Evaluate step.step_condition JSON against the request context."""
+    """Evaluate step.step_condition JSON against the request context.
+
+    Todo lo dudoso cuenta como «el paso esta activo», que es el sentido seguro:
+    un paso activo exige aprobacion. Sin condicion, con condicion ilegible o con
+    un importe que no se puede leer, se devuelve True.
+
+    Es el sentido OPUESTO al de la auto-aprobacion, y es correcto: alli lo
+    dudoso significa «no auto-aprobar». Las dos fallan hacia pedir una firma
+    humana. Ver la nota de `_condiciones_cumplidas`.
+    """
     if not step.step_condition:
         return True
     try:
         cond = json.loads(step.step_condition)
     except Exception:
-        logger.warning("Failed to parse approval step_condition for step=%s", getattr(step, "id", None), exc_info=True)
+        logger.warning(
+            "Failed to parse approval step_condition for step=%s",
+            getattr(step, "id", None), exc_info=True,
+        )
         return True
     ctx = {}
     try:
         ctx = json.loads(req.entity_summary or "{}")
     except Exception:
-        logger.debug("Approval request entity_summary not JSON for req=%s", getattr(req, "id", None), exc_info=True)
-    if "amount_gt" in cond:
-        try:
-            if float(ctx.get("amount", 0)) <= float(cond["amount_gt"]):
-                return False
-        except Exception:
-            logger.debug("Step condition amount_gt eval failed for step=%s", getattr(step, "id", None), exc_info=True)
-    if "amount_lt" in cond:
-        try:
-            if float(ctx.get("amount", 0)) >= float(cond["amount_lt"]):
-                return False
-        except Exception:
-            logger.debug("Step condition amount_lt eval failed for step=%s", getattr(step, "id", None), exc_info=True)
-    if "department" in cond:
-        if ctx.get("department") != cond["department"]:
-            return False
-    if "category" in cond:
-        if ctx.get("category") != cond["category"]:
-            return False
-    return True
+        logger.debug(
+            "Approval request entity_summary not JSON for req=%s",
+            getattr(req, "id", None), exc_info=True,
+        )
+    return _condiciones_cumplidas(
+        cond, ctx,
+        si_no_se_puede_evaluar=True,
+        donde=f"step_condition step={getattr(step, 'id', None)}",
+    )
+
 
 def _trigger_chained_workflow(req, chain_wf_id: str, actor, db: Session) -> None:
     """Create a new approval request for the chained workflow."""

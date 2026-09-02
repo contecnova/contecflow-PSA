@@ -270,66 +270,120 @@ def _rotate_jwt_keyring(db) -> bool:
     return True
 
 
+# ── Recifrado de secretos de integracion ─────────────────────────────────────
+#
+# Auditoria 2026-08. `_rotate_integration_secrets` era complejidad 21 en cinco
+# bloques que hacen lo mismo sobre cinco modelos. Al ponerlos uno al lado del
+# otro aparecio una asimetria que NO era intencionada, y que corrompia material
+# criptografico.
+#
+# ── El defecto ────────────────────────────────────────────────────────────────
+#
+# Tres de los cinco bloques llevaban una rama de respaldo «esto es plaintext
+# heredado, ciframoslo»:
+#
+#     if plain:                      -> recifrar
+#     elif not valor.startswith("v2:"):   -> tratar como plaintext y cifrar
+#
+# El respaldo de SSO y de webhooks solo comprobaba `v2:`; el de `AppSetting`
+# comprobaba `v2:` y `kmsv1:`. Y la rama es inalcanzable para su proposito
+# declarado: `decrypt_value()` YA devuelve el texto plano cuando el valor es
+# plaintext heredado —lo hace su propio respaldo interno—, asi que un plaintext
+# entra siempre por `if plain:`.
+#
+# Lo unico que llega al `elif` es un valor cuyo descifrado FALLO de verdad. Y
+# entonces:
+#
+#     valor = "kmsv1:..."  y KMS no responde  ->  decrypt_value() = None
+#                                              ->  no empieza por "v2:"
+#                                              ->  se CIFRA EL CRIPTOGRAMA
+#
+# Resultado: el secreto de cliente OIDC y los secretos de webhook quedan
+# cifrados dos veces y son irrecuperables sin descifrar dos niveles. Como se
+# ejecuta desde la rotacion programada, ocurriria sin que nadie lo pidiera, y el
+# sintoma seria que el SSO deja de funcionar. `AppSetting` se salvaba solo
+# porque su comprobacion incluia los dos prefijos.
+#
+# Comprobado por ejecucion:
+#     decrypt_value("clave-en-claro") -> 'clave-en-claro'   (entra por `if plain`)
+#     decrypt_value("v2:sin-punto")   -> None
+#     decrypt_value("kmsv1:AAAA")     -> None                (el caso corruptor)
+#
+# ── El arreglo ────────────────────────────────────────────────────────────────
+#
+# Se recifra SOLO cuando el descifrado ha funcionado. Un valor que no se puede
+# descifrar se deja intacto y se AVISA con el modelo, el identificador y el
+# campo —nunca el valor—, para que un secreto ilegible se vea en el log en vez
+# de destruirse en silencio o desaparecer sin rastro.
+
+
+@dataclass(frozen=True, slots=True)
+class _SecretoARecifrar:
+    """Un modelo y los campos suyos que guardan secretos cifrados."""
+
+    modelo: object
+    campos: tuple[str, ...]
+    filtro: object = None      # consulta acotada, si el modelo lo necesita
+
+
+def _secretos_a_recifrar() -> tuple[_SecretoARecifrar, ...]:
+    """La tabla de lo que hay que recifrar.
+
+    Se construye en una funcion y no como constante de modulo porque
+    `SENSITIVE_APP_SETTING_KEYS` se lee en el momento de la consulta.
+    """
+    return (
+        _SecretoARecifrar(AIProvider, ("api_key",)),
+        _SecretoARecifrar(IntegrationConfig, ("access_token", "refresh_token")),
+        _SecretoARecifrar(SSOConfig, ("oidc_client_secret",)),
+        _SecretoARecifrar(Webhook, ("secret",)),
+        _SecretoARecifrar(
+            AppSetting, ("value",),
+            filtro=lambda q: q.filter(
+                AppSetting.key.in_(list(SENSITIVE_APP_SETTING_KEYS))
+            ),
+        ),
+    )
+
+
+def _recifrar_campo(fila, campo: str, nombre_modelo: str) -> bool:
+    """Recifra un campo si se puede descifrar. Devuelve si ha cambiado.
+
+    Deja el valor intacto cuando no se puede descifrar: volver a cifrarlo
+    produciria un criptograma de un criptograma, irrecuperable. Ver la nota de
+    cabecera.
+    """
+    valor = getattr(fila, campo, None)
+    if not valor:
+        return False
+
+    plano = decrypt_value(valor)
+    if plano:
+        setattr(fila, campo, encrypt_value(plano))
+        return True
+
+    # No se ha podido descifrar. Nunca se toca: se avisa con lo justo para
+    # localizar el registro y jamas con el valor.
+    logger.warning(
+        "Rotación: %s.%s del registro %s no se puede descifrar; se deja intacto. "
+        "Si el cifrado es KMS, comprueba el acceso a la clave antes de repetir.",
+        nombre_modelo, campo, getattr(fila, "id", "?"),
+    )
+    return False
+
+
 def _rotate_integration_secrets(db) -> int:
     """Re-encrypt sensitive integration secrets with current encryption policy."""
-
     changed = 0
-
-    providers = db.query(AIProvider).all()
-    for p in providers:
-        if p.api_key:
-            plain = decrypt_value(p.api_key)
-            if plain:
-                p.api_key = encrypt_value(plain)
-                changed += 1
-
-    integrations = db.query(IntegrationConfig).all()
-    for c in integrations:
-        if c.access_token:
-            plain = decrypt_value(c.access_token)
-            if plain:
-                c.access_token = encrypt_value(plain)
-                changed += 1
-        if c.refresh_token:
-            plain = decrypt_value(c.refresh_token)
-            if plain:
-                c.refresh_token = encrypt_value(plain)
-                changed += 1
-
-    sso = db.query(SSOConfig).all()
-    for s in sso:
-        if s.oidc_client_secret:
-            plain = decrypt_value(s.oidc_client_secret)
-            if plain:
-                s.oidc_client_secret = encrypt_value(plain)
-                changed += 1
-            elif not s.oidc_client_secret.startswith("v2:"):
-                # plaintext legacy
-                s.oidc_client_secret = encrypt_value(s.oidc_client_secret)
-                changed += 1
-
-    hooks = db.query(Webhook).all()
-    for h in hooks:
-        if h.secret:
-            plain = decrypt_value(h.secret)
-            if plain:
-                h.secret = encrypt_value(plain)
-                changed += 1
-            elif not h.secret.startswith("v2:"):
-                h.secret = encrypt_value(h.secret)
-                changed += 1
-
-    settings_rows = db.query(AppSetting).filter(AppSetting.key.in_(list(SENSITIVE_APP_SETTING_KEYS))).all()
-    for row in settings_rows:
-        if row.value:
-            plain = decrypt_value(row.value)
-            if plain:
-                row.value = encrypt_value(plain)
-                changed += 1
-            elif not (row.value.startswith("v2:") or row.value.startswith("kmsv1:")):
-                row.value = encrypt_value(row.value)
-                changed += 1
-
+    for spec in _secretos_a_recifrar():
+        nombre = spec.modelo.__name__
+        consulta = db.query(spec.modelo)
+        if spec.filtro is not None:
+            consulta = spec.filtro(consulta)
+        for fila in consulta.all():
+            for campo in spec.campos:
+                if _recifrar_campo(fila, campo, nombre):
+                    changed += 1
     return changed
 
 

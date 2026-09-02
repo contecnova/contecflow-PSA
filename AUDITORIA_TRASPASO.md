@@ -194,6 +194,138 @@ en `tests/test_revenue_idempotency.py`.
 
 ---
 
+## 3.b Dos defectos de seguridad encontrados al partir funciones complejas
+
+Ninguno de los dos estaba en la auditoría inicial y ninguno se buscaba:
+aparecieron al poner el código de una función compleja en piezas con nombre, que
+es cuando una asimetría deja de esconderse. Los dos son el patrón de la sección
+5: el control cuidadoso existe y hay una segunda vía que lo salta, o un respaldo
+tolerante que convierte un fallo en la acción equivocada.
+
+### Un empleado podía elegir quién aprueba sus propias solicitudes
+
+`PATCH /users/{user_id}` usa `get_current_user`, **no** `require_admin`: una
+persona puede editar su propia ficha por ahí, y con el esquema **ancho**
+(`UserUpdate`). Los campos se aplicaban con un bucle genérico:
+
+```python
+for field, value in payload.model_dump(exclude_unset=True).items():
+    setattr(user, field, value)
+```
+
+y la guarda sólo protegía `role` y `hourly_rate`. Quedaba fuera `manager_id`.
+
+`manager_id` **es una entrada de autorización**: un paso de aprobación con
+`approver_type == "manager"` autoriza a quien sea `requester.manager_id`
+(`approval_engine/_base.py:177`). Y la plantilla de flujo **por defecto** trae
+ese paso como el primero, llamado «Direct Manager» (`_base.py:55`), así que es
+alcanzable en configuración estándar.
+
+Por esa vía se saltaban además las tres validaciones del endpoint dedicado:
+
+| | `PATCH /users/{id}/manager` | `PATCH /users/{id}` genérico |
+|---|---|---|
+| Autorización | `require_admin` | `get_current_user` |
+| El manager existe | sí | **no** |
+| Misma organización | sí | **no** |
+| Ciclos en la jerarquía | sí | **no** |
+
+`status` quedaba igual de libre.
+
+**Arreglo.** Quien no es administrador sólo puede cambiar de su propia ficha los
+campos que la aplicación ya declara autoeditables: los de `UserSelfUpdate`, el
+esquema del endpoint `/users/me`. **Se derivan de ahí, no de una lista escrita a
+mano** — una lista paralela se separaría al primer campo nuevo, y el que se
+olvidara quedaría abierto sin que nada fallara. Hay un test que cruza las dos y
+otro que comprueba que ningún campo de autorización acabe marcado como
+autoeditable.
+
+Es más estricto que antes en un punto, y a propósito: la guarda antigua miraba
+`payload.role is not None`, así que `{"role": null}` la pasaba. Ahora cuenta lo
+**enviado**, no lo enviado con valor — borrar tu propio manager también es
+cambiar quién aprueba tus solicitudes.
+
+**Lo que no se ha tocado y conviene mirar:** `PATCH /users/{user_id}` sigue
+aceptando el esquema ancho para todo el mundo, y el filtro está en el servicio.
+Sería más limpio que el endpoint eligiera el esquema según el actor, pero eso es
+un cambio de contrato de la API y no de un refactor.
+
+### La rotación programada podía corromper el secreto OIDC y los de webhook
+
+`_rotate_integration_secrets` recorre cinco modelos recifrando secretos. Tres
+llevaban un respaldo «esto es texto en claro heredado, cifrémoslo»:
+
+```python
+if plain:                            # recifrar
+elif not valor.startswith("v2:"):    # tratar como plaintext y cifrar
+```
+
+SSO y webhooks comprobaban sólo `v2:`; `AppSetting` comprobaba `v2:` **y**
+`kmsv1:`. La asimetría no era intencionada.
+
+Y la rama es **inalcanzable para su propósito declarado**: `decrypt_value()` ya
+devuelve el texto plano cuando el valor es plaintext heredado —lo hace su propio
+respaldo interno—. Comprobado por ejecución:
+
+```
+decrypt_value("clave-en-claro") -> 'clave-en-claro'   <- entra por `if plain`
+decrypt_value("v2:sin-punto")   -> None
+decrypt_value("kmsv1:AAAA")     -> None               <- el caso corruptor
+```
+
+Lo único que llega al `elif` es un valor cuyo descifrado **falló**. Con
+`KMS_PROVIDER=aws`, un secreto `kmsv1:` y KMS momentáneamente inalcanzable:
+`decrypt_value` devuelve `None`, el valor no empieza por `v2:`, y **se cifra el
+criptograma**. Queda cifrado dos veces e irrecuperable sin descifrar dos
+niveles. `AppSetting` se salvaba sólo porque su comprobación incluía los dos
+prefijos.
+
+Lo dispara la rotación programada, así que ocurriría sin que nadie lo pidiera y
+a la hora en que nadie mira. El síntoma sería que el SSO deja de funcionar para
+el tenant y los webhooks dejan de validar firma, con el secreto original ya
+perdido.
+
+**Arreglo.** Se recifra **sólo** cuando el descifrado ha funcionado. Un valor
+ilegible se deja intacto y se avisa con el modelo, el identificador y el campo —
+nunca el valor, y hay un test que comprueba que el secreto no aparece en el log.
+Dos tests estructurales cruzan la tabla de modelos y campos con los modelos
+reales: un nombre de campo mal escrito haría que ese secreto no se rotara nunca,
+en silencio, porque el acceso es por `getattr` con respaldo.
+
+**Si esto ya ha pasado en algún despliegue** —secreto OIDC cifrado dos veces— la
+recuperación es descifrar dos niveles con la clave que estuviera activa
+entonces. No hay migración automática porque no se puede distinguir un
+criptograma doble de uno simple sin intentarlo, y hacerlo a ciegas sobre todos
+los secretos es peor que el problema. Lo razonable es comprobar que el SSO y los
+webhooks siguen funcionando y, si no, reintroducir el secreto a mano.
+
+### Y una función que decidía aprobaciones sin un solo test
+
+`_check_auto_approval` (complejidad 18) decide si una solicitud se aprueba **sin
+revisión humana**, y buscando `auto_approval`, `_check_auto_approval` o
+`auto_approve` en todo `tests/` **no aparecía nada**. Misma clase de hallazgo que
+el middleware ABAC muerto (#2) y las reglas de enrutado de tickets (#18).
+
+Lo que sus 26 tests nuevos fijan y no estaba fijado:
+
+- una regla de auto-aprobación **sin condiciones no aprueba nada**. Si «ninguna
+  condición» contara como «todas cumplidas», una regla mal configurada aprobaría
+  absolutamente todo sin que nada fallara;
+- las condiciones de importe son **estrictas** en las dos direcciones: un importe
+  igual al umbral no cumple ni `amount_lt` ni `amount_gt`;
+- las condiciones de una regla se combinan con **Y**, no con **O**;
+- la **asimetría deliberada** entre los dos evaluadores de condiciones: un
+  importe ilegible hace que la auto-aprobación **no** aplique, y que la condición
+  de un paso lo deje **activo**. Las dos fallan hacia pedir una firma humana, y
+  uniformarlas «para que sean coherentes» volvería insegura una de las dos. Hay
+  un test dedicado sólo a eso;
+- que las cuatro condiciones que el esquema `AutoApprovalRuleConditions` declara
+  estén **todas implementadas**: una declarada y no implementada se ignoraría en
+  silencio, el administrador la configuraría, y la regla aprobaría sin
+  comprobarla.
+
+---
+
 ## 4. Estado detallado de lo que sigue abierto
 
 ### #14 zonas horarias — **cerrado**, con una decisión que hay que respetar
@@ -281,8 +413,8 @@ Hecho:
 ### #18 complejidad — parcial, con dos defectos reales encontrados de paso
 
 **La métrica honesta.** El *recuento* de funciones sobre el umbral apenas se
-mueve (138 → 124), porque partir una función grande produce varias medianas. La
-que importa es el **exceso total sobre 10: 1.023 → 538 (−47 %)**.
+mueve (138 → 120), porque partir una función grande produce varias medianas. La
+que importa es el **exceso total sobre 10: 1.023 → 502 (−51 %)**.
 
 Lo cerrado hasta ahora, por tandas:
 
@@ -305,10 +437,13 @@ Lo cerrado hasta ahora, por tandas:
 | `_serie_tickets_open` (`bi_smart_alerts/metrics.py`) | 18 | bajo umbral | **20 tests nuevos**, valores a mano |
 | `login` (`api/v1/routers/auth_core.py`) | 18 | bajo umbral | 39 de auth + **3 nuevos de seguridad** |
 | `_serie_pending_timesheets` (idem) | 13 | bajo umbral | catálogo + equivalencia 133 claves |
+| `update_user_record` (`services/user_service.py`) | 23 | bajo umbral | **15 tests nuevos**; ver 3.b |
+| `_rotate_integration_secrets` (`services/key_management.py`) | 21 | bajo umbral | **9 tests nuevos** (tenía cero); ver 3.b |
+| `_check_auto_approval` (`approval_engine/requests.py`) | 18 | bajo umbral | **24 tests nuevos** (tenía cero); ver 3.b |
 | `request_logger` (`app/main.py`) | 11 | bajo umbral | **incluido en los 43 de `main.py`** |
 
-**Seis de ellas no tenían un solo test** antes de tocarlas, y en cada caso eso
-era un hallazgo por sí mismo. Los tres peores:
+**Ocho de ellas no tenían un solo test** antes de tocarlas, y en cada caso eso
+era un hallazgo por sí mismo. Los cuatro peores:
 
 - **`lifespan`** — 216 líneas que son el *arranque* de la aplicación, sin una
   sola prueba propia. Incluye la comprobación de deriva de esquema y el arranque
@@ -319,6 +454,9 @@ era un hallazgo por sí mismo. Los tres peores:
 - **`request_logger`** — se ejecuta en *cada* petición y tapa los secretos de la
   URL antes de loguearla. Que tape de verdad no estaba verificado, y `login`
   responde 4xx con `?code=...` en la URL.
+- **`_check_auto_approval`** — decide si una solicitud se aprueba **sin revisión
+  humana**. Buscando `auto_approval`, `_check_auto_approval` o `auto_approve` en
+  todo `tests/` no aparecía nada. Ver la sección 3.b.
 
 #### Dos defectos reales encontrados al escribir los tests
 
@@ -437,21 +575,20 @@ defensa muerta que sólo servía para ocultar el día que dejara de serlo.
 |---|---|---|---|
 | 67 | `seed` | `db/seed_parts/core.py` | datos de demostración; 57 del exceso total, valor real bajo |
 | 24 | `call_ai` | `services/ai_provider_service.py` | despacho por proveedor |
-| 23 | `update_user_record` | `services/user_service.py` | mutación de usuario, permisos |
 | 23 | `process_workflow_queue_record` | `services/bookings_service.py` | |
 | 23 | `discover_snmp_network` | `services/cmdb/discovery.py` | |
 | 22 | `_notify_recipients` | `services/collaboration/messages.py` | |
 | 22 | `_execute_node` | `service_desk/workflow_engine.py` | |
 | 21 | `chat_stream` | `api/v1/endpoints/ai_chat.py` | |
-| 21 | `_rotate_integration_secrets` | `services/key_management.py` | criptografía; cuidado |
 | 20 | `predict_overrun_ml` | `services/ai_modules/predictions.py` | |
-| 18 | `_check_auto_approval` | `approval_engine/requests.py` | **decide aprobaciones**; siguiente por riesgo |
+| 19 | `send_schedule_now` | `services/bi_report_delivery_service.py` | |
+| 18 | `validate_import_csv` | `services/billing_reports_service.py` | |
 
-De ésas, las de más riesgo si se tocan mal —y por tanto las que hay que hacer con
-valores a mano, no sólo con la suite— son `_check_auto_approval` (decide
-aprobaciones automáticas), `_rotate_integration_secrets` (rotación de secretos) y
-`update_user_record` (mutación de usuario). `seed` es la de más exceso y la de
-menos valor: son datos de demostración.
+Las tres de más riesgo de esa lista ya están hechas —`_check_auto_approval`,
+`_rotate_integration_secrets` y `update_user_record`, las tres en la sección 3.b
+porque las tres traían defecto—. De lo que queda, la de más riesgo es
+`_execute_node` (motor de flujos de trabajo del service desk), y `seed` es la de
+más exceso y la de menos valor: son datos de demostración.
 
 ### #19 gráficos — cerrado, con el diagnóstico corregido
 
@@ -629,22 +766,42 @@ golpe**, cada tanda con su suite.
 
 ---
 
-## 5.c Dos tests míos que dependían del día en que se ejecutan
+## 5. Patrón que atraviesa toda la auditoría
 
-Salieron en la suite completa del 2 de septiembre, y los dos son del mismo tipo
-que los tres de la sección siguiente: **verificación que había dejado de
-verificar**. Los dos los escribí yo en sesiones anteriores.
+Conviene tenerlo presente al seguir: el fallo dominante de este código **no** es
+código ausente, es **controles escritos, con interfaz, con tests que pasan, y
+conectados a nada**. Cinco casos confirmados:
 
-| Test | Causa | Arreglo |
-|---|---|---|
-| `test_adhoc_analytics::test_el_filtro_de_fechas_se_aplica_con_cadenas_iso` | Su fixture ponía las imputaciones en `hoy.replace(day=15)`, y el test acota `[primero de mes, hoy]`. **Antes del día 15 las imputaciones caen en el futuro** y quedan fuera con razón. Se escribió a finales de agosto, pasó en verde, y desde el día 1 siguiente mentía | El fixture usa `hoy`, que está siempre dentro del rango, incluso el día 1 |
-| `test_timezone_context::test_today_sigue_la_zona_del_contexto` | Afirmaba que Kiritimati (UTC+14) y Niue (UTC−11) difieren 0 o 1 día natural. Son **25 horas** de desfase —lo decía su propio comentario—, así que hay una franja de cada día en que difieren **dos**. Falló a las 10:30 UTC | **Reloj fijo** en el instante que lo hizo fallar, con aserción exacta. Más un segundo test que afirma sólo lo que sí se cumple a cualquier hora: el orden, y que la diferencia no pasa de 2 |
+1. `ABACMiddleware` — nunca se ejecutó.
+2. `ABAC_COVERED_PREFIXES` — 45 de 110 prefijos con cero llamadas a
+   `enforce_abac`. Cobertura «aspiracional».
+3. `/analytics/adhoc` — `hasattr` sobre una función inexistente, devolvía
+   siempre `results: []`.
+4. La matriz de permisos GRC — `check_permission()` con cero invocaciones; sólo
+   su propia pantalla leía la tabla.
+5. El reconocimiento ASC 606 de T&M — `getattr` a dos campos inexistentes,
+   cero euros siempre.
+6. Las **siete** métricas de facturación — filtro `due_date >= inicio` con
+   `due_date` nullable: la factura sin vencimiento desaparecía de todas,
+   incluidas las cuatro que van por emisión o por pago.
+7. La rotación programada de secretos — un `elif` de respaldo que era
+   inalcanzable para su propósito declarado y, para lo que sí alcanzaba,
+   **cifraba el criptograma**.
+8. `_check_auto_approval` — decide aprobaciones **sin revisión humana** y tenía
+   cero tests.
+9. `PATCH /users/{id}` — el endpoint dedicado de manager valida existencia,
+   organización y ciclos; el genérico aplicaba `manager_id` con un `setattr` y
+   ninguna de las tres.
 
-Lo que hay que retener del segundo: la salida fácil era ensanchar la tolerancia
-a `(0, 1, 2)` y seguir. Eso habría dejado el test verde y habría dejado intacto
-el problema de fondo — que dependía de la hora—, y el siguiente caso raro habría
-vuelto a fallar sin explicación. **Un test que lee el reloj real no puede
-afirmar una diferencia exacta.**
+Los nueve comparten mecanismo: **un acceso tolerante (`getattr`/`hasattr` con
+defecto, un `except` que degrada, o un filtro que descarta en silencio)
+convirtiendo un error en un resultado plausible.** Al revisar código nuevo aquí,
+ese es el patrón a buscar.
+
+Y accesos tolerantes muertos retirados hasta ahora, que son la señal de aviso
+del patrón: `hasattr` sobre `project.tasks`, sobre `payload.context`, y los dos
+de `analytics_extended.py`. Los cuatro eran siempre verdaderos, así que la
+defensa no defendía de nada — sólo escondía el día en que dejara de serlo.
 
 ---
 
@@ -665,26 +822,22 @@ que también la llevaba a mano. Ahora las cuatro leen del mismo sitio.
 
 ---
 
-## 5. Patrón que atraviesa toda la auditoría
+## 5.c Dos tests míos que dependían del día en que se ejecutan
 
-Conviene tenerlo presente al seguir: el fallo dominante de este código **no** es
-código ausente, es **controles escritos, con interfaz, con tests que pasan, y
-conectados a nada**. Cinco casos confirmados:
+Salieron en la suite completa del 2 de septiembre, y los dos son del mismo tipo
+que los tres de la sección siguiente: **verificación que había dejado de
+verificar**. Los dos los escribí yo en sesiones anteriores.
 
-1. `ABACMiddleware` — nunca se ejecutó.
-2. `ABAC_COVERED_PREFIXES` — 45 de 110 prefijos con cero llamadas a
-   `enforce_abac`. Cobertura «aspiracional».
-3. `/analytics/adhoc` — `hasattr` sobre una función inexistente, devolvía
-   siempre `results: []`.
-4. La matriz de permisos GRC — `check_permission()` con cero invocaciones; sólo
-   su propia pantalla leía la tabla.
-5. El reconocimiento ASC 606 de T&M — `getattr` a dos campos inexistentes,
-   cero euros siempre.
+| Test | Causa | Arreglo |
+|---|---|---|
+| `test_adhoc_analytics::test_el_filtro_de_fechas_se_aplica_con_cadenas_iso` | Su fixture ponía las imputaciones en `hoy.replace(day=15)`, y el test acota `[primero de mes, hoy]`. **Antes del día 15 las imputaciones caen en el futuro** y quedan fuera con razón. Se escribió a finales de agosto, pasó en verde, y desde el día 1 siguiente mentía | El fixture usa `hoy`, que está siempre dentro del rango, incluso el día 1 |
+| `test_timezone_context::test_today_sigue_la_zona_del_contexto` | Afirmaba que Kiritimati (UTC+14) y Niue (UTC−11) difieren 0 o 1 día natural. Son **25 horas** de desfase —lo decía su propio comentario—, así que hay una franja de cada día en que difieren **dos**. Falló a las 10:30 UTC | **Reloj fijo** en el instante que lo hizo fallar, con aserción exacta. Más un segundo test que afirma sólo lo que sí se cumple a cualquier hora: el orden, y que la diferencia no pasa de 2 |
 
-Los cinco comparten mecanismo: **un acceso tolerante (`getattr`/`hasattr` con
-defecto, o un `except` que degrada) convirtiendo un error de programación en un
-resultado vacío plausible.** Al revisar código nuevo aquí, ese es el patrón a
-buscar.
+Lo que hay que retener del segundo: la salida fácil era ensanchar la tolerancia
+a `(0, 1, 2)` y seguir. Eso habría dejado el test verde y habría dejado intacto
+el problema de fondo — que dependía de la hora—, y el siguiente caso raro habría
+vuelto a fallar sin explicación. **Un test que lee el reloj real no puede
+afirmar una diferencia exacta.**
 
 ---
 
@@ -730,14 +883,25 @@ Tests nuevos: `test_organization_tenant_isolation`, `test_tenant_filter_fail_clo
 Quedan **3 de 29** hallazgos en «parcial», y ninguno es un fallo latente: son
 deuda medida. Nada de lo que queda corrompe datos ni abre un agujero.
 
-1. **#18, por riesgo y no por tamaño.** El método está probado dieciocho veces
-   ya; lo que decide el orden es qué pasa si se toca mal. En este orden:
-   `_check_auto_approval` (decide aprobaciones automáticas),
-   `_rotate_integration_secrets` (rotación de secretos),
-   `update_user_record` (mutación de usuario y permisos), `_execute_node`
-   (motor de flujos de trabajo). Las tres primeras **con valores calculados a
-   mano**, no sólo con la suite: son decisiones, no cálculos reversibles.
-   `seed` (67, el 11 % del exceso que queda) es lo último: son datos de
+**Corrección a lo que decía la versión anterior de este párrafo.** Decía que
+nada de lo que quedaba abría un agujero. Era verdad de lo *conocido*, y resultó
+insuficiente: al partir tres funciones más aparecieron dos defectos de seguridad
+(sección 3.b), y ninguno de los dos se estaba buscando. La conclusión práctica
+no es que la auditoría fallara, sino que **partir una función compleja es en sí
+mismo un método de detección**: la asimetría entre cinco bloques que hacen lo
+mismo, o entre dos evaluadores de la misma condición, sólo se ve cuando están
+uno al lado del otro. Por eso el orden de abajo va por riesgo.
+
+1. **#18, por riesgo y no por tamaño.** El método está probado veintiuna veces
+   ya; lo que decide el orden es qué pasa si se toca mal. Las tres de más riesgo
+   —auto-aprobación, rotación de secretos y mutación de usuario— ya están, y las
+   tres traían defecto. Lo siguiente, en este orden:
+   `_execute_node` (22, motor de flujos de trabajo del service desk: decide qué
+   se ejecuta en cada nodo), `_notify_recipients` (22, a quién se le manda cada
+   aviso), `call_ai` (24, despacho por proveedor con claves y cuotas) y
+   `process_workflow_queue_record` (23). **Con valores a mano, no sólo con la
+   suite**, las dos primeras: son decisiones, no cálculos reversibles.
+   `seed` (67, el 13 % del exceso que queda) es lo último: son datos de
    demostración y el trabajo es mecánico.
 2. **#22, los 298 puntos de acceso a base en la capa API** — por dominios, no de
    golpe, cada tanda con su suite.

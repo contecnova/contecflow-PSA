@@ -188,7 +188,7 @@ type Resource = {
   hourly_rate?: number | string | null
 }
 
-function ResourceCard({ resource, onEdit, showRates }: { resource: Resource; onEdit: (r: Resource) => void; showRates: boolean }) {
+function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Resource; onEdit: (r: Resource) => void; showRates: boolean; canEdit: boolean }) {
   const load = resource.current_load_pct ?? 0
   const loadColor = load > 100 ? 'var(--danger)' : load > 85 ? 'var(--warning)' : load > 60 ? 'var(--accent)' : 'var(--success)'
   return (
@@ -214,12 +214,16 @@ function ResourceCard({ resource, onEdit, showRates }: { resource: Resource; onE
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
           {load > 100 && <span title="Sobrecarga detectada" style={{ fontSize: "var(--text-lg)" }}>⚠️</span>}
-          <button onClick={() => onEdit(resource)}
+          {/* Sólo para administradores: el editor cambia capacidad semanal,
+              departamento y tarifa, y `PATCH /users/{id}` reserva esos campos a
+              un administrador. Antes el botón se mostraba a todo el mundo y
+              devolvía 403 al guardar. */}
+          {canEdit && <button onClick={() => onEdit(resource)}
             style={{ background: 'transparent', border: '1px solid var(--accent-border)', borderRadius: 7, padding: '4px 12px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit', transition: 'all .1s' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-1)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text-2)' }}>
             Editar
-          </button>
+          </button>}
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
@@ -544,7 +548,7 @@ export default function ResourcesPage() {
             <EmptyState icon="👥" title="Sin recursos" description="No hay personas que coincidan con el filtro actual" />
           ) : view === 'grid' ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-              {sortedResources.map(r => <ResourceCard key={r.user?.id} resource={r} onEdit={setEditTarget} showRates={hasRole('admin', 'hr')} />)}
+              {sortedResources.map(r => <ResourceCard key={r.user?.id} resource={r} onEdit={setEditTarget} showRates={hasRole('admin', 'hr')} canEdit={hasRole('admin')} />)}
             </div>
           ) : (
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
