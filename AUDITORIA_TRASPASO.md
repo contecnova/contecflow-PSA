@@ -905,8 +905,10 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    demostración y el trabajo es mecánico.
 2. **#22, los 298 puntos de acceso a base en la capa API** — por dominios, no de
    golpe, cada tanda con su suite.
-3. **#16, traducción** — en lotes revisables, **subiendo `COBERTURA_MINIMA` en
-   `check_i18n_coverage.mjs` en cada lote**.
+**#16, traducción: CERRADO.** Este documento lo daba por «parcial» y era falso.
+Se declaran tres idiomas —`es`, `en`, `zh`, exactamente los que se venden— y los
+tres están al **100 %** sobre 3.755 claves, con dos gates bloqueantes: cobertura
+con suelo 100 y ausencia de claves duplicadas.
 
 **Dos cosas anotadas y NO tocadas**, porque cambiarlas cambia lo que significa
 una cifra y eso es decisión de producto, no de un refactor de complejidad:
@@ -927,7 +929,17 @@ Lo demás yo lo dejaría donde está, y digo por qué:
   está resuelto (#19: −68 % al abrir las páginas afectadas), así que migrar 25
   usos de echarts y 18 de recharts es riesgo alto por beneficio hoy marginal.
 - **`echarts` 5→6 y `react-router-dom` 6→7** — los 3 avisos `moderate` de
-  `npm audit`. Cada uno es una migración con riesgo sobre 119 rutas lazy. El gate
-  bloqueante está en nivel `high`, que está a 0.
+  `npm audit`. Cada uno es una migración con riesgo sobre 119 rutas lazy.
+
+  **Corrección del 2 de septiembre:** el gate bloqueante está en nivel `high`, y
+  cuando se escribió esto estaba a 0 — pero para entonces **ya había aparecido un
+  `high` nuevo**: `browserslist`, transitiva vía `autoprefixer`, `@babel/core` y
+  `webpack`. Arreglado con un salto de **parche** (4.28.2 → 4.28.8) tocando sólo
+  el lockfile; `package.json` no cambia. Ahora `high` y `low` están a 0 y quedan
+  los 3 `moderate`.
+
+  Lo que hay que retener: **`npm audit` cambia sin que nadie toque el código.**
+  Una frase como «está a 0» caduca sola. Conviene ejecutarlo antes de cada tanda,
+  no confiar en lo que diga este documento.
 - **`strictNullChecks` (226) y `noImplicitAny` (387).** El camino es la whitelist
   de `tsconfig.strict.json`: añadir ficheros y dejar el gate verde.
