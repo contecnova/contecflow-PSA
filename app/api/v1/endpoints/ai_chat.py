@@ -225,6 +225,165 @@ def _demo_response(message: str, ctx: dict) -> str:
     return _svc.demo_response(message, ctx)
 
 
+# ── Chat en streaming (SSE) ──────────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `chat_stream` era complejidad 21. Al partirla
+# aparecio que los TRES manejadores de error estaban duplicados en las dos ramas
+# —proveedor Anthropic nativo y proveedor simulado—, seis bloques con la misma
+# forma. Y con una divergencia por copia: el error generico recortaba el mensaje
+# a 100 caracteres en una rama y a 120 en la otra. Ahora es uno y recorta a 100.
+#
+# El formato de evento SSE (`data: {json}\n\n`) estaba escrito a mano diez veces;
+# ahora lo pone `_sse()`. Un `\n\n` olvidado en uno de los diez rompe el
+# streaming en el navegador sin que el servidor note nada.
+
+
+def _sse(datos: dict) -> str:
+    """Un evento Server-Sent Events.
+
+    Los dos saltos de linea del final no son opcionales: son el separador de
+    eventos del protocolo. Sin ellos el navegador se queda esperando.
+    """
+    return f"data: {json.dumps(datos)}\n\n"
+
+
+def _sse_error(exc: Exception) -> str:
+    """Clasifica el fallo y lo devuelve como evento, sin filtrar detalles internos.
+
+    Tres categorias porque son tres cosas distintas para quien mira la pantalla:
+    un dato que no vale, el proveedor inalcanzable, y cualquier otra cosa. El
+    texto se recorta porque va al navegador.
+    """
+    if isinstance(exc, ValueError):
+        _logger.error(f"SSE stream error (datos): {exc}")
+        return _sse({"error": "Error de datos: " + str(exc)[:100]})
+    if isinstance(exc, ConnectionError):
+        _logger.error(f"SSE stream error (conexión): {exc}")
+        return _sse({"error": "No se pudo conectar con el proveedor IA: " + str(exc)[:100]})
+    _logger.error(f"SSE stream error: {exc}", exc_info=True)
+    return _sse({"error": "Error inesperado: " + str(exc)[:100]})
+
+
+async def _validar_y_preparar(payload, db, current_user):
+    """Comprueba lo que hay que comprobar antes de hablar con el modelo.
+
+    Inyeccion de prompt, limite de peticiones y politicas de gobernanza, en ese
+    orden: lo mas barato primero, y la politica al final porque es la que puede
+    reescribir el mensaje. Devuelve el mensaje efectivo (redactado si tocaba).
+
+    Todo el trabajo de base va por `run_db` porque este endpoint es asincrono
+    (auditoria #C7): ejecutarlo en el bucle de eventos bloquearia a todos los
+    demas clientes mientras dura la consulta.
+    """
+    from app.core.async_db import run_db
+
+    # P0-5: Reject prompt injection attempts (same as non-streaming endpoint)
+    if _check_prompt_injection(payload.message):
+        raise HTTPException(
+            status_code=400,
+            detail="Petición rechazada: el mensaje contiene patrones que intentan manipular el sistema de IA.",
+        )
+
+    limit_err = await run_db(_check_rate_limit, db, current_user.id, "nexusassist")
+    if limit_err:
+        raise HTTPException(429, limit_err)
+
+    gr = await run_db(check_prompt, payload.message, current_user, "nexusassist", db)
+    if not gr.allowed:
+        raise HTTPException(400, f"Mensaje bloqueado por política de gobernanza: {gr.blocked_by}")
+    return gr.redacted_text if gr.redacted_text else payload.message
+
+
+def _usa_sse_nativo(active_provider) -> bool:
+    """Si el proveedor activo soporta streaming nativo (Anthropic).
+
+    El segundo caso —sin proveedor configurado pero con clave de entorno— es el
+    despliegue por defecto, y sin el caeria en el streaming simulado teniendo
+    disponible el de verdad.
+    """
+    return bool(
+        (active_provider is not None
+         and active_provider.provider == "anthropic"
+         and active_provider.api_key)
+        or (active_provider is None and _api_key())
+    )
+
+
+async def _emitir_anthropic(active_provider, system, messages, collected):
+    """Streaming nativo: se reenvia cada trozo en cuanto llega."""
+    import httpx
+
+    api_key_to_use = (active_provider.api_key if active_provider else None) or _api_key()
+    model_to_use = (
+        (active_provider.default_model if active_provider else None)
+        or settings.CONTECFLOW_AI_MODEL
+    )
+    headers = {
+        "x-api-key": api_key_to_use,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+    body = {
+        "model": model_to_use,
+        "max_tokens": 1500,
+        "stream": True,
+        "system": system,
+        "messages": messages,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            async with client.stream(
+                "POST", settings.ANTHROPIC_API_URL, json=body, headers=headers
+            ) as resp:
+                if resp.status_code != 200:
+                    # Se consume el cuerpo antes de salir: sin esto la conexion
+                    # queda a medio leer y httpx avisa al cerrarla.
+                    await resp.aread()
+                    yield _sse({"error": f"API error {resp.status_code}"})
+                    return
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    try:
+                        event = json.loads(line[6:])
+                    except json.JSONDecodeError:
+                        continue
+                    if event.get("type") == "content_block_delta":
+                        chunk = event.get("delta", {}).get("text", "")
+                        if chunk:
+                            collected["text"] += chunk
+                            yield _sse({"text": chunk})
+    except Exception as exc:
+        yield _sse_error(exc)
+
+
+async def _emitir_simulado(db, messages, system, current_user, collected):
+    """Sin streaming nativo: se pide la respuesta entera y se emite por palabras.
+
+    El troceado por palabras es solo de presentacion —que la respuesta aparezca
+    progresivamente como en el otro camino— y por eso lleva la espera de 20 ms.
+    """
+    try:
+        loop = asyncio.get_event_loop()
+        full_text = await loop.run_in_executor(
+            None,
+            lambda: call_ai(
+                db, messages, system=system, module="nexusassist",
+                user_id=current_user.id, max_tokens=4000,
+                is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
+                organization_id=getattr(current_user, "organization_id", None),
+            ),
+        )
+    except Exception as exc:
+        yield _sse_error(exc)
+        return
+
+    for word in full_text.split(" "):
+        collected["text"] += word + " "
+        yield _sse({"text": word + " "})
+        await asyncio.sleep(0.02)
+
+
 @router.post("/ai/chat/stream", summary="NexusAssist — chat con streaming SSE")
 async def chat_stream(
     payload: ChatPayload,
@@ -238,31 +397,10 @@ async def chat_stream(
       - ``{"text": "<chunk>"}``  for each text token received
       - ``{"done": true, "conversation_id": "<id>"}`` when finished
     """
-    import httpx
-
-    # P0-5: Reject prompt injection attempts (same as non-streaming endpoint)
-    if _check_prompt_injection(payload.message):
-        raise HTTPException(
-            status_code=400,
-            detail="Petición rechazada: el mensaje contiene patrones que intentan manipular el sistema de IA.",
-        )
-
-    # Audit #C7: this endpoint is async (SSE streaming via httpx). Pre-stream
-    # DB-bound work was running on the event loop — push it to the threadpool.
     from app.core.async_db import run_db
 
-    # Rate-limit check (same as non-streaming endpoint)
-    limit_err = await run_db(_check_rate_limit, db, current_user.id, "nexusassist")
-    if limit_err:
-        raise HTTPException(429, limit_err)
+    effective_message = await _validar_y_preparar(payload, db, current_user)
 
-    # Guardrail: PII & policy check on incoming prompt
-    gr = await run_db(check_prompt, payload.message, current_user, "nexusassist", db)
-    if not gr.allowed:
-        raise HTTPException(400, f"Mensaje bloqueado por política de gobernanza: {gr.blocked_by}")
-    effective_message = gr.redacted_text if gr.redacted_text else payload.message
-
-    # Obtain or create conversation, persist user message, build history
     conv, messages, system = await run_db(
         _svc.prepare_chat,
         db, payload.conversation_id, current_user.id,
@@ -270,105 +408,35 @@ async def chat_stream(
         effective_message=effective_message, system_template=NEXUSASSIST_SYSTEM,
         commit=True,
     )
-
     conv_id = conv.id
 
-    # Detect whether the active provider is Anthropic (supports native SSE)
     active_provider = await run_db(
         get_default_provider,
         db,
         is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
         organization_id=getattr(current_user, "organization_id", None),
     )
-    is_anthropic_native = (
-        active_provider is not None
-        and active_provider.provider == "anthropic"
-        and active_provider.api_key
-    ) or (active_provider is None and bool(_api_key()))
+    nativo = _usa_sse_nativo(active_provider)
 
+    # `collected` es el puente entre el generador y la tarea de fondo que
+    # persiste la respuesta: el generador lo va rellenando y `_persist_response`
+    # lo lee cuando el streaming ha terminado.
     collected: dict = {"text": ""}
 
     async def event_generator():
         t0 = time.time()
-
-        if is_anthropic_native:
-            # Native Anthropic SSE streaming
-            api_key_to_use = (active_provider.api_key if active_provider else None) or _api_key()
-            model_to_use = (active_provider.default_model if active_provider else None) or settings.CONTECFLOW_AI_MODEL
-            headers = {
-                "x-api-key": api_key_to_use,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            }
-            body = {
-                "model": model_to_use,
-                "max_tokens": 1500,
-                "stream": True,
-                "system": system,
-                "messages": messages,
-            }
-            try:
-                async with httpx.AsyncClient(timeout=60) as client:
-                    async with client.stream(
-                        "POST", settings.ANTHROPIC_API_URL, json=body, headers=headers
-                    ) as resp:
-                        if resp.status_code != 200:
-                            await resp.aread()
-                            yield f"data: {json.dumps({'error': f'API error {resp.status_code}'})}\n\n"
-                            return
-                        async for line in resp.aiter_lines():
-                            if not line.startswith("data: "):
-                                continue
-                            raw = line[6:]
-                            try:
-                                event = json.loads(raw)
-                            except json.JSONDecodeError:
-                                continue
-                            if event.get("type") == "content_block_delta":
-                                chunk = event.get("delta", {}).get("text", "")
-                                if chunk:
-                                    collected["text"] += chunk
-                                    yield f"data: {json.dumps({'text': chunk})}\n\n"
-            except ValueError as exc:
-                _logger.error(f"SSE stream error (datos): {exc}")
-                yield f"data: {json.dumps({'error': 'Error de datos: ' + str(exc)[:100]})}\n\n"
-            except ConnectionError as exc:
-                _logger.error(f"SSE stream error (conexión): {exc}")
-                yield f"data: {json.dumps({'error': 'No se pudo conectar con el proveedor IA: ' + str(exc)[:100]})}\n\n"
-            except Exception as exc:
-                _logger.error(f"SSE stream error: {exc}", exc_info=True)
-                yield f"data: {json.dumps({'error': 'Error inesperado: ' + str(exc)[:100]})}\n\n"
+        if nativo:
+            async for evento in _emitir_anthropic(
+                active_provider, system, messages, collected
+            ):
+                yield evento
         else:
-            # Non-Anthropic provider or no provider: use call_ai() and simulate streaming
-            try:
-                loop = asyncio.get_event_loop()
-                full_text = await loop.run_in_executor(
-                    None,
-                    lambda: call_ai(db, messages, system=system, module="nexusassist",
-                                    user_id=current_user.id, max_tokens=4000,
-                                    is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
-                                    organization_id=getattr(current_user, "organization_id", None)),
-                )
-            except ValueError as exc:
-                _logger.error(f"SSE stream error (datos): {exc}")
-                yield f"data: {json.dumps({'error': 'Error de datos: ' + str(exc)[:100]})}\n\n"
-                return
-            except ConnectionError as exc:
-                _logger.error(f"SSE stream error (conexión): {exc}")
-                yield f"data: {json.dumps({'error': 'No se pudo conectar con el proveedor IA: ' + str(exc)[:100]})}\n\n"
-                return
-            except Exception as exc:
-                _logger.error(f"SSE stream error: {exc}", exc_info=True)
-                yield f"data: {json.dumps({'error': 'Error inesperado: ' + str(exc)[:120]})}\n\n"
-                return
-            # Stream word by word for UX consistency
-            for word in full_text.split(" "):
-                collected["text"] += word + " "
-                yield f"data: {json.dumps({'text': word + ' '})}\n\n"
-                await asyncio.sleep(0.02)
-
+            async for evento in _emitir_simulado(
+                db, messages, system, current_user, collected
+            ):
+                yield evento
         collected["latency"] = int((time.time() - t0) * 1000)
-        yield f"data: {json.dumps({'done': True, 'conversation_id': conv_id})}\n\n"
+        yield _sse({"done": True, "conversation_id": conv_id})
 
     def _persist_response():
         """Save the streamed assistant reply to the DB after streaming completes."""

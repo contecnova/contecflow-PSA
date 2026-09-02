@@ -67,78 +67,135 @@ def _semantic_assignee_if_enabled(db: Session, ticket: Ticket, candidate_user_id
     return None
 
 
+# ── Asignación automática de un ticket nuevo ─────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `_auto_assign_ticket_on_create` era
+# complejidad 18 y decide A QUIEN se asigna cada ticket que entra. Un error aqui
+# manda el trabajo al agente equivocado sin que nada falle.
+#
+# Al partirla aparecio que el BLOQUE DE CIERRE estaba escrito dos veces,
+# literalmente: normalizar el estado a «asignado», hacer `flush` si el ticket
+# todavia no tiene id, y registrar el evento de enrutado. Los dos caminos
+# —asignacion manual previa y asignacion automatica— terminan igual, asi que
+# ahora terminan en la misma funcion.
+
+
+def _valor_de_estado(v) -> str:
+    """El estado como cadena, venga como Enum, como texto o como nombre completo.
+
+    El tercer caso (`"TicketStatus.new"`) existe porque hay filas guardadas con
+    la representacion del Enum en vez de su valor.
+    """
+    if hasattr(v, "value"):
+        return str(v.value)
+    s = str(v)
+    if s.startswith("TicketStatus."):
+        return s.split(".", 1)[1]
+    return s
+
+
+def _finalizar_asignacion(db: Session, ticket: Ticket) -> None:
+    """Cierra la asignacion: estado, `flush` si hace falta, y evento de enrutado.
+
+    Es el bloque que estaba duplicado en los dos caminos. El `flush` va antes
+    del evento porque `record_routing_event` necesita el id del ticket, y un
+    ticket recien construido todavia no lo tiene.
+    """
+    from app.models.service_desk import TicketStatus
+
+    estado = _valor_de_estado(ticket.status)
+    # `"None"` en el conjunto no es redundante con `not ticket.status`: cubre las
+    # filas donde el estado se guardo como la CADENA "None", que es truthy y por
+    # tanto no la caza la primera condicion.
+    if not ticket.status or estado in {
+        TicketStatus.new.value, TicketStatus.assigned.value, "None",
+    }:
+        ticket.status = TicketStatus.assigned
+
+    if not ticket.id:
+        db.flush()
+
+    from app.services.service_desk.ml_routing_service import record_routing_event
+    record_routing_event(db, ticket)
+
+
+def _candidatos_de_asignacion(db: Session, ticket: Ticket) -> list:
+    """Los agentes elegibles para este ticket.
+
+    Si hay grupo, sus miembros. Si no, TODOS los agentes del service desk,
+    deduplicados por usuario: una persona en tres grupos apareceria tres veces y
+    el modelo de enrutado la ponderaria el triple.
+    """
+    from app.models.service_desk import AgentGroupMember
+
+    if ticket.assigned_group_id:
+        return (
+            db.query(AgentGroupMember)
+            .filter(AgentGroupMember.group_id == ticket.assigned_group_id)
+            .all()
+        )
+
+    vistos: set[str] = set()
+    miembros = []
+    for m in db.query(AgentGroupMember).all():
+        if m.user_id in vistos:
+            continue
+        vistos.add(m.user_id)
+        miembros.append(m)
+    return miembros
+
+
+def _elegir_agente(db: Session, ticket: Ticket, miembros: list):
+    """El agente elegido, o None si no se puede decidir.
+
+    Se intenta primero el clasificador semantico y despues el modelo de
+    enrutado. El orden importa: el semantico mira el CONTENIDO del ticket y solo
+    responde cuando esta habilitado y seguro, asi que cuando responde es la
+    respuesta mejor informada.
+    """
+    from app.services.service_desk.ml_routing_service import predict_best_agent
+
+    candidatos = [m.user_id for m in miembros if getattr(m, "user_id", None)]
+    return (
+        _semantic_assignee_if_enabled(db, ticket, candidatos)
+        or predict_best_agent(db, ticket, miembros)
+    )
+
+
 def _auto_assign_ticket_on_create(db: Session, ticket: Ticket) -> None:
     """Ensure every newly created ticket gets an assignee using ML routing.
 
     If a manual assignee already exists, preserve it and just normalize status/event.
     """
-    from app.models.service_desk import AgentGroupMember, TicketStatus
-    from app.services.service_desk.ml_routing_service import (
-        predict_best_agent,
-        record_routing_event,
-    )
-
-    def _status_value(v):
-        if hasattr(v, "value"):
-            return str(v.value)
-        s = str(v)
-        if s.startswith("TicketStatus."):
-            return s.split(".", 1)[1]
-        return s
-
+    # Una asignacion manual manda: no se reemplaza nunca por la automatica.
     if ticket.assigned_to_user_id:
-        status_now = _status_value(ticket.status)
-        if not ticket.status or status_now in {TicketStatus.new.value, TicketStatus.assigned.value, "None"}:
-            ticket.status = TicketStatus.assigned
-        if not ticket.id:
-            db.flush()
-        record_routing_event(db, ticket)
+        _finalizar_asignacion(db, ticket)
         return
 
-    # Service Catalog can define a default target group.
-    if not ticket.assigned_group_id and ticket.service_item and ticket.service_item.auto_assign_group:
+    # El catalogo de servicios puede fijar el grupo destino del tipo de peticion.
+    if (not ticket.assigned_group_id and ticket.service_item
+            and ticket.service_item.auto_assign_group):
         ticket.assigned_group_id = ticket.service_item.auto_assign_group
 
-    if ticket.assigned_group_id:
-        members = (
-            db.query(AgentGroupMember)
-            .filter(AgentGroupMember.group_id == ticket.assigned_group_id)
-            .all()
-        )
-    else:
-        # Global fallback: all SD agents (deduplicated by user)
-        all_members = db.query(AgentGroupMember).all()
-        seen: set[str] = set()
-        members = []
-        for m in all_members:
-            if m.user_id in seen:
-                continue
-            seen.add(m.user_id)
-            members.append(m)
-
-    if not members:
+    miembros = _candidatos_de_asignacion(db, ticket)
+    if not miembros:
+        # Sin agentes no se inventa un destinatario: el ticket queda sin asignar
+        # y visible en la cola, que es preferible a asignarlo a nadie.
         return
 
-    candidate_user_ids = [m.user_id for m in members if getattr(m, "user_id", None)]
-    best_agent_id = _semantic_assignee_if_enabled(db, ticket, candidate_user_ids)
-    if not best_agent_id:
-        best_agent_id = predict_best_agent(db, ticket, members)
-    if not best_agent_id:
+    elegido = _elegir_agente(db, ticket, miembros)
+    if not elegido:
         return
 
-    ticket.assigned_to_user_id = best_agent_id
+    ticket.assigned_to_user_id = elegido
     if not ticket.assigned_group_id:
-        chosen = next((m for m in members if m.user_id == best_agent_id), None)
-        if chosen:
-            ticket.assigned_group_id = chosen.group_id
+        # Se hereda el grupo del agente elegido para que el ticket quede en una
+        # cola y no suelto.
+        origen = next((m for m in miembros if m.user_id == elegido), None)
+        if origen:
+            ticket.assigned_group_id = origen.group_id
 
-    status_now = _status_value(ticket.status)
-    if not ticket.status or status_now in {TicketStatus.new.value, TicketStatus.assigned.value, "None"}:
-        ticket.status = TicketStatus.assigned
-
-    if not ticket.id:
-        db.flush()
-    record_routing_event(db, ticket)
+    _finalizar_asignacion(db, ticket)
 
 
 def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_id: str) -> Ticket:
