@@ -53,7 +53,14 @@ def imputaciones(db):
     db.commit()
 
     hoy = date.today()
-    este_mes = hoy.replace(day=15)
+    # HOY y no el día 15 del mes en curso. El fixture usaba `hoy.replace(day=15)`
+    # y eso hacía que `test_el_filtro_de_fechas_se_aplica_con_cadenas_iso` sólo
+    # pasara del 15 en adelante: ese test acota `[día 1, hoy]`, y antes del 15 las
+    # imputaciones caían en el FUTURO y quedaban fuera con razón. Se escribió a
+    # finales de agosto, pasó en verde, y desde el día 1 siguiente mentía.
+    #
+    # `hoy` está siempre dentro de `[primero de mes, hoy]`, incluso el día 1.
+    este_mes = hoy
     mes_pasado = (hoy.replace(day=1) - timedelta(days=1)).replace(day=15)
 
     # 10 imputaciones de 3h en el proyecto A este mes  → 30h

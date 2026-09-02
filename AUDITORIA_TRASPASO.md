@@ -33,10 +33,25 @@ aquí:
 ```bash
 cd "contecflow PSA"
 
-# Suite completa de backend. SIEMPRE con -n auto: en serie tarda MAS DE 90
-# MINUTOS y no cabe en ningun timeout razonable. `scripts/ci_local.sh` ya la
-# invoca asi; ejecutarla en serie fue una perdida de tiempo evitable.
-./.venv/Scripts/python.exe -m pytest tests -q --no-header -p no:cacheprovider -n auto
+# Suite completa de backend: 2.897 tests. SIEMPRE con -n auto — en serie tarda
+# MAS DE 90 MINUTOS y no cabe en ningun timeout razonable.
+#
+# TIEMPO MEDIDO con -n auto (10 workers): 28 MINUTOS. Si has leido en algun
+# sitio "13 minutos", es una cifra mia anterior y era falsa. Importa saberlo:
+# creyendo que tarda 13 se abandona la espera a los 20 y se commitea a ciegas,
+# que es exactamente como una vez se dejo la suite en rojo sin detectarlo.
+#
+# Y NO lances dos sesiones de pytest a la vez. Con tres solapadas los workers
+# se quedaron 22 minutos a 2,5 s de CPU cada uno — parecia un cuelgue del
+# codigo y era contencion entre sesiones.
+#
+# Escribe la salida a un fichero en vez de a una tuberia (`| tail`): con tuberia
+# no ves NADA hasta el final, ni el porcentaje ni un fallo.
+./.venv/Scripts/python.exe -m pytest -q --no-header -p no:randomly -n auto > /tmp/suite.txt 2>&1
+
+# Ojo al contar fallos en la salida: pytest solo escribe las lineas `FAILED` en
+# el RESUMEN FINAL. Contarlas mientras corre da siempre cero, y eso no verifica
+# nada. Mientras corre, los fallos se ven como `F` entre los puntos.
 
 # Linter del backend: tiene que salir "All checks passed!"
 ./.venv/Scripts/python.exe -m ruff check app/
@@ -263,80 +278,180 @@ Hecho:
   exacto de claves que faltan.
 - **Al traducir, subir `COBERTURA_MINIMA` en `check_i18n_coverage.mjs`.**
 
-### #18 complejidad — parcial
+### #18 complejidad — parcial, con dos defectos reales encontrados de paso
 
-Hecho, las cinco peores (dejando aparte `seed`, que es generación de datos de
-demostración):
+**La métrica honesta.** El *recuento* de funciones sobre el umbral apenas se
+mueve (138 → 124), porque partir una función grande produce varias medianas. La
+que importa es el **exceso total sobre 10: 1.023 → 538 (−47 %)**.
+
+Lo cerrado hasta ahora, por tandas:
 
 | Función | Antes | Ahora | Verificación |
 |---|---|---|---|
-| `_fetch_metric_series` (`bi_smart_alerts/metrics.py`) | **247** en 945 líneas | peor caso 27 | 133 series a JSON, idénticas |
-| `execute_actions` (`automations_service.py`) | 38 en 218 líneas | 13 | 37 tests existentes |
-| `validate_graph` (`workflow_designer_service.py`) | 42 en 157 líneas | bajo umbral | 38 grafos, salidas idénticas |
-| `collaboration_ws` (`endpoints/collaboration/ws.py`) | 39 en 176 líneas | bajo umbral | **23 tests nuevos** (tenía cero) |
-| `apply_routing_rules` (`routing_rule_service.py`) | 35 en 105 líneas | bajo umbral | 62 casos + **59 tests nuevos** (tenía cero) |
+| `_fetch_metric_series` (`bi_smart_alerts/metrics.py`) | **247** en 945 líneas | resuelto por tabla | 133 series a JSON, idénticas |
+| `validate_graph` (`workflow_designer_service.py`) | 42 | bajo umbral | 38 grafos, salidas idénticas |
+| `collaboration_ws` (`endpoints/collaboration/ws.py`) | 39 | bajo umbral | **23 tests nuevos** (tenía cero) |
+| `execute_actions` (`automations_service.py`) | 38 | 13 | 37 tests existentes |
+| `apply_routing_rules` (`routing_rule_service.py`) | 35 | bajo umbral | 62 casos + **59 tests nuevos** (tenía cero) |
+| `build_tenant_context` (`ai_chat/context_service.py`) | 34 en 525 líneas | bajo umbral | 36 claves byte-idénticas + **14 tests nuevos** |
+| `sso_callback` (`api/v1/routers/auth_sso.py`) | 32 | bajo umbral | tests PKCE/nonce + 1 nuevo de regresión |
+| `apply_ticket_update` (`ticket_update_service.py`) | 29 | bajo umbral | 23 casos con reloj fijo + **26 tests nuevos** |
+| `lifespan` (`app/main.py`) | 29 en 216 líneas | bajo umbral | **43 tests nuevos** (tenía cero) |
+| `evaluate_condition` (`services/abac.py`) | 26 | bajo umbral | 289 combinaciones + **35 tests nuevos** |
+| `_serie_cost_profile` (`bi_smart_alerts/metrics.py`) | 27 | bajo umbral | **18 tests nuevos**, valores a mano |
+| `_serie_invoice` (idem) | 24 | bajo umbral | **14 tests nuevos**, valores a mano |
+| `calc_project_profitability` (`profitability_service.py`) | 23 | bajo umbral | **26 tests nuevos** (tenía cero de valor) |
+| `validate_and_create_imputation` (`imputation_service.py`) | 20 | bajo umbral | 4 existentes + **4 tests de orden** |
+| `_serie_tickets_open` (`bi_smart_alerts/metrics.py`) | 18 | bajo umbral | **20 tests nuevos**, valores a mano |
+| `login` (`api/v1/routers/auth_core.py`) | 18 | bajo umbral | 39 de auth + **3 nuevos de seguridad** |
+| `_serie_pending_timesheets` (idem) | 13 | bajo umbral | catálogo + equivalencia 133 claves |
+| `request_logger` (`app/main.py`) | 11 | bajo umbral | **incluido en los 43 de `main.py`** |
 
-Dos de ellas **no tenían un solo test** antes de tocarlas, y en ambos casos eso
-era un hallazgo por sí mismo:
+**Seis de ellas no tenían un solo test** antes de tocarlas, y en cada caso eso
+era un hallazgo por sí mismo. Los tres peores:
 
-- El manejo de mensajes del **chat en tiempo real** sólo existía dentro del
-  `async def` del endpoint y ningún test abría el socket. Cada rama del despacho
-  de tipos, el control de caudal y la revalidación de acceso eran código en
-  producción que nadie había ejecutado en una prueba. Ahora son métodos de
-  `_ConexionColab` y se prueban con dobles.
-- `apply_routing_rules` decide **a qué grupo y con qué prioridad llega cada
-  ticket** que entra. Un error ahí manda el trabajo al equipo equivocado sin que
-  nada falle.
+- **`lifespan`** — 216 líneas que son el *arranque* de la aplicación, sin una
+  sola prueba propia. Incluye la comprobación de deriva de esquema y el arranque
+  del planificador.
+- **`calc_project_profitability`** — 38 cifras de dinero (P&L y EVM completos de
+  un proyecto) y la cobertura que había era de endpoint: códigos de estado, ni
+  una cifra comprobada.
+- **`request_logger`** — se ejecuta en *cada* petición y tapa los secretos de la
+  URL antes de loguearla. Que tape de verdad no estaba verificado, y `login`
+  responde 4xx con `?code=...` en la URL.
 
-Detalles que el método verbatim cazó y que a mano se habrían escapado:
+#### Dos defectos reales encontrados al escribir los tests
 
-- dos `continue` que pertenecían al bucle **exterior** de acciones (medido por
-  AST: profundidad de bucles 0) y que dentro de un manejador debían ser `return`;
-- el parámetro de contexto no podía llamarse `c`, porque el original asigna a `c`
-  en una rama y lo usa como variable de comprensión en cuatro más;
-- en `validate_graph`, **el orden de los mensajes es parte del contrato** (la
-  interfaz los presenta en lista), de ahí que errores y avisos se pasen por
-  parámetro en lugar de devolverse.
+Ninguno de los dos se buscaba; los dos son el patrón central de la auditoría
+(sección 5): **no fallaban, devolvían cero**.
 
-Método usado, y conviene repetirlo: **extracción verbatim con un script**, no
-reescritura a mano. Las 945 líneas son cálculo de métricas de negocio; el script
-mueve cada rama con su condición, su cuerpo y sus comentarios, y sólo añade el
-preámbulo que reenlaza los nombres del entorno. **La equivalencia se verificó
-volcando las 133 series del catálogo a JSON antes y después: idénticas valor a
-valor.** Los scripts están en el directorio de trabajo temporal, pero el método
-está descrito en las cabeceras de los módulos resultantes.
+**1. Facturas sin fecha de vencimiento, invisibles a las siete métricas de
+facturación.** La consulta compartida de `_serie_invoice` filtraba
+`Invoice.due_date >= start_date`. `due_date` es *nullable* en el modelo y
+opcional en la API (`InvoiceCreate.due_date: Optional[date] = None`), y en SQL
+`NULL >= fecha` no es ni verdadero ni falso: la fila se descartaba. Una factura
+sin vencimiento no aparecía en **ninguna** de las siete, incluidas las cuatro
+que van por fecha de emisión o de pago y no necesitan el vencimiento para nada
+—borradores, enviadas, cobradas e importe cobrado—.
 
-Dos cosas que el `compile()` del script cazó y que a mano se habrían escapado:
-- dos `continue` que pertenecían al bucle **exterior** de acciones (comprobado
-  por AST midiendo la profundidad de bucles: 0 en ambos casos) y que dentro de
-  un manejador tenían que ser `return`;
-- el parámetro de contexto no podía llamarse `c`, porque el código original
-  asigna a `c` en la rama de `task_completion_rate` y lo usa como variable de
-  comprensión en cuatro más. Se llama `ctx`, que no aparece ni una vez en el
-  original.
+Corregido con `or_(due_date >= start, due_date.is_(None))`, que sólo *añade* las
+filas que sobraban; el filtro de fecha propio de cada métrica sigue descartando
+las que no tienen mes al que ir. Fijado por
+`test_bi_invoice_metrics.test_una_factura_sin_vencimiento_no_desaparece`, que
+falla contra el código anterior — es su razón de ser.
 
-**Pendiente, con la métrica honesta:** el *recuento* de funciones sobre el
-umbral es **137**, frente a las 138 del inicio — apenas se mueve, porque partir
-una función grande produce varias medianas. La métrica que importa es el **exceso
-total sobre 10, que bajó de 1.023 a 712 (−30 %)**. Las siguientes por orden de
-valor:
+**2. `cost_profile_total_annual` devolvía `int 0`.** `round(sum([]), 2)` es `0`,
+no `0.0`, así que sobre una organización sin perfiles de coste era la única
+métrica del catálogo con tipo mixto en la serie. Menor, pero lo cazó el test y
+está corregido.
+
+#### Un docstring mío que era falso, corregido
+
+Al extraer `_arrancar_planificador` escribí que devuelve `None` cuando manda
+Celery beat. **No es verdad**: levanta el planificador igualmente. Lo que impide
+llegar ahí es `_enforce_scheduler_mode_safety()`, que corre antes y **aborta el
+arranque en modo dual en todos los entornos por defecto** (`FAIL_ON_DUAL_SCHEDULER`
+a 1). El producto estaba bien; el docstring atribuía la guarda a la función
+equivocada. Está corregido y hay tres tests que fijan la guarda de verdad.
+
+Lo apunto porque es la clase de error que un test que sólo lee el código no
+caza: mi test falló al *ejecutar* la función, y por eso se descubrió.
+
+#### El método, que conviene repetir
+
+**Extracción verbatim con un script, no reescritura a mano.** El script mueve
+cada rama con su condición, su cuerpo y sus comentarios, y `compile()` antes de
+escribir. Sobre eso, tres capas de verificación según lo que esté en juego:
+
+1. **Valores calculados a mano** cuando la función devuelve cifras (métricas de
+   coste, de facturación, de tickets, P&L). No capturados del código: si el
+   código y la aritmética discrepan, discrepan de la aritmética. Así se
+   encontraron los dos defectos de arriba.
+2. **Identidades de la especificación** para lo derivado. En el P&L los
+   indicadores EVM se comprueban contra sus definiciones estándar
+   (CPI = EV/AC, EAC = AC + (BAC−EV)/CPI, ETC = EAC−AC, VAC = BAC−EAC, CV = EV−AC,
+   SV = EV−PV) a partir de PV, EV y AC ya fijados a mano. No es tautología: caza
+   un intercambio de operandos, que es el error probable al mover ese código.
+3. **Comparación contra la versión anterior** cuando hay muchas salidas. Para
+   `metrics.py` hay una foto del fichero pre-refactor en
+   `tests/_fixtures/metrics_pre_refactor.py` y
+   `tests/test_bi_metrics_equivalencia.py` compara las **133** claves del
+   catálogo sobre los mismos datos, con dos diferencias declaradas (las dos
+   correcciones de arriba) y un test que exige que esas diferencias *ocurran*,
+   para que la lista de excepciones no pueda tapar una regresión.
+
+**No actualices esa foto.** Si se actualiza con el código nuevo, la comparación
+se hace contra sí misma. Hay un test (`test_la_foto_previa_es_la_de_verdad`) que
+lo comprueba precisamente porque es el fallo más fácil de cometer ahí.
+
+**Y una decisión que hay que revisar, dicha en voz alta:** esa foto son **81 kB
+de código duplicado y congelado** en el repositorio. Se ha dejado porque el test
+de equivalencia es lo único que comprueba las **133 métricas por valor** y no
+sólo por estructura, y porque su cabecera y su test guardián dejan su estado sin
+ambigüedad — no es código que *parezca* vivo, que es lo que la auditoría
+penalizaba en el hallazgo de código muerto.
+
+Pero es deuda, y tiene fecha de caducidad natural: `metrics.py` ya está **entero
+bajo umbral**, así que no queda ningún refactor pendiente ahí que necesite esa
+red. **La recomendación es borrar la foto y su test** (`tests/_fixtures/` y
+`tests/test_bi_metrics_equivalencia.py`) en cuanto se dé por bueno este commit;
+lo que se mantiene son los tests por métrica con valores a mano
+(`test_bi_cost_profile_metrics`, `test_bi_invoice_metrics`,
+`test_bi_ticket_metrics`), que son los que fijan las cifras y no dependen de
+ninguna copia.
+
+#### Propiedades que ahora están fijadas y antes no
+
+Un refactor podía romper cualquiera de éstas sin que nada más fallara:
+
+- **El 401 de `login` es idéntico** para «usuario inexistente» y «contraseña
+  incorrecta». Los dos caminos están ahora en la misma función
+  (`_rechazar_credenciales`) para que no puedan divergir por descuido: si
+  divergieran, el login sería un oráculo de usuarios existentes.
+- **El orden de las nueve reglas de `validate_and_create_imputation`.** Decide
+  qué error ve la persona cuando incumple dos a la vez. El tope de 24 h gana al
+  duplicado, y eso importa: el 409 de duplicado es recuperable con
+  `force_duplicate`, así que si ganara, se podría forzar y colar un día de 26 h.
+- **«Abierto» y «resuelto» usan listas de estados distintas.** Un ticket
+  cancelado no está abierto pero tampoco cuenta como resuelto. Uniformarlas por
+  descuido cambiaría las dos métricas a la vez.
+- **Las tres medias de tickets promedian sobre las filas que tienen el dato**, no
+  sobre todos los tickets del mes. Dividir entre todos hundiría el CSAT de
+  cualquier mes con tickets sin encuestar.
+- **Media frente a suma en las agrupaciones de coste.** `dept_max_per_hour` y
+  `country_max_per_hour` son el máximo de las *medias* del grupo;
+  `top_country_annual` es el máximo de las *sumas*. No es un descuido y ahora
+  está escrito.
+- **La tabla de pesos de progreso cubre los siete `TaskStatus`.** Un estado nuevo
+  no puede entrar valiendo cero sin que alguien lo decida.
+
+#### Séptima instancia del patrón, retirada
+
+`hasattr(project, "tasks")` en `calc_project_profitability`. `tasks` es una
+relación declarada del modelo, así que la comprobación siempre era verdadera:
+defensa muerta que sólo servía para ocultar el día que dejara de serlo.
+
+**Lo que queda,** por orden de valor:
 
 | Complejidad | Función | Fichero | Nota |
 |---|---|---|---|
-| 67 | `seed` | `db/seed_parts/core.py` | datos de demostración, valor bajo |
-| 34 | `build_tenant_context` | `ai_chat/context_service.py` | **525 líneas**, ~20 secciones independientes; sin tests |
-| 32 | `sso_callback` | `api/v1/routers/auth_sso.py` | tiene tests (PKCE/nonce) |
-| 29 | `lifespan` | `app/main.py` | arranque; cuidado, no es puro |
-| 29 | `apply_ticket_update` | `service_desk/ticket_update_service.py` | |
-| 27 | `_serie_cost_profile` | `bi_smart_alerts/metrics.py` | ya cubierta por el catálogo |
+| 67 | `seed` | `db/seed_parts/core.py` | datos de demostración; 57 del exceso total, valor real bajo |
+| 24 | `call_ai` | `services/ai_provider_service.py` | despacho por proveedor |
+| 23 | `update_user_record` | `services/user_service.py` | mutación de usuario, permisos |
+| 23 | `process_workflow_queue_record` | `services/bookings_service.py` | |
+| 23 | `discover_snmp_network` | `services/cmdb/discovery.py` | |
+| 22 | `_notify_recipients` | `services/collaboration/messages.py` | |
+| 22 | `_execute_node` | `service_desk/workflow_engine.py` | |
+| 21 | `chat_stream` | `api/v1/endpoints/ai_chat.py` | |
+| 21 | `_rotate_integration_secrets` | `services/key_management.py` | criptografía; cuidado |
+| 20 | `predict_overrun_ml` | `services/ai_modules/predictions.py` | |
+| 18 | `_check_auto_approval` | `approval_engine/requests.py` | **decide aprobaciones**; siguiente por riesgo |
 
-`build_tenant_context` es la más grande que queda: construye ~20 secciones de
-contexto para el asistente, cada una con su consulta, filtro de organización,
-filtro de alcance y transformación a diccionarios. La descomposición natural es
-una función por sección más un objeto de alcance (db, org_id, user,
-user_project_ids, banderas de permiso, now). **Es código de sólo lectura**: un
-error degrada las respuestas del asistente, no corrompe datos. Golden-master
-aplicable con las fixtures de test.
+De ésas, las de más riesgo si se tocan mal —y por tanto las que hay que hacer con
+valores a mano, no sólo con la suite— son `_check_auto_approval` (decide
+aprobaciones automáticas), `_rotate_integration_secrets` (rotación de secretos) y
+`update_user_record` (mutación de usuario). `seed` es la de más exceso y la de
+menos valor: son datos de demostración.
 
 ### #19 gráficos — cerrado, con el diagnóstico corregido
 
@@ -514,6 +629,25 @@ golpe**, cada tanda con su suite.
 
 ---
 
+## 5.c Dos tests míos que dependían del día en que se ejecutan
+
+Salieron en la suite completa del 2 de septiembre, y los dos son del mismo tipo
+que los tres de la sección siguiente: **verificación que había dejado de
+verificar**. Los dos los escribí yo en sesiones anteriores.
+
+| Test | Causa | Arreglo |
+|---|---|---|
+| `test_adhoc_analytics::test_el_filtro_de_fechas_se_aplica_con_cadenas_iso` | Su fixture ponía las imputaciones en `hoy.replace(day=15)`, y el test acota `[primero de mes, hoy]`. **Antes del día 15 las imputaciones caen en el futuro** y quedan fuera con razón. Se escribió a finales de agosto, pasó en verde, y desde el día 1 siguiente mentía | El fixture usa `hoy`, que está siempre dentro del rango, incluso el día 1 |
+| `test_timezone_context::test_today_sigue_la_zona_del_contexto` | Afirmaba que Kiritimati (UTC+14) y Niue (UTC−11) difieren 0 o 1 día natural. Son **25 horas** de desfase —lo decía su propio comentario—, así que hay una franja de cada día en que difieren **dos**. Falló a las 10:30 UTC | **Reloj fijo** en el instante que lo hizo fallar, con aserción exacta. Más un segundo test que afirma sólo lo que sí se cumple a cualquier hora: el orden, y que la diferencia no pasa de 2 |
+
+Lo que hay que retener del segundo: la salida fácil era ensanchar la tolerancia
+a `(0, 1, 2)` y seguir. Eso habría dejado el test verde y habría dejado intacto
+el problema de fondo — que dependía de la hora—, y el siguiente caso raro habría
+vuelto a fallar sin explicación. **Un test que lee el reloj real no puede
+afirmar una diferencia exacta.**
+
+---
+
 ## 5.b Los tres tests que estaban en rojo sin que nadie lo viera
 
 Aparecieron al ejecutar por primera vez la suite completa **en paralelo**, y los
@@ -596,15 +730,32 @@ Tests nuevos: `test_organization_tenant_isolation`, `test_tenant_filter_fail_clo
 Quedan **3 de 29** hallazgos en «parcial», y ninguno es un fallo latente: son
 deuda medida. Nada de lo que queda corrompe datos ni abre un agujero.
 
-1. **`build_tenant_context`** (#18) — 525 líneas, complejidad 34, ~20 secciones
-   de contexto independientes y **sin tests**. Es la mayor que queda con valor
-   real, y el método de extracción verbatim ya está probado cinco veces. Es
-   código de sólo lectura: un error degrada las respuestas del asistente, no
-   corrompe datos. Golden-master aplicable con las fixtures.
+1. **#18, por riesgo y no por tamaño.** El método está probado dieciocho veces
+   ya; lo que decide el orden es qué pasa si se toca mal. En este orden:
+   `_check_auto_approval` (decide aprobaciones automáticas),
+   `_rotate_integration_secrets` (rotación de secretos),
+   `update_user_record` (mutación de usuario y permisos), `_execute_node`
+   (motor de flujos de trabajo). Las tres primeras **con valores calculados a
+   mano**, no sólo con la suite: son decisiones, no cálculos reversibles.
+   `seed` (67, el 11 % del exceso que queda) es lo último: son datos de
+   demostración y el trabajo es mecánico.
 2. **#22, los 298 puntos de acceso a base en la capa API** — por dominios, no de
    golpe, cada tanda con su suite.
 3. **#16, traducción** — en lotes revisables, **subiendo `COBERTURA_MINIMA` en
    `check_i18n_coverage.mjs` en cada lote**.
+
+**Dos cosas anotadas y NO tocadas**, porque cambiarlas cambia lo que significa
+una cifra y eso es decisión de producto, no de un refactor de complejidad:
+
+- **`timesheet_cost_total` no filtra por estado**: suma el coste de todas las
+  hojas de horas, incluidas las **rechazadas** y los borradores. Si la intención
+  era el coste comprometido, sobran las rechazadas. Está documentado en la
+  cabecera del resolutor en `bi_smart_alerts/metrics.py`.
+- **`pending_timesheets` y `timesheets_submitted_count` miran el mismo estado**
+  («submitted») y devuelven cosas distintas a propósito: la primera es cuántas
+  esperan *ahora*, repetida en toda la serie; la segunda cuántas se entregaron en
+  cada mes. Es correcto, pero no es evidente leyendo el código, así que ahora
+  está escrito.
 
 Lo demás yo lo dejaría donde está, y digo por qué:
 

@@ -59,130 +59,167 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/login", response_model=TokenResponse, summary="Login con credenciales locales")
-@limiter.limit("5/minute")
-def login(request: Request, response: Response, payload: LoginRequest, db: Session = Depends(get_db)):
-    bucket = _login_bucket(payload.username, request)
-    lock_ttl = _login_lock_ttl(bucket)
-    if lock_ttl > 0:
+# ── Login con credenciales locales ───────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `login` era complejidad 18 y es la puerta de
+# entrada de la aplicacion. Se ha partido en las fases que ya tenia, y ninguna
+# decision ha cambiado. Lo que se ha conservado con especial cuidado:
+#
+#   · el MISMO mensaje 401 para «no existe el usuario» y «contrasena incorrecta»
+#     («Credenciales incorrectas»). Cambiar uno de los dos convertiria el login
+#     en un oraculo de usuarios existentes;
+#   · el orden de las condiciones del bypass de superadmin, con
+#     `compare_digest` al final: es un cortocircuito deliberado para no comparar
+#     la contrasena mas que cuando todo lo demas ya se cumple;
+#   · que `_register_login_failure` se llame exactamente UNA vez por intento
+#     fallido — dos llamadas gastarian el doble de cupo y bloquearian antes de
+#     los cinco intentos;
+#   · que la auditoria SOC vaya en su propio `try`: un fallo del registro de
+#     seguridad no puede convertirse en un fallo de login.
+
+# Marcadores en la URL de la base que delatan un entorno de verdad. El bypass de
+# superadmin se niega a funcionar si aparece cualquiera, ademas de las otras
+# siete condiciones.
+_MARCADORES_DE_BASE_REAL = (
+    "prod", "production", "rds.amazonaws.com", "database.windows.net", "cloudsql",
+)
+
+_MENSAJE_CREDENCIALES = "Credenciales incorrectas"
+
+
+def _mensaje_de_bloqueo(segundos: int) -> str:
+    return f"Demasiados intentos fallidos. Intenta de nuevo en {segundos}s."
+
+
+def _auditar_en_soc(db: Session, user, request: Request, *, exito: bool) -> None:
+    """Registra el intento en el SOC. Nunca propaga: es auditoria, no control.
+
+    Si esto lanzara, un SOC caido impediria iniciar sesion a todo el mundo.
+    """
+    try:
+        soc = _soc_svc(db, user)
+        if not soc:
+            return
+        ua = request.headers.get("User-Agent", "")
+        if exito:
+            soc.login_success(user_id=user.id, ip=_client_ip(request), ua=ua)
+        else:
+            soc.login_failed(user_id=user.id, ip=_client_ip(request), ua=ua,
+                             reason="bad_credentials")
+    except Exception:
+        cual = "login_success" if exito else "login_failed"
+        logger.warning("SOC %s audit failed for user=%s", cual, user.id, exc_info=True)
+
+
+def _rechazar_credenciales(bucket, *, db=None, user=None, request=None):
+    """Apunta el intento fallido y rechaza. No vuelve nunca.
+
+    Se usa en los dos caminos de fallo —usuario inexistente y contrasena
+    incorrecta— para que el mensaje y el consumo de cupo sean identicos. Que los
+    dos respondan lo mismo es lo que impide averiguar por el login si un usuario
+    existe.
+    """
+    lock_for = _register_login_failure(bucket)
+    if user is not None:
+        _auditar_en_soc(db, user, request, exito=False)
+    if lock_for > 0:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Demasiados intentos fallidos. Intenta de nuevo en {lock_ttl}s.",
+            detail=_mensaje_de_bloqueo(lock_for),
         )
-
-    user = _svc.lookup_user_by_credentials(db, payload.username)
-
-    if not user or not user.hashed_password:
-        lock_for = _register_login_failure(bucket)
-        if lock_for > 0:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Demasiados intentos fallidos. Intenta de nuevo en {lock_for}s.",
-            )
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
-
-    password_ok = False
-    try:
-        password_ok = verify_password(payload.password, user.hashed_password)
-    except Exception:
-        logger.warning("verify_password raised unexpectedly for user=%s", user.id, exc_info=True)
-        password_ok = False
-
-    # Local recovery path: only enabled explicitly and never on production-like DB URLs
-    _db_url = (settings.DATABASE_URL or "").lower()
-    _prod_like_db = any(
-        marker in _db_url
-        for marker in ("prod", "production", "rds.amazonaws.com", "database.windows.net", "cloudsql")
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, detail=_MENSAJE_CREDENCIALES
     )
-    if (
-        not password_ok
-        and settings.ENVIRONMENT == "development"
+
+
+def _contrasena_correcta(payload: LoginRequest, user) -> bool:
+    """Verifica la contrasena. Un error del verificador cuenta como fallo.
+
+    El `except` amplio es a proposito: un hash corrupto en base debe rechazar el
+    acceso, no devolver un 500 que revelaria que ese usuario existe.
+    """
+    try:
+        return verify_password(payload.password, user.hashed_password)
+    except Exception:
+        logger.warning(
+            "verify_password raised unexpectedly for user=%s", user.id, exc_info=True
+        )
+        return False
+
+
+def _bypass_de_superadmin_aplicable(user, payload: LoginRequest) -> bool:
+    """El camino de recuperacion local. Ocho condiciones, todas obligatorias.
+
+    Solo en desarrollo, solo con la variable puesta a mano, solo sobre SQLite,
+    solo si la URL de la base no parece de un entorno real, solo para un
+    superadministrador, y fuera de la suite de pruebas.
+
+    `compare_digest` va al final del `and` a proposito: asi la contrasena solo se
+    compara cuando todo lo demas ya se cumple, y la comparacion es en tiempo
+    constante para no filtrar su longitud ni su prefijo por canal lateral.
+    """
+    _db_url = (settings.DATABASE_URL or "").lower()
+    base_real = any(m in _db_url for m in _MARCADORES_DE_BASE_REAL)
+    return (
+        settings.ENVIRONMENT == "development"
         and settings.ENVIRONMENT not in {"staging", "production"}
         and os.getenv("TESTING") != "1"
         and os.getenv("ENABLE_SUPERADMIN_BYPASS", "0") == "1"
         and settings.DATABASE_URL.startswith("sqlite")
-        and not _prod_like_db
+        and not base_real
         and bool(getattr(user, "is_superadmin", False))
-        # Comparación timing-safe para no filtrar longitud/prefijo del password
-        # de superadmin vía side-channel cuando el bypass está activo.
         and secrets.compare_digest(
             (payload.password or "").encode("utf-8"),
             (settings.SUPERADMIN_PASSWORD or "").encode("utf-8"),
         )
-    ):
-        password_ok = True
-        logger.warning(
-            "Superadmin bypass used for user=%s ip=%s — review ENABLE_SUPERADMIN_BYPASS",
-            user.id, _client_ip(request),
+    )
+
+
+def _exigir_mfa_de_la_organizacion(db: Session, user, tiene_factor: bool) -> None:
+    """Bloquea el login si la organizacion exige MFA y el usuario no tiene ninguno.
+
+    Se bloquea en vez de dejar entrar y avisar: la politica de la organizacion
+    dice que sin segundo factor no se entra, y un aviso ignorable no es una
+    politica.
+    """
+    if not user.organization_id or tiene_factor:
+        return
+    from app.models.mfa import Organization
+    org = (db.query(Organization)
+             .filter(Organization.id == user.organization_id)
+             .first())
+    if org and getattr(org, "require_mfa", False):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Tu organización requiere MFA. Configura un autenticador "
+                "(TOTP o passkey) antes de poder iniciar sesión."
+            ),
         )
 
-    if not password_ok:
-        lock_for = _register_login_failure(bucket)
-        try:
-            soc = _soc_svc(db, user)
-            if soc:
-                soc.login_failed(user_id=user.id, ip=_client_ip(request),
-                                 ua=request.headers.get("User-Agent", ""),
-                                 reason="bad_credentials")
-        except Exception:
-            logger.warning("SOC login_failed audit failed for user=%s", user.id, exc_info=True)
-        if lock_for > 0:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Demasiados intentos fallidos. Intenta de nuevo en {lock_for}s.",
-            )
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
 
-    _clear_login_failure(bucket)
+def _reto_de_segundo_factor(db: Session, user, has_totp: bool, has_passkeys: bool):
+    """Devuelve el reto de MFA en vez de los tokens de sesion.
 
-    user.last_login = datetime.now(timezone.utc)
-    audit_log(db, user, "LOGIN", "users", user.id, user.full_name)
-    try:
-        soc = _soc_svc(db, user)
-        if soc:
-            soc.login_success(
-                user_id=user.id,
-                ip=_client_ip(request),
-                ua=request.headers.get("User-Agent", ""),
-            )
-    except Exception:
-        logger.warning("SOC login_success audit failed for user=%s", user.id, exc_info=True)
+    Aqui NO se emiten cookies de autenticacion: la sesion no existe hasta que se
+    supere el segundo factor.
+    """
+    methods = []
+    if has_totp:
+        methods.append("totp")
+    if has_passkeys:
+        methods.append("webauthn")
+    _svc.commit_db(db)
+    return TokenResponse(
+        user=UserPublic.model_validate(user),
+        mfa_required=True,
+        mfa_challenge_token=_issue_mfa_challenge(db, user),
+        mfa_methods=methods,
+    )
 
-    # Enforce MFA: users with TOTP or registered passkeys must complete
-    # a second factor challenge before receiving auth tokens.
-    has_totp = bool(user.mfa_enabled and user.mfa_secret)
-    has_passkeys = _svc.user_has_passkeys(db, user.id)
 
-    # Política a nivel de organización: si org.require_mfa está activo, el
-    # usuario debe tener un factor configurado para poder completar el login.
-    # Si no lo tiene, bloqueamos el login con un mensaje accionable.
-    if user.organization_id:
-        from app.models.mfa import Organization
-        org = db.query(Organization).filter(Organization.id == user.organization_id).first()
-        if org and getattr(org, "require_mfa", False) and not (has_totp or has_passkeys):
-            raise HTTPException(
-                status_code=403,
-                detail=(
-                    "Tu organización requiere MFA. Configura un autenticador "
-                    "(TOTP o passkey) antes de poder iniciar sesión."
-                ),
-            )
-
-    if has_totp or has_passkeys:
-        methods = []
-        if has_totp:
-            methods.append("totp")
-        if has_passkeys:
-            methods.append("webauthn")
-        _svc.commit_db(db)
-        return TokenResponse(
-            user=UserPublic.model_validate(user),
-            mfa_required=True,
-            mfa_challenge_token=_issue_mfa_challenge(db, user),
-            mfa_methods=methods,
-        )
-
-    # Refresh token rotation: issue new JTI and persist it
+def _abrir_sesion(db: Session, user, request: Request, response: Response):
+    """Emite el par de tokens, registra la sesion y pone las cookies."""
     access_token = create_access_token(subject=user.id, extra={"role": user.role})
     refresh_token, new_jti = create_refresh_token(subject=user.id)
     register_or_rotate_user_session(
@@ -197,13 +234,57 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
     except Exception:
         logger.exception("commit_db failed during login finalization for user=%s", user.id)
         db.rollback()
-        raise HTTPException(status_code=500, detail="Error al iniciar sesión. Inténtalo de nuevo.")
+        raise HTTPException(
+            status_code=500, detail="Error al iniciar sesión. Inténtalo de nuevo."
+        )
 
     _set_auth_cookies(response, access_token, refresh_token)
+    return TokenResponse(user=UserPublic.model_validate(user))
 
-    return TokenResponse(
-        user=UserPublic.model_validate(user),
-    )
+
+@router.post("/login", response_model=TokenResponse, summary="Login con credenciales locales")
+@limiter.limit("5/minute")
+def login(request: Request, response: Response, payload: LoginRequest, db: Session = Depends(get_db)):
+    bucket = _login_bucket(payload.username, request)
+    lock_ttl = _login_lock_ttl(bucket)
+    if lock_ttl > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=_mensaje_de_bloqueo(lock_ttl),
+        )
+
+    user = _svc.lookup_user_by_credentials(db, payload.username)
+    if not user or not user.hashed_password:
+        _rechazar_credenciales(bucket)
+
+    password_ok = _contrasena_correcta(payload, user)
+    if not password_ok and _bypass_de_superadmin_aplicable(user, payload):
+        password_ok = True
+        logger.warning(
+            "Superadmin bypass used for user=%s ip=%s — review ENABLE_SUPERADMIN_BYPASS",
+            user.id, _client_ip(request),
+        )
+
+    if not password_ok:
+        _rechazar_credenciales(bucket, db=db, user=user, request=request)
+
+    _clear_login_failure(bucket)
+
+    user.last_login = datetime.now(timezone.utc)
+    audit_log(db, user, "LOGIN", "users", user.id, user.full_name)
+    _auditar_en_soc(db, user, request, exito=True)
+
+    # Segundo factor: quien tenga TOTP o passkeys registradas no recibe tokens
+    # hasta superar el reto.
+    has_totp = bool(user.mfa_enabled and user.mfa_secret)
+    has_passkeys = _svc.user_has_passkeys(db, user.id)
+
+    _exigir_mfa_de_la_organizacion(db, user, has_totp or has_passkeys)
+
+    if has_totp or has_passkeys:
+        return _reto_de_segundo_factor(db, user, has_totp, has_passkeys)
+
+    return _abrir_sesion(db, user, request, response)
 
 
 @router.post("/refresh", response_model=TokenResponse)

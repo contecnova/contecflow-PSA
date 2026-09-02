@@ -134,16 +134,56 @@ def test_today_devuelve_un_dia_de_calendario():
     assert isinstance(today(), date)
 
 
-def test_today_sigue_la_zona_del_contexto():
-    """El caso de México: a las 05:30 UTC del 29 allí es todavía el 28."""
+def test_today_sigue_la_zona_del_contexto(monkeypatch):
+    """El caso de México: a las 05:30 UTC del 29 allí es todavía el 28.
+
+    Con reloj FIJO y no con `now()`. La versión anterior de este test leía el
+    reloj real y afirmaba que la diferencia entre Kiritimati (UTC+14) y Niue
+    (UTC-11) es 0 o 1 día. Es falso: son **25 horas** de desfase —lo decía su
+    propio comentario— así que hay una franja de cada día en que difieren DOS
+    días naturales. Falló el 2 de septiembre a las 10:30 UTC, cuando en Niue era
+    el 1 a las 23:30 y en Kiritimati el 3 a las 00:30.
+
+    Ensanchar la tolerancia a `(0, 1, 2)` habría tapado el problema de fondo: un
+    test que depende de la hora a la que se ejecuta. Con el reloj fijo la
+    aserción es exacta.
+    """
+    from datetime import datetime as _dt
+
+    # 10:30 UTC: el instante que hizo fallar la versión anterior.
+    INSTANTE = _dt(2026, 9, 2, 10, 30, tzinfo=UTC)
+
+    class _RelojFijo(_dt):
+        @classmethod
+        def now(cls, tz=None):
+            return INSTANTE if tz is None else INSTANTE.astimezone(tz)
+
+    monkeypatch.setattr(timeutil, "datetime", _RelojFijo)
+
     with using_zone(resolve_zone("Pacific/Kiritimati")):  # UTC+14
         kiritimati = today()
     with using_zone(resolve_zone("Pacific/Niue")):  # UTC-11
         niue = today()
-    # 25 horas de diferencia: en algún momento del día son días distintos, y
-    # nunca al revés.
-    assert (kiritimati - niue).days in (0, 1)
+
+    assert kiritimati == date(2026, 9, 3), kiritimati
+    assert niue == date(2026, 9, 1), niue
+    assert (kiritimati - niue).days == 2
+
+
+def test_dos_zonas_extremas_nunca_se_ordenan_al_reves():
+    """La propiedad que sí se cumple a cualquier hora, con el reloj real.
+
+    Lo que se puede afirmar sin depender del instante no es la diferencia exacta
+    sino el ORDEN: en la zona más adelantada nunca es un día anterior. Y el
+    desfase máximo del planeta es de 26 horas (UTC+14 a UTC-12), así que la
+    diferencia no puede pasar de 2.
+    """
+    with using_zone(resolve_zone("Pacific/Kiritimati")):  # UTC+14
+        kiritimati = today()
+    with using_zone(resolve_zone("Pacific/Niue")):  # UTC-11
+        niue = today()
     assert kiritimati >= niue
+    assert (kiritimati - niue).days <= 2
 
 
 def test_using_zone_restaura_al_salir():

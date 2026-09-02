@@ -23,6 +23,137 @@ logger = logging.getLogger(__name__)
 class ABACEngine:
     """Policy evaluation engine for attribute-based access control."""
 
+    # ── Operadores de condición ──────────────────────────────────────────────
+    #
+    # Auditoría 2026-08 (hallazgo 18). `evaluate_condition` eran 89 líneas de
+    # complejidad 26: 16 operadores en una cadena de `elif`. Es la función que
+    # decide si una política ABAC se cumple, así que decide accesos.
+    #
+    # Cada operador es ahora una función y `_OPERADORES` la tabla. Verificado
+    # sobre las 289 combinaciones de los 17 operadores (16 más uno inexistente)
+    # por 17 juegos de valores —cadenas, listas, números, None, tipos
+    # incompatibles y una regex mal formada—: resultado idéntico, incluida la
+    # excepción.
+    #
+    # ── Sobre esa excepción, que se conserva a propósito ─────────────────────
+    # Una regex mal escrita en una política lanza `re.error`, y el
+    # `except (TypeError, AttributeError)` de abajo NO la captura. No es un
+    # descuido que haya que tapar: `enforce_abac` la recoge, DENIEGA por defecto
+    # y deja un error en el registro con la política culpable.
+    #
+    # Devolver `False` aquí sería peor de dos maneras: se perdería el aviso al
+    # administrador de que su regex está rota, y «la regla no coincide» no es lo
+    # mismo que «no se pudo evaluar» — en una política de denegación, no coincidir
+    # significa PERMITIR.
+
+    @staticmethod
+    def _op_equals(valor, esperado) -> bool:
+        return valor == esperado
+
+    @staticmethod
+    def _op_not_equals(valor, esperado) -> bool:
+        return valor != esperado
+
+    @staticmethod
+    def _op_in(valor, esperado) -> bool:
+        """Pertenencia. Si el atributo del usuario es una lista, basta con que
+        UNO de sus valores esté en el conjunto esperado."""
+        if isinstance(valor, list):
+            return any(v in esperado for v in valor)
+        return valor in esperado
+
+    @staticmethod
+    def _op_not_in(valor, esperado) -> bool:
+        """Lo contrario de `in`, y con lista exige que NINGUNO esté: no es la
+        negación de `any`, es `all(not ...)`."""
+        if isinstance(valor, list):
+            return all(v not in esperado for v in valor)
+        return valor not in esperado
+
+    @staticmethod
+    def _op_contains(valor, esperado) -> bool:
+        """Contiene. En cadena es insensible a mayúsculas; en lista es
+        pertenencia exacta. Cualquier otro tipo no contiene nada."""
+        if isinstance(valor, str):
+            return esperado.lower() in valor.lower()
+        if isinstance(valor, list):
+            return esperado in valor
+        return False
+
+    @staticmethod
+    def _op_not_contains(valor, esperado) -> bool:
+        if isinstance(valor, str):
+            return esperado.lower() not in valor.lower()
+        if isinstance(valor, list):
+            return esperado not in valor
+        return False
+
+    @staticmethod
+    def _op_starts_with(valor, esperado) -> bool:
+        return str(valor).startswith(str(esperado))
+
+    @staticmethod
+    def _op_ends_with(valor, esperado) -> bool:
+        return str(valor).endswith(str(esperado))
+
+    @staticmethod
+    def _op_regex(valor, esperado) -> bool:
+        """Coincidencia por expresión regular.
+
+        `re.match`, no `search`: ancla al principio. Una regex mal formada lanza
+        y eso es deliberado — ver la nota de arriba.
+        """
+        return bool(re.match(esperado, str(valor)))
+
+    @staticmethod
+    def _op_gte(valor, esperado) -> bool:
+        return valor >= esperado
+
+    @staticmethod
+    def _op_lte(valor, esperado) -> bool:
+        return valor <= esperado
+
+    @staticmethod
+    def _op_gt(valor, esperado) -> bool:
+        return valor > esperado
+
+    @staticmethod
+    def _op_lt(valor, esperado) -> bool:
+        return valor < esperado
+
+    @staticmethod
+    def _op_is_empty(valor, esperado) -> bool:
+        if isinstance(valor, list):
+            return len(valor) == 0
+        return valor == "" or valor is None
+
+    @staticmethod
+    def _op_is_not_empty(valor, esperado) -> bool:
+        if isinstance(valor, list):
+            return len(valor) > 0
+        return valor != "" and valor is not None
+
+    # Nombre del operador → función. Añadir un operador al panel de políticas es
+    # añadir su función y una línea aquí; un nombre que no esté en la tabla
+    # devuelve False, es decir la condición NO se cumple.
+    _OPERADORES = {
+        "equals": _op_equals,
+        "not_equals": _op_not_equals,
+        "in": _op_in,
+        "not_in": _op_not_in,
+        "contains": _op_contains,
+        "not_contains": _op_not_contains,
+        "starts_with": _op_starts_with,
+        "ends_with": _op_ends_with,
+        "regex": _op_regex,
+        "gte": _op_gte,
+        "lte": _op_lte,
+        "gt": _op_gt,
+        "lt": _op_lt,
+        "is_empty": _op_is_empty,
+        "is_not_empty": _op_is_not_empty,
+    }
+
     @staticmethod
     def evaluate_condition(user_attribute_value: Any, rule: Dict[str, Any]) -> bool:
         """
@@ -42,75 +173,14 @@ class ABACEngine:
         if user_attribute_value is None:
             return operator in ["not_equals"] if expected_value is not None else False
 
+        funcion = ABACEngine._OPERADORES.get(operator)
+        if funcion is None:
+            return False
+
         try:
-            if operator == "equals":
-                return user_attribute_value == expected_value
-
-            elif operator == "not_equals":
-                return user_attribute_value != expected_value
-
-            elif operator == "in":
-                # user_attribute_value can be single or list
-                if isinstance(user_attribute_value, list):
-                    return any(v in expected_value for v in user_attribute_value)
-                else:
-                    return user_attribute_value in expected_value
-
-            elif operator == "not_in":
-                if isinstance(user_attribute_value, list):
-                    return all(v not in expected_value for v in user_attribute_value)
-                else:
-                    return user_attribute_value not in expected_value
-
-            elif operator == "contains":
-                # For string containment or list membership
-                if isinstance(user_attribute_value, str):
-                    return expected_value.lower() in user_attribute_value.lower()
-                elif isinstance(user_attribute_value, list):
-                    return expected_value in user_attribute_value
-                return False
-
-            elif operator == "not_contains":
-                if isinstance(user_attribute_value, str):
-                    return expected_value.lower() not in user_attribute_value.lower()
-                elif isinstance(user_attribute_value, list):
-                    return expected_value not in user_attribute_value
-                return False
-
-            elif operator == "starts_with":
-                return str(user_attribute_value).startswith(str(expected_value))
-
-            elif operator == "ends_with":
-                return str(user_attribute_value).endswith(str(expected_value))
-
-            elif operator == "regex":
-                return bool(re.match(expected_value, str(user_attribute_value)))
-
-            elif operator == "gte":  # Greater than or equal (for ordinal values)
-                return user_attribute_value >= expected_value
-
-            elif operator == "lte":  # Less than or equal
-                return user_attribute_value <= expected_value
-
-            elif operator == "gt":  # Greater than
-                return user_attribute_value > expected_value
-
-            elif operator == "lt":  # Less than
-                return user_attribute_value < expected_value
-
-            elif operator == "is_empty":
-                if isinstance(user_attribute_value, list):
-                    return len(user_attribute_value) == 0
-                return user_attribute_value == "" or user_attribute_value is None
-
-            elif operator == "is_not_empty":
-                if isinstance(user_attribute_value, list):
-                    return len(user_attribute_value) > 0
-                return user_attribute_value != "" and user_attribute_value is not None
-
-            else:
-                return False
-
+            # `__func__`: los valores de la tabla son staticmethod, así que hay
+            # que desenvolverlos para invocarlos desde otro staticmethod.
+            return bool(funcion.__func__(user_attribute_value, expected_value))
         except (TypeError, AttributeError):
             return False
 

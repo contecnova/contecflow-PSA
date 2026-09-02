@@ -372,3 +372,56 @@ def test_production_requires_operational_secrets():
             WEBHOOK_SECRET="",
             INBOUND_EMAIL_SECRET="",
         )
+
+
+# ── Propiedades que el refactor de `login` preserva (auditoría 2026-08, P3-18) ─
+#
+# `login` era complejidad 18 y se partió en fases. Estas propiedades no tenían
+# test propio y son exactamente las que un refactor podría romper sin que nada
+# más fallara.
+
+def test_login_no_revela_si_el_usuario_existe(client, db):
+    """El 401 debe ser IDÉNTICO para usuario inexistente y contraseña incorrecta.
+
+    Si los dos caminos respondieran distinto —otro mensaje, otro código, otro
+    tiempo apreciable— el login sería un oráculo de usuarios existentes y valdría
+    para enumerar la plantilla antes de atacar contraseñas.
+
+    Los dos caminos están ahora en la misma función (`_rechazar_credenciales`)
+    justamente para que no puedan divergir por descuido.
+    """
+    inexistente = client.post("/api/v1/auth/login",
+                              json={"username": "fantasma_que_no_existe", "password": "x"})
+    mala = client.post("/api/v1/auth/login",
+                       json={"username": "admin", "password": "contrasena-incorrecta"})
+
+    assert inexistente.status_code == mala.status_code == 401
+    assert inexistente.json()["detail"] == mala.json()["detail"]
+    assert inexistente.json()["detail"] == "Credenciales incorrectas"
+
+
+def test_login_fallido_no_deja_cookies(client, db):
+    """Ni sesión a medias ni cookie huérfana: un login fallido no emite nada."""
+    res = client.post("/api/v1/auth/login",
+                      json={"username": "admin", "password": "mal"})
+    assert res.status_code == 401
+    assert not res.cookies.get("access_token")
+    assert not res.cookies.get("refresh_token")
+
+
+def test_el_bypass_de_superadmin_no_se_aplica_en_la_suite(db):
+    """Ocho condiciones, y `TESTING=1` es una de ellas.
+
+    El camino de recuperación local existe para desbloquear un entorno de
+    desarrollo. Que la suite no pueda activarlo es deliberado: si pudiera, todos
+    los tests de autenticación se ejecutarían por un camino que en producción no
+    existe, y dejarían de verificar el de verdad.
+    """
+    from app.api.v1.routers.auth_core import _bypass_de_superadmin_aplicable
+    from app.schemas.auth import LoginRequest
+    from app.models.user import User
+
+    falso_superadmin = User(id="x", username="x", email="x@x.com",
+                            is_superadmin=True, hashed_password="x")
+    payload = LoginRequest(username="x", password="cualquiera")
+    assert _bypass_de_superadmin_aplicable(falso_superadmin, payload) is False
