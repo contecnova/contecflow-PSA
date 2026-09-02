@@ -47,37 +47,26 @@ def default_seed_users():
             dict(username="rrhh",      email="rrhh@example.com",      full_name="RRHH Manager", role=UserRole.hr,       department="RRHH",           job_title="HR Manager",        hourly_rate=None,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
     ]
 
-def seed():
-    # ── Imports ────────────────────────────────────────────────────────────────
-    from app.models.user import User
-    from app.models.clients import Client, ClientStatus, ClientIndustry
-    from app.models.project import Project, ProjectType, ProjectStatus
-    from app.models.task import Task, TaskStatus, TaskPriority
-    from app.models.imputation import Imputation
-    from app.models.settings import AppSetting, Department, Holiday
-    from app.models.financial import ProjectMilestone
-    from app.models.pipeline import (
-        Opportunity, OpportunityStage,
-        Contract, WorkOrder, ContractType, ContractStatus,
-        Risk, RiskProbability, RiskImpact, RiskStatus
-    )
-    from app.models.resources import (
-        Skill, UserSkill, SkillLevel, SkillCategory,
-        Absence, AbsenceType, AbsenceStatus,
-        ChangeRequest, ChangeRequestStatus, ChangeRequestImpact,
-        Deliverable, DeliverableStatus
-    )
-    from app.models.advanced_config import (
-        TaskType, AlertConfig, NumberingSequence, VacationPolicy,
-        UserVacationBalance
-    )
+# ── Siembra de datos de demostracion, por fases ──────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `seed()` era complejidad 67 en 528 lineas: la
+# funcion mas compleja del proyecto, y con 57 de exceso el 12 % de todo lo que
+# quedaba del hallazgo. Ya venia dividida en 24 secciones marcadas con
+# comentarios, asi que la particion no se ha inventado: se ha leido.
+#
+# Son datos de DEMOSTRACION, asi que el riesgo de tocarlo es bajo — pero por eso
+# mismo llevaba tanto tiempo sin partir. La verificacion es que la siembra siga
+# produciendo lo mismo, y eso lo cubre `tests/test_seed_fases.py`.
+#
+# Los imports siguen siendo LOCALES a cada funcion y no se han subido a nivel de
+# modulo: ya lo eran, y `app.models` se importa entre si, asi que subirlos podria
+# formar ciclos. Cada fase lleva exactamente los que usa.
 
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    print("Seeding Contecflow database...")
-    today = date.today()
 
-    # ── AppSettings ────────────────────────────────────────────────────────────
+def _sembrar_ajustes(db):
+    """Ajustes de aplicacion con sus valores por defecto."""
+    from app.models.settings import AppSetting
+
     for key, value in {
         "company_name":"Consultora Contecflow SL","currency":settings.DEFAULT_CURRENCY,
         "timezone":settings.DEFAULT_TIMEZONE,"language":settings.DEFAULT_LANGUAGE,
@@ -88,13 +77,19 @@ def seed():
             db.add(AppSetting(key=key, value=value))
     db.commit()
 
-    # ── Departments ────────────────────────────────────────────────────────────
+def _sembrar_departamentos(db):
+    """Los departamentos de la demostracion."""
+    from app.models.settings import Department
+
     for d in ["Backend","Frontend","IA / Data","Infraestructura","Diseno UX","Gestion","RRHH","Ventas"]:
         if not db.query(Department).filter(Department.name==d).first():
             db.add(Department(name=d))
     db.commit()
 
-    # ── Holidays ───────────────────────────────────────────────────────────────
+def _sembrar_festivos(db):
+    """Festivos del calendario laboral."""
+    from app.models.settings import Holiday
+
     for d_str, name in [
         ("2025-01-01","Ano Nuevo"),("2025-01-06","Reyes"),
         ("2025-04-17","Jueves Santo"),("2025-04-18","Viernes Santo"),
@@ -110,9 +105,11 @@ def seed():
             db.add(Holiday(date=d, name=name, type="national"))
     db.commit()
 
+
+def _sembrar_organizacion(db):
+    """La organizacion por defecto. Devuelve la fila."""
     from app.models.mfa import Organization
 
-    # ── Default Organization ────────────────────────────────────────────────────
     org = db.query(Organization).filter(Organization.slug == "contecflow-demo").first()
     if not org:
         org = Organization(
@@ -130,8 +127,15 @@ def seed():
         db.flush()
         print(f"  Org: {org.name} (id={org.id})")
     db.commit()
+    return org
 
-    # ── Users ──────────────────────────────────────────────────────────────────
+def _sembrar_usuarios(db, org):
+    """Los usuarios de la demostracion. Devuelve (usuarios, contrasena).
+
+    La contrasena se devuelve porque la ultima seccion la vuelve a
+    imprimir al terminar, y calcularla dos veces daria dos distintas."""
+    from app.models.user import User
+
     import json, os
     users_data_path = os.getenv("SEED_USERS_DATA_PATH", "seed_users_data.json")
     if os.path.exists(users_data_path):
@@ -158,8 +162,12 @@ def seed():
             u.organization_id = org.id
         users[ud["username"]] = u
     db.commit()
+    return users, seed_pwd
 
-    # ── Skills catalog ─────────────────────────────────────────────────────────
+def _sembrar_catalogo_de_habilidades(db):
+    """El catalogo de habilidades. Devuelve el indice por nombre."""
+    from app.models.resources import Skill, SkillCategory
+
     skills_data = [
         ("Python",SkillCategory.technical),("FastAPI",SkillCategory.technical),
         ("Django",SkillCategory.technical),("PostgreSQL",SkillCategory.technical),
@@ -184,9 +192,12 @@ def seed():
             db.add(s); db.flush()
         skills[name] = s
     db.commit()
+    return skills
 
-    # ── User skills ────────────────────────────────────────────────────────────
-    # Fields: user_id, skill_id, level, years_experience, certified
+def _sembrar_habilidades_de_usuario(db, skills, users):
+    """Asigna habilidades a los usuarios de la demostracion."""
+    from app.models.resources import SkillLevel, UserSkill
+
     user_skill_map = {
         "luis.vega":   [("Python",SkillLevel.expert),("FastAPI",SkillLevel.expert),("PostgreSQL",SkillLevel.advanced),("Docker",SkillLevel.intermediate),("Git",SkillLevel.expert),("Testing",SkillLevel.advanced)],
         "marta.gil":   [("Python",SkillLevel.expert),("Machine Learning",SkillLevel.expert),("Data Analysis",SkillLevel.expert),("Pandas",SkillLevel.expert),("Power BI",SkillLevel.advanced),("PostgreSQL",SkillLevel.intermediate)],
@@ -208,8 +219,10 @@ def seed():
                                  certified=random.choice([True,False,False])))
     db.commit()
 
-    # ── Numbering sequences ────────────────────────────────────────────────────
-    # Fields: entity, prefix, padding, current_value
+def _sembrar_secuencias_de_numeracion(db):
+    """Las secuencias de numeracion de cada entidad."""
+    from app.models.advanced_config import NumberingSequence
+
     NUMBERING_SEQUENCES = settings.NUMBERING_SEQUENCES if hasattr(settings, "NUMBERING_SEQUENCES") else [
         ("project","PRJ",4),("task","TSK",4),("contract","CNT",4),
         ("opportunity","OPP",4),("risk","RSK",4),
@@ -220,8 +233,10 @@ def seed():
             db.add(NumberingSequence(entity=entity, prefix=prefix, padding=padding, current_value=0))
     db.commit()
 
-    # ── Task types ─────────────────────────────────────────────────────────────
-    # Fields: name, value, color, icon, is_active
+def _sembrar_tipos_de_tarea(db):
+    """Los tipos de tarea con su color e icono."""
+    from app.models.advanced_config import TaskType
+
     TASK_TYPES = settings.TASK_TYPES if hasattr(settings, "TASK_TYPES") else [
         ("Feature","#7c3aed","✦"),("Bug","#ff4757","⚠"),
         ("Improvement","#00d4ff","↑"),("Documentation","#ffb800","📄"),
@@ -232,8 +247,10 @@ def seed():
             db.add(TaskType(name=tname, value=tname.lower(), color=color, icon=icon, is_active=True))
     db.commit()
 
-    # ── Alert configs ──────────────────────────────────────────────────────────
-    # Fields: alert_type, label, is_enabled, threshold_value, notify_admin, notify_pm
+def _sembrar_configuracion_de_alertas(db):
+    """Umbrales de las alertas."""
+    from app.models.advanced_config import AlertConfig
+
     ALERT_CONFIGS = settings.ALERT_CONFIGS if hasattr(settings, "ALERT_CONFIGS") else [
         ("budget_alert","Alerta presupuesto >85%",85.0),
         ("overload_alert","Sobrecarga equipo >100%",100.0),
@@ -245,8 +262,10 @@ def seed():
                                threshold_value=threshold, notify_admin=True, notify_pm=True))
     db.commit()
 
-    # ── Vacation policy ────────────────────────────────────────────────────────
-    # Fields: name, days_per_year, carries_over, max_carryover_days, is_default, is_active
+def _sembrar_politica_de_vacaciones(db, users):
+    """La politica de vacaciones y los saldos iniciales."""
+    from app.models.advanced_config import UserVacationBalance, VacationPolicy
+
     if not db.query(VacationPolicy).first():
         db.add(VacationPolicy(name="Politica estandar", days_per_year=settings.DEFAULT_VACATION_DAYS_PER_YEAR,
                               carries_over=True, max_carryover_days=5,
@@ -265,10 +284,12 @@ def seed():
                                        days_pending=settings.DEFAULT_VACATION_DAYS_PER_YEAR - days_taken_val))
     db.commit()
 
-    # ── Clients ────────────────────────────────────────────────────────────────
-    # Fields: name, short_name, industry, status, contact_name, contact_email,
-    #         contact_phone, contact_role, city, country, payment_terms,
-    #         currency, account_manager_id, created_by
+def _sembrar_clientes(db, users):
+    """Los clientes de la demostracion. Devuelve la lista."""
+    import os
+    import json
+    from app.models.clients import Client, ClientIndustry, ClientStatus
+
     clients_data_path = os.getenv("SEED_CLIENTS_DATA_PATH", "seed_clients_data.json")
     if os.path.exists(clients_data_path):
         with open(clients_data_path, "r") as f:
@@ -333,11 +354,15 @@ def seed():
         clients[cd["name"]] = c
     db.commit()
     print(f"  {len(clients)} clientes disponibles")
+    return clients
 
-    # ── Projects ───────────────────────────────────────────────────────────────
-    # Fields: code, name, description, project_type, status, client_name,
-    #         is_billable, billing_type, budget_hours, budget_amount,
-    #         start_date, end_date_planned, pm_id
+def _sembrar_proyectos(db, clients, org, users, today):
+    """Proyectos de la demostracion. Devuelve el indice por codigo.
+
+    Los devuelve SIEMPRE: si ya habia proyectos los lee de la base en vez
+    de crearlos, porque cinco fases posteriores los necesitan."""
+    from app.models.project import Project, ProjectStatus, ProjectType
+
     if db.query(Project).count() == 0:
         projs_data = [
             dict(code="PRJ-0001",name="Portal Gestion Interno",description="Desarrollo del portal de gestion interna para RRHH y direccion.",project_type=ProjectType.internal,status=ProjectStatus.active,start_date=today-timedelta(days=60),end_date_planned=today+timedelta(days=90),budget_amount=95000,budget_hours=800,pm_id=users["ana.torres"].id,is_billable=False),
@@ -360,9 +385,12 @@ def seed():
             if not p.organization_id:
                 p.organization_id = org.id
         db.commit()
+    return projects
 
-    # ── Tasks ──────────────────────────────────────────────────────────────────
-    # Fields: code, title, project_id, status, priority, estimated_hours, assignee_id
+def _sembrar_tareas(db, projects, users):
+    """Tareas de los proyectos, si no hay ninguna."""
+    from app.models.task import Task, TaskPriority, TaskStatus
+
     if db.query(Task).count() == 0:
         tasks_data = [
             dict(code="TSK-0001",title="Diseno arquitectura microservicios",project_id=projects["PRJ-0001"].id,status=TaskStatus.done,priority=TaskPriority.high,estimated_hours=24,assignee_id=users["luis.vega"].id),
@@ -383,7 +411,10 @@ def seed():
         db.commit()
         print(f"  {len(tasks_data)} tareas creadas")
 
-    # ── Imputations ────────────────────────────────────────────────────────────
+def _sembrar_imputaciones(db, projects, users, today):
+    """Imputaciones de horas, si no hay ninguna."""
+    from app.models.imputation import Imputation
+
     if db.query(Imputation).count() == 0:
         worker_proj = [
             (users["luis.vega"],   projects["PRJ-0001"], 6.0),
@@ -413,8 +444,10 @@ def seed():
         db.commit()
         print("  Imputaciones creadas")
 
-    # ── Absences ───────────────────────────────────────────────────────────────
-    # Fields: user_id, type, status, start_date, end_date, reason
+def _sembrar_ausencias(db, users, today):
+    """Ausencias de la demostracion."""
+    from app.models.resources import Absence, AbsenceStatus, AbsenceType
+
     if db.query(Absence).count() == 0:
         db.add(Absence(user_id=users["luis.vega"].id,  type=AbsenceType.vacation, start_date=today+timedelta(days=14), end_date=today+timedelta(days=21), status=AbsenceStatus.approved, reason="Vacaciones verano"))
         db.add(Absence(user_id=users["marta.gil"].id,  type=AbsenceType.sick,     start_date=today-timedelta(days=5),  end_date=today-timedelta(days=3),  status=AbsenceStatus.approved, reason="Baja medica"))
@@ -424,9 +457,10 @@ def seed():
         db.commit()
         print("  Ausencias creadas")
 
-    # ── Pipeline – Opportunities ───────────────────────────────────────────────
-    # Fields: code, name, client_name, expected_revenue, stage, probability,
-    #         expected_close_date, owner_id, description
+def _sembrar_oportunidades(db, clients, users, today):
+    """Oportunidades del embudo comercial."""
+    from app.models.pipeline import Opportunity, OpportunityStage
+
     if db.query(Opportunity).count() == 0:
         opp_templates = [
             dict(code="OPP-0001",name="Portal B2B RetailCorp",    client_name="RetailCorp SA",  expected_revenue=180000,stage=OpportunityStage.proposal,    probability=60, expected_close_date=today+timedelta(days=30), owner_id=users["carlos.ruiz"].id,description="Portal de gestion de proveedores B2B"),
@@ -448,10 +482,10 @@ def seed():
         db.commit()
         print(f"  Oportunidades creadas: {created_opps}")
 
-    # ── Contracts ──────────────────────────────────────────────────────────────
-    # Fields: code, name, project_id, client_name, contract_type, status,
-    #         total_amount, monthly_retainer, start_date, end_date, signed_date
-    # WorkOrder fields: code, contract_id, name, amount, hours, start_date, end_date
+def _sembrar_contratos(db, clients, projects, today):
+    """Contratos y ordenes de trabajo."""
+    from app.models.pipeline import Contract, ContractStatus, ContractType, WorkOrder
+
     if db.query(Contract).count() == 0:
         contract_templates = [
             dict(code="CNT-0001",name="Contrato ERP Acme Industries",project_code="PRJ-0002",client_name="Acme Industries SA",contract_type=ContractType.fixed_price,status=ContractStatus.active,start_date=today-timedelta(days=30),end_date=today+timedelta(days=120),total_amount=95000,signed_date=today-timedelta(days=35)),
@@ -485,9 +519,10 @@ def seed():
         db.commit()
         print(f"  Contratos creados: {len(created_contracts)}")
 
-    # ── Risks ──────────────────────────────────────────────────────────────────
-    # Fields: code, project_id, title, description, probability, impact,
-    #         risk_score, status, mitigation_plan, owner_id
+def _sembrar_riesgos(db, projects, users):
+    """Riesgos de proyecto."""
+    from app.models.pipeline import Risk, RiskImpact, RiskProbability, RiskStatus
+
     if db.query(Risk).count() == 0:
         risks = [
             dict(code="RSK-0001",title="Retraso entrega API legacy",    description="La integracion con el sistema legacy puede causar retrasos.", project_id=projects["PRJ-0002"].id,probability=RiskProbability.high,    impact=RiskImpact.major,    status=RiskStatus.identified,owner_id=users["luis.vega"].id,  mitigation_plan="Plan de contingencia con API mock"),
@@ -501,18 +536,20 @@ def seed():
         db.commit()
         print("  Riesgos creados")
 
-    # ── Change Requests ────────────────────────────────────────────────────────
-    # Fields: code, project_id, title, description, status, impact,
-    #         cost_impact, requested_by, approved_by
+def _sembrar_peticiones_de_cambio(db, projects, users):
+    """Peticiones de cambio."""
+    from app.models.resources import ChangeRequest, ChangeRequestImpact, ChangeRequestStatus
+
     if db.query(ChangeRequest).count() == 0:
         db.add(ChangeRequest(code="CR-0001",title="Anadir modulo facturacion automatica",description="Integrar generacion automatica de facturas con el ERP.",project_id=projects["PRJ-0002"].id,status=ChangeRequestStatus.approved,impact=ChangeRequestImpact.medium,cost_impact=1680,requested_by=users["carlos.ruiz"].id,approved_by=users["admin"].id))
         db.add(ChangeRequest(code="CR-0002",title="Cambio diseno dashboard principal",  description="El cliente solicita rediseno completo del dashboard.",          project_id=projects["PRJ-0001"].id,status=ChangeRequestStatus.submitted,impact=ChangeRequestImpact.high,  cost_impact=2600,requested_by=users["ana.torres"].id))
         db.commit()
         print("  Change requests creados")
 
-    # ── Deliverables ───────────────────────────────────────────────────────────
-    # Fields: code, project_id, name, description, status,
-    #         planned_date, delivered_date, accepted_date
+def _sembrar_entregables(db, projects, today):
+    """Entregables con su estado."""
+    from app.models.resources import Deliverable, DeliverableStatus
+
     if db.query(Deliverable).count() == 0:
         deliverables = [
             dict(code="DEL-0001",name="Documento de Analisis Funcional",project_id=projects["PRJ-0002"].id,status=DeliverableStatus.accepted,   planned_date=today-timedelta(days=25),delivered_date=today-timedelta(days=27),accepted_date=today-timedelta(days=20),description="Documento completo de requisitos funcionales"),
@@ -528,9 +565,10 @@ def seed():
         db.commit()
         print("  Entregables creados")
 
-    # ── Project Milestones ─────────────────────────────────────────────────────
-    # Fields: project_id, name, due_date, billing_amount, billing_pct,
-    #         is_completed, is_billed, billed_at, sort_order
+def _sembrar_hitos(db, projects, today):
+    """Hitos de proyecto con su importe."""
+    from app.models.financial import ProjectMilestone
+
     if db.query(ProjectMilestone).count() == 0:
         p2 = projects.get("PRJ-0002")
         if p2:
@@ -548,8 +586,73 @@ def seed():
                 ))
         db.commit()
 
-    # ── Backfill client_id on already-seeded records ───────────────────────────
-    # Handles DBs seeded before this fix was applied (client_id = NULL).
+
+def seed():
+    # ── Imports ────────────────────────────────────────────────────────────────
+    #
+    # Estos imports ya NO los usa esta función: cada fase importa los suyos.
+    # Se conservan a propósito, con `noqa`, porque el `create_all` de la línea
+    # siguiente crea las tablas de los modelos que estén REGISTRADOS en ese
+    # momento — y estos imports son parte de lo que los registra. Quitarlos
+    # cambiaría qué tablas se crean al sembrar, que es un cambio de
+    # comportamiento y no de estructura.
+    #
+    # Lo correcto a futuro es `from app import models`, que registra TODOS y no
+    # depende de qué haya importado antes quien llame. Pero eso también cambia
+    # qué se crea, así que va aparte: el esquema de verdad lo gobierna Alembic
+    # desde el hallazgo 11, y este `create_all` es el camino heredado.
+    from app.models.user import User  # noqa: F401
+    from app.models.clients import Client, ClientStatus, ClientIndustry  # noqa: F401
+    from app.models.project import Project, ProjectType, ProjectStatus  # noqa: F401
+    from app.models.task import Task, TaskStatus, TaskPriority  # noqa: F401
+    from app.models.imputation import Imputation  # noqa: F401
+    from app.models.settings import AppSetting, Department, Holiday  # noqa: F401
+    from app.models.financial import ProjectMilestone  # noqa: F401
+    from app.models.pipeline import (  # noqa: F401
+        Opportunity, OpportunityStage,
+        Contract, WorkOrder, ContractType, ContractStatus,
+        Risk, RiskProbability, RiskImpact, RiskStatus
+    )
+    from app.models.resources import (  # noqa: F401
+        Skill, UserSkill, SkillLevel, SkillCategory,
+        Absence, AbsenceType, AbsenceStatus,
+        ChangeRequest, ChangeRequestStatus, ChangeRequestImpact,
+        Deliverable, DeliverableStatus
+    )
+    from app.models.advanced_config import (  # noqa: F401
+        TaskType, AlertConfig, NumberingSequence, VacationPolicy,
+        UserVacationBalance
+    )
+
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    print("Seeding Contecflow database...")
+    today = date.today()
+
+    # ── AppSettings ────────────────────────────────────────────────────────────
+    _sembrar_ajustes(db)
+    _sembrar_departamentos(db)
+    _sembrar_festivos(db)
+    org = _sembrar_organizacion(db)
+    users, seed_pwd = _sembrar_usuarios(db, org)
+    skills = _sembrar_catalogo_de_habilidades(db)
+    _sembrar_habilidades_de_usuario(db, skills, users)
+    _sembrar_secuencias_de_numeracion(db)
+    _sembrar_tipos_de_tarea(db)
+    _sembrar_configuracion_de_alertas(db)
+    _sembrar_politica_de_vacaciones(db, users)
+    clients = _sembrar_clientes(db, users)
+    projects = _sembrar_proyectos(db, clients, org, users, today)
+    _sembrar_tareas(db, projects, users)
+    _sembrar_imputaciones(db, projects, users, today)
+    _sembrar_ausencias(db, users, today)
+    _sembrar_oportunidades(db, clients, users, today)
+    _sembrar_contratos(db, clients, projects, today)
+    _sembrar_riesgos(db, projects, users)
+    _sembrar_peticiones_de_cambio(db, projects, users)
+    _sembrar_entregables(db, projects, today)
+    _sembrar_hitos(db, projects, today)
+
     name_to_client = {c.name: c for c in db.query(Client).all()}
 
     for p in db.query(Project).filter(Project.client_id == None, Project.client_name != None).all():

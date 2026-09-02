@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -73,6 +74,154 @@ def _resolve_conversation(db: Session, *, conversation_id: Optional[str], channe
 
 
 # ── Notifications fan-out ────────────────────────────────────────────────────
+# ── A quién se avisa de un mensaje nuevo ─────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `_notify_recipients` era complejidad 22 en dos
+# fases mezcladas: reunir los destinatarios segun el tipo de conversacion, y
+# decidir a quien de ellos se le avisa. Ahora son dos fases con nombre.
+#
+# Lo que se ve al separarlas y no se veia antes: **«una mencion rompe todo
+# silencio» es UNA regla escrita CINCO veces**. El bucle original repetia
+# `and not is_mention` en las cinco comprobaciones de silencio —regla por
+# conversacion a 'none', a 'mentions', miembro silenciado, nivel 'none' y nivel
+# 'mentions'—. Escrita cinco veces, basta olvidarla en una para que un @mencion
+# deje de llegar por un camino y siga llegando por los otros cuatro, sin que nada
+# falle. Ahora se calcula el silencio y la excepcion se aplica una sola vez.
+
+
+# Los valores de `notify_level` y de `notify_messages` que silencian. Cualquier
+# otro valor NO silencia: un nivel desconocido avisa, que es el lado seguro para
+# una notificacion (mejor un aviso de mas que perderse una mencion). Era el
+# comportamiento del original y se conserva.
+_NIVELES_QUE_SILENCIAN = frozenset({"none", "mentions"})
+
+
+@dataclass(frozen=True, slots=True)
+class _Destinatario:
+    """Un candidato a recibir el aviso.
+
+    `user_id` y `client_user_id` son excluyentes: los internos llevan el primero
+    y los del portal de cliente el segundo.
+    """
+
+    user_id: str | None
+    client_user_id: str | None
+    notify_level: str
+    is_muted: bool
+
+
+def _destinatarios_de_canal(db: Session, conv: CollaborationConversation) -> list[_Destinatario]:
+    """Los de un canal.
+
+    Publico, de anuncios y de proyecto se resuelven por el EQUIPO: todo el equipo
+    los ve, con nivel 'all' y sin silenciar. Los demas por la pertenencia
+    explicita al canal, que si trae nivel y silencio por miembro.
+    """
+    ch = (db.query(CollaborationChannel)
+            .filter(CollaborationChannel.conversation_id == conv.id)
+            .first())
+    if not ch:
+        return []
+
+    if ch.channel_type in {"public", "announcement", "project"}:
+        from app.models.collaboration import CollaborationTeamMember
+        return [
+            _Destinatario(tm.user_id, None, "all", False)
+            for tm in db.query(CollaborationTeamMember)
+                        .filter(CollaborationTeamMember.team_id == ch.team_id)
+                        .all()
+        ]
+
+    from app.models.collaboration import CollaborationChannelMember
+    return [
+        _Destinatario(cm.user_id, None, cm.notify_level or "all", bool(cm.is_muted))
+        for cm in db.query(CollaborationChannelMember)
+                    .filter(CollaborationChannelMember.channel_id == ch.id)
+                    .all()
+    ]
+
+
+def _destinatarios_de_directo(db: Session, conv: CollaborationConversation) -> list[_Destinatario]:
+    """Los dos lados de una conversacion directa, internos o del portal.
+
+    Los internos se recogen en un conjunto para que una conversacion de alguien
+    consigo mismo no genere dos avisos.
+    """
+    d = (db.query(CollaborationDirectConversation)
+           .filter(CollaborationDirectConversation.conversation_id == conv.id)
+           .first())
+    if not d:
+        return []
+    salida = [
+        _Destinatario(uid, None, "all", False)
+        for uid in {d.user_a_id, d.user_b_id} if uid
+    ]
+    salida += [
+        _Destinatario(None, cid, "all", False)
+        for cid in (d.client_user_a_id, d.client_user_b_id) if cid
+    ]
+    return salida
+
+
+def _destinatarios_de_grupo(db: Session, conv: CollaborationConversation) -> list[_Destinatario]:
+    return [
+        _Destinatario(m.user_id, m.client_user_id, "all",
+                      bool(getattr(m, "is_muted", False)))
+        for m in db.query(CollaborationConversationMember)
+                   .filter(CollaborationConversationMember.conversation_id == conv.id)
+                   .all()
+    ]
+
+
+_DESTINATARIOS_POR_TIPO = {
+    "channel": _destinatarios_de_canal,
+    "direct": _destinatarios_de_directo,
+    "group": _destinatarios_de_grupo,
+}
+
+
+def _reglas_por_conversacion(db: Session, organization_id: str, conv_id: str) -> dict:
+    """`{user_id: notify_messages}` de las reglas con alcance de conversacion."""
+    from app.models.collaboration import CollaborationNotificationRule
+
+    filas = db.query(CollaborationNotificationRule).filter(
+        CollaborationNotificationRule.organization_id == organization_id,
+        CollaborationNotificationRule.scope == "conversation",
+        CollaborationNotificationRule.target_id == conv_id,
+    ).all()
+    return {r.user_id: r.notify_messages for r in filas if r.user_id}
+
+
+def _es_el_autor(d: _Destinatario, message: CollaborationMessage) -> bool:
+    """Nadie recibe aviso de su propio mensaje."""
+    if message.user_id and d.user_id == message.user_id:
+        return True
+    return bool(message.client_user_id and d.client_user_id == message.client_user_id)
+
+
+def _le_mencionan(d: _Destinatario, mencionados_usuarios: set,
+                  mencionados_clientes: set, es_para_todos: bool) -> bool:
+    if es_para_todos:
+        return True
+    if d.user_id and d.user_id in mencionados_usuarios:
+        return True
+    return bool(d.client_user_id and d.client_user_id in mencionados_clientes)
+
+
+def _esta_silenciado(d: _Destinatario, regla_de_conversacion: str | None) -> bool:
+    """Si este destinatario tiene silenciada la conversacion.
+
+    Tres fuentes de silencio, y la regla por conversacion manda sobre la
+    pertenencia porque es la que la persona ha puesto para ESTA conversacion.
+    Ninguna de las tres sobrevive a una mencion — eso lo decide quien llama.
+    """
+    return (
+        regla_de_conversacion in _NIVELES_QUE_SILENCIAN
+        or d.is_muted
+        or d.notify_level in _NIVELES_QUE_SILENCIAN
+    )
+
+
 def _notify_recipients(db: Session, *, organization_id: str, conv: CollaborationConversation, message: CollaborationMessage, mentions: list[CollaborationMention]) -> None:
     """Crea CollaborationNotification para los participantes, respetando:
         • Channel/Group membership: `notify_level` ('all' | 'mentions' | 'none')
@@ -80,84 +229,36 @@ def _notify_recipients(db: Session, *, organization_id: str, conv: Collaboration
         • Reglas globales (`CollaborationNotificationRule`) con scope='conversation'
           y target_id = conv.id por usuario; si `notify_messages='none'` se silencia
           ese usuario para esa conversación.
-    Cada recipiente entra como (user_id, client_user_id, notify_level, is_muted).
-    Las menciones siempre rompen el filtro 'mentions'.
+
+    Una mención rompe cualquier silencio. Es la regla que el bucle original
+    repetía cinco veces y que ahora se aplica en un solo sitio.
     """
-    from app.models.collaboration import CollaborationNotificationRule
+    reunir = _DESTINATARIOS_POR_TIPO.get(conv.kind)
+    if reunir is None:
+        return
+    destinatarios = reunir(db, conv)
+    if not destinatarios:
+        return
 
-    recipients: list[tuple[str | None, str | None, str, bool]] = []
-    if conv.kind == "channel":
-        ch = db.query(CollaborationChannel).filter(CollaborationChannel.conversation_id == conv.id).first()
-        if not ch:
-            return
-        if ch.channel_type in {"public", "announcement", "project"}:
-            from app.models.collaboration import CollaborationTeamMember
-            # Team members → notify_level por defecto = 'all', no muted
-            for tm in db.query(CollaborationTeamMember).filter(
-                CollaborationTeamMember.team_id == ch.team_id,
-            ).all():
-                recipients.append((tm.user_id, None, "all", False))
-        else:
-            from app.models.collaboration import CollaborationChannelMember
-            for cm in db.query(CollaborationChannelMember).filter(
-                CollaborationChannelMember.channel_id == ch.id,
-            ).all():
-                recipients.append((cm.user_id, None, cm.notify_level or "all", bool(cm.is_muted)))
-    elif conv.kind == "direct":
-        d = db.query(CollaborationDirectConversation).filter(CollaborationDirectConversation.conversation_id == conv.id).first()
-        if d:
-            for uid in {d.user_a_id, d.user_b_id}:
-                if uid:
-                    recipients.append((uid, None, "all", False))
-            for cid in [d.client_user_a_id, d.client_user_b_id]:
-                if cid:
-                    recipients.append((None, cid, "all", False))
-    elif conv.kind == "group":
-        members = db.query(CollaborationConversationMember).filter(
-            CollaborationConversationMember.conversation_id == conv.id,
-        ).all()
-        for m in members:
-            recipients.append((m.user_id, m.client_user_id, "all", bool(getattr(m, "is_muted", False))))
+    mencionados_usuarios = {m.mentioned_user_id for m in mentions if m.mentioned_user_id}
+    mencionados_clientes = {m.mentioned_client_user_id for m in mentions if m.mentioned_client_user_id}
+    es_para_todos = any(m.is_everyone for m in mentions)
+    reglas = _reglas_por_conversacion(db, organization_id, conv.id)
 
-    mentioned_users = {m.mentioned_user_id for m in mentions if m.mentioned_user_id}
-    mentioned_clients = {m.mentioned_client_user_id for m in mentions if m.mentioned_client_user_id}
-    is_everyone = any(m.is_everyone for m in mentions)
-
-    # Reglas por-conversación: { user_id: notify_messages }
-    rule_rows = db.query(CollaborationNotificationRule).filter(
-        CollaborationNotificationRule.organization_id == organization_id,
-        CollaborationNotificationRule.scope == "conversation",
-        CollaborationNotificationRule.target_id == conv.id,
-    ).all()
-    rule_by_user = {r.user_id: r.notify_messages for r in rule_rows if r.user_id}
-
-    for u_id, c_id, notify_level, is_muted in recipients:
-        # Excluir al autor
-        if message.user_id and u_id == message.user_id:
+    for d in destinatarios:
+        if _es_el_autor(d, message):
             continue
-        if message.client_user_id and c_id == message.client_user_id:
+        mencionado = _le_mencionan(
+            d, mencionados_usuarios, mencionados_clientes, es_para_todos
+        )
+        if not mencionado and _esta_silenciado(d, reglas.get(d.user_id) if d.user_id else None):
             continue
-        is_mention = (u_id and u_id in mentioned_users) or (c_id and c_id in mentioned_clients) or is_everyone
-        # Per-conversation rule manda — pero las menciones rompen el silencio
-        per_conv = rule_by_user.get(u_id) if u_id else None
-        if per_conv == "none" and not is_mention:
-            continue
-        if per_conv == "mentions" and not is_mention:
-            continue
-        # Membership-level
-        if is_muted and not is_mention:
-            continue
-        if notify_level == "none" and not is_mention:
-            continue
-        if notify_level == "mentions" and not is_mention:
-            continue
-        kind = "mention" if is_mention else "message"
         db.add(CollaborationNotification(
             organization_id=organization_id,
-            user_id=u_id, client_user_id=c_id,
-            kind=kind,
+            user_id=d.user_id, client_user_id=d.client_user_id,
+            kind="mention" if mencionado else "message",
             conversation_id=conv.id, message_id=message.id,
-            title=("Mención en chat" if is_mention else "Nuevo mensaje"),
+            title=("Mención en chat" if mencionado else "Nuevo mensaje"),
             body=(message.body or "")[:200],
             payload={"conversation_id": conv.id, "message_id": message.id},
         ))

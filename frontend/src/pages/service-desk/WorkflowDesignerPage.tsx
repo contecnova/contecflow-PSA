@@ -1037,6 +1037,9 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (p
       {t === 'create_ticket' && <>
         <FieldText label="Cola" value={config.queue} onChange={v => setConfig('queue', v)} placeholder="support" />
         <FieldText label="Plantilla de título" value={config.title_template} onChange={v => setConfig('title_template', v)} placeholder="Seguimiento: ${title}" />
+        {/* La descripción es obligatoria en el modelo de ticket y no había campo
+            para escribirla: el motor se cae al título si se deja en blanco. */}
+        <FieldText label="Plantilla de descripción" value={config.description_template} onChange={v => setConfig('description_template', v)} placeholder="Creado por el flujo desde ${title}" />
         <FieldSelect label="Prioridad" value={config.priority || 'P3'} onChange={v => setConfig('priority', v)} options={[
           { v: 'P1', l: 'P1 — Crítica' }, { v: 'P2', l: 'P2 — Alta' }, { v: 'P3', l: 'P3 — Normal' }, { v: 'P4', l: 'P4 — Baja' },
         ]} />

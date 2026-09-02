@@ -82,22 +82,69 @@ def _marcador_aplica(marcador: str) -> bool:
         return True
 
 
+
+# ── Los paquetes cuya deriva ROMPE la verificación, no sólo la ensucia ────────
+#
+# Con éstos desalineados no es que la suite dé otro resultado: es que NO SE PUEDE
+# EJECUTAR. Ha pasado dos veces.
+#
+#   · `pytest` — `schemathesis` 4.25 importa `_pytest.subtests`, que sólo existe
+#     en pytest 9. Con pytest 8 instalado, pytest no arranca: falla al cargar los
+#     plugins y ningún test llega a ejecutarse.
+#   · `pytest-asyncio`, `pytest-cov` — se instalan juntos con pytest y arrastran
+#     su versión al resolver dependencias, así que son parte del mismo desajuste.
+#   · `fastapi`, `starlette` — con fastapi 0.139 en vez del 0.135 fijado,
+#     `include_router` pasó a ser PEREZOSO: `app.routes` enumera **9 rutas en vez
+#     de 2.051**. La suite no deja de arrancar; se llena de fallos que culpan al
+#     producto de un problema que no existe. Es peor que un fallo ruidoso.
+#
+# Los cinco son de PARCHE o MENOR, así que alinearlos es seguro. Y hay una
+# lección de cómo se rompió la segunda vez: instalar sólo `pytest==9.0.3`
+# arrastró fastapi de 0.135.3 a 0.139.2 al resolver dependencias, sin decir nada.
+# Después de CUALQUIER `pip install` en este proyecto, vuelve a ejecutar este
+# script.
+#
+# El resto de la deriva (numpy, pydantic, redis…) sigue siendo INFORMATIVA a
+# propósito: ahí sí hay saltos mayores, algunos a la baja, y forzarlos de golpe
+# puede romper la suite. Ver la nota del gate en `scripts/ci_local.sh`.
+PAQUETES_CRITICOS = frozenset({
+    "pytest", "pytest-asyncio", "pytest-cov",   # sin estos, pytest no arranca
+    "fastapi", "starlette",                     # sin estos, 2.051 rutas se ven como 9
+})
+
+
 def main() -> int:
     # La consola de Windows usa cp1252: sin esto, cualquier caracter fuera de ese
     # juego revienta el gate con UnicodeEncodeError en lugar de informar.
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:  # noqa: BLE001 - si no se puede, se sigue en ASCII
-        pass
+    except Exception as exc:  # noqa: BLE001 - si no se puede, se sigue en ASCII
+        # No se silencia del todo: si esto falla, los nombres de paquete con
+        # acentos saldran mal y conviene saber por que.
+        print(f"aviso: no se pudo fijar la salida a UTF-8 ({exc}); se sigue en ASCII")
 
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--report", action="store_true", help="informa y sale con 0")
+    p.add_argument(
+        "--solo-criticos", action="store_true",
+        help="mira sólo los paquetes de PAQUETES_CRITICOS; sale con 1 si alguno deriva",
+    )
     args = p.parse_args()
 
     fijados = leer_fijados()
     if not fijados:
         print(f"ERROR: no se pudo leer ninguna versión fijada de {REQUIREMENTS}")
         return 1
+
+    if args.solo_criticos:
+        fijados = {k: v for k, v in fijados.items() if k in PAQUETES_CRITICOS}
+        faltan_del_conjunto = PAQUETES_CRITICOS - set(fijados)
+        if faltan_del_conjunto:
+            print(
+                "ERROR: estos paquetes están en PAQUETES_CRITICOS pero no fijados "
+                f"en requirements.txt: {sorted(faltan_del_conjunto)}"
+            )
+            return 1
 
     difieren: list[tuple[str, str, str]] = []
     ausentes: list[tuple[str, str]] = []

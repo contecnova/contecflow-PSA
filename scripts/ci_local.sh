@@ -180,12 +180,25 @@ if [[ "$MODE" != "--fast" ]]; then
   # 0.135 volvió `include_router` perezoso, así que 2.051 rutas se veían como 9 y
   # 19 tests culpaban al producto de un fallo que no existía.
   #
-  # INFORMATIVO a propósito, y no bloqueante: quedan 16 paquetes con versión
+  # INFORMATIVO a propósito PARA EL RESTO: quedan 16 paquetes con versión
   # distinta de la fijada, algunos con salto de versión MAYOR (numpy 1.26→2.5,
   # urllib3 2.7→1.26, pillow 12.3→10.4, redis 6.4→5.2). Forzarlos de golpe con
   # `pip install -r requirements.txt` puede romper la suite, y decidir cuál de
   # las dos versiones es la correcta exige probar cada una. Se deja MEDIDO.
   # Para promoverlo a bloqueante: alinear los 16 y verificar la suite.
+  # BLOQUEANTE, y sólo para los tres del ejecutor de tests. La distinción es la
+  # que importa: con `pytest` desalineado la suite no da otro resultado, es que
+  # NO SE PUEDE EJECUTAR — `schemathesis` importa `_pytest.subtests`, que sólo
+  # existe en pytest 9, así que con pytest 8 falla la carga de plugins y ningún
+  # test llega a correr.
+  #
+  # Ha pasado DOS VECES, la segunda a mitad de una sesión de trabajo y después
+  # de que la suite ya hubiera salido verde. Los tres no tienen salto de versión
+  # mayor pendiente, así que alinearlos es seguro y no hay excusa para dejarlo
+  # informativo.
+  run_gate bloqueante "entorno: ejecutor de tests alineado" \
+    "$PY_BIN" scripts/check_pinned_versions.py --solo-criticos
+
   run_gate informativo "entorno == requirements.txt (16 paquetes con deriva)" \
     "$PY_BIN" scripts/check_pinned_versions.py
 

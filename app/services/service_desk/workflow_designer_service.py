@@ -250,6 +250,36 @@ def _hay_ciclo(
     return False
 
 
+def _avisar_tipos_que_el_motor_no_ejecuta(nodes: list, warnings: list[str]) -> None:
+    """Avisa si el grafo usa un tipo de nodo que el motor no sabe ejecutar.
+
+    Aviso y no error a proposito: el catalogo acepta esos tipos a proposito
+    —hay grafos guardados que los usan— y convertirlo en error impediria
+    guardarlos. Pero sin este aviso el flujo se guardaba como VALIDO y moria al
+    llegar la ejecucion a ese nodo, con el run en estado de error y sin que
+    quien lo diseno hubiera recibido ninguna senal.
+
+    Hoy el unico tipo asi es `action`: esta en el catalogo, el editor no ofrece
+    campos para configurarlo y `_execute_node` lanza `ValueError` al llegar. Ver
+    la nota de cabecera de `_execute_node` en `workflow_engine.py`.
+
+    El import es diferido para no acoplar el orden de carga de los dos modulos,
+    que hasta ahora no se importaban entre si.
+    """
+    from app.services.service_desk.workflow_engine import TIPOS_EJECUTABLES
+
+    sin_motor = sorted({
+        str(n.get("type")) for n in nodes
+        if str(n.get("type")) in ALLOWED_NODE_TYPES
+        and str(n.get("type")) not in TIPOS_EJECUTABLES
+    })
+    for tipo in sin_motor:
+        warnings.append(
+            f"el nodo de tipo '{tipo}' se puede guardar pero el motor no sabe "
+            f"ejecutarlo: la ejecución fallará al llegar a él"
+        )
+
+
 def validate_graph(graph: dict) -> dict:
     """Valida un grafo {nodes:[], edges:[]}.
 
@@ -263,6 +293,7 @@ def validate_graph(graph: dict) -> dict:
       • Puertos esperados según el tipo de nodo, y entradas/salidas mínimas.
       • Conectividad: todos los nodos alcanzables desde `start`.
       • Todos los nodos pueden llegar a algún `end`.
+      • Tipos que el catálogo acepta pero el motor no ejecuta (aviso).
       • Ciclos (aviso, no error — los workflows pueden tener bucles).
 
     Si la estructura tiene ERRORES se corta antes del análisis avanzado: sobre un
@@ -288,6 +319,7 @@ def validate_graph(graph: dict) -> dict:
         return {"valid": False, "errors": errors, "warnings": warnings,
                 "node_count": len(nodes), "edge_count": len(edges)}
 
+    _avisar_tipos_que_el_motor_no_ejecuta(nodes, warnings)
     _avisar_puertos_y_conexiones(nodes, out_adj, in_adj, warnings)
     _avisar_inalcanzables(starts, node_by_id, out_adj, warnings)
     _avisar_sin_camino_a_end(ends, node_by_id, in_adj, warnings)
