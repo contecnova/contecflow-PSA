@@ -17,6 +17,8 @@ from __future__ import annotations
 import base64
 import hashlib
 
+import pytest
+
 from app.services.auth_service import (
     consume_sso_state,
     consume_sso_state_payload,
@@ -105,11 +107,22 @@ def test_authorize_envia_pkce_y_guarda_el_verificador():
 
 
 def test_el_callback_verifica_el_nonce_y_manda_el_verificador():
+    """Los cuatro controles del callback, buscados en TODO el módulo.
+
+    Antes se inspeccionaba sólo el código de `sso_callback`. Al repartir esa
+    función en fases (auditoría 2026-08, hallazgo 18) los controles se movieron a
+    `_validar_id_token_y_extraer_identidad` e `_intercambiar_codigo_por_tokens`,
+    y el test se puso rojo aunque las propiedades seguían intactas.
+
+    Se inspecciona el módulo entero a propósito: lo que hay que garantizar es que
+    los controles EXISTEN, no en qué función viven. Atar el test a una ubicación
+    lo convierte en un obstáculo para reorganizar el código, sin ganar seguridad.
+    """
     import inspect
 
     from app.api.v1.routers import auth_sso
 
-    src = inspect.getsource(auth_sso.sso_callback)
+    src = inspect.getsource(auth_sso)
     assert "expected_nonce" in src, "el callback debe recuperar el nonce esperado"
     assert "compare_digest" in src, (
         "la comparación del nonce debe ser en tiempo constante"
@@ -123,3 +136,93 @@ def test_el_callback_verifica_el_nonce_y_manda_el_verificador():
     assert "_consume_sso_state_payload(state_raw)" in src, (
         "el callback debe consumir el payload, no sólo el estado"
     )
+
+
+def test_las_fases_del_callback_existen_y_estan_encadenadas():
+    """La descomposición no puede deshacerse sin que salte algo.
+
+    Cada fase es un control de seguridad: el `state` firmado contra CSRF, el
+    canje del código con PKCE, la verificación del `nonce` contra replay y el
+    rechazo de un correo no verificado. Que sean funciones con nombre es lo que
+    permite probarlas una por una.
+    """
+    import inspect
+
+    from app.api.v1.routers import auth_sso
+
+    for fase in (
+        "_validar_peticion_y_consumir_estado",
+        "_resolver_token_endpoint",
+        "_intercambiar_codigo_por_tokens",
+        "_validar_id_token_y_extraer_identidad",
+        "_extraer_identidad",
+    ):
+        assert hasattr(auth_sso, fase), f"falta la fase {fase}"
+
+    # Y el endpoint las llama en orden: si alguien se salta una, el control que
+    # esa fase aplica deja de ejecutarse.
+    cuerpo = inspect.getsource(auth_sso.sso_callback)
+    for llamada in (
+        "_validar_peticion_y_consumir_estado(payload)",
+        "_intercambiar_codigo_por_tokens(",
+        "_validar_id_token_y_extraer_identidad(",
+    ):
+        assert llamada in cuerpo, f"el callback no invoca {llamada}"
+
+
+def test_un_correo_no_verificado_se_rechaza():
+    """P0-4. Un proveedor que NO ha verificado el correo no acredita identidad:
+    aceptarlo permitiría suplantar a cualquiera registrando su dirección allí.
+
+    Ahora se puede probar en aislamiento, que era el objetivo de sacar la fase.
+    """
+    from fastapi import HTTPException
+
+    from app.api.v1.routers import auth_sso
+
+    class _Config:
+        saml_attribute_email = None
+        saml_attribute_name = None
+
+    with pytest.raises(HTTPException) as exc:
+        auth_sso._extraer_identidad(
+            _Config(), {"email": "a@b.com", "email_verified": False}
+        )
+    assert exc.value.status_code == 403
+
+
+def test_sin_correo_no_se_puede_identificar():
+    from fastapi import HTTPException
+
+    from app.api.v1.routers import auth_sso
+
+    class _Config:
+        saml_attribute_email = None
+        saml_attribute_name = None
+
+    with pytest.raises(HTTPException) as exc:
+        auth_sso._extraer_identidad(_Config(), {"sub": "123"})
+    assert exc.value.status_code == 502
+
+
+def test_un_correo_verificado_pasa():
+    """Contra-test: el rechazo es por `email_verified is False`, no por ausencia.
+
+    Muchos proveedores no envían el claim en absoluto, y rechazar eso dejaría
+    fuera a usuarios legítimos.
+    """
+    from app.api.v1.routers import auth_sso
+
+    class _Config:
+        saml_attribute_email = None
+        saml_attribute_name = None
+
+    email, nombre = auth_sso._extraer_identidad(
+        _Config(), {"email": "a@b.com", "name": "Ana", "email_verified": True}
+    )
+    assert email == "a@b.com"
+    assert nombre == "Ana"
+
+    # Sin el claim: se acepta.
+    email2, _ = auth_sso._extraer_identidad(_Config(), {"email": "c@d.com"})
+    assert email2 == "c@d.com"
