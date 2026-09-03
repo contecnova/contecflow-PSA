@@ -479,140 +479,236 @@ class SemanticAssigner(ServiceBase):
 
     # ── Internos ─────────────────────────────────────────────────────────────
 
-    def _suggest(self, text: str, item_type: str,
-                 candidate_user_ids: list = None,
-                 priority: str = "medium") -> dict:
-        """Pipeline de 4 niveles (igual que Ficosa)."""
+    # ── Sugerencia de asignatario: cuatro niveles ────────────────────────────
+    #
+    # Auditoria 2026-08 (hallazgo 18). `_suggest` era complejidad 17: los cuatro
+    # niveles del pipeline —cache exacta, cache semantica, motor de puntuacion y
+    # LLM— en un solo ambito de 130 lineas.
+    #
+    # Dos cosas que se vieron al separarlos:
+    #
+    #   · la tabla de umbrales por prioridad se CONSTRUIA EN CADA LLAMADA, con
+    #     sus ocho entradas y cuatro lecturas de ajustes de ejecucion. Ahora las
+    #     lecturas siguen siendo por llamada —los umbrales son configurables en
+    #     caliente— pero la forma de la tabla es una constante;
+    #   · la formula de carga por items estaba escrita TRES VECES: en la mezcla
+    #     ponderada, en la rama sin datos de disponibilidad y en el `except`.
 
-        mode = str(getattr(self.config, "engine_mode", "hybrid") or "hybrid").lower()
-        if "." in mode:
-            mode = mode.split(".", 1)[1]
+    # Peso de la carga horaria frente a la carga por items en la mezcla. La hora
+    # pesa mas porque mide tiempo real disponible; el recuento de items solo dice
+    # cuantas cosas tiene abiertas, que no es lo mismo.
+    _PESO_CARGA_HORARIA = 0.6
+    _PESO_CARGA_POR_ITEMS = 0.4
 
-        h = _text_hash(text)
+    # Cuantos candidatos se devuelven en `top_scores` para que la interfaz
+    # pueda ofrecer alternativas.
+    _CANDIDATOS_MOSTRADOS = 5
 
-        # Nivel 1 — Expert Cache exacto (hash SHA-256)
+    # Las prioridades que NO permiten asignacion automatica, y de que umbral
+    # tiran. Un P1 se revisa siempre: el coste de un critico mal asignado es
+    # mayor que el de una revision.
+    _UMBRAL_POR_PRIORIDAD = {
+        "critical":    ("critical", False),
+        "p1_critical": ("critical", False),
+        "high":        ("high", True),
+        "p2_high":     ("high", True),
+        "medium":      ("medium", True),
+        "p3_medium":   ("medium", True),
+        "low":         ("low", True),
+        "p4_low":      ("low", True),
+    }
+
+    def _modo(self) -> str:
+        """El modo del motor, normalizado.
+
+        El `split` sobre el punto es porque el valor puede llegar como el nombre
+        completo de un Enum (`EngineMode.hybrid`) y no como su valor.
+        """
+        modo = str(getattr(self.config, "engine_mode", "hybrid") or "hybrid").lower()
+        return modo.split(".", 1)[1] if "." in modo else modo
+
+    def _nivel_1_cache_exacta(self, text: str, item_type: str):
+        """Coincidencia exacta por hash: alguien ya corrigio ESTE texto."""
         exact = self.db.query(SemFeedback).filter(
-            SemFeedback.text_hash == h,
-            SemFeedback.item_type == item_type
+            SemFeedback.text_hash == _text_hash(text),
+            SemFeedback.item_type == item_type,
         ).first()
         if exact and exact.correct_user_id:
             return self._result(exact.correct_user_id, 1.0, "expert_cache_exact",
                                 {}, False, "Expert cache (coincidencia exacta)")
+        return None
 
-        # Nivel 2 — Expert Cache semantico (coseno >= threshold)
+    def _nivel_2_cache_semantica(self, text: str, item_type: str):
+        """Coincidencia por parecido con algo que ya se corrigio."""
         from app.services.settings_service import get_runtime_float as _rt_f
-        sem_thr = self.config.threshold_expert_cache or _rt_f(self.db, "SEM_THRESHOLD_EXPERT_CACHE")
-        feedback_hit = self._semantic_lookup_feedback(text, item_type, sem_thr)
-        if feedback_hit:
-            return self._result(feedback_hit["user_id"], feedback_hit["score"],
-                                "expert_cache_semantic", {},
-                                False, f"Expert cache semantico (sim={feedback_hit['score']:.2f})")
 
-        # Cargar perfiles candidatos
-        q = self.db.query(SemProfile).filter(SemProfile.is_available == True)
+        umbral = (self.config.threshold_expert_cache
+                  or _rt_f(self.db, "SEM_THRESHOLD_EXPERT_CACHE"))
+        hit = self._semantic_lookup_feedback(text, item_type, umbral)
+        if hit:
+            return self._result(
+                hit["user_id"], hit["score"], "expert_cache_semantic", {}, False,
+                f"Expert cache semantico (sim={hit['score']:.2f})",
+            )
+        return None
+
+    def _perfiles_candidatos(self, candidate_user_ids: list | None) -> list:
+        q = self.db.query(SemProfile).filter(SemProfile.is_available == True)  # noqa: E712
         if candidate_user_ids:
             q = q.filter(SemProfile.user_id.in_(candidate_user_ids))
-        profiles = q.all()
+        return q.all()
 
+    def _umbral_y_revision(self, item_type: str, priority: str) -> tuple[float, bool]:
+        """El umbral efectivo y si hay que revisar de todas formas.
+
+        El umbral global del tipo de item SIEMPRE se aplica; el de la prioridad
+        solo puede hacerlo mas estricto, nunca mas laxo. Con `max()` de los dos
+        no hay forma de que configurar una prioridad relaje el umbral general.
+        """
+        from app.services.settings_service import get_runtime_float as _rt_f
+
+        base = (self.config.threshold_ticket if item_type == "ticket"
+                else self.config.threshold_task)
+
+        clave, automatico = self._UMBRAL_POR_PRIORIDAD.get(
+            str(priority).lower(), (None, True)
+        )
+        if clave is None:
+            minimo = base
+        else:
+            minimo = (getattr(self.config, f"threshold_{clave}", None)
+                      or _rt_f(self.db, f"SEM_THRESHOLD_{clave.upper()}"))
+
+        return max(float(base or 0.0), float(minimo or 0.0)), not automatico
+
+    @staticmethod
+    def _carga_por_items(p) -> float:
+        """Cuanto de su capacidad de items tiene ocupada, entre 0 y 1.
+
+        Estaba escrita tres veces en el original.
+        """
+        return min(1.0, (p.open_tickets + p.open_tasks) / max(p.max_load, 1))
+
+    def _carga_del_perfil(self, p, current_week: str) -> float:
+        """La carga de la persona, mezclando horas disponibles y items abiertos.
+
+        Si no se puede saber la disponibilidad horaria —o falla el servicio— se
+        cae a la carga por items, que siempre esta en el perfil. Degradar es
+        preferible a no sugerir: una sugerencia peor sigue siendo util.
+        """
+        try:
+            avail = ResourceAnalyticsService.get_user_availability(
+                self.db, p.user_id, current_week
+            )
+        except Exception:
+            logger.debug(
+                "ResourceAnalyticsService.get_user_availability failed for user=%s; "
+                "falling back to item-load ratio", p.user_id, exc_info=True,
+            )
+            return self._carga_por_items(p)
+
+        if not avail:
+            return self._carga_por_items(p)
+
+        carga_horaria = 1.0 - (avail["available_hours"] / max(avail["capacity_hours"], 1))
+        return min(1.0, self._PESO_CARGA_HORARIA * carga_horaria
+                   + self._PESO_CARGA_POR_ITEMS * self._carga_por_items(p))
+
+    def _puntuar_perfiles(self, profiles: list, item_emb, item_type: str,
+                          modo: str, current_week: str) -> dict:
+        """La puntuacion final de cada candidato.
+
+        En `rules_only` la parte semantica vale cero y solo pesa la carga; en los
+        demas modos se mezcla el parecido con el perfil y su historial. La
+        penalizacion por concentracion evita que a la misma persona le caiga todo
+        de un tipo.
+        """
+        scores = {}
+        for p in profiles:
+            if modo == "rules_only":
+                score = 0.0
+            else:
+                if not p.embedding:
+                    # Un perfil sin embedding no se puede puntuar: se descarta en
+                    # vez de darle cero, que lo pondria al final del ranking como
+                    # si fuera un mal candidato en vez de un candidato sin datos.
+                    continue
+                score = self._hybrid_score(
+                    item_emb, json.loads(p.embedding),
+                    self._get_history_embeddings(p.user_id, item_type),
+                )
+
+            carga = self._carga_del_perfil(p, current_week)
+            bruto = (score * (1 - self.load_weight)
+                     + (1 - carga) * self.load_weight)
+            scores[p.user_id] = max(
+                0.0, round(bruto - self._diversity_penalty(p, item_type), 4)
+            )
+        return scores
+
+    def _suggest(self, text: str, item_type: str,
+                 candidate_user_ids: list = None,
+                 priority: str = "medium") -> dict:
+        """Pipeline de 4 niveles (igual que Ficosa)."""
+        modo = self._modo()
+
+        # Nivel 1 — Expert Cache exacto (hash SHA-256)
+        resultado = self._nivel_1_cache_exacta(text, item_type)
+        if resultado:
+            return resultado
+
+        # Nivel 2 — Expert Cache semantico (coseno >= threshold)
+        resultado = self._nivel_2_cache_semantica(text, item_type)
+        if resultado:
+            return resultado
+
+        profiles = self._perfiles_candidatos(candidate_user_ids)
         if not profiles:
             return self._result(None, 0.0, "no_profiles", {}, True,
                                 "Sin perfiles configurados")
 
-        # Mejora 4: thresholds dinámicos con bandera auto/manual por prioridad
-        _thr_crit = getattr(self.config, "threshold_critical", None) or _rt_f(self.db, "SEM_THRESHOLD_CRITICAL")
-        _thr_high = getattr(self.config, "threshold_high", None) or _rt_f(self.db, "SEM_THRESHOLD_HIGH")
-        _thr_med  = getattr(self.config, "threshold_medium", None) or _rt_f(self.db, "SEM_THRESHOLD_MEDIUM")
-        _thr_low  = getattr(self.config, "threshold_low", None) or _rt_f(self.db, "SEM_THRESHOLD_LOW")
-        PRIORITY_THRESHOLDS = {
-            "critical":    {"auto": False, "min": _thr_crit},
-            "p1_critical": {"auto": False, "min": _thr_crit},
-            "high":        {"auto": True,  "min": _thr_high},
-            "p2_high":     {"auto": True,  "min": _thr_high},
-            "medium":      {"auto": True,  "min": _thr_med},
-            "p3_medium":   {"auto": True,  "min": _thr_med},
-            "low":         {"auto": True,  "min": _thr_low},
-            "p4_low":      {"auto": True,  "min": _thr_low},
-        }
-        base_threshold = (
-            self.config.threshold_ticket if item_type == "ticket" else self.config.threshold_task
-        )
-        pth = PRIORITY_THRESHOLDS.get(
-            str(priority).lower(),
-            {"auto": True, "min": base_threshold},
-        )
-        # Global item threshold always applies; priority thresholds can only
-        # make auto-assignment stricter, never weaker.
-        threshold = max(float(base_threshold or 0.0), float(pth["min"] or 0.0))
-        force_review = not pth["auto"]
+        threshold, force_review = self._umbral_y_revision(item_type, priority)
 
         # "Solo LLM" bypasses semantic scoring and delegates directly.
-        if mode == "llm":
+        if modo == "llm":
             llm_result = self._llm_suggest(text, profiles, item_type)
             if llm_result:
                 llm_result["engine_mode"] = "llm"
                 return llm_result
             return self._result(None, 0.0, "llm", {}, True, "LLM no disponible")
 
-        # Bug 1 fix: real-time load from ResourceAnalyticsService
+        # Nivel 3 — Motor semantico (o solo reglas, segun el modo)
         current_week = ResourceAnalyticsService.get_week_iso(timeutil.today())
-
-        # Nivel 3 — Motor semantico (or rules-only, see branch below)
         item_emb = self._encode_single(text)
-        scores   = {}
-        for p in profiles:
-            if mode == "rules_only":
-                score = 0.0
-            else:
-                if not p.embedding:
-                    continue
-                profile_emb = json.loads(p.embedding)
-                history_tuples = self._get_history_embeddings(p.user_id, item_type)  # Bug 3: now returns (emb, ts) tuples
-                score = self._hybrid_score(item_emb, profile_emb, history_tuples)
-            # Mejora 1: weighted blend de carga horaria + carga por ítems
-            try:
-                avail = ResourceAnalyticsService.get_user_availability(
-                    self.db, p.user_id, current_week
-                )
-                if avail:
-                    hour_load = 1.0 - (avail["available_hours"] / max(avail["capacity_hours"], 1))
-                    item_load = min(1.0, (p.open_tickets + p.open_tasks) / max(p.max_load, 1))
-                    load_ratio = min(1.0, 0.6 * hour_load + 0.4 * item_load)
-                else:
-                    load_ratio = min(1.0, (p.open_tickets + p.open_tasks) / max(p.max_load, 1))
-            except Exception:
-                logger.debug("ResourceAnalyticsService.get_user_availability failed for user=%s; falling back to item-load ratio", p.user_id, exc_info=True)
-                load_ratio = min(1.0, (p.open_tickets + p.open_tasks) / max(p.max_load, 1))
-
-            # Mejora 6: penalización por concentración excesiva del mismo tipo
-            diversity_pen = self._diversity_penalty(p, item_type)
-            raw_final = score * (1 - self.load_weight) + (1 - load_ratio) * self.load_weight
-            final = max(0.0, round(raw_final - diversity_pen, 4))
-            scores[p.user_id] = final
-
+        scores = self._puntuar_perfiles(
+            profiles, item_emb, item_type, modo, current_week
+        )
         if not scores:
             return self._result(None, 0.0, "no_embeddings", {}, True,
                                 "Perfiles sin embeddings. Ejecuta 'Reconstruir perfiles'.")
 
-        best_uid   = max(scores, key=scores.get)
+        best_uid = max(scores, key=scores.get)
         best_score = scores[best_uid]
-
         needs_review = force_review or (best_score < threshold)
-        top_scores   = dict(sorted(scores.items(), key=lambda x: -x[1])[:5])
+        top_scores = dict(
+            sorted(scores.items(), key=lambda x: -x[1])[:self._CANDIDATOS_MOSTRADOS]
+        )
 
-        # Nivel 4 — LLM si score bajo y modo hybrid
-        if mode == "rules_only":
-            reasoning = f"Reglas/carga (score={best_score:.2f}, umbral={threshold})"
-        else:
-            reasoning = f"Semantico (score={best_score:.2f}, umbral={threshold})"
+        etiqueta = "Reglas/carga" if modo == "rules_only" else "Semantico"
+        reasoning = f"{etiqueta} (score={best_score:.2f}, umbral={threshold})"
 
-        if needs_review and not force_review and mode == "hybrid":
+        # Nivel 4 — LLM si el score es bajo y el modo es hibrido. No se consulta
+        # cuando la prioridad ya obliga a revision humana: el LLM no puede
+        # levantar esa obligacion, asi que gastar la llamada no aporta nada.
+        if needs_review and not force_review and modo == "hybrid":
             llm_result = self._llm_suggest(text, profiles, item_type)
             if llm_result:
                 return {**llm_result, "top_scores": top_scores,
                         "sem_score": best_score}
 
-        return self._result(best_uid, best_score, mode,
+        return self._result(best_uid, best_score, modo,
                             top_scores, needs_review, reasoning)
+
 
     def _hybrid_score(self, item_emb: list, profile_emb: list,
                       history_tuples: list) -> float:

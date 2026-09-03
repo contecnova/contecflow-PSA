@@ -33,13 +33,21 @@ aquí:
 ```bash
 cd "contecflow PSA"
 
-# Suite completa de backend: 2.897 tests. SIEMPRE con -n auto — en serie tarda
-# MAS DE 90 MINUTOS y no cabe en ningun timeout razonable.
+# Suite completa de backend: 3.274 tests recogidos. SIEMPRE con -n auto — en
+# serie tarda MAS DE 90 MINUTOS y no cabe en ningun timeout razonable.
 #
-# TIEMPO MEDIDO con -n auto (10 workers): 28 MINUTOS. Si has leido en algun
-# sitio "13 minutos", es una cifra mia anterior y era falsa. Importa saberlo:
-# creyendo que tarda 13 se abandona la espera a los 20 y se commitea a ciegas,
-# que es exactamente como una vez se dejo la suite en rojo sin detectarlo.
+# TIEMPO MEDIDO con -n auto (10 workers): 43 MINUTOS (2.551 s, medido el
+# 2026-09-03 sobre 3.274 tests). Si has leido en algun sitio "13 minutos" o
+# "28 minutos", son cifras mias anteriores: la de 13 era falsa y la de 28 era
+# cierta con 2.897 tests. El numero crece con la suite, asi que MIDELO en vez de
+# creerte este. Importa: creyendo que tarda 13 se abandona la espera a los 20 y
+# se commitea a ciegas, que es exactamente como una vez se dejo la suite en rojo
+# sin detectarlo.
+#
+# Y NO edites app/ mientras corre. La suite recoge los tests al arrancar, asi
+# que un cambio a mitad no se prueba y el "0 fallos" del final no cubre lo que
+# has tocado. Es un error que he cometido en esta auditoria: hay que matar la
+# ejecucion y relanzarla.
 #
 # Y NO lances dos sesiones de pytest a la vez. Con tres solapadas los workers
 # se quedaron 22 minutos a 2,5 s de CPU cada uno — parecia un cuelgue del
@@ -326,6 +334,77 @@ Lo que sus 26 tests nuevos fijan y no estaba fijado:
 
 ---
 
+## 3.c Tres defectos funcionales encontrados al partir funciones complejas
+
+Ninguno de los tres daba error en la suite antes de tocarlos. Los tres se vieron
+al preguntar, línea por línea, qué tiene que pasar para llegar a cada rama.
+
+### Una factura de 29 líneas o más no se podía generar
+
+`app/services/invoice_pdf.py`. La tabla de conceptos llevaba
+
+```python
+("NOSPLIT", (0, 0), (-1, -1))
+```
+
+que en ReportLab significa «esta tabla no se puede partir por ninguna parte». La
+intención era otra: que el bloque de totales —base, IVA y total— no quedara
+separado de las líneas. Aplicado a la tabla entera **prohíbe todo salto de
+página**, así que en cuanto los conceptos no caben en una hoja `reportlab` lanza
+`LayoutError` y **la factura no se genera: el usuario recibe un 500**, no una
+factura fea.
+
+Y hacía **inerte el `repeatRows=1`** que está dos líneas más arriba: repetir la
+cabecera en cada página no tiene sentido si no puede haber una segunda página.
+Dos ajustes que se contradecían, y el que ganaba era el que rompía.
+
+Arreglado acotando el `NOSPLIT` a las tres filas de totales:
+
+```python
+# NOSPLIT SOLO sobre el bloque de totales, no sobre la tabla entera.
+("NOSPLIT", (0, n + 1), (-1, n + 3)),
+```
+
+**Cuidado al verificar un PDF:** los bytes no pueden coincidir entre dos
+generaciones, porque ReportLab escribe la fecha de creación y un identificador
+aleatorio en cada documento. La comparación tiene que ser sobre el **texto
+extraído, el número de páginas y la longitud**. Y el umbral de 29 líneas
+**depende de la altura del bloque de cliente**: dos tests míos estaban mal por
+haberlo medido sin ese bloque. La cabecera de
+`tests/test_invoice_pdf_layout.py` dice en qué condiciones se midió.
+
+### El nodo «crear ticket» de los flujos de trabajo no podía funcionar nunca
+
+`app/services/service_desk/workflow_engine.py`. Dos cosas a la vez:
+
+- construía el `Ticket` con `description` obligatorio en el modelo y el valor
+  que le llega de la plantilla, que es **opcional** — así que un nodo sin
+  descripción reventaba en el `flush`;
+- y el `except` **no hacía `rollback()`**, de modo que la sesión quedaba en
+  transacción abortada y **todo lo que venía después del nodo fallaba también**,
+  incluido el registro del propio error.
+
+Arreglado con `description = ... or title` y el `rollback()` que faltaba. La
+lección del segundo punto es general y aplica a todo el repo: **un `except` que
+sigue tras un `flush` fallido necesita `db.rollback()`**, o convierte un fallo
+local en un fallo de todo lo que venga detrás.
+
+### Un tipo de nodo que el diseñador deja guardar y el motor no ejecuta
+
+Décima instancia del patrón. El tipo `action` pasa la validación del diseñador
+de flujos, se guarda y se dibuja — y **no tiene ejecutor**. El flujo se queda
+parado en ese nodo sin decir por qué.
+
+El motor exporta ahora `TIPOS_EJECUTABLES` y `validate_graph` avisa **al
+guardar**, no cuando el flujo ya está en producción. El aviso se hace con import
+diferido para no crear un ciclo entre el diseñador y el motor.
+
+**No se ha implementado el ejecutor de `action`**, y es deliberado: qué debe
+hacer ese nodo es una decisión de producto, no un hueco que rellenar. Lo que no
+podía seguir es que se guardara en silencio.
+
+---
+
 ## 4. Estado detallado de lo que sigue abierto
 
 ### #14 zonas horarias — **cerrado**, con una decisión que hay que respetar
@@ -412,9 +491,19 @@ Hecho:
 
 ### #18 complejidad — parcial, con dos defectos reales encontrados de paso
 
-**La métrica honesta.** El *recuento* de funciones sobre el umbral apenas se
-mueve (138 → 120), porque partir una función grande produce varias medianas. La
-que importa es el **exceso total sobre 10: 1.023 → 502 (−51 %)**.
+**La métrica honesta.** El *recuento* de funciones sobre el umbral se mueve
+poco (138 → 97), porque partir una función grande produce varias medianas. La
+que importa es el **exceso total sobre 10: 1.023 → 254 (−75 %)**, y el **máximo,
+que era 247 y ahora es 16**.
+
+Medido con:
+
+```bash
+PY=./.venv/Scripts/python.exe
+$PY -m ruff check app --extend-select C901 --output-format concise \
+  | grep -oE 'complex \([0-9]+' | grep -oE '[0-9]+' \
+  | $PY -c "import sys; v=[int(x) for x in sys.stdin]; print(\"funciones %d exceso %d maximo %d\" % (len(v), sum(x-10 for x in v), max(v)))"
+```
 
 Lo cerrado hasta ahora, por tandas:
 
@@ -441,8 +530,20 @@ Lo cerrado hasta ahora, por tandas:
 | `_rotate_integration_secrets` (`services/key_management.py`) | 21 | bajo umbral | **9 tests nuevos** (tenía cero); ver 3.b |
 | `_check_auto_approval` (`approval_engine/requests.py`) | 18 | bajo umbral | **24 tests nuevos** (tenía cero); ver 3.b |
 | `request_logger` (`app/main.py`) | 11 | bajo umbral | **incluido en los 43 de `main.py`** |
+| `seed` (`db/seed_parts/core.py`) | **67** | bajo umbral | 22 fases con nombre + **17 tests nuevos** |
+| `_execute_node` (`service_desk/workflow_engine.py`) | 22 | bajo umbral | **46 tests nuevos**; 2 defectos, ver 3.c |
+| `_notify_recipients` (`collaboration/messages.py`) | 22 | bajo umbral | **68 tests nuevos** |
+| `call_ai` (`ai_provider_service.py`) | 24 | bajo umbral | **18 tests nuevos**; atribución del proveedor corregida |
+| `discover_snmp_network` (`cmdb/discovery.py`) | 21 | bajo umbral | **37 tests nuevos**; dos copias de 100 líneas unificadas |
+| `predict_overrun_ml` (`ai_modules/predictions.py`) | 19 | bajo umbral | **equivalencia por fuerza bruta: 192.000 combinaciones** + 36 tests |
+| `create_campaign` (`performance_service.py`) | 18 | bajo umbral | suite completa |
+| `evaluate_alerts` (`bi_smart_alerts_service.py`) | 17 | bajo umbral | suite completa |
+| `_suggest` (`semantic_classifier.py`) | 17 | bajo umbral | **57 tests nuevos**, cargas calculadas a mano |
+| `update_scim_user` (`scim_service.py`) | 16 | bajo umbral | **36 tests nuevos**; asimetría PUT/PATCH fijada |
+| `generate_invoice_pdf` (`invoice_pdf.py`) | 16 | bajo umbral | **35 tests nuevos**; defecto NOSPLIT, ver 3.c |
+| `search` + `_apply_filters` (`collaboration/_search.py`) | 16 | bajo umbral | suite de búsqueda |
 
-**Ocho de ellas no tenían un solo test** antes de tocarlas, y en cada caso eso
+**Doce de ellas no tenían un solo test** antes de tocarlas, y en cada caso eso
 era un hallazgo por sí mismo. Los cuatro peores:
 
 - **`lifespan`** — 216 líneas que son el *arranque* de la aplicación, sin una
@@ -569,26 +670,131 @@ Un refactor podía romper cualquiera de éstas sin que nada más fallara:
 relación declarada del modelo, así que la comprobación siempre era verdadera:
 defensa muerta que sólo servía para ocultar el día que dejara de serlo.
 
-**Lo que queda,** por orden de valor:
+**Lo que queda.** 97 funciones entre 11 y 16, y aquí hay que ser preciso porque
+la primera versión de este párrafo decía algo que no había comprobado.
 
-| Complejidad | Función | Fichero | Nota |
+**Medido** sobre las ocho más grandes que quedan, contando la cadena `if/elif`
+más larga de cada una con un script AST:
+
+| Función | Líneas | `elif` seguidos | Comparaciones `==`/`in` |
 |---|---|---|---|
-| 67 | `seed` | `db/seed_parts/core.py` | datos de demostración; 57 del exceso total, valor real bajo |
-| 24 | `call_ai` | `services/ai_provider_service.py` | despacho por proveedor |
-| 23 | `process_workflow_queue_record` | `services/bookings_service.py` | |
-| 23 | `discover_snmp_network` | `services/cmdb/discovery.py` | |
-| 22 | `_notify_recipients` | `services/collaboration/messages.py` | |
-| 22 | `_execute_node` | `service_desk/workflow_engine.py` | |
-| 21 | `chat_stream` | `api/v1/endpoints/ai_chat.py` | |
-| 20 | `predict_overrun_ml` | `services/ai_modules/predictions.py` | |
-| 19 | `send_schedule_now` | `services/bi_report_delivery_service.py` | |
-| 18 | `validate_import_csv` | `services/billing_reports_service.py` | |
+| `apply_filter` (`report_builder_service.py`) | 30 | **12** | 13 |
+| `materialize_recurring_tasks_cmd` | 74 | 4 | 8 |
+| `stop_timer_session` | 132 | 0 | 13 |
+| `evaluate` (`ai_governance.py`) | 103 | 0 | 10 |
+| `run_agent_stream` | 195 | 0 | 6 |
+| `critical_path_payload` | 87 | 0 | 5 |
+| `_project_internal_cost` | 88 | 0 | 3 |
+| `ws_doc_collab` | 111 | 0 | 4 |
 
-Las tres de más riesgo de esa lista ya están hechas —`_check_auto_approval`,
-`_rotate_integration_secrets` y `update_user_record`, las tres en la sección 3.b
-porque las tres traían defecto—. De lo que queda, la de más riesgo es
-`_execute_node` (motor de flujos de trabajo del service desk), y `seed` es la de
-más exceso y la de menos valor: son datos de demostración.
+La conclusión que sale de la tabla, y no de la intuición: **de las ocho, sólo una
+oculta una tabla de despacho**. `apply_filter` son 12 `elif` sobre el mismo
+`operator` en 30 líneas — el caso más limpio que queda en el repo — y **trae
+defecto** (siguiente apartado). Las otras siete son largas por otra razón:
+corrutinas anidadas, bucles sobre grafos, cálculo. Partirlas mejora el número y
+poco más.
+
+**Recomendación, por tanto:** hacer `apply_filter`, y para el resto **no montar
+una tanda dedicada** — partirlas cuando haya que tocar el fichero por otra
+razón. Entre 11 y 16 el rendimiento decreciente es real, y esto sí está medido.
+
+### El defecto de `apply_filter`: un filtro `in` que no filtra
+
+`operator: "in"` con un valor que **no es una lista** cae en
+
+```python
+elif operator == "in":
+    if isinstance(value, list):
+        query = query.filter(col.in_(value))
+```
+
+y **devuelve la consulta sin filtrar**, es decir *todas* las filas. Pasa las dos
+validaciones del llamador —`op in OPERATORS` y `col_name in allowed_cols`, que
+sí están y sí devuelven 400— porque el que falla es el **tipo del valor**, y
+`value` está declarado `Any` sin validación de esquema.
+
+Efecto: quien construye un informe «estado está en [...]» y cuyo cliente manda
+una cadena en vez de una lista **no recibe un error: recibe el informe completo**
+con todas las filas, y las cifras son plausibles. No es fuga entre clientes —el
+filtro de tenant es aparte y es *fail-closed*—, pero sí «el filtro que pediste no
+se aplicó y nadie te lo dijo». Undécima instancia del patrón de la sección 5.
+
+**Aviso para quien lo arregle:** los 12 operadores de `apply_filter` y las 12
+claves de `OPERATORS` coinciden hoy exactamente. Al pasarlo a tabla, **derivar
+`OPERATORS` de la tabla o cruzarlas con un test**: si divergen, un operador
+aceptado por la validación y no implementado devuelve todo sin filtrar, que es
+el mismo fallo por otra puerta.
+
+El otro camino de «filtro que no filtra» de esta función —
+`if not hasattr(model, column): return query`, con una columna del catálogo que
+no existe en el modelo— **hoy es inalcanzable**, y eso está comprobado: las
+**243 columnas** que `ENTITIES` declara existen todas en su modelo. Al arreglarlo
+conviene (a) hacer que lance en vez de devolver sin filtrar, y (b) dejar el test
+estructural que cruza catálogo y modelos, que es lo que mantiene inalcanzable esa
+rama.
+
+### Y el hallazgo que salió de escribir ese test: la entidad «Riesgos» no existe
+
+`get_model_class()` resuelve 16 entidades opcionales con
+
+```python
+("app.models.resources", "Risk", "risks"),
+```
+
+y **`Risk` no está en `app.models.resources`: está en `app.models.pipeline`.**
+El `getattr(mod, class_name, None)` devuelve `None`, el `except (ImportError,
+AttributeError): pass` no se entera, y `get_model_class("risks")` devuelve
+`None` — así que `execute_report("risks", …)` responde
+`400 Entidad 'risks' no soportada en este entorno`, **siempre, en todos los
+entornos**.
+
+Mientras tanto `ENTITIES["risks"]` declara **16 columnas** con sus etiquetas y
+su grupo (`proyectos_recursos`), así que **la interfaz ofrece «Riesgos» como
+entidad reportable** y quien la elige recibe un 400 que dice «no soportada en
+este entorno», que suena a configuración y no a error de código.
+
+**Duodécima instancia del patrón,** y de las más limpias: catálogo completo,
+pantalla, y una ruta de módulo equivocada tapada por un acceso tolerante.
+
+**El arreglo es una línea** —`app.models.pipeline`— y está verificado que basta:
+las 16 columnas del catálogo existen en `Risk`, y el modelo tiene
+`organization_id` y `project_id`, que es lo que necesita el acotado por tenant de
+`execute_report`. **No hay ningún test que fije el 400 actual**, así que
+arreglarlo no rompe nada; y hay que añadir el test estructural que cruza las 20
+entidades del catálogo con sus modelos, porque es el que impide que vuelva a
+pasar con otra.
+
+**La conclusión del hallazgo, que vale más que el número:** partir una función
+compleja es en sí mismo un método de detección. **Doce defectos reales**, tres
+de ellos de seguridad, y ninguno se estaba buscando:
+
+| # | Defecto | Dónde salió |
+|---|---|---|
+| 1 | Las siete métricas de facturación perdían la factura sin vencimiento | `_fetch_metric_series` (247) |
+| 2 | `cost_profile_total_annual` devolvía `int 0` en vez de `0.0` | `_serie_cost_profile` (27) |
+| 3 | Autoedición de campos reservados por un no-admin *(seguridad)* | `update_user_record` (23) |
+| 4 | La rotación cifraba el criptograma de un secreto ilegible *(seguridad)* | `_rotate_integration_secrets` (21) |
+| 5 | `PATCH /users/{id}` saltaba las validaciones de manager *(seguridad)* | idem |
+| 6 | El nodo «crear ticket» no podía funcionar nunca (`description` NOT NULL) | `_execute_node` (22) |
+| 7 | `except` sin `rollback()`: el fallo de un nodo tumbaba todo lo siguiente | idem |
+| 8 | El tipo de nodo `action` se guarda y no tiene ejecutor | idem |
+| 9 | Una factura de 29 líneas o más no se generaba (`NOSPLIT`) | `generate_invoice_pdf` (16) |
+| 10 | `call_ai` registraba el uso contra el proveedor equivocado al repliegue | `call_ai` (24) |
+| 11 | `apply_filter`: un `in` con valor no-lista devuelve todo sin filtrar | comprobar una afirmación mía |
+| 12 | La entidad «Riesgos» del constructor de informes devuelve 400 siempre | escribir el test del 11 |
+
+Los dos últimos salieron de otra manera que los diez anteriores y merece
+decirse. **El 11, de comprobar una frase que yo había escrito sin medirla:**
+había afirmado que a las 97 restantes «no les quedan tablas de despacho», y al
+medirlo con un script AST resultó que a una sí, y que traía defecto. **Y el 12,
+de escribir el test estructural del 11:** al cruzar las 243 columnas del
+catálogo de informes con sus modelos, una entidad entera no resolvía su clase.
+Escribir una afirmación comprobable y luego comprobarla es un método de
+detección, y escribir el test que la sostiene es otro.
+
+Ninguno se habría encontrado leyendo el código: la asimetría entre dos copias de
+cien líneas sólo se ve cuando están una al lado de la otra, y un `elif`
+inalcanzable sólo se ve cuando se pregunta qué tiene que pasar para llegar ahí.
 
 ### #19 gráficos — cerrado, con el diagnóstico corregido
 
@@ -770,7 +976,7 @@ golpe**, cada tanda con su suite.
 
 Conviene tenerlo presente al seguir: el fallo dominante de este código **no** es
 código ausente, es **controles escritos, con interfaz, con tests que pasan, y
-conectados a nada**. Cinco casos confirmados:
+conectados a nada**. Doce casos confirmados:
 
 1. `ABACMiddleware` — nunca se ejecutó.
 2. `ABAC_COVERED_PREFIXES` — 45 de 110 prefijos con cero llamadas a
@@ -792,8 +998,18 @@ conectados a nada**. Cinco casos confirmados:
 9. `PATCH /users/{id}` — el endpoint dedicado de manager valida existencia,
    organización y ciclos; el genérico aplicaba `manager_id` con un `setattr` y
    ninguna de las tres.
+10. El tipo de nodo `action` de los flujos de trabajo — pasa la validación del
+   diseñador, se guarda y se dibuja, y **no tiene ejecutor**. El flujo se queda
+   parado ahí sin decir por qué. Ver la sección 3.c.
+11. `apply_filter` del constructor de informes — un filtro `in` cuyo valor no es
+   una lista **no filtra**: devuelve todas las filas, sin error. Un filtro que
+   no filtra es literalmente un control desconectado. Ver el apartado del #18.
+12. La entidad «Riesgos» del constructor de informes — 16 columnas en el
+   catálogo, visible en la interfaz, y la ruta del módulo apunta a
+   `app.models.resources` cuando `Risk` está en `app.models.pipeline`. Todo
+   informe sobre riesgos devuelve 400. Ver el apartado del #18.
 
-Los nueve comparten mecanismo: **un acceso tolerante (`getattr`/`hasattr` con
+Los doce comparten mecanismo: **un acceso tolerante (`getattr`/`hasattr` con
 defecto, un `except` que degrada, o un filtro que descarta en silencio)
 convirtiendo un error en un resultado plausible.** Al revisar código nuevo aquí,
 ese es el patrón a buscar.
@@ -876,12 +1092,33 @@ Tests nuevos: `test_organization_tenant_isolation`, `test_tenant_filter_fail_clo
 `test_timezones`, `test_timezone_context`, `test_revenue_idempotency`,
 `test_bi_metrics_catalog`.
 
+**Tests nuevos del hallazgo 18** (uno por función partida; el nombre dice qué
+propiedad fijan, y la cabecera de cada fichero explica lo que se encontró al
+escribirlos): `test_main_startup_and_logging` (43),
+`test_bi_cost_profile_metrics` (18), `test_bi_invoice_metrics` (14),
+`test_bi_ticket_metrics` (20), `test_bi_metrics_equivalencia` (4),
+`test_profitability_pnl` (26), `test_auto_approval` (24),
+`test_user_update_authorization` (13), `test_key_rotation_secrets` (9),
+`test_seed_fases` (17), `test_workflow_engine_nodes` (46),
+`test_collaboration_notify_filter` (68), `test_ai_call_dispatch` (18),
+`test_cmdb_snmp_discovery` (37), `test_overrun_prediction_model` (36),
+`test_report_pdf_layout` (19), `test_scim_update_fields` (36),
+`test_invoice_pdf_layout` (35) y `test_semantic_suggest_pipeline` (57).
+
+Y una foto congelada: `tests/_fixtures/metrics_pre_refactor.py`, 81 kB del
+`metrics.py` anterior al refactor. **Su cabecera dice NO ACTUALIZAR y va en
+serio:** existe para que un test compare las 133 claves del catálogo contra la
+versión anterior, así que actualizarla al código nuevo lo convierte en un test
+que se compara consigo mismo. Lo único que se le cambió respecto al original son
+dos imports relativos pasados a absolutos, para poder cargarla suelta.
+
 ---
 
 ## 7. Orden sugerido para continuar
 
-Quedan **3 de 29** hallazgos en «parcial», y ninguno es un fallo latente: son
-deuda medida. Nada de lo que queda corrompe datos ni abre un agujero.
+Quedan **3 de 33** hallazgos en «parcial» (#18 complejidad, #22 acceso a base
+en la capa API, #32 marca blanca), y ninguno es un fallo latente: son deuda
+medida. Nada de lo que queda corrompe datos ni abre un agujero.
 
 **Corrección a lo que decía la versión anterior de este párrafo.** Decía que
 nada de lo que quedaba abría un agujero. Era verdad de lo *conocido*, y resultó
@@ -892,17 +1129,17 @@ mismo un método de detección**: la asimetría entre cinco bloques que hacen lo
 mismo, o entre dos evaluadores de la misma condición, sólo se ve cuando están
 uno al lado del otro. Por eso el orden de abajo va por riesgo.
 
-1. **#18, por riesgo y no por tamaño.** El método está probado veintiuna veces
-   ya; lo que decide el orden es qué pasa si se toca mal. Las tres de más riesgo
-   —auto-aprobación, rotación de secretos y mutación de usuario— ya están, y las
-   tres traían defecto. Lo siguiente, en este orden:
-   `_execute_node` (22, motor de flujos de trabajo del service desk: decide qué
-   se ejecuta en cada nodo), `_notify_recipients` (22, a quién se le manda cada
-   aviso), `call_ai` (24, despacho por proveedor con claves y cuotas) y
-   `process_workflow_queue_record` (23). **Con valores a mano, no sólo con la
-   suite**, las dos primeras: son decisiones, no cálculos reversibles.
-   `seed` (67, el 13 % del exceso que queda) es lo último: son datos de
-   demostración y el trabajo es mecánico.
+1. **#18: haz `apply_filter` y para ahí como tanda dedicada.** El método está
+   probado cuarenta y cuatro veces y ha dado once defectos reales, tres de
+   seguridad — pero eso fue en las funciones de 18 a 247. De las **ocho más
+   grandes que quedan, medido con un script AST, sólo una oculta una tabla de
+   despacho**: `apply_filter` (15), 12 `elif` sobre el mismo `operator` en 30
+   líneas, y trae defecto (un `in` con valor no-lista devuelve todo sin
+   filtrar). Ésa sí vale la pena. Para las otras 96 —entre 11 y 16, largas por
+   corrutinas anidadas, bucles sobre grafos o cálculo— **el rendimiento
+   decreciente es real y está medido**: pártelas cuando haya que tocar el
+   fichero por otra razón, no en una tanda. La tabla de la medición está en la
+   sección #18.
 2. **#22, los 298 puntos de acceso a base en la capa API** — por dominios, no de
    golpe, cada tanda con su suite.
 **#16, traducción: CERRADO.** Este documento lo daba por «parcial» y era falso.

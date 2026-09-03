@@ -372,6 +372,115 @@ def list_cycle_campaigns(db: Session, cycle_id: str,
     return items, total
 
 
+# ── Campañas de evaluación 360° ──────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `create_campaign` era complejidad 18. Las
+# tres validaciones de elegibilidad —manager, pares y upward— eran el MISMO
+# bloque copiado tres veces: pedir los elegibles al organigrama, restar, y
+# lanzar si sobra alguno. Solo cambiaba el tipo y el mensaje.
+#
+# Que sea una tabla importa aqui mas que en otros sitios: la elegibilidad es lo
+# que impide que alguien se monte una campana con los evaluadores que le
+# convengan. Tres copias son tres sitios donde olvidar la comprobacion.
+
+
+# El mensaje de error de cada bloque que se valida por lista. El manager va
+# aparte: es uno solo y su mensaje no lleva recuento.
+_MENSAJES_DE_ELEGIBILIDAD = {
+    "peer": "{n} par(es) no son del mismo equipo/departamento",
+    "upward": "{n} reportes upward no figuran como reportes directos",
+}
+
+
+def _elegibles(db: Session, subject: User, review_type: str) -> set:
+    """Los identificadores que el organigrama admite para ese tipo de evaluación."""
+    return {
+        u.id for u in eligible_reviewers(db, reviewee=subject, review_type=review_type)
+    }
+
+
+def _validar_lista_de_evaluadores(db: Session, subject: User, review_type: str,
+                                  ids: list[str]) -> None:
+    """Comprueba que todos los evaluadores de la lista son elegibles.
+
+    Lanza nombrando CUANTOS sobran y no cuales: el mensaje va a la interfaz, y
+    listar identificadores de personas ahi no ayuda a quien lo lee.
+    """
+    if not ids:
+        return
+    sobran = [r for r in ids if r not in _elegibles(db, subject, review_type)]
+    if sobran:
+        raise ValueError(_MENSAJES_DE_ELEGIBILIDAD[review_type].format(n=len(sobran)))
+
+
+def _sin_duplicados(ids: list[str] | None) -> list[str]:
+    """Quita repetidos conservando el orden.
+
+    Importa porque un evaluador repetido generaria DOS evaluaciones para la
+    misma persona, y el umbral de anonimato cuenta evaluaciones: duplicar una
+    bajaria artificialmente la barrera que protege el anonimato.
+    """
+    return list(dict.fromkeys(ids or []))
+
+
+def _validar_campana(db: Session, cycle_id: str, subject_id: str,
+                     self_review: bool, manager_reviewer_id: str | None,
+                     peer_reviewer_ids: list[str],
+                     upward_reviewer_ids: list[str]):
+    """Comprueba ciclo, persona evaluada y elegibilidad. Devuelve (ciclo, persona)."""
+    cycle = get_cycle(db, cycle_id)
+    if not cycle:
+        raise ValueError("Ciclo no encontrado")
+    if cycle.status == ReviewCycleStatus.closed:
+        raise ValueError("No se puede crear una campaña en un ciclo cerrado")
+
+    subject = db.query(User).filter(User.id == subject_id).first()
+    if not subject:
+        raise ValueError("Persona evaluada no encontrada")
+
+    if manager_reviewer_id and manager_reviewer_id not in _elegibles(db, subject, "manager"):
+        raise ValueError(
+            "El manager indicado no figura como manager directo en el organigrama"
+        )
+    _validar_lista_de_evaluadores(db, subject, "peer", peer_reviewer_ids)
+    _validar_lista_de_evaluadores(db, subject, "upward", upward_reviewer_ids)
+
+    if not (self_review or manager_reviewer_id or peer_reviewer_ids or upward_reviewer_ids):
+        raise ValueError("La campaña debe incluir al menos un evaluador")
+
+    return cycle, subject
+
+
+def _evaluaciones_de_la_campana(camp, cycle_id: str, subject_id: str,
+                                self_review: bool, manager_reviewer_id: str | None,
+                                peer_reviewer_ids: list[str],
+                                upward_reviewer_ids: list[str]) -> list:
+    """Las evaluaciones que cuelgan de la campaña, en el orden en que se crean.
+
+    El orden es el que ve quien administra la campaña —autoevaluación, manager,
+    pares, upward— y se conserva.
+    """
+    def nueva(reviewer_id: str, rtype: str) -> PerformanceReview:
+        return PerformanceReview(
+            id=str(_uuid.uuid4()),
+            cycle_id=cycle_id,
+            campaign_id=camp.id,
+            reviewee_id=subject_id,
+            reviewer_id=reviewer_id,
+            review_type=rtype,
+            answers_json={},
+        )
+
+    salida = []
+    if self_review:
+        salida.append(nueva(subject_id, "self"))
+    if manager_reviewer_id:
+        salida.append(nueva(manager_reviewer_id, "manager"))
+    salida += [nueva(rid, "peer") for rid in peer_reviewer_ids]
+    salida += [nueva(rid, "upward") for rid in upward_reviewer_ids]
+    return salida
+
+
 def create_campaign(
     db: Session, *,
     cycle_id: str, subject_id: str, created_by: str,
@@ -384,71 +493,31 @@ def create_campaign(
 ) -> Review360Campaign:
     """Crea una campaña 360° y todas las PerformanceReview asociadas en una sola
     operación. Valida elegibilidad de cada reviewer contra el organigrama."""
-    cycle = get_cycle(db, cycle_id)
-    if not cycle:
-        raise ValueError("Ciclo no encontrado")
-    if cycle.status == ReviewCycleStatus.closed:
-        raise ValueError("No se puede crear una campaña en un ciclo cerrado")
+    peer_reviewer_ids = _sin_duplicados(peer_reviewer_ids)
+    upward_reviewer_ids = _sin_duplicados(upward_reviewer_ids)
 
-    subject = db.query(User).filter(User.id == subject_id).first()
-    if not subject:
-        raise ValueError("Persona evaluada no encontrada")
-
-    # Pre-validación: elegibilidad para cada bloque solicitado
-    if manager_reviewer_id:
-        elig = {u.id for u in eligible_reviewers(db, reviewee=subject, review_type="manager")}
-        if manager_reviewer_id not in elig:
-            raise ValueError("El manager indicado no figura como manager directo en el organigrama")
-
-    peer_reviewer_ids = list(dict.fromkeys(peer_reviewer_ids or []))  # dedupe preservando orden
-    if peer_reviewer_ids:
-        elig = {u.id for u in eligible_reviewers(db, reviewee=subject, review_type="peer")}
-        bad = [r for r in peer_reviewer_ids if r not in elig]
-        if bad:
-            raise ValueError(f"{len(bad)} par(es) no son del mismo equipo/departamento")
-
-    upward_reviewer_ids = list(dict.fromkeys(upward_reviewer_ids or []))
-    if upward_reviewer_ids:
-        elig = {u.id for u in eligible_reviewers(db, reviewee=subject, review_type="upward")}
-        bad = [r for r in upward_reviewer_ids if r not in elig]
-        if bad:
-            raise ValueError(f"{len(bad)} reportes upward no figuran como reportes directos")
-
-    if not (self_review or manager_reviewer_id or peer_reviewer_ids or upward_reviewer_ids):
-        raise ValueError("La campaña debe incluir al menos un evaluador")
+    _cycle, subject = _validar_campana(
+        db, cycle_id, subject_id, self_review, manager_reviewer_id,
+        peer_reviewer_ids, upward_reviewer_ids,
+    )
 
     camp = Review360Campaign(
         id=str(_uuid.uuid4()),
         cycle_id=cycle_id, subject_id=subject_id,
         status=Review360CampaignStatus.active if auto_activate
                else Review360CampaignStatus.draft,
+        # Nunca por debajo de 1: un umbral de cero desactivaria el anonimato sin
+        # que nadie lo hubiera pedido.
         anonymity_threshold=max(1, int(anonymity_threshold)),
         created_by=created_by,
     )
     db.add(camp)
     db.flush()
 
-    # Crear reviews enlazadas a la campaña
-    def _new_review(reviewer_id: str, rtype: str) -> PerformanceReview:
-        return PerformanceReview(
-            id=str(_uuid.uuid4()),
-            cycle_id=cycle_id,
-            campaign_id=camp.id,
-            reviewee_id=subject_id,
-            reviewer_id=reviewer_id,
-            review_type=rtype,
-            answers_json={},
-        )
-
-    new_reviews: list[PerformanceReview] = []
-    if self_review:
-        new_reviews.append(_new_review(subject_id, "self"))
-    if manager_reviewer_id:
-        new_reviews.append(_new_review(manager_reviewer_id, "manager"))
-    for rid in peer_reviewer_ids:
-        new_reviews.append(_new_review(rid, "peer"))
-    for rid in upward_reviewer_ids:
-        new_reviews.append(_new_review(rid, "upward"))
+    new_reviews = _evaluaciones_de_la_campana(
+        camp, cycle_id, subject_id, self_review, manager_reviewer_id,
+        peer_reviewer_ids, upward_reviewer_ids,
+    )
     for r in new_reviews:
         db.add(r)
 

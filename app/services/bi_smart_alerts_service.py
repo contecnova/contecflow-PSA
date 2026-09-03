@@ -104,6 +104,181 @@ __all__ = [
 
 # ── Alert evaluation engine ────────────────────────────────────────────────────
 
+# ── Evaluación de alertas inteligentes ───────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `evaluate_alerts` era complejidad 17: cinco
+# condiciones en cadena de `elif` mas la comprobacion de metricas correladas,
+# todo dentro del bucle de reglas.
+#
+# `trend_up` y `trend_down` eran el mismo bloque con el operador invertido, y la
+# tabla lo hace explicito.
+
+
+# Correlacion minima para considerar que dos metricas se mueven juntas. 0,55 es
+# una correlacion moderada: por debajo, la coincidencia puede ser casualidad de
+# doce puntos de serie.
+_CORRELACION_MINIMA = 0.55
+
+# Cuantos periodos se cruzan al medir correlacion. Doce es un ano de meses.
+_PERIODOS_DE_CORRELACION = 12
+
+# Tope del registro de alertas. Sin el, el JSON crece sin limite en una columna
+# de texto.
+_MAX_ENTRADAS_DE_REGISTRO = 500
+
+
+def _cond_por_encima(valores: list, actual: float, umbral, periodos: int) -> tuple:
+    if umbral is None or not actual > umbral:
+        return False, {}
+    return True, {"threshold": umbral}
+
+
+def _cond_por_debajo(valores: list, actual: float, umbral, periodos: int) -> tuple:
+    if umbral is None or not actual < umbral:
+        return False, {}
+    return True, {"threshold": umbral}
+
+
+def _monotona(ventana: list, creciente: bool) -> bool:
+    """Si la ventana sube (o baja) en todos sus tramos, sin empates.
+
+    Estricta a proposito: una serie que se queda plana un mes no es una
+    tendencia, y avisar de ella llenaria el panel de ruido.
+    """
+    if creciente:
+        return all(ventana[i] < ventana[i + 1] for i in range(len(ventana) - 1))
+    return all(ventana[i] > ventana[i + 1] for i in range(len(ventana) - 1))
+
+
+def _cond_tendencia(creciente: bool):
+    """Construye la condicion de tendencia. Las dos eran el mismo bloque."""
+    def evaluar(valores: list, actual: float, umbral, periodos: int) -> tuple:
+        ventana = valores[-periodos:]
+        if len(ventana) < 2:
+            # Con un solo punto no hay tendencia que medir.
+            return False, {}
+        return _monotona(ventana, creciente), {"trend_window": ventana}
+    return evaluar
+
+
+def _cond_anomalia(valores: list, actual: float, umbral, periodos: int) -> tuple:
+    evaluacion = _historical_anomaly(valores)
+    return bool(evaluacion["is_anomaly"]), evaluacion
+
+
+# Las cinco condiciones que puede usar una regla. Una condicion desconocida no
+# dispara: la regla queda inerte en vez de avisar sin motivo.
+_CONDICIONES = {
+    "threshold_above": _cond_por_encima,
+    "threshold_below": _cond_por_debajo,
+    "trend_up": _cond_tendencia(creciente=True),
+    "trend_down": _cond_tendencia(creciente=False),
+    "anomaly": _cond_anomalia,
+}
+
+CONDICIONES_SOPORTADAS = frozenset(_CONDICIONES)
+
+
+def _evaluar_condicion_de_regla(rule: dict, valores: list) -> tuple:
+    """Decide si la regla dispara. Devuelve (dispara, detalle)."""
+    actual = valores[-1]
+    detalle = {"current_value": actual, "metric_key": rule.get("metric_key", "")}
+
+    evaluar = _CONDICIONES.get(rule.get("condition", ""))
+    if evaluar is None:
+        return False, detalle
+
+    dispara, extra = evaluar(
+        valores, actual, rule.get("threshold"),
+        max(2, int(rule.get("trend_periods", 3))),
+    )
+    detalle.update(extra)
+    return dispara, detalle
+
+
+def _metricas_correladas_que_confirman(db: Session, organization_id, rule: dict,
+                                       valores: list) -> list:
+    """Las metricas correladas que tambien estan anomalas y en el mismo sentido.
+
+    Sirven de confirmacion: una metrica que se sale sola puede ser un dato raro,
+    pero dos que se mueven juntas y las dos se salen a la vez es una senal. Se
+    exige correlacion, anomalia Y que las dos vayan en la misma direccion — sin
+    lo ultimo, dos metricas inversamente correladas se confirmarian entre si al
+    moverse en sentidos opuestos, que es precisamente lo normal en ellas.
+    """
+    actual = valores[-1]
+    hits = []
+    for corr_metric in (rule.get("correlated_metrics") or []):
+        corr_values = _fetch_metric_series(db, corr_metric, organization_id)
+        if not corr_values:
+            continue
+        size = min(len(valores), len(corr_values), _PERIODOS_DE_CORRELACION)
+        corr_coeff = _pearson_corr(valores[-size:], corr_values[-size:])
+        corr_anomaly = _historical_anomaly(corr_values)
+        variacion = actual - valores[-2] if len(valores) >= 2 else 0.0
+        variacion_corr = (
+            corr_values[-1] - corr_values[-2] if len(corr_values) >= 2 else 0.0
+        )
+        mismo_sentido = (
+            (variacion >= 0 and variacion_corr >= 0)
+            or (variacion <= 0 and variacion_corr <= 0)
+        )
+        if (abs(corr_coeff) >= _CORRELACION_MINIMA
+                and bool(corr_anomaly["is_anomaly"]) and mismo_sentido):
+            hits.append({
+                "metric_key": corr_metric,
+                "current_value": round(float(corr_values[-1]), 3),
+                "corr_coef": round(float(corr_coeff), 3),
+                "z_score": corr_anomaly["z_score"],
+                "robust_z": corr_anomaly["robust_z"],
+            })
+    return hits
+
+
+def _entrada_de_alerta(rule: dict, detalle: dict, correlated_hits: list) -> dict:
+    return {
+        "id": str(uuid.uuid4()),
+        "rule_id": rule["id"],
+        "rule_name": rule.get("name", ""),
+        "metric_key": rule.get("metric_key", ""),
+        "condition": rule.get("condition", ""),
+        "severity": rule.get("severity", "warning"),
+        "detail": detalle,
+        "correlated": correlated_hits,
+        "triggered_at": _iso_now(),
+        "acknowledged": False,
+        "acknowledged_by": None,
+        "acknowledged_at": None,
+    }
+
+
+def _alerta_de_la_regla(db: Session, organization_id, rule: dict) -> Optional[dict]:
+    """La alerta que dispara esta regla, o None si no dispara."""
+    if not rule.get("enabled", True):
+        return None
+    if _is_cooldown_active(rule):
+        # El periodo de silencio evita que una metrica que sigue mal avise cada
+        # vez que se evalua.
+        return None
+
+    valores = _fetch_metric_series(db, rule.get("metric_key", ""), organization_id)
+    if not valores:
+        return None
+
+    dispara, detalle = _evaluar_condicion_de_regla(rule, valores)
+    if not dispara:
+        return None
+
+    correlated_hits = _metricas_correladas_que_confirman(
+        db, organization_id, rule, valores
+    )
+    # Si la regla PIDE confirmacion por correlacion y no la obtiene, no avisa.
+    if rule.get("correlated_metrics") and not correlated_hits:
+        return None
+
+    return _entrada_de_alerta(rule, detalle, correlated_hits)
+
+
 def evaluate_alerts(
     db: Session,
     *,
@@ -114,97 +289,14 @@ def evaluate_alerts(
     triggered = []
 
     for rule in rules:
-        if not rule.get("enabled", True):
+        entrada = _alerta_de_la_regla(db, organization_id, rule)
+        if entrada is None:
             continue
-        if _is_cooldown_active(rule):
-            continue
+        triggered.append(entrada)
+        log.append(entrada)
+        rule["last_triggered_at"] = entrada["triggered_at"]
 
-        metric_key = rule.get("metric_key", "")
-        condition = rule.get("condition", "")
-        values = _fetch_metric_series(db, metric_key, organization_id)
-
-        if not values:
-            continue
-
-        current = values[-1]
-        threshold = rule.get("threshold")
-        trend_periods = max(2, int(rule.get("trend_periods", 3)))
-        fired = False
-        detail: dict[str, Any] = {"current_value": current, "metric_key": metric_key}
-
-        if condition == "threshold_above" and threshold is not None and current > threshold:
-            fired = True
-            detail["threshold"] = threshold
-
-        elif condition == "threshold_below" and threshold is not None and current < threshold:
-            fired = True
-            detail["threshold"] = threshold
-
-        elif condition == "trend_up":
-            window = values[-trend_periods:]
-            if len(window) >= 2:
-                fired = all(window[i] < window[i + 1] for i in range(len(window) - 1))
-                detail["trend_window"] = window
-
-        elif condition == "trend_down":
-            window = values[-trend_periods:]
-            if len(window) >= 2:
-                fired = all(window[i] > window[i + 1] for i in range(len(window) - 1))
-                detail["trend_window"] = window
-
-        elif condition == "anomaly":
-            anomaly_eval = _historical_anomaly(values)
-            fired = bool(anomaly_eval["is_anomaly"])
-            detail.update(anomaly_eval)
-
-        if not fired:
-            continue
-
-        # Check correlated metrics
-        correlated_hits = []
-        for corr_metric in (rule.get("correlated_metrics") or []):
-            corr_values = _fetch_metric_series(db, corr_metric, organization_id)
-            if not corr_values:
-                continue
-            size = min(len(values), len(corr_values), 12)
-            corr_coeff = _pearson_corr(values[-size:], corr_values[-size:])
-            corr_anomaly = _historical_anomaly(corr_values)
-            current_diff = current - values[-2] if len(values) >= 2 else 0.0
-            corr_diff = corr_values[-1] - corr_values[-2] if len(corr_values) >= 2 else 0.0
-            aligned = (current_diff >= 0 and corr_diff >= 0) or (current_diff <= 0 and corr_diff <= 0)
-            is_correlated_alert = abs(corr_coeff) >= 0.55 and bool(corr_anomaly["is_anomaly"]) and aligned
-            if is_correlated_alert:
-                correlated_hits.append({
-                    "metric_key": corr_metric,
-                    "current_value": round(float(corr_values[-1]), 3),
-                    "corr_coef": round(float(corr_coeff), 3),
-                    "z_score": corr_anomaly["z_score"],
-                    "robust_z": corr_anomaly["robust_z"],
-                })
-
-        if rule.get("correlated_metrics") and not correlated_hits:
-            continue
-
-        entry: dict[str, Any] = {
-            "id": str(uuid.uuid4()),
-            "rule_id": rule["id"],
-            "rule_name": rule.get("name", ""),
-            "metric_key": metric_key,
-            "condition": condition,
-            "severity": rule.get("severity", "warning"),
-            "detail": detail,
-            "correlated": correlated_hits,
-            "triggered_at": _iso_now(),
-            "acknowledged": False,
-            "acknowledged_by": None,
-            "acknowledged_at": None,
-        }
-        triggered.append(entry)
-        log.append(entry)
-        rule["last_triggered_at"] = entry["triggered_at"]
-
-    # Cap log at 500 entries
-    log = log[-500:]
+    log = log[-_MAX_ENTRADAS_DE_REGISTRO:]
     _set_json(db, LOG_KEY, organization_id, log, description="BI Smart Alert log (JSON)")
     _set_json(db, RULES_KEY, organization_id, rules, description="BI Smart Alert rules (JSON)")
 
