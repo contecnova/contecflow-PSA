@@ -33,7 +33,7 @@ aquí:
 ```bash
 cd "contecflow PSA"
 
-# Suite completa de backend: 3.462 tests recogidos. SIEMPRE con -n auto — en
+# Suite completa de backend: 3.467 tests recogidos. SIEMPRE con -n auto — en
 # serie tarda MAS DE 90 MINUTOS y no cabe en ningun timeout razonable.
 #
 # TIEMPO MEDIDO con -n auto (10 workers): 36-43 MINUTOS (2.148 s y 2.551 s en
@@ -684,6 +684,81 @@ Y tiene un test que **obliga a bajar la constante** cuando se corrigen rutas: de
 hecho es lo que pasó al arreglar las siete —el test se puso en rojo diciendo «hay
 62 y la constante dice 69»—. Sin él, la constante se queda alta para siempre y
 permitiría reintroducir lo ya arreglado.
+
+---
+
+## 3.g Ocho rutas inalcanzables porque otra las tapaba
+
+En FastAPI **gana la primera ruta que encaja**. Si `/tasks/{task_id}` se declara
+antes que `/tasks/dependencies`, la petición al segundo acaba en el manejador del
+detalle con `task_id="dependencies"`. Y lo peor no es el fallo, es el mensaje:
+
+```
+GET /api/v1/tasks/dependencies        ->  404 {"detail":"Tarea no encontrada"}
+GET /api/v1/sd/changes/rollout-plans  ->  404 {"detail":"Change request no encontrado"}
+```
+
+Quien depura eso **busca una tarea o un CR que falta**. Nadie mira el orden de
+declaración de las rutas, porque nada apunta hacia ahí. Los tres devuelven ahora
+**200**, comprobado llamándolos.
+
+### Tres formas del mismo problema
+
+| Forma | Dónde | Arreglo |
+|---|---|---|
+| Orden **dentro del fichero** | `tasks.py`: el bloque de dependencias iba tras `/{task_id}` | movido delante, verbatim |
+| Orden **dentro del fichero** | `change_rollout.py`: las dos rutas de compatibilidad iban tras `/changes/{cr_id}/rollout-plans` | movidas delante |
+| **Router registrado DOS VECES** | `issue_types` se incluía sin prefijo **y** con prefijo `/issue-types` | retirado el duplicado |
+| Orden **ENTRE módulos** | `misc` se incluía antes de `change_rollout` y declara `/changes/{change_id}` | `change_rollout` movido delante en el `__init__` de service_desk |
+
+**El registro duplicado merece detalle.** `issue_types.router` estaba incluido
+dos veces, así que:
+
+- cada ruta del fichero existía **duplicada**;
+- las rutas ya empiezan por `/issue-types`, de modo que el registro con prefijo
+  producía el absurdo `/api/v1/issue-types/issue-types/{project_id}`;
+- y `/api/v1/issue-types/{project_id}` —del registro sin prefijo, que va
+  primero— **tapaba seis rutas** del registro con prefijo.
+
+Retirado el duplicado, la aplicación pasa de **2.046 a 2.033 rutas**: trece eran
+copias. Se comprobó antes que el frontend usa las rutas **sin** prefijo y que
+nadie llama a las dobles.
+
+### El que más importaba no daba 404, daba 200 con menos datos
+
+`/activity/project/{project_id}` estaba tapada por
+`/activity/{entity_type}/{entity_id}` con `entity_type="project"` — y **los dos
+manejadores no son equivalentes**:
+
+- el genérico devuelve los eventos de **una entidad** (`activity_feed_payload`,
+  límite ≤ 200);
+- el tapado devuelve el feed **agregado**: eventos del proyecto **más todas sus
+  tareas** (`project_activity_payload`, límite ≤ 500).
+
+Así que el feed de actividad de un proyecto **salía sin las tareas**, con un 200 y
+sin ningún error. Un 404 se acaba viendo; esto no.
+
+### La regla, y el guardián
+
+**Los segmentos literales se declaran antes que los `{parámetro}` de la misma
+posición.** `tests/test_rutas_tapadas.py` la impone con
+`route.matches(scope)` —el emparejador de Starlette, no una comparación de formas
+a mano— y añade un test que prohíbe registrar un router dos veces. Lleva dos
+autocontroles con aplicaciones de juguete: una con el orden malo, para comprobar
+que lo ve, y otra con el bueno, para comprobar que no da falso positivo.
+
+### Un test mío retirado por ser ruido
+
+Escribí un tercer test que prohibía los caminos con segmento repetido
+(`/sd/sd/…`, `/pipeline/pipeline`). Marcó **32**, y **todos funcionan**: son URLs
+feas e inconsistentes, no un defecto, y arreglarlas sería cambiar URLs públicas —
+romper a cualquier cliente que las use.
+
+Un test que bloquea por algo que no está roto **es ruido, y el ruido es lo que
+hace que se dejen de mirar los fallos**. Convertido en medición con la cifra
+fijada en 32, porque ese patrón sí es la huella de la duplicación que dejó seis
+rutas inalcanzables: si sube, conviene mirar si hay otro `include_router`
+duplicado.
 
 ---
 
@@ -1707,7 +1782,7 @@ dos imports relativos pasados a absolutos, para poder cargarla suelta.
 
 ## 7. Orden sugerido para continuar
 
-Quedan **3 de 37** hallazgos en «parcial»: #18 complejidad, #22 acceso a base en
+Quedan **3 de 38** hallazgos en «parcial»: #18 complejidad, #22 acceso a base en
 la capa API y #37 las 62 rutas del frontend que no existen (7 corregidas, 9
 identificadas como endpoints ausentes y 53 en código de cliente muerto), y ninguno es un fallo latente: son deuda medida. Nada de lo que
 queda corrompe datos ni abre un agujero.

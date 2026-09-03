@@ -50,7 +50,19 @@ router.include_router(bi_tokens.router,                                    tags=
 router.include_router(custom_fields.router,                        tags=["Custom Fields"])
 router.include_router(epics.router,            prefix="/epics",            tags=["Epics & Wiki"])
 router.include_router(issue_types.router,                                  tags=["Issue Types & FTS"])
-router.include_router(issue_types.router,      prefix="/issue-types",      tags=["Issue Types & FTS"])
+# Auditoria 2026-08: `issue_types.router` estaba registrado DOS VECES, sin
+# prefijo (linea de arriba) y con prefijo "/issue-types". Consecuencias:
+#
+#   · cada ruta existia duplicada;
+#   · las rutas del fichero ya empiezan por "/issue-types", asi que el
+#     registro con prefijo producia el absurdo
+#     `/api/v1/issue-types/issue-types/{project_id}`;
+#   · y `/api/v1/issue-types/{project_id}` (del registro sin prefijo, que va
+#     primero) TAPABA a `/api/v1/issue-types/task-dependencies` y a otras
+#     cinco del registro con prefijo, que quedaban inalcanzables.
+#
+# Se retira el registro con prefijo: el frontend usa las rutas sin prefijo
+# —comprobado— y nadie llama a las dobles.
 router.include_router(cmdb.router,             prefix="/cmdb",             tags=["CMDB & Kanban"])
 router.include_router(cmdb.sd_router,          prefix="/sd",               tags=["SD Internal Comments"])
 router.include_router(activity.router,         prefix="/activity",         tags=["Activity & Mentions"])

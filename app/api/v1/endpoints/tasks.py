@@ -140,6 +140,68 @@ def get_kanban(
     return APIResponse.ok(data=get_kanban_payload(db, project_id, current_user))
 
 
+# ── Task Dependencies ─────────────────────────────────────────────────────────
+#
+# Auditoria 2026-08. Este bloque estaba DESPUES de `@router.get("/{task_id}")`,
+# y en FastAPI gana la primera ruta que encaja: `GET /tasks/dependencies` iba a
+# `get_task(task_id="dependencies")` y respondia
+# **404 «Tarea no encontrada»** — el endpoint era inalcanzable y el mensaje
+# mandaba a buscar una tarea que falta en vez de un problema de rutas.
+#
+# Por eso va aqui arriba: las rutas con segmento LITERAL tienen que declararse
+# antes que las que llevan `{parametro}` en la misma posicion. Hay un test
+# estructural (`tests/test_rutas_tapadas.py`) que lo comprueba para toda la
+# aplicacion.
+
+# Compatibilidad: /tasks/dependencies → /task-dependencies/{project_id}
+
+@router.get("/dependencies", response_model=APIListResponse[dict], summary="Listar dependencias de tareas")
+def list_dependencies(
+    project_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not project_id:
+        # Si no se pasa project_id, devolver array vacío para evitar 404 en frontend
+        return APIListResponse.ok(items=[], total=0)
+    items = svc_list_task_dependencies(db, project_id)
+    return APIListResponse.ok(items=items, total=len(items))
+
+
+# Compatibilidad: /tasks/dependencies/{project_id}
+@router.get("/dependencies/{project_id}", response_model=APIListResponse[dict], summary="Listar dependencias de tareas por proyecto (compatibilidad)")
+def list_dependencies_by_project(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    items = svc_list_task_dependencies(db, project_id)
+    return APIListResponse.ok(items=items, total=len(items))
+
+
+@router.post("/dependencies", summary="Crear dependencia entre tareas", status_code=201)
+def create_dependency(
+    predecessor_id: str = Body(...),
+    successor_id: str = Body(...),
+    dependency_type: str = Body("FS"),
+    lag_days: int = Body(0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return APIResponse.ok(data=svc_create_task_dependency(db, predecessor_id, successor_id, dependency_type, lag_days, current_user.id))
+
+
+@router.delete("/dependencies/{dep_id}", summary="Eliminar dependencia entre tareas")
+def delete_dependency(
+    dep_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    enforce_abac(db, current_user, "task_dependency", dep_id, action="delete")
+    return APIResponse.ok(data=svc_delete_task_dependency(db, dep_id))
+
+
+
 @router.get("/{task_id}", response_model=APIResponse[TaskOut], summary="Detalle de tarea")
 def get_task(
     task_id: str,
@@ -275,55 +337,3 @@ def cascade_reschedule(
     current_user: User = Depends(get_current_user),
 ):
     return APIResponse.ok(data=svc_cascade_reschedule(task_id, new_end_date, db))
-
-
-
-# ── Task Dependencies ──────────────────────────────────────────────────────────
-
-# Compatibilidad: /tasks/dependencies → /task-dependencies/{project_id}
-
-@router.get("/dependencies", response_model=APIListResponse[dict], summary="Listar dependencias de tareas")
-def list_dependencies(
-    project_id: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    if not project_id:
-        # Si no se pasa project_id, devolver array vacío para evitar 404 en frontend
-        return APIListResponse.ok(items=[], total=0)
-    items = svc_list_task_dependencies(db, project_id)
-    return APIListResponse.ok(items=items, total=len(items))
-
-
-# Compatibilidad: /tasks/dependencies/{project_id}
-@router.get("/dependencies/{project_id}", response_model=APIListResponse[dict], summary="Listar dependencias de tareas por proyecto (compatibilidad)")
-def list_dependencies_by_project(
-    project_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    items = svc_list_task_dependencies(db, project_id)
-    return APIListResponse.ok(items=items, total=len(items))
-
-
-@router.post("/dependencies", summary="Crear dependencia entre tareas", status_code=201)
-def create_dependency(
-    predecessor_id: str = Body(...),
-    successor_id: str = Body(...),
-    dependency_type: str = Body("FS"),
-    lag_days: int = Body(0),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return APIResponse.ok(data=svc_create_task_dependency(db, predecessor_id, successor_id, dependency_type, lag_days, current_user.id))
-
-
-@router.delete("/dependencies/{dep_id}", summary="Eliminar dependencia entre tareas")
-def delete_dependency(
-    dep_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    enforce_abac(db, current_user, "task_dependency", dep_id, action="delete")
-    return APIResponse.ok(data=svc_delete_task_dependency(db, dep_id))
-

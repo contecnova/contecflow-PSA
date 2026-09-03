@@ -79,19 +79,14 @@ class SimulateImpactIn(BaseModel):
     rollout_phases: list[dict] = Field(default_factory=list)
 
 
-@router.get("/changes/{cr_id}/rollout-plans", summary="Listar planes de rollout de un CR")
-@limiter.limit("60/minute")
-def list_rollout_plans(
-    request: Request,
-    cr_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    org_id = getattr(current_user, "organization_id", None)
-    items = list_plans(db, org_id=org_id, change_request_id=cr_id)
-    return APIListResponse.ok(items=items)
-
-
+# Auditoria 2026-08. Estas dos rutas de compatibilidad estaban DESPUES de
+# `/changes/{cr_id}/rollout-plans`, que tapaba a `/changes/rollout-plans`
+# con `cr_id="rollout-plans"`: la peticion acababa en el detalle de un CR y
+# respondia **404 «Change request no encontrado»** — el endpoint era
+# inalcanzable y el mensaje mandaba a buscar un CR que falta.
+#
+# Los segmentos literales van antes que los `{parametro}` de la misma
+# posicion.
 @router.get("/change/rollout-plans", summary="Listar planes de rollout (compat legacy)")
 @router.get("/changes/rollout-plans", summary="Listar planes de rollout (compat)")
 @limiter.limit("60/minute")
@@ -105,6 +100,19 @@ def list_rollout_plans_compat(
     org_id = getattr(current_user, "organization_id", None)
     target_cr = change_request_id or cr_id
     items = list_plans(db, org_id=org_id, change_request_id=target_cr)
+    return APIListResponse.ok(items=items)
+
+
+@router.get("/changes/{cr_id}/rollout-plans", summary="Listar planes de rollout de un CR")
+@limiter.limit("60/minute")
+def list_rollout_plans(
+    request: Request,
+    cr_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    items = list_plans(db, org_id=org_id, change_request_id=cr_id)
     return APIListResponse.ok(items=items)
 
 
