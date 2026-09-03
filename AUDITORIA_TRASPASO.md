@@ -33,7 +33,7 @@ aquí:
 ```bash
 cd "contecflow PSA"
 
-# Suite completa de backend: 3.336 tests recogidos. SIEMPRE con -n auto — en
+# Suite completa de backend: 3.352 tests recogidos. SIEMPRE con -n auto — en
 # serie tarda MAS DE 90 MINUTOS y no cabe en ningun timeout razonable.
 #
 # TIEMPO MEDIDO con -n auto (10 workers): 36-43 MINUTOS (2.148 s y 2.551 s en
@@ -493,8 +493,8 @@ Hecho:
 ### #18 complejidad — parcial, con dos defectos reales encontrados de paso
 
 **La métrica honesta.** El *recuento* de funciones sobre el umbral se mueve
-poco (138 → 96), porque partir una función grande produce varias medianas. La
-que importa es el **exceso total sobre 10: 1.023 → 249 (−76 %)**, y el **máximo,
+poco (138 → 94), porque partir una función grande produce varias medianas. La
+que importa es el **exceso total sobre 10: 1.023 → 247 (−76 %)**, y el **máximo,
 que era 247 y ahora es 16**.
 
 Medido con:
@@ -672,7 +672,7 @@ Un refactor podía romper cualquiera de éstas sin que nada más fallara:
 relación declarada del modelo, así que la comprobación siempre era verdadera:
 defensa muerta que sólo servía para ocultar el día que dejara de serlo.
 
-**Lo que queda.** 96 funciones entre 11 y 16, y aquí hay que ser preciso porque
+**Lo que queda.** 94 funciones entre 11 y 16, y aquí hay que ser preciso porque
 la primera versión de este párrafo decía algo que no había comprobado.
 
 **Medido** sobre las ocho más grandes que quedan, contando la cadena `if/elif`
@@ -808,8 +808,9 @@ las 20 entidades con sus modelos: es el que impide que vuelva a pasar con otra
 entidad, que es lo que importa más que el arreglo de ésta.
 
 **La conclusión del hallazgo, que vale más que el número:** partir una función
-compleja es en sí mismo un método de detección. **Doce defectos reales** en 45
-funciones, tres de ellos de seguridad, y ninguno se estaba buscando:
+compleja es en sí mismo un método de detección. **Dieciocho defectos reales**
+en 47 funciones, tres de ellos de seguridad, y ninguno se estaba buscando. La
+lista completa, para que el número sea comprobable y no una afirmación:
 
 | # | Defecto | Dónde salió |
 |---|---|---|
@@ -825,6 +826,12 @@ funciones, tres de ellos de seguridad, y ninguno se estaba buscando:
 | 10 | `call_ai` registraba el uso contra el proveedor equivocado al repliegue | `call_ai` (24) |
 | 11 | `apply_filter`: un `in` con valor no-lista devuelve todo sin filtrar | comprobar una afirmación mía |
 | 12 | La entidad «Riesgos» del constructor de informes devuelve 400 siempre | escribir el test del 11 |
+| 13 | El job de auto-resolución: `commit()` sin `rollback()` deja el panel en «running» y tapa el error real | detector de `commit()` sin deshacer |
+| 14 | El guardia `already_running` sólo cubría el camino asíncrono: dos pasadas síncronas podían solaparse y resolver el mismo ticket dos veces | la asimetría del 13 |
+| 15 | La cola de flujos abortaba **entera** y el elemento quedaba en `processing` para siempre, sin barrido que lo rescate | idem, dentro de un bucle |
+| 16 | El bucle de respaldo de IA descartaba una respuesta **ya facturada** y envenenaba la sesión para todos los proveedores siguientes | idem |
+| 17 | El camino primario de IA marcaba `status = "error"` en un proveedor que **había funcionado** | idem |
+| 18 | Una subida de adjunto correcta se convertía en un 500 por el `commit()` best-effort del índice de texto | idem |
 
 Los dos últimos salieron de otra manera que los diez anteriores y merece
 decirse. **El 11, de comprobar una frase que yo había escrito sin medirla:**
@@ -1024,85 +1031,94 @@ tanda**. El plan que sale de la tabla es `collaboration` primero —y dentro de
 ella `workspaces.py`, que sola es el 17 % del total—, después `service_desk`, y
 parar en el octavo dominio: ahí ya está el 92 %.
 
-#### Y lo que salió de medirlo: tres `commit()` sin `rollback()`
+#### Y lo que salió de medirlo: cinco `commit()` que dejaban la sesión abortada
 
 Contar accesos no dice si hay defecto. La pregunta que sí lo dice —«¿hay algún
-`db.commit()` dentro de un `try` cuyo `except` no haga `rollback()`?»— da tres,
-y son el mismo defecto que apareció en el motor de flujos de trabajo: tras un
-`flush`/`commit` fallido la sesión queda en transacción abortada, y **todo lo que
-venga después falla también, incluido el registro del propio error**.
+`db.commit()` cuyo fallo alguien atrape y **nadie deshaga**?»— destapa el mismo
+defecto que apareció en el motor de flujos de trabajo: tras un `commit()`
+fallido la sesión queda en **transacción abortada**, y todo lo que venga después
+falla también, **incluido el registro del propio error**.
 
-| Sitio | Qué pasa | Gravedad |
+> **Antes de las cifras, una corrección.** La primera versión de mi detector iba
+> **por bloque `try`** en vez de por llamada a `commit()`, y tenía dos falsos
+> positivos: contaba un `try`/`finally` sin `except` —que no se traga nada— y no
+> veía el `rollback` cuando estaba en un `try` anidado. Con él publiqué «3 en
+> `app/api` y 19 en `app/services`». Reescrito **por llamada**, los números son
+> los de abajo, y el detector tiene ahora cuatro tests que lo prueban en las dos
+> direcciones: uno con un caso plantado (que lo encuentre) y tres con los falsos
+> positivos (que no los cuente). Un detector que sobrecuenta se acaba ignorando;
+> uno que subcuenta da luz verde.
+
+**Medido bien:** en `app/api`, 8 `commit()` atrapados **con** `rollback`, 102 que
+propagan al llamador —lo que no es este defecto— y los que estaban en riesgo,
+**ya arreglados**. En `app/services`, 44 con `rollback`, 770 que propagan y
+**13 en riesgo**.
+
+**Los cinco arreglados,** y el discriminador de gravedad es si están dentro de un
+bucle, porque ahí una sesión envenenada rompe *todas* las iteraciones siguientes:
+
+| Sitio | Qué pasaba | En bucle |
 |---|---|---|
-| `service_desk/ai_auto_resolution.py:402` | el `except` **escribe y hace `commit()` sin `rollback()` antes**: si el fallo original fue de base, el registro de fallo no se escribe nunca, el panel se queda diciendo «running» y el error real queda tapado por un `PendingRollbackError` | **la peor de las tres** |
-| `collaboration/files.py:159` | `commit()` best-effort del índice de texto; si falla, la construcción de la respuesta lee atributos ya expirados de `att` (`expire_on_commit` está en su valor por defecto, `True`) y **una subida correcta se convierte en un 500** | media |
-| `scim.py:194` | el `AuditLog` de un **borrado de usuario** se pierde en silencio. Está declarado *best-effort* en el propio código, así que es decisión tomada — pero un borrado de usuario sin rastro merece saberse | baja, declarada |
+| `ai_auto_resolution.py` (camino síncrono) | el `except` escribía el registro de fallo y hacía `commit()` sin deshacer: el registro no se escribía nunca, el panel se quedaba en «running» y el error real quedaba tapado por un `PendingRollbackError` | no |
+| `bookings_service.py` (cola de flujos) | lo mismo **dentro del bucle de la cola**: el `commit()` del fallo reventaba, el `raise` abortaba la cola entera —los elementos siguientes no se procesaban— y el que falló se quedaba en `processing`, estado del que **no hay ningún barrido que rescate** (comprobado: `"processing"` sólo se escribe ahí y nadie lo consulta) | **sí** |
+| `ai_provider_service.py` ×2 | el `commit()` de **estadísticas** estaba dentro del `try` de la llamada, así que un fallo de nuestra base descartaba una respuesta de IA **ya atendida y facturada**; en el bucle de respaldo envenenaba además la sesión, de modo que todos los proveedores siguientes fallaban y la función acababa diciendo «todos los proveedores han fallado» — el diagnóstico contrario al real. Y en el camino primario marcaba `status = "error"` en un proveedor que **había funcionado**, que es el valor que lo excluye de futuras selecciones | **sí** (uno) |
+| `collaboration/files.py` | `commit()` best-effort del índice de texto; al fallar, la respuesta lee atributos de `att` que `expire_on_commit` (True por defecto) expiró, SQLAlchemy intenta refrescarlos y **una subida correcta se convierte en un 500** | no |
+| `scim.py` | el `AuditLog` de un **borrado de usuario** se perdía y la sesión quedaba sucia. Que sea *best-effort* está declarado en el código, así que es decisión tomada — pero un borrado sin rastro merece saberse | no |
 
-**La señal que lo delata, otra vez, es una asimetría.** En el mismo
-`ai_auto_resolution.py`, **el camino asíncrono lo hace bien** —`try` anidado con
-`session.rollback()` en el `except` interior, y un `finally` que cierra la sesión
-y libera el lock— y el síncrono, cuarenta líneas más arriba, no. Dos caminos
-para lo mismo, uno arreglado y el otro no.
+El arreglo de los dos de IA **no es meter un `rollback()`**: es separar «la
+llamada al proveedor falló» de «nuestra contabilidad falló». Lo primero significa
+probar el siguiente proveedor y marcar el que falló; lo segundo, no: la respuesta
+se devuelve igual, el fallo se deshace y se registra.
 
-Y de paso, en el mismo sitio: **el guardia `already_running` sólo protege el
-camino asíncrono.** `_AUTO_RES_JOB_LOCK` se toma en la rama `run_async=True` y se
-libera en su `finally`; la rama síncrona **no lo toma nunca**, así que dos
-llamadas con `run_async=False` pueden solaparse entre sí y con una asíncrona ya
-en cola. El endpoint es de administrador y el trabajo es de resolución
-automática de tickets, así que solapar dos pasadas no es inocuo.
+**Honestidad sobre la autoría de los dos de IA:** esa forma **viene del
+original**, comprobado en `git show cfce2a4~1`. Mi refactor de `call_ai` la movió
+*verbatim* —que era el objetivo declarado del movimiento— y apareció después, al
+pasarle el detector. Mover verbatim conserva los defectos: eso es lo que hace el
+movimiento verificable, y es la razón de pasar detectores **después** en vez de
+confiar en que partir una función los encuentre todos.
 
-#### Y en `app/services`, 19 más — medidos, clasificados y NO tocados en bloque
+**Y el guardia que sólo protegía la mitad.** En el mismo `ai_auto_resolution.py`,
+`_AUTO_RES_JOB_LOCK` se tomaba en la rama `run_async=True` y se liberaba en su
+`finally`; la rama síncrona **no lo tomaba nunca**, así que dos llamadas con
+`run_async=False` podían solaparse entre sí y con una asíncrona ya en cola — y el
+trabajo resuelve tickets automáticamente, así que solapar dos pasadas puede
+resolver el mismo ticket dos veces. Ahora el camino síncrono lo toma y lo libera
+en un `finally`, con un test que comprueba que se libera **también cuando el
+trabajo revienta**: sin `finally` se cambiaría un fallo puntual por una avería
+permanente.
 
-El mismo detector sobre `app/services` da **19**. No se tocan de golpe: cada uno
-necesita criterio, y meter un `rollback()` en 19 sitios sin leerlos sería
-exactamente la chapuza que este trabajo intenta no hacer. Lo que sí se puede
-hacer barato es **clasificarlos por lo que decide la gravedad: si el `try` está
-dentro de un bucle**, porque ahí una sesión envenenada rompe *todas* las
-iteraciones siguientes — que es la forma exacta del defecto del motor de flujos.
+#### Los 8 que quedan, y los 2 que se dejan a propósito
 
-**Uno solo está dentro de un bucle, y es el que importa:**
-`ai_provider_service.py:645`, el bucle de respaldo entre proveedores de IA.
+De los 13 de `app/services`, **tres estaban dentro de un bucle** y dos ya están
+(`bookings_service` y el de respaldo de IA). Los otros diez son fuera de bucle,
+así que el fallo es local a su petición:
 
-```python
-for provider in all_providers:
-    try:
-        result = call_provider(provider, ...)   # la llamada YA se ha pagado
-        ...actualiza estadisticas...
-        db.commit()                              # si esto falla...
-        return provider, result
-    except Exception as exc:
-        _logger.debug(...); continue             # ...se descarta la respuesta
+```
+app/services/accounting_hub_service.py:46      app/services/cmdb/discovery.py:731
+app/services/ai_modules/_base.py:128           app/services/collaboration/_thumbnails.py:112
+app/services/approval_engine/_base.py:331      app/services/organizations_service.py:112
+app/services/approval_engine/_base.py:355      app/services/pdf_export_service.py:202
+app/services/approval_engine/requests.py:542   app/services/pdf_export_service.py:209
 ```
 
-Un fallo del `commit()` de **estadísticas** se traga la respuesta de una llamada
-que el proveedor ya ha atendido y facturado, y además envenena la sesión, así que
-**todos los proveedores siguientes del bucle fallan también** y la función acaba
-devolviendo «todos los proveedores han fallado». El diagnóstico que ve quien mira
-el log es el contrario del real: no fallaron los proveedores, falló la base.
+**Los dos que sí están en bucle y NO se han tocado** son
+`app/services/collaboration/_scheduler.py:62` y `:70`, la entrega de mensajes
+programados. Su defecto es real y tiene forma concreta: **si `_notify_recipients`
+sale bien y el `commit()` del flag `_scheduled_delivered` falla, la notificación
+ya se ha enviado y el flag no se ha guardado, así que el siguiente tic la vuelve
+a enviar** — notificación duplicada. Además todo el bucle está dentro de un solo
+`try`, así que un fallo pierde el tic completo.
 
-El arreglo tiene forma, no es meter un `rollback()`: **separar «la llamada al
-proveedor falló» de «nuestra contabilidad falló»**. Lo primero significa probar
-el siguiente proveedor; lo segundo, no: la respuesta se devuelve igual y el fallo
-de contabilidad se deshace y se registra.
+**No se ha tocado, y es una decisión, no un olvido:** el arreglo correcto es un
+`try` **por mensaje** alrededor de un cuerpo `async` que hace `await
+bus.publish(...)`, es decir tocar la ruta de entrega en tiempo real. Eso merece
+su propia tanda con su propia suite; meterlo de propina en una tanda que ya toca
+seis ficheros es exactamente la chapuza que este trabajo intenta evitar. El
+`finally: db.close()` que ya existe hace un `rollback` implícito, así que la
+sesión no queda envenenada más allá del tic.
 
-**El mismo patrón, en el camino del proveedor primario** (`:828`,
-`_llamar_con_respaldo`): si falla el `commit()` de estadísticas, el `except`
-marca al proveedor —que ha funcionado— con `status = "error"`, que es el valor
-que lo excluye de futuras selecciones, y vuelve a hacer `commit()` sobre la
-sesión ya abortada. En la práctica ese segundo `commit()` también revienta, así
-que el marcado no llega a persistirse y lo que sale es el error de SQLAlchemy en
-vez de la respuesta; pero la intención escrita en el código es **desactivar un
-proveedor que funciona por un fallo que era nuestro**.
-
-**Honestidad sobre la autoría:** esta forma **viene del original**, comprobado en
-`git show cfce2a4~1`. Mi refactor de `call_ai` la movió *verbatim* —que era el
-objetivo declarado del movimiento— y apareció después, al pasarle el detector.
-Mover verbatim conserva los defectos: eso es lo que hace que el movimiento sea
-verificable, y es la razón de pasar detectores **después** y no confiar en que
-partir una función los encuentre todos.
-
-Los otros 18 están fuera de bucle, así que el fallo es local a su petición.
-Quedan listados arriba para que quien los toque los lea uno a uno.
+Hay un test que **fija el número en 13** (`tests/test_commit_rollback.py`): si
+sube, alguien ha añadido uno nuevo y se entera al momento.
 
 ### Otros pendientes con riesgo propio
 

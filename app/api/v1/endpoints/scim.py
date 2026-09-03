@@ -207,6 +207,14 @@ def delete_scim_user(
         ))
         db.commit()
     except Exception:  # pragma: no cover — audit best-effort
+        # Deshacer antes de salir: sin esto la sesion se queda en transaccion
+        # abortada y cualquier cosa que la reutilice falla con un error que no
+        # tiene nada que ver con su causa. Auditoria 2026-08, hallazgo 22.
+        #
+        # Que el rastro de auditoria de un BORRADO DE USUARIO sea best-effort es
+        # decision declarada aqui, no un descuido — pero conviene saber que un
+        # borrado puede quedar sin registro.
+        db.rollback()
         import logging
         logging.getLogger(__name__).exception("SCIM delete audit failed")
     return None

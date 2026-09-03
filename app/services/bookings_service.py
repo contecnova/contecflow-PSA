@@ -1563,10 +1563,39 @@ def process_workflow_queue_record(db, workflow_id: str | None = None) -> dict:
                 processed += 1
         except Exception as e:
             logger.exception("Workflow queue item %s processing failed", item.id)
+            # `rollback()` ANTES de escribir el estado de fallo. Si lo que fallo
+            # fue una operacion de base —y procesar un elemento escribe en
+            # base— la sesion queda en transaccion abortada, el `commit()` de
+            # abajo revienta, y el `raise` sube y ABORTA EL BUCLE ENTERO: los
+            # elementos siguientes no se procesan y este se queda en
+            # `processing` para siempre, porque la consulta de pendientes solo
+            # coge `pending`. Un fallo de un elemento atascaba la cola completa.
+            # Auditoria 2026-08, hallazgo 22.
+            db.rollback()
             item.status = "failed" if item.attempts >= _MAX_INTENTOS else "pending"
             item.last_error = str(e)[:500]
             errors += 1
-            db.commit()
+            try:
+                db.commit()
+            except Exception:
+                # Si tampoco se puede anotar el fallo, se deja la sesion limpia
+                # y se sigue con el resto de la cola, que es mejor que perderlos.
+                #
+                # AVISO, y es `error` y no `exception` a proposito porque hace
+                # falta que alguien lo vea: este elemento se queda en
+                # `processing`, y NO HAY NINGUN BARRIDO que rescate ese estado
+                # —comprobado: `"processing"` solo se escribe aqui y nadie lo
+                # consulta—, asi que se queda ahi hasta que alguien lo mueva a
+                # mano. Elegir `processing` en vez de `pending` fue deliberado
+                # (ver el comentario de arriba: evita reintentos infinitos sin
+                # cuenta), pero a esa decision le falta la otra mitad.
+                db.rollback()
+                logger.error(
+                    "elemento %s de la cola de flujos ATASCADO en 'processing': "
+                    "no se pudo registrar su fallo y no hay barrido que lo "
+                    "rescate; requiere intervencion manual",
+                    item.id, exc_info=True,
+                )
 
     return {
         "processed": processed,

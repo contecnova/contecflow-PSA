@@ -671,7 +671,26 @@ def _try_fallback_providers(
                 provider.total_cost_usd += cost
                 result["cost_usd"] = cost
 
-            db.commit()
+            # La llamada YA se ha atendido y el proveedor YA la ha facturado,
+            # asi que la contabilidad va en su propio `try`: si el `commit()` de
+            # estadisticas falla, se deshace y la respuesta se devuelve IGUAL.
+            #
+            # Antes ese `commit()` estaba dentro del `try` de la llamada, de modo
+            # que un fallo de NUESTRA base caia en el `except ... continue` de
+            # abajo: se descartaba una respuesta ya pagada y, peor, la sesion
+            # quedaba envenenada, asi que todos los proveedores siguientes del
+            # bucle fallaban tambien y la funcion acababa devolviendo «todos los
+            # proveedores han fallado» — el diagnostico contrario al real.
+            # Auditoria 2026-08, hallazgo 22.
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
+                _logger.warning(
+                    "no se pudieron guardar las estadisticas del proveedor %s; "
+                    "la respuesta se devuelve igual", provider.name,
+                    exc_info=True,
+                )
             _logger.info(
                 "Fallback AI provider succeeded: %s (%s)",
                 provider.name, provider.provider
@@ -679,6 +698,9 @@ def _try_fallback_providers(
             return provider, result
 
         except Exception as exc:
+            # Solo el fallo de la LLAMADA justifica probar el siguiente
+            # proveedor. El de la contabilidad no llega aqui: lo atrapa el `try`
+            # interior de arriba.
             _logger.debug(
                 "Fallback provider %s failed: %s",
                 provider.name, str(exc)
@@ -825,17 +847,26 @@ def _llamar_con_respaldo(db: Session, p, messages: list, system, model, max_toke
     vacio = {"text": "", "tokens_in": 0, "tokens_out": 0, "model": "unknown"}
 
     if p:
+        # El `try` cubre SOLO la llamada. Antes cubria tambien el `commit()` de
+        # estadisticas, y eso hacia que un fallo de nuestra base marcase
+        # `status = "error"` en un proveedor que HABIA FUNCIONADO —el valor que
+        # lo excluye de futuras selecciones— y volviese a hacer `commit()` sobre
+        # la sesion ya abortada. Auditoria 2026-08, hallazgo 22.
         try:
             result = call_provider(p, messages, system=system,
                                    model=model or p.default_model,
                                    max_tokens=max_tokens)
-            _apuntar_uso_en_el_proveedor(p, result, model)
-            db.commit()
-            return p, result, None
         except Exception as e:
             error_msg = str(e)
             _marcar_proveedor_en_error(p, error_msg)
-            db.commit()
+            try:
+                db.commit()
+            except Exception:
+                # Que no se pueda anotar el error del proveedor no debe tapar el
+                # error del proveedor: se deshace y se sigue al respaldo.
+                db.rollback()
+                _logger.warning("no se pudo marcar el proveedor %s en error",
+                                p.name, exc_info=True)
             respaldo, result = _try_fallback_providers(
                 db, messages, system, max_tokens, is_superadmin, organization_id
             )
@@ -843,6 +874,19 @@ def _llamar_con_respaldo(db: Session, p, messages: list, system, model, max_toke
                 return respaldo, result, None
             # Se conserva el error del primario: es el informativo.
             return None, vacio, error_msg
+
+        # La llamada ya se ha atendido y facturado: la contabilidad no puede
+        # tirar la respuesta.
+        try:
+            _apuntar_uso_en_el_proveedor(p, result, model)
+            db.commit()
+        except Exception:
+            db.rollback()
+            _logger.warning(
+                "no se pudieron guardar las estadisticas del proveedor %s; la "
+                "respuesta se devuelve igual", p.name, exc_info=True,
+            )
+        return p, result, None
 
     respaldo, result = _try_fallback_providers(
         db, messages, system, max_tokens, is_superadmin, organization_id
