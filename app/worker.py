@@ -578,7 +578,10 @@ def generate_retainer_invoices():
         orgs: dict = {}
 
         def _zona_de(proj):
-            from app.models.client import Client
+            # `app.models.client` no existe: el modulo es `clients`, en
+            # plural. Al ser un importe diferido no reventaba al arrancar —
+            # fallaba cuando alguien llamaba a esta funcion. Auditoria 2026-08.
+            from app.models.clients import Client
             from app.models.mfa import Organization
 
             cid = getattr(proj, "client_id", None)
@@ -627,7 +630,8 @@ def generate_retainer_invoices():
                 client_address = getattr(proj, "client_address", None)
                 # Si el proyecto no tiene estos datos, intentar obtenerlos del cliente
                 if not all([client_name, client_email, client_address]) and proj.client_id:
-                    from app.models.client import Client
+                    # Idem que arriba: el modulo es `clients`, en plural.
+                    from app.models.clients import Client
                     client = db.query(Client).filter(Client.id == proj.client_id).first()
                     if client:
                         client_name = client_name or getattr(client, "name", None)
@@ -738,7 +742,12 @@ def run_agent_task(
             t0 = time.time()
             SYSTEM = _build_agent_system_prompt(db, current_user)
 
-            from app.api.v1.endpoints.ai_providers import get_default_provider as _gdp
+            # `get_default_provider` esta en el SERVICIO, no en el endpoint: el
+            # modulo de endpoints no lo define y este import fallaba en cada
+            # ejecucion de agente. De paso desaparece una dependencia del
+            # worker hacia la capa de API, que no deberia existir.
+            # Auditoria 2026-08.
+            from app.services.ai_provider_service import get_default_provider as _gdp
             from app.services.ai_provider_service import call_ai
             active_prov = _gdp(db)
             has_anthropic_tools = bool(

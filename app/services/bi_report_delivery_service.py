@@ -429,51 +429,57 @@ def _send_teams(webhook_url: str, title: str, summary: str, report_url: Optional
 
 def _send_email(recipients: List[str], subject: str, body_html: str, attachment_bytes: Optional[bytes] = None,
                 attachment_filename: Optional[str] = None) -> bool:
-    """Send email using existing email infrastructure."""
+    """Envia el informe por correo, por SMTP directo.
+
+    Auditoria 2026-08. Antes intentaba primero
+    `from app.services.email_service import send_email`, **modulo que no
+    existe**, asi que el `except` saltaba SIEMPRE y registraba
+    «Primary email_service path failed; falling back to direct SMTP» con traza
+    completa **en cada correo enviado**. El envio funcionaba —el respaldo SMTP
+    de abajo es real— pero el log se llenaba de un fallo que no era un fallo, y
+    eso es peor que no registrar nada: entierra los avisos de verdad.
+
+    Retirado el camino primario inexistente. Si algun dia se escribe un
+    `email_service`, este es el sitio donde enchufarlo, y entonces el respaldo
+    SMTP pasa a ser respaldo de verdad.
+    """
     try:
-        from app.services.email_service import send_email  # type: ignore
-        for recipient in recipients:
-            send_email(to=recipient, subject=subject, body_html=body_html)
-        return True
-    except Exception:
-        logger.warning("Primary email_service path failed; falling back to direct SMTP", exc_info=True)
-        try:
-            import smtplib
-            from email.mime.multipart import MIMEMultipart
-            from email.mime.text import MIMEText
-            from email.mime.application import MIMEApplication
-            from app.core.config import settings  # type: ignore
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        from email.mime.application import MIMEApplication
+        from app.core.config import settings  # type: ignore
 
-            smtp_host = getattr(settings, "SMTP_HOST", None)
-            smtp_port = int(getattr(settings, "SMTP_PORT", 587))
-            smtp_user = getattr(settings, "SMTP_USER", None)
-            smtp_pass = getattr(settings, "SMTP_PASSWORD", None)
-            from_addr = getattr(settings, "EMAILS_FROM_EMAIL", smtp_user or "noreply@contecflow.com")
+        smtp_host = getattr(settings, "SMTP_HOST", None)
+        smtp_port = int(getattr(settings, "SMTP_PORT", 587))
+        smtp_user = getattr(settings, "SMTP_USER", None)
+        smtp_pass = getattr(settings, "SMTP_PASSWORD", None)
+        from_addr = getattr(settings, "EMAILS_FROM_EMAIL", smtp_user or "noreply@contecflow.com")
 
-            if not smtp_host:
-                logger.warning("SMTP not configured — email delivery skipped")
-                return False
-
-            msg = MIMEMultipart()
-            msg["From"] = from_addr
-            msg["Subject"] = subject
-            msg.attach(MIMEText(body_html, "html"))
-            if attachment_bytes and attachment_filename:
-                part = MIMEApplication(attachment_bytes)
-                part["Content-Disposition"] = f'attachment; filename="{attachment_filename}"'
-                msg.attach(part)
-
-            with smtplib.SMTP(smtp_host, smtp_port) as smtp:
-                smtp.starttls()
-                if smtp_user and smtp_pass:
-                    smtp.login(smtp_user, smtp_pass)
-                for recipient in recipients:
-                    msg["To"] = recipient
-                    smtp.sendmail(from_addr, recipient, msg.as_string())
-            return True
-        except Exception as exc:
-            logger.error("Email delivery failed: %s", exc)
+        if not smtp_host:
+            logger.warning("SMTP not configured — email delivery skipped")
             return False
+
+        msg = MIMEMultipart()
+        msg["From"] = from_addr
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body_html, "html"))
+        if attachment_bytes and attachment_filename:
+            part = MIMEApplication(attachment_bytes)
+            part["Content-Disposition"] = f'attachment; filename="{attachment_filename}"'
+            msg.attach(part)
+
+        with smtplib.SMTP(smtp_host, smtp_port) as smtp:
+            smtp.starttls()
+            if smtp_user and smtp_pass:
+                smtp.login(smtp_user, smtp_pass)
+            for recipient in recipients:
+                msg["To"] = recipient
+                smtp.sendmail(from_addr, recipient, msg.as_string())
+        return True
+    except Exception as exc:
+        logger.error("Email delivery failed: %s", exc)
+        return False
 
 
 # ── Delivery execution ────────────────────────────────────────────────────────

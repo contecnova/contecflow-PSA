@@ -457,14 +457,28 @@ def _nexus_answer(db: Session, user, query: str) -> tuple[Optional[str], Optiona
             return (top.summary or top.title, f"KB: {top.title}")
     except Exception:
         logger.debug("_nexus_answer: fallo best-effort ignorado", exc_info=True)
-    # Try AI provider next (best-effort)
+    # ── La via de IA del bot, que NO existe ───────────────────────────────
+    #
+    # Auditoria 2026-08. El comentario decia «may not exist» y era exacto, solo
+    # que en el sentido fuerte: `quick_answer` **no esta** en
+    # `ai_chat_service`, que no expone ninguna funcion publica. Comprobado
+    # ejecutando el import. Asi que esta rama nunca ha respondido nada y el bot
+    # cae siempre al resumidor ingenuo de abajo.
+    #
+    # No se implementa aqui: que modelo responde y con que contexto es decision
+    # de producto. Lo que se arregla es que el `except Exception` no distinga
+    # «no esta escrito» de «ha fallado al responder».
     try:
-        from app.services.ai_chat_service import quick_answer  # may not exist
-        ans = quick_answer(query)
-        if ans:
-            return ans, "Nexus IA"
-    except Exception:
-        logger.debug("_nexus_answer: fallo best-effort ignorado", exc_info=True)
+        from app.services.ai_chat_service import quick_answer  # noqa: F401
+    except ImportError:
+        logger.debug("_nexus_answer: quick_answer no implementado")
+    else:
+        try:
+            ans = quick_answer(query)
+            if ans:
+                return ans, "Nexus IA"
+        except Exception:
+            logger.warning("_nexus_answer: quick_answer ha fallado", exc_info=True)
     return None, None
 
 

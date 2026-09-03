@@ -119,13 +119,35 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
         ticket_score = s.HEALTH_DEFAULT_NO_DATA
     components["ticket_resolution"] = {"value": ticket_score, "weight": s.HEALTH_WEIGHT_TICKETS}
 
-    # Portal activity
+    # ── Actividad en el portal ────────────────────────────────────────────────
+    #
+    # Auditoria 2026-08. Este bloque importaba `PortalSession`, una clase que
+    # **no existe en ningun sitio del repo**. El importe estaba dentro del `try`,
+    # asi que el `ImportError` caia en el `except` y este componente valia
+    # **50.0 constante para todos los clientes, siempre**. Uno de los cinco
+    # factores del score compuesto de salud de cliente era un numero fijo.
+    #
+    # El nombre real es `ClientSession`. Y arreglar solo el importe no bastaba:
+    # **`ClientSession.client_id` apunta a `client_users.id`, no a
+    # `clients.id`**, asi que compararlo con el `client_id` de esta funcion —que
+    # es un `Client.id`— habria cambiado «siempre 50» por «siempre 0 sesiones».
+    # La cadena real es `Client.id` <- `ClientUser.client_org_id` <-
+    # `ClientSession.client_id`, y de ahi el `join`.
+    #
+    # El `hasattr(PortalSession, "client_id")` de la version anterior era una
+    # defensa muerta: sobre un modelo declarado siempre es verdadera.
     try:
-        from app.models.client_portal import PortalSession
-        portal_sessions = db.query(PortalSession).filter(
-            PortalSession.client_id == client_id,
-            PortalSession.created_at >= cutoff_tickets,
-        ).count() if hasattr(PortalSession, "client_id") else 0
+        from app.models.client_portal import ClientSession, ClientUser
+
+        portal_sessions = (
+            db.query(ClientSession)
+            .join(ClientUser, ClientUser.id == ClientSession.client_id)
+            .filter(
+                ClientUser.client_org_id == client_id,
+                ClientSession.created_at >= cutoff_tickets,
+            )
+            .count()
+        )
         portal_score = min(100.0, s.HEALTH_PORTAL_BASE_SCORE + (portal_sessions * s.HEALTH_PORTAL_SCORE_PER_SESSION))
     except Exception:
         logger.warning("Fallo calculando score de actividad del portal para cliente %s", client_id, exc_info=True)

@@ -33,7 +33,7 @@ aquí:
 ```bash
 cd "contecflow PSA"
 
-# Suite completa de backend: 3.423 tests recogidos. SIEMPRE con -n auto — en
+# Suite completa de backend: 3.431 tests recogidos. SIEMPRE con -n auto — en
 # serie tarda MAS DE 90 MINUTOS y no cabe en ningun timeout razonable.
 #
 # TIEMPO MEDIDO con -n auto (10 workers): 36-43 MINUTOS (2.148 s y 2.551 s en
@@ -454,6 +454,90 @@ diferido para no crear un ciclo entre el diseñador y el motor.
 **No se ha implementado el ejecutor de `action`**, y es deliberado: qué debe
 hacer ese nodo es una decisión de producto, no un hueco que rellenar. Lo que no
 podía seguir es que se guardara en silencio.
+
+---
+
+## 3.d Doce importes diferidos que apuntaban a cosas que no existen
+
+**Lo más productivo de la auditoría, y salió de un aviso de log de refilón.** Al
+probar el generador de informes programados apareció en la salida:
+
+```
+PostgreSQL utilization fallback failed: cannot import name 'Resource'
+```
+
+Un `import` **dentro de una función** no revienta al arrancar: falla la primera
+vez que alguien la llama. Y si además está dentro de un `try/except`, no falla
+nunca de forma visible — sólo degrada. Esa combinación produjo **doce funciones
+que no podían funcionar**, y varias en completo silencio.
+
+| Sitio | Qué importaba | Efecto real |
+|---|---|---|
+| `olap/query_engine.py:304` | `Resource` de `app.models.resources` — **no existe en el repo** | el **Informe de Utilización salía siempre vacío**: el `ImportError` era la primera línea del `try`, así que ni una consulta llegaba a ejecutarse |
+| `integrations.py:541` | `SlackConfig` de `app.models.slack` — el módulo no existe (está en `mfa`) | `get_slack_webhook_url` devolvía **siempre `None`** y el `except ImportError: return None` lo explicaba como «no configurado». **Las notificaciones de Slack no salían nunca**, con datos válidos sembrados |
+| `integrations.py` | `test_quickbooks_connection` — **nunca se escribió**; su gemela `test_xero_connection` sí | `POST /accounting/qb/test`, «Verificar conexión con QuickBooks», **siempre 500** |
+| `customer_health_service.py:124` | `PortalSession` — **no existe** (el modelo es `ClientSession`) | el componente «actividad en el portal» valía **50,0 constante para todos los clientes**: uno de los cinco factores del score compuesto de salud era un número fijo |
+| `worker.py:581`, `:630` | `app.models.client` — el módulo es `clients`, en plural | fallo en tiempo de llamada |
+| `worker.py:745` | `get_default_provider` del módulo de **endpoints**, que no lo define | el camino de agentes fallaba en cada ejecución. Está en `ai_provider_service`, y de paso desaparece una dependencia worker→API que no debía existir |
+| `capacity_planning_service.py:164`, `sd_reporting_service.py:146` | `app.models.auth` — no existe (es `user`) | dos informes de service desk que **fallaban en cada llamada** |
+| `predictive_observability.py:56` | `Organization` de `enterprise` (está en `mfa`) | la comprobación **anti-enumeración de IDs** lanzaba `ImportError` en vez de validar |
+| `bi_report_delivery_service.py:434` | `app.services.email_service` | el envío **sí funcionaba** por el respaldo SMTP, pero registraba «Primary email_service path failed» con traza completa **en cada correo**. Un aviso que no es un aviso entierra los que sí lo son |
+
+### El arreglo del score de portal tenía una trampa
+
+`PortalSession` era `ClientSession`, pero **cambiar sólo el nombre no bastaba**:
+`ClientSession.client_id` apunta a `client_users.id`, **no** a `clients.id`, y la
+función recibe un `Client.id`. Arreglar sólo el import habría cambiado «siempre
+50» por «siempre 0 sesiones» — igual de falso y más difícil de detectar. La
+cadena real es `Client.id` ← `ClientUser.client_org_id` ← `ClientSession.client_id`,
+y de ahí el `join`.
+
+Y el `hasattr(PortalSession, "client_id")` que había era una defensa muerta:
+sobre un modelo declarado siempre es verdadera.
+
+### El del informe de utilización quitó además una consulta por usuario
+
+La capacidad que buscaba en `Resource` vive en `User.weekly_capacity_hours`, con
+su defecto en `settings.DEFAULT_WEEKLY_CAPACITY_HOURS` — es lo que usan los otros
+cuatro sitios del repo que calculan capacidad. Al leerla en la consulta principal
+desaparece el `db.query(Resource)` **dentro del bucle**: una consulta por usuario.
+También se retira el `40` en duro.
+
+### Tres que NO se implementan, y están registrados
+
+`record_sla_event`, `notify_watchers` y `quick_answer` no existen, y sus
+comentarios decían «if available» / «may not exist» — que se lee como una
+condición de ejecución y era «no está escrito». Consecuencias reales: **el evento
+de cierre de SLA de una auto-resolución nunca se registra**, **a los observadores
+de un ticket nunca se les avisa** de que la IA lo resolvió, y **la vía de IA del
+bot Nexus nunca responde**.
+
+No se implementan porque son decisiones de producto —qué evento de SLA
+corresponde, por qué canal se avisa a un observador, qué modelo responde—. Lo que
+sí se arregla es el disfraz: el comentario dice ahora lo que pasa, y el código
+separa `ImportError` («no está escrito») del fallo de la llamada, para que el día
+que se implementen un error suyo se vea en vez de confundirse con «no
+disponible».
+
+### El detector estuvo mal dos veces antes de servir, y esa es la lección
+
+- **Primera versión:** comparaba los nombres importados contra las clases que
+  cada módulo declara, sacadas por AST. Dio **412 «fallos»**, entre ellos `Money`
+  y `Rate` — que obviamente existen, porque la aplicación arranca. Publicar esa
+  cifra habría sido publicar basura.
+- **Segunda versión:** `hasattr(modulo, nombre)`. Da falsos positivos con
+  **submódulos**: `from app.services import dev_plan_service` funciona aunque
+  `hasattr` sea falso hasta que alguien lo importe. Contó **8 roturas donde había
+  3**.
+- **La que sirve:** `tests/test_importes_diferidos.py` **ejecuta el import**. Es
+  la única comprobación que no se puede equivocar sobre si un import funciona.
+
+El fichero lleva además cuatro tests sobre el propio detector —uno con una rotura
+plantada, otro con el falso positivo del submódulo— porque un estructural cuyo
+detector está roto da luz verde sin mirar. Y la lista de los tres no
+implementados **caduca sola**: si alguien escribe una, su test falla y obliga a
+sacarla, que es cuando el estructural empieza a vigilarla. Sin eso, la lista de
+excepciones se convierte en el sitio donde se esconden los importes rotos nuevos.
 
 ---
 
@@ -1171,7 +1255,7 @@ sesión no queda envenenada más allá del tic.
 Hay un test que **fija el número en 13** (`tests/test_commit_rollback.py`): si
 sube, alguien ha añadido uno nuevo y se entera al momento.
 
-### #32 marca blanca — decisión tomada, cuatro generadores de cinco
+### #32 marca blanca — **cerrado**, los cinco generadores
 
 `OrgBranding` define cinco colores y un nombre por organización y tiene pantalla
 para configurarlos. Sólo lo leían su propio endpoint y el portal de cliente: los
@@ -1245,7 +1329,7 @@ nombre **en una sola consulta**. Dos decisiones anotadas:
 en línea y el mecanismo es otro (los clientes de correo no soportan lo mismo que
 ReportLab). Merece su pieza.
 
-#### Corrección: hay un SEXTO camino, y no está hecho
+#### Corrección: había un SEXTO camino, y ya está hecho
 
 Dije «los cinco generadores están cableados». **Incompleto.** Al comprobar por
 barrido qué generadores de PDF alcanza la capa API apareció
@@ -1267,11 +1351,20 @@ Su rama `custom` cae a `report_pdf.generate_report_pdf`, que **ya acepta
 paleta**, así que ese camino se arregla con un argumento. El resto —su propia
 construcción de historia— necesita pasar la paleta por los 14 ayudantes.
 
-**No se ha hecho en esta tanda a propósito:** la suite ya estaba corriendo sobre
-seis ficheros tocados, y meterlo habría invalidado la verificación. Queda con
-fichero, línea y el trabajo dimensionado, y por eso el #32 sigue en «parcial» en
-vez de darse por cerrado — que es lo que habría hecho si me hubiera creído mi
-propio recuento de cinco.
+**Hecho en la tanda siguiente.** Los tres colores de marca viajan dentro del
+diccionario `styles`, que **todos** los ayudantes reciben ya, así que no hubo que
+pasar la paleta por catorce firmas. `BG_DARK` quedó muerto al sustituirlo y se
+retiró.
+
+Los neutros y los de **estado** se quedan en el fichero, y por razones distintas:
+sus grises difieren en un pelo de los de la paleta compartida (`#1e293b` frente a
+`#1a1a2e`) y unificarlos cambiaría el aspecto de un documento que se manda al
+cliente; y `SUCCESS`, `WARNING` y `DANGER` son estado, no marca — un aviso
+pintado con el color de marca deja de leerse como aviso.
+
+**Y de probar este generador salió el hallazgo de la sección 3.d:** en la salida
+apareció `cannot import name 'Resource'`, que resultó ser el primero de doce
+importes diferidos rotos.
 
 #### Y un defecto que salió de leer el lector de marca que ya existía
 
@@ -1311,7 +1404,7 @@ día divergen, y aquí ya lo habían hecho.
 
 Conviene tenerlo presente al seguir: el fallo dominante de este código **no** es
 código ausente, es **controles escritos, con interfaz, con tests que pasan, y
-conectados a nada**. Trece casos confirmados:
+conectados a nada**. Catorce casos confirmados:
 
 1. `ABACMiddleware` — nunca se ejecutó.
 2. `ABAC_COVERED_PREFIXES` — 45 de 110 prefijos con cero llamadas a
@@ -1349,7 +1442,13 @@ conectados a nada**. Trece casos confirmados:
    costosa del patrón: no es que el control no hiciera nada, es que **lo hacía
    bien y en el sitio equivocado**, y todo el mantenimiento se invirtió ahí.
 
-Los trece comparten mecanismo: **un acceso tolerante (`getattr`/`hasattr` con
+14. **Las notificaciones de Slack** — `get_slack_webhook_url` importaba
+   `SlackConfig` de un modulo inexistente y un `except ImportError: return None`
+   convertia el fallo en «no configurado». Con datos validos sembrados, no
+   salieron nunca. Es la instancia mas pura del patron: el docstring explicaba
+   el silencio como una decision del usuario. Ver la seccion 3.d.
+
+Los catorce comparten mecanismo: **un acceso tolerante (`getattr`/`hasattr` con
 defecto, un `except` que degrada, o un filtro que descarta en silencio)
 convirtiendo un error en un resultado plausible.** Al revisar código nuevo aquí,
 ese es el patrón a buscar.
@@ -1456,15 +1555,14 @@ dos imports relativos pasados a absolutos, para poder cargarla suelta.
 
 ## 7. Orden sugerido para continuar
 
-Quedan **3 de 34** hallazgos en «parcial» (#18 complejidad, #22 acceso a base en
-la capa API y #32 el último generador de marca), y ninguno es un fallo latente: son deuda medida. Nada de lo que
+Quedan **2 de 34** hallazgos en «parcial» (#18 complejidad y #22 acceso a base
+en la capa API), y ninguno es un fallo latente: son deuda medida. Nada de lo que
 queda corrompe datos ni abre un agujero.
 
-**#32, marca blanca: decisión tomada y casi cerrado.** El documento lleva la
-marca del tenant, y cuatro generadores de cinco están cableados. Falta
-`report_pdf_service::build_report_pdf`, el de los informes programados que se
-envían por correo — ya recibe `org_id`, así que es barato. Detalle y dimensión en
-su sección.
+**#32, marca blanca: CERRADO.** El documento lleva la marca del tenant y los
+cinco generadores están cableados, incluido el de los informes programados que se
+envían por correo. Los correos en sí quedan fuera y es scope declarado: son
+plantillas HTML y el mecanismo es otro.
 
 **Corrección a lo que decía la versión anterior de este párrafo.** Decía que
 nada de lo que quedaba abría un agujero. Era verdad de lo *conocido*, y resultó

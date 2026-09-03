@@ -143,7 +143,8 @@ def _sla_compliance_report(db: Session, filters: dict, date_from: str, date_to: 
 
 def _agent_performance_report(db: Session, filters: dict, date_from: str, date_to: str) -> list[dict]:
     from app.models.service_desk import Ticket
-    from app.models.auth import User
+    # `app.models.auth` no existe: `User` esta en `app.models.user`.
+    from app.models.user import User
 
     q = _build_ticket_query(db, filters, date_from, date_to)
     rows = (
