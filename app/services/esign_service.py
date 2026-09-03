@@ -363,7 +363,11 @@ def _read_document_bytes(doc: Document, db: Optional[Session]) -> tuple[bytes, s
         _log.debug("[eSign] S3 read failed, trying local: %s", exc)
 
     # Try local filesystem
-    upload_root = getattr(settings, "UPLOAD_DIR", None) or os.environ.get("UPLOAD_DIR", "uploads")
+    # `UPLOAD_DIR` ya esta declarado en `Settings` con `env="UPLOAD_DIR"` y
+    # defecto "uploads", asi que pydantic lee la variable de entorno por su
+    # cuenta: el `os.environ.get` de respaldo era una segunda fuente para el
+    # mismo ajuste. Auditoria 2026-08.
+    upload_root = settings.UPLOAD_DIR
     local_path = os.path.join(upload_root, file_key.lstrip("/"))
     if os.path.exists(local_path):
         with open(local_path, "rb") as fh:

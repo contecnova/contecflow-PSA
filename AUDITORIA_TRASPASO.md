@@ -33,7 +33,7 @@ aquí:
 ```bash
 cd "contecflow PSA"
 
-# Suite completa de backend: 3.431 tests recogidos. SIEMPRE con -n auto — en
+# Suite completa de backend: 3.457 tests recogidos. SIEMPRE con -n auto — en
 # serie tarda MAS DE 90 MINUTOS y no cabe en ningun timeout razonable.
 #
 # TIEMPO MEDIDO con -n auto (10 workers): 36-43 MINUTOS (2.148 s y 2.551 s en
@@ -538,6 +538,74 @@ detector está roto da luz verde sin mirar. Y la lista de los tres no
 implementados **caduca sola**: si alguien escribe una, su test falla y obliga a
 sacarla, que es cuando el estructural empieza a vigilarla. Sin eso, la lista de
 excepciones se convierte en el sitio donde se esconden los importes rotos nuevos.
+
+---
+
+## 3.e Dieciocho ajustes que el código lee y la configuración no declaraba
+
+Mismo método que la sección 3.d, otra pregunta: **¿hay algún
+`getattr(settings, "X", defecto)` sobre un ajuste que no está declarado?** Uno
+así devuelve **siempre** el defecto: la perilla no se puede tocar ni por `.env`
+ni por variable de entorno, y quien la busque en la configuración no la
+encuentra. Salieron **18**.
+
+### Dos no eran perillas ausentes: eran nombres equivocados con el correcto al lado
+
+| Leía | Existe | Consecuencia |
+|---|---|---|
+| `SMTP_PASSWORD` | **`SMTP_PASS`** | `smtp_pass` era siempre `None`, el `if smtp_user and smtp_pass` siempre falso, y **`server.login()` no se llamaba nunca**: *todos* los correos de notificación de la plataforma salían **sin autenticar**. Contra cualquier servidor que exija autenticación —prácticamente todos— se rechazan y el aviso no llega |
+| `EMAILS_FROM_EMAIL` | **`SMTP_FROM`** | el remitente configurado se ignoraba y se caía a `noreply@…` |
+
+Estaba en **dos** módulos: `notification_service.py:89` —el servicio general de
+avisos, el que usa además el motor de automatizaciones— y
+`bi_report_delivery_service.py:456`.
+
+**Lo que lo delata:** en `notification_service.send_email`, la línea de arriba
+lee **bien** `SMTP_FROM` y la de abajo **mal** `SMTP_PASSWORD`. La misma función
+acierta un nombre y falla el otro. Y el defecto del remitente era además de otro
+producto: `noreply@nexuspm.local`.
+
+### Once declaradas, con el valor exacto que ya tenían
+
+| Ajuste | Estaba fijo en | Por qué importa que se pueda tocar |
+|---|---|---|
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | `None` | **el envío de SMS no se podía configurar de ninguna manera** |
+| `CLIENT_TOKEN_EXPIRE_HOURS`, `PORTAL_SHARE_LINK_EXPIRE_HOURS` | 72 h | caducidades de **seguridad**, sin forma de bajarlas |
+| `PBKDF2_ITERATIONS` | 260 000 | parámetro de seguridad que hay que poder **subir** con el tiempo sin tocar código |
+| `AI_REVENUE_HOURLY_RATE_FALLBACK` | 85,0 | una tarifa **de negocio** escrita en duro |
+| `WEBHOOK_CB_THRESHOLD` | 5 | umbral del cortacircuitos de webhooks |
+| `MAX_APPS_PER_USER` | 10 | cuota del portal de desarrollador |
+| `UPLOAD_DIR` | `uploads` | directorio de subidas |
+| `JWT_ALGORITHM` | HS256 | correcto con clave simétrica; se declara para que esté en un solo sitio |
+
+Cada una lleva **exactamente el valor que devolvía su `getattr`**, comprobado una
+a una, así que declararlas **no cambia ningún comportamiento** — lo que cambia es
+que ahora existen. Están en `app/core/config.py` **y** en `.env.example`, cada
+una con su sección y el motivo escrito, y cero claves duplicadas (comprobado).
+
+`UPLOAD_DIR` tenía además `getattr(settings, …) or os.environ.get("UPLOAD_DIR", "uploads")`:
+**dos fuentes para el mismo ajuste**. Ahora pydantic lee el entorno por su cuenta
+y la lectura es una.
+
+### Cinco eran ramas muertas, y se quitan en vez de crear la perilla
+
+En `db/seed_parts/core.py`: `NUMBERING_SEQUENCES`, `TASK_TYPES`,
+`ALERT_CONFIGS`, `VACATION_USERS` y `CLIENTS_DATA` se leían con
+`settings.X if hasattr(settings, "X") else [...]`. Son **datos de demostración**,
+no configuración: declarar un ajuste para ellos sería peor que tenerlos en el
+seed. Retirada la rama, que nunca se tomaba.
+
+### El guardián
+
+`tests/test_ajustes_declarados.py`, **26 tests**. El estructural exige que todo
+ajuste leído con `getattr`/`hasattr` esté declarado; el resto fija los dos
+nombres malos —para que no vuelvan— y los once defectos, para que cambiar uno
+sea una decisión y no un efecto colateral de haberlos movido.
+
+Y el test de «ahora se pueden configurar» **pone la variable de entorno de
+verdad** y reconstruye `Settings`. Mi primera versión tenía un
+`assert … or True`: pasaba siempre, o sea que no probaba nada. Un test que no
+puede fallar es peor que no tener test, porque ocupa el sitio de uno que sí.
 
 ---
 
@@ -1404,7 +1472,7 @@ día divergen, y aquí ya lo habían hecho.
 
 Conviene tenerlo presente al seguir: el fallo dominante de este código **no** es
 código ausente, es **controles escritos, con interfaz, con tests que pasan, y
-conectados a nada**. Catorce casos confirmados:
+conectados a nada**. Quince casos confirmados:
 
 1. `ABACMiddleware` — nunca se ejecutó.
 2. `ABAC_COVERED_PREFIXES` — 45 de 110 prefijos con cero llamadas a
@@ -1448,7 +1516,13 @@ conectados a nada**. Catorce casos confirmados:
    salieron nunca. Es la instancia mas pura del patron: el docstring explicaba
    el silencio como una decision del usuario. Ver la seccion 3.d.
 
-Los catorce comparten mecanismo: **un acceso tolerante (`getattr`/`hasattr` con
+15. **La autenticación SMTP de todos los correos** — el código leía
+   `SMTP_PASSWORD` y el ajuste es `SMTP_PASS`, así que `server.login()` no se
+   llamaba nunca. No es un control desconectado por un `getattr` tolerante sino
+   por un **nombre equivocado con el correcto al lado**, y el efecto es el
+   mismo: la credencial configurada no se usaba y nada lo decía. Ver 3.e.
+
+Los quince comparten mecanismo: **un acceso tolerante (`getattr`/`hasattr` con
 defecto, un `except` que degrada, o un filtro que descarta en silencio)
 convirtiendo un error en un resultado plausible.** Al revisar código nuevo aquí,
 ese es el patrón a buscar.

@@ -83,10 +83,22 @@ class NotificationService:
             )
             return False
 
-        from_addr = from_addr or getattr(settings, "SMTP_FROM", "noreply@nexuspm.local")
+        # Auditoria 2026-08. `SMTP_PASSWORD` NO EXISTE en `Settings`: el ajuste
+        # se llama `SMTP_PASS`. Asi que `smtp_pass` era siempre None, el
+        # `if smtp_user and smtp_pass` de abajo siempre falso, y
+        # **`server.login()` no se llamaba nunca**: TODOS los correos de
+        # notificacion de la plataforma salian sin autenticar. Contra cualquier
+        # servidor que exija autenticacion —o sea, practicamente todos— el
+        # correo se rechaza y el aviso no llega.
+        #
+        # Lo que lo delata: la linea de arriba lee bien `SMTP_FROM`. La misma
+        # funcion acertaba un nombre y fallaba el otro.
+        #
+        # El defecto por defecto tambien era de otro producto: `nexuspm.local`.
+        from_addr = from_addr or getattr(settings, "SMTP_FROM", None) or settings.NOTIFICATION_EMAIL_FROM
         smtp_port = getattr(settings, "SMTP_PORT", 587)
         smtp_user = getattr(settings, "SMTP_USER", None)
-        smtp_pass = getattr(settings, "SMTP_PASSWORD", None)
+        smtp_pass = getattr(settings, "SMTP_PASS", None)
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject

@@ -453,8 +453,14 @@ def _send_email(recipients: List[str], subject: str, body_html: str, attachment_
         smtp_host = getattr(settings, "SMTP_HOST", None)
         smtp_port = int(getattr(settings, "SMTP_PORT", 587))
         smtp_user = getattr(settings, "SMTP_USER", None)
-        smtp_pass = getattr(settings, "SMTP_PASSWORD", None)
-        from_addr = getattr(settings, "EMAILS_FROM_EMAIL", smtp_user or "noreply@contecflow.com")
+        # Auditoria 2026-08. Dos nombres de ajuste que NO existen, con el
+        # correcto al lado: el ajuste es `SMTP_PASS`, no `SMTP_PASSWORD`, y el
+        # remitente es `SMTP_FROM`, no `EMAILS_FROM_EMAIL`. Con los nombres
+        # malos, `smtp_pass` era siempre None y **`smtp.login()` no se llamaba
+        # nunca**, y el remitente configurado se ignoraba.
+        smtp_pass = getattr(settings, "SMTP_PASS", None)
+        from_addr = (getattr(settings, "SMTP_FROM", None) or smtp_user
+                     or settings.NOTIFICATION_EMAIL_FROM)
 
         if not smtp_host:
             logger.warning("SMTP not configured — email delivery skipped")

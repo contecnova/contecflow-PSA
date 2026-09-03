@@ -223,7 +223,8 @@ def _sembrar_secuencias_de_numeracion(db):
     """Las secuencias de numeracion de cada entidad."""
     from app.models.advanced_config import NumberingSequence
 
-    NUMBERING_SEQUENCES = settings.NUMBERING_SEQUENCES if hasattr(settings, "NUMBERING_SEQUENCES") else [
+    # Idem: rama muerta, datos de demostracion.
+    NUMBERING_SEQUENCES = [
         ("project","PRJ",4),("task","TSK",4),("contract","CNT",4),
         ("opportunity","OPP",4),("risk","RSK",4),
         ("change_request","CR",4),("deliverable","DEL",4)
@@ -237,7 +238,8 @@ def _sembrar_tipos_de_tarea(db):
     """Los tipos de tarea con su color e icono."""
     from app.models.advanced_config import TaskType
 
-    TASK_TYPES = settings.TASK_TYPES if hasattr(settings, "TASK_TYPES") else [
+    # Idem: rama muerta, datos de demostracion.
+    TASK_TYPES = [
         ("Feature","#7c3aed","✦"),("Bug","#ff4757","⚠"),
         ("Improvement","#00d4ff","↑"),("Documentation","#ffb800","📄"),
         ("Research","#00c896","🔍"),("DevOps","#ff6b35","⚙")
@@ -251,7 +253,12 @@ def _sembrar_configuracion_de_alertas(db):
     """Umbrales de las alertas."""
     from app.models.advanced_config import AlertConfig
 
-    ALERT_CONFIGS = settings.ALERT_CONFIGS if hasattr(settings, "ALERT_CONFIGS") else [
+    # Auditoria 2026-08: la rama `settings.X if hasattr(...)` estaba MUERTA —
+    # ese ajuste no se declara en `Settings`, asi que `hasattr` era siempre
+    # falso—. Son datos de demostracion, no configuracion: declarar un ajuste
+    # para ellos seria peor que tenerlos aqui, asi que se quita la rama en vez
+    # de crear la perilla.
+    ALERT_CONFIGS = [
         ("budget_alert","Alerta presupuesto >85%",85.0),
         ("overload_alert","Sobrecarga equipo >100%",100.0),
         ("deadline_alert","Proyecto vence en 7 dias",7.0)
@@ -274,7 +281,9 @@ def _sembrar_politica_de_vacaciones(db, users):
     vp = db.query(VacationPolicy).first()
 
     # Fields: user_id, year, policy_id, days_entitled, days_taken, days_pending
-    for uname in getattr(settings, "VACATION_USERS", ["ana.torres","luis.vega","marta.gil","carlos.ruiz","sara.lope","diego.mora","elena.pardo"]):
+    # Idem: `VACATION_USERS` no se declara; el `getattr` daba siempre esta lista.
+    for uname in ["ana.torres", "luis.vega", "marta.gil", "carlos.ruiz",
+                  "sara.lope", "diego.mora", "elena.pardo"]:
         u = users.get(uname)
         if u and not db.query(UserVacationBalance).filter(UserVacationBalance.user_id==u.id).first():
             days_taken_val = random.choice([0,2,3,5])
@@ -299,7 +308,8 @@ def _sembrar_clientes(db, users):
             if "account_manager_username" in c:
                 c["account_manager_id"] = users.get(c["account_manager_username"]).id if users.get(c["account_manager_username"]) else None
     else:
-        clients_data = getattr(settings, "CLIENTS_DATA", [
+        # Idem: `CLIENTS_DATA` no se declara; el `getattr` daba siempre esta lista.
+        clients_data = [
             dict(name="Acme Industries SA",  short_name="Acme",       industry=ClientIndustry.technology,    status=ClientStatus.active,
                 contact_name="Pedro Garcia",    contact_email="pedro.garcia@acme.com",   contact_phone="+34 91 100 2000",
                 contact_role="Director de Tecnologia",  city="Madrid",    country="ES",
@@ -340,7 +350,7 @@ def _sembrar_clientes(db, users):
                 contact_role="Gerente",         city="Madrid",    country="ES",
                 payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
                 account_manager_id=users["carlos.ruiz"].id),
-        ])
+        ]
     clients = {}
     client_columns = set(Client.__table__.columns.keys())
     for cd in clients_data:
