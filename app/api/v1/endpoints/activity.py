@@ -63,6 +63,27 @@ router = APIRouter()
 # 1. ACTIVITY FEED
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Auditoria 2026-08. Esta ruta estaba DESPUES de
+# `/activity/{entity_type}/{entity_id}`, que la tapaba con
+# `entity_type="project"`. Y los dos manejadores NO son equivalentes: el
+# generico devuelve los eventos de una entidad y este el feed AGREGADO
+# —eventos del proyecto **mas todas sus tareas**, con otro tope de limite—.
+# Asi que el feed del proyecto salia sin las tareas, sin ningun error.
+#
+# Va antes porque en FastAPI gana la primera ruta que encaja: los segmentos
+# literales tienen que declararse antes que los `{parametro}` de la misma
+# posicion.
+@router.get("/activity/project/{project_id}", summary="Feed de actividad completo del proyecto (tareas + tickets)", tags=["Activity Feed"])
+def get_project_activity(
+    project_id: str,
+    limit: int = Query(100, le=500),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Aggregated feed: project events + all tasks of the project."""
+    return APIListResponse.ok(items=project_activity_payload(db, project_id, limit))
+
+
 @router.get("/activity/{entity_type}/{entity_id}", summary="Feed de actividad de una entidad", tags=["Activity Feed"])
 def get_activity_feed(
     entity_type: str,
@@ -73,17 +94,6 @@ def get_activity_feed(
     _: User = Depends(get_current_user),
 ):
     return APIListResponse.ok(items=activity_feed_payload(db, entity_type, entity_id, limit, before))
-
-
-@router.get("/activity/project/{project_id}", summary="Feed de actividad completo del proyecto (tareas + tickets)", tags=["Activity Feed"])
-def get_project_activity(
-    project_id: str,
-    limit: int = Query(100, le=500),
-    db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
-):
-    """Aggregated feed: project events + all tasks of the project."""
-    return APIListResponse.ok(items=project_activity_payload(db, project_id, limit))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

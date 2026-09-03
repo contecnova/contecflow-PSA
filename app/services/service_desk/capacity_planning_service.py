@@ -161,7 +161,9 @@ def predict_agent_load(db: Session, org_id: str, days_ahead: int = 14) -> dict:
     agent_counts = _get_agent_ticket_counts(db, days=30)
 
     # Enrich with user names
-    from app.models.auth import User
+    # `app.models.auth` no existe: `User` esta en `app.models.user`. Importe
+    # diferido, asi que esta funcion fallaba en CADA llamada. Auditoria 2026-08.
+    from app.models.user import User
     user_ids = list(agent_counts.keys())
     users = {str(u.id): getattr(u, "full_name", u.email) for u in db.query(User).filter(User.id.in_(user_ids)).all()}
 

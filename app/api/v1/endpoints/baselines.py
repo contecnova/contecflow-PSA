@@ -1,3 +1,8 @@
+# Auditoría 2026-08 (hallazgo 22). Este módulo estaba en
+# `app/api/v1/endpoints/v239/`, un directorio nombrado por número de versión. El
+# fichero ya se llamaba por su dominio; lo que agrupaba por versión era la
+# carpeta. Las rutas no han cambiado: el prefijo lo pone el registro en
+# `routers/`, no la ruta del fichero.
 from __future__ import annotations
 
 import json

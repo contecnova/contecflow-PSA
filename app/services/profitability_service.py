@@ -4,6 +4,7 @@ All db.query/add/commit/delete/flush calls live here; the router stays free of O
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
@@ -60,7 +61,231 @@ def get_fx_rate(
     return rate
 
 
-# ── Profitability calculation (pure after DB fetch) ────────────────────────────
+# ── Cuenta de resultados de un proyecto ──────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `calc_project_profitability` era complejidad
+# 23 y devuelve 38 cifras de dinero. Se ha partido en las fases que ya tenia
+# dentro, cada una con nombre:
+#
+#   1. totales de imputacion, convertidos a la moneda de la organizacion
+#   2. ingreso facturable (por tarifa/hora o por hitos facturados)
+#   3. progreso, ponderado por estado de tarea
+#   4. coste previsto
+#   5. porcentaje planificado por calendario
+#   6. indicadores EVM (PV, EV, AC, CPI, SPI, EAC, ETC, VAC, CV, SV)
+#   7. bandera de riesgo
+#
+# La aritmetica es la misma linea por linea. La red es
+# `tests/test_profitability_pnl.py`, donde las cifras primarias estan calculadas
+# a mano y las derivadas se comprueban contra las identidades EVM estandar
+# (CPI = EV/AC, EAC = AC + (BAC-EV)/CPI, ETC = EAC-AC, VAC = BAC-EAC, CV = EV-AC,
+# SV = EV-PV) — que es lo que caza un refactor que intercambie operandos.
+
+
+# El peso con el que cada estado de tarea cuenta hacia el progreso. Estaba como
+# cadena de `elif`; los siete estados de `TaskStatus` estan aqui, y el test
+# `test_la_tabla_de_pesos_cubre_todos_los_estados` lo comprueba para que un
+# estado nuevo no entre valiendo cero sin que nadie lo decida.
+_PESO_DE_PROGRESO = {
+    TaskStatus.done: 1.0,
+    TaskStatus.in_review: 0.8,
+    TaskStatus.in_progress: 0.5,
+    TaskStatus.todo: 0.0,
+    TaskStatus.backlog: 0.0,
+    TaskStatus.blocked: 0.0,
+    TaskStatus.cancelled: 0.0,
+}
+
+
+def _totales_de_imputacion(
+    project: Project,
+    db: Session,
+    imputation_totals: Optional[dict],
+    project_currency: str,
+    org_currency: str,
+) -> tuple[float, float, float]:
+    """Horas totales, horas facturables y coste interno en moneda de la organizacion.
+
+    Se recalcula desde las imputaciones —en vez de usar los totales que llegan
+    ya sumados— cuando no llegan, o cuando la moneda del proyecto no es la de la
+    organizacion: en ese caso los totales precalculados vendrian sin convertir y
+    el coste saldria en la moneda equivocada, que es un error silencioso de los
+    caros.
+    """
+    if imputation_totals is not None and project_currency == org_currency:
+        return (
+            float(imputation_totals.get("total_hours") or 0),
+            float(imputation_totals.get("billable_hours") or 0),
+            float(imputation_totals.get("internal_cost") or 0),
+        )
+
+    # Cache local a la llamada: nunca compartida entre peticiones concurrentes.
+    _local_fx_cache: dict = {}
+    imps = get_project_imputations(db, project.id)
+    total_hours = sum(i.hours for i in imps)
+    billable_hours = sum(i.hours for i in imps if i.is_billable)
+
+    # Se cargan los usuarios de golpe para poder leer su moneda al convertir.
+    user_ids = {i.user_id for i in imps if i.user_id}
+    if user_ids:
+        user_currency_map = {
+            u.id: (getattr(u, "currency", None) or org_currency)
+            for u in db.query(User).filter(User.id.in_(user_ids)).all()
+        }
+    else:
+        user_currency_map = {}
+
+    internal_cost = 0.0
+    for i in imps:
+        raw_cost = i.cost_amount or 0.0
+        if raw_cost:
+            user_currency = user_currency_map.get(i.user_id, org_currency) or org_currency
+            if user_currency != org_currency:
+                fx = get_fx_rate(db, user_currency, org_currency, i.date, _cache=_local_fx_cache)
+                raw_cost = raw_cost * fx
+            elif project_currency != org_currency:
+                # Respaldo: se convierte por la moneda del proyecto cuando no se
+                # conoce la del usuario.
+                fx = get_fx_rate(db, project_currency, org_currency, i.date, _cache=_local_fx_cache)
+                raw_cost = raw_cost * fx
+        internal_cost += raw_cost
+
+    return total_hours, billable_hours, internal_cost
+
+
+def _ingreso_facturable(
+    project: Project,
+    db: Session,
+    billable_hours: float,
+    billed_milestones_total: Optional[float],
+) -> float:
+    """Ingreso reconocido: por tarifa/hora, o por hitos facturados.
+
+    El orden importa y es el original: si el proyecto tiene tarifa por hora y
+    horas facturables, manda la tarifa. Los hitos solo entran en los proyectos a
+    precio cerrado (`contract_amount`).
+    """
+    if project.billing_rate and billable_hours:
+        return project.billing_rate * billable_hours
+    if project.contract_amount:
+        if billed_milestones_total is None:
+            milestones = get_billed_milestones(db, project.id)
+            return sum(m.billing_amount or 0 for m in milestones)
+        return float(billed_milestones_total or 0)
+    return 0
+
+
+def _progreso_por_tareas(project: Project) -> float:
+    """Progreso en porcentaje, ponderando cada tarea por su estado.
+
+    Sin tareas devuelve 0: no hay de donde deducir avance. Eso arrastra al EVM
+    —EV sale 0 y con el CPI y SPI— y es correcto, porque un proyecto sin tareas
+    no tiene valor ganado que medir.
+    """
+    tasks = project.tasks or []
+    if not tasks:
+        return 0
+    ponderado = sum(_PESO_DE_PROGRESO.get(t.status, 0.0) for t in tasks)
+    return (ponderado / len(tasks)) * 100
+
+
+def _coste_previsto(
+    internal_cost: float, progress: float, total_hours: float, budget_hours
+) -> float:
+    """Coste total previsto al cierre.
+
+    Dos caminos, y el umbral del 5 % de progreso no es arbitrario: extrapolar
+    linealmente desde un avance minimo multiplica el coste por veinte o mas. Por
+    debajo de ahi se extrapola por horas presupuestadas, que es mas estable.
+    """
+    if progress >= 5.0:
+        remaining_pct = 100 - progress
+        return round(internal_cost + (internal_cost * remaining_pct / progress), 2)
+    if total_hours > 0 and budget_hours:
+        return round((internal_cost / total_hours) * budget_hours, 2)
+    return 0
+
+
+def _porcentaje_planificado(project: Project, hoy: date) -> Optional[float]:
+    """Que porcentaje del calendario deberia estar consumido hoy.
+
+    Devuelve None cuando el proyecto no tiene fechas utilizables. Ese None se
+    propaga a PV, SPI y SV, y el resultado lo marca con `evm_no_schedule`: es la
+    diferencia entre «va en plazo» y «no se puede saber», y mezclarlas daria un
+    SPI inventado.
+    """
+    if not (project.start_date and project.end_date_planned
+            and project.end_date_planned > project.start_date):
+        return None
+    total_days = (project.end_date_planned - project.start_date).days
+    elapsed_days = max(0, (hoy - project.start_date).days)
+    return min(100, (elapsed_days / total_days) * 100)
+
+
+@dataclass(slots=True)
+class _IndicadoresEVM:
+    """Los indicadores de valor ganado. `pv`, `spi` y `sv` son None sin calendario."""
+
+    pv: Optional[float]
+    ev: float
+    ac: float
+    cpi: Optional[float]
+    spi: Optional[float]
+    eac: float
+    etc: float
+    vac: float
+    cv: float
+    sv: Optional[float]
+    bac: float
+
+
+def _indicadores_evm(
+    project: Project,
+    internal_cost: float,
+    progress: float,
+    planned_pct: Optional[float],
+    forecast_cost: float,
+) -> _IndicadoresEVM:
+    """Calcula los indicadores EVM segun las formulas estandar."""
+    pv = round((project.budget_amount or 0) * planned_pct / 100, 2) if planned_pct is not None else None
+    ev = round((project.budget_amount or 0) * progress / 100, 2) if progress > 0 else 0
+    ac = round(internal_cost, 2)
+
+    cpi = round(ev / ac, 3) if ac > 0 else None
+    spi = round(ev / pv, 3) if (pv is not None and pv > 0) else None
+
+    bac = project.budget_amount or forecast_cost or 0
+    if cpi and cpi > 0:
+        eac = round(ac + (bac - ev) / cpi, 2)
+    elif progress >= 1.0:
+        # Sin CPI (coste real cero) pero con avance: se extrapola por progreso.
+        eac = round(ac / (progress / 100), 2)
+    else:
+        eac = bac
+
+    return _IndicadoresEVM(
+        pv=pv, ev=ev, ac=ac, cpi=cpi, spi=spi, eac=eac,
+        etc=round(max(eac - ac, 0), 2),
+        vac=round(bac - eac, 2),
+        cv=round(ev - ac, 2),
+        sv=round(ev - pv, 2) if pv is not None else None,
+        bac=bac,
+    )
+
+
+def _bandera_de_riesgo(cpi: Optional[float], margen_al_cierre: float) -> str:
+    """Semaforo del proyecto: critico, aviso u ok.
+
+    Un CPI por debajo de 0,8 o un margen previsto negativo son criticos. Ojo con
+    el `cpi and`: sin coste real el CPI es None y no dispara nada, asi que un
+    proyecto sin imputaciones nunca sale critico por CPI — solo por margen.
+    """
+    if (cpi and cpi < 0.8) or margen_al_cierre < 0:
+        return "critical"
+    if (cpi and cpi < 0.95) or margen_al_cierre < 10:
+        return "warning"
+    return "ok"
+
 
 def calc_project_profitability(
     project: Project,
@@ -73,53 +298,15 @@ def calc_project_profitability(
     Costs are normalised to *settings.DEFAULT_CURRENCY* using the exchange rate
     effective on the imputation date.
     """
-    # Local cache: isolated per call, no shared mutable state between concurrent requests.
-    _local_fx_cache: dict = {}
-
     org_currency = settings.DEFAULT_CURRENCY
     project_currency = getattr(project, "currency", org_currency) or org_currency
 
-    if imputation_totals is None or project_currency != org_currency:
-        imps = get_project_imputations(db, project.id)
-        total_hours = sum(i.hours for i in imps)
-        billable_hours = sum(i.hours for i in imps if i.is_billable)
-        # Bulk-load users so we can read their currency for FX conversion
-        user_ids = {i.user_id for i in imps if i.user_id}
-        if user_ids:
-            user_currency_map = {
-                u.id: (getattr(u, "currency", None) or org_currency)
-                for u in db.query(User).filter(User.id.in_(user_ids)).all()
-            }
-        else:
-            user_currency_map = {}
-        internal_cost = 0.0
-        for i in imps:
-            raw_cost = i.cost_amount or 0.0
-            if raw_cost:
-                # Convert from the user's native currency to the org's default currency
-                user_currency = user_currency_map.get(i.user_id, org_currency) or org_currency
-                if user_currency != org_currency:
-                    fx = get_fx_rate(db, user_currency, org_currency, i.date, _cache=_local_fx_cache)
-                    raw_cost = raw_cost * fx
-                elif project_currency != org_currency:
-                    # Fallback: convert based on project currency when user currency is unknown
-                    fx = get_fx_rate(db, project_currency, org_currency, i.date, _cache=_local_fx_cache)
-                    raw_cost = raw_cost * fx
-            internal_cost += raw_cost
-    else:
-        total_hours = float(imputation_totals.get("total_hours") or 0)
-        billable_hours = float(imputation_totals.get("billable_hours") or 0)
-        internal_cost = float(imputation_totals.get("internal_cost") or 0)
-
-    billing_revenue = 0
-    if project.billing_rate and billable_hours:
-        billing_revenue = project.billing_rate * billable_hours
-    elif project.contract_amount:
-        if billed_milestones_total is None:
-            milestones = get_billed_milestones(db, project.id)
-            billing_revenue = sum(m.billing_amount or 0 for m in milestones)
-        else:
-            billing_revenue = float(billed_milestones_total or 0)
+    total_hours, billable_hours, internal_cost = _totales_de_imputacion(
+        project, db, imputation_totals, project_currency, org_currency
+    )
+    billing_revenue = _ingreso_facturable(
+        project, db, billable_hours, billed_milestones_total
+    )
 
     gross_margin = billing_revenue - internal_cost
     margin_pct = (gross_margin / billing_revenue * 100) if billing_revenue > 0 else 0
@@ -128,65 +315,16 @@ def calc_project_profitability(
     if project.budget_amount and project.budget_amount > 0:
         budget_used_pct = (internal_cost / project.budget_amount) * 100
 
-    tasks = project.tasks if hasattr(project, "tasks") else []
-    progress = 0
-    if tasks:
-        weighted_done = 0.0
-        for t in tasks:
-            if t.status == TaskStatus.done:
-                weighted_done += 1.0
-            elif t.status == TaskStatus.in_progress:
-                weighted_done += 0.5
-            elif t.status == TaskStatus.in_review:
-                weighted_done += 0.8
-            elif t.status in [TaskStatus.todo, TaskStatus.backlog, TaskStatus.blocked, TaskStatus.cancelled]:
-                weighted_done += 0.0
-        progress = (weighted_done / len(tasks)) * 100 if tasks else 0
-
-    forecast_cost = 0
-    if progress >= 5.0:
-        remaining_pct = 100 - progress
-        forecast_cost = round(internal_cost + (internal_cost * remaining_pct / progress), 2)
-    elif total_hours > 0 and project.budget_hours:
-        forecast_cost = round((internal_cost / total_hours) * project.budget_hours, 2)
-
-    today = timeutil.today()
-    if project.start_date and project.end_date_planned and project.end_date_planned > project.start_date:
-        total_days = (project.end_date_planned - project.start_date).days
-        elapsed_days = max(0, (today - project.start_date).days)
-        planned_pct = min(100, (elapsed_days / total_days) * 100)
-    else:
-        planned_pct = None
-
-    pv = round((project.budget_amount or 0) * planned_pct / 100, 2) if planned_pct is not None else None
-    ev = round((project.budget_amount or 0) * progress / 100, 2) if progress > 0 else 0
-    ac = round(internal_cost, 2)
-
-    cpi = round(ev / ac, 3) if ac > 0 else None
-    spi = round(ev / pv, 3) if (pv is not None and pv > 0) else None
-
-    budget_at_completion = project.budget_amount or forecast_cost or 0
-    if cpi and cpi > 0:
-        eac = round(ac + (budget_at_completion - ev) / cpi, 2)
-    elif progress >= 1.0:
-        eac = round(ac / (progress / 100), 2)
-    else:
-        eac = budget_at_completion
-
-    etc = round(max(eac - ac, 0), 2)
-    vac = round(budget_at_completion - eac, 2)
-    cv = round(ev - ac, 2)
-    sv = round(ev - pv, 2) if pv is not None else None
+    progress = _progreso_por_tareas(project)
+    forecast_cost = _coste_previsto(
+        internal_cost, progress, total_hours, project.budget_hours
+    )
+    planned_pct = _porcentaje_planificado(project, timeutil.today())
+    evm = _indicadores_evm(project, internal_cost, progress, planned_pct, forecast_cost)
 
     margin_at_completion = 0
-    if billing_revenue > 0 and eac > 0:
-        margin_at_completion = round((billing_revenue - eac) / billing_revenue * 100, 1)
-
-    risk_flag = (
-        "critical" if (cpi and cpi < 0.8) or margin_at_completion < 0 else
-        "warning" if (cpi and cpi < 0.95) or margin_at_completion < 10 else
-        "ok"
-    )
+    if billing_revenue > 0 and evm.eac > 0:
+        margin_at_completion = round((billing_revenue - evm.eac) / billing_revenue * 100, 1)
 
     return {
         "project_id": project.id,
@@ -214,19 +352,19 @@ def calc_project_profitability(
         "billing_rate": project.billing_rate,
         "avg_cost_rate": round(internal_cost / total_hours, 2) if total_hours > 0 else 0,
         "progress_pct": round(progress, 1),
-        "pv": pv,
-        "ev": ev,
-        "ac": ac,
-        "cpi": cpi,
-        "spi": spi,
-        "cv": cv,
-        "sv": sv,
+        "pv": evm.pv,
+        "ev": evm.ev,
+        "ac": evm.ac,
+        "cpi": evm.cpi,
+        "spi": evm.spi,
+        "cv": evm.cv,
+        "sv": evm.sv,
         "evm_no_schedule": planned_pct is None,
-        "eac": eac,
-        "etc": etc,
-        "vac": vac,
+        "eac": evm.eac,
+        "etc": evm.etc,
+        "vac": evm.vac,
         "margin_at_completion": margin_at_completion,
-        "risk_flag": risk_flag,
+        "risk_flag": _bandera_de_riesgo(evm.cpi, margin_at_completion),
     }
 
 

@@ -367,59 +367,102 @@ def run_auto_resolution_job(
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
 
-    # Run job
-    sync_started = datetime.now(timezone.utc)
-    _set_runtime_state(
-        db,
-        {
-            "running": True,
-            "status": "running",
-            "last_job_id": None,
-            "started_at": sync_started.isoformat(),
-            "completed_at": None,
-            "duration_ms": None,
-            "stats": None,
-            "error": None,
-        },
-    )
-    db.commit()
+    # ── Camino sincrono ─────────────────────────────────────────────────────
+    #
+    # Auditoria 2026-08 (hallazgo 22). Dos cosas que este bloque no hacia y el
+    # camino asincrono de arriba SI hace. La señal fue la asimetria: dos
+    # caminos para el mismo trabajo, uno correcto y el otro no.
+    #
+    # 1. El guardia `already_running` protegia SOLO el camino asincrono. El lock
+    #    se toma en la rama `run_async=True` y se libera en su `finally`; esta
+    #    rama no lo tocaba, asi que dos llamadas con `run_async=False` podian
+    #    solaparse entre si y con una asincrona ya en cola. El trabajo resuelve
+    #    tickets automaticamente: solapar dos pasadas puede resolver el mismo
+    #    ticket dos veces.
+    #
+    # 2. El `except` escribia el registro de fallo y hacia `commit()` SIN
+    #    `rollback()` antes. Si el fallo original era de base —y lo probable es
+    #    que lo sea, porque el trabajo escribe en base— la sesion queda en
+    #    transaccion abortada: el registro del fallo no se escribia nunca, el
+    #    panel se quedaba diciendo «running» para siempre, y el error real
+    #    quedaba tapado por un `PendingRollbackError`.
+    if not _AUTO_RES_JOB_LOCK.acquire(blocking=False):
+        return APIResponse.ok(data={
+            "status": "already_running",
+            "message": "Auto-resolution job is already running",
+            "runtime": _get_runtime_state(db),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
 
     try:
-        stats = run_daily_auto_resolution_job(db, limit=safe_limit)
-        sync_finished = datetime.now(timezone.utc)
-        duration_ms = int((sync_finished - sync_started).total_seconds() * 1000)
-        sync_record = {
-            "status": "completed",
-            "started_at": sync_started.isoformat(),
-            "completed_at": sync_finished.isoformat(),
-            "duration_ms": duration_ms,
-            "stats": stats,
-            "error": None,
-        }
-        _set_runtime_state(db, {"running": False, "last_job_id": None, **sync_record})
-        _append_job_history(db, sync_record)
+        sync_started = datetime.now(timezone.utc)
+        _set_runtime_state(
+            db,
+            {
+                "running": True,
+                "status": "running",
+                "last_job_id": None,
+                "started_at": sync_started.isoformat(),
+                "completed_at": None,
+                "duration_ms": None,
+                "stats": None,
+                "error": None,
+            },
+        )
         db.commit()
-    except Exception as exc:
-        sync_finished = datetime.now(timezone.utc)
-        duration_ms = int((sync_finished - sync_started).total_seconds() * 1000)
-        fail_record = {
-            "status": "failed",
-            "started_at": sync_started.isoformat(),
-            "completed_at": sync_finished.isoformat(),
-            "duration_ms": duration_ms,
-            "stats": None,
-            "error": str(exc)[:240],
-        }
-        _set_runtime_state(db, {"running": False, "last_job_id": None, **fail_record})
-        _append_job_history(db, fail_record)
-        db.commit()
-        raise
 
-    return APIResponse.ok(data={
-        **stats,
-        "status": "completed",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+        try:
+            stats = run_daily_auto_resolution_job(db, limit=safe_limit)
+            sync_finished = datetime.now(timezone.utc)
+            duration_ms = int((sync_finished - sync_started).total_seconds() * 1000)
+            sync_record = {
+                "status": "completed",
+                "started_at": sync_started.isoformat(),
+                "completed_at": sync_finished.isoformat(),
+                "duration_ms": duration_ms,
+                "stats": stats,
+                "error": None,
+            }
+            _set_runtime_state(db, {"running": False, "last_job_id": None, **sync_record})
+            _append_job_history(db, sync_record)
+            db.commit()
+        except Exception as exc:
+            # Deshacer ANTES de intentar escribir el registro de fallo: si el
+            # fallo era de base, la sesion esta abortada y sin este rollback el
+            # `commit()` de abajo revienta con `PendingRollbackError` y tapa el
+            # error real.
+            db.rollback()
+            sync_finished = datetime.now(timezone.utc)
+            duration_ms = int((sync_finished - sync_started).total_seconds() * 1000)
+            fail_record = {
+                "status": "failed",
+                "started_at": sync_started.isoformat(),
+                "completed_at": sync_finished.isoformat(),
+                "duration_ms": duration_ms,
+                "stats": None,
+                "error": str(exc)[:240],
+            }
+            try:
+                _set_runtime_state(db, {"running": False, "last_job_id": None, **fail_record})
+                _append_job_history(db, fail_record)
+                db.commit()
+            except Exception:
+                # Si ni el registro del fallo se puede escribir, se deja la
+                # sesion limpia y se propaga el error ORIGINAL, que es el que
+                # tiene que ver quien lee el log.
+                db.rollback()
+                _logger.exception(
+                    "no se pudo registrar el fallo del job de auto-resolucion"
+                )
+            raise
+
+        return APIResponse.ok(data={
+            **stats,
+            "status": "completed",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+    finally:
+        _AUTO_RES_JOB_LOCK.release()
 
 
 @router.post(

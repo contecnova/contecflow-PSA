@@ -29,12 +29,35 @@ from app.services.billing_reports.data_source_service import (
 
 
 def _company_display_name(db) -> str:
-    """Resolve PROJECT_NAME via runtime override → env fallback (used in PDFs/branding)."""
+    """El nombre de la PLATAFORMA: override en caliente → variable de entorno.
+
+    Es el respaldo, no el nombre que debe encabezar el documento de un cliente:
+    para eso está `_marca_del_documento`, que mira primero `OrgBranding`.
+    """
     try:
         from app.services.settings_service import get_runtime_str
         return get_runtime_str(db, "PROJECT_NAME") or settings.PROJECT_NAME
     except Exception:
         return settings.PROJECT_NAME
+
+
+def _marca_del_documento(db, current_user, *, base):
+    """La marca con la que hay que dibujar un documento de este usuario.
+
+    Auditoría 2026-08 (hallazgo 32). Antes los generadores no recibían ni el
+    `organization_id`, así que un cliente configuraba su marca, la veía en la
+    web, y **sus facturas salían con los colores y el nombre de Contecflow**.
+    Decisión de producto: el documento lleva la marca del tenant.
+
+    El nombre de la plataforma queda como respaldo para la organización que
+    nunca la configuró y para el superadministrador, que no tiene una.
+    """
+    from app.services._pdf_marca import marca_de_organizacion
+
+    return marca_de_organizacion(
+        db, getattr(current_user, "organization_id", None),
+        base=base, nombre_por_defecto=_company_display_name(db),
+    )
 
 from app.services.psa_flows import build_invoice_preview_from_timesheets_flow
 from app.services import bookings_service as _bookings_svc
@@ -312,9 +335,11 @@ def download_invoice_pdf(
     current_user: User = Depends(require_any_manager),
 ):
     from fastapi.responses import Response
-    from app.services.invoice_pdf import generate_invoice_pdf
+    from app.services import invoice_pdf as _invoice_pdf
+    from app.services._pdf_marca import PALETA_DE_FACTURA
 
     inv, lines = _svc.get_invoice_for_pdf(invoice_id, db)
+    marca = _marca_del_documento(db, current_user, base=PALETA_DE_FACTURA)
 
     line_dicts = [
         {
@@ -328,7 +353,7 @@ def download_invoice_pdf(
         for l in lines
     ]
 
-    pdf_bytes = generate_invoice_pdf(
+    pdf_bytes = _invoice_pdf.generate_invoice_pdf(
         invoice_number=inv.number,
         issue_date=inv.issue_date,
         due_date=inv.due_date,
@@ -346,7 +371,8 @@ def download_invoice_pdf(
         po_reference=inv.po_reference,
         period_from=inv.period_from,
         period_to=inv.period_to,
-        company_name=_company_display_name(db),
+        company_name=marca.nombre,
+        paleta=marca.paleta,
         generated_by="Contecflow PSA",
     )
 
@@ -620,15 +646,18 @@ def preview_report_pdf(
     current_user: User = Depends(require_any_manager),
 ):
     from app.services.report_pdf import generate_report_pdf
+    from app.services._pdf_marca import PALETA_POR_DEFECTO
     from fastapi.responses import Response
 
     r = _svc.get_scheduled_report_by_id(report_id, db)
+    marca = _marca_del_documento(db, current_user, base=PALETA_POR_DEFECTO)
 
     pdf_bytes = generate_report_pdf(
         title=r.name,
         metric_label=(r.metric or "").replace("_", " ").title(),
         data=[{"Ejemplo": "Datos de previsualización", "Valor": "—"}],
         summary={"Estado": "Previsualización", "Métrica": r.metric or "—"},
+        paleta=marca.paleta,
     )
     return Response(
         content=pdf_bytes,

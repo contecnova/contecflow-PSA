@@ -140,11 +140,68 @@ if [[ "$MODE" != "--info" ]]; then
   # medias y ninguno completo.
   run_gate bloqueante "cobertura i18n (es/en/zh, no puede bajar)" \
     bash -c 'cd frontend && node scripts/check_i18n_coverage.mjs'
+
+  # Claves duplicadas en los ficheros de idioma (hallazgo 16). Encontrado al
+  # intentar cerrar la traducción: `en.mjs` tenía el namespace `client_portal`
+  # declarado DOS VECES, y en JavaScript gana la última — así que 73 traducciones
+  # escritas y presentes en el repositorio no llegaban al usuario. 204 en total.
+  # Y en castellano `alm.subtitle` estaba declarada 13 veces, así que la pantalla
+  # de Licencias y Activos mostraba el subtítulo de imputaciones.
+  #
+  # El gate de cobertura NO lo detecta: compara el objeto ya colapsado, donde el
+  # duplicado es invisible. Éste lee el fichero como texto y sigue las llaves.
+  run_gate bloqueante "sin claves i18n duplicadas" \
+    bash -c 'cd frontend && node scripts/check_i18n_duplicates.mjs'
+
+  # Dependencias estaticas de vendors grandes (hallazgo 19). El troceo por vendor
+  # ya estaba bien hecho; el problema era QUIEN los importa: `route-misc` tenia un
+  # import estatico de `vendor-plotly` (4.633 kB, el 38 % de todo el JS) porque
+  # CMDBPage importaba la topologia de forma estatica. Abrir cualquier pagina de
+  # ese chunk descargaba plotly entero.
+  #
+  # Necesita un build previo, asi que solo corre si existe dist/. En --fast no se
+  # construye y el gate se salta: es correcto, no se puede medir lo que no hay.
+  if [[ -d frontend/dist/assets ]]; then
+    run_gate bloqueante "sin vendors grandes en dependencias estaticas" \
+      bash -c 'cd frontend && node scripts/check_heavy_chunks.mjs'
+  else
+    echo "  (omitido: sin frontend/dist — ejecuta npm run build para medirlo)"
+  fi
 fi
 
 # ── Gates informativos ────────────────────────────────────────────────────────
 if [[ "$MODE" != "--fast" ]]; then
   step "Informativos (deuda medida, no bloquean)"
+
+  # Deriva del entorno respecto a requirements.txt (hallazgo 22). `pip check`
+  # sólo detecta CONFLICTOS declarados; no ve que lo instalado sea simplemente
+  # distinto de lo fijado. Esa deriva silenciosa costó una sesión: pytest 8 en
+  # lugar del 9 fijado dejaba a pytest sin arrancar, y fastapi 0.139 en lugar del
+  # 0.135 volvió `include_router` perezoso, así que 2.051 rutas se veían como 9 y
+  # 19 tests culpaban al producto de un fallo que no existía.
+  #
+  # INFORMATIVO a propósito PARA EL RESTO: quedan 16 paquetes con versión
+  # distinta de la fijada, algunos con salto de versión MAYOR (numpy 1.26→2.5,
+  # urllib3 2.7→1.26, pillow 12.3→10.4, redis 6.4→5.2). Forzarlos de golpe con
+  # `pip install -r requirements.txt` puede romper la suite, y decidir cuál de
+  # las dos versiones es la correcta exige probar cada una. Se deja MEDIDO.
+  # Para promoverlo a bloqueante: alinear los 16 y verificar la suite.
+  # BLOQUEANTE, y sólo para los tres del ejecutor de tests. La distinción es la
+  # que importa: con `pytest` desalineado la suite no da otro resultado, es que
+  # NO SE PUEDE EJECUTAR — `schemathesis` importa `_pytest.subtests`, que sólo
+  # existe en pytest 9, así que con pytest 8 falla la carga de plugins y ningún
+  # test llega a correr.
+  #
+  # Ha pasado DOS VECES, la segunda a mitad de una sesión de trabajo y después
+  # de que la suite ya hubiera salido verde. Los tres no tienen salto de versión
+  # mayor pendiente, así que alinearlos es seguro y no hay excusa para dejarlo
+  # informativo.
+  run_gate bloqueante "entorno: ejecutor de tests alineado" \
+    "$PY_BIN" scripts/check_pinned_versions.py --solo-criticos
+
+  run_gate informativo "entorno == requirements.txt (16 paquetes con deriva)" \
+    "$PY_BIN" scripts/check_pinned_versions.py
+
   run_gate informativo "ruff scripts/ — hallazgo 17" \
     "$PY_BIN" -m ruff check scripts
   # lint:a11y ya vale algo: hasta la auditoría 2026-08 informaba "0 findings"

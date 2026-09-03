@@ -6,6 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import register_metric
+from ._monthly import agrupar_por_mes
 
 
 @register_metric("okr_progress_by_objective")
@@ -136,24 +137,30 @@ def metric_nps_trend(
     """Evolución mensual del NPS medio."""
     try:
         from app.models.nps import ClientNPS
-        from sqlalchemy import extract
 
-        q = db.query(
-            extract("year", ClientNPS.created_at).label("year"),
-            extract("month", ClientNPS.created_at).label("month"),
-            func.avg(ClientNPS.score).label("avg_score"),
-            func.count(ClientNPS.id).label("responses"),
-        ).filter(
+        # `created_at` es DateTime(timezone=True) y guarda UTC: el
+        # `extract("month", ...)` anterior agrupaba por mes UTC, asi que una
+        # respuesta de las primeras horas del dia 1 contaba en el mes anterior.
+        # Se agrupa en la zona de quien mira el informe. Ver _monthly.py.
+        filas = db.query(ClientNPS.created_at, ClientNPS.score).filter(
             ClientNPS.created_at >= d_from,
             ClientNPS.created_at <= d_to,
-        ).group_by("year", "month").order_by("year", "month")
+        ).all()
 
+        # La media se calcula aqui porque `agrupar_por_mes` devuelve suma y
+        # numero de filas: no puede saber si la metrica es un total o un promedio.
+        cubos = agrupar_por_mes(
+            filas,
+            lambda r: r[0],
+            valor=lambda r: float(r[1] or 0),
+        )
         rows = []
-        for r in q.all():
+        for etiqueta in sorted(cubos):
+            suma, respuestas = cubos[etiqueta]
             rows.append({
-                "label": f"{int(r.year)}-{int(r.month):02d}",
-                "value": round(float(r.avg_score or 0), 1),
-                "responses": r.responses,
+                "label": etiqueta,
+                "value": round(suma / respuestas, 1) if respuestas else 0.0,
+                "responses": respuestas,
             })
     except Exception:
         rows = []

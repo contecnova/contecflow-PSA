@@ -11,10 +11,17 @@ Checks:
 import re
 from pathlib import Path
 
+from ._i18n_langs import idiomas_ofrecidos
+
 import pytest
 
 LANGS_DIR = Path(__file__).parent.parent / "frontend" / "src" / "i18n" / "langs"
-EXPECTED_LANGS = {"en", "es", "fr", "de", "it", "pt", "pl", "zh"}
+
+# Auditoría 2026-08 (hallazgo 16). Antes era un conjunto de OCHO códigos escrito a
+# mano, que quedó obsoleto al reducir a los tres idiomas que se venden y dejó este
+# test en rojo sin que nadie lo viera —la suite completa no llegaba a terminar—.
+# Ahora se lee de APP_LANGUAGES, que es el único sitio donde se declaran.
+EXPECTED_LANGS = set(idiomas_ofrecidos())
 # Critical top-level namespaces that must exist in every language file.
 # NOTE: the billing domain lives under `invoices`/`milestone_billing` (not a `billing`
 # namespace) and is not yet present in every language, so it is not listed here.

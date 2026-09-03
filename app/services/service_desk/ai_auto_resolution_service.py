@@ -645,21 +645,59 @@ def _apply_auto_resolution(
     # Post a public comment so the requester sees the resolution
     _post_resolution_comment(db, ticket, analysis["suggestion"], is_auto=True)
 
-    # Trigger SLA close event if available
+    # ── Dos integraciones que NO existen ──────────────────────────────────
+    #
+    # Auditoria 2026-08. Estos dos bloques decian «if available» / «if
+    # notification service is available», que se lee como una condicion de
+    # ejecucion. No lo es: **ninguna de las dos funciones existe**, comprobado
+    # ejecutando el import.
+    #
+    #   · `record_sla_event` no esta en `sla_event_service`, que tiene
+    #     `pause_ticket_sla`, `resume_ticket_sla` y `list_sla_events` — nada de
+    #     registrar un evento al resolver. **El evento de cierre de SLA no se
+    #     ha registrado nunca** en una auto-resolucion;
+    #   · `notify_watchers` no esta en `watcher_service`, que tiene
+    #     `list_ticket_watchers` y `watch_ticket_command` — nada de notificar.
+    #     **A los observadores de un ticket nunca se les ha avisado** de que la
+    #     IA lo resolvio.
+    #
+    # No se implementan aqui a proposito: que evento de SLA corresponde y por
+    # que canal se avisa a un observador son decisiones de producto, no huecos
+    # que rellenar. Lo que si se arregla es el disfraz — el comentario decia
+    # «si esta disponible» y la realidad es «no esta escrito».
+    #
+    # Y se separa el fallo del import del fallo de la llamada: el dia que
+    # alguien las implemente, un error suyo tiene que verse y no confundirse
+    # con «no disponible».
     try:
-        from app.services.service_desk.sla_event_service import record_sla_event
-        record_sla_event(db, ticket, event_type="resolved", actor="ai_auto_resolution")
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
-        _logger.debug("_apply_auto_resolution: fallo best-effort ignorado", exc_info=True)
+        from app.services.service_desk.sla_event_service import (  # noqa: F401
+            record_sla_event,
+        )
+    except ImportError:
+        _logger.debug("record_sla_event no implementado; no se registra el "
+                      "evento de cierre de SLA del ticket %s", ticket.number)
+    else:
+        try:
+            record_sla_event(db, ticket, event_type="resolved",
+                             actor="ai_auto_resolution")
+        except Exception:
+            _logger.warning("record_sla_event ha fallado para el ticket %s",
+                            ticket.number, exc_info=True)
 
-    # Notify watchers if notification service is available
     try:
-        from app.services.service_desk.watcher_service import notify_watchers
-        notify_watchers(db, ticket, event="resolved", message=analysis["suggestion"][:300])
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
-        _logger.debug("_apply_auto_resolution: fallo best-effort ignorado", exc_info=True)
+        from app.services.service_desk.watcher_service import (  # noqa: F401
+            notify_watchers,
+        )
+    except ImportError:
+        _logger.debug("notify_watchers no implementado; no se avisa a los "
+                      "observadores del ticket %s", ticket.number)
+    else:
+        try:
+            notify_watchers(db, ticket, event="resolved",
+                            message=analysis["suggestion"][:300])
+        except Exception:
+            _logger.warning("notify_watchers ha fallado para el ticket %s",
+                            ticket.number, exc_info=True)
 
     db.flush()
     _logger.info(

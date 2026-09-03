@@ -30,11 +30,27 @@ from sqlalchemy import create_engine, inspect
 REPO = Path(__file__).resolve().parents[1]
 
 
+# Modelos que existen SOLO para tests. Se registran en `Base.metadata` al
+# importarse su módulo, así que aparecen aquí aunque ninguna revisión de Alembic
+# deba crearlos — y no debe: no son parte del producto.
+#
+# Detectado al correr la suite con `-n auto`: cada worker de xdist importa todos
+# los módulos de test, así que `tests/test_tenant_filter_fail_closed.py` metía sus
+# dos dobles en el metadata y este test los reclamaba como tablas que faltan. En
+# serie, con un subconjunto de ficheros, no se veía. El prefijo es la convención
+# que los identifica.
+PREFIJO_MODELOS_DE_TEST = "_test_"
+
+
 def _modelos() -> set[str]:
     from app.db.base import Base
     import app.models  # noqa: F401 — registra todos los modelos
 
-    return set(Base.metadata.tables.keys())
+    return {
+        nombre
+        for nombre in Base.metadata.tables
+        if not nombre.startswith(PREFIJO_MODELOS_DE_TEST)
+    }
 
 
 @pytest.mark.slow
@@ -137,3 +153,36 @@ def test_no_queda_create_all_en_el_arranque_de_produccion():
             f"{f.relative_to(REPO)} llama a create_all: el esquema debe venir de "
             "Alembic para que las revisiones se ejerciten de verdad"
         )
+
+
+def test_la_exclusion_de_modelos_de_test_no_tapa_modelos_reales():
+    """La exclusión por prefijo no puede convertirse en una vía de escape.
+
+    `_modelos()` descarta las tablas que empiezan por `_test_` porque son dobles
+    definidos en los propios tests. Si alguien nombrase así un modelo del
+    producto, quedaría fuera del test de paridad y su revisión de Alembic podría
+    faltar sin que nada avisase — que es exactamente el fallo que este módulo
+    existe para impedir.
+    """
+    from app.db.base import Base
+    import app.models  # noqa: F401
+
+    del Base  # sólo se necesitaba para poblar el metadata
+
+    import importlib
+    import pkgutil
+
+    reales = set()
+    for info in pkgutil.walk_packages(app.models.__path__, "app.models."):
+        modulo = importlib.import_module(info.name)
+        for obj in vars(modulo).values():
+            tabla = getattr(obj, "__tablename__", None)
+            if isinstance(tabla, str):
+                reales.add(tabla)
+
+    culpables = sorted(t for t in reales if t.startswith(PREFIJO_MODELOS_DE_TEST))
+    assert not culpables, (
+        f"hay modelos del producto con el prefijo reservado "
+        f"{PREFIJO_MODELOS_DE_TEST!r}, así que el test de paridad los ignora: "
+        f"{culpables}"
+    )

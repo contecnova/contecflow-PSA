@@ -11,6 +11,8 @@ from datetime import datetime
 
 from reportlab.lib import colors
 
+from app.services._pdf_marca import PALETA_POR_DEFECTO
+
 logger = logging.getLogger(__name__)
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -19,13 +21,15 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, PageBreak,
 )
 
-ACCENT    = colors.HexColor("#00d4ff")
-SUCCESS   = colors.HexColor("#00e5a0")
+# Auditoria 2026-08 (hallazgo 32). Los colores estaban en duro como constantes
+# de MODULO, asi que ni siquiera se podian sustituir por llamada: el informe de
+# campana de un cliente salia con los colores de la plataforma. Ahora vienen de
+# `_pdf_marca` y `generate_campaign_pdf` acepta la paleta del tenant.
+#
+# `WARNING` y `MUTED_BG` se quedan aqui: son colores de ESTADO —aviso y
+# «anonimizado»— y su significado no depende de la marca. Sustituirlos por un
+# color de marca haria que un aviso no se leyera como aviso.
 WARNING   = colors.HexColor("#f59e0b")
-TEXT_MAIN = colors.HexColor("#1a1a2e")
-TEXT_GREY = colors.HexColor("#6b7280")
-HEADER_BG = colors.HexColor("#0f172a")
-ROW_ALT   = colors.HexColor("#f8fafc")
 MUTED_BG  = colors.HexColor("#fef3c7")  # bg suave para anonimizados
 
 
@@ -33,8 +37,26 @@ def _is_rating(kind: str) -> bool:
     return kind in ("rating_5", "rating_10", "scale_likert")
 
 
-def generate_campaign_pdf(dashboard: dict) -> bytes:
+def _colores(paleta):
+    """Los cinco colores que usa este informe, en el orden en que se desempacan.
+
+    Va aparte de `generate_campaign_pdf` a proposito: resolver el valor por
+    defecto es una rama, y esa funcion ya esta en complejidad 13 —lo estaba
+    antes de tocarla, comprobado con `git stash`—, asi que no se le anade una
+    mas. Sacarla no la baja del umbral; es solo no empeorarla.
+
+    `exito` no esta: la constante `SUCCESS` que habia en este modulo no la usaba
+    nadie, asi que era codigo muerto y se ha retirado en vez de trasladarse.
+    """
+    p = paleta or PALETA_POR_DEFECTO
+    return (p.color("acento"), p.color("texto_principal"),
+            p.color("texto_secundario"), p.color("fondo_de_cabecera"),
+            p.color("fila_alterna"))
+
+
+def generate_campaign_pdf(dashboard: dict, paleta=None) -> bytes:
     """Recibe el dict producido por `aggregate_campaign` y genera el PDF."""
+    ACCENT, TEXT_MAIN, TEXT_GREY, HEADER_BG, ROW_ALT = _colores(paleta)
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer, pagesize=A4,

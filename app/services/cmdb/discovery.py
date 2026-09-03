@@ -449,11 +449,119 @@ def discover_gcp(provider_config: dict) -> list[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
 # SNMP DISCOVERY
 # ═══════════════════════════════════════════════════════════════════════════════
+#
+# Auditoria 2026-08 (hallazgo 18 + duplicacion encontrada de paso).
+# `discover_snmp` (20) y `discover_snmp_network` (23) eran DOS FUNCIONES CASI
+# IDENTICAS de un centenar de lineas cada una. Lo unico que las diferenciaba:
+#
+#   · el escaneo opcional de interfaces via ifTable
+#   · el texto del log final
+#
+# Todo lo demas estaba duplicado literalmente: la expansion de hosts CIDR, los
+# cinco OID de sistema, el ayudante de autenticacion v2c/v3, el mapeo de
+# var_binds y —lo que mas importa— **la tabla de clasificacion por descripcion**.
+#
+# Esa duplicacion no es solo fea: es peligrosa. Anadir un fabricante a una copia
+# y no a la otra hace que el MISMO dispositivo se clasifique distinto segun por
+# donde entre el descubrimiento — `run_discovery_for_provider` llama a
+# `discover_snmp`, y el endpoint de CMDB llama a `discover_snmp_network`. Las dos
+# estan vivas.
+#
+# Ahora el sondeo es uno y las dos entradas son envoltorios de una linea.
 
-def discover_snmp(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
-    """Descubre activos de red mediante SNMP v2c/v3."""
+
+# Palabras clave de la descripcion del sistema, en orden, y el tipo de activo que
+# implican. El orden importa: se toma la primera que coincide.
+#
+# Windows y Linux van en filas separadas aunque las dos den "server" — asi
+# estaba, y separarlas permite darles tipos distintos sin tocar el resto.
+_CLASIFICACION_POR_DESCRIPCION = (
+    (("cisco", "juniper", "arista", "router", "switch", "firewall"), "network_device"),
+    (("windows", "microsoft"), "server"),
+    (("linux", "ubuntu", "centos", "debian", "rhel"), "server"),
+    (("printer", "hp laserjet", "xerox"), "printer"),
+    (("ups", "apc"), "ups"),
+)
+
+# Lo que se responde cuando la descripcion no dice nada reconocible. Coincide con
+# el primer tipo de la tabla, y eso es intencionado: un equipo que responde a
+# SNMP y no se identifica es, casi siempre, equipamiento de red.
+_CI_TYPE_POR_DEFECTO = "network_device"
+
+# Los OID de la MIB de sistema (RFC 1213) que se consultan de cada equipo.
+_OIDS_DE_SISTEMA = {
+    "sys_descr": "1.3.6.1.2.1.1.1.0",
+    "sys_name": "1.3.6.1.2.1.1.5.0",
+    "sys_location": "1.3.6.1.2.1.1.6.0",
+    "sys_contact": "1.3.6.1.2.1.1.4.0",
+    "sys_objectid": "1.3.6.1.2.1.1.2.0",
+}
+
+# Tope de direcciones que se expanden de un rango CIDR. Un /16 son 65.534
+# equipos y sondearlos de uno en uno con dos segundos de espera cada uno son
+# mas de 36 horas: el tope evita que una mascara mal puesta convierta el
+# descubrimiento en un barrido interminable.
+_MAX_IPS_POR_RANGO = 1024
+
+
+def _expandir_hosts(raw_hosts: list[str]) -> list[str]:
+    """Convierte la lista de hosts en direcciones concretas.
+
+    Acepta tanto rangos CIDR como nombres o IPs sueltas: lo que no se puede
+    interpretar como red se pasa tal cual, porque puede ser un nombre DNS.
+    """
+    import ipaddress
+
+    host_ips: list[str] = []
+    for h in raw_hosts:
+        try:
+            net = ipaddress.ip_network(h, strict=False)
+            host_ips.extend(str(ip) for ip in list(net.hosts())[:_MAX_IPS_POR_RANGO])
+        except ValueError:
+            host_ips.append(h)
+    return host_ips
+
+
+def _clasificar_por_descripcion(sys_descr: str) -> str:
+    """Deduce el tipo de activo de la descripcion que devuelve el equipo."""
+    descr = (sys_descr or "").lower()
+    for palabras, ci_type in _CLASIFICACION_POR_DESCRIPCION:
+        if any(kw in descr for kw in palabras):
+            return ci_type
+    return _CI_TYPE_POR_DEFECTO
+
+
+def _valores_de_var_binds(var_binds) -> dict[str, str]:
+    """Indexa la respuesta SNMP por nombre de campo.
+
+    La comparacion es por `in` y no por igualdad porque el OID que devuelve el
+    equipo puede traer sufijos; asi estaba y asi se conserva.
+    """
+    valores: dict[str, str] = {}
+    for var_bind in var_binds:
+        oid_str = str(var_bind[0])
+        val_str = str(var_bind[1])
+        for campo, oid in _OIDS_DE_SISTEMA.items():
+            if oid in oid_str:
+                valores[campo] = val_str
+                break
+    return valores
+
+
+def _sondear_snmp(
+    provider_config: dict[str, Any],
+    *,
+    escanear_interfaces: bool,
+    etiqueta_log: str,
+) -> list[dict[str, Any]]:
+    """El sondeo SNMP, uno para las dos entradas publicas.
+
+    `escanear_interfaces` es la unica diferencia de comportamiento entre
+    `discover_snmp` y `discover_snmp_network`.
+    """
     try:
         from pysnmp.hlapi import (
             CommunityData, ContextData, ObjectIdentity, ObjectType,
@@ -465,31 +573,13 @@ def discover_snmp(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
             "SNMP discovery requiere: pip install pysnmp"
         ) from exc
 
-    import ipaddress
-
     community = provider_config.get("community", "public")
     port = int(provider_config.get("port", 161))
     timeout = int(provider_config.get("timeout", 2))
     retries = int(provider_config.get("retries", 1))
     version = provider_config.get("version", "v2c")
 
-    raw_hosts: list[str] = provider_config.get("hosts", [])
-
-    host_ips: list[str] = []
-    for h in raw_hosts:
-        try:
-            net = ipaddress.ip_network(h, strict=False)
-            host_ips.extend(str(ip) for ip in list(net.hosts())[:1024])
-        except ValueError:
-            host_ips.append(h)
-
-    discovered: list[dict] = []
-
-    _OID_SYS_DESCR = "1.3.6.1.2.1.1.1.0"
-    _OID_SYS_NAME  = "1.3.6.1.2.1.1.5.0"
-    _OID_SYS_LOCATION = "1.3.6.1.2.1.1.6.0"
-    _OID_SYS_CONTACT  = "1.3.6.1.2.1.1.4.0"
-    _OID_SYS_OBJECTID = "1.3.6.1.2.1.1.2.0"
+    host_ips = _expandir_hosts(provider_config.get("hosts", []))
 
     def _auth_data():
         if version == "v3":
@@ -503,200 +593,36 @@ def discover_snmp(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
         return CommunityData(community, mpModel=1)  # noqa: S508
 
     engine = SnmpEngine()
-
-    for ip in host_ips:
-        try:
-            transport = UdpTransportTarget((ip, port), timeout=timeout, retries=retries)
-            oids = [
-                ObjectType(ObjectIdentity(_OID_SYS_DESCR)),
-                ObjectType(ObjectIdentity(_OID_SYS_NAME)),
-                ObjectType(ObjectIdentity(_OID_SYS_LOCATION)),
-                ObjectType(ObjectIdentity(_OID_SYS_CONTACT)),
-                ObjectType(ObjectIdentity(_OID_SYS_OBJECTID)),
-            ]
-            error_indication, error_status, _, var_binds = next(
-                getCmd(engine, _auth_data(), transport, ContextData(), *oids)
-            )
-
-            if error_indication or error_status:
-                continue
-
-            values: dict[str, str] = {}
-            for var_bind in var_binds:
-                oid_str = str(var_bind[0])
-                val_str = str(var_bind[1])
-                if _OID_SYS_DESCR in oid_str:
-                    values["sys_descr"] = val_str
-                elif _OID_SYS_NAME in oid_str:
-                    values["sys_name"] = val_str
-                elif _OID_SYS_LOCATION in oid_str:
-                    values["sys_location"] = val_str
-                elif _OID_SYS_CONTACT in oid_str:
-                    values["sys_contact"] = val_str
-                elif _OID_SYS_OBJECTID in oid_str:
-                    values["sys_objectid"] = val_str
-
-            sys_descr = values.get("sys_descr", "")
-            sys_name = values.get("sys_name", ip)
-
-            descr_lower = sys_descr.lower()
-            if any(kw in descr_lower for kw in ("cisco", "juniper", "arista", "router", "switch", "firewall")):
-                ci_type = "network_device"
-            elif any(kw in descr_lower for kw in ("windows", "microsoft")):
-                ci_type = "server"
-            elif any(kw in descr_lower for kw in ("linux", "ubuntu", "centos", "debian", "rhel")):
-                ci_type = "server"
-            elif any(kw in descr_lower for kw in ("printer", "hp laserjet", "xerox")):
-                ci_type = "printer"
-            elif any(kw in descr_lower for kw in ("ups", "apc")):
-                ci_type = "ups"
-            else:
-                ci_type = "network_device"
-
-            discovered.append({
-                "external_id": f"snmp:{ip}",
-                "name": sys_name or ip,
-                "ci_type": ci_type,
-                "status": "active",
-                "environment": "production",
-                "ip_address": ip,
-                "hostname": sys_name or ip,
-                "version": "",
-                "description": sys_descr[:500] if sys_descr else f"SNMP device at {ip}",
-                "attributes": json.dumps({
-                    "sys_location": values.get("sys_location", ""),
-                    "sys_contact": values.get("sys_contact", ""),
-                    "sys_objectid": values.get("sys_objectid", ""),
-                    "snmp_version": version,
-                    "community": community if version == "v2c" else "(SNMPv3)",
-                }),
-                "discovery_provider": PROVIDER_SNMP,
-                "last_discovered_at": utcnow().isoformat(),
-            })
-
-        except Exception as exc:
-            logger.debug("SNMP host %s error: %s", ip, exc)
-
-    logger.info("SNMP discovery: %d activos encontrados de %d hosts sondeados", len(discovered), len(host_ips))
-    return discovered
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SNMP NETWORK DISCOVERY (Enhanced with interface details)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def discover_snmp_network(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
-    """Enhanced SNMP discovery with interface-level data via ifTable walk."""
-    try:
-        from pysnmp.hlapi import (
-            CommunityData, ContextData, ObjectIdentity, ObjectType,
-            SnmpEngine, UdpTransportTarget, getCmd,
-        )
-        from pysnmp.hlapi import UsmUserData, usmHMACSHAAuthProtocol, usmAesCfb128Protocol
-    except ImportError as exc:
-        raise ImportError(
-            "SNMP discovery requiere: pip install pysnmp"
-        ) from exc
-
-    import ipaddress
-
-    community = provider_config.get("community", "public")
-    port = int(provider_config.get("port", 161))
-    timeout = int(provider_config.get("timeout", 2))
-    retries = int(provider_config.get("retries", 1))
-    version = provider_config.get("version", "v2c")
-    scan_interfaces = bool(provider_config.get("scan_interfaces", True))
-
-    raw_hosts: list[str] = provider_config.get("hosts", [])
-
-    host_ips: list[str] = []
-    for h in raw_hosts:
-        try:
-            net = ipaddress.ip_network(h, strict=False)
-            host_ips.extend(str(ip) for ip in list(net.hosts())[:1024])
-        except ValueError:
-            host_ips.append(h)
-
     discovered: list[dict] = []
 
-    _OID_SYS_DESCR    = "1.3.6.1.2.1.1.1.0"
-    _OID_SYS_NAME     = "1.3.6.1.2.1.1.5.0"
-    _OID_SYS_LOCATION = "1.3.6.1.2.1.1.6.0"
-    _OID_SYS_CONTACT  = "1.3.6.1.2.1.1.4.0"
-    _OID_SYS_OBJECTID = "1.3.6.1.2.1.1.2.0"
-
-    def _auth_data():
-        if version == "v3":
-            return UsmUserData(
-                provider_config.get("v3_user", "admin"),
-                authKey=provider_config.get("v3_auth_key", ""),
-                privKey=provider_config.get("v3_priv_key", ""),
-                authProtocol=usmHMACSHAAuthProtocol,
-                privProtocol=usmAesCfb128Protocol,
-            )
-        return CommunityData(community, mpModel=1)  # noqa: S508
-
-    engine = SnmpEngine()
-
     for ip in host_ips:
         try:
             transport = UdpTransportTarget((ip, port), timeout=timeout, retries=retries)
-            oids = [
-                ObjectType(ObjectIdentity(_OID_SYS_DESCR)),
-                ObjectType(ObjectIdentity(_OID_SYS_NAME)),
-                ObjectType(ObjectIdentity(_OID_SYS_LOCATION)),
-                ObjectType(ObjectIdentity(_OID_SYS_CONTACT)),
-                ObjectType(ObjectIdentity(_OID_SYS_OBJECTID)),
-            ]
+            # Los `ObjectType` se construyen DENTRO del bucle, como en el
+            # original: reutilizarlos entre llamadas daria por hecho que pysnmp
+            # no los modifica al resolverlos, y eso no esta comprobado.
+            oids = [ObjectType(ObjectIdentity(oid)) for oid in _OIDS_DE_SISTEMA.values()]
             error_indication, error_status, _, var_binds = next(
                 getCmd(engine, _auth_data(), transport, ContextData(), *oids)
             )
-
             if error_indication or error_status:
                 continue
 
-            values: dict[str, str] = {}
-            for var_bind in var_binds:
-                oid_str = str(var_bind[0])
-                val_str = str(var_bind[1])
-                if _OID_SYS_DESCR in oid_str:
-                    values["sys_descr"] = val_str
-                elif _OID_SYS_NAME in oid_str:
-                    values["sys_name"] = val_str
-                elif _OID_SYS_LOCATION in oid_str:
-                    values["sys_location"] = val_str
-                elif _OID_SYS_CONTACT in oid_str:
-                    values["sys_contact"] = val_str
-                elif _OID_SYS_OBJECTID in oid_str:
-                    values["sys_objectid"] = val_str
-
-            sys_descr = values.get("sys_descr", "")
-            sys_name  = values.get("sys_name", ip)
-
-            descr_lower = sys_descr.lower()
-            if any(kw in descr_lower for kw in ("cisco", "juniper", "arista", "router", "switch", "firewall")):
-                ci_type = "network_device"
-            elif any(kw in descr_lower for kw in ("windows", "microsoft")):
-                ci_type = "server"
-            elif any(kw in descr_lower for kw in ("linux", "ubuntu", "centos", "debian", "rhel")):
-                ci_type = "server"
-            elif any(kw in descr_lower for kw in ("printer", "hp laserjet", "xerox")):
-                ci_type = "printer"
-            elif any(kw in descr_lower for kw in ("ups", "apc")):
-                ci_type = "ups"
-            else:
-                ci_type = "network_device"
+            valores = _valores_de_var_binds(var_binds)
+            sys_descr = valores.get("sys_descr", "")
+            sys_name = valores.get("sys_name", ip)
 
             attributes: dict = {
-                "sys_location": values.get("sys_location", ""),
-                "sys_contact":  values.get("sys_contact", ""),
-                "sys_objectid": values.get("sys_objectid", ""),
+                "sys_location": valores.get("sys_location", ""),
+                "sys_contact": valores.get("sys_contact", ""),
+                "sys_objectid": valores.get("sys_objectid", ""),
                 "snmp_version": version,
+                # La comunidad SNMPv2c es un secreto compartido, asi que se
+                # guarda; en v3 no hay comunidad y se anota el modo en su lugar.
                 "community": community if version == "v2c" else "(SNMPv3)",
             }
 
-            # Interface discovery via ifTable
-            if scan_interfaces:
+            if escanear_interfaces:
                 ifaces = snmp_get_interfaces(ip, port, _auth_data(), engine)
                 if ifaces:
                     attributes["interfaces"] = ifaces
@@ -712,7 +638,7 @@ def discover_snmp_network(provider_config: dict[str, Any]) -> list[dict[str, Any
             discovered.append({
                 "external_id": f"snmp:{ip}",
                 "name": sys_name or ip,
-                "ci_type": ci_type,
+                "ci_type": _clasificar_por_descripcion(sys_descr),
                 "status": "active",
                 "environment": "production",
                 "ip_address": ip,
@@ -727,8 +653,27 @@ def discover_snmp_network(provider_config: dict[str, Any]) -> list[dict[str, Any
         except Exception as exc:
             logger.debug("SNMP host %s error: %s", ip, exc)
 
-    logger.info("SNMP network scan: %d activos encontrados de %d hosts sondeados", len(discovered), len(host_ips))
+    logger.info(
+        "%s: %d activos encontrados de %d hosts sondeados",
+        etiqueta_log, len(discovered), len(host_ips),
+    )
     return discovered
+
+
+def discover_snmp(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
+    """Descubre activos de red mediante SNMP v2c/v3."""
+    return _sondear_snmp(
+        provider_config, escanear_interfaces=False, etiqueta_log="SNMP discovery"
+    )
+
+
+def discover_snmp_network(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
+    """Enhanced SNMP discovery with interface-level data via ifTable walk."""
+    return _sondear_snmp(
+        provider_config,
+        escanear_interfaces=bool(provider_config.get("scan_interfaces", True)),
+        etiqueta_log="SNMP network scan",
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

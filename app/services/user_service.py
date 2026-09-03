@@ -264,32 +264,117 @@ def create_user_record(payload, current_user, db: Session):
 
 # ── Update user ────────────────────────────────────────────────────────────────
 
-def update_user_record(user_id: str, payload, current_user, db: Session):
+# ── Edicion de un usuario ────────────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18 + defecto de autorizacion encontrado de paso).
+# `update_user_record` era complejidad 23 en cuatro fases: autorizar, validar el
+# cambio de organizacion, comprobar el correo y aplicar los campos.
+#
+# ── El defecto ────────────────────────────────────────────────────────────────
+#
+# `PATCH /users/{user_id}` usa `get_current_user`, no `require_admin`: una
+# persona puede editar su PROPIA ficha por ahi, con el esquema ANCHO
+# (`UserUpdate`). Y los campos se aplicaban con un bucle generico:
+#
+#     for field, value in payload.model_dump(exclude_unset=True).items():
+#         setattr(user, field, value)
+#
+# La guarda que habia solo protegia `role` y `hourly_rate`. Se dejaba fuera
+# `manager_id`, y `manager_id` ES UNA ENTRADA DE AUTORIZACION: un paso de
+# aprobacion con `approver_type == "manager"` autoriza a quien sea
+# `requester.manager_id` (ver `approval_engine/_base.py`). La plantilla de flujo
+# por defecto trae ese paso como el primero, llamado «Direct Manager».
+#
+# Es decir: un empleado podia hacer `PATCH /users/{su_propio_id}` con
+# `{"manager_id": "..."}` y ELEGIR QUIEN APRUEBA SUS PROPIAS SOLICITUDES.
+#
+# Y por esa via se saltaban ademas las tres validaciones del endpoint dedicado
+# `PATCH /users/{id}/manager` -> `set_manager_record()`, que si comprueba que el
+# manager existe, que es de la misma organizacion y que no se forma un ciclo en
+# la jerarquia. Tambien quedaba libre `status`.
+#
+# Mismo patron que atraviesa la auditoria: el control cuidadoso existe, y hay
+# una segunda via que lo salta entera.
+#
+# ── El arreglo ────────────────────────────────────────────────────────────────
+#
+# Quien no es administrador solo puede cambiar de su propia ficha los campos que
+# la propia aplicacion declara como autoeditables: los de `UserSelfUpdate`, el
+# esquema del endpoint `/users/me`. Se leen de ahi en vez de repetirlos, para
+# que las dos listas no puedan separarse.
 
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    ensure_same_org_user_access(user, current_user)
 
-    if current_user.id != user_id and current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="No tienes permiso para editar este usuario")
+def _campos_de_autoedicion() -> frozenset[str]:
+    """Los campos que una persona puede cambiar de su propia ficha.
 
-    if current_user.role != UserRole.admin:
-        if payload.role is not None or payload.hourly_rate is not None:
-            raise HTTPException(status_code=403, detail="Solo admin puede cambiar rol o tarifa")
+    Se derivan de `UserSelfUpdate` —el esquema que el endpoint `/users/me` ya
+    usa— y no de una lista escrita aqui: una lista paralela se separaria de la
+    otra al primer campo nuevo, y el que se olvidara quedaria abierto sin que
+    nada fallara.
+    """
+    from app.schemas.users import UserSelfUpdate
 
+    return frozenset(UserSelfUpdate.model_fields)
+
+
+def _autorizar_edicion(user: User, payload, current_user) -> None:
+    """Decide si `current_user` puede aplicar este `payload` sobre `user`.
+
+    Un administrador puede todo. El resto solo su propia ficha, y solo los
+    campos autoeditables — ver la nota de cabecera para por que eso importa.
+    """
+    es_admin = current_user.role == UserRole.admin
+
+    if current_user.id != user.id and not es_admin:
+        raise HTTPException(
+            status_code=403, detail="No tienes permiso para editar este usuario"
+        )
+    if es_admin:
+        return
+
+    enviados = set(payload.model_dump(exclude_unset=True))
+    reservados = sorted(enviados - _campos_de_autoedicion())
+    if reservados:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Solo un administrador puede cambiar estos campos: "
+                + ", ".join(reservados)
+            ),
+        )
+
+
+def _autorizar_y_validar_organizaciones(payload, current_user, db: Session):
+    """Comprueba el cambio de organizacion y devuelve (org_id, org_ids).
+
+    Devuelve None en cada hueco que el payload no traiga. Solo un administrador
+    puede mover a alguien de organizacion, y `_autorizar_edicion` ya lo impide
+    antes de llegar aqui; estas comprobaciones se conservan como segunda capa
+    porque son las que validan que las organizaciones existen.
+    """
     payload_org_id = getattr(payload, "organization_id", None)
     payload_org_ids_raw = getattr(payload, "organization_ids", None)
-    payload_org_ids = _normalize_org_ids(payload_org_ids_raw) if payload_org_ids_raw is not None else None
+    payload_org_ids = (
+        _normalize_org_ids(payload_org_ids_raw)
+        if payload_org_ids_raw is not None else None
+    )
 
     if current_user.organization_id and current_user.role != UserRole.admin:
         if payload_org_id not in (None, current_user.organization_id):
-            raise HTTPException(status_code=403, detail="No puedes mover usuarios a otra organización")
-        if payload_org_ids is not None and any(org_id != current_user.organization_id for org_id in payload_org_ids):
-            raise HTTPException(status_code=403, detail="No puedes mover usuarios a otra organización")
+            raise HTTPException(
+                status_code=403, detail="No puedes mover usuarios a otra organización"
+            )
+        if payload_org_ids is not None and any(
+            org_id != current_user.organization_id for org_id in payload_org_ids
+        ):
+            raise HTTPException(
+                status_code=403, detail="No puedes mover usuarios a otra organización"
+            )
 
     if (payload_org_id is not None or payload_org_ids is not None) and current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Solo admin puede cambiar organizaciones")
+        raise HTTPException(
+            status_code=403, detail="Solo admin puede cambiar organizaciones"
+        )
 
     if payload_org_ids is not None:
         _validate_org_ids(payload_org_ids, db)
@@ -299,13 +384,32 @@ def update_user_record(user_id: str, payload, current_user, db: Session):
         if payload_org_id:
             _validate_org_ids([payload_org_id], db)
 
-    incoming_email = getattr(payload, "email", None)
-    if incoming_email is not None:
-        normalized_email = incoming_email.strip().lower()
-        existing = db.query(User).filter(func.lower(User.email) == normalized_email, User.id != user.id).first()
-        if existing:
-            raise HTTPException(status_code=400, detail="Email ya registrado")
+    return payload_org_id, payload_org_ids
 
+
+def _validar_correo_unico(payload, user: User, db: Session) -> None:
+    """El correo identifica a la persona al iniciar sesion: no puede repetirse.
+
+    La comparacion es sin distinguir mayusculas porque el correo se guarda
+    normalizado a minusculas.
+    """
+    incoming_email = getattr(payload, "email", None)
+    if incoming_email is None:
+        return
+    normalizado = incoming_email.strip().lower()
+    existente = (db.query(User)
+                   .filter(func.lower(User.email) == normalizado, User.id != user.id)
+                   .first())
+    if existente:
+        raise HTTPException(status_code=400, detail="Email ya registrado")
+
+
+def _aplicar_campos(payload, user: User) -> None:
+    """Copia al usuario los campos enviados.
+
+    `organization_ids` se salta: no es una columna sino una pertenencia, y la
+    sincroniza `_sincronizar_organizaciones`.
+    """
     for field, value in payload.model_dump(exclude_unset=True).items():
         if field == "organization_ids":
             continue
@@ -313,20 +417,45 @@ def update_user_record(user_id: str, payload, current_user, db: Session):
             value = value.strip().lower()
         setattr(user, field, value)
 
+
+def _sincronizar_organizaciones(user: User, payload_org_id, payload_org_ids, db: Session) -> None:
+    """Ajusta las pertenencias y deja la organizacion principal coherente.
+
+    El ultimo bloque existe para que nadie quede con una organizacion principal
+    a la que ya no pertenece: eso lo dejaria sin ver nada, porque el filtro de
+    tenant usa ese campo.
+    """
+    target_org_ids = payload_org_ids
+    if target_org_ids is None:
+        target_org_ids = user.organization_ids
+    if payload_org_id and payload_org_id not in target_org_ids:
+        target_org_ids.append(payload_org_id)
+    target_org_ids = _normalize_org_ids(target_org_ids)
+    _sync_user_memberships(user, target_org_ids, db)
+
+    if payload_org_id is not None:
+        user.organization_id = payload_org_id
+    elif user.organization_id and str(user.organization_id) not in target_org_ids:
+        user.organization_id = target_org_ids[0] if target_org_ids else None
+    elif not user.organization_id and target_org_ids:
+        user.organization_id = target_org_ids[0]
+
+
+def update_user_record(user_id: str, payload, current_user, db: Session):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    ensure_same_org_user_access(user, current_user)
+
+    _autorizar_edicion(user, payload, current_user)
+    payload_org_id, payload_org_ids = _autorizar_y_validar_organizaciones(
+        payload, current_user, db
+    )
+    _validar_correo_unico(payload, user, db)
+    _aplicar_campos(payload, user)
+
     if payload_org_ids is not None or payload_org_id is not None:
-        target_org_ids = payload_org_ids
-        if target_org_ids is None:
-            target_org_ids = user.organization_ids
-        if payload_org_id and payload_org_id not in target_org_ids:
-            target_org_ids.append(payload_org_id)
-        target_org_ids = _normalize_org_ids(target_org_ids)
-        _sync_user_memberships(user, target_org_ids, db)
-        if payload_org_id is not None:
-            user.organization_id = payload_org_id
-        elif user.organization_id and str(user.organization_id) not in target_org_ids:
-            user.organization_id = target_org_ids[0] if target_org_ids else None
-        elif not user.organization_id and target_org_ids:
-            user.organization_id = target_org_ids[0]
+        _sincronizar_organizaciones(user, payload_org_id, payload_org_ids, db)
 
     db.commit()
     db.refresh(user)

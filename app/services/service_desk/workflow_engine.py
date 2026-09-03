@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -418,126 +419,277 @@ def _render_template(text: Optional[str], ctx: dict) -> str:
         return text
 
 
+# ── Ejecución de un nodo del flujo ───────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18 + defecto encontrado de paso). `_execute_node`
+# era complejidad 22: diez `if ntype == ...` secuenciales, cada uno con su
+# `return` de tres elementos. Es una tabla de despacho escrita como una funcion.
+#
+# ── El desajuste que aparecio al escribir la tabla ────────────────────────────
+#
+# Cruzando la tabla con `NODE_CATALOG` del disenador aparecio que TRES CAPAS NO
+# COINCIDEN sobre el tipo de nodo `action` («Accion»):
+#
+#   catalogo y `validate_graph` ....... lo aceptan
+#   editor del disenador .............. NO ofrece ni un campo para configurarlo
+#   este motor ........................ NO sabe ejecutarlo: lanza ValueError
+#
+# Comprobado por ejecucion:
+#     _execute_node("action", {"action": "set_priority"}, run, db)
+#     -> ValueError: tipo de nodo no soportado por el motor: action
+#
+# El catalogo lo incluye A PROPOSITO —su comentario lo dice— porque hay grafos
+# que lo usan y `validate_graph` los rechazaba. Asi que NO se retira: retirarlo
+# desharia ese arreglo y volveria a romper los grafos guardados.
+#
+# Tampoco se implementa aqui. `action` + `params` no dice que debe hacer, el
+# disenador no ofrece campos para rellenarlo, y una de las acciones que su
+# comentario menciona es `run_script`: ejecutar un script arbitrario guardado en
+# una definicion de flujo es una superficie de ejecucion remota de codigo, y eso
+# no se decide en un refactor de complejidad.
+#
+# Lo que SI se hace, que es lo que reduce el dano de verdad: `validate_graph`
+# ahora AVISA al guardar cuando el grafo contiene un tipo que el motor no puede
+# ejecutar. Antes el flujo se guardaba como valido y moria al llegar el primer
+# caso real; ahora quien lo disena lo sabe en ese momento. Se usa el canal de
+# avisos que ya existia para los ciclos, asi que no rompe nada.
+#
+# `TIPOS_EJECUTABLES` es lo que consulta ese aviso, y el test
+# `test_el_catalogo_y_el_motor_solo_difieren_en_action` fija el desajuste
+# exactamente: el dia que alguien implemente o retire `action`, el test avisa.
+
+
+@dataclass(frozen=True, slots=True)
+class _Nodo:
+    """El entorno que ve un ejecutor de nodo.
+
+    `ctx` es el contexto del run y se pasa como el MISMO diccionario que se
+    guardara: el nodo `state` lo modifica y reasigna `run.context_json`, y la
+    siguiente decision tiene que ver ese cambio.
+    """
+
+    config: dict
+    ctx: dict
+    run: "WorkflowRun"
+    db: "Session"
+
+
+# Cada ejecutor devuelve (rama_tomada, payload, segundos_de_espera).
+
+def _nodo_inicio(n: _Nodo) -> tuple[str, dict, int]:
+    return "next", {}, 0
+
+
+def _nodo_fin(n: _Nodo) -> tuple[str, dict, int]:
+    return "end", {}, 0
+
+
+def _nodo_estado(n: _Nodo) -> tuple[str, dict, int]:
+    """Aplica el cambio de estado al contexto, para que lo vea la siguiente decisión."""
+    new_status = n.config.get("status")
+    if new_status:
+        n.ctx["status"] = new_status
+        n.run.context_json = n.ctx
+    return "next", {
+        "status": new_status,
+        "assignee_role": n.config.get("assignee_role"),
+        "sla_hours": n.config.get("sla_hours"),
+    }, 0
+
+
+def _nodo_decision(n: _Nodo) -> tuple[str, dict, int]:
+    expr = n.config.get("expression") or ""
+    result = evaluate_expression(expr, n.ctx)
+    return ("true" if result else "false"), {"expression": expr, "result": result}, 0
+
+
+def _nodo_aprobacion(n: _Nodo) -> tuple[str, dict, int]:
+    """Bloqueante: alguien externo debe llamar a /resume con approved/rejected."""
+    return WAIT, {
+        "approver_role": n.config.get("approver_role"),
+        "deadline_hours": n.config.get("deadline_hours"),
+    }, 0
+
+
+def _nodo_espera(n: _Nodo) -> tuple[str, dict, int]:
+    """Espera un numero de minutos. Un valor ilegible se trata como cero.
+
+    Cero y no un error a proposito: un temporizador mal configurado no debe
+    dejar el flujo colgado para siempre, sino seguir de inmediato.
+    """
+    try:
+        seconds = int(n.config.get("wait_minutes") or 0) * 60
+    except Exception:
+        seconds = 0
+    return WAIT, {
+        "wait_minutes": n.config.get("wait_minutes"),
+        "until_field": n.config.get("until_field"),
+    }, seconds
+
+
+def _nodo_notificar(n: _Nodo) -> tuple[str, dict, int]:
+    """Notificacion real en la aplicacion.
+
+    `recipients` puede ser el nombre de un rol (`notify_role`) o una lista de
+    identificadores de usuario (`notify_user`).
+    """
+    from app.services.notifications import notify_role, notify_user
+
+    title = _render_template(
+        n.config.get("title") or n.config.get("template_id") or "Workflow notification",
+        n.ctx,
+    )
+    body = _render_template(n.config.get("body") or n.config.get("message"), n.ctx)
+    recipients = n.config.get("recipients") or n.config.get("role")
+    resource_id = n.run.target_entity_id
+    resource = n.run.target_entity_type or "workflow"
+    delivered = 0
+    try:
+        if isinstance(recipients, str):
+            delivered = notify_role(n.db, recipients, "workflow", title, body,
+                                    resource=resource, resource_id=resource_id)
+        elif isinstance(recipients, (list, tuple)):
+            for uid in recipients:
+                notify_user(n.db, str(uid), "workflow", title, body,
+                            resource=resource, resource_id=resource_id)
+                delivered += 1
+    except Exception as exc:
+        return "failure", {
+            "channel": n.config.get("channel"), "error": str(exc)[:300], "delivered": 0,
+        }, 0
+    return "next", {
+        "channel": n.config.get("channel"),
+        "recipients": recipients,
+        "delivered": True,
+        "notified_count": delivered,
+    }, 0
+
+
+def _nodo_llamada_http(n: _Nodo) -> tuple[str, dict, int]:
+    """Llamada HTTP saliente. Cualquier fallo toma la rama `failure`.
+
+    Las dos ramas estan declaradas en el catalogo (`success`/`failure`), asi que
+    el flujo puede tratar el error; por eso aqui no se propaga la excepcion.
+    """
+    url = n.config.get("url")
+    method = (n.config.get("method") or "GET").upper()
+    body_template = n.config.get("body_template")
+    body = None
+    if body_template:
+        try:
+            body = json.loads(body_template)
+        except Exception:
+            body = body_template
+    try:
+        import httpx  # noqa: WPS433
+        with httpx.Client(timeout=10.0) as cli:
+            r = cli.request(
+                method, url,
+                json=body if isinstance(body, (dict, list)) else None,
+                content=None if isinstance(body, (dict, list)) else body,
+            )
+        ok = 200 <= r.status_code < 300
+        return ("success" if ok else "failure"), {
+            "method": method, "url": url, "status_code": r.status_code,
+            "response": (r.text or "")[:500],
+        }, 0
+    except Exception as exc:
+        return "failure", {"method": method, "url": url, "error": str(exc)[:500]}, 0
+
+
+def _nodo_crear_ticket(n: _Nodo) -> tuple[str, dict, int]:
+    """Creacion real de un ticket.
+
+    Hereda la organizacion del run para el aislamiento de tenant, y el numero se
+    pide al generador canonico en vez de calcularlo aqui.
+    """
+    from app.models.service_desk import Ticket, TicketPriority, TicketType
+    from app.services.sla_service import next_ticket_number
+
+    title = _render_template(
+        n.config.get("title_template") or n.config.get("title") or "Workflow-created ticket",
+        n.ctx,
+    )
+    try:
+        ttype = TicketType(n.config.get("ticket_type") or "incident")
+    except ValueError:
+        ttype = TicketType.incident
+    try:
+        priority = TicketPriority(n.config.get("priority") or "p3_medium")
+    except ValueError:
+        priority = TicketPriority.p3_medium
+    # `sd_tickets.description` es NOT NULL y el esquema de la API la declara
+    # obligatoria (`description: str = Field(...)`), asi que el motor era la unica
+    # via que intentaba crear un ticket sin ella: pasaba `... or None` y el INSERT
+    # reventaba SIEMPRE que el nodo no traia plantilla de descripcion — y el
+    # editor del disenador no ofrecia campo para escribirla, asi que el nodo tal
+    # como se configura desde la interfaz no podia tener exito nunca. Se cae al
+    # titulo, que es lo que una persona habria escrito, y la procedencia queda en
+    # `source="workflow"`.
+    description = _render_template(
+        n.config.get("description_template") or n.config.get("description"), n.ctx
+    ) or title
+    try:
+        ticket = Ticket(
+            number=next_ticket_number(ttype.value, n.db),
+            ticket_type=ttype,
+            title=title[:500],
+            description=description,
+            priority=priority,
+            organization_id=n.run.organization_id,
+            source="workflow",
+        )
+        n.db.add(ticket)
+        n.db.flush()
+    except Exception as exc:
+        # El rollback no es opcional. Sin el, un flush fallido deja la sesion en
+        # transaccion abortada y TODO lo que viene despues del nodo falla con
+        # «transaction has been rolled back»: el registro del paso, el avance del
+        # run e incluso `_record_error`, que es justo quien tiene que anotar el
+        # problema. Un nodo que falla debe dejar el run anotable.
+        n.db.rollback()
+        return "failure", {
+            "queue": n.config.get("queue"), "error": str(exc)[:300], "created": False,
+        }, 0
+    return "next", {
+        "queue": n.config.get("queue"),
+        "created": True,
+        "ticket_id": ticket.id,
+        "ticket_number": ticket.number,
+    }, 0
+
+
+# La tabla. `TIPOS_EJECUTABLES` la cruza el test con `ALLOWED_NODE_TYPES` del
+# disenador, en las dos direcciones: un tipo en el catalogo que el motor no sepa
+# ejecutar se guarda como valido y revienta al ejecutarse (es lo que pasaba con
+# `action`), y un tipo ejecutable que no este en el catalogo no se puede
+# disenar, asi que seria codigo muerto.
+_EJECUTORES = {
+    "start": _nodo_inicio,
+    "end": _nodo_fin,
+    "state": _nodo_estado,
+    "decision": _nodo_decision,
+    "approval": _nodo_aprobacion,
+    "wait": _nodo_espera,
+    "notify": _nodo_notificar,
+    "http_call": _nodo_llamada_http,
+    "create_ticket": _nodo_crear_ticket,
+}
+
+TIPOS_EJECUTABLES = frozenset(_EJECUTORES)
+
+
 def _execute_node(ntype: str, config: dict, run: WorkflowRun, db: "Session") -> tuple[str, dict, int]:
     """Devuelve (branch_taken, payload_dict, wait_seconds_if_wait)."""
-    ctx = dict(run.context_json or {})
-
-    if ntype == "start":
-        return "next", {}, 0
-
-    if ntype == "end":
-        return "end", {}, 0
-
-    if ntype == "state":
-        # Aplica el cambio de estado al context (lo verá la siguiente decisión).
-        new_status = config.get("status")
-        if new_status:
-            ctx["status"] = new_status
-            run.context_json = ctx
-        return "next", {"status": new_status, "assignee_role": config.get("assignee_role"), "sla_hours": config.get("sla_hours")}, 0
-
-    if ntype == "decision":
-        expr = config.get("expression") or ""
-        result = evaluate_expression(expr, ctx)
-        return ("true" if result else "false"), {"expression": expr, "result": result}, 0
-
-    if ntype == "approval":
-        # Bloqueante: alguien externo debe llamar a /resume con approved/rejected.
-        return WAIT, {"approver_role": config.get("approver_role"), "deadline_hours": config.get("deadline_hours")}, 0
-
-    if ntype == "wait":
-        seconds = 0
-        try:
-            seconds = int(config.get("wait_minutes") or 0) * 60
-        except Exception:
-            seconds = 0
-        return WAIT, {"wait_minutes": config.get("wait_minutes"), "until_field": config.get("until_field")}, seconds
-
-    if ntype == "notify":
-        # Real in-app notification via app.services.notifications. `recipients`
-        # may be a role name (notify_role) or a list of user ids (notify_user).
-        from app.services.notifications import notify_role, notify_user
-
-        title = _render_template(config.get("title") or config.get("template_id") or "Workflow notification", ctx)
-        body = _render_template(config.get("body") or config.get("message"), ctx)
-        recipients = config.get("recipients") or config.get("role")
-        resource_id = run.target_entity_id
-        resource = run.target_entity_type or "workflow"
-        delivered = 0
-        try:
-            if isinstance(recipients, str):
-                delivered = notify_role(db, recipients, "workflow", title, body, resource=resource, resource_id=resource_id)
-            elif isinstance(recipients, (list, tuple)):
-                for uid in recipients:
-                    notify_user(db, str(uid), "workflow", title, body, resource=resource, resource_id=resource_id)
-                    delivered += 1
-        except Exception as exc:
-            return "failure", {"channel": config.get("channel"), "error": str(exc)[:300], "delivered": 0}, 0
-        return "next", {
-            "channel": config.get("channel"),
-            "recipients": recipients,
-            "delivered": True,
-            "notified_count": delivered,
-        }, 0
-
-    if ntype == "http_call":
-        url = config.get("url")
-        method = (config.get("method") or "GET").upper()
-        body_template = config.get("body_template")
-        body = None
-        if body_template:
-            try: body = json.loads(body_template)
-            except Exception: body = body_template
-        try:
-            import httpx  # noqa: WPS433
-            with httpx.Client(timeout=10.0) as cli:
-                r = cli.request(method, url, json=body if isinstance(body, (dict, list)) else None,
-                                content=None if isinstance(body, (dict, list)) else body)
-            ok = 200 <= r.status_code < 300
-            return ("success" if ok else "failure"), {
-                "method": method, "url": url, "status_code": r.status_code,
-                "response": (r.text or "")[:500],
-            }, 0
-        except Exception as exc:
-            return "failure", {"method": method, "url": url, "error": str(exc)[:500]}, 0
-
-    if ntype == "create_ticket":
-        # Real ticket creation. Inherits the run's organization for tenant
-        # isolation; ticket number is allocated via the canonical generator.
-        from app.models.service_desk import Ticket, TicketType, TicketPriority
-        from app.services.sla_service import next_ticket_number
-
-        title = _render_template(config.get("title_template") or config.get("title") or "Workflow-created ticket", ctx)
-        try:
-            ttype = TicketType(config.get("ticket_type") or "incident")
-        except ValueError:
-            ttype = TicketType.incident
-        try:
-            priority = TicketPriority(config.get("priority") or "p3_medium")
-        except ValueError:
-            priority = TicketPriority.p3_medium
-        try:
-            ticket = Ticket(
-                number=next_ticket_number(ttype.value, db),
-                ticket_type=ttype,
-                title=title[:500],
-                description=_render_template(config.get("description_template") or config.get("description"), ctx) or None,
-                priority=priority,
-                organization_id=run.organization_id,
-                source="workflow",
-            )
-            db.add(ticket)
-            db.flush()
-        except Exception as exc:
-            return "failure", {"queue": config.get("queue"), "error": str(exc)[:300], "created": False}, 0
-        return "next", {
-            "queue": config.get("queue"),
-            "created": True,
-            "ticket_id": ticket.id,
-            "ticket_number": ticket.number,
-        }, 0
-
-    raise ValueError(f"tipo de nodo no soportado por el motor: {ntype}")
+    ejecutar = _EJECUTORES.get(ntype)
+    if ejecutar is None:
+        raise ValueError(f"tipo de nodo no soportado por el motor: {ntype}")
+    return ejecutar(_Nodo(
+        config=config,
+        ctx=dict(run.context_json or {}),
+        run=run,
+        db=db,
+    ))
 
 
 def _pick_next(graph: dict, source_id: str, branch: str) -> Optional[str]:

@@ -1537,6 +1537,7 @@ def _resolve_doc_project_name(doc, db: Session) -> str:
 def _generate_and_store_signature_pdf(
     doc, doc_id: str, signer_name: str, signer_email: str, signer_job_title: Optional[str],
     ip: str, signature_pdf_path_root: str, project_name: str, now: datetime,
+    paleta=None,
 ) -> Optional[str]:
     """Generate the signature PDF, persist it on disk, set doc.signed_pdf_path,
     and return the base64-encoded PDF bytes. Logs (and swallows) generation
@@ -1556,6 +1557,7 @@ def _generate_and_store_signature_pdf(
             signed_at=now,
             signature_ip=ip,
             original_file_name=doc.file_name or "",
+            paleta=paleta,
         )
         pdf_dir = Path(signature_pdf_path_root)
         pdf_dir.mkdir(parents=True, exist_ok=True)
@@ -1579,9 +1581,17 @@ def sign_document(doc_id: str, signer_name: str, signer_email: str, signer_job_t
     now = datetime.now(timezone.utc)
     _apply_signature_metadata(doc, signer_name, signer_job_title, ip, now)
     project_name = _resolve_doc_project_name(doc, db)
+    # La marca del tenant en el certificado de firma: es lo que recibe el
+    # cliente al firmar. Auditoria 2026-08, hallazgo 32. Se resuelve aqui, donde
+    # hay `db`, y se pasa hecha: el ayudante no necesita dependencia de base.
+    from app.services._pdf_marca import PALETA_POR_DEFECTO, marca_de_organizacion
+    marca = marca_de_organizacion(
+        db, getattr(doc, "organization_id", None), base=PALETA_POR_DEFECTO,
+    )
     pdf_b64 = _generate_and_store_signature_pdf(
         doc, doc_id, signer_name, signer_email, signer_job_title,
         ip, signature_pdf_path_root, project_name, now,
+        paleta=marca.paleta,
     )
     db.commit()
     return {"ok": True, "signed_at": str(now)[:16], "signer_name": doc.signed_by_name, "pdf_b64": pdf_b64}

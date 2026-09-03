@@ -232,43 +232,128 @@ def create_scim_user(org_id: str, payload: dict, db: Session) -> User:
     return user
 
 
+# ── SCIM: actualización de usuario ───────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `update_scim_user` era complejidad 16: dos
+# bloques —PUT y PATCH— con sus propias cadenas de `if` sobre los campos.
+#
+# ── La asimetria que aparecio al ponerlos en tabla ────────────────────────────
+#
+# PUT y PATCH NO cubren los mismos campos:
+#
+#   campo          PUT   PATCH
+#   userName       si    si
+#   active         si    si
+#   displayName    si    si   (via name.formatted en PUT)
+#   emails         si    NO
+#   name.given     si    NO
+#   name.family    si    NO
+#   roles          si    NO
+#   externalId     si    NO
+#
+# Un proveedor de identidad que mande un PATCH cambiando el correo o el rol
+# recibe 200 y NO PASA NADA. No es un fallo del refactor —era asi— pero ahora
+# esta escrito y las dos tablas se pueden comparar de un vistazo. El RFC 7644
+# permite ignorar rutas no soportadas, asi que no se cambia el comportamiento;
+# lo que no se puede es no saberlo.
+
+
+def _fijar_estado(user: User, activo: bool) -> None:
+    """Activo o inactivo, con el estado coherente.
+
+    Los dos campos van juntos siempre: `is_active` es lo que mira la
+    autenticacion y `status` lo que se muestra, y dejarlos desalineados produce
+    un usuario que no puede entrar pero aparece como activo.
+    """
+    user.is_active = bool(activo)
+    user.status = UserStatus.active if user.is_active else UserStatus.inactive
+
+
+def _aplicar_put(user: User, payload: dict) -> None:
+    """Reemplazo completo del recurso, como manda PUT.
+
+    Cada campo se aplica solo si viene, asi que un PUT parcial no borra lo que
+    no menciona. Es mas laxo que el RFC —un PUT deberia reemplazar el recurso
+    entero— y se conserva: los proveedores de identidad mandan PUT incompletos
+    con frecuencia, y vaciar el nombre de alguien porque su IdP no lo envio
+    seria peor que ignorarlo.
+    """
+    name = payload.get("name") or {}
+    emails = payload.get("emails") or []
+
+    if payload.get("userName"):
+        user.username = payload["userName"]
+
+    if emails and isinstance(emails, list) and (emails[0] or {}).get("value"):
+        user.email = (emails[0] or {})["value"]
+
+    if name.get("formatted"):
+        user.full_name = name["formatted"]
+
+    # `is not None` y no truthy: un apellido vacio es un borrado legitimo, y con
+    # una comprobacion de verdad no se podria vaciar nunca.
+    if name.get("givenName") is not None:
+        user.first_name = name["givenName"]
+    if name.get("familyName") is not None:
+        user.last_name = name["familyName"]
+
+    if "active" in payload:
+        _fijar_estado(user, payload.get("active"))
+
+    if payload.get("roles"):
+        user.role = parse_role(((payload.get("roles") or [{}])[0] or {}).get("value"))
+
+    user.scim_external_id = payload.get("externalId", user.scim_external_id)
+
+
+# Las rutas que PATCH sabe aplicar, en minusculas porque el proveedor de
+# identidad las manda con la capitalizacion que le parece.
+_RUTAS_DE_PATCH = {
+    "active": lambda user, value: _fijar_estado(user, value),
+    "displayname": lambda user, value: setattr(user, "full_name", str(value)),
+    "username": lambda user, value: setattr(user, "username", str(value)),
+}
+
+RUTAS_SOPORTADAS_EN_PATCH = frozenset(_RUTAS_DE_PATCH)
+
+# Las rutas que solo requieren un valor con contenido. `active` no esta: para
+# `active` el valor puede ser `false`, que es falso pero significativo.
+_RUTAS_QUE_EXIGEN_VALOR = frozenset({"displayname", "username"})
+
+
+def _aplicar_patch(user: User, payload: dict) -> None:
+    """Aplica las operaciones de un PATCH.
+
+    Una ruta que no este en la tabla se ignora en silencio. El RFC 7644 lo
+    permite, pero conviene saber que PATCH cubre MENOS campos que PUT — ver la
+    nota de cabecera.
+    """
+    for op in payload.get("Operations", []) or []:
+        operacion = (op.get("op") or "").lower()
+        ruta = (op.get("path") or "").lower()
+        valor = op.get("value")
+
+        if operacion in ("replace", "add"):
+            aplicar = _RUTAS_DE_PATCH.get(ruta)
+            if aplicar and not (ruta in _RUTAS_QUE_EXIGEN_VALOR and not valor):
+                aplicar(user, valor)
+
+        # `remove` sobre `active` es como desactivar: es lo que mandan algunos
+        # proveedores al dar de baja a alguien.
+        if operacion == "remove" and ruta == "active":
+            _fijar_estado(user, False)
+
+
+_METODOS = {"PUT": _aplicar_put, "PATCH": _aplicar_patch}
+
+
 def update_scim_user(user: User, payload: dict, method: str) -> None:
     """Apply a PUT or PATCH update to *user* in-place (caller must commit)."""
-    if method == "PUT":
-        name = payload.get("name") or {}
-        emails = payload.get("emails") or []
-        if payload.get("userName"):
-            user.username = payload.get("userName")
-        if emails and isinstance(emails, list) and (emails[0] or {}).get("value"):
-            user.email = (emails[0] or {}).get("value")
-        if name.get("formatted"):
-            user.full_name = name.get("formatted")
-        if name.get("givenName") is not None:
-            user.first_name = name.get("givenName")
-        if name.get("familyName") is not None:
-            user.last_name = name.get("familyName")
-        if "active" in payload:
-            user.is_active = bool(payload.get("active"))
-            user.status = UserStatus.active if user.is_active else UserStatus.inactive
-        if payload.get("roles"):
-            user.role = parse_role(((payload.get("roles") or [{}])[0] or {}).get("value"))
-        user.scim_external_id = payload.get("externalId", user.scim_external_id)
-    elif method == "PATCH":
-        for op in payload.get("Operations", []) or []:
-            operation = (op.get("op") or "").lower()
-            path = (op.get("path") or "").lower()
-            value = op.get("value")
-            if operation in ("replace", "add"):
-                if path == "active":
-                    user.is_active = bool(value)
-                    user.status = UserStatus.active if user.is_active else UserStatus.inactive
-                elif path == "displayname" and value:
-                    user.full_name = str(value)
-                elif path == "username" and value:
-                    user.username = str(value)
-            if operation == "remove" and path == "active":
-                user.is_active = False
-                user.status = UserStatus.inactive
+    aplicar = _METODOS.get(method)
+    if aplicar:
+        aplicar(user, payload)
+    # La marca de sincronizacion se pone incluso si el metodo no se reconoce:
+    # el proveedor ha contactado, y eso es lo que este campo registra.
     user.scim_last_synced_at = datetime.now(timezone.utc)
 
 
@@ -507,3 +592,25 @@ def process_bulk_operations(
                 break
     db.commit()
     return responses
+
+
+# ── Errores de operaciones en bloque ─────────────────────────────────────────
+# Auditoría 2026-08 (hallazgo 22). Esta función vivía en `v238_service.py`, un
+# módulo nombrado por número de versión con seis dominios dentro. SCIM es su
+# dominio y aquí es donde se busca.
+#
+# Aviso honesto: comprobado en todo el repositorio, tiene CERO llamantes. Se
+# conserva porque el aprovisionamiento SCIM en bloque es una funcionalidad
+# declarada de la plataforma, pero nadie la invoca hoy — no asumir que está en
+# uso.
+def scim_bulk_error(bulk_id, status, detail) -> dict:
+    return {
+        "method": "UNKNOWN",
+        "bulkId": bulk_id,
+        "status": str(status),
+        "response": {
+            "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+            "status": str(status),
+            "detail": detail,
+        }
+    }

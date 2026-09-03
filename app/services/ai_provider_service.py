@@ -613,11 +613,18 @@ def _try_fallback_providers(
     max_tokens: int,
     is_superadmin: bool,
     organization_id,
-) -> dict | None:
+) -> "tuple[AIProvider | None, dict | None]":
     """
     Try any available provider as fallback (provider-agnostic).
 
-    Returns result dict if success, None if all fail.
+    Devuelve `(proveedor, resultado)` del primero que responda, o
+    `(None, None)` si fallan todos.
+
+    Antes devolvia solo el resultado, y `call_ai` no podia saber quien habia
+    atendido la llamada: la registraba con `provider_id = None`. El proveedor si
+    actualizaba sus propios contadores aqui dentro, asi que los agregados por
+    proveedor y `AIUsageLog` discrepaban justo para el trafico de respaldo — el
+    coste contado en el proveedor y las filas del log sin poder agruparse por el.
     """
     # Get all available active providers
     query = db.query(AIProvider).filter(
@@ -664,14 +671,36 @@ def _try_fallback_providers(
                 provider.total_cost_usd += cost
                 result["cost_usd"] = cost
 
-            db.commit()
+            # La llamada YA se ha atendido y el proveedor YA la ha facturado,
+            # asi que la contabilidad va en su propio `try`: si el `commit()` de
+            # estadisticas falla, se deshace y la respuesta se devuelve IGUAL.
+            #
+            # Antes ese `commit()` estaba dentro del `try` de la llamada, de modo
+            # que un fallo de NUESTRA base caia en el `except ... continue` de
+            # abajo: se descartaba una respuesta ya pagada y, peor, la sesion
+            # quedaba envenenada, asi que todos los proveedores siguientes del
+            # bucle fallaban tambien y la funcion acababa devolviendo «todos los
+            # proveedores han fallado» — el diagnostico contrario al real.
+            # Auditoria 2026-08, hallazgo 22.
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
+                _logger.warning(
+                    "no se pudieron guardar las estadisticas del proveedor %s; "
+                    "la respuesta se devuelve igual", provider.name,
+                    exc_info=True,
+                )
             _logger.info(
                 "Fallback AI provider succeeded: %s (%s)",
                 provider.name, provider.provider
             )
-            return result
+            return provider, result
 
         except Exception as exc:
+            # Solo el fallo de la LLAMADA justifica probar el siguiente
+            # proveedor. El de la contabilidad no llega aqui: lo atrapa el `try`
+            # interior de arriba.
             _logger.debug(
                 "Fallback provider %s failed: %s",
                 provider.name, str(exc)
@@ -680,8 +709,273 @@ def _try_fallback_providers(
 
     # All providers failed
     _logger.warning("All AI providers failed as fallback")
+    return None, None
+
+
+
+# ── Despacho de una llamada a un modelo ──────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18 + hueco de observabilidad encontrado de paso).
+# `call_ai` era complejidad 24 en siete fases mezcladas: gobernanza de entrada,
+# eleccion de proveedor, llamada con respaldo, registro de uso, aviso de coste y
+# gobernanza de salida. Ahora cada fase tiene nombre.
+#
+# ── El hueco ──────────────────────────────────────────────────────────────────
+#
+# `_try_fallback_providers` devolvia solo el resultado, no el proveedor que lo
+# habia servido, y `call_ai` ponia `p = None` antes de llamarlo. Consecuencia:
+# una llamada atendida por el respaldo se registraba en `AIUsageLog` con
+# `provider_id = None`.
+#
+# El proveedor SI actualizaba sus propios contadores dentro del respaldo, asi que
+# los agregados por proveedor y el registro de uso DISCREPABAN justo para ese
+# trafico: el coste estaba contado en el proveedor pero las filas del log no se
+# podian agrupar por el. Con un primario caido —que es cuando el respaldo
+# actua— eso puede ser una parte grande del gasto sin atribuir.
+#
+# Arreglo: `_try_fallback_providers` devuelve `(proveedor, resultado)` y el
+# registro apunta al proveedor que de verdad respondio. Es una funcion privada
+# llamada solo desde aqui, asi que el cambio de contrato esta contenido.
+
+
+def _resolver_usuario_de_gobernanza(db: Session, user_id, skip_guardrails: bool):
+    """El usuario contra el que se evaluan las politicas, resuelto una sola vez.
+
+    Se reutiliza para la entrada y para la salida: dos consultas para el mismo
+    dato en la misma llamada no aportan nada.
+
+    Devuelve None ante cualquier problema, y eso desactiva los guardrails de esa
+    llamada. Es el comportamiento del original; queda anotado porque no es
+    obvio: sin usuario no hay politicas que aplicar, asi que un fallo al
+    cargarlo abre el paso en vez de cerrarlo.
+    """
+    if skip_guardrails or not user_id:
+        return None
+    try:
+        return db.query(User).filter(User.id == user_id).first()
+    except Exception:
+        _logger.warning(
+            "Failed to load governance_user for user_id=%s", user_id, exc_info=True
+        )
+        return None
+
+
+def _aplicar_guardrail_de_entrada(db: Session, messages: list, governance_user,
+                                  module: str, skip_guardrails: bool):
+    """Evalua las politicas sobre el ultimo mensaje del usuario.
+
+    Devuelve un texto de bloqueo si hay que cortar, o None para seguir. Cuando
+    la politica redacta, ESCRIBE el texto redactado en `messages` — a proposito:
+    lo que se manda al modelo tiene que ser el texto ya redactado, no el
+    original.
+    """
+    if skip_guardrails or not governance_user or not messages:
+        return None
+
+    last_user_msg = next(
+        (m for m in reversed(messages) if m.get("role") == "user"), None
+    )
+    if not last_user_msg or not isinstance(last_user_msg.get("content"), str):
+        return None
+
+    try:
+        from app.services.ai_governance import check_prompt as _gr_check_prompt
+        gr = _gr_check_prompt(last_user_msg["content"], governance_user, module, db)
+    except Exception as gr_exc:
+        # Se sigue a proposito: un fallo del motor de politicas no puede dejar
+        # la aplicacion sin IA. Queda en el log.
+        _logger.warning("Guardrail prompt check failed (continuing): %s", gr_exc)
+        return None
+
+    if not gr.allowed:
+        return (
+            "[Mensaje bloqueado por política de gobernanza: "
+            f"{gr.blocked_by or 'policy'}]"
+        )
+    if gr.redacted_text:
+        last_user_msg["content"] = gr.redacted_text
     return None
 
+
+def _seleccionar_proveedor(db: Session, provider_id, is_superadmin: bool, organization_id):
+    """El proveedor primario: el pedido explicitamente, o el de la organizacion.
+
+    El filtro por `organization_id` cuando no es superadmin es lo que impide que
+    un identificador adivinado sirva para usar el proveedor —y la clave— de otro
+    cliente.
+    """
+    if not provider_id:
+        return get_default_provider(
+            db, is_superadmin=is_superadmin, organization_id=organization_id
+        )
+    q = db.query(AIProvider).filter(AIProvider.id == provider_id)
+    if not is_superadmin and organization_id:
+        q = q.filter(AIProvider.organization_id == organization_id)
+    return q.first()
+
+
+def _apuntar_uso_en_el_proveedor(p, result: dict, model) -> None:
+    """Suma peticiones, tokens y coste al proveedor que ha respondido."""
+    p.total_requests += 1
+    p.total_tokens_in += result["tokens_in"]
+    p.total_tokens_out += result["tokens_out"]
+    p.last_used_at = datetime.now(timezone.utc)
+
+    cat_models = PROVIDER_CATALOG.get(p.provider, {}).get("models", [])
+    m_info = next((m for m in cat_models if m["id"] == (model or p.default_model)), None)
+    if m_info:
+        cost = (result["tokens_in"] / 1_000_000 * m_info["cost_in"] +
+                result["tokens_out"] / 1_000_000 * m_info["cost_out"])
+        p.total_cost_usd += cost
+        result["cost_usd"] = cost
+
+
+def _marcar_proveedor_en_error(p, error_msg: str) -> None:
+    p.last_error = error_msg[:500]
+    p.last_error_at = datetime.now(timezone.utc)
+    p.status = "error"
+
+
+def _llamar_con_respaldo(db: Session, p, messages: list, system, model, max_tokens,
+                         is_superadmin: bool, organization_id):
+    """Llama al primario y, si falla, a cualquier otro disponible.
+
+    Devuelve `(proveedor_que_respondio, resultado, error)`. El proveedor
+    devuelto es el que DE VERDAD atendio la llamada, que es lo que hace que el
+    registro de uso quede atribuido — ver la nota de cabecera.
+    """
+    vacio = {"text": "", "tokens_in": 0, "tokens_out": 0, "model": "unknown"}
+
+    if p:
+        # El `try` cubre SOLO la llamada. Antes cubria tambien el `commit()` de
+        # estadisticas, y eso hacia que un fallo de nuestra base marcase
+        # `status = "error"` en un proveedor que HABIA FUNCIONADO —el valor que
+        # lo excluye de futuras selecciones— y volviese a hacer `commit()` sobre
+        # la sesion ya abortada. Auditoria 2026-08, hallazgo 22.
+        try:
+            result = call_provider(p, messages, system=system,
+                                   model=model or p.default_model,
+                                   max_tokens=max_tokens)
+        except Exception as e:
+            error_msg = str(e)
+            _marcar_proveedor_en_error(p, error_msg)
+            try:
+                db.commit()
+            except Exception:
+                # Que no se pueda anotar el error del proveedor no debe tapar el
+                # error del proveedor: se deshace y se sigue al respaldo.
+                db.rollback()
+                _logger.warning("no se pudo marcar el proveedor %s en error",
+                                p.name, exc_info=True)
+            respaldo, result = _try_fallback_providers(
+                db, messages, system, max_tokens, is_superadmin, organization_id
+            )
+            if result:
+                return respaldo, result, None
+            # Se conserva el error del primario: es el informativo.
+            return None, vacio, error_msg
+
+        # La llamada ya se ha atendido y facturado: la contabilidad no puede
+        # tirar la respuesta.
+        try:
+            _apuntar_uso_en_el_proveedor(p, result, model)
+            db.commit()
+        except Exception:
+            db.rollback()
+            _logger.warning(
+                "no se pudieron guardar las estadisticas del proveedor %s; la "
+                "respuesta se devuelve igual", p.name, exc_info=True,
+            )
+        return p, result, None
+
+    respaldo, result = _try_fallback_providers(
+        db, messages, system, max_tokens, is_superadmin, organization_id
+    )
+    if result:
+        return respaldo, result, None
+
+    vacio["text"] = (
+        "⚠️ No hay ningún proveedor de IA configurado. "
+        "Ve a Inteligencia IA → IA & Conectores para añadir uno."
+    )
+    return None, vacio, None
+
+
+def _registrar_uso(db: Session, p, result: dict, *, user_id, module,
+                   latency: int, error_msg) -> None:
+    """Escribe la fila de `AIUsageLog`. Un fallo al registrar no rompe la llamada.
+
+    El `rollback` del `except` no es opcional: sin el, una sesion en transaccion
+    abortada haria fallar todo lo que viene despues, incluido el aviso de coste.
+    """
+    db.add(AIUsageLog(
+        provider_id=p.id if p else None,
+        user_id=user_id,
+        module=module,
+        model=result.get("model"),
+        tokens_in=result.get("tokens_in", 0),
+        tokens_out=result.get("tokens_out", 0),
+        cost_usd=result.get("cost_usd", 0),
+        latency_ms=latency,
+        success=error_msg is None,
+        error_msg=error_msg,
+    ))
+    try:
+        db.commit()
+    except Exception:
+        _logger.warning("Failed to persist AIUsageLog entry; rolling back", exc_info=True)
+        db.rollback()
+
+
+def _avisar_si_el_coste_diario_se_pasa(db: Session, result: dict) -> None:
+    """Avisa en el log si el gasto acumulado del dia supera el umbral.
+
+    Es un aviso y no un corte: cortar la IA a media jornada por un umbral de
+    coste dejaria la aplicacion a medias sin que nadie lo hubiera decidido.
+    """
+    if result.get("cost_usd", 0) <= 0:
+        return
+    try:
+        from app.services.settings_service import get_runtime_float
+        threshold = (get_runtime_float(db, "AI_COST_ALERT_USD_PER_DAY")
+                     or settings.AI_COST_ALERT_USD_PER_DAY)
+        today_start = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        today_cost = db.query(func.sum(AIUsageLog.cost_usd)).filter(
+            AIUsageLog.created_at >= today_start,
+            AIUsageLog.success == True,   # noqa: E712 — comparación SQL, no Python
+        ).scalar() or 0
+        if today_cost > threshold:
+            _logger.warning(
+                "AI_COST_ALERT: coste diario acumulado $%.4f supera el umbral $%.2f.",
+                today_cost, threshold,
+            )
+    except Exception as alert_exc:
+        _logger.debug("Cost alert check failed (non-critical): %s", alert_exc)
+
+
+def _aplicar_guardrail_de_salida(db: Session, texto: str, governance_user,
+                                 module: str, skip_guardrails: bool, error_msg) -> str:
+    """Evalua las politicas sobre la respuesta del modelo.
+
+    No se evalua cuando la llamada fallo: no hay respuesta que revisar y el
+    texto que se devuelve es el mensaje de error del proveedor.
+    """
+    if skip_guardrails or not governance_user or not texto or error_msg is not None:
+        return texto
+    try:
+        from app.services.ai_governance import check_output as _gr_check_output
+        gr_out = _gr_check_output(texto, governance_user, module, db)
+    except Exception as gr_exc:
+        _logger.warning("Guardrail output check failed (continuing): %s", gr_exc)
+        return texto
+
+    if not gr_out.allowed:
+        return "[Respuesta bloqueada por política de gobernanza]"
+    if gr_out.redacted_text:
+        return gr_out.redacted_text
+    return texto
 
 
 def call_ai(
@@ -717,155 +1011,31 @@ def call_ai(
     Antes los guardrails sólo se aplicaban en ``ai_chat.py`` → 54% del
     tráfico IA bypasaba policies.
     """
+    governance_user = _resolver_usuario_de_gobernanza(db, user_id, skip_guardrails)
 
-    # ── Guardrail: prompt (input) ─────────────────────────────────────────
-    # Resolvemos el user de governance una vez para reusarlo en output.
-    governance_user = None
-    if not skip_guardrails and user_id:
-        try:
-            governance_user = db.query(User).filter(User.id == user_id).first()
-        except Exception:
-            _logger.warning("Failed to load governance_user for user_id=%s", user_id, exc_info=True)
-            governance_user = None
-
-    if not skip_guardrails and governance_user and messages:
-        last_user_msg = next(
-            (m for m in reversed(messages) if m.get("role") == "user"),
-            None,
-        )
-        if last_user_msg and isinstance(last_user_msg.get("content"), str):
-            try:
-                from app.services.ai_governance import check_prompt as _gr_check_prompt
-                gr = _gr_check_prompt(last_user_msg["content"], governance_user, module, db)
-                if not gr.allowed:
-                    blocked = (
-                        "[Mensaje bloqueado por política de gobernanza: "
-                        f"{gr.blocked_by or 'policy'}]"
-                    )
-                    return blocked
-                if gr.redacted_text:
-                    last_user_msg["content"] = gr.redacted_text
-            except Exception as gr_exc:
-                _logger.warning("Guardrail prompt check failed (continuing): %s", gr_exc)
-
-    # ── Step 1: Select primary provider ────────────────────────────────────
-    p = None
-
-    if provider_id:
-        p_q = db.query(AIProvider).filter(AIProvider.id == provider_id)
-        if not is_superadmin and organization_id:
-            p_q = p_q.filter(AIProvider.organization_id == organization_id)
-        p = p_q.first()
-    else:
-        p = get_default_provider(
-            db,
-            is_superadmin=is_superadmin,
-            organization_id=organization_id,
-        )
-
-    # ── Step 2: Initialize result ──────────────────────────────────────────
-    t0        = time.time()
-    error_msg = None
-    result    = {"text": "", "tokens_in": 0, "tokens_out": 0, "model": "unknown"}
-
-    # ── Step 3: Try primary provider ──────────────────────────────────────
-    if p:
-        try:
-            result = call_provider(p, messages, system=system,
-                                   model=model or p.default_model,
-                                   max_tokens=max_tokens)
-            p.total_requests   += 1
-            p.total_tokens_in  += result["tokens_in"]
-            p.total_tokens_out += result["tokens_out"]
-            p.last_used_at      = datetime.now(timezone.utc)
-            cat_models = PROVIDER_CATALOG.get(p.provider, {}).get("models", [])
-            m_info = next((m for m in cat_models if m["id"] == (model or p.default_model)), None)
-            if m_info:
-                cost = (result["tokens_in"]  / 1_000_000 * m_info["cost_in"] +
-                        result["tokens_out"] / 1_000_000 * m_info["cost_out"])
-                p.total_cost_usd    += cost
-                result["cost_usd"]   = cost
-            db.commit()
-        except Exception as e:
-            error_msg     = str(e)
-            p.last_error  = error_msg[:500]
-            p.last_error_at = datetime.now(timezone.utc)
-            p.status      = "error"
-            db.commit()
-
-            # ── Fallback 1: Try any other available provider (provider-agnostic) ──
-            p = None
-            fallback_result = _try_fallback_providers(
-                db, messages, system, max_tokens, is_superadmin, organization_id
-            )
-            if fallback_result:
-                result = fallback_result
-                error_msg = None
-            # else: keep original error_msg
-    else:
-        # ── No primary provider: try any available provider (provider-agnostic) ────
-        fallback_result = _try_fallback_providers(
-            db, messages, system, max_tokens, is_superadmin, organization_id
-        )
-        if fallback_result:
-            result = fallback_result
-            error_msg = None
-        else:
-            result["text"] = (
-                "⚠️ No hay ningún proveedor de IA configurado. "
-                "Ve a Inteligencia IA → IA & Conectores para añadir uno."
-            )
-
-    latency = int((time.time() - t0) * 1000)
-    log = AIUsageLog(
-        provider_id=p.id if p else None,
-        user_id=user_id,
-        module=module,
-        model=result.get("model"),
-        tokens_in=result.get("tokens_in", 0),
-        tokens_out=result.get("tokens_out", 0),
-        cost_usd=result.get("cost_usd", 0),
-        latency_ms=latency,
-        success=error_msg is None,
-        error_msg=error_msg,
+    bloqueo = _aplicar_guardrail_de_entrada(
+        db, messages, governance_user, module, skip_guardrails
     )
-    db.add(log)
-    try:
-        db.commit()
-    except Exception:
-        _logger.warning("Failed to persist AIUsageLog entry; rolling back", exc_info=True)
-        db.rollback()
+    if bloqueo:
+        return bloqueo
 
-    if error_msg is None and result.get("cost_usd", 0) > 0:
-        try:
-            from app.services.settings_service import get_runtime_float
-            threshold   = get_runtime_float(db, "AI_COST_ALERT_USD_PER_DAY") or settings.AI_COST_ALERT_USD_PER_DAY
-            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-            today_cost  = db.query(func.sum(AIUsageLog.cost_usd)).filter(
-                AIUsageLog.created_at >= today_start,
-                AIUsageLog.success == True,
-            ).scalar() or 0
-            if today_cost > threshold:
-                _logger.warning(
-                    "AI_COST_ALERT: coste diario acumulado $%.4f supera el umbral $%.2f.",
-                    today_cost, threshold,
-                )
-        except Exception as alert_exc:
-            _logger.debug("Cost alert check failed (non-critical): %s", alert_exc)
+    p = _seleccionar_proveedor(db, provider_id, is_superadmin, organization_id)
 
-    # ── Guardrail: output ──────────────────────────────────────────────────
-    final_text = result.get("text", "") or ""
-    if (not skip_guardrails and governance_user and final_text
-            and error_msg is None):
-        try:
-            from app.services.ai_governance import check_output as _gr_check_output
-            gr_out = _gr_check_output(final_text, governance_user, module, db)
-            if not gr_out.allowed:
-                final_text = "[Respuesta bloqueada por política de gobernanza]"
-            elif gr_out.redacted_text:
-                final_text = gr_out.redacted_text
-        except Exception as gr_exc:
-            _logger.warning("Guardrail output check failed (continuing): %s", gr_exc)
+    t0 = time.time()
+    p, result, error_msg = _llamar_con_respaldo(
+        db, p, messages, system, model, max_tokens, is_superadmin, organization_id
+    )
+    latency = int((time.time() - t0) * 1000)
+
+    _registrar_uso(db, p, result, user_id=user_id, module=module,
+                   latency=latency, error_msg=error_msg)
+    if error_msg is None:
+        _avisar_si_el_coste_diario_se_pasa(db, result)
+
+    final_text = _aplicar_guardrail_de_salida(
+        db, result.get("text", "") or "", governance_user, module,
+        skip_guardrails, error_msg,
+    )
 
     # Si falló el provider, devolvemos un texto explícito de error que el
     # caller puede distinguir (#43): prefijo "⚠️" + flag implícito por longitud.

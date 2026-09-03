@@ -38,8 +38,8 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
-from typing import Callable, Optional
+from datetime import date, datetime, timedelta, timezone
+from typing import Callable, NamedTuple, Optional
 
 from sqlalchemy.orm import Session
 
@@ -204,75 +204,128 @@ def _serie_budget_used_pct(ctx: _Ctx) -> Optional[list[float]]:
         return [round(float(m.get("cost",0))/float(m.get("revenue",0))*100,2)
                 if float(m.get("revenue",0)) > 0 else 0.0 for m in series]
 
-def _serie_invoice(ctx: _Ctx) -> Optional[list[float]]:
-    """Metricas que comparten consulta:
+# ── Metricas de facturacion ──────────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `_serie_invoice` era complejidad 24: siete
+# ramas sobre `metric_key`, y seis de ellas el MISMO bucle copiado cambiando
+# solo tres cosas — el estado que cuenta, de que campo saca la fecha, y si suma
+# el importe o cuenta filas. Esas tres cosas son ahora una tabla.
 
-    · invoice_overdue_count
-    · invoice_overdue_amount
-    · invoices_draft_count
-    · invoices_sent_count
-    · invoices_paid_count
-    · invoices_paid_total
-    · invoice_days_to_pay_avg
+# Los tres campos de fecha, como funciones para poder ponerlos en la tabla. La
+# firma es siempre `(vencimiento, emision, pago)` para que sean intercambiables.
+def _fecha_de_vencimiento(due, iss, paid):
+    return due
+
+
+def _fecha_de_emision(due, iss, paid):
+    return iss
+
+
+def _fecha_de_cobro(due, iss, paid):
+    """La de pago, y si no hay, la de emision.
+
+    Una factura marcada como pagada sin fecha de pago sigue siendo un cobro que
+    hay que ver en algun mes; se imputa al de emision antes que perderla.
     """
-    _empty_like, db, metric_key, organization_id, series, start_date = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
-    if metric_key in ("invoice_overdue_count","invoice_overdue_amount","invoices_draft_count",
-                       "invoices_sent_count","invoices_paid_count","invoices_paid_total","invoice_days_to_pay_avg"):
-        try:
-            from app.models.billing_reports import Invoice
-            rows = db.query(Invoice.due_date, Invoice.issue_date, Invoice.paid_date,
-                            Invoice.status, Invoice.total).filter(Invoice.due_date >= start_date).all()
-            if metric_key == "invoice_overdue_count":
-                bkt: dict[str,float] = defaultdict(float)
-                for due, iss, paid, st, tot in rows:  # noqa: B007
-                    if due and str(getattr(st,"value",st)) == "overdue":
-                        bkt[f"{due.year:04d}-{due.month:02d}"] += 1.0
-                return [float(bkt.get(m["month"],0.0)) for m in series]
-            if metric_key == "invoice_overdue_amount":
-                bkt = defaultdict(float)
-                for due, iss, paid, st, tot in rows:  # noqa: B007
-                    if due and str(getattr(st,"value",st)) == "overdue":
-                        bkt[f"{due.year:04d}-{due.month:02d}"] += float(tot or 0)
-                return [float(bkt.get(m["month"],0.0)) for m in series]
-            if metric_key == "invoices_draft_count":
-                bkt = defaultdict(float)
-                for due, iss, paid, st, tot in rows:  # noqa: B007
-                    if iss and str(getattr(st,"value",st)) == "draft":
-                        bkt[f"{iss.year:04d}-{iss.month:02d}"] += 1.0
-                return [float(bkt.get(m["month"],0.0)) for m in series]
-            if metric_key == "invoices_sent_count":
-                bkt = defaultdict(float)
-                for due, iss, paid, st, tot in rows:  # noqa: B007
-                    if iss and str(getattr(st,"value",st)) == "sent":
-                        bkt[f"{iss.year:04d}-{iss.month:02d}"] += 1.0
-                return [float(bkt.get(m["month"],0.0)) for m in series]
-            if metric_key == "invoices_paid_count":
-                bkt = defaultdict(float)
-                for due, iss, paid, st, tot in rows:  # noqa: B007
-                    if (iss or paid) and str(getattr(st,"value",st)) == "paid":
-                        d = paid or iss
-                        bkt[f"{d.year:04d}-{d.month:02d}"] += 1.0
-                return [float(bkt.get(m["month"],0.0)) for m in series]
-            if metric_key == "invoices_paid_total":
-                bkt = defaultdict(float)
-                for due, iss, paid, st, tot in rows:  # noqa: B007
-                    if (iss or paid) and str(getattr(st,"value",st)) == "paid":
-                        d = paid or iss
-                        bkt[f"{d.year:04d}-{d.month:02d}"] += float(tot or 0)
-                return [float(bkt.get(m["month"],0.0)) for m in series]
-            if metric_key == "invoice_days_to_pay_avg":
-                bkt_sum: dict[str,float] = defaultdict(float)
-                bkt_cnt: dict[str,float] = defaultdict(float)
-                for due, iss, paid, st, tot in rows:  # noqa: B007
-                    if iss and paid and str(getattr(st,"value",st)) == "paid":
-                        days = (paid - iss).days
-                        k = f"{iss.year:04d}-{iss.month:02d}"
-                        bkt_sum[k] += days; bkt_cnt[k] += 1.0
-                return [round(bkt_sum[m["month"]]/bkt_cnt[m["month"]],1)
-                        if bkt_cnt.get(m["month"],0) > 0 else 0.0 for m in series]
-        except Exception:
-            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
-            return _empty_like()
+    return paid or iss
+
+
+@dataclass(frozen=True, slots=True)
+class _MetricaDeFactura:
+    """Como se calcula una de las seis metricas de recuento/importe."""
+
+    estado: str          # el estado de factura que entra en el recuento
+    fecha: object        # de que campo sale el mes al que se imputa
+    importe: bool        # True suma `total`; False cuenta facturas
+
+
+_METRICAS_DE_FACTURA = {
+    "invoice_overdue_count":  _MetricaDeFactura("overdue", _fecha_de_vencimiento, importe=False),
+    "invoice_overdue_amount": _MetricaDeFactura("overdue", _fecha_de_vencimiento, importe=True),
+    "invoices_draft_count":   _MetricaDeFactura("draft",   _fecha_de_emision,     importe=False),
+    "invoices_sent_count":    _MetricaDeFactura("sent",    _fecha_de_emision,     importe=False),
+    "invoices_paid_count":    _MetricaDeFactura("paid",    _fecha_de_cobro,       importe=False),
+    "invoices_paid_total":    _MetricaDeFactura("paid",    _fecha_de_cobro,       importe=True),
+}
+
+# La septima no encaja en la tabla: es una media, no una acumulacion.
+_METRICA_DIAS_DE_COBRO = "invoice_days_to_pay_avg"
+
+CLAVES_DE_FACTURA = frozenset(_METRICAS_DE_FACTURA) | {_METRICA_DIAS_DE_COBRO}
+
+
+def _estado_de(st) -> str:
+    """El estado como cadena, venga como Enum o ya como texto.
+
+    `getattr(st, "value", st)` porque la columna es un Enum de SQLAlchemy pero
+    algunas consultas lo devuelven ya resuelto a cadena.
+    """
+    return str(getattr(st, "value", st))
+
+
+def _acumular(ctx: _Ctx, rows, spec: _MetricaDeFactura) -> list[float]:
+    """Agrupa las facturas del estado pedido por su mes y acumula."""
+    bkt: dict[str, float] = defaultdict(float)
+    for due, iss, paid, st, tot in rows:
+        if _estado_de(st) != spec.estado:
+            continue
+        d = spec.fecha(due, iss, paid)
+        if not d:
+            continue
+        bkt[f"{d.year:04d}-{d.month:02d}"] += float(tot or 0) if spec.importe else 1.0
+    return [float(bkt.get(m["month"], 0.0)) for m in ctx.series]
+
+
+def _dias_medios_de_cobro(ctx: _Ctx, rows) -> list[float]:
+    """Media de dias entre emision y cobro, por mes de emision.
+
+    Se imputa al mes de EMISION y no al de cobro a proposito: la pregunta que
+    responde es «lo que factune en marzo, cuanto tardo en cobrarse».
+    """
+    suma: dict[str, float] = defaultdict(float)
+    cuenta: dict[str, float] = defaultdict(float)
+    for due, iss, paid, st, tot in rows:  # noqa: B007
+        if iss and paid and _estado_de(st) == "paid":
+            k = f"{iss.year:04d}-{iss.month:02d}"
+            suma[k] += (paid - iss).days
+            cuenta[k] += 1.0
+    return [
+        round(suma[m["month"]] / cuenta[m["month"]], 1)
+        if cuenta.get(m["month"], 0) > 0 else 0.0
+        for m in ctx.series
+    ]
+
+
+def _serie_invoice(ctx: _Ctx) -> Optional[list[float]]:
+    """Las siete metricas de facturacion, que comparten una sola consulta."""
+    if ctx.key not in CLAVES_DE_FACTURA:
+        return None
+    try:
+        from sqlalchemy import or_ as _or
+        from app.models.billing_reports import Invoice
+
+        # El `or_(... is None)` corrige un defecto encontrado en la auditoria: el
+        # filtro era solo `due_date >= start_date`, y `due_date` es NULLABLE —
+        # el esquema y la API aceptan una factura sin fecha de vencimiento. Esa
+        # factura quedaba fuera de las SIETE metricas, incluidas las cuatro que
+        # ni usan el vencimiento (borradores, enviadas, cobradas e importe
+        # cobrado, que van por emision o por pago). Es el patron central de la
+        # auditoria: un filtro que devuelve cero en silencio en vez de fallar.
+        rows = (ctx.db.query(Invoice.due_date, Invoice.issue_date,
+                             Invoice.paid_date, Invoice.status, Invoice.total)
+                       .filter(_or(Invoice.due_date >= ctx.start_date,
+                                   Invoice.due_date.is_(None)))
+                       .all())
+
+        if ctx.key == _METRICA_DIAS_DE_COBRO:
+            return _dias_medios_de_cobro(ctx, rows)
+        return _acumular(ctx, rows, _METRICAS_DE_FACTURA[ctx.key])
+    except Exception:
+        logger.debug(
+            "Failed to fetch metric %s for org=%s", ctx.key, ctx.org_id, exc_info=True
+        )
+        return ctx.empty_like()
+
 
 def _serie_expense(ctx: _Ctx) -> Optional[list[float]]:
     """Metricas que comparten consulta:
@@ -369,103 +422,227 @@ def _serie_imputations_approved_hours(ctx: _Ctx) -> Optional[list[float]]:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
+# ── Perfil de coste de personal ──────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `_serie_cost_profile` era complejidad 27:
+# trece `elif metric_key == ...` DENTRO del bucle mensual, asi que reevaluaba la
+# cadena entera en cada uno de los 24 meses de la serie. Ahora el calculo se
+# resuelve UNA vez, antes del bucle.
+#
+# Los cuerpos vienen verbatim. La red es `tests/test_bi_cost_profile_metrics.py`,
+# donde los 13 valores estan calculados a mano —no capturados del codigo— sobre
+# tres perfiles fijos.
+
+
+def _fin_de_mes(year: int, month: int) -> date:
+    """Ultimo dia del mes. Es la foto contra la que se miran los perfiles."""
+    if month == 12:
+        return date(year, 12, 31)
+    return date(year, month + 1, 1) - timedelta(days=1)
+
+
+def _percentil(vals: list[float], pct: float) -> float:
+    """Percentil con interpolacion lineal. Devuelve 0.0 sobre lista vacia."""
+    if not vals:
+        return 0.0
+    ordered = sorted(vals)
+    k = (len(ordered) - 1) * (pct / 100.0)
+    lo = int(k)
+    hi = min(lo + 1, len(ordered) - 1)
+    frac = k - lo
+    return ordered[lo] * (1 - frac) + ordered[hi] * frac
+
+
+def _maximo_de_las_medias(grupos: dict[str, list[float]]) -> float:
+    """El mayor de los promedios por grupo.
+
+    Media y no suma a proposito: un euro/hora medio alto senala un grupo caro,
+    mientras que un grupo grande con sueldos normales sumaria mas sin serlo. El
+    coste ANUAL por pais si se suma (ver `_cp_top_country_annual`), porque alli
+    lo que interesa es el total que se gasta.
+    """
+    medias = [sum(v) / len(v) for v in grupos.values() if v]
+    return round(max(medias), 2) if medias else 0.0
+
+
+@dataclass(slots=True)
+class _MesDeCoste:
+    """Lo que un calculo de coste ve de un mes concreto.
+
+    `profiles` y `rates` son del mes; los otros cuatro campos son del estado
+    ACTUAL y se calculan una sola vez para toda la serie. Esa asimetria es del
+    codigo original y es deliberada: no hay historico de plantilla, asi que el
+    censo de hoy se usa como aproximacion en todos los meses.
+    """
+
+    profiles: list
+    rates: list[float]
+    users_by_id: dict
+    legacy_user_ids: set
+    total_active: int
+    employer_pcts: list[float]
+
+    def con_perfil(self) -> set:
+        return {p.user_id for p in self.profiles}
+
+
+def _cp_avg_per_hour(m: _MesDeCoste) -> float:
+    return round(sum(m.rates) / len(m.rates), 2) if m.rates else 0.0
+
+
+def _cp_max_per_hour(m: _MesDeCoste) -> float:
+    return round(max(m.rates), 2) if m.rates else 0.0
+
+
+def _cp_p95_per_hour(m: _MesDeCoste) -> float:
+    return round(_percentil(m.rates, 95), 2)
+
+
+def _cp_dept_max_per_hour(m: _MesDeCoste) -> float:
+    grupos: dict[str, list[float]] = {}
+    for p in m.profiles:
+        u = m.users_by_id.get(p.user_id)
+        if u and p.cost_per_hour:
+            # El `or "—"` no es decorativo: sin el, un usuario sin departamento
+            # agruparia bajo None y su coste desapareceria del maximo.
+            grupos.setdefault(u.department or "—", []).append(p.cost_per_hour)
+    return _maximo_de_las_medias(grupos)
+
+
+def _cp_country_max_per_hour(m: _MesDeCoste) -> float:
+    grupos: dict[str, list[float]] = {}
+    for p in m.profiles:
+        if p.country_code and p.cost_per_hour:
+            grupos.setdefault(p.country_code, []).append(p.cost_per_hour)
+    return _maximo_de_las_medias(grupos)
+
+
+def _cp_total_annual(m: _MesDeCoste) -> float:
+    # `float(...)` explicito: sin el, una organizacion sin perfiles devolvia
+    # `round(sum([]), 2)` = int 0 y esta era la unica metrica del catalogo con
+    # tipo mixto en la serie. Lo cazo test_bi_cost_profile_metrics.
+    return round(float(sum(p.total_annual_cost or 0 for p in m.profiles)), 2)
+
+
+def _cp_top_person_annual(m: _MesDeCoste) -> float:
+    annuals = [p.total_annual_cost for p in m.profiles if p.total_annual_cost]
+    return round(max(annuals), 2) if annuals else 0.0
+
+
+def _cp_top_country_annual(m: _MesDeCoste) -> float:
+    """Maximo de las SUMAS por pais, no de las medias (ver `_maximo_de_las_medias`)."""
+    por_pais: dict[str, float] = {}
+    for p in m.profiles:
+        if p.country_code:
+            por_pais[p.country_code] = por_pais.get(p.country_code, 0) + (p.total_annual_cost or 0)
+    return round(max(por_pais.values()), 2) if por_pais else 0.0
+
+
+def _cp_users_with(m: _MesDeCoste) -> float:
+    return float(len(m.con_perfil()))
+
+
+def _cp_users_legacy(m: _MesDeCoste) -> float:
+    """Activos que siguen costeandose con la tarifa suelta en vez del perfil."""
+    return float(len(m.legacy_user_ids - m.con_perfil()))
+
+
+def _cp_users_missing(m: _MesDeCoste) -> float:
+    """Activos sin perfil ni tarifa antigua: no tienen coste de ninguna clase.
+
+    El `max(..., 0)` es necesario porque los conjuntos son del estado actual y
+    los perfiles de una foto mensual: en un mes antiguo puede haber mas perfiles
+    que activos de hoy, y un recuento negativo en un panel no significa nada.
+    """
+    con_perfil = m.con_perfil()
+    solo_legacy = m.legacy_user_ids - con_perfil
+    return float(max(m.total_active - len(con_perfil) - len(solo_legacy), 0))
+
+
+def _cp_employer_pct_avg(m: _MesDeCoste) -> float:
+    if not m.employer_pcts:
+        return 0.0
+    return round(sum(m.employer_pcts) / len(m.employer_pcts) * 100, 2)
+
+
+def _cp_employer_pct_max(m: _MesDeCoste) -> float:
+    return round(max(m.employer_pcts) * 100, 2) if m.employer_pcts else 0.0
+
+
+_CALCULOS_DE_COSTE = {
+    "cost_profile_avg_per_hour": _cp_avg_per_hour,
+    "cost_profile_max_per_hour": _cp_max_per_hour,
+    "cost_profile_p95_per_hour": _cp_p95_per_hour,
+    "cost_profile_dept_max_per_hour": _cp_dept_max_per_hour,
+    "cost_profile_country_max_per_hour": _cp_country_max_per_hour,
+    "cost_profile_total_annual": _cp_total_annual,
+    "cost_profile_top_person_annual": _cp_top_person_annual,
+    "cost_profile_top_country_annual": _cp_top_country_annual,
+    "cost_profile_users_with": _cp_users_with,
+    "cost_profile_users_legacy": _cp_users_legacy,
+    "cost_profile_users_missing": _cp_users_missing,
+    "cost_profile_employer_pct_avg": _cp_employer_pct_avg,
+    "cost_profile_employer_pct_max": _cp_employer_pct_max,
+}
+
+
 def _serie_cost_profile(ctx: _Ctx) -> Optional[list[float]]:
     """Metricas del perfil de coste de personal (COST_PROFILE_KEYS)."""
-    _empty_like, db, metric_key, organization_id, series = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series
-    if metric_key in COST_PROFILE_KEYS:
-        try:
-            from datetime import date as _D, timedelta as _T
-            from sqlalchemy import or_ as _or
-            from app.models.user_cost import UserCostProfile, CountryEmployerCost
-            from app.models.user import User as _User
+    if ctx.key not in COST_PROFILE_KEYS:
+        return None
 
-            def _eom(year: int, month: int) -> _D:
-                if month == 12:
-                    return _D(year, 12, 31)
-                return _D(year, month + 1, 1) - _T(days=1)
+    calcular = _CALCULOS_DE_COSTE.get(ctx.key)
+    if calcular is None:
+        # Una clave del grupo sin calculo. No puede pasar —el test
+        # `test_las_13_claves_estan_todas_cubiertas` cruza tabla y grupo— pero
+        # devolver ceros en silencio es exactamente el patron que dejo muerto el
+        # reconocimiento ASC 606, asi que aqui se avisa.
+        logger.error("Metrica de coste sin calculo asociado: %s", ctx.key)
+        return ctx.empty_like()
 
-            def _percentile(vals: list[float], pct: float) -> float:
-                if not vals:
-                    return 0.0
-                ordered = sorted(vals)
-                k = (len(ordered) - 1) * (pct / 100.0)
-                lo = int(k)
-                hi = min(lo + 1, len(ordered) - 1)
-                frac = k - lo
-                return ordered[lo] * (1 - frac) + ordered[hi] * frac
+    db = ctx.db
+    try:
+        from sqlalchemy import or_ as _or
+        from app.models.user import User as _User
+        from app.models.user_cost import CountryEmployerCost, UserCostProfile
 
-            # Active users count (snapshot-independent — current state used as proxy)
-            active_users = db.query(_User).filter(_User.status == "active").all()
-            total_active = len(active_users)
-            users_by_id = {u.id: u for u in active_users}
-            legacy_user_ids = {u.id for u in active_users if (u.hourly_rate or 0) > 0}
+        # Censo actual. No hay historico de plantilla, asi que sirve de
+        # aproximacion para todos los meses de la serie.
+        active_users = db.query(_User).filter(_User.status == "active").all()
+        users_by_id = {u.id: u for u in active_users}
+        legacy_user_ids = {u.id for u in active_users if (u.hourly_rate or 0) > 0}
 
-            # Country presets (used for employer_pct metrics — stable across snapshots)
-            country_presets = db.query(CountryEmployerCost).all()
-            employer_pcts = [c.employer_cost_pct for c in country_presets if c.employer_cost_pct is not None]
+        # Presets de pais: estables entre meses, se leen una vez.
+        country_presets = db.query(CountryEmployerCost).all()
+        employer_pcts = [
+            c.employer_cost_pct for c in country_presets
+            if c.employer_cost_pct is not None
+        ]
 
-            out: list[float] = []
-            for m in series:
-                yyyy, mm = m["month"].split("-")
-                snap = _eom(int(yyyy), int(mm))
-                profiles = (db.query(UserCostProfile)
-                              .filter(UserCostProfile.valid_from <= snap,
-                                      _or(UserCostProfile.valid_to.is_(None),
-                                          UserCostProfile.valid_to >= snap))
-                              .all())
-                rates = [p.cost_per_hour for p in profiles if p.cost_per_hour]
+        out: list[float] = []
+        for m in ctx.series:
+            yyyy, mm = m["month"].split("-")
+            snap = _fin_de_mes(int(yyyy), int(mm))
+            profiles = (db.query(UserCostProfile)
+                          .filter(UserCostProfile.valid_from <= snap,
+                                  _or(UserCostProfile.valid_to.is_(None),
+                                      UserCostProfile.valid_to >= snap))
+                          .all())
+            out.append(calcular(_MesDeCoste(
+                profiles=profiles,
+                rates=[p.cost_per_hour for p in profiles if p.cost_per_hour],
+                users_by_id=users_by_id,
+                legacy_user_ids=legacy_user_ids,
+                total_active=len(active_users),
+                employer_pcts=employer_pcts,
+            )))
+        return out
+    except Exception:
+        logger.debug(
+            "Failed to fetch metric %s for org=%s", ctx.key, ctx.org_id, exc_info=True
+        )
+        return ctx.empty_like()
 
-                if metric_key == "cost_profile_avg_per_hour":
-                    out.append(round(sum(rates) / len(rates), 2) if rates else 0.0)
-                elif metric_key == "cost_profile_max_per_hour":
-                    out.append(round(max(rates), 2) if rates else 0.0)
-                elif metric_key == "cost_profile_p95_per_hour":
-                    out.append(round(_percentile(rates, 95), 2))
-                elif metric_key == "cost_profile_dept_max_per_hour":
-                    bucket: dict[str, list[float]] = {}
-                    for p in profiles:
-                        u = users_by_id.get(p.user_id)
-                        if u and p.cost_per_hour:
-                            bucket.setdefault(u.department or "—", []).append(p.cost_per_hour)
-                    dept_avgs = [sum(v) / len(v) for v in bucket.values() if v]
-                    out.append(round(max(dept_avgs), 2) if dept_avgs else 0.0)
-                elif metric_key == "cost_profile_country_max_per_hour":
-                    bucket = {}
-                    for p in profiles:
-                        if p.country_code and p.cost_per_hour:
-                            bucket.setdefault(p.country_code, []).append(p.cost_per_hour)
-                    country_avgs = [sum(v) / len(v) for v in bucket.values() if v]
-                    out.append(round(max(country_avgs), 2) if country_avgs else 0.0)
-                elif metric_key == "cost_profile_total_annual":
-                    out.append(round(sum(p.total_annual_cost or 0 for p in profiles), 2))
-                elif metric_key == "cost_profile_top_person_annual":
-                    annuals = [p.total_annual_cost for p in profiles if p.total_annual_cost]
-                    out.append(round(max(annuals), 2) if annuals else 0.0)
-                elif metric_key == "cost_profile_top_country_annual":
-                    bucket_a: dict[str, float] = {}
-                    for p in profiles:
-                        if p.country_code:
-                            bucket_a[p.country_code] = bucket_a.get(p.country_code, 0) + (p.total_annual_cost or 0)
-                    out.append(round(max(bucket_a.values()), 2) if bucket_a else 0.0)
-                elif metric_key == "cost_profile_users_with":
-                    out.append(float(len({p.user_id for p in profiles})))
-                elif metric_key == "cost_profile_users_legacy":
-                    with_ids = {p.user_id for p in profiles}
-                    out.append(float(len(legacy_user_ids - with_ids)))
-                elif metric_key == "cost_profile_users_missing":
-                    with_ids = {p.user_id for p in profiles}
-                    legacy_only = legacy_user_ids - with_ids
-                    out.append(float(max(total_active - len(with_ids) - len(legacy_only), 0)))
-                elif metric_key == "cost_profile_employer_pct_avg":
-                    out.append(round(sum(employer_pcts) / len(employer_pcts) * 100, 2) if employer_pcts else 0.0)
-                elif metric_key == "cost_profile_employer_pct_max":
-                    out.append(round(max(employer_pcts) * 100, 2) if employer_pcts else 0.0)
-                else:
-                    out.append(0.0)
-            return out
-        except Exception:
-            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
-            return _empty_like()
 
 def _serie_hours_logged(ctx: _Ctx) -> Optional[list[float]]:
     """Metrica `hours_logged`."""
@@ -589,49 +766,123 @@ def _serie_snapshot_billable_pct(ctx: _Ctx) -> Optional[list[float]]:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
             return _empty_like()
 
-def _serie_pending_timesheets(ctx: _Ctx) -> Optional[list[float]]:
-    """Metricas que comparten consulta:
+# ── Metricas de hojas de horas ───────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `_serie_pending_timesheets` era complejidad
+# 13 en seis metricas de tres formas distintas: tres recuentos por estado, una
+# suma, una media, y una que no es mensual sino instantanea.
+#
+# Dos cosas del comportamiento original que NO se han cambiado aqui —un refactor
+# de complejidad no es el sitio para cambiar lo que significa una cifra— pero que
+# quedan escritas porque no son evidentes leyendo el codigo:
+#
+#   · `pending_timesheets` y `timesheets_submitted_count` miran el MISMO estado
+#     («submitted») y devuelven cosas distintas: la primera es cuantas hay
+#     esperando AHORA, repetida en toda la serie; la segunda cuantas se
+#     entregaron en cada mes. Es deliberado y por eso llevan nombres distintos.
+#   · `timesheet_cost_total` NO filtra por estado: suma el coste de todas las
+#     hojas, incluidas las rechazadas y los borradores. Si la intencion era el
+#     coste comprometido, sobran las rechazadas; queda anotado como pregunta
+#     abierta, no tocado.
 
-    · pending_timesheets
-    · timesheets_draft_count
-    · timesheets_submitted_count
-    · timesheets_rejected_count
-    · timesheet_cost_total
-    · timesheet_avg_hours
+# El estado que cuenta cada metrica de recuento. `pending_timesheets` esta aqui
+# tambien porque el codigo original la incluia en el mismo mapa, aunque su rama
+# sale antes de usarlo.
+_ESTADO_DE_HOJA = {
+    "pending_timesheets": "submitted",
+    "timesheets_draft_count": "draft",
+    "timesheets_submitted_count": "submitted",
+    "timesheets_rejected_count": "rejected",
+}
+
+CLAVES_DE_HOJA_DE_HORAS = frozenset(_ESTADO_DE_HOJA) | {
+    "timesheet_cost_total", "timesheet_avg_hours",
+}
+
+
+def _hojas_pendientes_ahora(ctx: _Ctx) -> list[float]:
+    """Cuantas hojas estan esperando aprobacion en este momento.
+
+    No es una serie historica: es un valor instantaneo repetido en todos los
+    meses, porque la pregunta que responde es «cuanto hay en la bandeja» y no
+    «cuanto entro en marzo». Por eso lleva su propia consulta y no usa la
+    compartida.
     """
-    _current, _empty_like, db, metric_key, organization_id, series, start_date = ctx.current, ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
-    if metric_key in ("pending_timesheets","timesheets_draft_count","timesheets_submitted_count",
-                       "timesheets_rejected_count","timesheet_cost_total","timesheet_avg_hours"):
-        try:
-            from app.models.financial import Timesheet, TimesheetStatus
-            rows = db.query(Timesheet.week_start, Timesheet.status, Timesheet.total_hours, Timesheet.total_cost).filter(
-                Timesheet.week_start >= start_date
-            ).all()
-            STATUS = {"pending_timesheets":"submitted","timesheets_draft_count":"draft",
-                      "timesheets_submitted_count":"submitted","timesheets_rejected_count":"rejected"}
-            if metric_key in STATUS:
-                bkt: dict[str,float] = defaultdict(float)
-                if metric_key == "pending_timesheets":
-                    n = db.query(Timesheet).filter(Timesheet.status == TimesheetStatus.submitted).count()
-                    return _current(float(n))
-                for ws, st, h, c in rows:  # noqa: B007
-                    if ws and str(getattr(st,"value",st)) == STATUS[metric_key]:
-                        bkt[f"{ws.year:04d}-{ws.month:02d}"] += 1.0
-                return [float(bkt.get(m["month"],0.0)) for m in series]
-            if metric_key == "timesheet_cost_total":
-                bkt = defaultdict(float)
-                for ws, st, h, c in rows:  # noqa: B007
-                    if ws: bkt[f"{ws.year:04d}-{ws.month:02d}"] += float(c or 0)
-                return [float(bkt.get(m["month"],0.0)) for m in series]
-            if metric_key == "timesheet_avg_hours":
-                bkt_s: dict[str,float] = defaultdict(float); bkt_c: dict[str,float] = defaultdict(float)
-                for ws, st, h, c in rows:  # noqa: B007
-                    if ws and h: k=f"{ws.year:04d}-{ws.month:02d}"; bkt_s[k]+=float(h); bkt_c[k]+=1.0
-                return [round(bkt_s[m["month"]]/bkt_c[m["month"]],2)
-                        if bkt_c.get(m["month"],0)>0 else 0.0 for m in series]
-        except Exception:
-            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
-            return _empty_like()
+    from app.models.financial import Timesheet, TimesheetStatus
+
+    n = (ctx.db.query(Timesheet)
+               .filter(Timesheet.status == TimesheetStatus.submitted)
+               .count())
+    return ctx.current(float(n))
+
+
+def _contar_hojas_por_mes(ctx: _Ctx, rows, estado: str) -> list[float]:
+    """Cuenta hojas del estado pedido por mes de inicio de semana."""
+    bkt: dict[str, float] = defaultdict(float)
+    for ws, st, _h, _c in rows:
+        if ws and str(getattr(st, "value", st)) == estado:
+            bkt[f"{ws.year:04d}-{ws.month:02d}"] += 1.0
+    return [float(bkt.get(m["month"], 0.0)) for m in ctx.series]
+
+
+def _coste_de_hojas_por_mes(ctx: _Ctx, rows) -> list[float]:
+    """Suma el coste de TODAS las hojas del mes, sin filtrar por estado.
+
+    Sin filtro de estado a proposito de origen: ver la nota de cabecera.
+    """
+    bkt: dict[str, float] = defaultdict(float)
+    for ws, _st, _h, c in rows:
+        if ws:
+            bkt[f"{ws.year:04d}-{ws.month:02d}"] += float(c or 0)
+    return [float(bkt.get(m["month"], 0.0)) for m in ctx.series]
+
+
+def _horas_medias_por_hoja(ctx: _Ctx, rows) -> list[float]:
+    """Media de horas por hoja, sobre las hojas que traen horas.
+
+    `if ws and h` descarta las de cero horas del divisor tambien, no solo del
+    numerador: una hoja vacia no baja la media de la semana.
+    """
+    suma: dict[str, float] = defaultdict(float)
+    cuenta: dict[str, float] = defaultdict(float)
+    for ws, _st, h, _c in rows:
+        if ws and h:
+            k = f"{ws.year:04d}-{ws.month:02d}"
+            suma[k] += float(h)
+            cuenta[k] += 1.0
+    return [
+        round(suma[m["month"]] / cuenta[m["month"]], 2)
+        if cuenta.get(m["month"], 0) > 0 else 0.0
+        for m in ctx.series
+    ]
+
+
+def _serie_pending_timesheets(ctx: _Ctx) -> Optional[list[float]]:
+    """Las seis metricas de hojas de horas."""
+    if ctx.key not in CLAVES_DE_HOJA_DE_HORAS:
+        return None
+    try:
+        if ctx.key == "pending_timesheets":
+            return _hojas_pendientes_ahora(ctx)
+
+        from app.models.financial import Timesheet
+
+        rows = (ctx.db.query(Timesheet.week_start, Timesheet.status,
+                             Timesheet.total_hours, Timesheet.total_cost)
+                      .filter(Timesheet.week_start >= ctx.start_date)
+                      .all())
+
+        if ctx.key == "timesheet_cost_total":
+            return _coste_de_hojas_por_mes(ctx, rows)
+        if ctx.key == "timesheet_avg_hours":
+            return _horas_medias_por_hoja(ctx, rows)
+        return _contar_hojas_por_mes(ctx, rows, _ESTADO_DE_HOJA[ctx.key])
+    except Exception:
+        logger.debug(
+            "Failed to fetch metric %s for org=%s", ctx.key, ctx.org_id, exc_info=True
+        )
+        return ctx.empty_like()
+
 
 def _serie_absence(ctx: _Ctx) -> Optional[list[float]]:
     """Metricas que comparten consulta:
@@ -960,75 +1211,144 @@ def _serie_task_completion_rate(ctx: _Ctx) -> Optional[list[float]]:
         o = _fetch_metric_series(db, "tasks_overdue", organization_id)
         return [round(cv/(cv+ov)*100,2) if (cv+ov) > 0 else 0.0 for cv,ov in zip(c,o)]  # noqa: B905
 
-def _serie_tickets_open(ctx: _Ctx) -> Optional[list[float]]:
-    """Metricas que comparten consulta:
+# ── Metricas de tickets ──────────────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `_serie_tickets_open` era complejidad 18:
+# doce ramas sobre `metric_key` DENTRO del bucle de filas, asi que reevaluaba la
+# cadena entera por cada ticket. Cada rama son en realidad dos decisiones —a que
+# filas se aplica y que acumula—, y eso es una tabla.
 
-    · tickets_open
-    · tickets_created
-    · tickets_resolved
-    · tickets_p1_count
-    · tickets_p2_count
-    · first_response_time_avg
-    · resolution_time_avg
-    · csat_avg
-    · sla_response_breached
-    · sla_resolution_breached
-    · auto_resolved_count
-    · ticket_time_spent_total
+# Que estados se consideran cerrados. Estaban escritos como literales dentro de
+# dos ramas distintas, con listas DIFERENTES: «abierto» excluye tambien los
+# cancelados, mientras que «resuelto» no los cuenta como resueltos. No es un
+# descuido —un ticket cancelado no esta abierto ni resuelto— asi que se nombran
+# las dos por separado para que la diferencia quede a la vista.
+_ESTADOS_NO_ABIERTOS = ("closed", "resolved", "cancelled")
+_ESTADOS_RESUELTOS = ("closed", "resolved")
+
+
+class _FilaDeTicket(NamedTuple):
+    """Una fila de la consulta compartida, con los campos nombrados.
+
+    La consulta original devolvia una tupla de diez que se desempaquetaba en
+    variables de dos y tres letras (`frm`, `resm`, `srb`, `slrb`, `ar`, `tsm`).
     """
-    _empty_like, db, metric_key, organization_id, series, start_date = ctx.empty_like, ctx.db, ctx.key, ctx.org_id, ctx.series, ctx.start_date
-    if metric_key in ("tickets_open","tickets_created","tickets_resolved",
-                       "tickets_p1_count","tickets_p2_count",
-                       "first_response_time_avg","resolution_time_avg","csat_avg",
-                       "sla_response_breached","sla_resolution_breached",
-                       "auto_resolved_count","ticket_time_spent_total"):
-        try:
-            from app.models.service_desk import Ticket
-            rows = db.query(Ticket.created_at, Ticket.status, Ticket.priority,
-                            Ticket.first_response_minutes, Ticket.resolution_minutes,
-                            Ticket.csat_score, Ticket.sla_response_breached,
-                            Ticket.sla_resolution_breached, Ticket.auto_resolved,
-                            Ticket.time_spent_minutes).filter(
-                Ticket.created_at >= start_date
-            ).all()
-            bkt: dict[str,float] = defaultdict(float)
-            bkt_cnt: dict[str,float] = defaultdict(float)
-            for (cat, st, pri, frm, resm, csat, srb, slrb, ar, tsm) in rows:
-                if not cat: continue
-                k = f"{cat.year:04d}-{cat.month:02d}"
-                sv = str(getattr(st,"value",st))
-                pv = str(getattr(pri,"value",pri))
-                if metric_key == "tickets_open" and sv not in ("closed","resolved","cancelled"):
-                    bkt[k] += 1.0
-                elif metric_key == "tickets_created":
-                    bkt[k] += 1.0
-                elif metric_key == "tickets_resolved" and sv in ("closed","resolved"):
-                    bkt[k] += 1.0
-                elif metric_key == "tickets_p1_count" and pv == "p1_critical":
-                    bkt[k] += 1.0
-                elif metric_key == "tickets_p2_count" and pv == "p2_high":
-                    bkt[k] += 1.0
-                elif metric_key == "first_response_time_avg" and frm is not None:
-                    bkt[k] += float(frm); bkt_cnt[k] += 1.0
-                elif metric_key == "resolution_time_avg" and resm is not None:
-                    bkt[k] += float(resm); bkt_cnt[k] += 1.0
-                elif metric_key == "csat_avg" and csat is not None:
-                    bkt[k] += float(csat); bkt_cnt[k] += 1.0
-                elif metric_key == "sla_response_breached" and srb:
-                    bkt[k] += 1.0
-                elif metric_key == "sla_resolution_breached" and slrb:
-                    bkt[k] += 1.0
-                elif metric_key == "auto_resolved_count" and ar:
-                    bkt[k] += 1.0
-                elif metric_key == "ticket_time_spent_total" and tsm:
-                    bkt[k] += float(tsm)
-            if metric_key in ("first_response_time_avg","resolution_time_avg","csat_avg"):
-                return [round(bkt[m["month"]]/bkt_cnt[m["month"]],2)
-                        if bkt_cnt.get(m["month"],0)>0 else 0.0 for m in series]
-            return [float(bkt.get(m["month"],0.0)) for m in series]
-        except Exception:
-            logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)
-            return _empty_like()
+
+    creado: object
+    estado: object
+    prioridad: object
+    minutos_primera_respuesta: object
+    minutos_resolucion: object
+    csat: object
+    sla_respuesta_incumplido: object
+    sla_resolucion_incumplido: object
+    auto_resuelto: object
+    minutos_dedicados: object
+
+    @property
+    def estado_txt(self) -> str:
+        return str(getattr(self.estado, "value", self.estado))
+
+    @property
+    def prioridad_txt(self) -> str:
+        return str(getattr(self.prioridad, "value", self.prioridad))
+
+
+@dataclass(frozen=True, slots=True)
+class _MetricaDeTicket:
+    """Como se calcula una de las doce metricas de tickets.
+
+    `aplica` decide que filas entran; `valor` que se acumula (None = contar una
+    por fila); `promedia` si al final se divide entre las filas que entraron.
+    """
+
+    aplica: object
+    valor: object = None
+    promedia: bool = False
+
+
+def _todas(f: _FilaDeTicket) -> bool:
+    return True
+
+
+_METRICAS_DE_TICKET = {
+    "tickets_open": _MetricaDeTicket(
+        lambda f: f.estado_txt not in _ESTADOS_NO_ABIERTOS),
+    "tickets_created": _MetricaDeTicket(_todas),
+    "tickets_resolved": _MetricaDeTicket(
+        lambda f: f.estado_txt in _ESTADOS_RESUELTOS),
+    "tickets_p1_count": _MetricaDeTicket(
+        lambda f: f.prioridad_txt == "p1_critical"),
+    "tickets_p2_count": _MetricaDeTicket(
+        lambda f: f.prioridad_txt == "p2_high"),
+    "first_response_time_avg": _MetricaDeTicket(
+        lambda f: f.minutos_primera_respuesta is not None,
+        lambda f: float(f.minutos_primera_respuesta), promedia=True),
+    "resolution_time_avg": _MetricaDeTicket(
+        lambda f: f.minutos_resolucion is not None,
+        lambda f: float(f.minutos_resolucion), promedia=True),
+    "csat_avg": _MetricaDeTicket(
+        lambda f: f.csat is not None,
+        lambda f: float(f.csat), promedia=True),
+    "sla_response_breached": _MetricaDeTicket(
+        lambda f: bool(f.sla_respuesta_incumplido)),
+    "sla_resolution_breached": _MetricaDeTicket(
+        lambda f: bool(f.sla_resolucion_incumplido)),
+    "auto_resolved_count": _MetricaDeTicket(
+        lambda f: bool(f.auto_resuelto)),
+    "ticket_time_spent_total": _MetricaDeTicket(
+        lambda f: bool(f.minutos_dedicados),
+        lambda f: float(f.minutos_dedicados)),
+}
+
+CLAVES_DE_TICKET = frozenset(_METRICAS_DE_TICKET)
+
+
+def _serie_tickets_open(ctx: _Ctx) -> Optional[list[float]]:
+    """Las doce metricas de tickets, que comparten una sola consulta.
+
+    Las tres que llevan `promedia=True` son medias por mes (minutos de primera
+    respuesta, minutos de resolucion y CSAT); el resto son recuentos o sumas.
+    Un mes sin filas que apliquen da 0.0 en las tres, no NaN.
+    """
+    spec = _METRICAS_DE_TICKET.get(ctx.key)
+    if spec is None:
+        return None
+    try:
+        from app.models.service_desk import Ticket
+
+        rows = (ctx.db.query(
+            Ticket.created_at, Ticket.status, Ticket.priority,
+            Ticket.first_response_minutes, Ticket.resolution_minutes,
+            Ticket.csat_score, Ticket.sla_response_breached,
+            Ticket.sla_resolution_breached, Ticket.auto_resolved,
+            Ticket.time_spent_minutes,
+        ).filter(Ticket.created_at >= ctx.start_date).all())
+
+        suma: dict[str, float] = defaultdict(float)
+        cuenta: dict[str, float] = defaultdict(float)
+        for fila in (_FilaDeTicket(*r) for r in rows):
+            if not fila.creado:
+                continue
+            if not spec.aplica(fila):
+                continue
+            k = f"{fila.creado.year:04d}-{fila.creado.month:02d}"
+            suma[k] += spec.valor(fila) if spec.valor else 1.0
+            cuenta[k] += 1.0
+
+        if spec.promedia:
+            return [
+                round(suma[m["month"]] / cuenta[m["month"]], 2)
+                if cuenta.get(m["month"], 0) > 0 else 0.0
+                for m in ctx.series
+            ]
+        return [float(suma.get(m["month"], 0.0)) for m in ctx.series]
+    except Exception:
+        logger.debug(
+            "Failed to fetch metric %s for org=%s", ctx.key, ctx.org_id, exc_info=True
+        )
+        return ctx.empty_like()
+
 
 def _serie_ticket_time_log_total(ctx: _Ctx) -> Optional[list[float]]:
     """Metrica `ticket_time_log_total`."""

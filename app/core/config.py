@@ -264,6 +264,52 @@ class Settings(
     SMTP_PASS: str = Field(default="", env="SMTP_PASS")
     SMTP_FROM: str = Field(default="", env="SMTP_FROM")
 
+    # ── Ajustes que el codigo leia con `getattr` y NO estaban declarados ─────
+    #
+    # Auditoria 2026-08. Un `getattr(settings, "X", defecto)` sobre un ajuste no
+    # declarado devuelve SIEMPRE el defecto: la perilla no se puede tocar ni por
+    # `.env` ni por variable de entorno, y quien la busque en la configuracion no
+    # la encuentra. Se declaran aqui con el mismo valor que tenian por defecto,
+    # asi que el comportamiento no cambia — lo que cambia es que ahora SE PUEDEN
+    # configurar.
+    #
+    # Los valores por defecto son exactamente los que estaban en cada `getattr`,
+    # comprobado uno a uno, para que declararlos no altere ningun
+    # comportamiento existente.
+
+    # Twilio (SMS y multicanal). Sin estos tres el envio de SMS no se podia
+    # configurar de ninguna manera: los tres `getattr` devolvian None siempre.
+    TWILIO_ACCOUNT_SID: Optional[str] = Field(default=None, env="TWILIO_ACCOUNT_SID")
+    TWILIO_AUTH_TOKEN: Optional[str] = Field(default=None, env="TWILIO_AUTH_TOKEN")
+    TWILIO_FROM_NUMBER: Optional[str] = Field(default=None, env="TWILIO_FROM_NUMBER")
+
+    # Portal de cliente: caducidad de tokens y de enlaces compartidos. Son
+    # valores de seguridad y estaban fijos en 72 h sin forma de bajarlos.
+    CLIENT_TOKEN_EXPIRE_HOURS: int = Field(default=72, env="CLIENT_TOKEN_EXPIRE_HOURS")
+    PORTAL_SHARE_LINK_EXPIRE_HOURS: int = Field(default=72, env="PORTAL_SHARE_LINK_EXPIRE_HOURS")
+    # Algoritmo de firma de los tokens del portal. Se declara para que quede en
+    # un solo sitio, no porque haya que cambiarlo: HS256 es la eleccion correcta
+    # con clave simetrica.
+    JWT_ALGORITHM: str = Field(default="HS256", env="JWT_ALGORITHM")
+
+    # Portal de desarrollador: coste de derivacion de claves y cuota de apps.
+    # El primero es un parametro de seguridad que hay que poder subir con el
+    # tiempo sin tocar codigo.
+    PBKDF2_ITERATIONS: int = Field(default=260000, env="PBKDF2_ITERATIONS")
+    MAX_APPS_PER_USER: int = Field(default=10, env="MAX_APPS_PER_USER")
+
+    # Umbral del cortacircuitos de webhooks: fallos seguidos antes de abrirlo.
+    WEBHOOK_CB_THRESHOLD: int = Field(default=5, env="WEBHOOK_CB_THRESHOLD")
+
+    # Tarifa horaria de respaldo para estimar ingresos cuando no hay tarifa de
+    # proyecto. Es una cifra de NEGOCIO y estaba en duro a 85,0.
+    AI_REVENUE_HOURLY_RATE_FALLBACK: float = Field(
+        default=85.0, env="AI_REVENUE_HOURLY_RATE_FALLBACK")
+
+    # Directorio de subidas. Lo lee la firma electronica; sin declarar devolvia
+    # None y el llamador caia a su propio defecto.
+    UPLOAD_DIR: str = Field(default="uploads", env="UPLOAD_DIR")
+
     # NOTE: OpenAI fallback key & STT models live in AISettingsMixin.
 
     # ── STT (Speech-to-Text) provider — Item #51 ─────────────────────────────

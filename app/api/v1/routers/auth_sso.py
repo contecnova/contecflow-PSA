@@ -169,6 +169,246 @@ def sso_authorize(
         raise HTTPException(500, "Error al iniciar el flujo SSO. Comprueba la configuración del proveedor.")
 
 
+
+# ── Fases del callback de SSO ────────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `sso_callback` eran 212 lineas de complejidad
+# 32 en el camino de AUTENTICACION, con cuatro fases encadenadas dentro de un
+# unico `try`. Las tres primeras son controles de seguridad —el `state` firmado
+# contra CSRF, el intercambio del codigo, la verificacion del `nonce` contra
+# replay del id_token— y solo se podian ejercitar levantando el callback entero
+# con la red simulada.
+#
+# Ahora cada fase es una funcion, con el cuerpo movido verbatim, y cada rechazo
+# se puede probar por separado. El `try/except` sigue en el endpoint, donde
+# estaba: envolver cada fase por separado cambiaria como se traducen los errores
+# a respuestas HTTP, y eso no es parte de esta reorganizacion.
+
+
+def _validar_peticion_y_consumir_estado(payload) -> dict:
+    """Valida `code`, `redirect_uri` y el `state` firmado; consume el estado.
+
+    Devuelve lo que se guardo con el estado: el verificador de PKCE y el `nonce`
+    esperado. Cada `raise` de aqui es un control:
+
+      · sin `code` o `redirect_uri`  -> peticion incompleta
+      · `redirect_uri` no permitido  -> impide redirigir el token a un tercero
+      · `state` ausente o sin firma  -> falta la proteccion contra CSRF
+      · firma HMAC que no cuadra     -> `state` manipulado
+      · estado ya consumido          -> replay del propio callback
+
+    El estado es de un solo uso a proposito: `_consume_sso_state_payload` lo
+    borra al leerlo.
+    """
+    code         = payload.code
+    redirect_uri = payload.redirect_uri
+    state_param  = payload.state
+    if not code or not redirect_uri:
+        raise HTTPException(400, "Faltan code o redirect_uri")
+    _allowed = list(settings.ALLOWED_ORIGINS) + [settings.FRONTEND_URL]
+    if not _is_allowed_redirect_uri(redirect_uri, _allowed):
+        raise HTTPException(400, "redirect_uri no está en la lista de orígenes permitidos")
+
+    # Validar state para prevenir CSRF
+    if not state_param or "." not in state_param:
+        raise HTTPException(400, "State inválido o ausente")
+    state_raw, state_sig = state_param.rsplit(".", 1)
+    expected_sig = _hmac.new(
+        settings.SECRET_KEY.encode(),
+        state_raw.encode(),
+        _hashlib.sha256,
+    ).hexdigest()
+    if not _hmac.compare_digest(expected_sig, state_sig):
+        raise HTTPException(400, "State inválido: posible ataque CSRF")
+    # Consume el estado (evita replay) Y recupera lo que se guardó con él:
+    # el verificador de PKCE y el nonce esperado.
+    sso_payload = _consume_sso_state_payload(state_raw)
+    if sso_payload is None:
+        raise HTTPException(400, "State expirado o ya utilizado")
+    # El verificador de PKCE y el nonce los lee quien llama del propio payload.
+    return sso_payload
+
+
+def _resolver_token_endpoint(config) -> str:
+    """URL del endpoint de token del proveedor.
+
+    Tres proveedores la tienen fija por construccion —Azure AD, Okta y Google— y
+    el resto hay que descubrirla en su documento OIDC. Ese descubrimiento es una
+    llamada de red y por eso trae su propio manejo de errores: una respuesta que
+    no es JSON y un fallo de red se traducen a 502 distintos, porque son
+    problemas distintos para quien lee el registro.
+    """
+    if config.provider == "azure_ad":
+        tenant    = config.oidc_discovery_url.split("/")[3] if config.oidc_discovery_url else "common"
+        token_url = f"{settings.MICROSOFT_OAUTH_BASE}/{tenant}/oauth2/v2.0/token"
+    elif config.provider == "okta":
+        base      = config.oidc_discovery_url.replace("/.well-known/openid-configuration", "") if config.oidc_discovery_url else ""
+        token_url = f"{base}/v1/token"
+    elif config.provider == "google":
+        token_url = settings.GOOGLE_TOKEN_URL
+    else:
+        if config.oidc_discovery_url:
+            try:
+                discovery_url = _validate_https_discovery_url(config.oidc_discovery_url)
+                with urllib.request.urlopen(discovery_url, timeout=5) as resp:  # noqa: S310
+                    disc = _json.loads(resp.read())
+                    token_url = disc.get("token_endpoint", "")
+            except HTTPException:
+                raise
+            except _json.JSONDecodeError as exc:
+                logger.warning("SSO callback: discovery JSON inválido url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
+                raise HTTPException(502, "El discovery document del proveedor no es JSON válido")
+            except OSError as exc:
+                logger.warning("SSO callback: error de red al obtener discovery url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
+                raise HTTPException(502, "No se pudo obtener el token_endpoint")
+        else:
+            raise HTTPException(400, "Falta oidc_discovery_url")
+    return token_url
+
+
+def _intercambiar_codigo_por_tokens(config, code: str, redirect_uri: str, code_verifier):
+    """Canjea el authorization code por los tokens en el proveedor.
+
+    `code_verifier` es el de PKCE: sin el, un `code` interceptado seria
+    canjeable por quien lo capturase.
+    """
+    token_url = _resolver_token_endpoint(config)
+
+    # Intercambiar code por tokens
+    _token_params = {
+        "grant_type":    "authorization_code",
+        "code":          code,
+        "redirect_uri":  redirect_uri,
+        "client_id":     config.oidc_client_id,
+        "client_secret": decrypt_value(config.oidc_client_secret) if config.oidc_client_secret else "",
+    }
+    # PKCE: el proveedor comprueba que el verificador corresponde al
+    # challenge que se envió en /authorize. Sólo se manda si el estado lo
+    # traía, para no romper una transacción iniciada antes de este cambio.
+    if code_verifier:
+        _token_params["code_verifier"] = code_verifier
+    token_data = urllib.parse.urlencode(_token_params).encode()
+
+    req = urllib.request.Request(validate_outbound_url(token_url, field="token_url"), data=token_data,  # noqa: S310
+                                 headers={"Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+            tokens = _json.loads(resp.read())
+    except _json.JSONDecodeError as exc:
+        logger.warning("SSO callback: token response JSON inválido url=%r: %s", _safe_url(token_url), exc)
+        raise HTTPException(502, "El proveedor devolvió una respuesta de token no válida")
+    except OSError as exc:
+        logger.warning("SSO callback: error de red al obtener tokens url=%r: %s", _safe_url(token_url), exc)
+        raise HTTPException(502, f"Error de red al obtener tokens del proveedor SSO: {exc}")
+    return tokens
+
+
+def _extraer_identidad(config, claims: dict) -> tuple:
+    """Correo y nombre del usuario segun como los mapee el proveedor.
+
+    Los dos rechazos de aqui son controles de identidad, no validaciones de
+    forma:
+
+      · sin correo no hay a quien identificar, asi que no se puede crear cuenta;
+      · `email_verified` a False se rechaza (P0-4). Un proveedor que NO ha
+        verificado el correo no acredita nada: aceptarlo permitiria suplantar a
+        cualquiera registrando su direccion en ese proveedor.
+    """
+    # Extraer email y nombre según configuración del proveedor
+    email_claim = config.saml_attribute_email or "email"
+    name_claim  = config.saml_attribute_name  or "name"
+    email = claims.get(email_claim) or claims.get("email") or claims.get("preferred_username")
+    name  = claims.get(name_claim)  or claims.get("name") or email
+
+    if not email:
+        raise HTTPException(502, "No se pudo obtener el email del token SSO")
+
+    # P0-4: Email verification check — reject unverified emails.
+    email_verified = claims.get("email_verified")
+    if email_verified is False:
+        raise HTTPException(
+            status_code=403,
+            detail="El proveedor SSO indica que este email no está verificado. No se puede autenticar.",
+        )
+    return email, name
+
+
+def _validar_id_token_y_extraer_identidad(
+    config, tokens: dict, expected_nonce, config_id: str
+):
+    """Verifica el id_token y devuelve (claims, email, name).
+
+    Dos controles que no son opcionales:
+
+      · el `nonce` del id_token tiene que ser el que se emitio, o un id_token
+        capturado antes seria reutilizable (replay);
+      · `email_verified` a False se rechaza: un proveedor que no ha verificado
+        el correo no acredita la identidad, y aceptarlo permitiria suplantar a
+        cualquiera registrando su direccion.
+    """
+    id_token = tokens.get("id_token", "")
+    if not id_token:
+        raise HTTPException(502, "El proveedor no devolvió id_token")
+
+    # Verificar firma del id_token usando las claves públicas del proveedor (JWKS)
+    try:
+        import jwt as _jwt
+        # Obtener JWKS URI desde el discovery document para validar la firma
+        jwks_uri = None
+        if config.oidc_discovery_url:
+            try:
+                discovery_url = _validate_https_discovery_url(config.oidc_discovery_url)
+                with urllib.request.urlopen(discovery_url, timeout=5) as resp:  # noqa: S310
+                    disc = _json.loads(resp.read())
+                    jwks_uri = disc.get("jwks_uri")
+            except (OSError, _json.JSONDecodeError) as exc:
+                logger.warning(
+                    "SSO callback: no se pudo obtener JWKS URI url=%r: %s",
+                    config.oidc_discovery_url,
+                    exc,
+                )
+
+        if jwks_uri:
+            _validate_https_discovery_url(jwks_uri)
+
+        if jwks_uri:
+            jwks_client = _jwt.PyJWKClient(jwks_uri)
+            signing_key = jwks_client.get_signing_key_from_jwt(id_token)
+            claims = _jwt.decode(
+                id_token,
+                signing_key.key,
+                algorithms=["RS256", "ES256"],
+                audience=config.oidc_client_id,
+                options={"verify_exp": True},
+            )
+        else:
+            # No se puede obtener la URI de JWKS: rechazar la autenticación.
+            raise HTTPException(
+                status_code=502,
+                detail="No se pudo obtener JWKS URI del proveedor SSO. Imposible verificar la firma del id_token.",
+            )
+    # intentional: chained re-raise preserves context
+    except HTTPException:
+        raise
+    except Exception as jwt_err:
+        logger.warning("SSO callback id_token verification failed for config=%s", config_id, exc_info=True)
+        raise HTTPException(502, f"id_token inválido o firma incorrecta: {jwt_err}")
+
+    # Verificación del NONCE (auditoría 2026-08, P2-13). Se generaba en
+    # /authorize y no se comprobaba aquí, así que no protegía de replay del
+    # id_token: un id_token capturado podía reutilizarse en otra sesión.
+    if expected_nonce:
+        token_nonce = claims.get("nonce")
+        if not token_nonce or not _hmac.compare_digest(str(token_nonce), str(expected_nonce)):
+            logger.warning(
+                "SSO callback: nonce del id_token no coincide para config=%s", config_id
+            )
+            raise HTTPException(400, "Nonce inválido: posible reutilización del id_token")
+
+    email, name = _extraer_identidad(config, claims)
+    return claims, email, name
+
+
 @router.post("/sso/{config_id}/callback", summary="Callback OIDC — intercambiar code por token")
 def sso_callback(
     config_id: str,
@@ -184,163 +424,18 @@ def sso_callback(
     try:
         config = _svc.get_sso_config_or_404(db, config_id)
 
-        code         = payload.code
+        sso_payload = _validar_peticion_y_consumir_estado(payload)
+        code = payload.code
         redirect_uri = payload.redirect_uri
-        state_param  = payload.state
-        if not code or not redirect_uri:
-            raise HTTPException(400, "Faltan code o redirect_uri")
-        _allowed = list(settings.ALLOWED_ORIGINS) + [settings.FRONTEND_URL]
-        if not _is_allowed_redirect_uri(redirect_uri, _allowed):
-            raise HTTPException(400, "redirect_uri no está en la lista de orígenes permitidos")
-
-        # Validar state para prevenir CSRF
-        if not state_param or "." not in state_param:
-            raise HTTPException(400, "State inválido o ausente")
-        state_raw, state_sig = state_param.rsplit(".", 1)
-        expected_sig = _hmac.new(
-            settings.SECRET_KEY.encode(),
-            state_raw.encode(),
-            _hashlib.sha256,
-        ).hexdigest()
-        if not _hmac.compare_digest(expected_sig, state_sig):
-            raise HTTPException(400, "State inválido: posible ataque CSRF")
-        # Consume el estado (evita replay) Y recupera lo que se guardó con él:
-        # el verificador de PKCE y el nonce esperado.
-        sso_payload = _consume_sso_state_payload(state_raw)
-        if sso_payload is None:
-            raise HTTPException(400, "State expirado o ya utilizado")
         code_verifier = sso_payload.get("code_verifier")
         expected_nonce = sso_payload.get("nonce")
 
-        # Determinar token_endpoint
-        if config.provider == "azure_ad":
-            tenant    = config.oidc_discovery_url.split("/")[3] if config.oidc_discovery_url else "common"
-            token_url = f"{settings.MICROSOFT_OAUTH_BASE}/{tenant}/oauth2/v2.0/token"
-        elif config.provider == "okta":
-            base      = config.oidc_discovery_url.replace("/.well-known/openid-configuration", "") if config.oidc_discovery_url else ""
-            token_url = f"{base}/v1/token"
-        elif config.provider == "google":
-            token_url = settings.GOOGLE_TOKEN_URL
-        else:
-            if config.oidc_discovery_url:
-                try:
-                    discovery_url = _validate_https_discovery_url(config.oidc_discovery_url)
-                    with urllib.request.urlopen(discovery_url, timeout=5) as resp:  # noqa: S310
-                        disc = _json.loads(resp.read())
-                        token_url = disc.get("token_endpoint", "")
-                except HTTPException:
-                    raise
-                except _json.JSONDecodeError as exc:
-                    logger.warning("SSO callback: discovery JSON inválido url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
-                    raise HTTPException(502, "El discovery document del proveedor no es JSON válido")
-                except OSError as exc:
-                    logger.warning("SSO callback: error de red al obtener discovery url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
-                    raise HTTPException(502, "No se pudo obtener el token_endpoint")
-            else:
-                raise HTTPException(400, "Falta oidc_discovery_url")
-
-        # Intercambiar code por tokens
-        _token_params = {
-            "grant_type":    "authorization_code",
-            "code":          code,
-            "redirect_uri":  redirect_uri,
-            "client_id":     config.oidc_client_id,
-            "client_secret": decrypt_value(config.oidc_client_secret) if config.oidc_client_secret else "",
-        }
-        # PKCE: el proveedor comprueba que el verificador corresponde al
-        # challenge que se envió en /authorize. Sólo se manda si el estado lo
-        # traía, para no romper una transacción iniciada antes de este cambio.
-        if code_verifier:
-            _token_params["code_verifier"] = code_verifier
-        token_data = urllib.parse.urlencode(_token_params).encode()
-
-        req = urllib.request.Request(validate_outbound_url(token_url, field="token_url"), data=token_data,  # noqa: S310
-                                     headers={"Content-Type": "application/x-www-form-urlencoded"})
-        try:
-            with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
-                tokens = _json.loads(resp.read())
-        except _json.JSONDecodeError as exc:
-            logger.warning("SSO callback: token response JSON inválido url=%r: %s", _safe_url(token_url), exc)
-            raise HTTPException(502, "El proveedor devolvió una respuesta de token no válida")
-        except OSError as exc:
-            logger.warning("SSO callback: error de red al obtener tokens url=%r: %s", _safe_url(token_url), exc)
-            raise HTTPException(502, f"Error de red al obtener tokens del proveedor SSO: {exc}")
-
-        id_token = tokens.get("id_token", "")
-        if not id_token:
-            raise HTTPException(502, "El proveedor no devolvió id_token")
-
-        # Verificar firma del id_token usando las claves públicas del proveedor (JWKS)
-        try:
-            import jwt as _jwt
-            # Obtener JWKS URI desde el discovery document para validar la firma
-            jwks_uri = None
-            if config.oidc_discovery_url:
-                try:
-                    discovery_url = _validate_https_discovery_url(config.oidc_discovery_url)
-                    with urllib.request.urlopen(discovery_url, timeout=5) as resp:  # noqa: S310
-                        disc = _json.loads(resp.read())
-                        jwks_uri = disc.get("jwks_uri")
-                except (OSError, _json.JSONDecodeError) as exc:
-                    logger.warning(
-                        "SSO callback: no se pudo obtener JWKS URI url=%r: %s",
-                        config.oidc_discovery_url,
-                        exc,
-                    )
-
-            if jwks_uri:
-                _validate_https_discovery_url(jwks_uri)
-
-            if jwks_uri:
-                jwks_client = _jwt.PyJWKClient(jwks_uri)
-                signing_key = jwks_client.get_signing_key_from_jwt(id_token)
-                claims = _jwt.decode(
-                    id_token,
-                    signing_key.key,
-                    algorithms=["RS256", "ES256"],
-                    audience=config.oidc_client_id,
-                    options={"verify_exp": True},
-                )
-            else:
-                # No se puede obtener la URI de JWKS: rechazar la autenticación.
-                raise HTTPException(
-                    status_code=502,
-                    detail="No se pudo obtener JWKS URI del proveedor SSO. Imposible verificar la firma del id_token.",
-                )
-        # intentional: chained re-raise preserves context
-        except HTTPException:
-            raise
-        except Exception as jwt_err:
-            logger.warning("SSO callback id_token verification failed for config=%s", config_id, exc_info=True)
-            raise HTTPException(502, f"id_token inválido o firma incorrecta: {jwt_err}")
-
-        # Verificación del NONCE (auditoría 2026-08, P2-13). Se generaba en
-        # /authorize y no se comprobaba aquí, así que no protegía de replay del
-        # id_token: un id_token capturado podía reutilizarse en otra sesión.
-        if expected_nonce:
-            token_nonce = claims.get("nonce")
-            if not token_nonce or not _hmac.compare_digest(str(token_nonce), str(expected_nonce)):
-                logger.warning(
-                    "SSO callback: nonce del id_token no coincide para config=%s", config_id
-                )
-                raise HTTPException(400, "Nonce inválido: posible reutilización del id_token")
-
-        # Extraer email y nombre según configuración del proveedor
-        email_claim = config.saml_attribute_email or "email"
-        name_claim  = config.saml_attribute_name  or "name"
-        email = claims.get(email_claim) or claims.get("email") or claims.get("preferred_username")
-        name  = claims.get(name_claim)  or claims.get("name") or email
-
-        if not email:
-            raise HTTPException(502, "No se pudo obtener el email del token SSO")
-
-        # P0-4: Email verification check — reject unverified emails.
-        email_verified = claims.get("email_verified")
-        if email_verified is False:
-            raise HTTPException(
-                status_code=403,
-                detail="El proveedor SSO indica que este email no está verificado. No se puede autenticar.",
-            )
+        tokens = _intercambiar_codigo_por_tokens(
+            config, code, redirect_uri, code_verifier
+        )
+        claims, email, name = _validar_id_token_y_extraer_identidad(
+            config, tokens, expected_nonce, config_id
+        )
 
         # Buscar o crear usuario
         user = _svc.create_or_update_sso_user(db, config, email, name, claims)

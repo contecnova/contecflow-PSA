@@ -295,14 +295,34 @@ def _pg_margin_evolution(org_id: Optional[str], months: int) -> list[dict]:
 
 
 def _pg_utilization_by_user(org_id: Optional[str]) -> list[dict]:
-    """Utilization per user from PostgreSQL when DuckDB is not ready."""
+    """Utilization per user from PostgreSQL when DuckDB is not ready.
+
+    Auditoria 2026-08. Esta funcion **devolvia siempre lista vacia**, y no por
+    falta de datos: la primera linea del `try` era
+
+        from app.models.resources import Resource
+
+    y **`Resource` no existe** — no esta en ese modulo ni en ningun otro del
+    repo. El `ImportError` saltaba antes de ejecutar una sola consulta, el
+    `except` de abajo lo registraba como aviso y se devolvia `[]`. Resultado: el
+    «Informe de Utilizacion» —uno de los cuatro tipos de informe programado que
+    se envian por correo al cliente— llegaba **vacio** siempre que el camino
+    OLAP no estuviera listo, sin ningun error visible.
+
+    La capacidad que buscaba vive en `User.weekly_capacity_hours`, con su
+    defecto en `settings.DEFAULT_WEEKLY_CAPACITY_HOURS`; es lo que usan los
+    otros cuatro sitios del repo que calculan capacidad. Al leerla en la
+    consulta principal desaparece ademas **una consulta por usuario**, que era
+    lo que hacia el `db.query(Resource)` dentro del bucle.
+    """
     logger.info("OLAP unavailable — utilization_by_user using PostgreSQL fallback")
     try:
-        from app.db.session import SessionLocal
-        from app.models.user import User
-        from app.models.imputation import Imputation
-        from app.models.resources import Resource
         from sqlalchemy import func
+
+        from app.core.config import settings
+        from app.db.session import SessionLocal
+        from app.models.imputation import Imputation
+        from app.models.user import User
 
         db = SessionLocal()
         try:
@@ -314,6 +334,7 @@ def _pg_utilization_by_user(org_id: Optional[str]) -> list[dict]:
                     User.id.label("user_id"),
                     func.concat(User.first_name, " ", User.last_name).label("full_name"),
                     User.department.label("department"),
+                    User.weekly_capacity_hours.label("weekly_capacity"),
                     func.round(func.sum(Imputation.hours), 1).label("logged_hours"),
                 )
                 .join(Imputation, Imputation.user_id == User.id)
@@ -324,12 +345,18 @@ def _pg_utilization_by_user(org_id: Optional[str]) -> list[dict]:
             )
             if org_id:
                 query = query.filter(User.organization_id == org_id)
-            rows = query.group_by(User.id, User.first_name, User.last_name, User.department).all()
+            rows = query.group_by(
+                User.id, User.first_name, User.last_name, User.department,
+                User.weekly_capacity_hours,
+            ).all()
 
+            por_defecto = settings.DEFAULT_WEEKLY_CAPACITY_HOURS or 40
             result = []
             for r in rows:
-                resource = db.query(Resource).filter(Resource.user_id == r.user_id).first()
-                weekly_capacity = float(getattr(resource, "weekly_capacity", 40) or 40)
+                weekly_capacity = float(r.weekly_capacity or por_defecto)
+                # 52 semanas entre 12 meses: la capacidad mensual media, no la
+                # de un mes concreto. Es lo que hace que el porcentaje sea
+                # comparable entre meses de 4 y de 5 semanas.
                 monthly_capacity = round(weekly_capacity * 52 / 12, 1)
                 logged = float(r.logged_hours or 0)
                 utilization_pct = round(logged / monthly_capacity * 100, 1) if monthly_capacity else 0.0

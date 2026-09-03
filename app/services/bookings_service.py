@@ -1291,153 +1291,318 @@ def _execute_step_action(config: dict, context: dict, db) -> dict:
     raise ValueError(f"Unsupported action type: {action_type}")
 
 
+# ── Cola de automatizaciones ─────────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `process_workflow_queue_record` era
+# complejidad 23: dos bucles anidados y un despacho de cuatro tipos de paso, todo
+# en un ambito. Ahora cada tipo de paso es una funcion y los operadores de
+# condicion son una tabla.
+
+
+# Los cuatro operadores que puede usar un paso de condicion. Un operador
+# desconocido da False —la condicion no se cumple—, que es lo que hacia la
+# cadena de `or` original: ninguna de sus cuatro clausulas coincidia.
+_OPERADORES_DE_CONDICION = {
+    "equals": lambda a, b: str(a) == str(b),
+    "not_equals": lambda a, b: str(a) != str(b),
+    "greater_than": lambda a, b: float(a or 0) > float(b or 0),
+    "less_than": lambda a, b: float(a or 0) < float(b or 0),
+}
+
+# Cuantos minutos es una unidad de espera.
+_MINUTOS_POR_UNIDAD = {"minutes": 1, "hours": 60, "days": 1440}
+
+# Intentos maximos por elemento de la cola antes de dejarlo. Tres porque el
+# reintento cubre fallos transitorios (un webhook que no responde), no errores
+# de configuracion, que no se arreglan repitiendo.
+_MAX_INTENTOS = 3
+
+# Cuantos elementos se procesan por pasada. El limite existe para que una cola
+# atascada no monopolice el proceso: la siguiente pasada coge los siguientes.
+_ELEMENTOS_POR_PASADA = 20
+
+# Sentinela que devuelve un paso de espera: hay que cortar el recorrido de pasos
+# porque la continuacion queda encolada para mas tarde.
+_ESPERAR = object()
+
+
+def _ejecutar_accion_con_reintentos(config: dict, context: dict, db,
+                                    retry_policy: dict, step_result: dict, step) -> None:
+    """Ejecuta la accion del paso, reintentando segun su politica.
+
+    El resultado se escribe en `step_result`. `retry_attempts` cuenta los
+    reintentos consumidos, no los intentos totales: es lo que se muestra en el
+    historial de ejecucion.
+    """
+    max_retries = int(retry_policy.get("max_retries", 0))
+    last_action_res = None
+    for retry_idx in range(0, max_retries + 1):
+        try:
+            action_res = _execute_step_action(config, context, db)
+            last_action_res = action_res
+            if action_res.get("ok", True):
+                step_result.update(action_res)
+                return
+            step_result["retry_attempts"] = retry_idx
+        except Exception as e:
+            logger.warning(
+                "Workflow step %s action failed (attempt=%s): %s",
+                getattr(step, "id", None), retry_idx, e, exc_info=True,
+            )
+            last_action_res = {"ok": False, "error": str(e)}
+        if retry_idx < max_retries:
+            step_result["retry_attempts"] = retry_idx + 1
+            wait_s = _retry_sleep_seconds(retry_policy, retry_idx + 1)
+            if wait_s > 0:
+                _time_sleep.sleep(wait_s)
+            continue
+        step_result.update(last_action_res or {"ok": False, "error": "workflow_step_failed"})
+
+
+def _encolar_continuacion(db, item, steps: list, step, config: dict,
+                          now, step_result: dict):
+    """Un paso de espera: se encola la continuacion y se cierra este elemento.
+
+    No se duerme el proceso: se crea un elemento nuevo con la hora de despertar
+    y el indice del paso siguiente, y este se marca como hecho. Asi una espera
+    de tres dias no mantiene nada ocupado.
+    """
+    delay_minutes = config.get("duration", 60)
+    unit = config.get("unit", "minutes")
+    delay_minutes *= _MINUTOS_POR_UNIDAD.get(unit, 1)
+
+    despertar = now + timedelta(minutes=delay_minutes)
+    db.add(WorkflowQueueItem(
+        workflow_id=item.workflow_id,
+        trigger_data=item.trigger_data,
+        execute_at=despertar,
+        step_index=steps.index(step) + 1,
+        status="pending",
+    ))
+    item.status = "done"
+    step_result["waiting_until"] = despertar.isoformat()
+    return _ESPERAR
+
+
+def _evaluar_condicion(config: dict, context: dict) -> bool:
+    """Compara un campo del contexto con un valor segun el operador del paso."""
+    comparar = _OPERADORES_DE_CONDICION.get(config.get("operator", "equals"))
+    if comparar is None:
+        return False
+    return bool(comparar(context.get(config.get("field")), config.get("value")))
+
+
+def _ejecutar_webhook(config: dict, context: dict, step_result: dict, item) -> None:
+    """Llama a un webhook externo, con proteccion contra SSRF.
+
+    `_validate_provision_url` es lo que impide que un flujo configurado por un
+    usuario apunte a la red interna: sin ella, un paso de webhook seria un
+    proxy para sondear la infraestructura desde dentro.
+    """
+    try:
+        import httpx as _httpx
+
+        url = config.get("url")
+        if not url:
+            step_result["ok"] = False
+            step_result["error"] = "webhook step requires 'url'"
+            return
+
+        _validate_provision_url(url)
+        method = str(config.get("method", "POST")).upper()
+        headers = _render_step_value(config.get("headers") or {}, context)
+        payload_wh = _render_step_value(
+            config.get("payload") or {"event": config.get("event"), "context": context},
+            context,
+        )
+        with _httpx.Client(timeout=5.0) as client:
+            resp = client.request(method, url, headers=headers, json=payload_wh)
+        step_result["http_status"] = resp.status_code
+        step_result["response"] = resp.text[:1000]
+    except ValueError as _ssrf_exc:
+        step_result["ok"] = False
+        step_result["error"] = f"SSRF protection blocked URL: {_ssrf_exc}"
+    except Exception as e:
+        logger.exception("Workflow webhook step failed for workflow=%s", item.workflow_id)
+        step_result["ok"] = False
+        step_result["error"] = str(e)[:100]
+
+
+def _ejecutar_paso(db, item, steps: list, step, context: dict, now):
+    """Ejecuta un paso y devuelve su resultado, o `_ESPERAR` si toca encolar.
+
+    El `raise` de un paso fallido lo hace quien llama: aqui se rellena el
+    resultado y se decide si el recorrido continua.
+    """
+    step_started_at = datetime.now(timezone.utc)
+    config = json.loads(step.config) if step.config else {}
+    retry_policy = _coerce_retry_policy(config)
+    step_result = {
+        "step": step.name or step.step_type,
+        "ok": True,
+        "retry_policy": retry_policy,
+        "retry_attempts": 0,
+    }
+
+    if step.step_type == "action":
+        _ejecutar_accion_con_reintentos(config, context, db, retry_policy, step_result, step)
+    elif step.step_type == "wait":
+        _encolar_continuacion(db, item, steps, step, config, now, step_result)
+        return _ESPERAR, step_result
+    elif step.step_type == "condition":
+        step_result["condition_met"] = _evaluar_condicion(config, context)
+    elif step.step_type == "webhook":
+        _ejecutar_webhook(config, context, step_result, item)
+    # Un tipo desconocido deja el paso como correcto y sigue, igual que antes.
+
+    step_finished_at = datetime.now(timezone.utc)
+    step_result["started_at"] = step_started_at.isoformat()
+    step_result["completed_at"] = step_finished_at.isoformat()
+    step_result["duration_ms"] = int(
+        (step_finished_at - step_started_at).total_seconds() * 1000
+    )
+    step_result["execution_attempts"] = int(step_result.get("retry_attempts", 0)) + 1
+    return None, step_result
+
+
+def _anotar_metricas_del_flujo(results: list) -> None:
+    """Añade a cada paso el resumen de la ejecucion completa.
+
+    Se repite en todos los pasos a proposito: el historial se consulta por paso
+    y asi cada fila lleva el contexto de su ejecucion sin tener que unir tablas.
+    """
+    total_duration_ms = int(sum((r.get("duration_ms") or 0) for r in results))
+    total_retry_attempts = int(sum((r.get("retry_attempts") or 0) for r in results))
+    for r in results:
+        r["workflow_metrics"] = {
+            "step_count": len(results),
+            "total_duration_ms": total_duration_ms,
+            "total_retry_attempts": total_retry_attempts,
+        }
+
+
+def _procesar_un_elemento(db, item, now) -> None:
+    """Ejecuta los pasos pendientes de un elemento de la cola.
+
+    Lanza si un paso falla: quien llama lo captura y decide si el elemento se
+    reintenta o se marca como fallido definitivo.
+    """
+    wf = (db.query(AutomationWorkflow)
+            .options(joinedload(AutomationWorkflow.steps))
+            .filter(AutomationWorkflow.id == item.workflow_id)
+            .first())
+    if not wf or wf.status != "active":
+        # Un flujo borrado o desactivado despues de encolar: el elemento se
+        # cierra sin ejecutar nada y sin contarlo como error.
+        item.status = "done"
+        db.commit()
+        return
+
+    context = json.loads(item.trigger_data) if item.trigger_data else {}
+    steps = sorted(wf.steps, key=lambda s: s.order)
+    results = []
+
+    for step in steps[item.step_index:]:
+        senal, step_result = _ejecutar_paso(db, item, steps, step, context, now)
+        results.append(step_result)
+        if senal is _ESPERAR:
+            # `break` y NO `return`: el original tambien salia del bucle y
+            # seguia con el bloque de cierre de abajo, asi que un flujo que
+            # queda esperando incrementa `success_count` y escribe un registro
+            # de ejecucion «completed». Es discutible —el flujo esta suspendido,
+            # no terminado— pero es el comportamiento actual y cambiarlo
+            # alteraria las metricas de exito que se muestran.
+            db.commit()
+            break
+        if not step_result.get("ok", True):
+            raise RuntimeError(step_result.get("error") or "workflow_step_failed")
+
+    _anotar_metricas_del_flujo(results)
+
+    # Solo se crea el registro de ejecucion si el elemento no traia uno: los
+    # elementos que continuan una espera comparten el registro del original.
+    if not item.execution_id:
+        db.add(WorkflowExecution(
+            workflow_id=item.workflow_id, trigger_context=item.trigger_data,
+            status="completed", steps_log=json.dumps(results),
+            completed_at=now,
+        ))
+
+    wf.run_count = (wf.run_count or 0) + 1
+    wf.success_count = (wf.success_count or 0) + 1
+    wf.last_run_at = now
+    item.status = "done"
+    item.processed_at = now
+    db.commit()
+
+
 def process_workflow_queue_record(db, workflow_id: str | None = None) -> dict:
+    """Procesa los elementos de la cola de automatizaciones que ya toca ejecutar."""
     now = datetime.now(timezone.utc)
     q = db.query(WorkflowQueueItem).filter(
         WorkflowQueueItem.status == "pending",
         WorkflowQueueItem.execute_at <= now,
-        WorkflowQueueItem.attempts < 3,
+        WorkflowQueueItem.attempts < _MAX_INTENTOS,
     )
     if workflow_id:
         q = q.filter(WorkflowQueueItem.workflow_id == workflow_id)
-    pending = q.limit(20).all()
+    pending = q.limit(_ELEMENTOS_POR_PASADA).all()
+
     processed = 0
     errors = 0
     for item in pending:
-        item.status  = "processing"
+        # Se marca como «en proceso» y se cuenta el intento ANTES de ejecutar:
+        # si el proceso muere a media, el elemento no queda pendiente para
+        # siempre reintentandose sin cuenta.
+        item.status = "processing"
         item.attempts += 1
         db.commit()
         try:
-            wf = db.query(AutomationWorkflow).options(
-                joinedload(AutomationWorkflow.steps)
-            ).filter(AutomationWorkflow.id == item.workflow_id).first()
-            if not wf or wf.status != "active":
-                item.status = "done"; db.commit(); continue
-            context = json.loads(item.trigger_data) if item.trigger_data else {}
-            steps   = sorted(wf.steps, key=lambda s: s.order)
-            results = []
-            for step in steps[item.step_index:]:
-                step_started_at = datetime.now(timezone.utc)
-                config     = json.loads(step.config) if step.config else {}
-                retry_policy = _coerce_retry_policy(config)
-                step_result = {
-                    "step": step.name or step.step_type,
-                    "ok": True,
-                    "retry_policy": retry_policy,
-                    "retry_attempts": 0,
-                }
-                if step.step_type == "action":
-                    max_retries = int(retry_policy.get("max_retries", 0))
-                    last_action_res = None
-                    for retry_idx in range(0, max_retries + 1):
-                        try:
-                            action_res = _execute_step_action(config, context, db)
-                            last_action_res = action_res
-                            if action_res.get("ok", True):
-                                step_result.update(action_res)
-                                break
-                            step_result["retry_attempts"] = retry_idx
-                        except Exception as e:
-                            logger.warning("Workflow step %s action failed (attempt=%s): %s", getattr(step, "id", None), retry_idx, e, exc_info=True)
-                            last_action_res = {"ok": False, "error": str(e)}
-                        if retry_idx < max_retries:
-                            step_result["retry_attempts"] = retry_idx + 1
-                            wait_s = _retry_sleep_seconds(retry_policy, retry_idx + 1)
-                            if wait_s > 0:
-                                _time_sleep.sleep(wait_s)
-                            continue
-                        step_result.update(last_action_res or {"ok": False, "error": "workflow_step_failed"})
-                elif step.step_type == "wait":
-                    delay_minutes = config.get("duration", 60)
-                    unit = config.get("unit", "minutes")
-                    if unit == "hours": delay_minutes *= 60
-                    elif unit == "days": delay_minutes *= 1440
-                    new_item = WorkflowQueueItem(
-                        workflow_id=item.workflow_id,
-                        trigger_data=item.trigger_data,
-                        execute_at=now + timedelta(minutes=delay_minutes),
-                        step_index=steps.index(step) + 1,
-                        status="pending",
-                    )
-                    db.add(new_item)
-                    item.status = "done"
-                    step_result["waiting_until"] = (now + timedelta(minutes=delay_minutes)).isoformat()
-                    results.append(step_result)
-                    db.commit()
-                    break
-                elif step.step_type == "condition":
-                    field = config.get("field"); operator = config.get("operator", "equals"); value = config.get("value")
-                    ctx_val = context.get(field)
-                    condition_met = (
-                        (operator == "equals"       and str(ctx_val) == str(value)) or
-                        (operator == "not_equals"   and str(ctx_val) != str(value)) or
-                        (operator == "greater_than" and float(ctx_val or 0) > float(value or 0)) or
-                        (operator == "less_than"    and float(ctx_val or 0) < float(value or 0))
-                    )
-                    step_result["condition_met"] = condition_met
-                elif step.step_type == "webhook":
-                    try:
-                        import httpx as _httpx
-                        url = config.get("url")
-                        if not url:
-                            step_result["ok"] = False
-                            step_result["error"] = "webhook step requires 'url'"
-                        else:
-                            # SSRF protection: block requests to internal/private networks
-                            _validate_provision_url(url)
-                            method = str(config.get("method", "POST")).upper()
-                            headers = _render_step_value(config.get("headers") or {}, context)
-                            payload_wh = _render_step_value(
-                                config.get("payload") or {"event": config.get("event"), "context": context},
-                                context,
-                            )
-                            with _httpx.Client(timeout=5.0) as client:
-                                resp = client.request(method, url, headers=headers, json=payload_wh)
-                            step_result["http_status"] = resp.status_code
-                            step_result["response"] = resp.text[:1000]
-                    except ValueError as _ssrf_exc:
-                        step_result["ok"] = False
-                        step_result["error"] = f"SSRF protection blocked URL: {_ssrf_exc}"
-                    except Exception as e:
-                        logger.exception("Workflow webhook step failed for workflow=%s", item.workflow_id)
-                        step_result["ok"] = False; step_result["error"] = str(e)[:100]
-                step_finished_at = datetime.now(timezone.utc)
-                step_result["started_at"] = step_started_at.isoformat()
-                step_result["completed_at"] = step_finished_at.isoformat()
-                step_result["duration_ms"] = int((step_finished_at - step_started_at).total_seconds() * 1000)
-                step_result["execution_attempts"] = int(step_result.get("retry_attempts", 0)) + 1
-                results.append(step_result)
-                if not step_result.get("ok", True):
-                    raise RuntimeError(step_result.get("error") or "workflow_step_failed")
-            total_duration_ms = int(sum((r.get("duration_ms") or 0) for r in results))
-            total_retry_attempts = int(sum((r.get("retry_attempts") or 0) for r in results))
-            for r in results:
-                r["workflow_metrics"] = {
-                    "step_count": len(results),
-                    "total_duration_ms": total_duration_ms,
-                    "total_retry_attempts": total_retry_attempts,
-                }
-            exec_log = WorkflowExecution(
-                workflow_id=item.workflow_id, trigger_context=item.trigger_data,
-                status="completed", steps_log=json.dumps(results),
-                completed_at=now,
-            ) if not item.execution_id else None
-            if exec_log: db.add(exec_log)
-            wf.run_count     = (wf.run_count or 0) + 1
-            wf.success_count = (wf.success_count or 0) + 1
-            wf.last_run_at   = now
-            item.status      = "done"
-            item.processed_at = now
-            processed += 1
-            db.commit()
+            _procesar_un_elemento(db, item, now)
+            if item.status == "done" and item.processed_at:
+                processed += 1
         except Exception as e:
             logger.exception("Workflow queue item %s processing failed", item.id)
-            item.status     = "failed" if item.attempts >= 3 else "pending"
+            # `rollback()` ANTES de escribir el estado de fallo. Si lo que fallo
+            # fue una operacion de base —y procesar un elemento escribe en
+            # base— la sesion queda en transaccion abortada, el `commit()` de
+            # abajo revienta, y el `raise` sube y ABORTA EL BUCLE ENTERO: los
+            # elementos siguientes no se procesan y este se queda en
+            # `processing` para siempre, porque la consulta de pendientes solo
+            # coge `pending`. Un fallo de un elemento atascaba la cola completa.
+            # Auditoria 2026-08, hallazgo 22.
+            db.rollback()
+            item.status = "failed" if item.attempts >= _MAX_INTENTOS else "pending"
             item.last_error = str(e)[:500]
             errors += 1
-            db.commit()
-    return {"processed": processed, "errors": errors,
-            "remaining": db.query(WorkflowQueueItem).filter(WorkflowQueueItem.status == "pending").count()}
+            try:
+                db.commit()
+            except Exception:
+                # Si tampoco se puede anotar el fallo, se deja la sesion limpia
+                # y se sigue con el resto de la cola, que es mejor que perderlos.
+                #
+                # AVISO, y es `error` y no `exception` a proposito porque hace
+                # falta que alguien lo vea: este elemento se queda en
+                # `processing`, y NO HAY NINGUN BARRIDO que rescate ese estado
+                # —comprobado: `"processing"` solo se escribe aqui y nadie lo
+                # consulta—, asi que se queda ahi hasta que alguien lo mueva a
+                # mano. Elegir `processing` en vez de `pending` fue deliberado
+                # (ver el comentario de arriba: evita reintentos infinitos sin
+                # cuenta), pero a esa decision le falta la otra mitad.
+                db.rollback()
+                logger.error(
+                    "elemento %s de la cola de flujos ATASCADO en 'processing': "
+                    "no se pudo registrar su fallo y no hay barrido que lo "
+                    "rescate; requiere intervencion manual",
+                    item.id, exc_info=True,
+                )
+
+    return {
+        "processed": processed,
+        "errors": errors,
+        "remaining": db.query(WorkflowQueueItem)
+                       .filter(WorkflowQueueItem.status == "pending").count(),
+    }
 
 
 def execute_workflow_now_record(workflow_id: str, context: dict, triggered_by, db) -> dict:

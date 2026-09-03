@@ -535,12 +535,53 @@ def test_xero_connection(config_dict: dict) -> dict:
     return result
 
 
+def test_quickbooks_connection(config_dict: dict) -> dict:
+    """Verifica la conexion con QuickBooks Online.
+
+    Auditoria 2026-08. Esta funcion **no existia**, y su endpoint si:
+    `POST /accounting/qb/test` la importaba sin `try`, asi que
+    **«Verificar conexion con QuickBooks» ha devuelto siempre un 500**. Su
+    gemela de Xero —`test_xero_connection`, veinte lineas mas abajo— si estaba,
+    y el docstring del router anunciaba las dos.
+
+    Escrita como espejo de la de Xero: una peticion de solo lectura al recurso
+    de la propia empresa, que es la forma barata de comprobar que el token vale
+    y a que cuenta apunta.
+
+    `CompanyInfo` necesita el `realm_id` en la ruta ademas de en la URL base, y
+    esa es la unica diferencia con la de Xero — de ahi que se lea de la
+    configuracion en vez de fijarlo.
+    """
+    realm_id = config_dict.get("realm_id", "")
+    if not realm_id:
+        return {"ok": False, "error": "Falta realm_id de QuickBooks"}
+
+    result = _qb_request(config_dict, "GET", f"/companyinfo/{realm_id}")
+    if result["ok"]:
+        info = (result["data"] or {}).get("CompanyInfo", {}) or {}
+        return {
+            "ok": True,
+            "organisation": info.get("CompanyName"),
+            "currency": info.get("Country"),
+        }
+    return result
+
+
 def get_slack_webhook_url(db, org_id: str | None) -> str | None:
-    """Return the Slack webhook URL for the given org, or None if not configured."""
-    try:
-        from app.models.slack import SlackConfig
-    except ImportError:
-        return None
+    """La URL del webhook de Slack de esa organizacion, o None si no la tiene.
+
+    Auditoria 2026-08. Esto devolvia **siempre None**, y no por falta de
+    configuracion: importaba `SlackConfig` de `app.models.slack`, modulo que NO
+    EXISTE —la clase esta en `app.models.mfa`—, y el `except ImportError:
+    return None` convertia el fallo en «no configurado». Con datos de Slack
+    sembrados y validos, **las notificaciones no salian nunca**, y el docstring
+    explicaba el silencio como una decision del usuario.
+
+    Es la forma mas pura del patron de esta auditoria: un acceso tolerante que
+    transforma un error en un resultado plausible. Se retira el `try`: si algun
+    dia `SlackConfig` deja de estar donde esta, tiene que verse.
+    """
+    from app.models.mfa import SlackConfig
     q = db.query(SlackConfig)
     if org_id and hasattr(SlackConfig, "organization_id"):
         q = q.filter(SlackConfig.organization_id == org_id)

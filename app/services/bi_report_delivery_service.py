@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -428,54 +429,227 @@ def _send_teams(webhook_url: str, title: str, summary: str, report_url: Optional
 
 def _send_email(recipients: List[str], subject: str, body_html: str, attachment_bytes: Optional[bytes] = None,
                 attachment_filename: Optional[str] = None) -> bool:
-    """Send email using existing email infrastructure."""
+    """Envia el informe por correo, por SMTP directo.
+
+    Auditoria 2026-08. Antes intentaba primero
+    `from app.services.email_service import send_email`, **modulo que no
+    existe**, asi que el `except` saltaba SIEMPRE y registraba
+    «Primary email_service path failed; falling back to direct SMTP» con traza
+    completa **en cada correo enviado**. El envio funcionaba —el respaldo SMTP
+    de abajo es real— pero el log se llenaba de un fallo que no era un fallo, y
+    eso es peor que no registrar nada: entierra los avisos de verdad.
+
+    Retirado el camino primario inexistente. Si algun dia se escribe un
+    `email_service`, este es el sitio donde enchufarlo, y entonces el respaldo
+    SMTP pasa a ser respaldo de verdad.
+    """
     try:
-        from app.services.email_service import send_email  # type: ignore
-        for recipient in recipients:
-            send_email(to=recipient, subject=subject, body_html=body_html)
-        return True
-    except Exception:
-        logger.warning("Primary email_service path failed; falling back to direct SMTP", exc_info=True)
-        try:
-            import smtplib
-            from email.mime.multipart import MIMEMultipart
-            from email.mime.text import MIMEText
-            from email.mime.application import MIMEApplication
-            from app.core.config import settings  # type: ignore
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        from email.mime.application import MIMEApplication
+        from app.core.config import settings  # type: ignore
 
-            smtp_host = getattr(settings, "SMTP_HOST", None)
-            smtp_port = int(getattr(settings, "SMTP_PORT", 587))
-            smtp_user = getattr(settings, "SMTP_USER", None)
-            smtp_pass = getattr(settings, "SMTP_PASSWORD", None)
-            from_addr = getattr(settings, "EMAILS_FROM_EMAIL", smtp_user or "noreply@contecflow.com")
+        smtp_host = getattr(settings, "SMTP_HOST", None)
+        smtp_port = int(getattr(settings, "SMTP_PORT", 587))
+        smtp_user = getattr(settings, "SMTP_USER", None)
+        # Auditoria 2026-08. Dos nombres de ajuste que NO existen, con el
+        # correcto al lado: el ajuste es `SMTP_PASS`, no `SMTP_PASSWORD`, y el
+        # remitente es `SMTP_FROM`, no `EMAILS_FROM_EMAIL`. Con los nombres
+        # malos, `smtp_pass` era siempre None y **`smtp.login()` no se llamaba
+        # nunca**, y el remitente configurado se ignoraba.
+        smtp_pass = getattr(settings, "SMTP_PASS", None)
+        from_addr = (getattr(settings, "SMTP_FROM", None) or smtp_user
+                     or settings.NOTIFICATION_EMAIL_FROM)
 
-            if not smtp_host:
-                logger.warning("SMTP not configured — email delivery skipped")
-                return False
-
-            msg = MIMEMultipart()
-            msg["From"] = from_addr
-            msg["Subject"] = subject
-            msg.attach(MIMEText(body_html, "html"))
-            if attachment_bytes and attachment_filename:
-                part = MIMEApplication(attachment_bytes)
-                part["Content-Disposition"] = f'attachment; filename="{attachment_filename}"'
-                msg.attach(part)
-
-            with smtplib.SMTP(smtp_host, smtp_port) as smtp:
-                smtp.starttls()
-                if smtp_user and smtp_pass:
-                    smtp.login(smtp_user, smtp_pass)
-                for recipient in recipients:
-                    msg["To"] = recipient
-                    smtp.sendmail(from_addr, recipient, msg.as_string())
-            return True
-        except Exception as exc:
-            logger.error("Email delivery failed: %s", exc)
+        if not smtp_host:
+            logger.warning("SMTP not configured — email delivery skipped")
             return False
+
+        msg = MIMEMultipart()
+        msg["From"] = from_addr
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body_html, "html"))
+        if attachment_bytes and attachment_filename:
+            part = MIMEApplication(attachment_bytes)
+            part["Content-Disposition"] = f'attachment; filename="{attachment_filename}"'
+            msg.attach(part)
+
+        with smtplib.SMTP(smtp_host, smtp_port) as smtp:
+            smtp.starttls()
+            if smtp_user and smtp_pass:
+                smtp.login(smtp_user, smtp_pass)
+            for recipient in recipients:
+                msg["To"] = recipient
+                smtp.sendmail(from_addr, recipient, msg.as_string())
+        return True
+    except Exception as exc:
+        logger.error("Email delivery failed: %s", exc)
+        return False
 
 
 # ── Delivery execution ────────────────────────────────────────────────────────
+
+# ── Envío de un informe programado ───────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `send_schedule_now` era complejidad 19 en
+# cinco fases mezcladas: generar el informe, generar el adjunto, decidir si hay
+# cambios, despachar por canal y actualizar los metadatos.
+#
+# Dos cosas que se vieron al separarlas:
+#
+#   · Slack y Teams son EL MISMO codigo con dos nombres. Lo unico que cambia es
+#     la clave de configuracion de la que sale la URL y la funcion que envia.
+#   · el calculo del estado final —`"error"` / `"skipped_no_changes"` / `"ok"`—
+#     estaba escrito DOS VECES identico, una para los metadatos del programa y
+#     otra para el registro de entregas. Si divergieran, el historial diria una
+#     cosa y la ficha del programa otra sobre el mismo envio.
+
+
+@dataclass(frozen=True, slots=True)
+class _CanalDeWebhook:
+    """Un canal que entrega por webhook: de donde sale la URL y quien envia."""
+
+    clave_de_url: str
+    enviar: object
+
+
+_CANALES_DE_WEBHOOK = {
+    "slack": _CanalDeWebhook("slack_webhook_url", _send_slack),
+    "teams": _CanalDeWebhook("teams_webhook_url", _send_teams),
+}
+
+
+def _estado_de_la_entrega(errores: list, omitido_sin_cambios: bool) -> str:
+    """El estado final del envio. Un solo sitio para las dos veces que se usa.
+
+    El orden importa: un error manda sobre «omitido». Si se omitio el envio Y
+    algo fallo antes —al generar el informe, por ejemplo— lo que hay que ver es
+    el error.
+    """
+    if errores:
+        return "error"
+    return "skipped_no_changes" if omitido_sin_cambios else "ok"
+
+
+def _generar_informe(db: Session, organization_id, preset_id: str, errores: list):
+    """Genera los datos del informe. Devuelve (columnas, filas).
+
+    Un fallo aqui no aborta el envio: se anota y se sigue con cero filas, porque
+    el resto del proceso —marcar el programa como fallido, dejar rastro en el
+    historial— es justo lo que hay que hacer cuando el informe no sale.
+    """
+    from app.services.bi_report_builder_v2_service import preview_preset  # type: ignore
+
+    try:
+        datos = preview_preset(
+            db, organization_id=organization_id, preset_id=preset_id, limit=5000
+        )
+        return (datos.get("columns") or []), (datos.get("rows") or [])
+    except Exception as exc:
+        logger.exception(
+            "Failed to generate report preview for preset=%s org=%s",
+            preset_id, organization_id,
+        )
+        errores.append(f"report_generation: {exc}")
+        return [], []
+
+
+def _generar_adjunto(preset_id: str, export_format: str, title: str,
+                     columns: list, rows: list, errores: list):
+    """El fichero que se adjunta al correo. Devuelve (bytes, nombre).
+
+    Sin columnas no se genera Excel: una hoja sin cabeceras no sirve de nada.
+    El PDF si se genera igualmente porque su plantilla tolera un informe vacio.
+    """
+    try:
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+        if export_format == "xlsx" and columns:
+            # 31 caracteres es el limite de Excel para el nombre de una hoja.
+            return _export_to_excel(columns, rows, sheet_name=title[:31]), f"{preset_id}_{ts}.xlsx"
+        if export_format == "pdf":
+            return _export_to_pdf(title, columns, rows), f"{preset_id}_{ts}.pdf"
+    except Exception as exc:
+        logger.exception(
+            "Failed to generate report attachment for preset=%s format=%s",
+            preset_id, export_format,
+        )
+        errores.append(f"export_generation: {exc}")
+    return None, None
+
+
+def _entregar_por_webhook(canal: str, sched: dict, title: str, summary: str) -> str:
+    """Entrega por Slack o Teams. Devuelve el estado de ese canal."""
+    spec = _CANALES_DE_WEBHOOK[canal]
+    url = sched.get(spec.clave_de_url, "")
+    if not url:
+        return "skipped_no_url"
+    return "ok" if spec.enviar(url, title=title, summary=summary) else "failed"
+
+
+def _entregar_por_correo(recipients: list, title: str, summary: str,
+                         attachment_bytes, attachment_filename) -> str:
+    """Entrega por correo, con el informe adjunto si se pudo generar."""
+    if not recipients:
+        return "skipped_no_recipients"
+    body_html = f"<h2>📊 {title}</h2><p>{summary.replace(chr(10), '<br>')}</p>"
+    ok = _send_email(
+        recipients, subject=f"[Contecflow BI] {title}", body_html=body_html,
+        attachment_bytes=attachment_bytes, attachment_filename=attachment_filename,
+    )
+    return "ok" if ok else "failed"
+
+
+def _despachar_a_los_canales(sched: dict, channels: list, recipients: list,
+                             title: str, summary: str, attachment_bytes,
+                             attachment_filename, schedule_id: str,
+                             errores: list) -> dict:
+    """Envia por cada canal configurado. Un canal caido no impide los demas.
+
+    Ese aislamiento es el motivo del `try` por canal: si Slack no responde, el
+    correo tiene que salir igualmente.
+    """
+    resultados: dict = {}
+    for channel in channels:
+        try:
+            if channel in _CANALES_DE_WEBHOOK:
+                resultados[channel] = _entregar_por_webhook(
+                    channel, sched, title, summary
+                )
+            elif channel == "email":
+                resultados["email"] = _entregar_por_correo(
+                    recipients, title, summary, attachment_bytes, attachment_filename
+                )
+            # Un canal desconocido no deja rastro, igual que antes: la
+            # configuracion la valida quien crea el programa.
+        except Exception as exc:
+            logger.exception(
+                "BI delivery channel %s failed for schedule=%s", channel, schedule_id
+            )
+            errores.append(f"{channel}: {exc}")
+            resultados[channel] = "error"
+    return resultados
+
+
+def _actualizar_metadatos_del_programa(db: Session, organization_id, schedule_id: str,
+                                       errores: list, omitido: bool, diff: dict) -> None:
+    """Deja en el programa cuando corrio, como acabo y que cambio."""
+    schedules = _get_json(db, SCHEDULES_KEY_TPL, organization_id, default={})
+    if schedule_id not in schedules:
+        return
+    ahora = _iso_now()
+    schedules[schedule_id]["last_run_at"] = ahora
+    schedules[schedule_id]["last_status"] = _estado_de_la_entrega(errores, omitido)
+    schedules[schedule_id]["last_diff"] = diff
+    if diff.get("has_changes"):
+        schedules[schedule_id]["last_change_detected_at"] = ahora
+    if errores:
+        schedules[schedule_id]["error_count"] = (
+            schedules[schedule_id].get("error_count", 0) + 1
+        )
+    _set_json(db, SCHEDULES_KEY_TPL, organization_id, schedules,
+              description="BI scheduled delivery configs (JSON)")
+
 
 def send_schedule_now(
     db: Session,
@@ -484,8 +658,6 @@ def send_schedule_now(
     schedule_id: str,
 ) -> Dict[str, Any]:
     """Execute a single scheduled delivery immediately."""
-    from app.services.bi_report_builder_v2_service import preview_preset  # type: ignore
-
     sched = get_schedule(db, organization_id=organization_id, schedule_id=schedule_id)
     preset_id = sched.get("report_preset_id", "")
     export_format = sched.get("export_format", "xlsx")
@@ -496,41 +668,19 @@ def send_schedule_now(
 
     started_at = _iso_now()
     errors: List[str] = []
-    results: Dict[str, Any] = {}
 
-    # Generate report data
-    try:
-        report_data = preview_preset(db, organization_id=organization_id, preset_id=preset_id, limit=5000)
-        columns = report_data.get("columns") or []
-        rows = report_data.get("rows") or []
-    except Exception as exc:
-        logger.exception("Failed to generate report preview for preset=%s org=%s", preset_id, organization_id)
-        errors.append(f"report_generation: {exc}")
-        columns, rows = [], []
+    columns, rows = _generar_informe(db, organization_id, preset_id, errors)
 
+    # Comparacion con el ultimo envio, para poder omitir si no ha cambiado nada.
     prev_snapshot = _get_json(
-        db,
-        _snapshot_key(schedule_id),
-        organization_id,
-        default=None,
+        db, _snapshot_key(schedule_id), organization_id, default=None,
     )
     diff = _compute_report_diff(prev_snapshot, columns, rows)
     skipped_no_changes = bool(send_only_on_change and not diff.get("has_changes"))
 
-    # Generate attachment
-    attachment_bytes: Optional[bytes] = None
-    attachment_filename: Optional[str] = None
-    try:
-        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
-        if export_format == "xlsx" and columns:
-            attachment_bytes = _export_to_excel(columns, rows, sheet_name=title[:31])
-            attachment_filename = f"{preset_id}_{ts}.xlsx"
-        elif export_format == "pdf":
-            attachment_bytes = _export_to_pdf(title, columns, rows)
-            attachment_filename = f"{preset_id}_{ts}.pdf"
-    except Exception as exc:
-        logger.exception("Failed to generate report attachment for preset=%s format=%s", preset_id, export_format)
-        errors.append(f"export_generation: {exc}")
+    attachment_bytes, attachment_filename = _generar_adjunto(
+        preset_id, export_format, title, columns, rows, errors
+    )
 
     summary = (
         f"*{title}* — {len(rows)} registros generados el {_iso_now()[:10]}.\n"
@@ -538,62 +688,26 @@ def send_schedule_now(
     )
 
     if skipped_no_changes:
-        for channel in channels:
-            results[channel] = "skipped_no_changes"
+        results: Dict[str, Any] = {c: "skipped_no_changes" for c in channels}
     else:
-        # Dispatch to each channel
-        for channel in channels:
-            try:
-                if channel == "slack":
-                    url = sched.get("slack_webhook_url", "")
-                    if url:
-                        ok = _send_slack(url, title=title, summary=summary)
-                        results["slack"] = "ok" if ok else "failed"
-                    else:
-                        results["slack"] = "skipped_no_url"
+        results = _despachar_a_los_canales(
+            sched, channels, recipients, title, summary,
+            attachment_bytes, attachment_filename, schedule_id, errors,
+        )
 
-                elif channel == "teams":
-                    url = sched.get("teams_webhook_url", "")
-                    if url:
-                        ok = _send_teams(url, title=title, summary=summary)
-                        results["teams"] = "ok" if ok else "failed"
-                    else:
-                        results["teams"] = "skipped_no_url"
-
-                elif channel == "email":
-                    if recipients:
-                        body_html = f"<h2>📊 {title}</h2><p>{summary.replace(chr(10), '<br>')}</p>"
-                        ok = _send_email(recipients, subject=f"[Contecflow BI] {title}", body_html=body_html,
-                                         attachment_bytes=attachment_bytes, attachment_filename=attachment_filename)
-                        results["email"] = "ok" if ok else "failed"
-                    else:
-                        results["email"] = "skipped_no_recipients"
-            except Exception as exc:
-                logger.exception("BI delivery channel %s failed for schedule=%s", channel, schedule_id)
-                errors.append(f"{channel}: {exc}")
-                results[channel] = "error"
-
+    # La foto se guarda SOLO si todo fue bien: guardarla tras un fallo haria que
+    # el siguiente envio comparara contra un informe que nadie recibio y lo
+    # omitiera por «sin cambios».
     if not errors and columns:
         _set_json(
-            db,
-            _snapshot_key(schedule_id),
-            organization_id,
+            db, _snapshot_key(schedule_id), organization_id,
             _build_snapshot(columns, rows),
             description="BI scheduled delivery last report snapshot (JSON)",
         )
 
-    # Update schedule metadata
-    schedules = _get_json(db, SCHEDULES_KEY_TPL, organization_id, default={})
-    if schedule_id in schedules:
-        schedules[schedule_id]["last_run_at"] = _iso_now()
-        schedules[schedule_id]["last_status"] = "error" if errors else ("skipped_no_changes" if skipped_no_changes else "ok")
-        schedules[schedule_id]["last_diff"] = diff
-        if diff.get("has_changes"):
-            schedules[schedule_id]["last_change_detected_at"] = _iso_now()
-        if errors:
-            schedules[schedule_id]["error_count"] = schedules[schedule_id].get("error_count", 0) + 1
-        _set_json(db, SCHEDULES_KEY_TPL, organization_id, schedules,
-                  description="BI scheduled delivery configs (JSON)")
+    _actualizar_metadatos_del_programa(
+        db, organization_id, schedule_id, errors, skipped_no_changes, diff
+    )
 
     _append_delivery_log(
         db,
@@ -601,7 +715,7 @@ def send_schedule_now(
         entry={
             "schedule_id": schedule_id,
             "ok": not errors,
-            "status": "error" if errors else ("skipped_no_changes" if skipped_no_changes else "ok"),
+            "status": _estado_de_la_entrega(errors, skipped_no_changes),
             "rows_delivered": len(rows),
             "results": results,
             "diff": diff,

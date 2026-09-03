@@ -22,6 +22,7 @@ from app.models.project import Project as _Proj
 from app.models.settings import AppSetting
 from app.models.task import Task
 from app.core import timeutil
+from app.services.pagination_service import paginate_query
 
 # ── Entity catalog (static config) ───────────────────────────────────────────
 
@@ -479,7 +480,12 @@ def get_model_class(entity: str):
         ("app.models.pipeline",  "Opportunity",               "opportunities"),
         ("app.models.pipeline",  "Contract",                  "contracts"),
         ("app.models.clients",   "Client",                    "clients"),
-        ("app.models.resources", "Risk",                      "risks"),
+        # `Risk` vive en `pipeline`, no en `resources`. Estaba mal escrito y el
+        # `getattr(..., None)` de abajo se lo tragaba: `get_model_class("risks")`
+        # devolvia None y TODO informe sobre riesgos respondia 400 «entidad no
+        # soportada en este entorno», mientras el catalogo ofrecia sus 16
+        # columnas en la interfaz. Auditoria 2026-08, hallazgo 18.
+        ("app.models.pipeline",  "Risk",                      "risks"),
         ("app.models.resources", "Absence",                   "absences"),
         ("app.models.resources", "Deliverable",               "deliverables"),
         ("app.models.service_desk", "Ticket",                 "tickets"),
@@ -503,37 +509,103 @@ def get_model_class(entity: str):
 
 
 # ── Filter application ────────────────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `apply_filter` era complejidad 15: doce
+# `elif` sobre el mismo `operator` en treinta lineas, la tabla de despacho mas
+# limpia que quedaba en el repo. Y traia defecto.
+#
+# EL DEFECTO. `operator: "in"` con un valor que NO era una lista caia en
+#
+#     elif operator == "in":
+#         if isinstance(value, list):
+#             query = query.filter(col.in_(value))
+#
+# sin rama alternativa, asi que la funcion DEVOLVIA LA CONSULTA SIN FILTRAR —
+# todas las filas. Y pasaba las dos validaciones del llamador, que si existen y
+# si devuelven 400 (`op in OPERATORS` y `col_name in allowed_cols`), porque lo
+# que fallaba era el TIPO del valor, y `value` esta declarado `Any` sin
+# validacion de esquema. Quien pedia «estado esta en [...]» no recibia un error:
+# recibia el informe completo, con cifras plausibles.
+#
+# LA INVARIANTE que fija el arreglo: **ningun operador de la tabla puede dejar
+# la consulta sin filtrar**. Cada entrada devuelve una clausula, siempre. Un
+# valor del tipo equivocado se interpreta de la forma que mas se acerca a lo
+# pedido —un escalar en un `in` es una lista de uno— pero nunca se convierte en
+# «no filtres nada».
+#
+# La otra puerta al mismo fallo era `if not hasattr(model, column): return
+# query`, con una columna que el catalogo declara y el modelo no tiene. Hoy es
+# inalcanzable —las 243 columnas de `ENTITIES` existen todas en su modelo, y hay
+# un test estructural que lo mantiene asi— pero devolver sin filtrar no es la
+# reaccion correcta a una incoherencia de catalogo. Ahora es un 500: el error es
+# del servidor, no de quien pide el informe, y un 500 se ve en los logs mientras
+# que un informe completo de mas no se ve en ningun sitio.
+
+
+def _lista(value: Any) -> list:
+    """El valor de un `in`, siempre como lista.
+
+    Un escalar se interpreta como lista de un elemento, que es lo que la persona
+    quería decir. Lo que NO puede pasar es que un valor mal tipado deje la
+    consulta sin filtrar: `col.in_([])` y `col.in_([None])` no devuelven filas,
+    y eso es correcto para «está en el conjunto vacío» — devolverlo todo no lo
+    es para nada.
+    """
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return list(value)
+    return [value]
+
+
+# Los doce operadores del constructor de informes. `OPERATORS` lleva sus
+# etiquetas para la interfaz; esta tabla, su traducción a SQL. Las dos tienen que
+# cubrir exactamente las mismas claves, y hay un test que lo cruza: si divergen,
+# un operador que la validación acepta y esta tabla no implementa volvería a
+# devolver todo sin filtrar, que es el mismo fallo por otra puerta.
+_CLAUSULAS: Dict[str, Any] = {
+    "eq":           lambda col, v: col == v,
+    "neq":          lambda col, v: col != v,
+    "gt":           lambda col, v: col > v,
+    "lt":           lambda col, v: col < v,
+    "gte":          lambda col, v: col >= v,
+    "lte":          lambda col, v: col <= v,
+    "contains":     lambda col, v: col.ilike(f"%{v}%"),
+    "not_contains": lambda col, v: col.notilike(f"%{v}%"),
+    "starts_with":  lambda col, v: col.ilike(f"{v}%"),
+    "in":           lambda col, v: col.in_(_lista(v)),
+    # Los dos de nulidad ignoran el valor a propósito: «está vacío» no lleva
+    # operando, y la interfaz no manda ninguno.
+    "is_null":      lambda col, v: col.is_(None),
+    "is_not_null":  lambda col, v: col.isnot(None),
+}
+
+#: Los operadores que esta capa sabe traducir a SQL. Público para que el test
+#: estructural los cruce con `OPERATORS` sin tocar el diccionario privado.
+OPERADORES_SOPORTADOS = frozenset(_CLAUSULAS)
+
 
 def apply_filter(query, model, column: str, operator: str, value: Any):
+    """Añade a `query` la cláusula de un filtro del constructor de informes.
+
+    El llamador valida antes que `column` esté en el catálogo de la entidad y
+    que `operator` esté en `OPERATORS`, y devuelve 400 si no. Lo que esta
+    función garantiza es lo que aquello no cubría: **que nunca devuelva la
+    consulta sin filtrar**. Una columna que el modelo no tenga o un operador sin
+    traducción son incoherencias del servidor, y se lanzan como tales.
+    """
     if not hasattr(model, column):
-        return query
-    col = getattr(model, column)
-    if operator == "eq":
-        query = query.filter(col == value)
-    elif operator == "neq":
-        query = query.filter(col != value)
-    elif operator == "gt":
-        query = query.filter(col > value)
-    elif operator == "lt":
-        query = query.filter(col < value)
-    elif operator == "gte":
-        query = query.filter(col >= value)
-    elif operator == "lte":
-        query = query.filter(col <= value)
-    elif operator == "contains":
-        query = query.filter(col.ilike(f"%{value}%"))
-    elif operator == "not_contains":
-        query = query.filter(col.notilike(f"%{value}%"))
-    elif operator == "starts_with":
-        query = query.filter(col.ilike(f"{value}%"))
-    elif operator == "in":
-        if isinstance(value, list):
-            query = query.filter(col.in_(value))
-    elif operator == "is_null":
-        query = query.filter(col.is_(None))
-    elif operator == "is_not_null":
-        query = query.filter(col.isnot(None))
-    return query
+        raise HTTPException(
+            500,
+            f"Catálogo de informes incoherente: la columna '{column}' no existe "
+            f"en {model.__name__}",
+        )
+    clausula = _CLAUSULAS.get(operator)
+    if clausula is None:
+        raise HTTPException(
+            500,
+            f"Catálogo de informes incoherente: el operador '{operator}' no "
+            f"tiene traducción a SQL",
+        )
+    return query.filter(clausula(getattr(model, column), value))
 
 
 def _serialize_value(v: Any) -> Any:
@@ -543,111 +615,147 @@ def _serialize_value(v: Any) -> Any:
 
 
 # ── Core report execution ─────────────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `execute_report` y `execute_report_paginated`
+# eran LA MISMA FUNCION. Medido con `difflib` sobre sus cuerpos, ignorando
+# sangria: 41 de 50 lineas identicas, el 82 %. Lo unico que cambiaba era la
+# firma y el bloque final —una devolvia una lista con `limit`, la otra un
+# diccionario con `paginate_query`—; el acotado por tenant, la validacion de
+# columnas, el bucle de filtros y el orden eran copia exacta.
+#
+# El coste no era el numero de lineas: era que **una podia arreglar un fallo y
+# la otra no**. En este mismo repo eso ya paso dos veces —PUT y PATCH de SCIM
+# cubriendo campos distintos, y las dos copias del sondeo SNMP divergiendo— asi
+# que no es un riesgo hipotetico. Ahora las dos llaman a `_preparar_consulta`.
+
+
+def _valor_del_filtro(f, clave: str, defecto=None):
+    """Un campo de un filtro, venga como objeto o como diccionario.
+
+    Los dos llamadores pasan lo que les llega del endpoint, que puede ser un
+    modelo de Pydantic o un `dict` crudo segun la ruta.
+    """
+    return getattr(f, clave) if hasattr(f, clave) else f.get(clave, defecto)
+
+
+def _acotar_por_tenant(db_query, model, current_user, db):
+    """Limita la consulta a la organización de quien pide el informe.
+
+    Un superadministrador de plataforma ve todo a propósito. Para el resto se
+    filtra por `organization_id` si el modelo la tiene, y si no por los
+    proyectos de su organización.
+
+    **La rama sin acotar** —un usuario que no es superadministrador y no tiene
+    organización— no es alcanzable, y conviene saber por qué: `organization_id`
+    es `nullable=False` en `app/models/user.py`, así que un usuario autenticado
+    siempre trae organización. Es una dependencia de OTRO fichero, de modo que
+    si alguien relaja esa restricción esta rama se abre; por debajo queda el
+    listener `do_orm_execute` de `app/db/session.py`, que es la segunda barrera.
+    Las 20 entidades del catálogo de informes tienen `organization_id`, y hay un
+    test que lo comprueba.
+    """
+    if current_user.is_superadmin or not current_user.organization_id:
+        return db_query
+
+    org_id = current_user.organization_id
+    if hasattr(model, "organization_id"):
+        return db_query.filter(model.organization_id == org_id)
+    if hasattr(model, "project_id"):
+        proj_ids = db.query(_Proj.id).filter(
+            _Proj.organization_id == org_id
+        ).scalar_subquery()
+        return db_query.filter(model.project_id.in_(proj_ids))
+    return db_query
+
+
+def _preparar_consulta(
+    entity: str, columns: List[str], filters: list, sort_column: Optional[str],
+    sort_direction: str, current_user: User, db: Session,
+):
+    """La consulta de un informe, montada y sin ejecutar.
+
+    Devuelve `(model, db_query)`. Todo lo que comparten la vista sin paginar y
+    la paginada está aquí: resolución de la entidad, validación de columnas
+    contra el catálogo, acotado por tenant, filtros y orden. Lo único que cambia
+    entre las dos es cómo se materializa el resultado.
+    """
+    model = get_model_class(entity)
+    if model is None:
+        raise HTTPException(400, f"Entidad '{entity}' no soportada en este entorno")
+
+    entity_def = ENTITIES.get(entity, {})
+    allowed_cols = set(entity_def.get("columns", {}).keys())
+
+    for c in columns:
+        if c not in allowed_cols:
+            raise HTTPException(400, f"Columna '{c}' no permitida para la entidad '{entity}'")
+
+    db_query = _acotar_por_tenant(db.query(model), model, current_user, db)
+
+    for f in filters:
+        col_name = _valor_del_filtro(f, "column", "")
+        op = _valor_del_filtro(f, "operator", "")
+        val = _valor_del_filtro(f, "value")
+        if col_name not in allowed_cols:
+            raise HTTPException(400, f"Columna de filtro '{col_name}' no permitida")
+        if op not in OPERATORS:
+            raise HTTPException(400, f"Operador '{op}' no soportado")
+        db_query = apply_filter(db_query, model, col_name, op, val)
+
+    # Un `sort_column` que no esté en el catálogo se ignora en silencio, y es lo
+    # correcto: el orden es una preferencia de presentación, no parte de lo que
+    # se pide. Un filtro inválido sí es un 400, porque cambia QUÉ filas salen.
+    if sort_column and sort_column in allowed_cols and hasattr(model, sort_column):
+        col = getattr(model, sort_column)
+        db_query = db_query.order_by(
+            col.desc() if sort_direction == "desc" else col.asc()
+        )
+
+    return model, db_query
+
+
+def _serializar(filas, columns: List[str]) -> List[Dict]:
+    """Las filas como diccionarios, sólo con las columnas pedidas.
+
+    El `getattr(..., None)` cubre una columna del catálogo que el modelo no
+    tenga. Es la misma incoherencia que `apply_filter` convierte en 500, pero
+    aquí se deja pasar como nulo a propósito: en un filtro cambia QUÉ filas
+    salen, y en la presentación sólo deja una celda vacía.
+    """
+    return [
+        {c: _serialize_value(getattr(row, c, None)) for c in columns}
+        for row in filas
+    ]
+
+
+#: Tope duro de filas de una vista sin paginar, por encima de lo que pida quien
+#: llama: una entidad grande sin límite devuelve megabytes que nadie lee.
+_MAX_FILAS_SIN_PAGINAR = 2000
 
 
 def execute_report(
     entity: str, columns: List[str], filters: list, sort_column: Optional[str],
     sort_direction: str, limit: int, current_user: User, db: Session,
 ) -> List[Dict]:
-    # Conserva compatibilidad para preview, usa limit
-    model = get_model_class(entity)
-    if model is None:
-        raise HTTPException(400, f"Entidad '{entity}' no soportada en este entorno")
-
-    entity_def = ENTITIES.get(entity, {})
-    allowed_cols = set(entity_def.get("columns", {}).keys())
-
-    for c in columns:
-        if c not in allowed_cols:
-            raise HTTPException(400, f"Columna '{c}' no permitida para la entidad '{entity}'")
-
-    db_query = db.query(model)
-
-    if not current_user.is_superadmin and current_user.organization_id:
-        org_id = current_user.organization_id
-        if hasattr(model, "organization_id"):
-            db_query = db_query.filter(model.organization_id == org_id)
-        elif hasattr(model, "project_id"):
-            proj_ids = db.query(_Proj.id).filter(
-                _Proj.organization_id == org_id
-            ).scalar_subquery()
-            db_query = db_query.filter(model.project_id.in_(proj_ids))
-
-    for f in filters:
-        col_name = f.column if hasattr(f, "column") else f.get("column", "")
-        op = f.operator if hasattr(f, "operator") else f.get("operator", "")
-        val = f.value if hasattr(f, "value") else f.get("value")
-        if col_name not in allowed_cols:
-            raise HTTPException(400, f"Columna de filtro '{col_name}' no permitida")
-        if op not in OPERATORS:
-            raise HTTPException(400, f"Operador '{op}' no soportado")
-        db_query = apply_filter(db_query, model, col_name, op, val)
-
-    if sort_column and sort_column in allowed_cols and hasattr(model, sort_column):
-        col = getattr(model, sort_column)
-        db_query = db_query.order_by(
-            col.desc() if sort_direction == "desc" else col.asc()
-        )
-
-    rows = db_query.limit(min(limit, 2000)).all()
-
-    return [
-        {c: _serialize_value(getattr(row, c, None)) for c in columns}
-        for row in rows
-    ]
+    """El informe sin paginar, para la vista previa. Usa `limit`."""
+    _, db_query = _preparar_consulta(
+        entity, columns, filters, sort_column, sort_direction, current_user, db
+    )
+    filas = db_query.limit(min(limit, _MAX_FILAS_SIN_PAGINAR)).all()
+    return _serializar(filas, columns)
 
 
-# Nueva función para paginación real
-from app.services.pagination_service import paginate_query
 def execute_report_paginated(
     entity: str, columns: List[str], filters: list, sort_column: Optional[str],
     sort_direction: str, page: int, page_size: int, current_user: User, db: Session,
 ) -> dict:
-    model = get_model_class(entity)
-    if model is None:
-        raise HTTPException(400, f"Entidad '{entity}' no soportada en este entorno")
-
-    entity_def = ENTITIES.get(entity, {})
-    allowed_cols = set(entity_def.get("columns", {}).keys())
-
-    for c in columns:
-        if c not in allowed_cols:
-            raise HTTPException(400, f"Columna '{c}' no permitida para la entidad '{entity}'")
-
-    db_query = db.query(model)
-
-    if not current_user.is_superadmin and current_user.organization_id:
-        org_id = current_user.organization_id
-        if hasattr(model, "organization_id"):
-            db_query = db_query.filter(model.organization_id == org_id)
-        elif hasattr(model, "project_id"):
-            proj_ids = db.query(_Proj.id).filter(
-                _Proj.organization_id == org_id
-            ).scalar_subquery()
-            db_query = db_query.filter(model.project_id.in_(proj_ids))
-
-    for f in filters:
-        col_name = f.column if hasattr(f, "column") else f.get("column", "")
-        op = f.operator if hasattr(f, "operator") else f.get("operator", "")
-        val = f.value if hasattr(f, "value") else f.get("value")
-        if col_name not in allowed_cols:
-            raise HTTPException(400, f"Columna de filtro '{col_name}' no permitida")
-        if op not in OPERATORS:
-            raise HTTPException(400, f"Operador '{op}' no soportado")
-        db_query = apply_filter(db_query, model, col_name, op, val)
-
-    if sort_column and sort_column in allowed_cols and hasattr(model, sort_column):
-        col = getattr(model, sort_column)
-        db_query = db_query.order_by(
-            col.desc() if sort_direction == "desc" else col.asc()
-        )
-
+    """El informe paginado de verdad, con el total y el número de páginas."""
+    _, db_query = _preparar_consulta(
+        entity, columns, filters, sort_column, sort_direction, current_user, db
+    )
     items, total, pages = paginate_query(db_query, page, page_size)
     return {
-        "items": [
-            {c: _serialize_value(getattr(row, c, None)) for c in columns}
-            for row in items
-        ],
+        "items": _serializar(items, columns),
         "total": total,
         "page": page,
         "page_size": page_size,

@@ -82,6 +82,9 @@
     "type:coverage": "type-coverage --at-least 75 --ignore-catch --detail",
     "quality:p3": "npm run typecheck && npm run type:coverage && npm run lint:a11y:report",
     "check:i18n:coverage": "node scripts/check_i18n_coverage.mjs",
-    "i18n:gap": "node scripts/i18n_gap.mjs"
+    "i18n:gap": "node scripts/i18n_gap.mjs",
+    "check:chunks": "node scripts/check_heavy_chunks.mjs",
+    "check:i18n:dup": "node scripts/check_i18n_duplicates.mjs",
+    "i18n:missing": "node scripts/i18n_missing.mjs"
   }
 }

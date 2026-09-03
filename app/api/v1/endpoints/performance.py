@@ -414,7 +414,12 @@ def campaign_dashboard_pdf(campaign_id: str, db: Session = Depends(get_db),
         raise HTTPException(404, "Campaña no encontrada")
     dashboard = performance_service.aggregate_campaign(db, camp)
     from app.services.campaign_pdf import generate_campaign_pdf
-    pdf_bytes = generate_campaign_pdf(dashboard)
+    from app.services._pdf_marca import PALETA_POR_DEFECTO, marca_de_organizacion
+
+    # La marca del tenant. Auditoria 2026-08, hallazgo 32.
+    marca = marca_de_organizacion(
+        db, getattr(cu, "organization_id", None), base=PALETA_POR_DEFECTO)
+    pdf_bytes = generate_campaign_pdf(dashboard, paleta=marca.paleta)
     subject = (camp.subject.full_name if camp.subject else "subject").replace(" ", "_")
     filename = f"360_{subject}_{camp.id[:8]}.pdf"
     return StreamingResponse(

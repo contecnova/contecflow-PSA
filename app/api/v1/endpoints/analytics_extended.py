@@ -8,7 +8,10 @@ from typing import List, Optional, Dict
 import logging
 import csv
 import io
-from app.services import v238_service, analytics_service
+# Auditoría 2026-08 (hallazgo 22). Antes era `v238_service`, un módulo nombrado
+# por número de versión con seis dominios dentro. La analítica ad-hoc tiene ahora
+# su propio módulo.
+from app.services import adhoc_analytics_service, analytics_service
 from app.core.deps import get_db, get_current_user, require_any_manager
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -42,7 +45,7 @@ def adhoc_analytics(
     try:
         metric = payload.get("metric")
         dimensions = payload.get("dimensions", [])
-        result = v238_service.run_adhoc_query(
+        result = adhoc_analytics_service.run_adhoc_query(
             metric=metric,
             dimensions=dimensions,
             filters=payload.get("filters", {}) or {},
@@ -72,11 +75,18 @@ def analytics_drilldown(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Auditoría 2026-08 (hallazgo 22). Aquí había un
+    # `if hasattr(v238_service, "run_analytics_drilldown")`. Es el mismo patrón
+    # que dejó muerto el endpoint /analytics/adhoc (P1-9): si la función se
+    # renombra o se mueve, el hasattr da False y el endpoint responde 200 con
+    # filas vacías, sin error ni registro. Se llama directo para que un renombrado
+    # falle en voz alta.
     try:
-        if hasattr(v238_service, "run_analytics_drilldown"):
-            result = v238_service.run_analytics_drilldown(metric, dimension, value, date_from, date_to, page, page_size, db)
-            if result:
-                return APIResponse.ok(data=result)
+        result = adhoc_analytics_service.run_analytics_drilldown(
+            metric, dimension, value, date_from, date_to, page, page_size, db
+        )
+        if result:
+            return APIResponse.ok(data=result)
         return APIResponse.ok(data={"metric": metric, "dimension": dimension, "value": value, "rows": [], "page": page, "page_size": page_size})
     except ValueError as e:
         return JSONResponse(status_code=400, content={"detail": f"Error de datos: {str(e)}"})
@@ -91,11 +101,11 @@ def analytics_cross_filter(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Mismo caso que el drilldown: fuera el `hasattr`, llamada directa.
     try:
-        if hasattr(v238_service, "run_analytics_cross_filter"):
-            result = v238_service.run_analytics_cross_filter(payload, db)
-            if result:
-                return APIResponse.ok(data=result)
+        result = adhoc_analytics_service.run_analytics_cross_filter(payload, db)
+        if result:
+            return APIResponse.ok(data=result)
         return APIResponse.ok(data={"active_filters": payload.get("active_filters", {}), "results": {}})
     except ValueError as e:
         return JSONResponse(status_code=400, content={"detail": f"Error de datos: {str(e)}"})

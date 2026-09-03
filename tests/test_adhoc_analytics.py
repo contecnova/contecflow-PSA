@@ -4,7 +4,7 @@ Dos defectos encadenados hacían que este endpoint no funcionase, y ninguno daba
 error:
 
 1. `POST /api/v1/analytics/adhoc` comprobaba
-   `hasattr(v238_service, "run_analytics_adhoc")`. Esa función NO EXISTE — la
+   `hasattr(adhoc_analytics_service, "run_analytics_adhoc")`. Esa función NO EXISTE — la
    implementación real se llama `run_adhoc_query`. El hasattr era False siempre,
    así que el endpoint respondía 200 con `{"results": [], "total_rows": 0}`
    pasara lo que pasara.
@@ -25,7 +25,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from app.services import v238_service
+from app.services import adhoc_analytics_service
 
 
 @pytest.fixture()
@@ -53,7 +53,14 @@ def imputaciones(db):
     db.commit()
 
     hoy = date.today()
-    este_mes = hoy.replace(day=15)
+    # HOY y no el día 15 del mes en curso. El fixture usaba `hoy.replace(day=15)`
+    # y eso hacía que `test_el_filtro_de_fechas_se_aplica_con_cadenas_iso` sólo
+    # pasara del 15 en adelante: ese test acota `[día 1, hoy]`, y antes del 15 las
+    # imputaciones caían en el FUTURO y quedaban fuera con razón. Se escribió a
+    # finales de agosto, pasó en verde, y desde el día 1 siguiente mentía.
+    #
+    # `hoy` está siempre dentro de `[primero de mes, hoy]`, incluso el día 1.
+    este_mes = hoy
     mes_pasado = (hoy.replace(day=1) - timedelta(days=1)).replace(day=15)
 
     # 10 imputaciones de 3h en el proyecto A este mes  → 30h
@@ -80,11 +87,11 @@ def test_el_total_no_depende_del_limite(db, imputaciones):
     Con limit=2 y 15 filas, la versión anterior sumaba sólo 2 registros. El
     límite debe acotar las filas AGRUPADAS del resultado, no las de entrada.
     """
-    con_limite_bajo = v238_service.run_adhoc_query(
+    con_limite_bajo = adhoc_analytics_service.run_adhoc_query(
         metric="hours_logged", dimensions=[], filters={},
         date_from=None, date_to=None, limit=2, db=db,
     )
-    con_limite_alto = v238_service.run_adhoc_query(
+    con_limite_alto = adhoc_analytics_service.run_adhoc_query(
         metric="hours_logged", dimensions=[], filters={},
         date_from=None, date_to=None, limit=10_000, db=db,
     )
@@ -98,7 +105,7 @@ def test_el_total_no_depende_del_limite(db, imputaciones):
 
 
 def test_el_total_global_incluye_todas_las_horas(db, imputaciones):
-    res = v238_service.run_adhoc_query(
+    res = adhoc_analytics_service.run_adhoc_query(
         metric="hours_logged", dimensions=[], filters={},
         date_from=None, date_to=None, limit=100, db=db,
     )
@@ -106,7 +113,7 @@ def test_el_total_global_incluye_todas_las_horas(db, imputaciones):
 
 
 def test_agrupado_por_mes_devuelve_datos(db, imputaciones):
-    res = v238_service.run_adhoc_query(
+    res = adhoc_analytics_service.run_adhoc_query(
         metric="hours_logged", dimensions=["month"], filters={},
         date_from=None, date_to=None, limit=100, db=db,
     )
@@ -118,7 +125,7 @@ def test_agrupado_por_mes_devuelve_datos(db, imputaciones):
 
 
 def test_agrupado_por_proyecto_suma_por_grupo(db, imputaciones):
-    res = v238_service.run_adhoc_query(
+    res = adhoc_analytics_service.run_adhoc_query(
         metric="hours_logged", dimensions=["project_id"], filters={},
         date_from=None, date_to=None, limit=100, db=db,
     )
@@ -129,7 +136,7 @@ def test_agrupado_por_proyecto_suma_por_grupo(db, imputaciones):
 
 def test_el_filtro_de_proyecto_se_aplica(db, imputaciones):
     pid_b = imputaciones["proyectos"][1].id
-    res = v238_service.run_adhoc_query(
+    res = adhoc_analytics_service.run_adhoc_query(
         metric="hours_logged", dimensions=[], filters={"project_id": pid_b},
         date_from=None, date_to=None, limit=100, db=db,
     )
@@ -143,7 +150,7 @@ def test_el_filtro_de_fechas_se_aplica_con_cadenas_iso(db, imputaciones):
     una cadena la comparación no fallaba, simplemente no filtraba lo esperado.
     """
     inicio = imputaciones["este_mes"].replace(day=1).isoformat()
-    res = v238_service.run_adhoc_query(
+    res = adhoc_analytics_service.run_adhoc_query(
         metric="hours_logged", dimensions=[], filters={},
         date_from=inicio, date_to=date.today().isoformat(), limit=100, db=db,
     )
@@ -156,7 +163,7 @@ def test_fecha_no_valida_da_400(db):
     from fastapi import HTTPException
 
     with pytest.raises(HTTPException) as exc:
-        v238_service.run_adhoc_query(
+        adhoc_analytics_service.run_adhoc_query(
             metric="hours_logged", dimensions=[], filters={},
             date_from="no-es-una-fecha", date_to=None, limit=100, db=db,
         )
@@ -169,7 +176,7 @@ def test_metrica_no_soportada_da_400_no_vacio(db):
     from fastapi import HTTPException
 
     with pytest.raises(HTTPException) as exc:
-        v238_service.run_adhoc_query(
+        adhoc_analytics_service.run_adhoc_query(
             metric="metrica_inexistente", dimensions=[], filters={},
             date_from=None, date_to=None, limit=100, db=db,
         )
@@ -177,7 +184,7 @@ def test_metrica_no_soportada_da_400_no_vacio(db):
 
 
 def test_recuento_de_tareas_funciona(db):
-    res = v238_service.run_adhoc_query(
+    res = adhoc_analytics_service.run_adhoc_query(
         metric="task_count", dimensions=["status"], filters={},
         date_from=None, date_to=None, limit=100, db=db,
     )
@@ -223,7 +230,7 @@ def test_la_funcion_mal_nombrada_sigue_sin_existir(db):
     tener dos caminos y el hasattr podría reaparecer. La implementación se llama
     `run_adhoc_query` y se invoca directamente.
     """
-    assert hasattr(v238_service, "run_adhoc_query")
-    assert not hasattr(v238_service, "run_analytics_adhoc"), (
+    assert hasattr(adhoc_analytics_service, "run_adhoc_query")
+    assert not hasattr(adhoc_analytics_service, "run_analytics_adhoc"), (
         "no crear alias: el endpoint llama directamente a run_adhoc_query"
     )

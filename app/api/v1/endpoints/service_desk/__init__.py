@@ -59,6 +59,14 @@ router.include_router(sla.router)
 router.include_router(oncall.router)
 router.include_router(templates.router)
 router.include_router(analytics.router)
+# Auditoria 2026-08: `change_rollout` va ANTES de `misc` a proposito.
+# `misc` declara `/changes/{change_id}` y `change_rollout`
+# `/changes/rollout-plans`; en FastAPI gana la primera que encaja, asi que con
+# el orden anterior la peticion acababa en el detalle de un CR y respondia
+# **404 «Change request no encontrado»** — endpoint inalcanzable y mensaje que
+# manda a buscar un CR que falta. Es el unico caso de tapado ENTRE MODULOS, y
+# por eso no se arregla reordenando dentro de un fichero sino aqui.
+router.include_router(change_rollout.router)
 router.include_router(misc.router)
 router.include_router(workflow_designer.router)
 router.include_router(connectors_marketplace.router)
@@ -76,7 +84,6 @@ router.include_router(problem_management.router)
 router.include_router(cab_workflow.router)
 router.include_router(alert_correlation.router)
 router.include_router(incident_assignment.router)
-router.include_router(change_rollout.router)
 router.include_router(cmdb_3d.router)
 router.include_router(voice_agent.router)
 router.include_router(dynamic_forms.router)

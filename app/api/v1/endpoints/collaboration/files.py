@@ -163,6 +163,15 @@ async def upload_attachment(
                 db.commit()
         # intentional: best-effort fallback, log noise outweighs diagnostic value
         except Exception:
+            # El `rollback()` NO es cosmetico. Si lo que fallo fue el
+            # `db.commit()`, la sesion queda en transaccion abortada y la
+            # construccion de la respuesta de abajo lee atributos de `att` que
+            # el commit anterior expiro (`expire_on_commit` esta en su valor por
+            # defecto, True): SQLAlchemy intenta refrescarlos, lanza
+            # `PendingRollbackError`, y una subida CORRECTA se convierte en un
+            # 500 por un indice de texto que era best-effort.
+            # Auditoria 2026-08, hallazgo 22.
+            db.rollback()
             logger.debug("upload_attachment: fallo best-effort ignorado", exc_info=True)
 
     download_url = None if is_quarantined else storage.signed_url(stored.storage_key, ttl_seconds=3600)

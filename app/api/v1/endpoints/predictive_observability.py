@@ -53,7 +53,10 @@ def _resolve_org_id(current_user: User, override: Optional[str], db: Session) ->
     if not is_superadmin and override != user_org:
         raise HTTPException(status_code=403, detail="cross_org_access_denied")
     # Validar que la organización existe para evitar enumeración de IDs.
-    from app.models.enterprise import Organization
+    # `Organization` vive en `app.models.mfa`, no en `enterprise`. Con la ruta
+    # mal, esta comprobacion —que existe para evitar enumeracion de IDs—
+    # lanzaba ImportError en vez de validar. Auditoria 2026-08.
+    from app.models.mfa import Organization
     org = db.query(Organization.id).filter(Organization.id == override).first()
     if not org:
         raise HTTPException(status_code=404, detail="organization_not_found")

@@ -200,37 +200,25 @@ from slowapi.errors import RateLimitExceeded
 from app.core.ratelimit import limiter
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    # ── Dependency preflight check ─────────────────────────────────────────
-    _missing_deps: list[str] = []
-    for _dep in ("qrcode", "pyotp", "PIL"):
-        try:
-            __import__(_dep)
-        except ImportError:
-            _missing_deps.append(_dep)
-    if _missing_deps:
-        logger.warning(
-            "⚠️  MFA dependencies missing — MFA setup will return HTTP 500: %s. "
-            "Run: pip install qrcode[pil] pyotp",
-            ", ".join(_missing_deps),
-        )
+# ── Fases del arranque ───────────────────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `lifespan` eran 216 lineas de complejidad 29
+# en el ARRANQUE de la aplicacion y sin ningun test propio. Dos bloques se
+# llevaban la mitad: la comprobacion de deriva de esquema (40 lineas) y el
+# arranque del planificador (76).
+#
+# Los cuerpos se movieron verbatim. La red aqui no son tests propios sino la
+# suite completa: el TestClient ejecuta `lifespan` en cada fixture, asi que un
+# fallo en el arranque lo nota todo a la vez.
 
-    logger.info("━" * 54)
-    logger.info("  ◈  CONTECFLOW PSA — Iniciando servidor")
-    logger.info(f"     Versión : {settings.VERSION}")
-    logger.info(f"     API Base: {settings.API_V1_STR}")
-    logger.info(f"     BD      : {settings.DATABASE_URL.split('/')[-1]}")
-    logger.info("━" * 54)
 
-    # ── Schema preflight (no in-process migrations) ──────────────────────────
-    # Migrations must run outside application startup (CI/CD, init-container, or
-    # explicit operator action). Startup only checks for obvious schema drift.
-    import os as _os
-    _is_testing = _os.getenv("TESTING", "0") == "1"
-    _expected_rev = (_os.getenv("EXPECTED_ALEMBIC_REVISION") or "").strip() or None
-    _enforce_drift = _os.getenv("FAIL_ON_SCHEMA_DRIFT", "1" if settings.ENVIRONMENT in {"production", "staging"} else "0") == "1"
+def _comprobar_deriva_de_esquema(_is_testing, _expected_rev, _enforce_drift) -> None:
+    """Comprueba que el esquema de la base coincide con la revision esperada.
 
+    En modo de pruebas se omite: la base de test la crea la propia fixture y no
+    pasa por Alembic. Ver el hallazgo 11 para por que esta comprobacion existe —
+    el esquema se construia por dos caminos y solo uno estaba completo.
+    """
     if _is_testing:
         logger.info("⏭️  Schema preflight omitido en testing")
     else:
@@ -272,35 +260,17 @@ async def lifespan(_app: FastAPI):
             logger.error("❌ Schema preflight failed: %s", _schema_exc)
             raise
 
-    # Key management bootstrap (JWT keyring + integration secret rotation policy)
-    try:
-        from app.services.key_management import refresh_caches, rotate_due_materials
-        rotate_due_materials()
-        refresh_caches()
-        logger.info("🔐 Key management inicializado")
-    except Exception as _ke:
-        logger.error(f"❌ Key management init failed: {_ke}", exc_info=True)
-        if settings.ENVIRONMENT == "production":
-            raise
 
-    # Cross-worker settings cache invalidation (Redis pub/sub).
-    # No-op if REDIS_URL is unset.
-    try:
-        from app.core.settings_pubsub import start_subscriber as _start_settings_sub
-        if _start_settings_sub():
-            logger.info("📡 Settings pub/sub subscriber iniciado")
-    except Exception as _pse:
-        logger.warning("⚠️  Settings pub/sub no inicializado: %s", _pse)
+def _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled):
+    """Levanta APScheduler si `ENABLE_APSCHEDULER=1`. Devuelve el planificador o None.
 
-    # Scheduler (optional): keep disabled when Celery beat is active in deployment.
+    `_celery_beat_enabled` NO decide aqui: llegar con los dos activos ya lo
+    impide `_enforce_scheduler_mode_safety()`, que aborta el arranque en modo
+    dual en todos los entornos (levantar los dos ejecutaria cada tarea dos
+    veces: informes enviados dos veces, rotacion de claves dos veces). Aqui solo
+    sirve para elegir el aviso y el modo que se loguea.
+    """
     _scheduler = None
-    _enable_apscheduler, _celery_beat_enabled = _scheduler_flags()
-    try:
-        _enforce_scheduler_mode_safety()
-        _enforce_superadmin_bypass_safety()
-    except RuntimeError as _sched_exc:
-        logger.error("❌ Startup safety check failed: %s", _sched_exc)
-        raise
     if _enable_apscheduler:
         # APScheduler in-process es adecuado para dev y para un despliegue de un solo
         # worker. En producción multi-worker, el SQLAlchemyJobStore compartido reduce
@@ -377,16 +347,71 @@ async def lifespan(_app: FastAPI):
     else:
         logger.info("✅ Modo scheduler: Ninguno (modo manual)")
         logger.info("⏭️  APScheduler deshabilitado (ENABLE_APSCHEDULER=0)")
+    return _scheduler
 
-    # Contar endpoints registrados
-    total_routes = len([r for r in _app.routes if hasattr(r, 'methods')])
-    logger.info("━" * 54)
-    logger.info(f"🚀 Contecflow PSA listo — {total_routes} endpoints")
-    logger.info(f"   📖 Docs: {settings.BACKEND_URL}{settings.API_V1_STR}/docs")
-    logger.info(f"   🔍 Health: {settings.BACKEND_URL}/health")
-    logger.info("━" * 54)
 
-    # Collaboration: scheduled message dispatcher
+
+# ── Fases del arranque y la parada (continuacion) ────────────────────────────
+#
+# Segunda tanda del hallazgo 18. Tras sacar la deriva de esquema y el
+# planificador, `lifespan` quedaba en complejidad 16: lo que sumaba eran cinco
+# bloques try/except, cada uno con su propio manejo de errores porque un
+# servicio de apoyo caido no debe impedir el arranque.
+
+
+def _comprobar_dependencias_opcionales() -> None:
+    """Avisa si faltan las dependencias del segundo factor.
+
+    No aborta a proposito: sin ellas la aplicacion funciona y solo el MFA queda
+    sin poder configurarse.
+    """
+    _missing_deps: list[str] = []
+    for _dep in ("qrcode", "pyotp", "PIL"):
+        try:
+            __import__(_dep)
+        except ImportError:
+            _missing_deps.append(_dep)
+    if _missing_deps:
+        logger.warning(
+            "⚠️  MFA dependencies missing — MFA setup will return HTTP 500: %s. "
+            "Run: pip install qrcode[pil] pyotp",
+            ", ".join(_missing_deps),
+        )
+
+
+def _arrancar_servicios_de_apoyo() -> None:
+    """Arranca los servicios de apoyo del proceso web.
+
+    Cada uno en su propio try a proposito: que falte uno no debe impedir que
+    arranque la aplicacion. Un servicio de apoyo caido degrada una funcionalidad;
+    un arranque abortado tumba el servicio entero.
+    """
+    try:
+        from app.services.key_management import refresh_caches, rotate_due_materials
+        rotate_due_materials()
+        refresh_caches()
+        logger.info("🔐 Key management inicializado")
+    except Exception as _ke:
+        logger.error(f"❌ Key management init failed: {_ke}", exc_info=True)
+        if settings.ENVIRONMENT == "production":
+            raise
+
+    # Cross-worker settings cache invalidation (Redis pub/sub).
+    # No-op if REDIS_URL is unset.
+    try:
+        from app.core.settings_pubsub import start_subscriber as _start_settings_sub
+        if _start_settings_sub():
+            logger.info("📡 Settings pub/sub subscriber iniciado")
+    except Exception as _pse:
+        logger.warning("⚠️  Settings pub/sub no inicializado: %s", _pse)
+
+
+def _arrancar_planificador_de_colaboracion(_is_testing) -> None:
+    """Levanta el planificador de sesiones de colaboracion.
+
+    Se omite en la suite de pruebas: son tareas periodicas en hilo aparte que
+    tocarian la base mientras cada test monta y desmonta la suya.
+    """
     if not _is_testing:
         try:
             from app.services.collaboration._scheduler import start as _collab_start
@@ -394,15 +419,22 @@ async def lifespan(_app: FastAPI):
         except Exception as _exc:
             logger.warning("Collab scheduler no inicializado: %s", _exc)
 
-    yield
 
+def _parar_planificador_de_colaboracion() -> None:
+    """Detiene el planificador de colaboracion que levanto el arranque."""
     try:
         from app.services.collaboration._scheduler import stop as _collab_stop
         _collab_stop()
     except Exception:
         logger.debug("lifespan: fallo best-effort ignorado", exc_info=True)
 
-    logger.info("🛑 Apagando Contecflow PSA...")
+
+def _parar_servicios(_scheduler) -> None:
+    """Para el planificador y cierra lo que quede abierto.
+
+    Cada paso lleva su propio try: un fallo al parar un servicio no puede
+    impedir que se paren los demas.
+    """
     try:
         from app.core.settings_pubsub import stop_subscriber as _stop_settings_sub
         _stop_settings_sub()
@@ -417,6 +449,61 @@ async def lifespan(_app: FastAPI):
         except Exception as e:
             logger.warning(f"Scheduler shutdown error: {e}")
     logger.info("   ✅ Shutdown completo")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # ── Dependency preflight check ─────────────────────────────────────────
+    _comprobar_dependencias_opcionales()
+
+    logger.info("━" * 54)
+    logger.info("  ◈  CONTECFLOW PSA — Iniciando servidor")
+    logger.info(f"     Versión : {settings.VERSION}")
+    logger.info(f"     API Base: {settings.API_V1_STR}")
+    logger.info(f"     BD      : {settings.DATABASE_URL.split('/')[-1]}")
+    logger.info("━" * 54)
+
+    # ── Schema preflight (no in-process migrations) ──────────────────────────
+    # Migrations must run outside application startup (CI/CD, init-container, or
+    # explicit operator action). Startup only checks for obvious schema drift.
+    import os as _os
+    _is_testing = _os.getenv("TESTING", "0") == "1"
+    _expected_rev = (_os.getenv("EXPECTED_ALEMBIC_REVISION") or "").strip() or None
+    _enforce_drift = _os.getenv("FAIL_ON_SCHEMA_DRIFT", "1" if settings.ENVIRONMENT in {"production", "staging"} else "0") == "1"
+
+    _comprobar_deriva_de_esquema(_is_testing, _expected_rev, _enforce_drift)
+
+    # Key management bootstrap (JWT keyring + integration secret rotation policy)
+    _arrancar_servicios_de_apoyo()
+
+    # Scheduler (optional): keep disabled when Celery beat is active in deployment.
+    _scheduler = None
+    _enable_apscheduler, _celery_beat_enabled = _scheduler_flags()
+    try:
+        _enforce_scheduler_mode_safety()
+        _enforce_superadmin_bypass_safety()
+    except RuntimeError as _sched_exc:
+        logger.error("❌ Startup safety check failed: %s", _sched_exc)
+        raise
+    _scheduler = _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled)
+
+    # Contar endpoints registrados
+    total_routes = len([r for r in _app.routes if hasattr(r, 'methods')])
+    logger.info("━" * 54)
+    logger.info(f"🚀 Contecflow PSA listo — {total_routes} endpoints")
+    logger.info(f"   📖 Docs: {settings.BACKEND_URL}{settings.API_V1_STR}/docs")
+    logger.info(f"   🔍 Health: {settings.BACKEND_URL}/health")
+    logger.info("━" * 54)
+
+    # Collaboration: scheduled message dispatcher
+    _arrancar_planificador_de_colaboracion(_is_testing)
+
+    yield
+
+    _parar_planificador_de_colaboracion()
+
+    logger.info("🛑 Apagando Contecflow PSA...")
+    _parar_servicios(_scheduler)
 
 
 
@@ -827,6 +914,78 @@ def ticket_widget_js():
 
 
 # ── Middleware de logging de peticiones ───────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18): `request_logger` estaba en complejidad 11 y se
+# ejecuta en CADA peticion. Las tres decisiones que tomaba —nivel de log, pista
+# de usuario y saneado de la URL— salieron a funciones propias, y los dos
+# conjuntos literales pasaron a constantes de modulo: antes se reconstruian en
+# cada peticion.
+
+# 401 que son normales y esperados en el uso corriente de la aplicacion, no un
+# problema: el sondeo de sesion al arrancar, y las consultas que salen en
+# paralelo mientras el interceptor renueva la cookie de acceso caducada. Se
+# loguean como INFO para que un log a nivel WARNING no se llene de ruido.
+_PETICIONES_CON_401_ESPERADO = frozenset({
+    "/api/v1/auth/me",
+    "/api/v1/users/me/preferences",
+    "/api/v1/alerts",
+    "/api/v1/approvals/requests/pending-my-action",
+    "/api/v1/activity/mentions/my",
+    "/api/v1/imputations/timer/current",
+    "/api/v1/settings/log-level",
+    "/api/v1/sd/auto-resolution/stats",
+    "/api/v1/sd/auto-resolution/config",
+})
+
+# Rutas que no se loguean: ruido de sondas y de assets.
+_RUTAS_SIN_LOG = frozenset({"/health", "/ready", "/metrics", "/favicon.ico"})
+
+# Parametros de query que nunca deben acabar en un fichero de log.
+_PARAMETROS_SECRETOS = ("token", "access_token", "refresh_token", "code", "state", "id_token")
+
+
+def _nivel_y_icono(status: int, path: str) -> tuple[int, str]:
+    """Nivel de log e icono para un codigo de respuesta."""
+    if status < 300:
+        return logging.INFO, "✅"
+    if status < 400:
+        return logging.INFO, "↩️ "
+    if status == 401 and path in _PETICIONES_CON_401_ESPERADO:
+        return logging.INFO, "🔑"
+    if status < 500:
+        return logging.WARNING, "⚠️ "
+    return logging.ERROR, "❌"
+
+
+def _pista_de_usuario(request: Request) -> str:
+    """Los 8 primeros caracteres del sujeto del token, si viene y es valido.
+
+    Devuelve cadena vacia ante cualquier problema: un token ilegible no puede
+    tumbar el logging de la peticion.
+    """
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return ""
+    try:
+        from app.core.security import decode_token
+        payload = decode_token(auth[7:])
+    except Exception as e:
+        logger.debug("JWT decode failed in request logging: %s", e)
+        return ""
+    if not payload:
+        return ""
+    return f" | user:{payload.get('sub','?')[:8]}"
+
+
+def _url_sin_secretos(request: Request) -> str:
+    """La URL de la peticion con los parametros sensibles tapados."""
+    import re as _re
+    safe_url = str(request.url)
+    for _k in _PARAMETROS_SECRETOS:
+        safe_url = _re.sub(rf"(?<=[?&]){_k}=[^&]*", f"{_k}=[REDACTED]", safe_url)
+    return safe_url
+
+
 @app.middleware("http")
 async def request_logger(request: Request, call_next):
     start = time.time()
@@ -837,64 +996,15 @@ async def request_logger(request: Request, call_next):
     method = request.method
     status = response.status_code
 
-    # Ignorar rutas de health, métricas y assets estáticos
-    if path in ("/health", "/ready", "/metrics", "/favicon.ico") or path.startswith("/static"):
+    if path in _RUTAS_SIN_LOG or path.startswith("/static"):
         return response
 
-    # Color según status
-    # Some 401s are expected and short-lived in normal UX:
-    # - startup session probe (/auth/me)
-    # - concurrent queries while interceptor refreshes expired access cookie
-    # - activity/imputations/settings queries during token rotation or early app startup
-    _expected_401_paths = {
-        "/api/v1/auth/me",
-        "/api/v1/users/me/preferences",
-        "/api/v1/alerts",
-        "/api/v1/approvals/requests/pending-my-action",
-        "/api/v1/activity/mentions/my",
-        "/api/v1/imputations/timer/current",
-        "/api/v1/settings/log-level",
-        "/api/v1/sd/auto-resolution/stats",
-        "/api/v1/sd/auto-resolution/config",
-    }
-    _expected_401 = (status == 401 and path in _expected_401_paths)
-    if status < 300:
-        level = logging.INFO
-        icon  = "✅"
-    elif status < 400:
-        level = logging.INFO
-        icon  = "↩️ "
-    elif _expected_401:
-        level = logging.INFO
-        icon  = "🔑"
-    elif status < 500:
-        level = logging.WARNING
-        icon  = "⚠️ "
-    else:
-        level = logging.ERROR
-        icon  = "❌"
-
-    # Loguear usuario si hay Authorization
-    user_hint = ""
-    auth = request.headers.get("Authorization", "")
-    if auth.startswith("Bearer "):
-        try:
-            from app.core.security import decode_token
-            payload = decode_token(auth[7:])
-            if payload:
-                user_hint = f" | user:{payload.get('sub','?')[:8]}"
-        except Exception as e:
-            logger.debug("JWT decode failed in request logging: %s", e)
-
+    level, icon = _nivel_y_icono(status, path)
+    user_hint = _pista_de_usuario(request)
     logger.log(level, f"{icon} {method:6} {path:<45} {status} [{duration}ms]{user_hint}")
 
-    # Log extra en errores 4xx/5xx (redact token-like params to avoid leakage)
     if status >= 400:
-        import re as _re
-        safe_url = str(request.url)
-        for _k in ("token", "access_token", "refresh_token", "code", "state", "id_token"):
-            safe_url = _re.sub(rf"(?<=[?&]){_k}=[^&]*", f"{_k}=[REDACTED]", safe_url)
-        logger.log(level, f"   └─ {method} {safe_url}")
+        logger.log(level, f"   └─ {method} {_url_sin_secretos(request)}")
 
     return response
 

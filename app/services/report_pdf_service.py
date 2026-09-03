@@ -34,11 +34,27 @@ except ImportError:
     _REPORTLAB = False
     logger.warning("reportlab not installed — PDF generation will return placeholder bytes")
 
+# Auditoria 2026-08 (hallazgo 32). Estos nueve colores eran una CUARTA paleta
+# divergente del repo, ademas de las tres que la auditoria ya habia contado — y
+# este generador produce los informes programados que se envian POR CORREO al
+# cliente final, asi que salian con los colores de la plataforma aunque el
+# cliente tuviera marca propia.
+#
+# Los tres que llevan marca —acento, fondo de cabecera y el texto sobre ese
+# fondo— vienen ahora de la marca de la organizacion y viajan dentro del
+# diccionario `styles`, que TODOS los ayudantes reciben ya: asi no hace falta
+# pasar la paleta por catorce firmas.
+#
+# Los neutros y los de ESTADO se quedan aqui, y por dos razones distintas: los
+# grises de este documento difieren en un pelo de los de la paleta compartida
+# (`#1e293b` frente a `#1a1a2e`) y unificarlos cambiaria el aspecto de un
+# documento que se manda al cliente; y `SUCCESS`, `WARNING` y `DANGER` son
+# estado, no marca — un aviso pintado con el color de marca deja de leerse como
+# aviso.
 ACCENT    = "#4f8ef7"
 SUCCESS   = "#22c55e"
 WARNING   = "#f59e0b"
 DANGER    = "#ef4444"
-BG_DARK   = "#0f172a"
 TEXT_MAIN = "#1e293b"
 TEXT_GREY = "#64748b"
 ROW_ALT   = "#f8fafc"
@@ -108,9 +124,20 @@ def _make_doc(buffer) -> "SimpleDocTemplate":
     )
 
 
-def _make_styles():
+def _make_styles(paleta=None):
+    """Los estilos del informe.
+
+    Las tres claves con guion bajo son los colores de marca de la organizacion;
+    van aqui porque `styles` ya llega a todos los ayudantes.
+    """
+    from app.services._pdf_marca import PALETA_POR_DEFECTO
+
+    p = paleta or PALETA_POR_DEFECTO
     styles = getSampleStyleSheet()
     return {
+        "_acento": _rl(p.acento),
+        "_cabecera_fondo": _rl(p.fondo_de_cabecera),
+        "_cabecera_texto": _rl(p.texto_sobre_cabecera),
         "title": ParagraphStyle(
             "RPTitle", parent=styles["Title"],
             fontSize=20, fontName="Helvetica-Bold",
@@ -123,7 +150,7 @@ def _make_styles():
         "section": ParagraphStyle(
             "RPSection", parent=styles["Normal"],
             fontSize=12, fontName="Helvetica-Bold",
-            textColor=_rl(ACCENT), spaceBefore=16, spaceAfter=6,
+            textColor=_rl(p.acento), spaceBefore=16, spaceAfter=6,
         ),
         "body": ParagraphStyle(
             "RPBody", parent=styles["Normal"],
@@ -146,7 +173,8 @@ def _header_block(title: str, subtitle: str, styles: dict) -> list:
     return [
         Paragraph(title, styles["title"]),
         Paragraph(f"{subtitle} · Generado: {now_str}", styles["subtitle"]),
-        HRFlowable(width="100%", thickness=1.5, color=_rl(ACCENT), spaceAfter=12),
+        HRFlowable(width="100%", thickness=1.5, color=styles["_acento"],
+                   spaceAfter=12),
     ]
 
 
@@ -172,8 +200,8 @@ def _kpi_table(kpis: dict, styles: dict) -> list:
     ]
     tbl = Table(rows, colWidths=[9 * cm, 6 * cm])
     tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), _rl(BG_DARK)),
-        ("TEXTCOLOR", (0, 0), (-1, 0), _rl_colors.white),
+        ("BACKGROUND", (0, 0), (-1, 0), styles["_cabecera_fondo"]),
+        ("TEXTCOLOR", (0, 0), (-1, 0), styles["_cabecera_texto"]),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, 0), 9),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_rl(ROW_EVEN), _rl(ROW_ALT)]),
@@ -206,8 +234,8 @@ def _utilization_table(rows_data: list, styles: dict) -> list:
     col_w = [5 * cm, 3.5 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm]
     tbl = Table(rows, colWidths=col_w)
     tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), _rl(BG_DARK)),
-        ("TEXTCOLOR", (0, 0), (-1, 0), _rl_colors.white),
+        ("BACKGROUND", (0, 0), (-1, 0), styles["_cabecera_fondo"]),
+        ("TEXTCOLOR", (0, 0), (-1, 0), styles["_cabecera_texto"]),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, -1), 8),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_rl(ROW_EVEN), _rl(ROW_ALT)]),
@@ -237,8 +265,8 @@ def _pipeline_table(rows_data: list, styles: dict) -> list:
     col_w = [2.8 * cm, 2.5 * cm, 3.2 * cm, 3.2 * cm, 2.2 * cm, 2.1 * cm]
     tbl = Table(rows, colWidths=col_w)
     tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), _rl(BG_DARK)),
-        ("TEXTCOLOR", (0, 0), (-1, 0), _rl_colors.white),
+        ("BACKGROUND", (0, 0), (-1, 0), styles["_cabecera_fondo"]),
+        ("TEXTCOLOR", (0, 0), (-1, 0), styles["_cabecera_texto"]),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, -1), 8),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_rl(ROW_EVEN), _rl(ROW_ALT)]),
@@ -268,8 +296,8 @@ def _portfolio_table(rows_data: list, styles: dict) -> list:
     tbl = Table(rows, colWidths=col_w)
 
     style_cmds = [
-        ("BACKGROUND", (0, 0), (-1, 0), _rl(BG_DARK)),
-        ("TEXTCOLOR", (0, 0), (-1, 0), _rl_colors.white),
+        ("BACKGROUND", (0, 0), (-1, 0), styles["_cabecera_fondo"]),
+        ("TEXTCOLOR", (0, 0), (-1, 0), styles["_cabecera_texto"]),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, -1), 8),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_rl(ROW_EVEN), _rl(ROW_ALT)]),
@@ -321,9 +349,14 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
     report_type = getattr(report, "report_type", None) or "custom"
     include_narrative = getattr(report, "include_narrative", False)
 
+    # La marca del tenant. `org_id` ya estaba en la firma —se usaba solo para
+    # traer los datos— asi que no hace falta cambiarla. Auditoria 2026-08, #32.
+    from app.services._pdf_marca import PALETA_POR_DEFECTO, marca_de_organizacion
+    marca = marca_de_organizacion(db, org_id, base=PALETA_POR_DEFECTO)
+
     buffer = io.BytesIO()
     doc = _make_doc(buffer)
-    styles = _make_styles()
+    styles = _make_styles(marca.paleta)
     story = []
 
     # ── Header ────────────────────────────────────────────────────────────────
@@ -374,6 +407,7 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
             except Exception:
                 logger.warning("Failed to parse filters_json for report %s", getattr(report, "id", None), exc_info=True)
             return _legacy_pdf(
+                paleta=marca.paleta,
                 title=report.name,
                 metric_label=(report.metric or "custom").replace("_", " ").title(),
                 data=[],

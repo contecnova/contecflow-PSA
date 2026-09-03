@@ -1,5 +1,15 @@
-"""
-signature_pdf.py — Genera un PDF con certificado de firma digital
+"""signature_pdf.py — Genera un PDF con certificado de firma digital.
+
+Auditoria 2026-08 (hallazgo 32). Los colores estaban escritos en duro dieciseis
+veces —cinco constantes locales y once `HexColor` intercalados—, asi que este
+certificado, que es lo que recibe el cliente al firmar, salia con los colores de
+la plataforma aunque el cliente tuviera su marca configurada.
+
+Ahora la paleta viene de `_pdf_marca` y el llamador puede pasar la del tenant.
+Los tres tintes propios de este documento —el gris de cuerpo, el sombreado de
+filas y el fondo verdoso del sello— se quedan aqui como constantes con nombre:
+no estan en la paleta compartida porque solo los usa este documento, y meterlos
+alli para un unico llamador seria sobreajustarla.
 """
 import io
 from datetime import datetime
@@ -9,6 +19,14 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+
+from app.services._pdf_marca import PALETA_POR_DEFECTO
+
+#: Tintes propios de este documento; ver la nota de la cabecera.
+_GRIS_DE_CUERPO = "#374151"
+_SOMBREADO_DE_FILA = "#f9fafb"
+_FONDO_DEL_SELLO = "#f0fdf9"
+_FONDO_DE_EVIDENCIA = "#f8fafc"
 
 
 def generate_signed_pdf(
@@ -21,6 +39,7 @@ def generate_signed_pdf(
     signed_at: datetime,
     signature_ip: str = "",
     original_file_name: str = "",
+    paleta=None,
 ) -> bytes:
     """
     Genera un PDF certificado de firma digital del documento.
@@ -28,16 +47,23 @@ def generate_signed_pdf(
     """
     import hashlib
 
+    # La resuelve el llamador con `marca_de_organizacion()`, que tiene el
+    # `db` y el `organization_id`.
+    paleta = paleta or PALETA_POR_DEFECTO
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4,
                             leftMargin=2.5*cm, rightMargin=2.5*cm,
                             topMargin=2.5*cm, bottomMargin=2.5*cm)
 
-    ACCENT  = colors.HexColor("#00d4ff")
-    GREEN   = colors.HexColor("#00e5a0")
-    GREY    = colors.HexColor("#6b7280")
-    BORDER  = colors.HexColor("#e2e8f0")
-    BG_CERT = colors.HexColor("#f0fdf9")
+    ACCENT  = paleta.color("acento")
+    GREEN   = paleta.color("exito")
+    GREY    = paleta.color("texto_secundario")
+    BORDER  = paleta.color("linea_separadora")
+    BG_CERT = colors.HexColor(_FONDO_DEL_SELLO)
+    # El gris va dentro de una etiqueta `<font color>` del marcado de
+    # ReportLab, asi que hace falta el hexadecimal y no el objeto Color.
+    GRIS_HEX = paleta.texto_secundario
 
     styles = getSampleStyleSheet()
 
@@ -54,7 +80,7 @@ def generate_signed_pdf(
 
     elements.append(Paragraph("CERTIFICADO DE FIRMA DIGITAL", ParagraphStyle("CertTitle",
         parent=styles["Title"], fontSize=20, fontName="Helvetica-Bold",
-        textColor=colors.HexColor("#1a1a2e"), alignment=TA_CENTER, spaceAfter=4)))
+        textColor=paleta.color("texto_principal"), alignment=TA_CENTER, spaceAfter=4)))
 
     elements.append(Paragraph("Documento firmado electrónicamente", ParagraphStyle("Sub",
         parent=styles["Normal"], fontSize=11, textColor=GREY,
@@ -68,11 +94,11 @@ def generate_signed_pdf(
                   fontSize=28, fontName="Helvetica-Bold", textColor=GREEN, alignment=TA_CENTER)),
         Paragraph(
             f"<b>DOCUMENTO FIRMADO</b><br/>"
-            f"<font color='#6b7280' size='10'>"
+            f"<font color='{GRIS_HEX}' size='10'>"
             f"{signed_at.strftime('%d de %B de %Y a las %H:%M:%S')} UTC</font>",
             ParagraphStyle("StatusText", parent=styles["Normal"],
                           fontSize=14, fontName="Helvetica-Bold",
-                          textColor=colors.HexColor("#1a1a2e")),
+                          textColor=paleta.color("texto_principal")),
         )
     ]], colWidths=[2*cm, "80%"])
     status_table.setStyle(TableStyle([
@@ -88,7 +114,7 @@ def generate_signed_pdf(
     # ── Datos del documento ────────────────────────────────────────────────────
     elements.append(Paragraph("Documento", ParagraphStyle("Section",
         parent=styles["Normal"], fontSize=11, fontName="Helvetica-Bold",
-        textColor=colors.HexColor("#374151"), spaceAfter=8, spaceBefore=4)))
+        textColor=colors.HexColor(_GRIS_DE_CUERPO), spaceAfter=8, spaceBefore=4)))
 
     doc_data = [
         ["Título",      document_title],
@@ -104,8 +130,8 @@ def generate_signed_pdf(
         ("FONTNAME",    (1,0), (1,-1), "Helvetica"),
         ("FONTSIZE",    (0,0), (-1,-1), 10),
         ("TEXTCOLOR",   (0,0), (0,-1), GREY),
-        ("TEXTCOLOR",   (1,0), (1,-1), colors.HexColor("#1a1a2e")),
-        ("ROWBACKGROUNDS", (0,0), (-1,-1), [colors.white, colors.HexColor("#f9fafb")]),
+        ("TEXTCOLOR",   (1,0), (1,-1), paleta.color("texto_principal")),
+        ("ROWBACKGROUNDS", (0,0), (-1,-1), [colors.white, colors.HexColor(_SOMBREADO_DE_FILA)]),
         ("BOX",         (0,0), (-1,-1), 0.5, BORDER),
         ("INNERGRID",   (0,0), (-1,-1), 0.25, BORDER),
         ("PADDING",     (0,0), (-1,-1), 8),
@@ -116,7 +142,7 @@ def generate_signed_pdf(
     # ── Datos del firmante ────────────────────────────────────────────────────
     elements.append(Paragraph("Firmante", ParagraphStyle("Section2",
         parent=styles["Normal"], fontSize=11, fontName="Helvetica-Bold",
-        textColor=colors.HexColor("#374151"), spaceAfter=8, spaceBefore=4)))
+        textColor=colors.HexColor(_GRIS_DE_CUERPO), spaceAfter=8, spaceBefore=4)))
 
     signer_data = [
         ["Nombre",   signer_name],
@@ -133,8 +159,8 @@ def generate_signed_pdf(
         ("FONTNAME",    (1,0), (1,-1), "Helvetica"),
         ("FONTSIZE",    (0,0), (-1,-1), 10),
         ("TEXTCOLOR",   (0,0), (0,-1), GREY),
-        ("TEXTCOLOR",   (1,0), (1,-1), colors.HexColor("#1a1a2e")),
-        ("ROWBACKGROUNDS", (0,0), (-1,-1), [colors.white, colors.HexColor("#f9fafb")]),
+        ("TEXTCOLOR",   (1,0), (1,-1), paleta.color("texto_principal")),
+        ("ROWBACKGROUNDS", (0,0), (-1,-1), [colors.white, colors.HexColor(_SOMBREADO_DE_FILA)]),
         ("BOX",         (0,0), (-1,-1), 0.5, BORDER),
         ("INNERGRID",   (0,0), (-1,-1), 0.25, BORDER),
         ("PADDING",     (0,0), (-1,-1), 8),
@@ -152,8 +178,8 @@ def generate_signed_pdf(
     elements.append(Paragraph(
         f"<font name='Courier' size='8'>{evidence_hash[:32]}<br/>{evidence_hash[32:]}</font>",
         ParagraphStyle("Hash", parent=styles["Normal"],
-                      fontSize=8, textColor=colors.HexColor("#374151"),
-                      backColor=colors.HexColor("#f8fafc"), spaceAfter=12,
+                      fontSize=8, textColor=colors.HexColor(_GRIS_DE_CUERPO),
+                      backColor=colors.HexColor(_FONDO_DE_EVIDENCIA), spaceAfter=12,
                       leftIndent=10, rightIndent=10, borderPad=6)
     ))
 

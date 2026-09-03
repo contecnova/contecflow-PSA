@@ -500,7 +500,11 @@ export const epicsApi = {
   createForProject:(projectId: any, data: unknown) => api.post('/epics', data, { params: { project_id: projectId } }),
   update:          (id: any, data: unknown)  => api.patch(`/epics/${id}`, data),
   delete:          (id: any)        => api.delete(`/epics/${id}`),
-  roadmap:         (projectId: any) => api.get('/roadmap', { params: { project_id: projectId } }),
+  // Auditoria 2026-08: llamaba a `/roadmap`, que no existe — y su duplicado
+  // correcto, `roadmapByProject`, estaba en la linea de abajo apuntando a
+  // `/epics/roadmap`. `EpicsPage` usaba el roto. Los dos son ahora la misma
+  // llamada; se conserva `roadmapByProject` para no romper a quien la use.
+  roadmap:         (projectId: any) => api.get('/epics/roadmap', { params: { project_id: projectId } }),
   roadmapByProject:(projectId: any) => api.get('/epics/roadmap', { params: { project_id: projectId } }),
   cfd:             (params?: any)    => api.get('/epics/cfd', { params }),
   cfdSnapshot:     (projectId: any) => api.post('/epics/cfd/snapshot', null, { params: { project_id: projectId } }),
@@ -599,7 +603,11 @@ export const deliverablesApi = {
 
 // ── Subcontractors ────────────────────────────────────────────────────────────
 export const subcontractorsApi = {
-  list:        (params?: any)    => api.get('/subcontractors', { params }),
+  // Auditoria 2026-08: el prefijo real es `/enterprise/`. Sin el, el selector
+  // de entidades no cargaba ningun subcontratista. Hay otro cliente en este
+  // mismo fichero que ya apuntaba bien — dos clientes para lo mismo, uno
+  // roto y otro correcto.
+  list:        (params?: any)    => api.get('/enterprise/subcontractors', { params }),
   get:         (id: any)        => api.get(`/subcontractors/${id}`),
   create:      (data: unknown)      => api.post('/subcontractors', data),
   update:      (id: any, data: unknown)  => api.patch(`/subcontractors/${id}`, data),
@@ -707,7 +715,9 @@ export const problemsApi = {
   create: (data: unknown)     => api.post('/sd/problems', data),
   update: (id: any, data: unknown) => api.patch(`/sd/problems/${id}`, data),
   delete:             (id: any)       => api.delete(`/sd/problems/${id}`),
-  promoteKnownError:  (id: any)       => api.post(`/sd/problems/${id}/promote-known-error`),
+  // Auditoria 2026-08: la ruta real acaba en `promote-kedb`, no en
+  // `promote-known-error`. La pestaña de conocimiento de ITSM daba 404.
+  promoteKnownError:  (id: any)       => api.post(`/sd/problems/${id}/promote-kedb`),
   // RCA Wizard
   rcaWizardGet:      (id: any)        => api.get(`/sd/problems/${id}/rca-wizard`),
   rcaWizardStart:    (id: any, data: unknown)  => api.post(`/sd/problems/${id}/rca-wizard/start`, data),
@@ -920,10 +930,12 @@ export const wikiApi = {
   versions:     (id: any)            => api.get(`epics/wiki/pages/${id}/versions`),
   restorePage:  (id: any, vn: any)        => api.post(`epics/wiki/pages/${id}/restore/${vn}`),
   search:       (q: any, spaceId: any)    => api.get(`epics/wiki/search`, { params: { q, space_id: spaceId } }),
-  tags:             (space: any)         => api.get(`/wiki-tags/${space}`),
-  createTag:        (space: any, data: unknown)   => api.post(`/wiki-tags/${space}`, data),
-  updateTag:        (id: any, data: unknown)      => api.patch(`/wiki-tags/${id}`, data),
-  deleteTag:        (id: any)            => api.delete(`/wiki-tags/${id}`),
+  // Auditoria 2026-08: las cuatro rutas de etiquetas viven bajo `/cmdb/`.
+  // Sin el prefijo, toda la gestion de etiquetas del wiki devolvia 404.
+  tags:             (space: any)         => api.get(`/cmdb/wiki-tags/${space}`),
+  createTag:        (space: any, data: unknown)   => api.post(`/cmdb/wiki-tags/${space}`, data),
+  updateTag:        (id: any, data: unknown)      => api.patch(`/cmdb/wiki-tags/${id}`, data),
+  deleteTag:        (id: any)            => api.delete(`/cmdb/wiki-tags/${id}`),
   // portal-scoped wiki (different URL prefix)
   portalSpaces:     ()              => api.get('wiki/spaces'),
   portalPages:      (spaceId: any)       => api.get(`wiki/spaces/${spaceId}/pages`),

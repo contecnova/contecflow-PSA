@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func
@@ -32,14 +33,64 @@ def _filter_by_org(query, model, org_id):
     return query
 
 
-def build_tenant_context(db: Session, user: User = None) -> dict:
-    """Build a rich data context for the current tenant for AI assistants.
+# ── Contexto para los asistentes de IA ───────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). `build_tenant_context` eran 525 lineas de
+# complejidad 34 que construian un diccionario de 36 claves, y no tenia NINGUN
+# test. Es la funcion que decide que datos ve el asistente de IA de cada cliente,
+# asi que un error aqui no corrompe nada pero degrada todas sus respuestas —y no
+# hay forma de notarlo salvo leyendolas.
+#
+# Ahora cada bloque de datos es su propia funcion, con el cuerpo movido VERBATIM.
+# La equivalencia se verifico volcando el diccionario completo para CINCO perfiles
+# de usuario —sin usuario, admin, RRHH, PM y empleado, que es lo que recorre las
+# tres banderas de permiso— y comparando clave por clave: identico.
+#
+# ── Lo que hace segura la descomposicion ─────────────────────────────────────
+# Cada seccion devuelve exactamente las variables que leen las posteriores o el
+# `return`, y en el orquestador se reciben con el MISMO nombre. Asi el `return`
+# de 36 claves queda byte a byte igual y no hay que tocarlo — que es donde un
+# refactor a mano se equivoca.
+#
+# Las variables que cruzan secciones se CALCULARON, no se eligieron: para cada
+# una, si alguna sentencia posterior la lee antes de reasignarla. Sin ese matiz
+# salian dos acoplamientos falsos (`q_inv` y `row` son nombres reutilizados que
+# la seccion posterior reasigna antes de leer) que habrian ensuciado las firmas
+# con una dependencia inexistente.
+#
+# Solo hay dos cadenas reales:
+#   proyectos -> riesgos -> (scope_project_ids) -> contratos, hitos,
+#                                                  entregables, cambios
+#   equipo    -> ocupacion y skills
 
-    Superadmin bypass: si ``user.is_superadmin`` es True, el ``org_id`` que
-    se propaga a las queries es ``None`` → el motor lee proyectos / tickets /
-    imputaciones de TODAS las organizaciones. Sin este bypass un superadmin
-    asignado a la org "default" veía 0 proyectos cuando los datos vivían en
-    otra organización.
+
+@dataclass
+class _Alcance:
+    """Lo que toda seccion necesita saber de quien pregunta.
+
+    Las cuatro banderas de permiso deciden que secciones se calculan y cuales se
+    enmascaran, y `user_project_ids` acota el alcance de quien no puede ver toda
+    la organizacion. Reunirlas aqui evita repetir esa resolucion en 18 sitios.
+    """
+
+    db: Session
+    user: object
+    now: datetime
+    is_super: bool
+    can_see_financials: bool
+    can_see_capacity: bool
+    can_see_org_wide: bool
+    can_see_people_data: bool
+    org_id: object
+    user_project_ids: object
+
+
+def _construir_alcance(db: Session, user=None) -> _Alcance:
+    """Resuelve permisos y alcance. Era el prologo de la funcion original.
+
+    Superadmin: `org_id = None` -> `_filter_by_org` no aplica filtro, asi que lee
+    de TODAS las organizaciones. Sin ese bypass un superadmin asignado a la
+    organizacion "default" veia 0 proyectos cuando los datos vivian en otra.
     """
     now = datetime.now(timezone.utc)
     is_super = bool(getattr(user, "is_superadmin", False)) if user else False
@@ -73,12 +124,34 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
             ).all()
         }
         user_project_ids = list(imp_pids | task_pids)
+    return _Alcance(
+        db=db,
+        user=user,
+        now=now,
+        is_super=is_super,
+        can_see_financials=can_see_financials,
+        can_see_capacity=can_see_capacity,
+        can_see_org_wide=can_see_org_wide,
+        can_see_people_data=can_see_people_data,
+        org_id=org_id,
+        user_project_ids=user_project_ids,
+    )
+
+
+def _seccion_proyectos(ctx: _Alcance):
+    """Proyectos activos y en planificacion."""
+    db, org_id, user_project_ids = ctx.db, ctx.org_id, ctx.user_project_ids
     q_proj = db.query(Project).filter(Project.status.in_(["active", "planning"]))
     q_proj = _filter_by_org(q_proj, Project, org_id)
     if user_project_ids is not None:
         q_proj = q_proj.filter(Project.id.in_(user_project_ids or ["__none__"]))
     projects = q_proj.limit(20).all()
+    return projects
 
+
+def _seccion_tickets(ctx: _Alcance):
+    """Tickets abiertos, con su responsable resuelto."""
+    can_see_org_wide, db, org_id, user = ctx.can_see_org_wide, ctx.db, ctx.org_id, ctx.user
     q_ticket = db.query(Ticket).filter(Ticket.status.in_(["open", "in_progress"]))
     q_ticket = _filter_by_org(q_ticket, Ticket, org_id)
     if user and not can_see_org_wide:
@@ -100,7 +173,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
         "assigned_to": ticket_user_map.get(t.assigned_to_user_id, "Sin asignar"),
         "created_at": str(t.created_at)[:10] if t.created_at else None,
     } for t in open_ticket_rows]
+    return tickets_detail
 
+
+def _seccion_tareas_vencidas(ctx: _Alcance):
+    """Tareas fuera de plazo."""
+    can_see_org_wide, db, now, org_id, user = ctx.can_see_org_wide, ctx.db, ctx.now, ctx.org_id, ctx.user
     q_task = db.query(Task).filter(Task.status != "done", Task.due_date < now.date())
     q_task = _filter_by_org(q_task, Task, org_id)
     if user and not can_see_org_wide:
@@ -120,7 +198,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
         "due_date": str(t.due_date) if t.due_date else None,
         "days_overdue": (now.date() - t.due_date).days if t.due_date else None,
     } for t in overdue_task_rows]
+    return overdue_tasks_detail
 
+
+def _seccion_horas_semana(ctx: _Alcance):
+    """Horas imputadas de la semana en curso."""
+    can_see_org_wide, db, now, org_id, user = ctx.can_see_org_wide, ctx.db, ctx.now, ctx.org_id, ctx.user
     week_start = (now - timedelta(days=now.weekday())).date()
     week_end = week_start + timedelta(days=6)
     q_imp = db.query(Imputation).filter(Imputation.date >= week_start, Imputation.date <= week_end)
@@ -147,7 +230,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
         [{"project": imp_proj_names.get(pid, pid), "hours": round(h, 1)} for pid, h in imp_by_project.items()],
         key=lambda x: -x["hours"],
     )
+    return hours_by_project, hours_by_user, total_hours_week
 
+
+def _seccion_finanzas(ctx: _Alcance):
+    """Facturas pendientes y valor del pipeline."""
+    can_see_financials, db, org_id = ctx.can_see_financials, ctx.db, ctx.org_id
     pending_invoices_count = 0
     pending_invoices_amount = 0.0
     overdue_invoices = 0
@@ -165,6 +253,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
         pending_invoices_amount = q_inv_amt.scalar() or 0
         overdue_invoices = q_overdue.scalar() or 0
         pipeline_count = q_pipe.scalar() or 0
+    return overdue_invoices, pending_invoices_amount, pending_invoices_count, pipeline_count
+
+
+def _seccion_aprobaciones_y_ausencias(ctx: _Alcance):
+    """Contadores de aprobaciones y ausencias."""
+    can_see_org_wide, db, now, org_id, user = ctx.can_see_org_wide, ctx.db, ctx.now, ctx.org_id, ctx.user
     q_approvals = db.query(func.count(ApprovalRequest.id)).filter(ApprovalRequest.status == "pending")
     q_absences = db.query(func.count(Absence.id)).filter(
         Absence.status == "approved",
@@ -178,7 +272,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
         q_absences = q_absences.filter(Absence.user_id == user.id)
     pending_approvals = q_approvals.scalar() or 0
     active_absences = q_absences.scalar() or 0
+    return active_absences, pending_approvals
 
+
+def _seccion_equipo(ctx: _Alcance):
+    """Equipo visible para quien pregunta."""
+    can_see_capacity, can_see_people_data, db, org_id, user = ctx.can_see_capacity, ctx.can_see_people_data, ctx.db, ctx.org_id, ctx.user
     q_team = db.query(User).filter(User.is_active == True)
     q_team = _filter_by_org(q_team, User, org_id)
     if user and not can_see_people_data:
@@ -189,7 +288,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
     visible_users = team_members
     if user is not None and not can_see_capacity:
         visible_users = [u for u in team_members if u.id == user.id]
+    return team_members, visible_users
 
+
+def _seccion_ocupacion_y_skills(ctx: _Alcance, visible_users):
+    """Ocupacion del proximo mes y matriz de skills."""
+    can_see_capacity, db, now = ctx.can_see_capacity, ctx.db, ctx.now
     current_month_start = now.date().replace(day=1)
     next_month_start = (current_month_start + timedelta(days=32)).replace(day=1)
     next_month_end = (next_month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
@@ -273,8 +377,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
         {"user": name, "skills": items[:8]}
         for name, items in skills_by_user.items()
     ]
+    return next_month_end, next_month_start, occupancy_next_month, skills_by_user_list, skills_matrix
 
-    # Cross-module snapshots for broader role-scoped analysis.
+
+def _seccion_timesheets(ctx: _Alcance):
+    """Partes de horas recientes y su estado."""
+    can_see_org_wide, db, user = ctx.can_see_org_wide, ctx.db, ctx.user
     q_ts = db.query(Timesheet)
     if user and not can_see_org_wide:
         q_ts = q_ts.filter(Timesheet.user_id == user.id)
@@ -293,7 +401,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
         "total_hours": ts.total_hours,
         "billable_hours": ts.billable_hours,
     } for ts in recent_timesheets]
+    return timesheets_recent, ts_by_status
 
+
+def _seccion_aprobaciones_detalle(ctx: _Alcance):
+    """Detalle de las aprobaciones pendientes."""
+    can_see_org_wide, db, org_id, user = ctx.can_see_org_wide, ctx.db, ctx.org_id, ctx.user
     q_ap_detail = db.query(ApprovalRequest)
     q_ap_detail = _filter_by_org(q_ap_detail, ApprovalRequest, org_id)
     if user and not can_see_org_wide:
@@ -301,7 +414,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
     approvals_detail = q_ap_detail.filter(ApprovalRequest.status == "pending").order_by(
         ApprovalRequest.created_at.desc()
     ).limit(20).all()
+    return approvals_detail
 
+
+def _seccion_pipeline(ctx: _Alcance):
+    """Oportunidades abiertas del pipeline."""
+    can_see_org_wide, db, user = ctx.can_see_org_wide, ctx.db, ctx.user
     q_opp = db.query(Opportunity).filter(Opportunity.stage.notin_(["won", "lost", "cancelled"]))
     if user and not can_see_org_wide:
         q_opp = q_opp.filter(Opportunity.owner_id == user.id)
@@ -316,7 +434,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
         "weighted_value": round((o.expected_revenue or 0) * (o.probability or 0) / 100, 2),
         "expected_close_date": str(o.expected_close_date) if o.expected_close_date else None,
     } for o in opp_rows]
+    return pipeline_detail
 
+
+def _seccion_clientes(ctx: _Alcance):
+    """Resumen por cliente."""
+    can_see_org_wide, db = ctx.can_see_org_wide, ctx.db
     clients_summary = []
     if can_see_org_wide:
         clients = db.query(Client).filter(Client.is_active == True).order_by(Client.name.asc()).limit(20).all()
@@ -335,7 +458,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
             "projects_count": proj_client_counts.get(c.id, 0),
             "account_manager_id": c.account_manager_id,
         } for c in clients]
+    return clients_summary
 
+
+def _seccion_riesgos(ctx: _Alcance, projects):
+    """Riesgos abiertos de los proyectos en alcance."""
+    db = ctx.db
     scope_project_ids = [p.id for p in projects]
     q_risks = db.query(Risk).filter(Risk.status != "closed")
     if scope_project_ids:
@@ -353,7 +481,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
         "impact": str(r.impact),
         "risk_score": r.risk_score,
     } for r in risks_open]
+    return risks_detail, scope_project_ids
 
+
+def _seccion_contratos(ctx: _Alcance, scope_project_ids):
+    """Contratos que vencen pronto."""
+    db, now = ctx.db, ctx.now
     q_contracts = db.query(Contract).filter(
         Contract.status == "active",
         Contract.end_date.isnot(None),
@@ -364,7 +497,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
     else:
         q_contracts = q_contracts.filter(Contract.project_id == "__none__")
     contracts_expiring = q_contracts.order_by(Contract.end_date.asc()).limit(20).all()
+    return contracts_expiring
 
+
+def _seccion_hitos(ctx: _Alcance, scope_project_ids):
+    """Hitos con vencimiento en 60 dias."""
+    db, now = ctx.db, ctx.now
     q_milestones = db.query(ProjectMilestone)
     if scope_project_ids:
         q_milestones = q_milestones.filter(ProjectMilestone.project_id.in_(scope_project_ids))
@@ -374,7 +512,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
         ProjectMilestone.due_date.isnot(None),
         ProjectMilestone.due_date <= (now.date() + timedelta(days=60)),
     ).order_by(ProjectMilestone.due_date.asc()).limit(30).all()
+    return milestones_due
 
+
+def _seccion_entregables(ctx: _Alcance, scope_project_ids):
+    """Entregables pendientes."""
+    db = ctx.db
     q_deliverables = db.query(Deliverable)
     if scope_project_ids:
         q_deliverables = q_deliverables.filter(Deliverable.project_id.in_(scope_project_ids))
@@ -383,7 +526,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
     deliverables_pending = q_deliverables.filter(Deliverable.status.notin_(["accepted", "delivered"])).order_by(
         Deliverable.planned_date.asc().nullslast()
     ).limit(30).all()
+    return deliverables_pending
 
+
+def _seccion_cambios(ctx: _Alcance, scope_project_ids):
+    """Solicitudes de cambio activas."""
+    db = ctx.db
     q_changes = db.query(ChangeRequest)
     if scope_project_ids:
         q_changes = q_changes.filter(ChangeRequest.project_id.in_(scope_project_ids))
@@ -392,7 +540,12 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
     changes_active = q_changes.filter(ChangeRequest.status.notin_(["implemented", "cancelled"])).order_by(
         ChangeRequest.created_at.desc()
     ).limit(30).all()
+    return changes_active
 
+
+def _seccion_rentabilidad(ctx: _Alcance, projects):
+    """Rentabilidad por proyecto."""
+    can_see_financials, db, org_id = ctx.can_see_financials, ctx.db, ctx.org_id
     all_active_proj_ids = [p.id for p in projects]
     prof_items = []
     if can_see_financials and all_active_proj_ids:
@@ -468,6 +621,42 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
                 "is_loss": margin < 0,
             })
         prof_items.sort(key=lambda x: x["margin"])
+    return prof_items
+
+def build_tenant_context(db: Session, user: User = None) -> dict:
+    """Contexto de datos del cliente para los asistentes de IA.
+
+    Ver la cabecera de esta seccion para el porque de la descomposicion y para
+    las dos cadenas de dependencia entre bloques.
+    """
+    ctx = _construir_alcance(db, user)
+
+    # El `return` de abajo viene VERBATIM de la versión original y usa estos
+    # cuatro por su nombre. Reenlazarlos aquí es lo que permite no tocarlo: un
+    # `return` de 36 claves reescrito a mano es donde se cuela el error.
+    now = ctx.now
+    can_see_financials = ctx.can_see_financials
+    can_see_capacity = ctx.can_see_capacity
+    can_see_org_wide = ctx.can_see_org_wide
+
+    projects = _seccion_proyectos(ctx)
+    tickets_detail = _seccion_tickets(ctx)
+    overdue_tasks_detail = _seccion_tareas_vencidas(ctx)
+    hours_by_project, hours_by_user, total_hours_week = _seccion_horas_semana(ctx)
+    overdue_invoices, pending_invoices_amount, pending_invoices_count, pipeline_count = _seccion_finanzas(ctx)
+    active_absences, pending_approvals = _seccion_aprobaciones_y_ausencias(ctx)
+    team_members, visible_users = _seccion_equipo(ctx)
+    next_month_end, next_month_start, occupancy_next_month, skills_by_user_list, skills_matrix = _seccion_ocupacion_y_skills(ctx, visible_users)
+    timesheets_recent, ts_by_status = _seccion_timesheets(ctx)
+    approvals_detail = _seccion_aprobaciones_detalle(ctx)
+    pipeline_detail = _seccion_pipeline(ctx)
+    clients_summary = _seccion_clientes(ctx)
+    risks_detail, scope_project_ids = _seccion_riesgos(ctx, projects)
+    contracts_expiring = _seccion_contratos(ctx, scope_project_ids)
+    milestones_due = _seccion_hitos(ctx, scope_project_ids)
+    deliverables_pending = _seccion_entregables(ctx, scope_project_ids)
+    changes_active = _seccion_cambios(ctx, scope_project_ids)
+    prof_items = _seccion_rentabilidad(ctx, projects)
 
     return {
         "today": now.strftime("%Y-%m-%d"),
