@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.deps import get_current_user, get_db, require_admin
 from app.core.responses import APIResponse
 from app.core.tenancy import assert_org_id_is_own
@@ -96,6 +97,67 @@ def _branding_out(b) -> dict:
     }
 
 
+# ── Los valores por defecto de la marca: una sola fuente ─────────────────────
+#
+# Auditoria 2026-08 (hallazgo 32). Este endpoint devolvia, para una organizacion
+# sin marca configurada, un diccionario de literales escritos a mano que
+# duplicaba los `default=` del modelo. Ya habia divergido en dos sentidos:
+#
+#   · `app_name` devolvia **"NexusPM"** —un nombre de producto anterior, que
+#     todavia aparece en los docstrings de esign, jira y m365— mientras el
+#     modelo declara `default="Contecflow"`. Cualquier organizacion que no
+#     hubiera tocado su marca veia ese nombre EN SU INTERFAZ;
+#   · faltaban `background_color` y `text_color`, o sea 2 de los 5 colores, asi
+#     que quien leia la API para una organizacion sin configurar recibia un
+#     payload incompleto.
+#
+# Ahora los defectos se leen de los `default=` declarados en el modelo, que es
+# donde ya estaban. Duplicar valores por defecto no es un problema de estilo: es
+# garantizar que un dia divergen, y aqui ya lo habian hecho.
+#
+# `app_name` es la excepcion deliberada: el nombre por defecto no es un valor de
+# marca del cliente sino el de la plataforma, asi que sale de la configuracion y
+# no de una constante del modelo — asi un despliegue con otro `PROJECT_NAME` no
+# ensena un nombre que no es el suyo.
+
+
+def _defecto_declarado(nombre_de_columna: str):
+    """El `default=` que el modelo declara para esa columna.
+
+    Se lee de los metadatos de la tabla y no del modelo instanciado a proposito:
+    los `default=` de SQLAlchemy se aplican en el INSERT, no al acceder al
+    atributo, asi que un `OrgBranding()` recien construido los tiene todos a
+    `None` y no sirve para esto.
+    """
+    from app.models.white_label import OrgBranding
+
+    columna = OrgBranding.__table__.columns.get(nombre_de_columna)
+    defecto = getattr(columna, "default", None) if columna is not None else None
+    return getattr(defecto, "arg", None) if defecto is not None else None
+
+
+#: Los campos cuyo valor por defecto sale del modelo. `app_name` no esta aqui:
+#: ver la nota de arriba.
+_CAMPOS_CON_DEFECTO_DEL_MODELO = (
+    "primary_color", "secondary_color", "accent_color",
+    "background_color", "text_color",
+    "hide_powered_by", "enable_portal", "enable_ai",
+)
+
+
+def _marca_por_defecto(org_id: str) -> dict:
+    """La marca de una organización que nunca la ha configurado."""
+    datos = {
+        "organization_id": org_id,
+        "app_name": settings.PROJECT_NAME,
+        "custom_css_vars": {},
+        "is_default": True,
+    }
+    for campo in _CAMPOS_CON_DEFECTO_DEL_MODELO:
+        datos[campo] = _defecto_declarado(campo)
+    return datos
+
+
 @router.get("/orgs/{org_id}/branding", summary="Get tenant branding config")
 def get_branding(
     org_id: str,
@@ -113,18 +175,7 @@ def get_branding(
         raise HTTPException(404, "Organization not found")
     branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
     if not branding:
-        return APIResponse.ok(data={
-            "organization_id": org_id,
-            "app_name": "NexusPM",
-            "primary_color": "#6366f1",
-            "secondary_color": "#8b5cf6",
-            "accent_color": "#06b6d4",
-            "hide_powered_by": False,
-            "enable_portal": True,
-            "enable_ai": True,
-            "custom_css_vars": {},
-            "is_default": True,
-        })
+        return APIResponse.ok(data=_marca_por_defecto(org_id))
     return APIResponse.ok(data=_branding_out(branding))
 
 

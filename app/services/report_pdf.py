@@ -74,7 +74,8 @@ def _estilos_de_informe(paleta):
         ),
         "cabecera_de_tabla": ParagraphStyle(
             "TH", parent=styles["Normal"], fontSize=9,
-            fontName="Helvetica-Bold", textColor=colors.white, alignment=TA_LEFT,
+            fontName="Helvetica-Bold",
+            textColor=paleta.color("texto_sobre_cabecera"), alignment=TA_LEFT,
         ),
         "celda": ParagraphStyle(
             "TD", parent=styles["Normal"], fontSize=8,
@@ -186,7 +187,7 @@ def _bloque_de_tabla(data: List[Dict[str, Any]], est: dict, paleta) -> list:
     tabla = Table(filas, colWidths=[ancho_de_columna] * len(headers), repeatRows=1)
     tabla.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), paleta.color("fondo_de_cabecera")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("TEXTCOLOR", (0, 0), (-1, 0), paleta.color("texto_sobre_cabecera")),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, 0), 9),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1),
@@ -233,11 +234,13 @@ def generate_report_pdf(
     summary: Optional[Dict] = None,
     filters: Optional[Dict] = None,
     generated_by: str = "Contecflow",
+    paleta=None,
 ) -> bytes:
     """
     Genera un PDF de informe y devuelve los bytes.
     """
-    paleta = PALETA_POR_DEFECTO
+    # Igual que en la factura: la resuelve el llamador, que tiene el `db`.
+    paleta = paleta or PALETA_POR_DEFECTO
     est = _estilos_de_informe(paleta)
 
     buffer = io.BytesIO()

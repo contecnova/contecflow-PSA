@@ -229,20 +229,22 @@ def test_todos_los_colores_de_la_paleta_son_hexadecimales_validos():
 # ── La marca blanca, que NO llega aquí ───────────────────────────────────────
 
 def test_documentado_que_la_marca_de_la_organizacion_no_llega_al_pdf():
-    """Fija el estado real para que no se dé por hecho lo contrario.
+    """El hallazgo 32, cerrado — y este test cambió de sentido al cerrarlo.
 
-    `OrgBranding` define cinco colores por organización y tiene pantalla para
-    configurarlos, pero este generador no los recibe: su firma no tiene
-    `organization_id` ni paleta. Así que un cliente con marca propia recibe
-    documentos con los colores de Contecflow.
-
-    Este test no exige que sea así — exige que **si alguien lo cambia, lo note**.
-    El día que se decida cablear la marca, hay que actualizarlo, y ese es
-    justamente el momento de revisar los otros cuatro generadores.
+    Su versión anterior fijaba el estado contrario: que el generador **no**
+    recibía paleta, con la nota de que «el día que se decida cablear la marca
+    hay que actualizarlo, y ese es el momento de revisar los otros cuatro
+    generadores». Ese día llegó, el test falló, se revisaron los cinco, y por
+    eso está reescrito. Un test que fija un estado provisional tiene que fallar
+    cuando el estado cambia; si no, no fija nada.
     """
     import inspect
 
     firma = inspect.signature(generate_report_pdf)
+    assert "paleta" in firma.parameters, (
+        "el informe ha dejado de aceptar la marca del tenant"
+    )
+    assert firma.parameters["paleta"].default is None
+    # No recibe `organization_id` a proposito: el generador no habla con la
+    # base. La marca la resuelve el llamador.
     assert "organization_id" not in firma.parameters
-    assert "paleta" not in firma.parameters
-    assert "branding" not in firma.parameters

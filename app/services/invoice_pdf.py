@@ -159,7 +159,8 @@ def _tabla_de_lineas(lines: list, currency: str, subtotal, tax_rate, tax_amount,
     secundario = paleta.color("texto_secundario")
 
     def cabecera(texto, alineacion=None):
-        kw = {"fontSize": 9, "fontName": "Helvetica-Bold", "textColor": colors.white}
+        kw = {"fontSize": 9, "fontName": "Helvetica-Bold",
+              "textColor": paleta.color("texto_sobre_cabecera")}
         if alineacion is not None:
             kw["alignment"] = alineacion
         return Paragraph(texto, PS("TH", **kw))
@@ -220,7 +221,7 @@ def _tabla_de_lineas(lines: list, currency: str, subtotal, tax_rate, tax_amount,
                   repeatRows=1)
     tabla.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), paleta.color("fondo_de_cabecera")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("TEXTCOLOR", (0, 0), (-1, 0), paleta.color("texto_sobre_cabecera")),
         ("ROWBACKGROUNDS", (0, 1), (-1, n), [colors.white, paleta.color("fila_alterna")]),
         ("GRID", (0, 0), (-1, n), 0.3, paleta.color("borde_de_tabla")),
         ("LINEBELOW", (0, 0), (-1, 0), 1, paleta.color("acento")),
@@ -299,12 +300,17 @@ def generate_invoice_pdf(
     period_to=None,
     company_name: str = "Contecflow PSA",
     generated_by: str = "Contecflow",
+    paleta=None,
 ) -> bytes:
     """
     Genera un PDF de factura y devuelve los bytes en formato PDF.
     """
     currency = currency or settings.DEFAULT_CURRENCY
-    paleta = PALETA_DE_FACTURA
+    # `paleta` la resuelve el llamador con `marca_de_organizacion()`, que es
+    # quien tiene el `db` y el `organization_id`. Sin ella se usa la de
+    # producto: los trabajos de fondo y los tests no tienen por que saber de
+    # marca blanca.
+    paleta = paleta or PALETA_DE_FACTURA
     est = _estilos_de_factura(paleta)
 
     buffer = io.BytesIO()

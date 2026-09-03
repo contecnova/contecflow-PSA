@@ -1,5 +1,4 @@
 from typing import Any, Dict, Optional
-import io
 
 from fastapi import APIRouter, Body, HTTPException, Query, Response, status, Depends
 from sqlalchemy.orm import Session
@@ -104,6 +103,28 @@ def create_payment_link(
     return APIResponse.ok(data={"url": session["url"], "id": session["id"], "reused": False})
 
 
+# ── La descarga de factura que usa la interfaz ───────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 32, y lo peor que salio de el). Habia DOS
+# generadores de PDF de factura, independientes:
+#
+#   · `app/services/invoice_pdf.py`, con trazado completo, paleta de marca,
+#     paginacion y los datos fiscales, detras de
+#     `GET /billing-reports/invoices/{id}/pdf` — ruta que **no llamaba nadie**:
+#     ni el frontend, ni otro modulo del backend;
+#   · y este, dibujado a mano con `rl_canvas` en unas setenta lineas, que es
+#     **el que llama la interfaz** (`_core.ts`: `api.get('/invoices/${id}/pdf')`).
+#
+# El que descargaba el usuario NO llevaba el NIF del cliente, ni su direccion,
+# ni el nombre del emisor, ni la referencia de pedido, ni el periodo facturado,
+# ni las notas — y truncaba la descripcion de cada linea a 50 caracteres con un
+# `[:50]` silencioso. Una factura sin identificacion fiscal de las dos partes no
+# es una factura valida, y ademas todo el trabajo de trazado del otro generador
+# —incluido el arreglo del `NOSPLIT` que impedia emitir facturas de 29 lineas o
+# mas— vivia en una ruta que nadie pedia.
+#
+# Ahora esta ruta delega en el generador bueno. Se conserva lo suyo: la
+# comprobacion de rol, el 404 y la descarga como adjunto con el nombre saneado.
 @router.get("/{invoice_id}/pdf", summary="Descargar factura en PDF")
 def download_invoice_pdf(
     invoice_id: str,
@@ -116,59 +137,52 @@ def download_invoice_pdf(
     if not inv:
         raise HTTPException(status_code=404, detail="Factura no encontrada")
 
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import cm
-    from reportlab.pdfgen import canvas as rl_canvas
+    from app.services import invoice_pdf as _invoice_pdf
+    from app.services._pdf_marca import PALETA_DE_FACTURA, marca_de_organizacion
 
-    buf = io.BytesIO()
-    c = rl_canvas.Canvas(buf, pagesize=A4)
-    width, height = A4
+    # La marca del tenant, no la de la plataforma: decision de producto del
+    # hallazgo 32. Degrada a la paleta de producto si la organizacion no tiene
+    # marca configurada.
+    marca = marca_de_organizacion(
+        db, getattr(current_user, "organization_id", None),
+        base=PALETA_DE_FACTURA,
+        nombre_por_defecto=settings.PROJECT_NAME,
+    )
 
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(2 * cm, height - 2 * cm, f"FACTURA {inv.number or ''}")
+    lineas_de_factura = [
+        {
+            "description": ln.description,
+            "unit": ln.unit,
+            "quantity": ln.quantity,
+            "unit_price": ln.unit_price,
+            "amount": ln.amount,
+            "discount_pct": ln.discount_pct,
+        }
+        for ln in sorted(inv.lines or [], key=lambda x: (x.order or 0))
+    ]
 
-    c.setFont("Helvetica", 10)
-    y = height - 3.5 * cm
-    c.drawString(2 * cm, y, f"Cliente: {inv.client_name or ''}")
-    y -= 0.6 * cm
-    c.drawString(2 * cm, y, f"Fecha: {inv.issue_date}")
-    if inv.due_date:
-        y -= 0.6 * cm
-        c.drawString(2 * cm, y, f"Vencimiento: {inv.due_date}")
+    pdf_bytes = _invoice_pdf.generate_invoice_pdf(
+        invoice_number=inv.number,
+        issue_date=inv.issue_date,
+        due_date=inv.due_date,
+        client_name=inv.client_name or "",
+        client_address=inv.client_address,
+        client_vat=inv.client_vat,
+        client_email=inv.client_email,
+        lines=lineas_de_factura,
+        subtotal=inv.subtotal or 0,
+        tax_rate=inv.tax_rate or 0,
+        tax_amount=inv.tax_amount or 0,
+        total=inv.total or 0,
+        currency=inv.currency or settings.DEFAULT_CURRENCY,
+        notes=inv.notes,
+        po_reference=inv.po_reference,
+        period_from=inv.period_from,
+        period_to=inv.period_to,
+        company_name=marca.nombre,
+        paleta=marca.paleta,
+    )
 
-    y -= 1.2 * cm
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(2 * cm, y, "Descripción")
-    c.drawString(11 * cm, y, "Cantidad")
-    c.drawString(14 * cm, y, "Precio")
-    c.drawString(17 * cm, y, "Importe")
-    y -= 0.1 * cm
-    c.line(2 * cm, y, 19 * cm, y)
-    y -= 0.5 * cm
-    c.setFont("Helvetica", 9)
-    for line in inv.lines:
-        c.drawString(2 * cm, y, str(line.description or "")[:50])
-        c.drawRightString(13 * cm, y, str(line.quantity))
-        c.drawRightString(16 * cm, y, f"{line.unit_price:.2f}")
-        c.drawRightString(19 * cm, y, f"{line.amount:.2f}")
-        y -= 0.55 * cm
-        if y < 3 * cm:
-            c.showPage()
-            y = height - 2 * cm
-
-    y -= 0.3 * cm
-    c.line(2 * cm, y, 19 * cm, y)
-    y -= 0.6 * cm
-    c.setFont("Helvetica", 10)
-    c.drawRightString(19 * cm, y, f"Base imponible: {inv.subtotal:.2f} {inv.currency}")
-    y -= 0.55 * cm
-    c.drawRightString(19 * cm, y, f"IVA ({inv.tax_rate:.0f}%): {inv.tax_amount:.2f} {inv.currency}")
-    y -= 0.55 * cm
-    c.setFont("Helvetica-Bold", 10)
-    c.drawRightString(19 * cm, y, f"TOTAL: {inv.total:.2f} {inv.currency}")
-
-    c.save()
-    pdf_bytes = buf.getvalue()
     safe_number = (inv.number or invoice_id).replace("/", "-").replace(" ", "_")
     return Response(
         content=pdf_bytes,

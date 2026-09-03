@@ -282,19 +282,29 @@ def test_la_factura_usa_su_variante_de_paleta():
     assert PALETA_DE_FACTURA.fila_alterna == "#f0f9ff"
 
 
-def test_documentado_que_la_marca_del_cliente_no_llega_a_la_factura():
-    """El hallazgo 32, fijado donde más se nota.
+def test_la_marca_del_cliente_YA_llega_a_la_factura():
+    """El hallazgo 32, cerrado — y este test cambió de sentido al cerrarlo.
 
-    Esta factura es literalmente lo que recibe el cliente de nuestro cliente, y
-    sale con los colores de Contecflow aunque el tenant tenga marca propia
-    configurada. La firma no recibe ni el `organization_id`.
+    Su versión anterior fijaba el estado contrario: que la firma **no** recibía
+    paleta, con la nota de que «el día que se decida cablear la marca hay que
+    actualizarlo». Ese día llegó, el test falló, y por eso está reescrito. Un
+    test que fija un estado provisional tiene que fallar cuando el estado
+    cambia; si no, no fija nada.
 
-    El test no exige que siga así: exige que si alguien lo cambia, lo note.
+    Ahora lo que se exige es lo contrario: que el parámetro exista y que sea
+    **opcional**, porque los trabajos de fondo y los tests no tienen por qué
+    saber de marca blanca.
     """
     import inspect
 
     firma = inspect.signature(generate_invoice_pdf)
+    assert "paleta" in firma.parameters, (
+        "la factura ha dejado de aceptar la marca del tenant"
+    )
+    assert firma.parameters["paleta"].default is None, (
+        "la paleta tiene que ser opcional: sin ella se usa la de producto"
+    )
+    # `organization_id` NO se pasa a proposito: el generador no habla con la
+    # base. La marca la resuelve el llamador, que es quien tiene el `db`.
     assert "organization_id" not in firma.parameters
-    assert "paleta" not in firma.parameters
-    # `company_name` sí es configurable: es el único rastro de marca que llega.
     assert firma.parameters["company_name"].default == "Contecflow PSA"

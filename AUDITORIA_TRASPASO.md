@@ -33,7 +33,7 @@ aquí:
 ```bash
 cd "contecflow PSA"
 
-# Suite completa de backend: 3.352 tests recogidos. SIEMPRE con -n auto — en
+# Suite completa de backend: 3.423 tests recogidos. SIEMPRE con -n auto — en
 # serie tarda MAS DE 90 MINUTOS y no cabe en ningun timeout razonable.
 #
 # TIEMPO MEDIDO con -n auto (10 workers): 36-43 MINUTOS (2.148 s y 2.551 s en
@@ -352,8 +352,16 @@ que en ReportLab significa «esta tabla no se puede partir por ninguna parte». 
 intención era otra: que el bloque de totales —base, IVA y total— no quedara
 separado de las líneas. Aplicado a la tabla entera **prohíbe todo salto de
 página**, así que en cuanto los conceptos no caben en una hoja `reportlab` lanza
-`LayoutError` y **la factura no se genera: el usuario recibe un 500**, no una
-factura fea.
+`LayoutError` y la factura no se genera.
+
+> **CORRECCIÓN a lo que escribí primero.** Dije que «el usuario recibe un 500».
+> **No era cierto**, y lo descubrí después: este generador estaba detrás de
+> `GET /billing-reports/invoices/{id}/pdf`, una ruta que **no llamaba nadie**.
+> La interfaz descargaba la factura por `/invoices/{id}/pdf`, que era **otro
+> generador entero**, dibujado a mano — así que el usuario sí recibía un PDF, y
+> el problema real de esa vía era peor: le faltaban los datos fiscales. Ver el
+> apartado siguiente. El defecto del `NOSPLIT` era real, pero su impacto
+> user-visible **no** era el que le atribuí.
 
 Y hacía **inerte el `repeatRows=1`** que está dos líneas más arriba: repetir la
 cabecera en cada página no tiene sentido si no puede haber una segunda página.
@@ -373,6 +381,49 @@ extraído, el número de páginas y la longitud**. Y el umbral de 29 líneas
 **depende de la altura del bloque de cliente**: dos tests míos estaban mal por
 haberlo medido sin ese bloque. La cabecera de
 `tests/test_invoice_pdf_layout.py` dice en qué condiciones se midió.
+
+### Dos generadores de factura, y el que usaba la interfaz no era el bueno
+
+Esto salió al cablear la marca (hallazgo 32) y es **lo más grave de la sesión**.
+
+Había **dos** implementaciones independientes del PDF de factura:
+
+| | `app/services/invoice_pdf.py` | `app/api/v1/endpoints/invoices.py` |
+|---|---|---|
+| Ruta | `GET /billing-reports/invoices/{id}/pdf` | `GET /invoices/{id}/pdf` |
+| ¿Quién la llamaba? | **nadie** — ni el frontend ni otro módulo | **la interfaz**: `_core.ts` → `api.get('/invoices/${id}/pdf')` |
+| Trazado | tabla, paginación, cabecera repetida, paleta | 70 líneas a mano con `rl_canvas` |
+| NIF del cliente | **sí** | **no** |
+| Dirección del cliente | sí | no |
+| Nombre del emisor | sí | no |
+| Referencia de pedido, periodo, notas | sí | no |
+| Descripción de línea | completa | **truncada a 50 caracteres** (`[:50]`, silencioso) |
+
+**Una factura sin la identificación fiscal de las dos partes no es una factura
+válida.** El documento por el que se cobra, el que descargaba el usuario, no
+llevaba el NIF del cliente ni el nombre del emisor. Y el `[:50]` cortaba el
+concepto sin ningún aviso.
+
+De paso, esto explica la corrección del apartado anterior: **todo el trabajo de
+trazado de `invoice_pdf.py` vivía en una ruta que nadie pedía**, el arreglo del
+`NOSPLIT` incluido.
+
+**Resuelto** haciendo que `/invoices/{id}/pdf` delegue en `generate_invoice_pdf`.
+Se van 72 líneas de duplicado y llegan de golpe los datos fiscales, el trazado,
+la paginación y la marca del tenant. Se conserva lo propio de esa ruta: el 403
+por rol, el 404 y la descarga como adjunto con el nombre saneado, cada uno con
+su test.
+
+**La lección, que vale más que el arreglo:** dos implementaciones de lo mismo no
+divergen en calidad por igual — una recibe todo el mantenimiento y la otra
+ninguna, y **la que se usa puede ser la abandonada**. Antes de invertir en
+mejorar un generador, comprobar quién lo llama. Se comprueba en un minuto:
+
+```bash
+grep -rn "invoices/.*pdf" frontend/src/services
+```
+
+---
 
 ### El nodo «crear ticket» de los flujos de trabajo no podía funcionar nunca
 
@@ -1120,6 +1171,132 @@ sesión no queda envenenada más allá del tic.
 Hay un test que **fija el número en 13** (`tests/test_commit_rollback.py`): si
 sube, alguien ha añadido uno nuevo y se entera al momento.
 
+### #32 marca blanca — decisión tomada, cuatro generadores de cinco
+
+`OrgBranding` define cinco colores y un nombre por organización y tiene pantalla
+para configurarlos. Sólo lo leían su propio endpoint y el portal de cliente: los
+cinco generadores que producen lo que ve el cliente final **no lo leían, y
+ninguno recibía siquiera el `organization_id`**. Un cliente configuraba su
+marca, la veía en la web, y sus facturas salían con los colores y el nombre de
+Contecflow.
+
+**Decisión tomada: el documento lleva la marca del tenant.**
+
+#### El mapeo NO es uno a uno, y mapearlo así rompe el documento
+
+| Campo de `OrgBranding` | Va a | Por qué |
+|---|---|---|
+| `primary_color` | banda de cabecera de tabla | es el color con el que el cliente se identifica |
+| `accent_color` | acento | líneas, énfasis, filetes |
+| `text_color` | texto **sobre** la banda | con guarda de contraste, ver abajo |
+| `app_name` | nombre en la cabecera | antes salía el ajuste global `PROJECT_NAME` |
+| `secondary_color` | **nada** | es un tono saturado; en un tinte de tabla deja los importes ilegibles |
+| `text_color` → `texto_principal` | **nunca** | vale `#f8fafc` por defecto (claro, porque en la web va sobre fondo oscuro): sería **texto blanco sobre papel blanco**, una factura ilegible generada sin error |
+
+Los tintes de tabla se quedan neutros a propósito: un tinte neutro funciona
+debajo de cualquier tono de marca, uno saturado no funciona debajo de nada.
+
+#### La legibilidad está demostrada, no ajustada a ojo
+
+El contraste WCAG depende **sólo** de la luminancia relativa. Con blanco y negro
+**puros** como candidatos, el peor caso está donde los dos empatan:
+
+```
+1,05 / (L + 0,05) = (L + 0,05) / 0,05
+(L + 0,05)² = 0,0525   →   L = 0,1791
+contraste = 1,05 / 0,2291 = 4,58
+```
+
+**4,58 > 4,5**, así que para *cualquier* color de marca hay siempre un texto
+legible y **no hace falta tocarle el color al cliente**. Un test recorre los 256
+grises para comprobarlo.
+
+> **Corrección a mi propio diseño.** La primera versión llevaba maquinaria para
+> oscurecer el color de marca hasta que admitiera texto legible, porque había
+> derivado que existía una banda de tonos medios sin solución. **Era falso**: el
+> error venía de usar `#111111` en vez de negro puro. Retirada la maquinaria.
+>
+> Y el detalle que sostiene la garantía queda fijado con números, porque
+> «suavizar» el negro parece cosmético y la rompe: en **cinco fondos**, de
+> `#777777` a `#7b7b7b`, el blanco y un `#111111` **fallan los dos** y sólo el
+> negro puro cumple. Cinco tests, uno por fondo.
+
+#### El logotipo NO se trae, y es deliberado
+
+`OrgBranding.logo_url` es una URL que escribe el cliente. Descargarla al generar
+el PDF sería una petición saliente a un destino que él controla —**SSRF**— y
+metería su latencia y sus caídas en la ruta de emitir una factura. Traerlo bien
+necesita lista blanca de destinos, tiempo de espera, caché y tamaño máximo: es
+su propia pieza, no una línea aquí.
+
+#### Los generadores: cuatro hechos, uno identificado y no hecho
+
+`invoice_pdf`, `report_pdf`, `signature_pdf` y `campaign_pdf` aceptan `paleta` y
+sus llamadores la resuelven con `marca_de_organizacion()`, que devuelve colores y
+nombre **en una sola consulta**. Dos decisiones anotadas:
+
+- en `campaign_pdf`, `WARNING` y `MUTED_BG` **no** se sustituyen: son colores de
+  **estado** —aviso y «anonimizado»— y su significado no depende de la marca. Un
+  aviso pintado con el color de marca deja de leerse como aviso;
+- `SUCCESS` era una constante de módulo de `campaign_pdf` que **no usaba nadie**:
+  código muerto, retirado en vez de trasladado.
+
+**Los correos quedan fuera**, y es scope declarado: son plantillas HTML con CSS
+en línea y el mecanismo es otro (los clientes de correo no soportan lo mismo que
+ReportLab). Merece su pieza.
+
+#### Corrección: hay un SEXTO camino, y no está hecho
+
+Dije «los cinco generadores están cableados». **Incompleto.** Al comprobar por
+barrido qué generadores de PDF alcanza la capa API apareció
+`app/services/report_pdf_service.py::build_report_pdf`, que es el que produce los
+**informes programados que se envían por correo** — es decir, otro documento que
+llega al cliente final.
+
+Dos cosas de él:
+
+- **ya recibe `org_id`**, pero lo usa sólo para *traer los datos*, no para la
+  marca. Así que cablearlo es baratísimo: el dato ya está en la firma;
+- tiene **10 colores en duro repartidos por 14 ayudantes**, y son una **paleta
+  distinta de las tres que la auditoría ya había encontrado** — `#4f8ef7`,
+  `#1e293b`, `#22c55e`, `#ef4444`, `#f59e0b`—. O sea que el hallazgo de «seis
+  colores de marca escritos 91 veces en 29 ficheros» tenía además una cuarta
+  variante que no estaba contada.
+
+Su rama `custom` cae a `report_pdf.generate_report_pdf`, que **ya acepta
+paleta**, así que ese camino se arregla con un argumento. El resto —su propia
+construcción de historia— necesita pasar la paleta por los 14 ayudantes.
+
+**No se ha hecho en esta tanda a propósito:** la suite ya estaba corriendo sobre
+seis ficheros tocados, y meterlo habría invalidado la verificación. Queda con
+fichero, línea y el trabajo dimensionado, y por eso el #32 sigue en «parcial» en
+vez de darse por cerrado — que es lo que habría hecho si me hubiera creído mi
+propio recuento de cinco.
+
+#### Y un defecto que salió de leer el lector de marca que ya existía
+
+`GET /orgs/{id}/branding` devolvía, para una organización sin marca configurada,
+un diccionario de **literales escritos a mano** que duplicaba los `default=` del
+modelo. Ya había divergido en dos sentidos:
+
+- `app_name` devolvía **`"NexusPM"`** —un nombre de producto anterior, que sigue
+  en los docstrings de `esign`, `jira` y `m365`— mientras el modelo declara
+  `default="Contecflow"`. **Cualquier organización que no hubiera tocado su marca
+  veía ese nombre en su interfaz**;
+- faltaban `background_color` y `text_color`, o sea **2 de los 5 colores**, así
+  que quien leía la API para una organización sin configurar recibía un payload
+  incompleto.
+
+Resuelto leyendo los `default=` declarados en el modelo
+(`OrgBranding.__table__.columns[…].default.arg`), que es donde ya estaban.
+`app_name` es la excepción deliberada: sale de `settings.PROJECT_NAME`, porque el
+nombre por defecto es el de la **plataforma** y no un valor de marca del cliente.
+
+Duplicar valores por defecto no es un problema de estilo: es garantizar que un
+día divergen, y aquí ya lo habían hecho.
+
+---
+
 ### Otros pendientes con riesgo propio
 
 - `strictNullChecks` (226 errores) y `noImplicitAny` (387).
@@ -1134,7 +1311,7 @@ sube, alguien ha añadido uno nuevo y se entera al momento.
 
 Conviene tenerlo presente al seguir: el fallo dominante de este código **no** es
 código ausente, es **controles escritos, con interfaz, con tests que pasan, y
-conectados a nada**. Doce casos confirmados:
+conectados a nada**. Trece casos confirmados:
 
 1. `ABACMiddleware` — nunca se ejecutó.
 2. `ABAC_COVERED_PREFIXES` — 45 de 110 prefijos con cero llamadas a
@@ -1166,8 +1343,13 @@ conectados a nada**. Doce casos confirmados:
    catálogo, visible en la interfaz, y la ruta del módulo apunta a
    `app.models.resources` cuando `Risk` está en `app.models.pipeline`. Todo
    informe sobre riesgos devuelve 400. Ver el apartado del #18.
+13. **El generador bueno de facturas** — trazado completo, paginación, paleta y
+   datos fiscales, detrás de una ruta que **no llamaba nadie**, mientras la
+   interfaz usaba otro generador sin el NIF del cliente. Es la variante más
+   costosa del patrón: no es que el control no hiciera nada, es que **lo hacía
+   bien y en el sitio equivocado**, y todo el mantenimiento se invirtió ahí.
 
-Los doce comparten mecanismo: **un acceso tolerante (`getattr`/`hasattr` con
+Los trece comparten mecanismo: **un acceso tolerante (`getattr`/`hasattr` con
 defecto, un `except` que degrada, o un filtro que descarta en silencio)
 convirtiendo un error en un resultado plausible.** Al revisar código nuevo aquí,
 ese es el patrón a buscar.
@@ -1274,9 +1456,15 @@ dos imports relativos pasados a absolutos, para poder cargarla suelta.
 
 ## 7. Orden sugerido para continuar
 
-Quedan **3 de 33** hallazgos en «parcial» (#18 complejidad, #22 acceso a base
-en la capa API, #32 marca blanca), y ninguno es un fallo latente: son deuda
-medida. Nada de lo que queda corrompe datos ni abre un agujero.
+Quedan **3 de 34** hallazgos en «parcial» (#18 complejidad, #22 acceso a base en
+la capa API y #32 el último generador de marca), y ninguno es un fallo latente: son deuda medida. Nada de lo que
+queda corrompe datos ni abre un agujero.
+
+**#32, marca blanca: decisión tomada y casi cerrado.** El documento lleva la
+marca del tenant, y cuatro generadores de cinco están cableados. Falta
+`report_pdf_service::build_report_pdf`, el de los informes programados que se
+envían por correo — ya recibe `org_id`, así que es barato. Detalle y dimensión en
+su sección.
 
 **Corrección a lo que decía la versión anterior de este párrafo.** Decía que
 nada de lo que quedaba abría un agujero. Era verdad de lo *conocido*, y resultó
