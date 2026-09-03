@@ -33,7 +33,7 @@ aquí:
 ```bash
 cd "contecflow PSA"
 
-# Suite completa de backend: 3.457 tests recogidos. SIEMPRE con -n auto — en
+# Suite completa de backend: 3.462 tests recogidos. SIEMPRE con -n auto — en
 # serie tarda MAS DE 90 MINUTOS y no cabe en ningun timeout razonable.
 #
 # TIEMPO MEDIDO con -n auto (10 workers): 36-43 MINUTOS (2.148 s y 2.551 s en
@@ -606,6 +606,84 @@ Y el test de «ahora se pueden configurar» **pone la variable de entorno de
 verdad** y reconstruye `Settings`. Mi primera versión tenía un
 `assert … or True`: pasaba siempre, o sea que no probaba nada. Un test que no
 puede fallar es peor que no tener test, porque ocupa el sitio de uno que sí.
+
+---
+
+## 3.f El frontend llamando a rutas que no existen — y por qué el número engaña
+
+La pregunta espejo de la 3.d: en vez de «¿el backend importa algo que no
+existe?», **«¿el frontend llama a rutas que no existen?»**. Cada una es una
+acción de la interfaz que devuelve 404.
+
+**69 de 1.140** llamadas con ruta literal — el 6 %. **Y ese número, solo, es
+engañoso.** Lo que importa es la clasificación:
+
+| | Cuántas | Qué son |
+|---|---|---|
+| **No las alcanza ninguna pantalla** | **53** | código de cliente muerto: la ruta está mal pero nada la llama |
+| **Alcanzables y sólo el prefijo o el nombre estaba mal** | **7** | **corregidas** |
+| **Alcanzables y el endpoint NO existe** | **9** | trabajo de producto, listado abajo |
+
+### Lo que me habría hecho publicar una falsedad
+
+El primer instinto era reportar «69 acciones de la interfaz rotas». Habría sido
+**falso**. El caso que lo destapó: `hooks/useAbsences.ts` define nueve hooks
+—`useCreateAbsence`, `useApproveAbsence`, `useDeleteAbsence`…— que llaman a rutas
+inexistentes, y **ninguno de los nueve lo usa ningún componente**. `AbsencesPage`
+llama directamente a `absencesApi` con las variantes `*My`, que sí existen.
+
+Así que hay que comprobar la **alcanzabilidad**: para cada llamada rota, ¿la usa
+un `.tsx`, directamente o a través de un hook que un `.tsx` use? Sin ese paso, el
+recuento mide código, no producto.
+
+### Las siete corregidas
+
+| Pantalla | Qué no funcionaba | Arreglo |
+|---|---|---|
+| `WikiPage` | **toda** la gestión de etiquetas | las cuatro operaciones existen bajo `/cmdb/wiki-tags/`; el cliente llamaba sin el prefijo |
+| `EpicsPage` | el roadmap | `/roadmap` → `/epics/roadmap` |
+| `EntitySelect` | el selector de subcontratistas | `/subcontractors` → `/enterprise/subcontractors` |
+| `ITSMKnowledgeTab` | promover a error conocido | `promote-known-error` → `promote-kedb` |
+
+**Y es la misma forma que los dos generadores de facturas del hallazgo 34: el
+miembro correcto convivía con el roto.** `epicsApi.roadmap` apuntaba a `/roadmap`
+y `epicsApi.roadmapByProject`, **la línea siguiente**, a `/epics/roadmap`. Hay
+dos clientes de subcontratistas en el mismo fichero, uno con el prefijo bueno y
+otro sin él. En las ausencias, `create`/`createMy`, `update`/`updateMy`,
+`delete`/`deleteMy`: el bueno al lado del roto, siempre.
+
+### Los nueve que NO se tocan, y por qué
+
+No son ruta equivocada: **el endpoint no existe**. Comprobado ruta por ruta
+contra el router real.
+
+| Pantalla | Acción | Estado del backend |
+|---|---|---|
+| `ITSMKnowledgeTab` | `DELETE /sd/problems/{id}` | hay GET, PATCH y POST; **no hay DELETE** |
+| `ITSMKnowledgeTab` | `GET /sd/known-errors/{id}/tickets` | no existe |
+| `EnterprisePage` | `DELETE /oauth-integrations/{id}` | hay GET y POST; **no hay DELETE** |
+| `TrainingPage` | `PATCH` y `DELETE /training/certifications/{id}` | sólo hay `GET` y `POST`: se puede crear una certificación y **no editarla ni borrarla** |
+| `ExportsPage` | `POST /integrations/export/imputations` y `/projects` | los exports reales son `GET /analytics/exports/imputations-csv` y `resources-csv` — otro verbo, otra ruta, y «projects» no es «resources» |
+| `usePipeline` | `GET /pipeline/{id}` | no existe |
+| `ProjectsPage` | `GET /dependencies/{projectId}` | hay `/epic-dependencies/{project_id}` y `/task-dependencies/{…}`: **ambiguo cuál quiere la interfaz** |
+
+Implementarlos o decidir a qué ruta apuntan son **decisiones de producto**, y
+corregir la ruta a ciegas podría cambiar un 404 por un error de renderizado si la
+respuesta tiene otra forma. Con 89 tests de frontend y ninguno sobre estas
+pantallas, no tengo manera de distinguir una cosa de la otra sin abrir la
+interfaz.
+
+### El guardián
+
+`tests/test_rutas_del_frontend.py` fija la cifra en **62** y usa
+`route.matches(scope)` —el emparejador de Starlette— en vez de comparar formas a
+mano: mis dos detectores anteriores de esta auditoría estuvieron mal por eso.
+Lleva dos autocontroles, uno con una ruta que sí existe y otro con una inventada.
+
+Y tiene un test que **obliga a bajar la constante** cuando se corrigen rutas: de
+hecho es lo que pasó al arreglar las siete —el test se puso en rojo diciendo «hay
+62 y la constante dice 69»—. Sin él, la constante se queda alta para siempre y
+permitiría reintroducir lo ya arreglado.
 
 ---
 
@@ -1629,8 +1707,9 @@ dos imports relativos pasados a absolutos, para poder cargarla suelta.
 
 ## 7. Orden sugerido para continuar
 
-Quedan **2 de 34** hallazgos en «parcial» (#18 complejidad y #22 acceso a base
-en la capa API), y ninguno es un fallo latente: son deuda medida. Nada de lo que
+Quedan **3 de 37** hallazgos en «parcial»: #18 complejidad, #22 acceso a base en
+la capa API y #37 las 62 rutas del frontend que no existen (7 corregidas, 9
+identificadas como endpoints ausentes y 53 en código de cliente muerto), y ninguno es un fallo latente: son deuda medida. Nada de lo que
 queda corrompe datos ni abre un agujero.
 
 **#32, marca blanca: CERRADO.** El documento lleva la marca del tenant y los
