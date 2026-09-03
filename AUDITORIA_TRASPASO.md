@@ -762,6 +762,66 @@ duplicado.
 
 ---
 
+## 3.h El método que encontró casi todo, y qué preguntar la próxima vez
+
+Las secciones 3.d a 3.g salieron todas de lo mismo, y **no de leer código**: de
+formular una pregunta comprobable sobre una clase entera y dejar que una máquina
+la contestara. Vale más que cualquiera de los hallazgos, así que queda escrito
+con las preguntas ya hechas y las que quedan.
+
+### Las seis preguntas y lo que dio cada una
+
+| Pregunta | Resultado |
+|---|---|
+| ¿Hay `import` **dentro de una función** que apunte a algo que no existe? | **12 defectos** (§3.d) |
+| ¿Hay `getattr(settings, "X", …)` sobre un ajuste **no declarado**? | **18**, incluidos dos nombres equivocados que dejaban todos los correos sin autenticar (§3.e) |
+| ¿Llama el frontend a rutas que el backend **no atiende**? | 69, de las que **16 alcanzables** y 7 corregidas (§3.f) |
+| ¿Hay rutas que otra declarada antes **intercepta**? | **8 inalcanzables**, una devolviendo 200 con menos datos (§3.g) |
+| ¿Hay `db.commit()` cuyo fallo alguien atrape y **nadie deshaga**? | **5 arreglados**, 13 medidos y clasificados (§3.a del #22) |
+| ¿Hay tareas periódicas definidas que **nada programe**? | **nada** — 30 de 32 en el `beat_schedule` y las otras 2 disparadas por código; ninguna entrada apunta a una tarea inexistente |
+
+El último es un resultado negativo y **se anota igual**: alguien que retome esto
+no tiene que volver a mirarlo.
+
+### Las tres reglas que hacen que un detector sirva
+
+Aprendidas cometiéndolas. **Mis detectores estuvieron mal cuatro veces** en esta
+auditoría, y cada vez habría publicado una cifra falsa:
+
+1. **Ejecuta, no razones.** El detector de importes comparó primero clases por
+   AST (**412 «fallos»**, entre ellos `Money` y `Rate`, que obviamente existen) y
+   luego con `hasattr` (**8 roturas donde había 3**, porque los submódulos
+   importan aunque `hasattr` diga que no). El que sirve **ejecuta el import**. El
+   de rutas usa `route.matches(scope)`, el emparejador de Starlette, en vez de
+   comparar formas a mano.
+2. **Prueba el detector en las dos direcciones.** Un caso plantado, para que lo
+   encuentre, y un falso positivo conocido, para que no lo cuente. Un
+   estructural cuyo detector está roto **da luz verde sin mirar**, que es peor
+   que no tenerlo.
+3. **Mide el producto, no el código.** El recuento del frontend eran 69, y 53 de
+   ellas vivían en código que ninguna pantalla alcanza. Publicar «69 pantallas
+   rotas» habría sido falso; lo cierto eran 16. **Sin el paso de
+   alcanzabilidad, el número mide líneas y no usuarios.**
+
+Y una cuarta sobre qué convertir en test: **un test que bloquea por algo que no
+está roto es ruido**, y el ruido es lo que hace que se dejen de mirar los fallos.
+El de caminos con segmento repetido marcaba 32 URLs feas pero funcionales: se
+quedó como medición con la cifra fijada, no como puerta.
+
+### Preguntas que no he hecho y parecen prometedoras
+
+- ¿Hay **response_model** declarados que no correspondan a lo que devuelve el
+  endpoint? FastAPI valida, así que fallaría en tests — probablemente poco
+  fruto, pero no comprobado.
+- ¿Hay **columnas de modelo** que ninguna consulta lee ni ningún esquema expone?
+  Serían campos escritos y nunca usados.
+- ¿Hay **permisos o roles** declarados en el catálogo GRC que ningún endpoint
+  exija? Es la misma forma que el #27, ya cerrado, pero por el otro lado.
+- ¿Hay **claves de i18n** que ningún componente use? Hay gate de cobertura al
+  100 %, pero no de claves sobrantes.
+
+---
+
 ## 4. Estado detallado de lo que sigue abierto
 
 ### #14 zonas horarias — **cerrado**, con una decisión que hay que respetar
