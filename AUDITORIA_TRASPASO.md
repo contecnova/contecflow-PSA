@@ -1962,6 +1962,47 @@ transiciones de estado, tarea de fondo y registro del fallo— a la capa de
 servicio, con la disciplina de rollback que ya lleva documentada. Es un paso
 aparte y se hace con su verificación, no de refilón.
 
+#### `collaboration_portal`: el portal era una segunda vía de envío sin los controles de la primera
+
+21 consultas y escrituras, **y ninguno de sus ocho endpoints lo tocaba un test**.
+Su envío de mensajes reimplementaba una versión pobre del interno:
+
+* **Reparto de notificaciones parcial, con una comparación imposible.** Sólo
+  avisaba en conversaciones directas, sólo a los dos usuarios internos, y se
+  protegía con `uid != current_client.id`. `user_a_id` y `user_b_id` son de
+  `users`; `current_client.id` es de `client_users`. **Esa comparación nunca
+  podía ser falsa**: ni filtraba al autor ni alcanzaba a los clientes. Los
+  clientes contraparte no recibían nada, y en canales y grupos no se avisaba a
+  nadie. El aparato interno ya sabía tratar destinatarios cliente y excluir al
+  autor por `client_user_id` — hacía falta usarlo, no duplicarlo.
+* **Sin escaneo DLP.** La vía interna sí lo aplica. Misma forma que las dos
+  puertas de subida de adjuntos: mismo destino, una con controles y otra sin.
+* **Sin indexado para búsqueda.** Ver el aviso de abajo sobre el alcance.
+* **Sin hilos**: `parent_message_id` no creaba `CollaborationThread`.
+* **El ancla de paginación se buscaba por id sin acotarla a la conversación**,
+  así que un id de otra conversación desplazaba la ventana con una fecha ajena.
+* **El tope de 25 mensajes por minuto, en duro.** Ahora
+  `COLLAB_PORTAL_MESSAGE_PER_MIN`.
+* **N+1 en el listado de conversaciones**: una consulta por conversación para
+  averiguar su título. Ahora son tres, una por tipo.
+
+El arreglo no reescribe nada de eso: llama a `messages.send_message` con
+`client_user_id`, que pasa a ser **la única vía de envío**.
+
+> **Corrección de mi propia lectura, y del primer test que escribí.** Documenté
+> el indexado como «un cliente no encontraba sus propios mensajes», y **eso es
+> falso en la configuración por defecto**: `SimpleSqlSearch.index()` —y el
+> `PgFtsSearch` que hereda de él— son **no-op**, y su búsqueda consulta la tabla
+> de mensajes, así que con SQLite o Postgres se encontraban igual. El indexado
+> sólo hace algo con `COLLAB_SEARCH_BACKEND=opensearch`, y ahí sí eran
+> invisibles. Peor: mi primer test comprobaba que la búsqueda encontraba el
+> mensaje, y **pasaba también sin el arreglo** — no discriminaba nada. El de
+> ahora espía la llamada al indexado, que es lo que de verdad cambió. Lo dejo
+> escrito porque un test que pasa por la razón equivocada es peor que no tenerlo.
+
+15 tests nuevos (`tests/test_collaboration_portal.py`) para ocho rutas que no
+tenían ninguno.
+
 #### Y lo que salió de medirlo: cinco `commit()` que dejaban la sesión abortada
 
 Contar accesos no dice si hay defecto. La pregunta que sí lo dice —«¿hay algún

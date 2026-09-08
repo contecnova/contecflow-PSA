@@ -326,6 +326,10 @@ class Settings(
     # con Google y M365 conectados la respuesta puede traer el doble.
     COLLAB_CALENDAR_MAX_EVENTS: int = Field(
         default=20, env="COLLAB_CALENDAR_MAX_EVENTS")
+    # Mensajes por minuto que un usuario del portal puede publicar en el chat.
+    # Estaba en duro a 25 en el endpoint. Auditoria 2026-08.
+    COLLAB_PORTAL_MESSAGE_PER_MIN: int = Field(
+        default=25, env="COLLAB_PORTAL_MESSAGE_PER_MIN")
 
     # NOTE: OpenAI fallback key & STT models live in AISettingsMixin.
 

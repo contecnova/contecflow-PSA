@@ -293,11 +293,35 @@ def send_message(
     linked_task_id: Optional[str] = None,
     linked_ticket_id: Optional[str] = None,
     bot_id: Optional[str] = None,
+    client_user_id: Optional[str] = None,
 ) -> CollaborationMessage:
+    """Crea y reparte un mensaje. Es la UNICA via de envio.
+
+    `client_user_id` marca que quien escribe es un usuario del portal, y entonces
+    `user` es ese `ClientUser`. Auditoria 2026-08: el portal tenia su propia
+    implementacion de envio en `endpoints/collaboration_portal.py`, y le faltaba
+    casi todo lo que hace esta —el escaneo DLP, el indexado para busqueda, el
+    reparto completo de notificaciones y los hilos—. El efecto visible: un
+    cliente **no encontraba sus propios mensajes** en la busqueda que el propio
+    portal le ofrece, porque nadie los indexaba. Es la misma forma que las dos
+    puertas de subida de adjuntos: mismo destino, una con controles y otra sin
+    ellos.
+
+    La comprobacion de acceso cambia con el tipo de remitente, y por eso se
+    ramifica aqui y no en quien llama: un cliente no pasa por ABAC —las
+    politicas estan escritas sobre usuarios internos— sino por la comprobacion
+    de participante-cliente.
+    """
     org = _org(user)
     conv = _resolve_conversation(db, conversation_id=conversation_id, channel_id=channel_id, direct_id=direct_id, group_id=group_id)
 
-    if not bot_id:
+    if client_user_id:
+        from app.services.collaboration._permissions import (
+            is_client_conversation_participant,
+        )
+        if not is_client_conversation_participant(db, user, conv.id):
+            raise HTTPException(403, "No tienes acceso a esta conversación")
+    elif not bot_id:
         assert_conversation_access(db, user, conv.id)
         enforce_abac(db, user, "collaboration_message", resource_id=conv.id, action="send")
 
@@ -310,7 +334,8 @@ def send_message(
         conversation_id=conv.id,
         thread_id=None,
         parent_message_id=parent_message_id,
-        user_id=None if bot_id else user.id,
+        user_id=None if (bot_id or client_user_id) else user.id,
+        client_user_id=client_user_id,
         bot_id=bot_id,
         type=type,
         status="visible",
@@ -374,9 +399,13 @@ def send_message(
 
     # Audit + index
     audit_log.write(
-        db, organization_id=org, actor_user_id=user.id, actor_client_id=None,
+        db, organization_id=org,
+        actor_user_id=None if client_user_id else user.id,
+        actor_client_id=client_user_id,
         action="message.sent", entity_type="message", entity_id=msg.id,
-        payload={"conversation_id": conv.id, "type": type, "dlp": dlp_status, "redacted": is_redacted},
+        payload={"conversation_id": conv.id, "type": type, "dlp": dlp_status,
+                 "redacted": is_redacted,
+                 "kind": "client" if client_user_id else "user"},
     )
     db.commit()
     search_engine.index(db, msg.id)
