@@ -310,6 +310,23 @@ class Settings(
     # None y el llamador caia a su propio defecto.
     UPLOAD_DIR: str = Field(default="uploads", env="UPLOAD_DIR")
 
+    # Colaboracion: topes de frecuencia de las llamadas y del historial.
+    # Estaban escritos en duro en el endpoint (8, 20 y 50). Son valores de
+    # operacion: quien despliega tiene que poder subirlos para un cliente con
+    # muchos usuarios sin tocar codigo. Auditoria 2026-08.
+    COLLAB_CALL_START_PER_MIN: int = Field(default=8, env="COLLAB_CALL_START_PER_MIN")
+    COLLAB_CALL_JOIN_PER_MIN: int = Field(default=20, env="COLLAB_CALL_JOIN_PER_MIN")
+    COLLAB_CALL_HISTORY_LIMIT: int = Field(default=50, env="COLLAB_CALL_HISTORY_LIMIT")
+    # Caudal que un sistema externo puede empujar a un canal por webhook.
+    # Estaba en duro a 120 en el endpoint. Auditoria 2026-08.
+    COLLAB_WEBHOOK_INCOMING_PER_MIN: int = Field(
+        default=120, env="COLLAB_WEBHOOK_INCOMING_PER_MIN")
+    # Eventos que se piden a CADA proveedor de calendario en la vista agregada.
+    # Estaba en duro a 20 en el endpoint. Es el tope por proveedor, no el total:
+    # con Google y M365 conectados la respuesta puede traer el doble.
+    COLLAB_CALENDAR_MAX_EVENTS: int = Field(
+        default=20, env="COLLAB_CALENDAR_MAX_EVENTS")
+
     # NOTE: OpenAI fallback key & STT models live in AISettingsMixin.
 
     # ── STT (Speech-to-Text) provider — Item #51 ─────────────────────────────

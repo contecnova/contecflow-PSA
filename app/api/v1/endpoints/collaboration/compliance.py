@@ -1,206 +1,94 @@
 """Retention policies, legal hold, audit, eDiscovery."""
-from datetime import timedelta
-from app.core.timeutil import utcnow
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin
 from app.core.ratelimit import limiter
 from app.db.session import get_db
 from app.models.user import User
-from app.models.collaboration import (
-    CollaborationAuditEvent, CollaborationLegalHold,
-    CollaborationMessage, CollaborationRetentionPolicy,
-)
-from app.models.settings import AppSetting
 from app.schemas.collaboration import (
     AuditEventOut, EDiscoveryRequest,
     LegalHoldIn, LegalHoldOut,
     RetentionPolicyIn, RetentionPolicyOut,
 )
 from app.services.collaboration import audit_log
+from app.services.collaboration import compliance as svc
 from app.services.collaboration._permissions import _org
 from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter()
-
-RETENTION_SETTINGS_KEY = "collaboration.retention.settings"
-
-
-def _get_retention_settings(db: Session, org_id: str) -> dict:
-    row = db.query(AppSetting).filter(
-        AppSetting.organization_id == org_id,
-        AppSetting.key == RETENTION_SETTINGS_KEY,
-    ).first()
-    default = {"default_months": 12, "max_months": 60}
-    if not row or not row.value:
-        return default
-    try:
-        import json
-
-        parsed = json.loads(row.value)
-        return {
-            "default_months": max(1, int(parsed.get("default_months", 12))),
-            "max_months": max(1, int(parsed.get("max_months", 60))),
-        }
-    except Exception:
-        return default
-
-
-def _set_retention_settings(db: Session, org_id: str, payload: dict) -> dict:
-    import json
-
-    value = {
-        "default_months": max(1, int(payload.get("default_months", 12))),
-        "max_months": max(1, int(payload.get("max_months", 60))),
-    }
-    row = db.query(AppSetting).filter(
-        AppSetting.organization_id == org_id,
-        AppSetting.key == RETENTION_SETTINGS_KEY,
-    ).first()
-    if not row:
-        row = AppSetting(
-            organization_id=org_id,
-            key=RETENTION_SETTINGS_KEY,
-            value=json.dumps(value, ensure_ascii=True, separators=(",", ":")),
-            description="Tenant retention defaults for collaboration",
-        )
-        db.add(row)
-    else:
-        row.value = json.dumps(value, ensure_ascii=True, separators=(",", ":"))
-    db.commit()
-    return value
+# Auditoria 2026-08 (hallazgo 22). Los 18 puntos de acceso a base de este
+# fichero estan ahora en `app/services/collaboration/compliance.py`, y al
+# moverlos aparecio un defecto en el legal hold: retenia solo por usuario
+# custodio e ignoraba clientes y canales. Ver la cabecera de ese modulo.
 
 
 # ── Retention ────────────────────────────────────────────────────────────────
 @router.get("/retention", response_model=APIListResponse[RetentionPolicyOut], summary="Políticas de retención")
 def list_policies(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    rows = db.query(CollaborationRetentionPolicy).filter(CollaborationRetentionPolicy.organization_id == _org(current_user)).all()
-    items = [RetentionPolicyOut(
-        id=r.id, name=r.name, scope=r.scope, target_id=r.target_id,
-        retention_months=r.retention_months, apply_to=r.apply_to, is_active=r.is_active,
-    ) for r in rows]
+    items = [
+        RetentionPolicyOut(
+            id=r.id, name=r.name, scope=r.scope, target_id=r.target_id,
+            retention_months=r.retention_months, apply_to=r.apply_to,
+            is_active=r.is_active,
+        )
+        for r in svc.list_policies(db, current_user)
+    ]
     return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/retention", response_model=APIResponse[RetentionPolicyOut], summary="Crear política de retención",
              dependencies=[Depends(require_admin)])
 def create_policy(payload: RetentionPolicyIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    from app.services.collaboration.workspaces import get_or_create_workspace
-    ws = get_or_create_workspace(db, current_user)
-    settings = _get_retention_settings(db, _org(current_user))
-    if payload.retention_months > settings["max_months"]:
-        raise HTTPException(status_code=422, detail=f"retention_months exceeds tenant max ({settings['max_months']})")
-
-    row = CollaborationRetentionPolicy(
-        organization_id=_org(current_user), workspace_id=ws.id,
-        name=payload.name, scope=payload.scope, target_id=payload.target_id,
-        retention_months=payload.retention_months, apply_to=payload.apply_to,
-    )
-    db.add(row)
-    audit_log.write(
-        db, organization_id=_org(current_user), actor_user_id=current_user.id, actor_client_id=None,
-        action="retention.created", entity_type="retention_policy", entity_id=row.id,
-        payload=payload.model_dump(),
-    )
-    db.commit()
+    row = svc.create_policy(db, current_user, payload.model_dump())
     return APIResponse.ok(data=RetentionPolicyOut(
         id=row.id, name=row.name, scope=row.scope, target_id=row.target_id,
-        retention_months=row.retention_months, apply_to=row.apply_to, is_active=row.is_active,
+        retention_months=row.retention_months, apply_to=row.apply_to,
+        is_active=row.is_active,
     ))
 
 
 @router.post("/retention/run", summary="Ejecutar barrido de retención (manual)",
              dependencies=[Depends(require_admin)])
 def run_retention(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Marks expired messages as deleted according to active policies.
+    """Marca como borrados los mensajes vencidos segun las politicas activas.
 
-    Legal hold scope is respected — protected messages are NOT removed.
+    El legal hold se respeta: los mensajes retenidos NO se borran.
     """
-    org = _org(current_user)
-    policies = db.query(CollaborationRetentionPolicy).filter(
-        CollaborationRetentionPolicy.organization_id == org,
-        CollaborationRetentionPolicy.is_active == True,
-    ).all()
-    settings = _get_retention_settings(db, org)
-    if not policies:
-        policies = [
-            type("_P", (), {"retention_months": settings["default_months"], "scope": "workspace", "target_id": None})()
-        ]
-    now = utcnow()
-    held = _legal_held_message_ids(db, org)
-    deleted = 0
-    for pol in policies:
-        cutoff = now - timedelta(days=30 * pol.retention_months)
-        q = db.query(CollaborationMessage).filter(
-            CollaborationMessage.organization_id == org,
-            CollaborationMessage.sent_at < cutoff,
-            CollaborationMessage.status != "deleted",
-        )
-        if held:
-            q = q.filter(~CollaborationMessage.id.in_(held))
-        # Bulk update: una sola sentencia SQL en lugar de N actualizaciones.
-        n = q.update(
-            {
-                CollaborationMessage.status: "deleted",
-                CollaborationMessage.deleted_at: now,
-                CollaborationMessage.body: "[retention purge]",
-            },
-            synchronize_session=False,
-        )
-        deleted += int(n or 0)
-    audit_log.write(
-        db, organization_id=org, actor_user_id=current_user.id, actor_client_id=None,
-        action="retention.run", entity_type="retention", entity_id=None,
-        payload={"deleted": deleted, "policies": len(policies)},
-    )
-    db.commit()
-    return APIResponse.ok(data={"deleted": deleted, "policies_applied": len(policies)})
+    return APIResponse.ok(data=svc.run_retention(db, current_user))
 
 
 @router.get("/retention/settings", summary="Config retention por tenant", dependencies=[Depends(require_admin)])
 def get_retention_settings(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return APIResponse.ok(data=_get_retention_settings(db, _org(current_user)))
+    return APIResponse.ok(data=svc.get_retention_settings(db, _org(current_user)))
 
 
 @router.put("/retention/settings", summary="Actualizar config retention por tenant", dependencies=[Depends(require_admin)])
 def put_retention_settings(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return APIResponse.ok(data=_set_retention_settings(db, _org(current_user), payload))
+    return APIResponse.ok(data=svc.set_retention_settings(db, _org(current_user), payload))
 
 
 # ── Legal Hold ───────────────────────────────────────────────────────────────
 @router.get("/legal-holds", response_model=APIListResponse[LegalHoldOut], summary="Casos de legal hold")
 def list_holds(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    rows = db.query(CollaborationLegalHold).filter(CollaborationLegalHold.organization_id == _org(current_user)).all()
-    items = [LegalHoldOut(
-        id=r.id, case_reference=r.case_reference, description=r.description,
-        custodian_user_ids=r.custodian_user_ids or [],
-        custodian_client_ids=r.custodian_client_ids or [],
-        channel_ids=r.channel_ids or [],
-        started_at=r.started_at, ended_at=r.ended_at, is_active=r.is_active,
-    ) for r in rows]
+    items = [
+        LegalHoldOut(
+            id=r.id, case_reference=r.case_reference, description=r.description,
+            custodian_user_ids=r.custodian_user_ids or [],
+            custodian_client_ids=r.custodian_client_ids or [],
+            channel_ids=r.channel_ids or [],
+            started_at=r.started_at, ended_at=r.ended_at, is_active=r.is_active,
+        )
+        for r in svc.list_holds(db, current_user)
+    ]
     return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/legal-holds", response_model=APIResponse[LegalHoldOut], summary="Crear legal hold",
              dependencies=[Depends(require_admin)])
 def create_hold(payload: LegalHoldIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    row = CollaborationLegalHold(
-        organization_id=_org(current_user),
-        case_reference=payload.case_reference, description=payload.description,
-        custodian_user_ids=payload.custodian_user_ids,
-        custodian_client_ids=payload.custodian_client_ids,
-        channel_ids=payload.channel_ids,
-        created_by=current_user.id,
-    )
-    db.add(row)
-    audit_log.write(
-        db, organization_id=_org(current_user), actor_user_id=current_user.id, actor_client_id=None,
-        action="legal_hold.created", entity_type="legal_hold", entity_id=row.id,
-        payload=payload.model_dump(),
-    )
-    db.commit()
+    row = svc.create_hold(db, current_user, payload.model_dump())
     return APIResponse.ok(data=LegalHoldOut(
         id=row.id, case_reference=row.case_reference, description=row.description,
         custodian_user_ids=row.custodian_user_ids or [],
@@ -213,91 +101,27 @@ def create_hold(payload: LegalHoldIn, current_user: User = Depends(get_current_u
 @router.post("/legal-holds/{hold_id}/release", summary="Cerrar legal hold",
              dependencies=[Depends(require_admin)])
 def release_hold(hold_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    row = db.query(CollaborationLegalHold).filter(CollaborationLegalHold.id == hold_id, CollaborationLegalHold.organization_id == _org(current_user)).first()
-    if not row:
-        raise HTTPException(404, "Hold no encontrado")
-    row.is_active = False
-    row.ended_at = utcnow()
-    audit_log.write(
-        db, organization_id=_org(current_user), actor_user_id=current_user.id, actor_client_id=None,
-        action="legal_hold.released", entity_type="legal_hold", entity_id=hold_id, payload={},
-    )
-    db.commit()
+    svc.release_hold(db, current_user, hold_id)
     return APIResponse.ok(data={"ok": True})
-
-
-def _legal_held_message_ids(db: Session, organization_id: str) -> set[str]:
-    rows = db.query(CollaborationLegalHold).filter(
-        CollaborationLegalHold.organization_id == organization_id,
-        CollaborationLegalHold.is_active == True,
-    ).all()
-    if not rows:
-        return set()
-    user_ids = set()
-    client_ids = set()
-    channel_ids = set()
-    for r in rows:
-        user_ids.update(r.custodian_user_ids or [])
-        client_ids.update(r.custodian_client_ids or [])
-        channel_ids.update(r.channel_ids or [])
-    msg_q = db.query(CollaborationMessage.id).filter(CollaborationMessage.organization_id == organization_id)
-    if user_ids:
-        msg_q = msg_q.filter(CollaborationMessage.user_id.in_(user_ids))
-    return {r[0] for r in msg_q.all()}
 
 
 # ── eDiscovery export ────────────────────────────────────────────────────────
 @router.post("/ediscovery/export", summary="Export legal (eDiscovery JSON)",
              dependencies=[Depends(require_admin)])
 def ediscovery_export(payload: EDiscoveryRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    org = _org(current_user)
-    q = db.query(CollaborationMessage).filter(CollaborationMessage.organization_id == org)
-    if payload.user_ids:
-        q = q.filter(CollaborationMessage.user_id.in_(payload.user_ids))
-    if payload.date_from:
-        q = q.filter(CollaborationMessage.sent_at >= payload.date_from)
-    if payload.date_to:
-        q = q.filter(CollaborationMessage.sent_at <= payload.date_to)
-    if payload.keywords:
-        for kw in payload.keywords[:5]:
-            q = q.filter(CollaborationMessage.body.ilike(f"%{kw}%"))
-    rows = q.order_by(CollaborationMessage.sent_at.asc()).limit(20000).all()
-    audit_log.write(
-        db, organization_id=org, actor_user_id=current_user.id, actor_client_id=None,
-        action="ediscovery.export", entity_type="export", entity_id=None,
-        payload={"case": payload.case_reference, "matched": len(rows)},
-    )
-    db.commit()
-    return APIResponse.ok(data={
-        "case_reference": payload.case_reference,
-        "exported_at": utcnow().isoformat(),
-        "total": len(rows),
-        "messages": [{
-            "id": m.id, "conversation_id": m.conversation_id,
-            "user_id": m.user_id, "body": m.body, "sent_at": m.sent_at, "status": m.status,
-            "type": m.type,
-        } for m in rows],
-    })
+    return APIResponse.ok(data=svc.ediscovery_export(
+        db, current_user,
+        case_reference=payload.case_reference, user_ids=payload.user_ids,
+        date_from=payload.date_from, date_to=payload.date_to,
+        keywords=payload.keywords,
+    ))
 
 
 # ── Audit ────────────────────────────────────────────────────────────────────
 @router.get("/decisions", response_model=APIListResponse[dict], summary="Listado de decisiones gobernadas")
 def list_decisions(limit: int = 100, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Decisiones registradas con `/decision <texto>` extraídas del audit log."""
-    rows = db.query(CollaborationAuditEvent).filter(
-        CollaborationAuditEvent.organization_id == _org(current_user),
-        CollaborationAuditEvent.action == "decision.recorded",
-    ).order_by(CollaborationAuditEvent.created_at.desc()).limit(min(limit, 500)).all()
-    out = []
-    for r in rows:
-        payload = r.payload or {}
-        out.append({
-            "id": r.id,
-            "text": payload.get("text", ""),
-            "actor_user_id": r.actor_user_id,
-            "conversation_id": r.entity_id,
-            "created_at": r.created_at,
-        })
+    """Decisiones registradas por comando de decision, extraidas del audit log."""
+    out = svc.list_decisions(db, current_user, limit)
     return APIListResponse.ok(items=out, total=len(out))
 
 
@@ -305,13 +129,14 @@ def list_decisions(limit: int = 100, current_user: User = Depends(get_current_us
             dependencies=[Depends(require_admin)])
 @limiter.limit("30/minute")
 def list_audit(request: Request, limit: int = 200, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    rows = db.query(CollaborationAuditEvent).filter(
-        CollaborationAuditEvent.organization_id == _org(current_user),
-    ).order_by(CollaborationAuditEvent.created_at.desc()).limit(min(limit, 1000)).all()
-    items = [AuditEventOut(
-        id=r.id, actor_user_id=r.actor_user_id, action=r.action, entity_type=r.entity_type,
-        entity_id=r.entity_id, payload=r.payload or {}, created_at=r.created_at,
-    ) for r in rows]
+    items = [
+        AuditEventOut(
+            id=r.id, actor_user_id=r.actor_user_id, action=r.action,
+            entity_type=r.entity_type, entity_id=r.entity_id,
+            payload=r.payload or {}, created_at=r.created_at,
+        )
+        for r in svc.list_audit(db, current_user, limit)
+    ]
     return APIListResponse.ok(items=items, total=len(items))
 
 

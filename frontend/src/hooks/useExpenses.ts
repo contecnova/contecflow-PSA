@@ -61,30 +61,6 @@ export function useUpdateExpense(): UseMutationResult<unknown, unknown, UpdateAr
   })
 }
 
-export function useApproveExpense(): UseMutationResult<unknown, unknown, string> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => expensesApi.approve(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses'] }),
-  })
-}
-
-export function useDeleteExpense(): UseMutationResult<unknown, unknown, string> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => expensesApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses'] }),
-  })
-}
-
-export function useRejectExpense(): UseMutationResult<unknown, unknown, UpdateArgs<Partial<Expense>>> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: UpdateArgs<Partial<Expense>>) => expensesApi.reject(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses'] }),
-  })
-}
-
 export function useReimburseExpense(): UseMutationResult<unknown, unknown, string> {
   const qc = useQueryClient()
   return useMutation({

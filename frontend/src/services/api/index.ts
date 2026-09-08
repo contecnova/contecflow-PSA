@@ -34,7 +34,6 @@ export type {
   ForgotPasswordPayload,
   ResetPasswordPayload,
   ChangePasswordPayload,
-  LdapSyncResponse,
 } from './auth'
 
 export { usersApi } from './users'

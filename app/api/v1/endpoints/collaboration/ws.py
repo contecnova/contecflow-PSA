@@ -98,11 +98,28 @@ async def _msg_typing(ses: "_ConexionColab", payload: dict) -> None:
     Sin `conversation_id` no hay canal al que publicarlo, así que se ignora en
     silencio: es un evento decorativo y un cliente mal escrito no debe recibir un
     error por él.
+
+    Auditoría 2026-08: el `conversation_id` llega del cliente y **no se
+    comprobaba**. Se publicaba en `conv_channel(cid)` fuera cual fuera, así que
+    un usuario podía inyectar un «está escribiendo» a su nombre en la
+    conversación de otra organización. No leía nada —la suscripción sí está
+    acotada por pertenencia—, pero escribía en un canal ajeno.
+
+    La comprobación se hace contra los canales a los que esta conexión ESTÁ
+    suscrita, que el servidor ya calculó en `canales()` a partir de las
+    conversaciones del usuario. Es más barato que volver a base en cada pulsación
+    de tecla —y esto llega una vez por tecla— y usa la misma fuente de verdad.
     """
     cid = payload.get("conversation_id")
     if not cid:
         return
-    await bus.publish(conv_channel(cid), {
+    canal = conv_channel(cid)
+    if canal not in (ses.channels or []):
+        log.debug(
+            "collab ws: user=%s intento publicar typing en una conversacion a la "
+            "que no esta suscrito (%s)", ses.user.id, cid)
+        return
+    await bus.publish(canal, {
         "type": "typing", "conversation_id": cid,
         "payload": {"user_id": ses.user.id, "active": bool(payload.get("active", True))},
     })
@@ -364,6 +381,23 @@ async def _abrir_conexion(websocket: WebSocket, ticket: Optional[str], db: Sessi
         await websocket.accept()
         await websocket.close(code=4403)
         return None
+
+    # Contexto de tenant en la sesión, a partir de aquí y para toda la conexión.
+    #
+    # Auditoría 2026-08. Esta sesión es un `SessionLocal()` creado a mano, y
+    # `info` estaba vacío durante toda la vida del WebSocket. Con `is_superadmin`
+    # ausente, las TRES capas de aislamiento se saltan por la rama de «sesión no
+    # inicializada (job de fondo / test)»: `TenantSession.query()`,
+    # `TenantSession.execute()` y el escuchador `do_orm_execute`. Es decir, el
+    # chat en tiempo real corría con el aislamiento por organización apagado y
+    # todo dependía de que cada consulta llevara su filtro explícito.
+    #
+    # Se pone DESPUÉS de resolver el usuario a propósito: `get_active_user_by_id`
+    # busca por id sin saber todavía de qué organización es, así que tiene que
+    # correr sin filtrar. A partir de aquí ya se conoce, y se acota.
+    db.info["organization_id"] = user.organization_id
+    db.info["is_superadmin"] = bool(getattr(user, "is_superadmin", False))
+    db.info["current_user"] = user
 
     try:
         ws_obj = get_or_create_workspace(db, user)

@@ -22,12 +22,62 @@ SAFE_HINTS = (
     "org_id",
     "is_superadmin",
     "tenant",
+    # Ayudante real de este repositorio: devuelve la organizacion del sujeto
+    # y lanza 403 si no tiene. Faltaba, asi que toda consulta acotada con el
+    # se marcaba como sospechosa.
+    "_org(",
 )
+
+#: Cuantas lineas se miran hacia atras desde el `db.query(` para reconocer el
+#: ambito. Una consulta acotada suele venir precedida de la resolucion de la
+#: organizacion, no seguida.
+LINEAS_DE_CONTEXTO_ANTERIOR = 3
+
+#: Suelo de lineas posteriores. La ventana es la sentencia completa, pero
+#: nunca menos que esto: asi domina estrictamente a la ventana fija anterior
+#: y el cambio no puede hacer aparecer avisos que antes no salian.
+LINEAS_DE_CONTEXTO_POSTERIOR = 3
+
+
+def _statement_window(lines: list[str], index: int) -> str:
+    """La sentencia completa que arranca en `index`, mas su contexto anterior.
+
+    Auditoria 2026-08: antes la ventana era fija, `lines[i-3:i+3]`. Una consulta
+    encadenada —`db.query(X)` en una linea y `.filter(X.organization_id == ...)`
+    cuatro mas abajo, que es el estilo de casi todo el repositorio— caia fuera
+    de la ventana y se marcaba como sin acotar. Medido sobre
+    `app/services/collaboration`: **93 de 118 avisos eran ese falso positivo**,
+    y con ese ruido el gate no se puede leer.
+
+    Se sigue el balance de parentesis hasta cerrar la sentencia, asi que la
+    ventana es la que el codigo define y no un numero de lineas.
+    """
+    inicio = max(0, index - LINEAS_DE_CONTEXTO_ANTERIOR)
+    fin = min(len(lines), index + LINEAS_DE_CONTEXTO_POSTERIOR)
+    saldo = 0
+    for pos in range(index, len(lines)):
+        linea = lines[pos]
+        saldo += linea.count(chr(40)) - linea.count(chr(41))
+        if pos > index and saldo <= 0:
+            fin = max(fin, pos + 1)
+            break
+    else:
+        fin = len(lines)
+    return chr(10).join(lines[inicio:fin])
 
 
 def _normalize_identifier(rel: Path, src: str) -> str:
+    """Identificador estable de un hallazgo, comparable entre plataformas.
+
+    Auditoria 2026-08: aqui se interpolaba el `Path` directamente, y en Windows
+    eso serializa con la barra invertida, mientras el baseline se escribio con
+    `/`. Resultado:
+    NINGUNA linea del baseline coincidia y `--strict` daba STRICT FAIL con los
+    2.334 hallazgos ya revisados marcados como nuevos. El gate no podia pasar
+    nunca en Windows, asi que no informaba de nada. `as_posix()` fija la forma.
+    """
     normalized_src = re.sub(r"\s+", " ", src.strip())
-    return f"{rel}:{normalized_src}"
+    return f"{rel.as_posix()}:{normalized_src}"
 
 
 def main() -> int:
@@ -59,7 +109,7 @@ def main() -> int:
             if not QUERY_RE.search(line):
                 continue
             total_queries += 1
-            window = "\n".join(lines[max(0, i - 3): min(len(lines), i + 3)])
+            window = _statement_window(lines, i - 1)
             if not any(hint in window for hint in SAFE_HINTS):
                 flagged.append((path.relative_to(ROOT), i, line.strip()))
 

@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
+import type { UseQueryResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { absencesApi } from '../services/api'
 
@@ -56,49 +56,3 @@ export function useAbsenceCalendar(year: number | string | undefined, month: num
   })
 }
 
-export function useVacationPolicies(): UseQueryResult<unknown> {
-  return useQuery({
-    queryKey: ['vacation-policies'],
-    queryFn: () => absencesApi.policies().then((r: { data: unknown }) => r.data),
-    staleTime: STALE,
-  })
-}
-
-export function useCreateAbsence(): UseMutationResult<unknown, unknown, Partial<Absence>> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (data: Partial<Absence>) => absencesApi.create(data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['absences-my'] })
-      qc.invalidateQueries({ queryKey: ['team-absences'] })
-      qc.invalidateQueries({ queryKey: ['absence-calendar'] })
-    },
-  })
-}
-
-export function useApproveAbsence(): UseMutationResult<unknown, unknown, string> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => absencesApi.approve(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['absences-pending'] })
-      qc.invalidateQueries({ queryKey: ['team-absences'] })
-    },
-  })
-}
-
-export function useRejectAbsence(): UseMutationResult<unknown, unknown, RejectArgs> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: RejectArgs) => absencesApi.reject(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['absences-pending'] }),
-  })
-}
-
-export function useDeleteAbsence(): UseMutationResult<unknown, unknown, string> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => absencesApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['absences-my'] }),
-  })
-}

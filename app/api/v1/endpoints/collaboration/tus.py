@@ -2,169 +2,88 @@
 
 Spec: https://tus.io/protocols/resumable-upload
 
-Endpoints:
-  POST   /collaboration/tus           — crear upload (Upload-Length, Upload-Metadata)
-  PATCH  /collaboration/tus/{id}      — subir chunk (Upload-Offset, Content-Type: application/offset+octet-stream)
-  HEAD   /collaboration/tus/{id}      — estado actual (Upload-Offset, Upload-Length)
-  DELETE /collaboration/tus/{id}      — abortar
-  OPTIONS /collaboration/tus          — capabilities
+  POST    /collaboration/tus           — crear upload (Upload-Length, Upload-Metadata)
+  PATCH   /collaboration/tus/{id}      — subir chunk (Upload-Offset, Content-Type: application/offset+octet-stream)
+  HEAD    /collaboration/tus/{id}      — estado actual (Upload-Offset, Upload-Length)
+  DELETE  /collaboration/tus/{id}      — abortar
+  OPTIONS /collaboration/tus           — capabilities
 
-Cuando se completa Upload-Length == Upload-Offset, el server pasa el archivo a
-storage + crea el CollaborationAttachment + lanza AV/DLP/thumbnail.
+Auditoria 2026-08 (hallazgo 22). La logica esta en
+`app/services/collaboration/tus.py`, y al bajarla quedo a la vista que esta via
+se saltaba entera la validacion de subidas de `/attachments`: tope en duro de
+500 MB y CERO validacion de contenido. Ver el modulo de servicio.
+
+Cuando Upload-Offset alcanza Upload-Length, el fichero se materializa como
+adjunto por la misma funcion que usa `/attachments` (`files.crear_adjunto`), que
+dispara AV/DLP/thumbnail. Toda esa parte va al pool de hilos: es sincrona y no
+puede correr en el bucle de eventos.
 """
 from __future__ import annotations
 
-import base64
-import logging
-import os
-import re
-from app.core.timeutil import utcnow
-from typing import Optional
-
-logger = logging.getLogger(__name__)
-
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
+from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
-from app.core.abac_enforce import enforce_abac
-from app.models.collaboration import (
-    CollaborationAttachment, CollaborationAttachmentVersion, CollaborationModerationCase,
-)
-from app.services.collaboration import audit_log
-from app.services.collaboration._permissions import _org, assert_conversation_access
-from app.services.collaboration._storage import scan_dlp, scan_with_av, storage
-from starlette.concurrency import run_in_threadpool
+from app.services.collaboration import tus as svc
 
 router = APIRouter()
 
-TUS_VERSION = "1.0.0"
-TUS_EXTENSIONS = "creation,termination"
-TUS_MAX_SIZE = 500 * 1024 * 1024  # 500 MB
 
-UPLOAD_DIR = os.path.join("uploads", "collaboration", ".tus")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-
-def _meta_path(uid: str) -> str:
-    return os.path.join(UPLOAD_DIR, f"{uid}.meta")
-
-
-def _data_path(uid: str) -> str:
-    return os.path.join(UPLOAD_DIR, f"{uid}.bin")
-
-
-def _read_meta(uid: str) -> Optional[dict]:
-    import json
-    p = _meta_path(uid)
-    if not os.path.exists(p):
-        return None
-    try:
-        with open(p) as f:
-            return json.load(f)
-    except Exception:
-        logger.exception("Error leyendo metadata TUS para upload %s", uid)
-        return None
-
-
-def _write_meta(uid: str, data: dict) -> None:
-    import json
-    with open(_meta_path(uid), "w") as f:
-        json.dump(data, f)
-
-
-def _parse_metadata(header: str) -> dict:
-    out = {}
-    for part in (header or "").split(","):
-        part = part.strip()
-        if not part:
-            continue
-        if " " in part:
-            k, v = part.split(" ", 1)
-            try:
-                out[k] = base64.b64decode(v).decode("utf-8")
-            except Exception:
-                out[k] = ""
-        else:
-            out[part] = ""
-    return out
-
-
-def _safe_filename(name: Optional[str]) -> str:
-    raw = (name or "upload").replace("\\", "/")
-    base = raw.split("/")[-1].strip().strip(".")
-    if not base:
-        return "upload"
-    return re.sub(r"[^A-Za-z0-9._-]", "_", base)[:180] or "upload"
+def _cabeceras(**extra: str) -> dict:
+    """Cabeceras de respuesta con `Tus-Resumable`, que va en todas."""
+    return {"Tus-Resumable": svc.TUS_VERSION, **extra}
 
 
 @router.options("/tus")
 def tus_options() -> Response:
     return Response(
         status_code=204,
-        headers={
-            "Tus-Resumable": TUS_VERSION,
-            "Tus-Version": TUS_VERSION,
-            "Tus-Extension": TUS_EXTENSIONS,
-            "Tus-Max-Size": str(TUS_MAX_SIZE),
-        },
+        headers=_cabeceras(
+            **{
+                "Tus-Version": svc.TUS_VERSION,
+                "Tus-Extension": svc.TUS_EXTENSIONS,
+                # Se anuncia el tope real y configurado, no un 500 MB fijo que
+                # el servidor iba a rechazar de todas formas.
+                "Tus-Max-Size": str(svc.tope_de_subida()),
+            }
+        ),
     )
 
 
 @router.post("/tus")
-def tus_create(
+async def tus_create(
     request: Request,
     upload_length: int = Header(..., alias="Upload-Length"),
     upload_metadata: str = Header("", alias="Upload-Metadata"),
-    tus_resumable: str = Header(TUS_VERSION, alias="Tus-Resumable"),
+    tus_resumable: str = Header(svc.TUS_VERSION, alias="Tus-Resumable"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if upload_length <= 0 or upload_length > TUS_MAX_SIZE:
-        raise HTTPException(413, "Tamaño no permitido")
-    meta = _parse_metadata(upload_metadata)
-    conversation_id = meta.get("conversationId") or meta.get("conversation_id")
-    if not conversation_id:
-        raise HTTPException(400, "Upload-Metadata debe incluir 'conversationId'")
-    assert_conversation_access(db, current_user, conversation_id)
-    import uuid
-    uid = str(uuid.uuid4())
-    _write_meta(uid, {
-        "user_id": current_user.id,
-        "organization_id": _org(current_user),
-        "conversation_id": conversation_id,
-        "name": _safe_filename(meta.get("filename") or meta.get("name")),
-        "mime_type": meta.get("filetype") or meta.get("mime_type") or None,
-        "size": upload_length,
-        "offset": 0,
-        "created_at": utcnow().isoformat(),
-    })
-    open(_data_path(uid), "wb").close()
+    uid = await run_in_threadpool(
+        svc.crear_sesion, db, current_user,
+        upload_length=upload_length, upload_metadata=upload_metadata,
+    )
     base = str(request.base_url).rstrip("/")
     return Response(
         status_code=201,
-        headers={
-            "Location": f"{base}/api/v1/collaboration/tus/{uid}",
-            "Tus-Resumable": TUS_VERSION,
-        },
+        headers=_cabeceras(Location=f"{base}/api/v1/collaboration/tus/{uid}"),
     )
 
 
 @router.head("/tus/{uid}")
-def tus_head(uid: str, current_user: User = Depends(get_current_user)) -> Response:
-    meta = _read_meta(uid)
-    if not meta or meta.get("user_id") != current_user.id:
-        raise HTTPException(404, "Upload no encontrado")
+async def tus_head(uid: str, current_user: User = Depends(get_current_user)) -> Response:
+    meta = await run_in_threadpool(svc.meta_propia, uid, current_user)
     return Response(
         status_code=200,
-        headers={
-            "Tus-Resumable": TUS_VERSION,
+        headers=_cabeceras(**{
             "Upload-Offset": str(meta["offset"]),
             "Upload-Length": str(meta["size"]),
             "Cache-Control": "no-store",
-        },
+        }),
     )
 
 
@@ -177,104 +96,36 @@ async def tus_patch(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if content_type != "application/offset+octet-stream":
+    """Añade un trozo y, si completa la subida, materializa el adjunto.
+
+    El cuerpo es `async` porque hace falta para `await request.body()`; todo lo
+    demás —escritura en disco, escaneo AV/DLP, almacenamiento y base— va al pool
+    de hilos.
+    """
+    if content_type != svc.CONTENT_TYPE_DE_TROZO:
         raise HTTPException(415, "Content-Type inválido")
-    meta = _read_meta(uid)
-    if not meta or meta.get("user_id") != current_user.id:
-        raise HTTPException(404, "Upload no encontrado")
-    if upload_offset != meta["offset"]:
-        raise HTTPException(409, "Offset no coincide")
-    body = await request.body()
-    if meta["offset"] + len(body) > meta["size"]:
-        raise HTTPException(413, "Excede tamaño declarado")
-    # E/S de fichero en un hilo aparte (auditoría 2026-08, P2-15). Estaba dentro
-    # de la corrutina: una subida grande bloqueaba el event loop y con él a TODOS
-    # los usuarios, no sólo a quien subía.
-    def _append() -> None:
-        with open(_data_path(uid), "ab") as f:
-            f.write(body)
 
-    await run_in_threadpool(_append)
-    meta["offset"] += len(body)
-    _write_meta(uid, meta)
+    cuerpo = await request.body()
+    meta = await run_in_threadpool(
+        svc.escribir_trozo, uid, current_user,
+        upload_offset=upload_offset, cuerpo=cuerpo,
+    )
 
-    # Si completo, materializa el adjunto
     if meta["offset"] == meta["size"]:
-        def _read_all() -> bytes:
-            with open(_data_path(uid), "rb") as f:
-                return f.read()
-
-        data = await run_in_threadpool(_read_all)
-        av_status, av_details = scan_with_av(data)
-        dlp_status, dlp_findings = scan_dlp(data.decode("utf-8", errors="ignore")[:200_000])
-        is_quarantined = (av_status == "infected") or (dlp_status == "blocked")
-        key = f"{meta['organization_id']}/{meta['conversation_id']}/{utcnow().strftime('%Y%m%d%H%M%S')}_{_safe_filename(meta['name'])}"
-        stored = storage.save_bytes(key, data)
-        att = CollaborationAttachment(
-            organization_id=meta["organization_id"],
-            conversation_id=meta["conversation_id"],
-            uploaded_by_user_id=current_user.id,
-            name=meta["name"],
-            mime_type=meta.get("mime_type"),
-            size_bytes=stored.size_bytes,
-            storage_provider=stored.storage_provider,
-            storage_key=stored.storage_key,
-            sha256=stored.sha256,
-            av_status=av_status,
-            av_scanned_at=utcnow(),
-            dlp_status=dlp_status,
-            dlp_findings={"items": dlp_findings},
-            is_quarantined=is_quarantined,
-        )
-        db.add(att); db.flush()
-        db.add(CollaborationAttachmentVersion(
-            organization_id=meta["organization_id"], attachment_id=att.id, version=1,
-            storage_key=stored.storage_key, size_bytes=stored.size_bytes,
-            sha256=stored.sha256, uploaded_by_user_id=current_user.id,
-        ))
-        if is_quarantined:
-            db.add(CollaborationModerationCase(
-                organization_id=meta["organization_id"], attachment_id=att.id,
-                reason="av" if av_status == "infected" else "dlp",
-                findings={"av": av_details, "dlp": dlp_findings},
-                verdict="quarantined",
-            ))
-        audit_log.write(
-            db, organization_id=meta["organization_id"],
-            actor_user_id=current_user.id, actor_client_id=None,
-            action="attachment.uploaded.tus", entity_type="attachment", entity_id=att.id,
-            payload={"size": stored.size_bytes, "av": av_status, "dlp": dlp_status},
-        )
-        db.commit()
-
-        # Thumbnail async + cleanup tus tmp
-        if not is_quarantined:
-            from app.services.collaboration._queue import task_queue
-            from app.services.collaboration._thumbnails import generate_for_attachment
-            task_queue.enqueue(generate_for_attachment, att.id)
-        try:
-            os.remove(_data_path(uid))
-            os.remove(_meta_path(uid))
-        except Exception:
-            logger.exception("Error limpiando archivos temporales TUS para upload %s", uid)
+        await run_in_threadpool(svc.materializar, db, current_user, uid, meta)
 
     return Response(
         status_code=204,
-        headers={
-            "Tus-Resumable": TUS_VERSION,
-            "Upload-Offset": str(meta["offset"]),
-        },
+        headers=_cabeceras(**{"Upload-Offset": str(meta["offset"])}),
     )
 
 
 @router.delete("/tus/{uid}")
-def tus_delete(uid: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> Response:
+async def tus_delete(
+    uid: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
     enforce_abac(db, current_user, "collaboration_file", uid, action="delete")
-    meta = _read_meta(uid)
-    if meta and meta.get("user_id") == current_user.id:
-        for p in (_data_path(uid), _meta_path(uid)):
-            try:
-                os.remove(p)
-            except Exception:
-                logger.exception("Error eliminando archivo TUS %s", p)
-    return Response(status_code=204, headers={"Tus-Resumable": TUS_VERSION})
+    await run_in_threadpool(svc.abortar, uid, current_user)
+    return Response(status_code=204, headers=_cabeceras())

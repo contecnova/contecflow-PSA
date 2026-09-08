@@ -356,6 +356,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, clas
 
 import os as _os
 from sqlalchemy import event as _sa_event
+from sqlalchemy import false as _sql_false_expr
 from sqlalchemy.orm import with_loader_criteria as _with_loader_criteria
 
 _TENANT_AUTO_FILTER_GLOBAL = _os.getenv("TENANT_AUTO_FILTER_GLOBAL", "1") == "1"
@@ -398,31 +399,64 @@ if _TENANT_AUTO_FILTER_GLOBAL:
             # Uninitialised session (background job, test) or superadmin: skip.
             return
         org_id = info.get("organization_id")
-        if org_id is None:
-            # Regular user with no org → block any data return.
-            from sqlalchemy import false as _sql_false
-            execute_state.statement = execute_state.statement.options(
-                _with_loader_criteria(
-                    object,  # base — will be skipped by SA when no class matches
-                    lambda cls: _sql_false(),
-                    include_aliases=True,
-                )
-            )
-            return
+        sin_organizacion = org_id is None
+        # Regular user with no org → block any data return.
+        #
+        # Auditoria 2026-08: esta rama NO bloqueaba, reventaba. Pasaba `object`
+        # como objetivo de `with_loader_criteria`, y SA recorre
+        # `object.__subclasses__()` hasta llamar a `type.__subclasses__()` sin
+        # instancia: `TypeError: unbound method type.__subclasses__() needs an
+        # argument`. Es decir, un usuario normal sin organizacion —o un simple
+        # refresco de atributos antes de que la sesion tenga su
+        # `organization_id`— daba un 500 en CUALQUIER consulta ORM en vez de no
+        # devolver filas.
+        #
+        # El bloqueo se hace ahora con el MISMO mecanismo que el filtro normal,
+        # un criterio por modelo, y no tocando `execute_state.statement` con un
+        # `.where(false())`: las opciones de criterio entran en la clave de la
+        # cache de sentencias compiladas de SA y una modificacion directa de la
+        # sentencia no, asi que la SQL con `WHERE false` se reutilizaba despues
+        # para la misma consulta con organizacion valida y devolvia cero filas.
 
         # Attach a loader_criteria for every tenant-scoped model. SA filters out
         # criteria whose target class is not in the statement, so the cost is
         # mostly evaluation at plan time, not execution.
+        #
+        # Auditoria 2026-08 — FUGA ENTRE TENANTS. El criterio se escribia como
+        # `lambda cls, _org=org_id: cls.organization_id == _org`, metiendo la
+        # organizacion en un ARGUMENTO POR DEFECTO. El sistema de lambdas de
+        # SQLAlchemy analiza las **variables de cierre** para convertirlas en
+        # parametros ligados, pero no los argumentos por defecto: esos se
+        # evaluan al crear la lambda y quedan cocidos en la sentencia compilada
+        # que se guarda en la cache del engine, que es de proceso. Resultado
+        # comprobado: la primera organizacion que pasaba por aqui fijaba el
+        # filtro, y la SIGUIENTE organizacion recibia las filas de la primera.
+        #
+        #   sesion 1 (ORG-A) -> ['ORG-A']
+        #   sesion 2 (ORG-B) -> ['ORG-A']   <-- datos de otro tenant
+        #
+        # Con `org_id` como variable de cierre, SA lo extrae como parametro y
+        # cada sesion filtra por la suya. No es un detalle de estilo: es la
+        # diferencia entre que este control aisle o no.
         criteria_options = []
         for model in _iter_tenant_scoped_models():
+            if sin_organizacion:
+                criteria_options.append(
+                    _with_loader_criteria(
+                        model,
+                        lambda cls: _sql_false_expr(),
+                        include_aliases=True,
+                    )
+                )
+                continue
             include_global = getattr(model, "_tenant_filter_include_global", False)
             if include_global:
                 from sqlalchemy import or_ as _or
                 criteria_options.append(
                     _with_loader_criteria(
                         model,
-                        lambda cls, _org=org_id: _or(
-                            cls.organization_id == _org,
+                        lambda cls: _or(
+                            cls.organization_id == org_id,
                             cls.organization_id.is_(None),
                         ),
                         include_aliases=True,
@@ -432,7 +466,7 @@ if _TENANT_AUTO_FILTER_GLOBAL:
                 criteria_options.append(
                     _with_loader_criteria(
                         model,
-                        lambda cls, _org=org_id: cls.organization_id == _org,
+                        lambda cls: cls.organization_id == org_id,
                         include_aliases=True,
                     )
                 )

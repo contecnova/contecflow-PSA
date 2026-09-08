@@ -57,14 +57,6 @@ export function useUpdateTicket(): UseMutationResult<unknown, unknown, UpdateArg
   })
 }
 
-export function useCloseTicket(): UseMutationResult<unknown, unknown, CloseArgs> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: CloseArgs) => ticketsApi.close(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sd-tickets'] }),
-  })
-}
-
 export function useCommentTicket(): UseMutationResult<unknown, unknown, CommentArgs> {
   const qc = useQueryClient()
   return useMutation({
