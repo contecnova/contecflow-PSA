@@ -9,12 +9,14 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from typing import Optional
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.workflow_designer import (
     WorkflowBlueprint,
     WorkflowBlueprintStatus,
     WorkflowBlueprintVersion,
+    WorkflowRun,
 )
 
 
@@ -556,3 +558,143 @@ def builtin_templates() -> list[dict]:
             },
         },
     ]
+
+
+# ── Consultas y guardas, movidas del endpoint ────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 22, tanda 2). Los 14 puntos de acceso a base de
+# `endpoints/service_desk/workflow_designer.py` estaban ahi, y al moverlos
+# aparecio una asimetria dentro del mismo fichero: los endpoints de blueprint
+# usaban `org_scoped_or_404` y los de ejecucion buscaban por id **sin acotar por
+# organizacion**, confiando en el filtro implicito de `TenantSession`.
+#
+# Esa confianza no se sostiene: `organization_id` es nullable en estos modelos
+# —una fila sin organizacion es invisible para el filtro—, el motor se invoca
+# tambien desde caminos de fondo con sesiones sin contexto, y en esta misma
+# auditoria se comprobo que el WebSocket del chat corria sin contexto de tenant
+# durante toda la conexion. La guarda explicita es la que se puede leer y la que
+# no depende de por donde entre la llamada.
+
+def _org_de(user) -> Optional[str]:
+    return getattr(user, "organization_id", None)
+
+
+def list_blueprints(
+    db: Session, user, *, process_type: Optional[str] = None,
+    include_archived: bool = False,
+) -> list[WorkflowBlueprint]:
+    """Los blueprints de la organizacion del usuario, mas recientes primero."""
+    q = db.query(WorkflowBlueprint).filter(
+        WorkflowBlueprint.organization_id == _org_de(user)
+    ).order_by(
+        WorkflowBlueprint.updated_at.desc().nullslast(),
+        WorkflowBlueprint.created_at.desc(),
+    )
+    if process_type:
+        q = q.filter(WorkflowBlueprint.process_type == process_type)
+    if not include_archived:
+        q = q.filter(WorkflowBlueprint.is_active == True)  # noqa: E712
+    return q.all()
+
+
+def blueprint_propio(db: Session, user, blueprint_id: str) -> WorkflowBlueprint:
+    """El blueprint, si es de la organizacion del usuario. 404 si no.
+
+    Un blueprint de otra organizacion y uno inexistente dan **el mismo 404**: la
+    diferencia revelaria que existe.
+    """
+    fila = (
+        db.query(WorkflowBlueprint)
+        .filter(
+            WorkflowBlueprint.id == blueprint_id,
+            WorkflowBlueprint.organization_id == _org_de(user),
+        )
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Blueprint not found")
+    return fila
+
+
+def version_del_blueprint(
+    db: Session, blueprint: WorkflowBlueprint, version: int,
+) -> WorkflowBlueprintVersion:
+    """Una version concreta de ese blueprint.
+
+    No lleva filtro de organizacion y es correcto: se busca por
+    `blueprint_id` de un blueprint que ya se comprobo que es del usuario, asi
+    que el ambito llega por la clave padre.
+    """
+    fila = (
+        db.query(WorkflowBlueprintVersion)
+        .filter(
+            WorkflowBlueprintVersion.blueprint_id == blueprint.id,
+            WorkflowBlueprintVersion.version == version,
+        )
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Version not found")
+    return fila
+
+
+def grafo_de_cabecera(blueprint: WorkflowBlueprint) -> dict:
+    """El grafo de la version publicada, o de la ultima creada si no hay.
+
+    Es lo que se clona. Sin ninguna version no hay nada que clonar y se dice.
+    """
+    cabecera = next((v for v in blueprint.versions if v.is_published), None)
+    if cabecera is None:
+        cabecera = blueprint.versions[0] if blueprint.versions else None
+    if cabecera is None:
+        raise HTTPException(400, "Blueprint sin versiones para clonar")
+    return json.loads(cabecera.graph_json or "{}")
+
+
+def list_runs(
+    db: Session, user, *, blueprint_id: Optional[str] = None,
+    status: Optional[str] = None, limit: int = 50,
+) -> list[WorkflowRun]:
+    """Las ejecuciones de la organizacion del usuario, mas recientes primero."""
+    q = (
+        db.query(WorkflowRun)
+        .filter(WorkflowRun.organization_id == _org_de(user))
+        .order_by(WorkflowRun.started_at.desc())
+    )
+    if blueprint_id:
+        q = q.filter(WorkflowRun.blueprint_id == blueprint_id)
+    if status:
+        q = q.filter(WorkflowRun.status == status)
+    return q.limit(limit).all()
+
+
+def run_propio(db: Session, user, run_id: str) -> WorkflowRun:
+    """La ejecucion, si es de la organizacion del usuario. 404 si no.
+
+    Esta es la guarda que faltaba: `resume` y `cancel` buscaban por id a secas,
+    asi que reanudar o **cancelar** una ejecucion dependia solo del filtro
+    implicito. Cancelar es una escritura, y una escritura no debe apoyarse en
+    una red de seguridad.
+    """
+    fila = (
+        db.query(WorkflowRun)
+        .filter(
+            WorkflowRun.id == run_id,
+            WorkflowRun.organization_id == _org_de(user),
+        )
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Run not found")
+    return fila
+
+
+def exigir_grafo_valido(graph: dict) -> None:
+    """Rechaza un grafo invalido con el detalle de por que.
+
+    El endpoint repetia estas cuatro lineas en dos sitios.
+    """
+    validacion = validate_graph(graph)
+    if not validacion.get("valid"):
+        raise HTTPException(
+            status_code=400, detail={"message": "invalid graph", **validacion})

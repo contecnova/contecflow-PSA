@@ -1,4 +1,15 @@
-"""Service Desk visual workflow designer endpoints."""
+"""Service Desk visual workflow designer endpoints.
+
+Auditoria 2026-08 (hallazgo 22, tanda 2). Los 14 puntos de acceso a base estan
+en `services/service_desk/workflow_designer_service.py`, y al moverlos aparecio
+una **asimetria dentro de este mismo fichero**: los endpoints de blueprint
+usaban `org_scoped_or_404` y los de ejecucion buscaban por id **sin acotar por
+organizacion**, confiando en el filtro implicito de `TenantSession`. Reanudar y
+**cancelar** una ejecucion son escrituras, y una escritura no debe apoyarse en
+una red de seguridad: `organization_id` es nullable en estos modelos y en esta
+misma auditoria se comprobo que hay caminos con sesiones sin contexto de tenant.
+Ahora la guarda es explicita y se lee.
+"""
 from __future__ import annotations
 
 from typing import Optional
@@ -12,22 +23,29 @@ from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
-from app.core.tenancy import org_scoped_or_404
-from app.models.workflow_designer import (
-    WorkflowBlueprint, WorkflowBlueprintVersion,
-    WorkflowRun, WorkflowRunStatus,
-)
+from app.models.workflow_designer import WorkflowRunStatus
 from app.services.service_desk.workflow_designer_service import (
     NODE_CATALOG,
     PROCESS_TYPES,
     add_blueprint_version,
     archive_blueprint,
+    blueprint_propio,
     builtin_templates,
     create_blueprint,
+    exigir_grafo_valido,
+    grafo_de_cabecera,
     publish_version,
+    run_propio,
     serialize_blueprint,
     serialize_version,
     validate_graph,
+    version_del_blueprint,
+)
+from app.services.service_desk.workflow_designer_service import (
+    list_blueprints as svc_list_blueprints,
+)
+from app.services.service_desk.workflow_designer_service import (
+    list_runs as svc_list_runs,
 )
 from app.services.service_desk import workflow_engine as engine
 
@@ -76,15 +94,9 @@ def list_blueprints(
     include_archived: bool = Query(False),
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    q = db.query(WorkflowBlueprint).order_by(
-        WorkflowBlueprint.updated_at.desc().nullslast(),
-        WorkflowBlueprint.created_at.desc(),
-    )
-    if process_type:
-        q = q.filter(WorkflowBlueprint.process_type == process_type)
-    if not include_archived:
-        q = q.filter(WorkflowBlueprint.is_active == True)
-    return APIListResponse.ok(items=[serialize_blueprint(bp) for bp in q.all()])
+    filas = svc_list_blueprints(
+        db, current_user, process_type=process_type, include_archived=include_archived)
+    return APIListResponse.ok(items=[serialize_blueprint(bp) for bp in filas])
 
 
 @router.post("/workflow-designer/blueprints", summary="Crear blueprint de workflow")
@@ -92,9 +104,7 @@ def create_workflow_blueprint(
     payload: BlueprintCreateIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    validation = validate_graph(payload.graph)
-    if not validation.get("valid"):
-        raise HTTPException(status_code=400, detail={"message": "invalid graph", **validation})
+    exigir_grafo_valido(payload.graph)
 
     bp = create_blueprint(
         db,
@@ -115,7 +125,7 @@ def get_blueprint(
     blueprint_id: str,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    bp = org_scoped_or_404(db, WorkflowBlueprint, blueprint_id, current_user, detail="Blueprint not found")
+    bp = blueprint_propio(db, current_user, blueprint_id)
     versions = [serialize_version(v) for v in bp.versions]
     return APIResponse.ok(data={"blueprint": serialize_blueprint(bp), "versions": versions})
 
@@ -126,12 +136,8 @@ def create_blueprint_version(
     payload: BlueprintVersionIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    bp = org_scoped_or_404(db, WorkflowBlueprint, blueprint_id, current_user, detail="Blueprint not found")
-
-    validation = validate_graph(payload.graph)
-    if not validation.get("valid"):
-        raise HTTPException(status_code=400, detail={"message": "invalid graph", **validation})
-
+    bp = blueprint_propio(db, current_user, blueprint_id)
+    exigir_grafo_valido(payload.graph)
     version = add_blueprint_version(db, bp, payload.graph, current_user.id)
     db.commit()
     db.refresh(version)
@@ -144,19 +150,8 @@ def publish_blueprint_version(
     version: int,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    bp = org_scoped_or_404(db, WorkflowBlueprint, blueprint_id, current_user, detail="Blueprint not found")
-
-    target = (
-        db.query(WorkflowBlueprintVersion)
-        .filter(
-            WorkflowBlueprintVersion.blueprint_id == blueprint_id,
-            WorkflowBlueprintVersion.version == version,
-        )
-        .first()
-    )
-    if not target:
-        raise HTTPException(404, "Version not found")
-
+    bp = blueprint_propio(db, current_user, blueprint_id)
+    target = version_del_blueprint(db, bp, version)
     publish_version(db, bp, target)
     db.commit()
     return APIResponse.ok(data={"ok": True, "blueprint_id": blueprint_id, "published_version": version})
@@ -168,13 +163,8 @@ def clone_blueprint(
     payload: BlueprintCloneIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    src = org_scoped_or_404(db, WorkflowBlueprint, blueprint_id, current_user, detail="Blueprint not found")
-    # Toma la versión publicada si la hay, si no la última creada
-    head = next((v for v in src.versions if v.is_published), None) or (src.versions[0] if src.versions else None)
-    if not head:
-        raise HTTPException(400, "Blueprint sin versiones para clonar")
-    import json as _json
-    graph = _json.loads(head.graph_json or "{}")
+    src = blueprint_propio(db, current_user, blueprint_id)
+    graph = grafo_de_cabecera(src)
     bp = create_blueprint(
         db,
         name=payload.name,
@@ -195,7 +185,7 @@ def delete_blueprint(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "sd_workflow_blueprint", blueprint_id, action="delete")
-    bp = org_scoped_or_404(db, WorkflowBlueprint, blueprint_id, current_user, detail="Blueprint not found")
+    bp = blueprint_propio(db, current_user, blueprint_id)
     archive_blueprint(db, bp)
     db.commit()
     return APIResponse.ok(data={"ok": True, "archived": True})
@@ -219,10 +209,14 @@ def start_run(
     payload: RunStartIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
+    # La guarda va ANTES de llamar al motor: el motor busca el blueprint por id
+    # sin comprobar organizacion, asi que hasta ahora lo unico que impedia
+    # ejecutar el blueprint de otro cliente era el filtro implicito.
+    bp = blueprint_propio(db, current_user, blueprint_id)
     try:
         run = engine.start_run(
             db,
-            blueprint_id=blueprint_id,
+            blueprint_id=bp.id,
             target_entity_type=payload.target_entity_type,
             target_entity_id=payload.target_entity_id,
             context=payload.context or {},
@@ -246,12 +240,9 @@ def list_runs(
     limit: int = Query(50, le=200),
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    q = db.query(WorkflowRun).order_by(WorkflowRun.started_at.desc())
-    if blueprint_id:
-        q = q.filter(WorkflowRun.blueprint_id == blueprint_id)
-    if status:
-        q = q.filter(WorkflowRun.status == status)
-    return APIListResponse.ok(items=[engine.serialize_run(r) for r in q.limit(limit).all()])
+    filas = svc_list_runs(
+        db, current_user, blueprint_id=blueprint_id, status=status, limit=limit)
+    return APIListResponse.ok(items=[engine.serialize_run(r) for r in filas])
 
 
 @router.get("/workflow-designer/runs/{run_id}", summary="Detalle de ejecución + historial")
@@ -259,9 +250,7 @@ def get_run(
     run_id: str,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    run = db.query(WorkflowRun).filter(WorkflowRun.id == run_id).first()
-    if not run:
-        raise HTTPException(404, "Run not found")
+    run = run_propio(db, current_user, run_id)
     return APIResponse.ok(data={
         "run": engine.serialize_run(run),
         "steps": [engine.serialize_step(s) for s in run.steps],
@@ -274,9 +263,7 @@ def resume_run(
     payload: RunResumeIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    run = db.query(WorkflowRun).filter(WorkflowRun.id == run_id).first()
-    if not run:
-        raise HTTPException(404, "Run not found")
+    run = run_propio(db, current_user, run_id)
     if run.status != WorkflowRunStatus.waiting:
         raise HTTPException(400, f"run no está en waiting (estado actual: {run.status.value if hasattr(run.status,'value') else run.status})")
     try:
@@ -297,9 +284,7 @@ def cancel_run(
     reason: Optional[str] = Body(None, embed=True),
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    run = db.query(WorkflowRun).filter(WorkflowRun.id == run_id).first()
-    if not run:
-        raise HTTPException(404, "Run not found")
+    run = run_propio(db, current_user, run_id)
     engine.cancel_run(db, run, reason=reason)
     db.commit()
     return APIResponse.ok(data={"ok": True, "run": engine.serialize_run(run)})
