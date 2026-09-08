@@ -62,8 +62,24 @@ def list_cycles(db: Session, *, limit: int = 50, offset: int = 0):
 
 def create_cycle(db: Session, created_by: str, *, seed_default_questions: bool = True,
                  clone_questions_from_cycle_id: str | None = None,
+                 organization_id: str | None = None,
                  **kwargs) -> ReviewCycle:
-    c = ReviewCycle(id=str(_uuid.uuid4()), created_by=created_by, **kwargs)
+    """Crea un ciclo de evaluacion.
+
+    Auditoria 2026-08: `organization_id` no se ponia **en ninguna** de las nueve
+    creaciones de este modulo, y la columna existe y es la que usa la guarda de
+    tenant. Efecto medido: un ciclo creado por el endpoint quedaba con
+    `organization_id = NULL`, y como el filtro de `TenantSession` es
+    `organization_id == org`, una fila NULL no la ve nadie salvo un superadmin.
+    Es decir, **se creaba el ciclo y desaparecia**: `GET /performance/cycles`
+    devolvia cero a su propio creador. El modulo entero de evaluaciones estaba
+    muerto en un despliegue con tenant, y no habia error en ningun log.
+
+    Un ciclo no tiene fila padre de la que heredarla, asi que la trae quien
+    llama. Las preguntas, evaluaciones y campañas la heredan de su ciclo.
+    """
+    c = ReviewCycle(id=str(_uuid.uuid4()), created_by=created_by,
+                    organization_id=organization_id, **kwargs)
     db.add(c)
     db.flush()
     # Si se pide clonar de un ciclo previo, copiamos preguntas (ignorando defaults).
@@ -91,6 +107,7 @@ def seed_default_questions_for_cycle(db: Session, cycle: ReviewCycle) -> None:
     for q in DEFAULT_QUESTIONS:
         db.add(ReviewQuestion(
             id=str(_uuid.uuid4()), cycle_id=cycle.id,
+            organization_id=cycle.organization_id,
             key=q["key"], label=q["label"], hint=q["hint"],
             kind=q["kind"], order=q["order"], required=q["required"],
             scale_min=q["scale_min"], scale_max=q["scale_max"],
@@ -102,6 +119,7 @@ def clone_questions(db: Session, *, source_cycle_id: str, dest_cycle: ReviewCycl
     for q in src:
         db.add(ReviewQuestion(
             id=str(_uuid.uuid4()), cycle_id=dest_cycle.id,
+            organization_id=dest_cycle.organization_id,
             key=q.key, label=q.label, hint=q.hint, kind=q.kind, order=q.order,
             required=q.required, scale_min=q.scale_min, scale_max=q.scale_max,
         ))
@@ -115,7 +133,9 @@ def add_question(db: Session, cycle: ReviewCycle, data: dict) -> ReviewQuestion:
     if data.get("order") is None:
         max_order = max((q.order for q in cycle.questions), default=-1)
         data["order"] = max_order + 1
-    q = ReviewQuestion(id=str(_uuid.uuid4()), cycle_id=cycle.id, **data)
+    q = ReviewQuestion(
+        id=str(_uuid.uuid4()), cycle_id=cycle.id,
+        organization_id=cycle.organization_id, **data)
     db.add(q)
     db.flush()
     return q
@@ -226,6 +246,19 @@ def list_my_pending_reviews(db: Session, reviewer_id: str):
     )
 
 
+def _organizacion_del_ciclo(db: Session, cycle_id: str) -> "str | None":
+    """La organizacion del ciclo al que cuelga una evaluacion.
+
+    Se resuelve por id y no se pide como parametro para no cambiar la firma de
+    `create_review`, que tiene ocho llamantes. Es una consulta de una columna.
+    """
+    return (
+        db.query(ReviewCycle.organization_id)
+        .filter(ReviewCycle.id == cycle_id)
+        .scalar()
+    )
+
+
 def create_review(db: Session, cycle_id: str, reviewee_id: str, reviewer_id: str,
                   review_type: str = "peer", *, validate_eligibility: bool = True) -> PerformanceReview:
     if validate_eligibility:
@@ -246,6 +279,7 @@ def create_review(db: Session, cycle_id: str, reviewee_id: str, reviewer_id: str
     r = PerformanceReview(
         id=str(_uuid.uuid4()),
         cycle_id=cycle_id,
+        organization_id=_organizacion_del_ciclo(db, cycle_id),
         reviewee_id=reviewee_id,
         reviewer_id=reviewer_id,
         review_type=review_type,
@@ -464,6 +498,7 @@ def _evaluaciones_de_la_campana(camp, cycle_id: str, subject_id: str,
         return PerformanceReview(
             id=str(_uuid.uuid4()),
             cycle_id=cycle_id,
+            organization_id=camp.organization_id,
             campaign_id=camp.id,
             reviewee_id=subject_id,
             reviewer_id=reviewer_id,
@@ -503,6 +538,7 @@ def create_campaign(
 
     camp = Review360Campaign(
         id=str(_uuid.uuid4()),
+        organization_id=_cycle.organization_id,
         cycle_id=cycle_id, subject_id=subject_id,
         status=Review360CampaignStatus.active if auto_activate
                else Review360CampaignStatus.draft,
@@ -820,3 +856,101 @@ def can_launch_campaign_for(db: Session, *, current_user: User, subject_id: str)
         subject = db.query(User).filter(User.id == subject_id).first()
         return bool(subject and subject.manager_id == current_user.id)
     return False
+
+
+# ── Guardas por organizacion, movidas del endpoint ───────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 22). Las consultas de `endpoints/performance.py`
+# estaban ahi, y todas buscaban por id **sin acotar por organizacion**: la
+# pregunta de un ciclo, el objetivo de un plan y el usuario evaluado. Lo unico
+# que impedia editar o borrar la pregunta de otro cliente era el filtro
+# implicito de `TenantSession`, y `organization_id` es nullable en todos estos
+# modelos, asi que una fila sin organizacion queda fuera de ese filtro.
+#
+# Evaluaciones de desempeño: los datos son nominativos y sobre personas. Aqui la
+# guarda explicita no es cosmetica.
+
+from fastapi import HTTPException  # noqa: E402
+
+from app.models.performance import DevGoal, DevelopmentPlan  # noqa: E402
+
+
+def _org_de(user) -> "str | None":
+    return getattr(user, "organization_id", None)
+
+
+def pregunta_propia(db: Session, user, question_id: str) -> ReviewQuestion:
+    """La pregunta, si es de la organizacion del usuario. 404 si no."""
+    fila = (
+        db.query(ReviewQuestion)
+        .filter(
+            ReviewQuestion.id == question_id,
+            ReviewQuestion.organization_id == _org_de(user),
+        )
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Pregunta no encontrada")
+    return fila
+
+
+def objetivo_propio(db: Session, user, goal_id: str) -> DevGoal:
+    """El objetivo de desarrollo, si es de la organizacion del usuario."""
+    fila = (
+        db.query(DevGoal)
+        .filter(
+            DevGoal.id == goal_id,
+            DevGoal.organization_id == _org_de(user),
+        )
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Objetivo no encontrado")
+    return fila
+
+
+def plan_propio(db: Session, user, plan_id: str) -> DevelopmentPlan:
+    """El plan de desarrollo, si es de la organizacion del usuario."""
+    fila = (
+        db.query(DevelopmentPlan)
+        .filter(
+            DevelopmentPlan.id == plan_id,
+            DevelopmentPlan.organization_id == _org_de(user),
+        )
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Plan no encontrado")
+    return fila
+
+
+def usuario_propio(db: Session, user, user_id: str) -> User:
+    """El usuario evaluado, si es de la misma organizacion. 404 si no.
+
+    Una evaluacion es nominativa: devolver 404 y no 403 evita confirmar que esa
+    persona existe en otra organizacion.
+    """
+    fila = (
+        db.query(User)
+        .filter(User.id == user_id, User.organization_id == _org_de(user))
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Usuario no encontrado")
+    return fila
+
+
+def usuario_de_la_organizacion(db: Session, user, user_id: str):
+    """El usuario si comparte organizacion, o `None`. Sin lanzar.
+
+    La usan las comprobaciones de visibilidad, que resuelven al jefe del
+    evaluado: sin acotar, la relacion de jefatura de otra organizacion decidia
+    si se puede ver una evaluacion.
+    """
+    if not user_id:
+        return None
+    return (
+        db.query(User)
+        .filter(User.id == user_id, User.organization_id == _org_de(user))
+        .first()
+    )

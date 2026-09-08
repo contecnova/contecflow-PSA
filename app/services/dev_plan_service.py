@@ -61,9 +61,18 @@ def create_plan(db: Session, *, subject_id: str, created_by: str,
                 title: str, summary: str | None = None,
                 campaign_id: str | None = None, cycle_id: str | None = None,
                 target_date=None, next_review_at=None,
+                organization_id: str | None = None,
                 goals: list[dict] | None = None) -> DevelopmentPlan:
+    """Crea un plan de desarrollo con sus objetivos.
+
+    Auditoria 2026-08: ni el plan ni sus objetivos guardaban
+    `organization_id`, y esa es la columna por la que filtra la guarda de
+    tenant. Una fila NULL no la ve nadie salvo un superadmin, asi que el plan
+    se creaba y desaparecia. Los objetivos la heredan del plan.
+    """
     plan = DevelopmentPlan(
         id=str(_uuid.uuid4()),
+        organization_id=organization_id,
         subject_id=subject_id, created_by=created_by,
         title=title, summary=summary,
         campaign_id=campaign_id, cycle_id=cycle_id,
@@ -74,6 +83,7 @@ def create_plan(db: Session, *, subject_id: str, created_by: str,
     for i, g in enumerate(goals or []):
         db.add(DevGoal(
             id=str(_uuid.uuid4()), plan_id=plan.id,
+            organization_id=plan.organization_id,
             title=g["title"], description=g.get("description"),
             due_date=g.get("due_date"), order=g.get("order", i),
         ))
@@ -99,6 +109,7 @@ def add_goal(db: Session, plan: DevelopmentPlan, data: dict) -> DevGoal:
         order = max((g.order for g in plan.goals), default=-1) + 1
     g = DevGoal(
         id=str(_uuid.uuid4()), plan_id=plan.id,
+        organization_id=plan.organization_id,
         title=data["title"], description=data.get("description"),
         due_date=data.get("due_date"), order=order,
     )
