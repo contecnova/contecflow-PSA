@@ -2,7 +2,7 @@ from tests.conftest import auth
 
 
 def test_run_job_async_returns_queued(client, admin_token, monkeypatch):
-    def _fake_run(_db, *, limit=100):
+    def _fake_run(_db, *, limit=100, organization_id=None):
         return {"processed": 0, "auto_resolved": 0, "suggested": 0, "failed": 0, "limit": limit}
 
     monkeypatch.setattr(
@@ -21,11 +21,19 @@ def test_run_job_async_returns_queued(client, admin_token, monkeypatch):
     assert "job_id" in body
 
 
-def test_run_job_sync_uses_limit(client, admin_token, monkeypatch):
-    seen = {"limit": None}
+def test_run_job_sync_uses_limit(client, admin_token, monkeypatch, db):
+    """Y acota el trabajo a la organizacion de quien lo lanza.
 
-    def _fake_run(_db, *, limit=100):
+    Auditoria 2026-08: el endpoint no pasaba `organization_id`, y sin el
+    `run_daily_auto_resolution_job` recorre y **auto-resuelve** los tickets de
+    todas las organizaciones. Se comprueba aqui porque este test ya intercepta
+    el trabajo: mirar con que lo llaman es exactamente la pregunta.
+    """
+    seen = {"limit": None, "organization_id": "no-lo-llamaron"}
+
+    def _fake_run(_db, *, limit=100, organization_id=None):
         seen["limit"] = limit
+        seen["organization_id"] = organization_id
         return {"processed": 3, "auto_resolved": 1, "suggested": 1, "failed": 0}
 
     monkeypatch.setattr(
@@ -42,6 +50,10 @@ def test_run_job_sync_uses_limit(client, admin_token, monkeypatch):
     assert body["status"] == "completed"
     assert body["processed"] == 3
     assert seen["limit"] == 7
+
+    from app.models.user import User
+    org_del_admin = db.query(User.organization_id).filter(User.username == "admin").scalar()
+    assert seen["organization_id"] == org_del_admin
 
 
 def test_auto_resolution_config_get_returns_defaults(client, admin_token):
@@ -91,7 +103,7 @@ def test_auto_resolution_stats_includes_runtime_health(client, admin_token):
 
 
 def test_stats_includes_job_history_after_sync_run(client, admin_token, monkeypatch):
-    def _fake_run(_db, *, limit=100):
+    def _fake_run(_db, *, limit=100, organization_id=None):
         return {"processed": 5, "auto_resolved": 2, "suggested": 1, "failed": 0}
 
     monkeypatch.setattr(

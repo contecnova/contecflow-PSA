@@ -1895,6 +1895,73 @@ solo `commit` al final, y el cambio queda atómico.
 
 ---
 
+#### Tanda 2, en marcha: `service_desk`, y lo que había en la auto-resolución de IA
+
+**El dominio mide 89 puntos, no los 74 de la tabla de arriba**: esa cifra es
+anterior a cambios posteriores y se corrige aquí. Y ya tiene ~30 módulos de
+servicio, así que casi todo es ampliar y no crear.
+
+El primer fichero, `ai_auto_resolution.py` (17 puntos), tenía **cuatro defectos
+de la misma familia: algo que debería ser por cliente y no lo era.**
+
+1. **El trabajo procesaba tickets de TODAS las organizaciones.**
+   `run_daily_auto_resolution_job` acepta `organization_id` y su propio docstring
+   dice que sin él «procesa todos». El endpoint **no lo pasaba**, y en el camino
+   asíncrono la sesión es un `SessionLocal()` recién creado —sin contexto de
+   tenant—, así que el filtro se salta por diseño. Un administrador de un cliente
+   lanzaba la auto-resolución sobre los tickets de **todos los demás**,
+   resolviéndolos y comentándolos. **No es una lectura cruzada: es una escritura
+   cruzada**, y es el defecto más serio de esta tanda.
+2. **La configuración era global.** Clave de `AppSetting` sin organización: los
+   umbrales de confianza, el auto-cierre y el tope del trabajo los cambiaba
+   cualquier administrador **para todos los clientes**. Y el comentario de
+   cabecera del propio servicio ya decía que esa config es «por organización»:
+   la intención estaba escrita y el código no la cumplía.
+3. **El estado y el historial del trabajo eran globales**: un cliente veía el
+   `job_id`, las marcas de tiempo, las estadísticas y los errores de otro.
+4. **El cerrojo era uno para todo el proceso.** `_AUTO_RES_JOB_LOCK = Lock()` a
+   nivel de módulo: con el trabajo de un cliente en marcha, el de otro recibía
+   `already_running`. Sigue siendo un cerrojo en proceso —no coordina entre
+   varios workers de Uvicorn, y eso queda dicho en su docstring—, pero ya no
+   bloquea a los demás clientes.
+
+**El módulo ya tenía la convención buena y sólo para una cosa.** El contador de
+feedback se arregló en su día a `feedback_stats::{org}`, con un comentario que
+explica que antes «stats de orgs distintas se mezclaban y el composite_confidence
+usaba historical rate cross-tenant». La config, el estado y el historial se
+quedaron fuera. Se sigue esa misma convención en vez de inventar otra, con una
+regla por dato: **la config hereda de la clave global** —es el valor por defecto
+del despliegue y una organización que no ha tocado nada debe usarlo—, **el estado
+del trabajo no** —el trabajo de otro no es el suyo—.
+
+> **Y un error mío en el primer intento, que cazó el test:** guardaba con la
+> clave heredada cuando no había organización y leía de `::global`. Guardar en
+> una clave y leer de otra. Ahora la misma función resuelve las dos.
+
+**Un comentario obsoleto que había hecho el filtro peor.** El acotado por
+organización del trabajo era un `outerjoin` a `Project` con esto al lado:
+«FIX: Ticket no tiene organization_id propia; scope vía Project». **Sí la
+tiene** —comprobado en el modelo—, y el filtro que implementaba dejaba pasar los
+tickets **sin proyecto a todas las organizaciones** por su
+`or_(project_id IS NULL, ...)`. Es además la columna que usa la propia guarda de
+tenant de `TenantSession`, así que filtrar por otra vía era incoherente. Ahora es
+`Ticket.organization_id == organization_id`.
+
+> Yo también me fié de ese comentario: dije que `Ticket` no tenía la columna
+> antes de mirarlo. Un comentario no es una comprobación.
+
+Fijado en `tests/test_auto_resolution_por_tenant.py` (7 tests, los siete en rojo
+antes del arreglo). Los dos dobles de `run_daily_auto_resolution_job` que ya
+existían en la suite se actualizaron a la firma nueva, y el del camino sincrono
+**comprueba ahora que llega la organización de quien llama**, que es la pregunta
+que estaba sin hacer.
+
+**Lo que queda de este fichero:** nueve `commit()`/`rollback()` de frontera de
+transacción. Bajarlos significa mover la **orquestación del trabajo** —cerrojo,
+transiciones de estado, tarea de fondo y registro del fallo— a la capa de
+servicio, con la disciplina de rollback que ya lleva documentada. Es un paso
+aparte y se hace con su verificación, no de refilón.
+
 #### Y lo que salió de medirlo: cinco `commit()` que dejaban la sesión abortada
 
 Contar accesos no dice si hay defecto. La pregunta que sí lo dice —«¿hay algún

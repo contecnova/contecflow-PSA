@@ -1,6 +1,25 @@
 """
 Service Desk AI Auto-Resolution endpoints.
 
+Auditoria 2026-08 (hallazgo 22, tanda 2). Los 17 puntos de acceso a base de este
+fichero estan en `services/service_desk/ai_auto_resolution_service.py`, y con
+ellos salieron cuatro cosas de la misma familia —algo que deberia ser por cliente
+y no lo era—:
+
+1. **El trabajo procesaba tickets de TODAS las organizaciones.**
+   `run_daily_auto_resolution_job` acepta `organization_id` y su docstring dice
+   que sin el «procesa todos». El endpoint no lo pasaba, y en el camino asincrono
+   la sesion es un `SessionLocal()` recien creado —sin contexto de tenant—, asi
+   que el filtro se salta por diseño. Un administrador de un cliente lanzaba la
+   auto-resolucion sobre los tickets de todos los demas, resolviendolos y
+   comentandolos: escritura cruzada, no lectura.
+2. **La configuracion era global**: cualquier administrador cambiaba los umbrales
+   de confianza, el auto-cierre y el tope del trabajo para todos los clientes.
+3. **El estado y el historial del trabajo eran globales**: un cliente veia el
+   `job_id`, los tiempos, las estadisticas y los errores de otro.
+4. **El cerrojo era uno para todo el proceso**: con el trabajo de un cliente en
+   marcha, el de otro recibia `already_running`.
+
 Routes:
   POST /sd/tickets/{ticket_id}/ai-analyze
   POST /sd/tickets/{ticket_id}/ai-auto-resolve
@@ -10,14 +29,12 @@ Routes:
   GET  /sd/auto-resolution/stats
   POST /sd/auto-resolution/run-close-job
 """
-import json
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
-from threading import Lock
 from uuid import uuid4
 
 from app.db.session import SessionLocal
@@ -29,93 +46,34 @@ from app.models.user import User
 from app.models.service_desk import Ticket, TicketStatus
 from app.services.service_desk.ai_auto_resolution_service import (
     analyze_ticket_for_resolution,
-    run_daily_auto_resolution_job,
-    validate_auto_resolution,
-    record_resolution_feedback,
-    get_auto_resolution_stats,
+    anotar_en_el_historial,
+    cerrojo_del_trabajo,
+    estado_del_trabajo,
     get_auto_resolution_config,
-    save_auto_resolution_config,
+    get_auto_resolution_stats,
+    guardar_estado_del_trabajo,
+    historial_del_trabajo,
+    record_resolution_feedback,
     run_auto_close_job,
+    run_daily_auto_resolution_job,
+    save_auto_resolution_config,
+    validate_auto_resolution,
 )
 
 router = APIRouter(tags=["Service Desk - AI Auto-Resolution"])
 _logger = logging.getLogger("sd_auto_resolution_endpoint")
 
 
-_AUTO_RES_JOB_LOCK = Lock()
-_AUTO_RES_RUNTIME_KEY = "sd.auto_resolution.job_runtime"
-_AUTO_RES_HISTORY_KEY = "sd.auto_resolution.job_history"
-_MAX_JOB_HISTORY = 20
+def _organizacion_de(user) -> str | None:
+    """La organizacion del sujeto, o `None` para una ejecucion de plataforma.
 
-
-def _set_runtime_state(db: Session, payload: dict) -> None:
-    from app.models.settings import AppSetting
-
-    row = db.query(AppSetting).filter(AppSetting.key == _AUTO_RES_RUNTIME_KEY).first()
-    serialized = json.dumps(payload)
-    if row:
-        row.value = serialized
-    else:
-        db.add(AppSetting(key=_AUTO_RES_RUNTIME_KEY, value=serialized))
-    db.flush()
-
-
-def _get_runtime_state(db: Session) -> dict:
-    from app.models.settings import AppSetting
-
-    row = db.query(AppSetting).filter(AppSetting.key == _AUTO_RES_RUNTIME_KEY).first()
-    if not row or not row.value:
-        return {
-            "running": False,
-            "status": "never_run",
-            "last_job_id": None,
-            "started_at": None,
-            "completed_at": None,
-            "duration_ms": None,
-            "stats": None,
-            "error": None,
-        }
-    try:
-        return json.loads(row.value)
-    except Exception:
-        return {
-            "running": False,
-            "status": "invalid_state",
-            "last_job_id": None,
-            "started_at": None,
-            "completed_at": None,
-            "duration_ms": None,
-            "stats": None,
-            "error": "state_parse_error",
-        }
-
-
-def _get_job_history(db: Session) -> list:
-    from app.models.settings import AppSetting
-
-    row = db.query(AppSetting).filter(AppSetting.key == _AUTO_RES_HISTORY_KEY).first()
-    if not row or not row.value:
-        return []
-    try:
-        return json.loads(row.value)
-    except Exception:
-        return []
-
-
-def _append_job_history(db: Session, record: dict) -> None:
-    """Prepend *record* to the history list and trim to _MAX_JOB_HISTORY entries."""
-    from app.models.settings import AppSetting
-
-    history = _get_job_history(db)
-    history.insert(0, record)
-    history = history[:_MAX_JOB_HISTORY]
-    serialized = json.dumps(history)
-    row = db.query(AppSetting).filter(AppSetting.key == _AUTO_RES_HISTORY_KEY).first()
-    if row:
-        row.value = serialized
-    else:
-        db.add(AppSetting(key=_AUTO_RES_HISTORY_KEY, value=serialized))
-    db.flush()
+    `None` no es un descuido: es la semantica que el servicio documenta para
+    `organization_id` —sin organizacion recorre todo, que es lo que quiere un
+    cron global—. Un superadmin de plataforma no tiene organizacion asignada, y
+    para el esa es la lectura correcta. Lo que estaba mal era que el endpoint no
+    pasara NADA teniendo delante a un administrador de un cliente concreto.
+    """
+    return getattr(user, "organization_id", None)
 
 
 class FeedbackBody(BaseModel):
@@ -267,23 +225,23 @@ def run_auto_resolution_job(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can run this job")
 
+    org = _organizacion_de(current_user)
+    cerrojo = cerrojo_del_trabajo(org)
     safe_limit = max(1, min(int(limit), 500))
 
     if run_async:
-        if not _AUTO_RES_JOB_LOCK.acquire(blocking=False):
+        if not cerrojo.acquire(blocking=False):
             return APIResponse.ok(data={
                 "status": "already_running",
                 "message": "Auto-resolution job is already running",
-                "runtime": _get_runtime_state(db),
+                "runtime": estado_del_trabajo(db, org),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
 
         job_id = str(uuid4())
         started_at = datetime.now(timezone.utc)
 
-        _set_runtime_state(
-            db,
-            {
+        guardar_estado_del_trabajo(db, {
                 "running": True,
                 "status": "running",
                 "last_job_id": job_id,
@@ -293,6 +251,7 @@ def run_auto_resolution_job(
                 "stats": None,
                 "error": None,
             },
+            org,
         )
         db.commit()
 
@@ -300,7 +259,7 @@ def run_auto_resolution_job(
             session = SessionLocal()
             run_started = datetime.now(timezone.utc)
             try:
-                stats = run_daily_auto_resolution_job(session, limit=limit_to_use)
+                stats = run_daily_auto_resolution_job(session, limit=limit_to_use, organization_id=org)
                 run_finished = datetime.now(timezone.utc)
                 duration_ms = int((run_finished - run_started).total_seconds() * 1000)
                 run_record = {
@@ -311,15 +270,14 @@ def run_auto_resolution_job(
                     "stats": stats,
                     "error": None,
                 }
-                _set_runtime_state(
-                    session,
-                    {
+                guardar_estado_del_trabajo(session, {
                         "running": False,
                         "last_job_id": queued_job_id,
                         **run_record,
                     },
+                    org,
                 )
-                _append_job_history(session, run_record)
+                anotar_en_el_historial(session, run_record, org)
                 session.commit()
                 _logger.info(
                     "Auto-resolution background job %s finished: %s",
@@ -338,15 +296,14 @@ def run_auto_resolution_job(
                         "stats": None,
                         "error": str(exc)[:240],
                     }
-                    _set_runtime_state(
-                        session,
-                        {
+                    guardar_estado_del_trabajo(session, {
                             "running": False,
                             "last_job_id": queued_job_id,
                             **fail_record,
                         },
+                        org,
                     )
-                    _append_job_history(session, fail_record)
+                    anotar_en_el_historial(session, fail_record, org)
                     session.commit()
                 except Exception:
                     session.rollback()
@@ -357,7 +314,7 @@ def run_auto_resolution_job(
                 )
             finally:
                 session.close()
-                _AUTO_RES_JOB_LOCK.release()
+                cerrojo.release()
 
         background_tasks.add_task(_run_job_in_background, safe_limit, job_id)
         return APIResponse.ok(data={
@@ -386,19 +343,17 @@ def run_auto_resolution_job(
     #    transaccion abortada: el registro del fallo no se escribia nunca, el
     #    panel se quedaba diciendo «running» para siempre, y el error real
     #    quedaba tapado por un `PendingRollbackError`.
-    if not _AUTO_RES_JOB_LOCK.acquire(blocking=False):
+    if not cerrojo.acquire(blocking=False):
         return APIResponse.ok(data={
             "status": "already_running",
             "message": "Auto-resolution job is already running",
-            "runtime": _get_runtime_state(db),
+            "runtime": estado_del_trabajo(db, org),
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
 
     try:
         sync_started = datetime.now(timezone.utc)
-        _set_runtime_state(
-            db,
-            {
+        guardar_estado_del_trabajo(db, {
                 "running": True,
                 "status": "running",
                 "last_job_id": None,
@@ -408,11 +363,12 @@ def run_auto_resolution_job(
                 "stats": None,
                 "error": None,
             },
+            org,
         )
         db.commit()
 
         try:
-            stats = run_daily_auto_resolution_job(db, limit=safe_limit)
+            stats = run_daily_auto_resolution_job(db, limit=safe_limit, organization_id=org)
             sync_finished = datetime.now(timezone.utc)
             duration_ms = int((sync_finished - sync_started).total_seconds() * 1000)
             sync_record = {
@@ -423,8 +379,8 @@ def run_auto_resolution_job(
                 "stats": stats,
                 "error": None,
             }
-            _set_runtime_state(db, {"running": False, "last_job_id": None, **sync_record})
-            _append_job_history(db, sync_record)
+            guardar_estado_del_trabajo(db, {"running": False, "last_job_id": None, **sync_record}, org)
+            anotar_en_el_historial(db, sync_record, org)
             db.commit()
         except Exception as exc:
             # Deshacer ANTES de intentar escribir el registro de fallo: si el
@@ -443,8 +399,8 @@ def run_auto_resolution_job(
                 "error": str(exc)[:240],
             }
             try:
-                _set_runtime_state(db, {"running": False, "last_job_id": None, **fail_record})
-                _append_job_history(db, fail_record)
+                guardar_estado_del_trabajo(db, {"running": False, "last_job_id": None, **fail_record}, org)
+                anotar_en_el_historial(db, fail_record, org)
                 db.commit()
             except Exception:
                 # Si ni el registro del fallo se puede escribir, se deja la
@@ -462,7 +418,7 @@ def run_auto_resolution_job(
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
     finally:
-        _AUTO_RES_JOB_LOCK.release()
+        cerrojo.release()
 
 
 @router.post(
@@ -546,9 +502,10 @@ def get_auto_resolution_statistics(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
 
+    org = _organizacion_de(current_user)
     payload = get_auto_resolution_stats(db)
-    payload["runtime"] = _get_runtime_state(db)
-    payload["job_history"] = _get_job_history(db)
+    payload["runtime"] = estado_del_trabajo(db, org)
+    payload["job_history"] = historial_del_trabajo(db, org)
     return APIResponse.ok(data=payload)
 
 
@@ -609,7 +566,7 @@ def run_auto_close_job_endpoint(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
 
-    stats = run_auto_close_job(db)
+    stats = run_auto_close_job(db, _organizacion_de(current_user))
     db.commit()
     return APIResponse.ok(data={
         **stats,
