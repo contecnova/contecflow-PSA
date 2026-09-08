@@ -295,6 +295,104 @@ implementar— y no forzado en una tanda.
 
 ---
 
+## 3.quater El hallazgo más grave de todos: **la columna de tenant que nadie rellenaba**
+
+No lo buscaba. Salió al poner una guarda explícita de organización en
+`endpoints/performance.py`, dentro del #22: los tests se pusieron en rojo y la
+causa **no era la guarda**.
+
+El filtro de tenant es `organization_id == org`. Una fila guardada con **NULL en
+esa columna no la ve su propia organización**: sólo un superadmin. Y en el módulo
+de evaluaciones **ninguna de las nueve creaciones la ponía**.
+
+Medido con la sesión real de la aplicación:
+
+```
+performance_service.create_cycle()          -> organization_id = None
+GET /performance/cycles  (usuario normal)   -> 0 ciclos
+GET /performance/cycles  (superadmin)       -> 1 ciclo
+```
+
+**Se creaba el ciclo y desaparecía.** Editar o borrar una pregunta daba 404. Un
+plan de desarrollo y sus objetivos, lo mismo. El módulo entero de evaluaciones
+estaba muerto en un despliegue con tenant, y **no había un solo error en los
+registros**: sólo listas vacías, que es exactamente lo que no se investiga.
+
+#### Y no era un módulo: es sistémico
+
+Barrido por AST de todo `app/`, contando construcciones de modelos que **tienen**
+la columna y no son exentos ni globales:
+
+| | |
+|---|---|
+| Modelos con `organization_id` (ni exentos ni globales) | **376** |
+| Que se construyen **alguna vez** con ella | 170 |
+| Que **nunca** se construyen con ella | **195** |
+| Construcciones sin ella | **611** |
+
+Segundo caso comprobado de punta a punta, y éste se ve desde la primera pantalla:
+
+```
+activity_service.notify()                   -> organization_id = None
+GET /enterprise/notifications               -> 0 notificaciones
+```
+
+**El listado de notificaciones devuelve vacío.** Y con él el historial de
+tickets, los comentarios de ticket, las imputaciones, las ausencias, los
+sprints, las solicitudes de aprobación, los documentos… todo lo que se cree por
+un camino que no sella la columna.
+
+#### El arreglo: sellar en el `flush`, no parchear 611 sitios
+
+Arreglar las 611 construcciones una a una sería perseguir el síntoma, y la
+siguiente que alguien escriba vuelve a fallar. La causa es que **la organización
+del sujeto de la petición no llega a la fila**, y el sitio donde eso se arregla
+de una vez es el `flush`: `_sellar_organizacion` en `app/db/session.py`, un
+escuchador `before_flush`.
+
+Lo que hace y lo que **no** hace, porque los límites son la mitad del arreglo:
+
+* Sella sólo objetos **nuevos** cuya `organization_id` sea `None`. **Un valor ya
+  puesto no se toca nunca** — un superadmin que crea a propósito en otra
+  organización sigue pudiendo.
+* Sólo si la sesión tiene organización en `info`, que es lo que pone
+  `get_current_user`. Un job de fondo o un script no la tiene, así que **su
+  comportamiento no cambia**: siguen creando NULL como hoy.
+* **No toca los modelos exentos** (`_tenant_exempt`) **ni los globales**
+  (`_tenant_filter_include_global`). En `AppSetting` y en los ajustes de
+  proveedor de IA un NULL significa «valor global del despliegue», y sellarlo lo
+  convertiría en un ajuste de un solo cliente: los demás perderían su valor por
+  defecto.
+* Se desactiva con `TENANT_AUTO_STAMP_ON_INSERT=0`, igual que el filtro, para
+  poder aislar un problema sin tocar código.
+
+Verificado en seis casos: la notificación se sella y su usuario la ve; otra
+organización no; un valor explícito se respeta; un `AppSetting` global no se
+sella; un job de fondo no se sella; `Organization` es exenta.
+
+Y para las filas **ya guardadas** del módulo de evaluaciones está
+`alembic/versions/092_performance_backfill_organization.py`, que las hereda de su
+padre —pregunta del ciclo, objetivo del plan— y las de las dos tablas sin padre
+del usuario que las creó. Ejecutada contra una base con filas NULL: `None → ORG`
+en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
+
+> **Lo que queda abierto de esto, y es una decisión, no un olvido:** el
+> escuchador está registrado sobre `SessionLocal`, así que **la suite no lo
+> ejercita** — igual que no ejercita el filtro de tenant (§3.bis). Su
+> verificación son los experimentos de arriba y
+> `tests/test_sellado_de_organizacion.py`, que lo engancha a mano. Registrarlo
+> en la factoría de los tests haría que la suite entera trabajara con la
+> semántica de producción, que es lo correcto a medio plazo, y cambia lo que ven
+> los tests que hoy crean filas sin organización. Es el mismo trabajo pendiente
+> que el del filtro, y ahora hay dos razones para hacerlo.
+>
+> **Y las 611 construcciones siguen sin poner la columna.** El sellado las cubre
+> en el camino de peticion, que es donde importa, pero un job de fondo que cree
+> una fila la seguira dejando en NULL. Bajar esa cifra es trabajo aparte y
+> ahora, con el sellado puesto, ya no es urgente.
+
+---
+
 ## 3.bis Hallazgo grave encontrado al cerrar el #22: **el filtro de tenant dejaba a ciegas a todos los clientes menos al primero**
 
 No lo buscaba. Apareció escribiendo un test que necesitaba el filtro global de

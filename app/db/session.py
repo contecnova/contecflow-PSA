@@ -520,3 +520,76 @@ def is_postgres() -> bool:
 
 def get_db_type() -> str:
     return "postgresql" if not _is_sqlite else "sqlite"
+
+
+# ── Auditoria 2026-08: sellar la organizacion al insertar ─────────────────────
+#
+# El filtro de tenant es `organization_id == org`, asi que una fila guardada con
+# NULL **no la ve su propia organizacion**: solo un superadmin. Y al barrer el
+# codigo por AST resulto que **195 de los 376 modelos con esa columna no se
+# construyen NUNCA con ella**, en 611 sitios. No es un descuido aislado: es que
+# nadie la sella.
+#
+# Comprobado de punta a punta con dos casos:
+#
+#   - `performance_service.create_cycle()` -> ciclo con organization_id NULL,
+#     y `GET /performance/cycles` devolvia CERO a su propio creador.
+#   - `activity_service.notify()` -> notificacion con NULL, y
+#     `GET /enterprise/notifications` devolvia CERO al usuario.
+#
+# En los dos casos sin un solo error en los logs: solo listas vacias, que es
+# exactamente lo que no se investiga.
+#
+# Arreglar 611 construcciones una a una seria perseguir el sintoma. La causa es
+# que la organizacion del sujeto de la peticion no llega a la fila, y el sitio
+# donde eso se arregla de una vez es el flush.
+#
+# Lo que este escuchador hace y lo que NO hace:
+#
+#   · Sella solo objetos NUEVOS cuya `organization_id` sea None. Un valor ya
+#     puesto no se toca nunca — un superadmin que crea a proposito en otra
+#     organizacion sigue pudiendo.
+#   · Solo si la sesion tiene organizacion en `info`, que es lo que pone
+#     `get_current_user`. Un job de fondo o un script no la tiene, asi que su
+#     comportamiento no cambia: siguen creando NULL como hoy.
+#   · NO toca los modelos exentos (`_tenant_exempt`) ni los que declaran
+#     `_tenant_filter_include_global`. En estos ultimos —`AppSetting` y los
+#     ajustes de proveedor de IA— un NULL significa «valor global del
+#     despliegue», y sellarlo lo convertiria en un ajuste de un solo cliente.
+#
+# Se puede desactivar con `TENANT_AUTO_STAMP_ON_INSERT=0`, igual que el filtro,
+# para poder aislar un problema sin tocar codigo.
+
+_TENANT_AUTO_STAMP = _os.getenv("TENANT_AUTO_STAMP_ON_INSERT", "1") == "1"
+
+
+def _sellar_organizacion(session) -> None:
+    """Pone la organizacion de la sesion en las filas nuevas que no la traigan."""
+    info = getattr(session, "info", {}) or {}
+    org_id = info.get("organization_id")
+    if org_id is None:
+        return
+    for obj in session.new:
+        cls = type(obj)
+        if getattr(cls, "_tenant_exempt", False):
+            continue
+        if getattr(cls, "_tenant_filter_include_global", False):
+            continue
+        if not hasattr(cls, "organization_id"):
+            continue
+        try:
+            if getattr(obj, "organization_id", None) is None:
+                obj.organization_id = org_id
+        except Exception:
+            # Un modelo con `organization_id` como propiedad de solo lectura no
+            # debe romper el flush entero.
+            logging.getLogger(__name__).debug(
+                "no se pudo sellar la organizacion en %s", cls.__name__,
+                exc_info=True)
+
+
+if _TENANT_AUTO_STAMP:
+
+    @_sa_event.listens_for(SessionLocal, "before_flush")
+    def _sellar_organizacion_al_insertar(session, flush_context, instances) -> None:
+        _sellar_organizacion(session)
