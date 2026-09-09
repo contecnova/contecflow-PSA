@@ -255,7 +255,23 @@ def _context_options_payload(
 ) -> dict:
     qn = (q or "").strip().lower()
 
-    service_q = db.query(ServiceItem).filter(ServiceItem.is_active.is_(True))
+    # La organizacion del sujeto, sea un usuario interno o del portal. Las tres
+    # consultas de abajo se acotan con ella de forma EXPLICITA.
+    #
+    # Auditoria 2026-08: no lo estaban, y dependian del filtro implicito de
+    # `TenantSession`. Este selector es alcanzable desde el portal, y
+    # `get_current_client` no publicaba el contexto de tenant en la sesion, asi
+    # que en ese camino no habia filtro de ninguna clase: un usuario del portal
+    # recibia los clientes y los elementos de configuracion de TODAS las
+    # organizaciones. El contexto ya se publica (ver `client_portal.py`), y este
+    # filtro es lo que hace que no dependa de ello.
+    sujeto = portal_client if portal_client is not None else current_user
+    org_id = getattr(sujeto, "organization_id", None)
+
+    service_q = db.query(ServiceItem).filter(
+        ServiceItem.is_active.is_(True),
+        ServiceItem.organization_id == org_id,
+    )
     if portal_client is not None:
         service_q = service_q.filter(ServiceItem.is_visible_to_clients.is_(True))
     if service_item_id:
@@ -265,16 +281,24 @@ def _context_options_payload(
     clients = []
     if portal_client is not None:
         if portal_client.client_org_id:
-            c = db.query(Client).filter(Client.id == portal_client.client_org_id).first()
+            c = (
+                db.query(Client)
+                .filter(
+                    Client.id == portal_client.client_org_id,
+                    Client.organization_id == org_id,
+                )
+                .first()
+            )
             if c:
                 clients = [c]
     else:
-        client_q = db.query(Client)
+        client_q = db.query(Client).filter(Client.organization_id == org_id)
         if client_id:
             client_q = client_q.filter(Client.id == client_id)
         clients = client_q.order_by(Client.name.asc()).limit(max(5, limit)).all()
 
-    ci_q = db.query(ConfigurationItem)
+    ci_q = db.query(ConfigurationItem).filter(
+        ConfigurationItem.organization_id == org_id)
     if portal_client is not None:
         project_ids = portal_client.get_project_ids()
         if project_ids:

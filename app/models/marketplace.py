@@ -70,6 +70,21 @@ class IntegrationConnector(Base):
     """
     __tablename__ = "integration_connectors"
 
+    # Auditoria 2026-08. Catalogo GLOBAL con personalizacion por organizacion:
+    # las filas con `organization_id = NULL` son los valores que trae el
+    # producto y se siembran perezosamente desde una peticion; las que llevan
+    # organizacion son las que ese cliente ha añadido.
+    #
+    # Sin esta bandera pasaban dos cosas, las dos comprobadas: el filtro de
+    # tenant es `organization_id == org`, asi que una fila global **no la veia
+    # nadie** —el catalogo aparecia vacio—; y con el sellado de la organizacion
+    # en el `flush`, el sembrado perezoso desde la peticion de un cliente
+    # marcaba el catalogo entero como suyo y los demas veian cero.
+    #
+    # Con ella, el filtro lee `org == X OR org IS NULL` y el sellado la deja en
+    # paz. Misma semantica que `AppSetting`.
+    _tenant_filter_include_global = True
+
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(100), unique=True, nullable=False)   # "Salesforce CRM"

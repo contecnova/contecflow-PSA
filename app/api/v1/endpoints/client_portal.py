@@ -82,6 +82,23 @@ def get_current_client(
     client = _svc.get_active_client_by_id(db, client_id)
     if not client:
         raise credentials_exception
+
+    # Contexto de tenant en la sesion, igual que hace `get_current_user`.
+    #
+    # Auditoria 2026-08. Esto no estaba, y `TenantSession` se salta el filtro
+    # cuando `info` no trae `is_superadmin` («sesion no inicializada: job de
+    # fondo o test»). Con **41 dependencias** de endpoints del portal colgando
+    # de aqui, eso significaba que toda consulta del portal sin filtro explicito
+    # devolvia filas de todos los clientes. Comprobado con la sesion real: sin
+    # contexto un `db.query(Client)` devolvia los de DOS organizaciones; con el,
+    # solo los de la suya.
+    #
+    # Va DESPUES de resolver al cliente, y no antes: `get_active_client_by_id`
+    # busca por id sin saber todavia de que organizacion es, asi que esa
+    # consulta tiene que correr sin filtrar.
+    db.info["organization_id"] = getattr(client, "organization_id", None)
+    db.info["is_superadmin"] = False
+    db.info["current_client"] = client
     return client
 
 

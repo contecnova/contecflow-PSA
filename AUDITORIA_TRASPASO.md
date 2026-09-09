@@ -393,6 +393,79 @@ en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
 
 ---
 
+## 3.quinquies El portal de cliente corría con el aislamiento por organización **apagado**
+
+Salió al mover a servicio las tres consultas del selector de contexto de
+`dynamic_forms.py`, que es alcanzable desde el portal. Al preguntarme «¿y aquí
+qué organización filtra?», la respuesta fue: ninguna.
+
+`get_current_client` autentica al usuario del portal por su token, devuelve su
+fila y **nunca poblaba `db.info`**. Y las tres capas de aislamiento de
+`TenantSession` —`query()`, `execute()` y el escuchador `do_orm_execute`— salen
+por la puerta de atrás cuando `info` no trae `is_superadmin`. Esa rama existe
+para los trabajos de fondo y los tests («sesión no inicializada»), no para una
+petición autenticada de un cliente externo.
+
+**41 dependencias de endpoints** cuelgan de `get_current_client`. Medido con la
+sesión real de la aplicación, no razonado:
+
+```
+portal SIN contexto  ->  db.query(Client)  devuelve  ['ORG-A', 'ORG-B']
+portal CON contexto  ->                    devuelve  ['ORG-A']
+```
+
+Es el mismo defecto que el WebSocket del chat, que también fabricaba su sesión a
+mano y la dejaba sin contexto, pero mucho mayor por el número de endpoints que
+cuelgan de aquí. **Y es el contrario del apagón de §3.bis:** allí el filtro
+existía y dejaba a ciegas a todos los clientes menos al primero; aquí no había
+filtro de ninguna clase.
+
+El arreglo va en un solo sitio y **después** de resolver al cliente:
+`get_active_client_by_id` busca por id sin saber todavía de qué organización es,
+así que esa consulta tiene que correr sin filtrar. La misma ordenación que hizo
+falta en el WebSocket:
+
+```python
+db.info["organization_id"] = getattr(client, "organization_id", None)
+db.info["is_superadmin"] = False
+db.info["current_client"] = client
+return client
+```
+
+`tests/test_portal_contexto_de_tenant.py` engancha el filtro de producción a la
+sesión de pruebas a mano —la suite usa otra factoría, así que no se dispara en
+ningún test— y comprueba tres cosas: que el escenario de antes era real, que con
+contexto sólo se ve una organización, y que la dependencia entera publica el
+contexto. Ese último es el que impide que vuelvan a quitarse las tres líneas.
+
+**Además, el filtro explícito.** Las tres consultas del selector (`ServiceItem`,
+`Client`, `ConfigurationItem`) ahora acotan por la organización del sujeto, sea
+un usuario interno o del portal. Depender sólo del filtro implícito es lo que
+hizo que este defecto no se viera: un fallo en una capa lo dejaba todo abierto.
+
+### Cuatro catálogos globales que mi propio sellado habría privatizado
+
+El sellado en el `before_flush` de §3.quater rellena `organization_id` en toda
+fila nueva que no lo traiga. Antes de darlo por bueno fui a buscar qué filas se
+crean **a propósito** sin organización, y aparecieron cuatro:
+`IntegrationConnector`, `CustomProjectType`, `CustomProjectStatus` y
+`CustomTaskStatus`. Son catálogos que trae el producto, sembrados de forma
+perezosa desde un camino de petición (`if count() == 0: sembrar()`), así que la
+primera organización que abriera la pantalla los habría sellado como suyos y
+**habrían desaparecido para todas las demás**.
+
+Los cuatro declaran ahora `_tenant_filter_include_global = True`, que ya existía
+para esto: el filtro pasa a ser `org == X OR org IS NULL`. Comprobado con las
+dos organizaciones: el catálogo sembrado desde ORG-A se queda en `{None}`, las
+dos ven los 22 conectores, y ORG-A ve 23 cuando añade el suyo mientras ORG-B
+sigue viendo 22.
+
+**La lección, que es la que importa para el resto del sellado:** un arreglo de
+raíz sobre 611 sitios de creación necesita saber cuáles de esos sitios *quieren*
+la columna vacía. Sin esa comprobación, el arreglo del aislamiento habría roto
+el catálogo del producto — y el modo de fallo habría sido «a un cliente le
+faltan tipos de proyecto», que nadie relaciona con un `before_flush`.
+
 ## 3.bis Hallazgo grave encontrado al cerrar el #22: **el filtro de tenant dejaba a ciegas a todos los clientes menos al primero**
 
 No lo buscaba. Apareció escribiendo un test que necesitaba el filtro global de
@@ -2541,10 +2614,35 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    puntos a 0 en ocho ficheros, con diez defectos destapados por el camino
    (§#22) y, al verificarlo, un **apagón de datos para toda organización que no
    fuera la primera del proceso** en el filtro de aislamiento (§3.bis).
-   Estado medido: **204 puntos en 35 ficheros**. Siguiente por tamaño:
-   `service_desk` (**89**, remedido; la tabla decía 74),
-   `collaboration_portal` (25), `performance` (15),
-   `jira_integration` (14), `user_costs` (12), `baselines` (11), `branding` (9).
+   **Estado remedido hoy: 95 puntos en 32 ficheros** (204 al cerrar la tanda 1).
+   De esos 95, **45 son consultas o escrituras** y **50 son fronteras de
+   transaccion** (`commit`/`rollback`), que no son acceso a datos y se tratan
+   aparte. Cerradas las tandas de `collaboration` (127 -> 0), `performance`,
+   `jira_integration`, `user_costs`, `baselines`, `branding`,
+   `workflow_designer`, `governance_ops` y `smart_catalog`.
+
+   Lo que queda, por tamano:
+
+   ```
+   service_desk/dynamic_forms.py         9   (5 son commit)
+   service_desk/ai_auto_resolution.py    9   orquestacion del trabajo, ver abajo
+   service_desk/workflow_designer.py     8   (todos commit)
+   service_desk/assets.py                7
+   templates.py                          5
+   service_desk/connectors_marketplace.py 5
+   performance.py                        5   (todos commit)
+   client_portal.py                      5
+   service_desk/tickets.py               4   dos `db.query(Ticket)` sin acotar
+   service_desk/cmdb.py                  4
+   esign.py                              4
+   ...y 21 ficheros mas con 3 o menos
+   ```
+
+   **Dos defectos ya localizados y no arreglados** en lo que queda:
+   `service_desk/tickets.py` tiene dos `db.query(Ticket)` sin filtro de
+   organizacion, y `service_desk/predictive.py` carga **todos** los tickets
+   abiertos sin tope ni acotar. La orquestacion del trabajo de auto-resolucion
+   (cerrojo, estado, tarea de fondo, registro del fallo) sigue en el endpoint.
 3. **Registrar el escuchador `do_orm_execute` en la factoría de sesiones de los
    tests.** Hoy no se ejecuta en ninguna prueba (§3.bis), que es por lo que el
    apagón vivió sin que nadie lo viera. No se hizo de paso porque activarlo
