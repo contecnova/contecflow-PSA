@@ -1,23 +1,30 @@
-# Auditoría 2026-08 (hallazgo 22). Este módulo estaba en
-# `app/api/v1/endpoints/v239/`, un directorio nombrado por número de versión. El
-# fichero ya se llamaba por su dominio; lo que agrupaba por versión era la
-# carpeta. Las rutas no han cambiado: el prefijo lo pone el registro en
-# `routers/`, no la ruta del fichero.
+"""Líneas base del Gantt: congelar el cronograma y comparar contra él.
+
+Auditoría 2026-08 (hallazgo 22). Este módulo estaba en
+`app/api/v1/endpoints/v239/`, un directorio nombrado por número de versión. El
+fichero ya se llamaba por su dominio; lo que agrupaba por versión era la
+carpeta. Las rutas no han cambiado: el prefijo lo pone el registro en
+`routers/`, no la ruta del fichero.
+
+Y sus nueve consultas y escrituras están ahora en
+`app/services/baselines_service.py`. Al bajarlas apareció que los cuatro
+endpoints anclan en `project_id` y **ninguno comprobaba de quién es el
+proyecto**: todo lo demás cuelga de ahí, así que el proyecto era el único punto
+donde la tenencia se podía verificar y era el que faltaba.
+"""
 from __future__ import annotations
 
-import json
-from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db, require_any_manager
-from app.core.responses import APIResponse, APIListResponse
-from app.models.user import User
 from app.core.abac_enforce import enforce_abac
-from app.core import timeutil
+from app.core.deps import get_current_user, get_db, require_any_manager
+from app.core.responses import APIListResponse, APIResponse
+from app.models.user import User
+from app.services import baselines_service as svc
 
 router = APIRouter()
 
@@ -34,31 +41,21 @@ def list_baselines(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.marketplace import GanttBaseline
-    from app.models.project import Project
-
-    if not db.query(Project).filter(Project.id == project_id).first():
-        raise HTTPException(404, "Project not found")
-    baselines = (
-        db.query(GanttBaseline)
-        .filter(GanttBaseline.project_id == project_id)
-        .order_by(GanttBaseline.baseline_date.desc())
-        .all()
-    )
+    filas = svc.list_baselines(db, current_user, project_id)
     return APIListResponse.ok(items=[
         {
             "id": b.id,
             "name": b.name,
             "description": b.description,
             "baseline_date": str(b.baseline_date),
-            "is_initial": b.is_initial,
             "total_tasks": b.total_tasks,
             "completed_tasks": b.completed_tasks,
             "total_hours": b.total_hours,
             "budget_at_freeze": b.budget_at_freeze,
-            "created_at": str(b.created_at),
+            "is_initial": b.is_initial,
+            "created_at": str(b.created_at) if b.created_at else None,
         }
-        for b in baselines
+        for b in filas
     ])
 
 
@@ -69,58 +66,11 @@ def create_baseline(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.marketplace import GanttBaseline
-    from app.models.project import Project
-    from app.models.task import Task
-
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(404, "Project not found")
-
-    tasks = db.query(Task).filter(Task.project_id == project_id).all()
-    snapshot = {
-        "frozen_at": str(timeutil.today()),
-        "tasks": [
-            {
-                "task_id": t.id,
-                "title": t.title,
-                "start": str(t.start_date) if hasattr(t, "start_date") and t.start_date else None,
-                "end": str(t.due_date) if t.due_date else None,
-                "progress": t.progress if hasattr(t, "progress") else 0,
-                "status": str(t.status.value) if hasattr(t.status, "value") else str(t.status),
-                "estimated_hours": t.estimated_hours if hasattr(t, "estimated_hours") else None,
-                "assignee_id": t.assignee_id if hasattr(t, "assignee_id") else None,
-            }
-            for t in tasks
-        ],
-    }
-    total_h = sum(
-        (t.estimated_hours or 0)
-        for t in tasks
-        if hasattr(t, "estimated_hours") and t.estimated_hours
-    )
-    done = sum(
-        1
-        for t in tasks
-        if str(getattr(t.status, "value", t.status)) in ("done", "closed", "completed")
-    )
-
-    baseline = GanttBaseline(
-        project_id=project_id,
-        name=payload.name,
-        description=payload.description,
-        baseline_date=timeutil.today(),
-        schedule_snapshot=json.dumps(snapshot),
-        total_tasks=len(tasks),
-        completed_tasks=done,
-        total_hours=total_h,
-        budget_at_freeze=proj.budget if hasattr(proj, "budget") else None,
+    baseline = svc.crear_linea_base(
+        db, current_user, project_id,
+        name=payload.name, description=payload.description,
         is_initial=payload.is_initial,
-        created_by=current_user.id,
     )
-    db.add(baseline)
-    db.commit()
-    db.refresh(baseline)
     return APIResponse.ok(data={
         "id": baseline.id,
         "name": baseline.name,
@@ -138,67 +88,8 @@ def compare_baseline(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.marketplace import GanttBaseline
-    from app.models.task import Task
-
-    baseline = (
-        db.query(GanttBaseline)
-        .filter(GanttBaseline.id == baseline_id, GanttBaseline.project_id == project_id)
-        .first()
-    )
-    if not baseline:
-        raise HTTPException(404, "Baseline not found")
-
-    frozen = json.loads(baseline.schedule_snapshot)
-    frozen_tasks = {t["task_id"]: t for t in frozen.get("tasks", [])}
-
-    current_tasks = db.query(Task).filter(Task.project_id == project_id).all()
-    deltas = []
-    for t in current_tasks:
-        ft = frozen_tasks.get(t.id)
-        if not ft:
-            deltas.append({"task_id": t.id, "title": t.title, "delta": "new_task"})
-            continue
-        current_end = str(t.due_date) if t.due_date else None
-        frozen_end = ft.get("end")
-        slip_days: Optional[int] = None
-        if current_end and frozen_end:
-            try:
-                slip_days = (date.fromisoformat(current_end) - date.fromisoformat(frozen_end)).days
-            except ValueError:
-                pass
-        deltas.append(
-            {
-                "task_id": t.id,
-                "title": t.title,
-                "baseline_end": frozen_end,
-                "current_end": current_end,
-                "slip_days": slip_days,
-                "baseline_status": ft.get("status"),
-                "current_status": str(t.status.value) if hasattr(t.status, "value") else str(t.status),
-                "baseline_hours": ft.get("estimated_hours"),
-                "current_hours": t.estimated_hours if hasattr(t, "estimated_hours") else None,
-            }
-        )
-
-    removed = [{"task_id": tid, "delta": "removed"} for tid in frozen_tasks if tid not in {t.id for t in current_tasks}]
-
-    slipped = sum(1 for d in deltas if (d.get("slip_days") or 0) > 0)
-    avg_slip = sum(d.get("slip_days") or 0 for d in deltas) / max(len(deltas), 1)
-
-    return APIResponse.ok(data={
-        "baseline_id": baseline_id,
-        "baseline_name": baseline.name,
-        "baseline_date": str(baseline.baseline_date),
-        "summary": {
-            "tasks_compared": len(deltas),
-            "tasks_slipped": slipped,
-            "avg_slip_days": round(avg_slip, 1),
-            "tasks_removed": len(removed),
-            "tasks_added": sum(1 for d in deltas if d.get("delta") == "new_task"),
-        },
-        "task_deltas": deltas + removed,
-    })
+    return APIResponse.ok(
+        data=svc.comparar_con_linea_base(db, current_user, project_id, baseline_id))
 
 
 @router.delete("/projects/{project_id}/baselines/{baseline_id}", summary="Delete baseline", status_code=204)
@@ -208,16 +99,6 @@ def delete_baseline(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.marketplace import GanttBaseline
-
     enforce_abac(db, current_user, "gantt_baseline", baseline_id, action="delete")
-    b = (
-        db.query(GanttBaseline)
-        .filter(GanttBaseline.id == baseline_id, GanttBaseline.project_id == project_id)
-        .first()
-    )
-    if not b:
-        raise HTTPException(404, "Baseline not found")
-    db.delete(b)
-    db.commit()
+    svc.borrar_linea_base(db, current_user, project_id, baseline_id)
     return None
