@@ -408,3 +408,199 @@ def run_incremental_sync(db: Session, config_id: str) -> dict:
 
     db.commit()
     return stats
+
+
+# ── Consultas y guardas, movidas del endpoint ────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 22). Las consultas de
+# `endpoints/jira_integration.py` estaban ahi, y al moverlas aparecio la misma
+# asimetria de siempre dentro del propio fichero: `patch`, `delete`, `test` y
+# `sync-log` usaban `org_scoped_or_404`, y en cambio:
+#
+#   · `push_ticket` buscaba el ticket **y la configuracion de Jira** por id a
+#     secas. Una `JiraConfig` lleva las credenciales de un cliente: usar la de
+#     otro es empujar tickets con sus credenciales.
+#   · `run_manual_sync` pasaba el `config_id` a una tarea de fondo sin
+#     comprobar nada, asi que un administrador podia disparar la sincronizacion
+#     de la configuracion de otro cliente.
+#   · el listado y su `count()` no acotaban: dependian del filtro implicito, y
+#     el `count()` sin acotar habria dado un total de otras organizaciones si el
+#     filtro no actuara.
+
+from fastapi import HTTPException  # noqa: E402
+
+from app.models.jira_integration import JiraConfig as _JiraConfig  # noqa: E402
+from app.models.jira_integration import JiraSyncLog as _JiraSyncLog  # noqa: E402
+from app.models.service_desk import Ticket as _Ticket  # noqa: E402
+
+
+def _org_de(user) -> "str | None":
+    return getattr(user, "organization_id", None)
+
+
+def listar_configuraciones(db: Session, user, *, page: int, page_size: int):
+    """Las configuraciones de Jira de la organizacion, y su total.
+
+    El total se cuenta con el MISMO filtro que la pagina: un total sin acotar
+    diria «hay 12» y devolveria 3.
+    """
+    q = db.query(_JiraConfig).filter(
+        _JiraConfig.organization_id == _org_de(user)
+    )
+    total = q.count()
+    filas = (
+        q.order_by(_JiraConfig.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return filas, total
+
+
+def configuracion_propia(db: Session, user, config_id: str) -> _JiraConfig:
+    """La configuracion, si es de la organizacion del usuario. 404 si no."""
+    fila = (
+        db.query(_JiraConfig)
+        .filter(
+            _JiraConfig.id == config_id,
+            _JiraConfig.organization_id == _org_de(user),
+        )
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Jira config not found")
+    return fila
+
+
+def configuracion_activa_propia(db: Session, user, config_id: str) -> _JiraConfig:
+    """La configuracion activa de la organizacion. 404 si no existe o esta parada.
+
+    Se usa antes de empujar un ticket: la configuracion lleva credenciales, y
+    empujar con las de otro cliente es lo que esta guarda impide.
+    """
+    fila = (
+        db.query(_JiraConfig)
+        .filter(
+            _JiraConfig.id == config_id,
+            _JiraConfig.organization_id == _org_de(user),
+            _JiraConfig.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Active Jira config not found")
+    return fila
+
+
+def ticket_propio(db: Session, user, ticket_id: str) -> _Ticket:
+    """El ticket, si es de la organizacion del usuario. 404 si no."""
+    fila = (
+        db.query(_Ticket)
+        .filter(
+            _Ticket.id == ticket_id,
+            _Ticket.organization_id == _org_de(user),
+        )
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Ticket not found")
+    return fila
+
+
+def registro_de_sincronizacion(db: Session, config: _JiraConfig, *,
+                               page: int, page_size: int):
+    """El log de una configuracion ya comprobada, y su total.
+
+    No lleva filtro de organizacion y es correcto: se busca por `config_id` de
+    una configuracion que ya se verifico que es del usuario, asi que el ambito
+    llega por la clave padre.
+    """
+    q = (
+        db.query(_JiraSyncLog)
+        .filter(_JiraSyncLog.config_id == config.id)
+        .order_by(_JiraSyncLog.occurred_at.desc())
+    )
+    total = q.count()
+    filas = q.offset((page - 1) * page_size).limit(page_size).all()
+    return filas, total
+
+
+def crear_configuracion(db: Session, user, datos: dict) -> _JiraConfig:
+    """Guarda una configuracion de Jira nueva para la organizacion del usuario."""
+    fila = _JiraConfig(
+        created_by_user_id=user.id,
+        organization_id=_org_de(user),
+        **datos,
+    )
+    db.add(fila)
+    db.commit()
+    db.refresh(fila)
+    return fila
+
+
+def borrar_configuracion(db: Session, user, config_id: str) -> None:
+    fila = configuracion_propia(db, user, config_id)
+    db.delete(fila)
+    db.commit()
+
+
+def aplicar_cambios_de_configuracion(db: Session, config: _JiraConfig, cambios: dict) -> _JiraConfig:
+    """Aplica el parche a una configuracion ya comprobada.
+
+    Tres campos no se asignan por nombre: el token va a la columna cifrada y los
+    dos mapas se serializan. El resto es asignacion directa.
+    """
+    import json as _json
+
+    for clave, valor in cambios.items():
+        if clave == "jira_api_token":
+            config.jira_api_token_enc = valor
+        elif clave == "status_map":
+            config.status_map_json = _json.dumps(valor)
+        elif clave == "priority_map":
+            config.priority_map_json = _json.dumps(valor)
+        else:
+            setattr(config, clave, valor)
+    db.commit()
+    db.refresh(config)
+    return config
+
+
+def procesar_webhook(db: Session, issue: dict, issue_key: str) -> dict:
+    """Aplica un webhook de Jira a los tickets enlazados con esa incidencia.
+
+    No lleva filtro de organizacion, y es correcto: un webhook llega sin sujeto.
+    El ambito lo da el propio enlace —cada `JiraSyncMap` trae su configuracion, y
+    de ella su organizacion— asi que una incidencia solo puede tocar los tickets
+    que alguien enlazo con ella.
+    """
+    from app.models.jira_integration import JiraSyncDirection, JiraSyncMap
+
+    enlaces = (
+        db.query(JiraSyncMap)
+        .filter(JiraSyncMap.jira_issue_key == issue_key)
+        .all()
+    )
+    if not enlaces:
+        return {"ok": True, "skipped": "no mapping found"}
+
+    for enlace in enlaces:
+        config = (
+            db.query(_JiraConfig)
+            .filter(
+                _JiraConfig.id == enlace.config_id,
+                _JiraConfig.is_active == True,  # noqa: E712
+            )
+            .first()
+        )
+        if not config:
+            continue
+        if config.sync_direction not in (
+            JiraSyncDirection.bidirectional,
+            JiraSyncDirection.jira_to_contecflow,
+        ):
+            continue
+        apply_jira_update_to_ticket(db, config, enlace, issue.get("fields", {}))
+
+    db.commit()
+    return {"ok": True, "processed": len(enlaces)}
