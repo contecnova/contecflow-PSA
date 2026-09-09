@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.services.scim_service import (
+    registrar_borrado_en_auditoria,
     ensure_org as _ensure_org,
     to_scim_user as _to_scim_user,
     to_scim_group as _to_scim_group,
@@ -192,19 +193,7 @@ def delete_scim_user(
     _ensure_org(db, org_id)
     deleted = _delete_scim_user_record(db, user_id, org_id)
     try:
-        import json
-        from app.models.enterprise import AuditLog
-        db.add(AuditLog(
-            user_id=None,  # SCIM token, sin user humano
-            action="DELETE",
-            resource="users",
-            resource_id=user_id,
-            metadata_=json.dumps({
-                "source": "scim",
-                "org_id": org_id,
-                "applied": bool(deleted),
-            }),
-        ))
+        registrar_borrado_en_auditoria(db, user_id, org_id, bool(deleted))
         db.commit()
     except Exception:  # pragma: no cover — audit best-effort
         # Deshacer antes de salir: sin esto la sesion se queda en transaccion

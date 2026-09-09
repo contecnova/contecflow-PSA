@@ -17,6 +17,9 @@ from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.responses import APIListResponse, APIResponse
 from app.core.security import decode_token
+from app.services.ws_service import (
+    get_active_user_by_id as _usuario_activo,
+)
 from app.db.session import get_db
 from app.db.session import SessionLocal, publicar_contexto_de_tenant
 from app.models.user import User
@@ -430,7 +433,7 @@ async def dashboard_updates_ws(websocket: WebSocket, dashboard_key: str, token: 
     from app.core.async_db import run_db
     db = SessionLocal()
     try:
-        user = await run_db(lambda: db.query(User).filter(User.id == user_id).first())
+        user = await run_db(_usuario_activo, db, user_id)
         if not user:
             await websocket.close(code=4004, reason='Usuario no encontrado')
             return

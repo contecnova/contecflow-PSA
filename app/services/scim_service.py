@@ -16,6 +16,34 @@ from app.models.mfa import Organization
 from app.models.user import User, UserRole, UserStatus
 
 
+def registrar_borrado_en_auditoria(
+    db, user_id: str, org_id: str, aplicado: bool, ip=None
+) -> None:
+    """Deja rastro del borrado de un usuario via SCIM. No confirma.
+
+    Auditoria 2026-08 (hallazgo 22): la construccion del `AuditLog` estaba en el
+    endpoint. `user_id` va a `None` a proposito: quien borra es un token de
+    servicio SCIM, no una persona.
+    """
+    import json as _json
+
+    from app.models.enterprise import AuditLog
+
+    db.add(AuditLog(
+        user_id=None,
+        action="DELETE",
+        resource="users",
+        resource_id=user_id,
+        metadata_=_json.dumps({
+            "source": "scim",
+            "org_id": org_id,
+            "applied": bool(aplicado),
+        }),
+        ip_address=ip,
+        organization_id=org_id,
+    ))
+
+
 def scim_token_expected() -> str:
     return settings.SCIM_BEARER_TOKEN
 

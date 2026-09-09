@@ -429,6 +429,24 @@ def _semantic_score(tickets: list[Ticket]) -> float:
         return 0.0
 
 
+def tickets_por_id(db, ticket_ids):
+    """Los tickets de una lista de ids, indexados por id.
+
+    Auditoria 2026-08 (hallazgo 22): estaba en el endpoint. La consulta no anade
+    filtro de organizacion y eso es correcto: los ids salen de los clusteres que
+    devuelve este mismo servicio, asi que el ambito llega por la procedencia de
+    los ids.
+    """
+    from app.models.service_desk import Ticket
+
+    if not ticket_ids:
+        return {}
+    return {
+        t.id: t for t in
+        db.query(Ticket).filter(Ticket.id.in_(list(ticket_ids))).all()
+    }
+
+
 def _enrich_cluster_score(cluster: AlertCluster, tickets_by_id: dict[str, Ticket]) -> AlertCluster:
     """Re-score a cluster by blending structural score with semantic similarity."""
     members = [tickets_by_id[tid] for tid in cluster.ticket_ids if tid in tickets_by_id]

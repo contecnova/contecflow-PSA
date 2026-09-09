@@ -74,10 +74,7 @@ def mfa_setup(
         qr_img.save(buf, format="PNG")
         qr_b64 = base64.b64encode(buf.getvalue()).decode()
         qr_url = f"data:image/png;base64,{qr_b64}"
-        enc_secret = encrypt_value(secret)
-        current_user.mfa_secret = enc_secret
-        current_user.mfa_enabled = False
-        db.add(current_user)
+        _svc.guardar_secreto_de_mfa(db, current_user, encrypt_value(secret))
         _svc.commit_db(db)
         return {
             "secret":           secret,

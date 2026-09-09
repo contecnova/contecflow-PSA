@@ -54,7 +54,6 @@ def list_alert_clusters(
         cluster_open_alerts,
         _enrich_cluster_score,
     )
-    from app.models.service_desk import Ticket
 
     org = organization_id or getattr(current_user, "organization_id", None)
     clusters = cluster_open_alerts(
@@ -66,9 +65,13 @@ def list_alert_clusters(
 
     # Semantic enrichment
     if clusters:
-        all_ids = [tid for c in clusters for tid in c.ticket_ids]
-        tickets_map = {t.id: t for t in db.query(Ticket).filter(Ticket.id.in_(all_ids)).all()}
-        from app.services.service_desk.alert_correlation_service import _enrich_cluster_score
+        from app.services.service_desk.alert_correlation_service import (
+            _enrich_cluster_score,
+            tickets_por_id,
+        )
+
+        tickets_map = tickets_por_id(
+            db, [tid for c in clusters for tid in c.ticket_ids])
         clusters = [_enrich_cluster_score(c, tickets_map) for c in clusters]
 
     return APIResponse.ok(data={

@@ -20,6 +20,9 @@ from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.responses import APIListResponse, APIResponse
 from app.core.security import create_access_token, decode_token
+from app.services.ws_service import (
+    get_active_user_by_id as _usuario_activo,
+)
 from app.db.session import get_db, SessionLocal, publicar_contexto_de_tenant
 from app.models.user import User
 from app.services import bi_intelligence_service as svc
@@ -457,7 +460,7 @@ async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Qu
     db = SessionLocal()
     org_id: Optional[str] = None
     try:
-        user = await run_db(lambda: db.query(User).filter(User.id == user_id).first())
+        user = await run_db(_usuario_activo, db, user_id)
         if user:
             org_id = getattr(user, "organization_id", None)
             # Auditoria 2026-08 (hallazgo 22): esta sesion es un
@@ -502,7 +505,7 @@ async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Qu
     db = SessionLocal()
     try:
         while True:
-            user = await run_db(lambda: db.query(User).filter(User.id == user_id).first())
+            user = await run_db(_usuario_activo, db, user_id)
             if not user:
                 await websocket.send_text(json.dumps({"type": "error", "detail": "user_not_found"}))
                 break

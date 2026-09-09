@@ -23,6 +23,23 @@ if TYPE_CHECKING:
     pass
 
 
+def tareas_del_backlog(db: Session, project_id: str) -> list:
+    """Las tareas en backlog de un proyecto, por prioridad y antiguedad.
+
+    Auditoria 2026-08 (hallazgo 22): la consulta estaba en el endpoint. No
+    lleva filtro de organizacion y es correcto: se busca por `project_id` de un
+    proyecto que el endpoint ya verifico con `get_project_scoped_or_404`, asi
+    que el ambito llega por la clave padre.
+    """
+    return (
+        db.query(Task)
+        .filter(Task.project_id == project_id,
+                Task.status == TaskStatus.backlog)
+        .order_by(Task.priority.desc(), Task.created_at.asc())
+        .all()
+    )
+
+
 def task_query_for_user(db: Session, current_user):
     """Return a Task query scoped to the current user's organization.
 

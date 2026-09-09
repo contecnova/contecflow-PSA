@@ -393,6 +393,86 @@ en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
 
 ---
 
+## 3.terdecies El hallazgo 22, cerrado: 257 → 0
+
+`scripts/audit_db_access_in_api.py` da **cero puntos de acceso a datos en toda
+`app/api/`**. Con la misma regla, sobre el histórico:
+
+```
+antes de la tanda 1 (collaboration)   257 puntos de acceso en 41 ficheros
+al empezar la última jornada           46 en 23
+a media jornada                        13 en 12
+ahora                                   0 en 0
+```
+
+Quedan **109 fronteras de transacción** —`commit`, `rollback`, `close` y
+`refresh`— y quedan **a propósito**: el servicio prepara y el endpoint confirma.
+`refresh` es releer la fila que el servicio acaba de devolver para recoger lo
+que pone la base, y va pegado a un `commit`; moverlo obligaría a que el servicio
+confirme, que es lo contrario de lo que estas tandas hicieron.
+
+### Y el guardián, que es la mitad del cierre
+
+`tests/test_capa_api_sin_acceso_a_base.py`, tolerancia cero. **Importa el propio
+script de medición** en vez de reimplementar la regla: dos implementaciones de
+la misma pregunta es exactamente cómo aparecieron las dos puertas del
+marketplace. Y tiene dos tests más que evitan que pase por vacío: uno comprueba
+que el detector sigue viendo ficheros, y otro que las fronteras de transacción
+**siguen** en el endpoint —si caen a cero, alguien movió las transacciones a los
+servicios, y eso es un cambio de arquitectura que merece su propia
+conversación—.
+
+### De los trece últimos, uno traía defecto
+
+`PATCH /automation-workflows/{wf_id}/steps/{step_id}/retries` buscaba el paso
+así:
+
+```python
+db.query(WorkflowStep).filter(
+    WorkflowStep.id == step_id,
+    WorkflowStep.workflow_id == wf_id,
+).first()
+```
+
+Los dos identificadores vienen de la ruta y **no había ninguna comprobación de
+a quién pertenece el workflow**. En producción el filtro implícito de
+`TenantSession` lo evitaba —`WorkflowStep` tiene `organization_id`— pero era la
+única capa, y esto **escribe**: cambia la política de reintentos del paso de
+otro cliente. Es el mismo perfil que el `/batch-score` del CAB, y la misma
+conclusión: la guarda hace falta aunque hoy haya una capa que lo tape.
+
+Los otros doce eran movimientos sin defecto, y eso también hay que decirlo tal
+cual: el filtro ya estaba y era el correcto en los doce.
+
+### Tres detalles que se fijan con test porque se pierden al mover código
+
+**El `["__none__"]` del asignador semántico no es decorativo.** Una organización
+sin usuarios activos tiene que dar **cero candidatos**; una lista vacía
+significaría «sin restricción», que es justo lo contrario. Al mover la función
+es exactamente la clase de detalle que se simplifica sin querer.
+
+**El condicional de `bi_etl` *parece* el defectuoso y no lo es.** Cuatro veces
+en esta auditoría apareció `if org_id: q = q.filter(...)`, que sin organización
+devuelve las filas de todos. El de `bi_etl` tiene rama `else` que filtra por
+`IS NULL` —el valor global del despliegue—, así que **los dos caminos acotan**.
+Queda con test para que nadie lo «arregle» rompiéndolo.
+
+**Y el `fail-open` de la política de MFA.** Si el `organization_id` de un usuario
+no resuelve a ninguna fila, no se exige segundo factor. Es lo correcto —bloquear
+el acceso por una fila que falta convertiría un dato inconsistente en una caída
+de login— pero es una decisión, no una consecuencia, así que está escrita y
+tiene test.
+
+### Y una función que ahora tiene nombre: `organizacion_existe`
+
+La comprobación anti-enumeración de `predictive_observability` vive en
+`app/core/tenancy.py`, junto a `assert_org_id_is_own`, porque es la misma
+familia: **lo que se puede y no se puede saber sobre una organización ajena**.
+Y no filtra por organización a propósito: quien la usa comprueba *antes* que el
+id recibido es el propio, y separar las dos preguntas es lo que permite devolver
+404 en los dos casos —«no existe» y «no es tuya» tienen que ser
+indistinguibles—.
+
 ## 3.duodecies El mismo detector sobre las columnas: diez funciones más que no funcionaban
 
 El frente que §3.undecies dejó **medido y abierto**, cerrado. `Ticket.category`,
@@ -3395,35 +3475,27 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    puntos a 0 en ocho ficheros, con diez defectos destapados por el camino
    (§#22) y, al verificarlo, un **apagón de datos para toda organización que no
    fuera la primera del proceso** en el filtro de aislamiento (§3.bis).
-   **Estado medido con `scripts/audit_db_access_in_api.py`: 14 puntos de acceso
-   en 13 ficheros**, mas 111 fronteras de transaccion, que no son acceso a datos
+   **CERRADO: 0 puntos de acceso en 0 ficheros**, medido con
+   `scripts/audit_db_access_in_api.py`, mas 111 fronteras de transaccion, que no son acceso a datos
    y se tratan aparte. Con la misma regla, medido sobre el historico:
    **257 en 41 ficheros** antes de la tanda 1, **46 en 23** al empezar hoy.
 
    Las cifras viejas de este documento —204, 95, 91, 82— salian de un `grep` que
    contaba tambien las menciones en comentarios, no contaba `db.execute` ni
    `db.get`, y no miraba `app/api/v1/routers/`. **No son comparables** con
-   estas; el porque esta en 3.octies. Cerradas las tandas de `collaboration` (127 -> 0), `performance`,
+   estas; el porque esta en 3.octies. Cerrado **todo**: `collaboration` (127 -> 0), `tickets`, `performance`,
    `jira_integration`, `user_costs`, `baselines`, `branding`,
-   `workflow_designer`, `governance_ops` y `smart_catalog`.
+   `workflow_designer`, `governance_ops`, `smart_catalog`,
+   `connectors_marketplace`, `cmdb`, `templates`, `assets`, `esign`,
+   `client_portal`, `dynamic_forms`, `predictive`, `change_impact`, `scim`,
+   `auth_core`, `auth_mfa`, `alert_correlation`, `semantic_engine`,
+   `predictive_observability`, `bpmn_processes`, `bi_etl`, `bi_collaboration`,
+   `bi_intelligence`, `billing_reports`, `invoices` y `backlog`.
 
-   Lo que queda, con el contador nuevo (`--detalle` da la linea exacta):
-
-   ```
-    2 acceso    2 tx   app/api/v1/endpoints/bi_intelligence.py
-    1 acceso    2 tx   app/api/v1/endpoints/scim.py
-    1 acceso    1 tx   app/api/v1/routers/auth_core.py
-    1 acceso    1 tx   app/api/v1/endpoints/invoices.py
-    1 acceso    1 tx   app/api/v1/endpoints/billing_reports.py
-    1 acceso    1 tx   app/api/v1/endpoints/bi_collaboration.py
-    1 acceso    0 tx   app/api/v1/routers/auth_mfa.py
-    1 acceso    0 tx   app/api/v1/endpoints/service_desk/alert_correlation.py
-    1 acceso    0 tx   app/api/v1/endpoints/semantic_engine.py
-    1 acceso    0 tx   app/api/v1/endpoints/predictive_observability.py
-    1 acceso    0 tx   app/api/v1/endpoints/bpmn_processes.py
-    1 acceso    0 tx   app/api/v1/endpoints/bi_etl.py
-    1 acceso    0 tx   app/api/v1/endpoints/backlog.py
-   ```
+   **No queda nada.** El detector da cero, y hay un guardian de tolerancia cero
+   en `tests/test_capa_api_sin_acceso_a_base.py` que importa el propio script de
+   medicion en vez de reimplementar la regla. El detalle del cierre esta en
+   3.terdecies.
 
    Cerrados a 0: `collaboration` (8 ficheros), `tickets`,
    `connectors_marketplace`, `cmdb`, `templates`, `assets`, `esign`,

@@ -18,6 +18,32 @@ from sqlalchemy import func
 VALID_ENGINE_MODES = {"semantic", "llm", "hybrid", "rules_only"}
 
 
+def ids_de_usuarios_del_ambito(db, current_user):
+    """Los ids de usuario a los que el asignador semantico puede asignar.
+
+    `None` significa «sin restriccion» y lo usa el asignador para mirar a todos:
+    es lo que corresponde a un superadmin y a un sujeto sin organizacion.
+
+    Auditoria 2026-08 (hallazgo 22): la consulta estaba en el endpoint. El
+    `["__none__"]` del final tampoco es decorativo: una organizacion sin usuarios
+    activos tiene que dar **cero candidatos**, y una lista vacia significaria
+    «sin restriccion», que es justo lo contrario.
+    """
+    from app.models.user import User
+
+    if bool(getattr(current_user, "is_superadmin", False)):
+        return None
+    org_id = getattr(current_user, "organization_id", None)
+    if not org_id:
+        return None
+    return [
+        u.id for u in db.query(User.id).filter(
+            User.is_active == True,  # noqa: E712
+            User.organization_id == org_id,
+        ).all()
+    ] or ["__none__"]
+
+
 def resolve_embeddings_backend_and_model(cfg) -> tuple[str, str]:
     """Return normalized embeddings backend and model name for UI/runtime visibility."""
     model = (getattr(cfg, "local_model_name", "") or "").strip()

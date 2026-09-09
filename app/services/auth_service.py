@@ -65,6 +65,39 @@ _password_reset_jti_fallback: dict[str, tuple[str, float]] = {}
 
 # ── SOC helper ────────────────────────────────────────────────────────────────
 
+def organizacion_exige_mfa(db, user) -> bool:
+    """Devuelve si la organizacion de este usuario obliga a segundo factor.
+
+    Auditoria 2026-08 (hallazgo 22): la consulta estaba en
+    `routers/auth_core.py`. `Organization` es el unico modelo sin columna de
+    tenant y `TenantSession` no lo filtra, asi que se busca por el id que trae
+    el propio usuario — nunca por uno que venga del cliente.
+    """
+    from app.models.mfa import Organization
+
+    org_id = getattr(user, "organization_id", None)
+    if not org_id:
+        return False
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    return bool(org and getattr(org, "require_mfa", False))
+
+
+def guardar_secreto_de_mfa(db, user, secreto_cifrado: str) -> None:
+    """Guarda el secreto TOTP del usuario y deja el MFA sin activar. No confirma.
+
+    Auditoria 2026-08 (hallazgo 22): esto estaba en `routers/auth_mfa.py`. El
+    `db.add()` sobre una fila que ya esta en la sesion no hace falta —SQLAlchemy
+    la sigue por identidad— pero se conserva: cambiar el comportamiento de un
+    camino de autenticacion en una tanda de reordenacion no toca.
+
+    `mfa_enabled` se queda en `False` a proposito: el secreto existe pero el
+    segundo factor no cuenta hasta que el usuario verifica un codigo.
+    """
+    user.mfa_secret = secreto_cifrado
+    user.mfa_enabled = False
+    db.add(user)
+
+
 def soc_svc(db, user) -> "SecurityEventService | None":
     """Return a SecurityEventService if the user has an org; else None."""
     try:

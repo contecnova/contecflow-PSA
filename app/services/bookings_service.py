@@ -46,6 +46,41 @@ SUPPORTED_CURRENCIES = ["EUR", "USD", "GBP", "PLN", "CHF", "SEK", "DKK", "NOK", 
 ALLOWED_TERRAFORM_COMMANDS = {"plan", "apply", "destroy"}
 
 
+def paso_de_workflow_propio(db, current_user, wf_id: str, step_id: str):
+    """El paso de un workflow, si el workflow es de la organizacion. 404 si no.
+
+    Auditoria 2026-08 (hallazgo 22). El endpoint que configura los reintentos de
+    un paso lo buscaba asi:
+
+        db.query(WorkflowStep).filter(
+            WorkflowStep.id == step_id,
+            WorkflowStep.workflow_id == wf_id,
+        ).first()
+
+    Los dos ids vienen de la ruta y **no habia ninguna comprobacion de a quien
+    pertenece el workflow**. En produccion el filtro implicito de `TenantSession`
+    lo evitaba —`WorkflowStep` tiene `organization_id`—, pero era la unica capa y
+    esto **escribe**: cambia la politica de reintentos del paso de otro cliente.
+    """
+    from fastapi import HTTPException
+
+    from app.models.billing_reports import WorkflowStep
+
+    consulta = db.query(WorkflowStep).filter(
+        WorkflowStep.id == step_id,
+        WorkflowStep.workflow_id == wf_id,
+    )
+    if not getattr(current_user, "is_superadmin", False):
+        consulta = consulta.filter(
+            WorkflowStep.organization_id
+            == getattr(current_user, "organization_id", None))
+
+    paso = consulta.first()
+    if not paso:
+        raise HTTPException(404, "Workflow step not found")
+    return paso
+
+
 def _coerce_retry_policy(config: dict) -> dict:
     retry = config.get("retry") or {}
     max_retries = int(retry.get("max_retries", config.get("max_retries", 0)) or 0)
