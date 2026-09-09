@@ -404,3 +404,136 @@ def enrich_catalog_with_stats(
             svc["avg_csat_recent"] = stats.get("avg_csat")
 
     return catalog
+
+
+# ── Configuración de aprovisionamiento y su rastro, movidos del endpoint ─────
+#
+# Auditoria 2026-08 (hallazgo 22). Estaban en
+# `endpoints/service_desk/smart_catalog.py`. Las dos consultas de configuracion
+# ya estaban bien acotadas por organizacion; lo que faltaba es que las filas que
+# el aprovisionamiento **crea** —el comentario del ticket y las entradas de
+# historial— no llevaban `organization_id`.
+#
+# Con el sellado de `app/db/session.py` la recibirian en una peticion, pero aqui
+# se pone explicita: la fila cuelga de un ticket que ya se comprobo, asi que la
+# organizacion se sabe sin depender de la sesion, y el aprovisionamiento tambien
+# se dispara desde caminos de fondo.
+
+import json as _json_prov  # noqa: E402
+import uuid as _uuid_prov  # noqa: E402
+
+from sqlalchemy.orm import Session as _SesionProv  # noqa: E402
+
+from app.models.settings import AppSetting as _AjusteProv  # noqa: E402
+
+#: Prefijo de la clave de configuracion por servicio del catalogo.
+PREFIJO_CLAVE_APROVISIONAMIENTO = "sd.catalog.provisioning."
+
+#: Cuanto se guarda del resultado de un paso en el historial. El resultado de un
+#: proveedor externo puede traer una respuesta larga y esto es un campo de
+#: auditoria, no un almacen de respuestas.
+MAX_CARACTERES_DEL_RESULTADO = 1000
+
+
+def _clave_de_aprovisionamiento(service_item_id: str) -> str:
+    return f"{PREFIJO_CLAVE_APROVISIONAMIENTO}{service_item_id}"
+
+
+def _fila_de_configuracion(db: _SesionProv, service_item_id: str, org_id):
+    return (
+        db.query(_AjusteProv)
+        .filter(
+            _AjusteProv.key == _clave_de_aprovisionamiento(service_item_id),
+            _AjusteProv.organization_id == org_id,
+        )
+        .first()
+    )
+
+
+def configuracion_de_aprovisionamiento(
+    db: _SesionProv, service_item_id: str, org_id,
+) -> dict:
+    """La configuracion de aprovisionamiento de ese servicio, o vacia.
+
+    Una configuracion ilegible devuelve `{}`, que desactiva el
+    aprovisionamiento: es preferible no aprovisionar a aprovisionar a medias con
+    un JSON roto.
+    """
+    fila = _fila_de_configuracion(db, service_item_id, org_id)
+    if not fila or not fila.value:
+        return {}
+    try:
+        return _json_prov.loads(fila.value)
+    except (ValueError, TypeError):
+        return {}
+
+
+def guardar_configuracion_de_aprovisionamiento(
+    db: _SesionProv, service_item_id: str, org_id, config: dict,
+) -> None:
+    fila = _fila_de_configuracion(db, service_item_id, org_id)
+    valor = _json_prov.dumps(config, ensure_ascii=False)
+    if fila:
+        fila.value = valor
+    else:
+        db.add(_AjusteProv(
+            key=_clave_de_aprovisionamiento(service_item_id),
+            organization_id=org_id,
+            value=valor,
+            description=f"Provisioning config for service {service_item_id}",
+        ))
+    db.commit()
+
+
+def anotar_comentario_de_aprovisionamiento(
+    db: _SesionProv, ticket, autor, cuerpo: str, *, nombre_del_bot: str,
+) -> None:
+    """El comentario que el aprovisionamiento deja en el ticket."""
+    from app.models.service_desk import TicketComment
+
+    db.add(TicketComment(
+        id=str(_uuid_prov.uuid4()),
+        organization_id=ticket.organization_id,
+        ticket_id=ticket.id,
+        body=cuerpo,
+        is_public=True,
+        is_solution=False,
+        author_user_id=autor.id,
+        author_name=nombre_del_bot,
+    ))
+
+
+def anotar_en_el_historial_del_ticket(
+    db: _SesionProv, ticket, autor, *, campo: str,
+    valor_anterior=None, valor_nuevo=None,
+) -> None:
+    """Una entrada de historial del ticket, con su organizacion.
+
+    La organizacion sale del ticket, que el endpoint ya comprobo: asi la fila
+    queda acotada aunque esto se llame desde un camino sin sesion de peticion.
+    """
+    from app.models.service_desk import TicketHistory
+
+    db.add(TicketHistory(
+        id=str(_uuid_prov.uuid4()),
+        organization_id=ticket.organization_id,
+        ticket_id=ticket.id,
+        field_name=campo,
+        old_value=valor_anterior,
+        new_value=valor_nuevo,
+        changed_by_user_id=autor.id,
+    ))
+
+
+def resumen_de_paso(tipo: str, resultado: dict) -> str:
+    """Lo que se guarda en el historial de un paso de proveedor externo."""
+    return _json_prov.dumps(
+        {
+            "type": tipo,
+            "ok": bool(resultado.get("ok", False)),
+            "provider": resultado.get("provider"),
+            "status_code": resultado.get("status_code"),
+            "exit_code": resultado.get("exit_code"),
+        },
+        ensure_ascii=False,
+    )[:MAX_CARACTERES_DEL_RESULTADO]

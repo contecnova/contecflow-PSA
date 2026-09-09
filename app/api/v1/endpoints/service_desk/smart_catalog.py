@@ -12,8 +12,8 @@ from app.core.deps import get_current_user, require_admin
 from app.core.responses import APIResponse, APIListResponse
 from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
-from app.models.settings import AppSetting
 from app.models.user import User
+from app.services.service_desk import smart_catalog_service as svc
 from app.services.service_desk.smart_catalog_service import (
     auto_prefill_request_form,
     get_popular_services,
@@ -21,46 +21,12 @@ from app.services.service_desk.smart_catalog_service import (
     suggest_service_for_query,
 )
 
-import json
 
 router = APIRouter(prefix="/catalog/smart", tags=["Smart Service Catalog"])
 
-
-# ── AppSetting helpers ────────────────────────────────────────────────────────
-
-_PROVISIONING_KEY_PREFIX = "sd.catalog.provisioning."
-
-
-def _get_provisioning_config(db: Session, service_item_id: str, org_id: Optional[str]) -> dict:
-    key = f"{_PROVISIONING_KEY_PREFIX}{service_item_id}"
-    row = (
-        db.query(AppSetting)
-        .filter(AppSetting.key == key, AppSetting.organization_id == org_id)
-        .first()
-    )
-    if not row or not row.value:
-        return {}
-    try:
-        return json.loads(row.value)
-    except Exception:
-        return {}
-
-
-def _set_provisioning_config(db: Session, service_item_id: str, org_id: Optional[str], config: dict) -> None:
-    key = f"{_PROVISIONING_KEY_PREFIX}{service_item_id}"
-    row = (
-        db.query(AppSetting)
-        .filter(AppSetting.key == key, AppSetting.organization_id == org_id)
-        .first()
-    )
-    payload = json.dumps(config, ensure_ascii=False)
-    if not row:
-        row = AppSetting(key=key, organization_id=org_id, value=payload,
-                         description=f"Provisioning config for service {service_item_id}")
-        db.add(row)
-    else:
-        row.value = payload
-    db.commit()
+#: Con qué nombre firma el aprovisionamiento sus comentarios en el ticket.
+#: Estaba en duro en medio del bucle de pasos.
+NOMBRE_DEL_BOT_DE_APROVISIONAMIENTO = "Provisioning Bot"
 
 
 # ── Pydantic schemas ───────────────────────────────────────────────────────────
@@ -183,7 +149,7 @@ def get_provisioning(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    config = _get_provisioning_config(db, service_item_id, org_id)
+    config = svc.configuracion_de_aprovisionamiento(db, service_item_id, org_id)
     return APIResponse.ok(data={"service_item_id": service_item_id, "config": config})
 
 
@@ -195,7 +161,7 @@ def put_provisioning(
     current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    _set_provisioning_config(db, service_item_id, org_id, payload.model_dump())
+    svc.guardar_configuracion_de_aprovisionamiento(db, service_item_id, org_id, payload.model_dump())
     return APIResponse.ok(data={"service_item_id": service_item_id, "status": "saved"})
 
 
@@ -211,16 +177,15 @@ def trigger_provisioning(
     Supports real external provisioning providers (AD/identity, Terraform,
     Ansible) plus local ticket mutations.
     """
-    import uuid as _uuid
     from datetime import datetime, timezone
 
     org_id = getattr(current_user, "organization_id", None)
-    config = _get_provisioning_config(db, service_item_id, org_id)
+    config = svc.configuracion_de_aprovisionamiento(db, service_item_id, org_id)
 
     if not config.get("enabled"):
         return APIResponse.ok(data={"status": "skipped", "reason": "Provisioning not enabled for this service"})
 
-    from app.models.service_desk import Ticket, TicketHistory
+    from app.models.service_desk import Ticket
 
     ticket = org_scoped_or_404(db, Ticket, payload.ticket_id, current_user, detail="Ticket not found")
 
@@ -231,29 +196,16 @@ def trigger_provisioning(
         step_content = step.get("content", "")
         try:
             if step_type == "comment":
-                from app.models.service_desk import TicketComment
-                comment = TicketComment(
-                    id=str(_uuid.uuid4()),
-                    ticket_id=ticket.id,
-                    body=step_content,
-                    is_public=True,
-                    is_solution=False,
-                    author_user_id=current_user.id,
-                    author_name="Provisioning Bot",
-                )
-                db.add(comment)
+                svc.anotar_comentario_de_aprovisionamiento(
+                    db, ticket, current_user, step_content,
+                    nombre_del_bot=NOMBRE_DEL_BOT_DE_APROVISIONAMIENTO)
                 steps_done.append({"type": step_type, "status": "ok"})
             elif step_type == "status_change":
-                old = str(ticket.status)
+                anterior = str(ticket.status)
                 ticket.status = step.get("target_status", ticket.status)
-                db.add(TicketHistory(
-                    id=str(_uuid.uuid4()),
-                    ticket_id=ticket.id,
-                    field_name="status",
-                    old_value=old,
-                    new_value=str(ticket.status),
-                    changed_by_user_id=current_user.id,
-                ))
+                svc.anotar_en_el_historial_del_ticket(
+                    db, ticket, current_user, campo="status",
+                    valor_anterior=anterior, valor_nuevo=str(ticket.status))
                 steps_done.append({"type": step_type, "status": "ok"})
             elif step_type == "assign_group":
                 ticket.assigned_group = step.get("group", ticket.assigned_group)
@@ -268,35 +220,19 @@ def trigger_provisioning(
                     "result": provider_result,
                 })
 
-                db.add(TicketHistory(
-                    id=str(_uuid.uuid4()),
-                    ticket_id=ticket.id,
-                    field_name="provisioning_step",
-                    old_value=None,
-                    new_value=json.dumps(
-                        {
-                            "type": step_type,
-                            "ok": step_ok,
-                            "provider": provider_result.get("provider"),
-                            "status_code": provider_result.get("status_code"),
-                            "exit_code": provider_result.get("exit_code"),
-                        },
-                        ensure_ascii=False,
-                    )[:1000],
-                    changed_by_user_id=current_user.id,
-                ))
+                svc.anotar_en_el_historial_del_ticket(
+                    db, ticket, current_user, campo="provisioning_step",
+                    valor_nuevo=svc.resumen_de_paso(step_type, provider_result))
         except Exception as exc:
             steps_done.append({"type": step_type, "status": "error", "error": str(exc)})
 
     if config.get("notify_on_provision"):
-        db.add(TicketHistory(
-            id=str(_uuid.uuid4()),
-            ticket_id=ticket.id,
-            field_name="provisioning",
-            old_value=None,
-            new_value=f"Auto-provisioned via service {service_item_id} at {datetime.now(timezone.utc).isoformat()}",
-            changed_by_user_id=current_user.id,
-        ))
+        svc.anotar_en_el_historial_del_ticket(
+            db, ticket, current_user, campo="provisioning",
+            valor_nuevo=(
+                f"Auto-provisioned via service {service_item_id} "
+                f"at {datetime.now(timezone.utc).isoformat()}"
+            ))
 
     db.commit()
     return APIResponse.ok(data={
