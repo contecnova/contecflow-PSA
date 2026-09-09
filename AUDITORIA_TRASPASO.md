@@ -393,6 +393,126 @@ en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
 
 ---
 
+## 3.octies El contador del #22 estaba mal, y tres defectos más de plantillas y activos
+
+### Primero, la medición: el número que venía dando no era el que decía
+
+El recuento del #22 se venía haciendo con un `grep` de `db.query`, `db.add`,
+`db.commit`, `db.delete` y `db.flush` sobre `app/api/v1/endpoints/`. Y eso tiene
+**tres** problemas, que se compensan entre sí y por eso no se veían:
+
+1. **Cuenta las menciones en comentarios y docstrings.** En cuanto las tandas
+   empezaron a documentar en el propio código lo que había antes —«esto hacía
+   `db.query(Asset).all()`»— cada explicación escrita se contaba como un punto
+   de acceso que sigue ahí. Lo noté al ver `assets.py` **subir** de 5 a 6
+   después de quitarle dos consultas.
+2. **No cuenta `db.execute`, `db.scalar`, `db.get`, `db.merge` ni `db.add_all`**,
+   que son acceso a datos igual.
+3. **Sólo mira `app/api/v1/endpoints/`**, así que `app/api/v1/routers/` quedaba
+   fuera — y ahí hay acceso (`auth_core.py`, `auth_mfa.py`).
+
+Ahora hay `scripts/audit_db_access_in_api.py`, que lo mide **por árbol de
+sintaxis** sobre `app/api/` entera, así que sólo cuenta llamadas de verdad. Y
+separa dos cosas que no son lo mismo:
+
+* **acceso a datos** — `query`, `add`, `add_all`, `delete`, `flush`, `merge`,
+  `execute`, `scalar`, `scalars`, `get`: lo que el hallazgo pide mover;
+* **frontera de transacción** — `commit`, `rollback`, `begin`, `close` y
+  también **`refresh`**: legítimo en el endpoint.
+
+`refresh` está en el segundo grupo a propósito. No es una consulta que el
+endpoint elija: es releer la fila que el servicio acaba de devolver para recoger
+lo que pone la base (`id`, `created_at`, `server_default`), y va siempre pegado
+a un `commit`. Contarlo como acceso infla el número con **44 llamadas**
+—medidas— que no hay dónde mover: ponerlas en el servicio obligaría a que el
+servicio confirme, que es lo contrario de lo que estas tandas hacen.
+
+**Y con la regla nueva, medido sobre el histórico con `git worktree`:**
+
+```
+antes de la tanda 1 (collaboration)   257 puntos de acceso en 41 ficheros
+al empezar hoy                         46 puntos en 23 ficheros
+ahora                                  29 puntos en 18 ficheros
+```
+
+Las cifras viejas de este documento —«204», «95», «91», «82»— eran de la regla
+vieja y **no son comparables** con éstas. No es que hubiera menos trabajo del
+que decía: es que se estaba midiendo con una cinta métrica distinta en cada
+punta. La cifra de referencia a partir de ahora es la del script.
+
+### `templates.py`: la guarda que faltaba y un enum que no cabe en su columna
+
+`endpoints/templates.py` tenía su propio `_get_template_or_404` que buscaba la
+plantilla por id **sin ningún filtro de organización**, y de él colgaban las dos
+altas: añadir un documento o un rol a la plantilla de otro cliente era una
+escritura cruzada. Y las dos funciones de servicio que usa —`get_full_template`
+y `export_project_as_template`— **no recibían al sujeto**, así que no podían
+comprobar nada aunque quisieran: la misma forma que el endpoint de coste activo,
+que sí lo recibía y lo descartaba con `_: User = Depends(...)`.
+
+`export_project_as_template` además **no comprobaba de quién es el proyecto**.
+Recibía `user_id`, una cadena, que no sirve para verificar nada. Cualquiera podía
+exportar el proyecto de otro cliente y quedarse con los títulos de sus tareas y
+sus riesgos.
+
+**Y al arreglarlo salió el defecto que no buscaba.** La exportación escribía la
+probabilidad con `str(getattr(r, "probability", "medium"))`, y
+`Risk.probability` es un `Enum(RiskProbability)` **NOT NULL**, así que `str()` no
+da `medium`: da `RiskProbability.medium`. Medido sobre los diez valores de los
+dos enums:
+
+```
+str(RiskProbability.very_low)  -> RiskProbability.very_low    24 chars
+str(RiskProbability.medium)    -> RiskProbability.medium      22 chars
+str(RiskProbability.very_high) -> RiskProbability.very_high   25 chars
+str(RiskImpact.negligible)     -> RiskImpact.negligible       21 chars
+```
+
+Y `template_risks.probability` es **VARCHAR(20)**. Son dos defectos:
+
+1. **siempre** se guardaba un texto que ningún lector puede comparar contra el
+   enum, así que la plantilla exportada salía con la probabilidad ilegible;
+2. y en **cuatro de los diez valores** —entre ellos `medium`, que es el valor
+   por defecto y el más frecuente— el texto **no cabe en la columna**: en
+   PostgreSQL eso es `value too long for type character varying(20)` y la
+   exportación entera revienta con un 500. **En SQLite se guarda truncado y en
+   silencio, que es por lo que la suite no lo veía** — por eso el test nuevo
+   comprueba la longitud explícitamente y no sólo el valor.
+
+El `getattr(..., "medium")` tampoco hacía nada: la columna es NOT NULL, así que
+el atributo está siempre. Y con él caían **cinco `hasattr` muertos** más
+—`Project.project_type`, `Task.description`, `Task.estimated_hours`,
+`Risk.category`, `Risk.mitigation_plan`—, todos comprobados como existentes. Lo
+que hacían no era proteger: si alguna columna se renombrara, escribirían NULL en
+silencio en vez de fallar.
+
+**Y dos funciones muertas.** `add_template_document` y `add_template_role` ya
+existían en el servicio, **no las llamaba nadie** —comprobado en `app/` y en
+`tests/`— y tampoco filtraban por organización: el endpoint había
+reimplementado lo mismo a mano. Dos implementaciones muertas de la misma cosa es
+exactamente cómo aparecen las dos puertas de §3.septies, así que se deja una.
+
+### `assets.py`: precisión sobre lo que era y lo que no
+
+Las dos auditorías de activos —licencias y software— consultaban `Asset` **sin
+filtro de organización**, y aquí hay que ser preciso:
+
+* **En producción no era una fuga.** `SessionLocal` usa `TenantSession`, que
+  sobrescribe `query()` y añade el filtro por `organization_id` —`Asset` tiene
+  la columna—, así que el filtro estaba, sólo que implícito.
+* **Pero era la única capa.** Y `asset_service.py` **no menciona
+  `organization_id` ni una vez** en sus dieciocho funciones, así que no había
+  nada detrás si esa capa falla. Ya falló una vez: el criterio rancio del §3.bis
+  dejaba a cero a toda organización menos la primera del proceso.
+  `/license-audit` devuelve `license_key`, que es una credencial.
+
+**Lo que sí era un defecto sin mitigar es la carga.** `/software-audit` hacía
+`db.query(Asset).all()` —**todos** los activos, como objetos del ORM, sin tope—
+para acabar contando etiquetas. Ahora son dos consultas acotadas y la de
+hardware trae **sólo la columna `tags`**. Hay un test que comprueba que ninguna
+sentencia de activos sale sin `WHERE`, y que la de etiquetas no carga el activo
+completo.
+
 ## 3.septies Dos marketplaces al mismo sitio, y un endpoint que no podía funcionar nunca
 
 Los dos hallazgos salieron de mover a servicio
@@ -2825,10 +2945,15 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    puntos a 0 en ocho ficheros, con diez defectos destapados por el camino
    (§#22) y, al verificarlo, un **apagón de datos para toda organización que no
    fuera la primera del proceso** en el filtro de aislamiento (§3.bis).
-   **Estado remedido hoy: 82 puntos en 29 ficheros** (204 al cerrar la tanda 1).
-   De esos 95, **45 son consultas o escrituras** y **50 son fronteras de
-   transaccion** (`commit`/`rollback`), que no son acceso a datos y se tratan
-   aparte. Cerradas las tandas de `collaboration` (127 -> 0), `performance`,
+   **Estado medido con `scripts/audit_db_access_in_api.py`: 29 puntos de acceso
+   en 18 ficheros**, mas 111 fronteras de transaccion, que no son acceso a datos
+   y se tratan aparte. Con la misma regla, medido sobre el historico:
+   **257 en 41 ficheros** antes de la tanda 1, **46 en 23** al empezar hoy.
+
+   Las cifras viejas de este documento —204, 95, 91, 82— salian de un `grep` que
+   contaba tambien las menciones en comentarios, no contaba `db.execute` ni
+   `db.get`, y no miraba `app/api/v1/routers/`. **No son comparables** con
+   estas; el porque esta en 3.octies. Cerradas las tandas de `collaboration` (127 -> 0), `performance`,
    `jira_integration`, `user_costs`, `baselines`, `branding`,
    `workflow_designer`, `governance_ops` y `smart_catalog`.
 
@@ -2838,8 +2963,6 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    service_desk/dynamic_forms.py         9   (5 son commit)
    service_desk/ai_auto_resolution.py    9   orquestacion del trabajo, ver abajo
    service_desk/workflow_designer.py     8   (todos commit)
-   service_desk/assets.py                7
-   templates.py                          5
    performance.py                        5   (todos commit)
    client_portal.py                      5
    esign.py                              4
