@@ -12,6 +12,7 @@ from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
 from app.core.tenancy import org_scoped_or_404
+from app.services.cmdb.models import aprobar_linea_base
 from app.models.cmdb import CMDBDiscoveryProvider, CMDBDiscoveryJob
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.schemas.service_desk import CIIn
@@ -24,6 +25,9 @@ from app.services.service_desk.cmdb_relation_service import (
     get_ci_topology_graph_payload, get_dependency_graph_d3, get_blast_radius_summary,
 )
 from app.services.service_desk.cmdb_discovery_service import (
+    crear_proveedor,
+    jobs_de_un_proveedor,
+    proveedores_visibles,
     run_discovery_for_provider,
     run_all_active_discoveries,
     run_due_discoveries,
@@ -145,14 +149,10 @@ def get_ci_topology(
 def list_discovery_providers(
     db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ):
-    q = db.query(CMDBDiscoveryProvider)
-    if not getattr(current_user, "is_superadmin", False) and current_user.organization_id:
-        q = q.filter(
-            (CMDBDiscoveryProvider.organization_id == current_user.organization_id)
-            | (CMDBDiscoveryProvider.organization_id.is_(None))
-        )
-    providers = q.order_by(CMDBDiscoveryProvider.created_at.desc()).all()
-    return APIListResponse.ok(items=[_serialize_discovery_provider(p) for p in providers])
+    return APIListResponse.ok(items=[
+        _serialize_discovery_provider(p)
+        for p in proveedores_visibles(db, current_user)
+    ])
 
 
 @router.post("/cmdb/discovery/providers", summary="Crear proveedor discovery CMDB")
@@ -160,16 +160,7 @@ def create_discovery_provider(
     payload: DiscoveryProviderIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ):
-    provider = CMDBDiscoveryProvider(
-        name=payload.name,
-        provider_type=payload.provider_type,
-        is_active=payload.is_active,
-        config_json=json.dumps(payload.config or {}),
-        scan_interval_minutes=payload.scan_interval_minutes,
-        organization_id=getattr(current_user, "organization_id", None),
-        created_by=current_user.id,
-    )
-    db.add(provider)
+    provider = crear_proveedor(db, current_user, payload.model_dump())
     _commit_or_rollback(db)
     db.refresh(provider)
     return APIResponse.ok(data=_serialize_discovery_provider(provider))
@@ -221,15 +212,10 @@ def list_discovery_jobs(
     page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ):
-    # Verify the provider belongs to the caller's org before exposing its jobs.
-    org_scoped_or_404(db, CMDBDiscoveryProvider, provider_id, current_user, detail="Provider not found")
-    q = (
-        db.query(CMDBDiscoveryJob)
-        .filter(CMDBDiscoveryJob.provider_id == provider_id)
-        .order_by(CMDBDiscoveryJob.started_at.desc())
-    )
-    total = q.count()
-    jobs = q.offset((page - 1) * page_size).limit(page_size).all()
+    # La comprobacion de a quien pertenece el proveedor vive ahora dentro de
+    # `jobs_de_un_proveedor`, donde no se puede olvidar.
+    jobs, total = jobs_de_un_proveedor(
+        db, current_user, provider_id, page=page, page_size=page_size)
     return APIListResponse.ok(
         items=[_serialize_discovery_job(j) for j in jobs],
         total=total, page=page, page_size=page_size,
@@ -382,25 +368,16 @@ def approve_baseline(
 
     Limpia `drift_detected_at` — el CI ya no aparecerá como drifted hasta el
     próximo scan que detecte diferencias respecto a este baseline.
+
+    Auditoría 2026-08: la consulta de aquí comparaba el **id** del proveedor
+    contra `CMDBItem.discovery_provider`, que guarda su **tipo**, así que no
+    encontraba nunca ningún CI y este endpoint no aprobaba nada. El detalle está
+    en el docstring de `aprobar_linea_base`.
     """
-    from app.models.cmdb import CMDBItem
-
-    q = db.query(CMDBItem).filter(CMDBItem.discovery_provider == provider_id)
-    if ci_id:
-        q = q.filter(CMDBItem.id == ci_id)
-
-    cis = q.all()
-    if not cis:
-        return APIResponse.ok(data={"ok": False, "error": "No CIs found for provider/ci_id combination"})
-
-    approved = 0
-    for ci in cis:
-        ci.baseline_attributes = ci.attributes
-        ci.drift_detected_at = None
-        approved += 1
-
-    _commit_or_rollback(db)
-    return APIResponse.ok(data={"ok": True, "approved": approved})
+    datos = aprobar_linea_base(db, current_user, provider_id, ci_id)
+    if datos.get("ok"):
+        _commit_or_rollback(db)
+    return APIResponse.ok(data=datos)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

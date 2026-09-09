@@ -393,6 +393,111 @@ en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
 
 ---
 
+## 3.septies Dos marketplaces al mismo sitio, y un endpoint que no podía funcionar nunca
+
+Los dos hallazgos salieron de mover a servicio
+`endpoints/service_desk/connectors_marketplace.py` y
+`endpoints/service_desk/cmdb.py`. Los dos ficheros quedan en **0** puntos de
+acceso a base.
+
+### Dos puertas al marketplace de integraciones, y ninguna era la buena en todo
+
+`/api/v1/integrations/*` y `/api/v1/sd/connectors/*` instalan **la misma cosa**
+—una `IntegrationInstance` sobre un `IntegrationConnector`— con dos
+implementaciones escritas a mano por separado. Cada una era mejor en algo:
+
+| | `integrations` | `service_desk` |
+|---|---|---|
+| valida `sync_direction`/`sync_frequency` | **sí** | no |
+| cifra la configuración | **sí** | no la recibía |
+| siembra el catálogo | **sí** | no |
+| lista lo instalado sin N+1 | no (una consulta por instancia) | **sí** (`JOIN`) |
+
+**El defecto con consecuencia es el de la configuración.** La puerta del Service
+Desk no la recibía —`ConnectorInstallIn` no tenía el campo—, así que la
+instancia se guardaba con `encrypted_config` a NULL. Quien la consume la lee
+así, comprobado en `endpoints/salesforce_sync.py`:
+
+```python
+config = json.loads(decrypt_value(inst.encrypted_config) if inst.encrypted_config else "{}")
+```
+
+...y sin `instance_url` ni `access_token` responde **503 «credentials
+incomplete»**. Y **no hay endpoint para rellenarla después**: la integración
+quedaba instalada y muerta para siempre, sin error en ningún registro.
+
+Los otros tres son menores pero de la misma clase: la puerta del Service Desk
+aceptaba cualquier cadena como frecuencia de sincronización y la guardaba
+(«cuando-pueda» incluido), y no sembraba el catálogo, así que en un despliegue
+nuevo devolvía una lista vacía mientras la otra devolvía los seis conectores.
+
+**Ahora las dos comparten** la lista blanca, el sembrado, la visibilidad del
+conector y el cifrado, y el N+1 se arregla usando el `JOIN` que ya tenía la otra
+—cada puerta aportó su mitad buena—. **La forma de las respuestas no cambia en
+ninguna de las dos:** son API publicada, y el campo `config` que se añade es
+opcional para no romper a quien ya llamaba sin él. Hay un test que cuenta las
+sentencias emitidas: tres instalaciones cuestan **una** consulta, así que si el
+N+1 vuelve se ve.
+
+**Y una nota sobre el ámbito del catálogo.** Las dos puertas lo leían sin filtro
+alguno. Hoy los conectores que trae el producto son globales y por tanto no
+había fuga *medible* — pero `IntegrationConnector` tiene columna
+`organization_id`, así que un conector privado es posible y entonces sí la
+habría. El filtro es «los globales, más los propios», que es lo que ya declara
+el modelo con `_tenant_filter_include_global` (§3.quinquies).
+
+### `approve-baseline` no podía aprobar nada
+
+`POST /cmdb/discovery/providers/{provider_id}/approve-baseline` buscaba así:
+
+```python
+db.query(CMDBItem).filter(CMDBItem.discovery_provider == provider_id)
+```
+
+Y `CMDBItem.discovery_provider` guarda el **tipo** de proveedor —`aws`,
+`kubernetes`, `vsphere`; así lo escribe la reconciliación, con las constantes de
+`services/cmdb/utils.py`—, mientras `provider_id` es el **UUID** de una fila de
+`cmdb_discovery_providers`. Medido:
+
+```
+id del proveedor       1add5ac0-82a0-4d6c-812c-e2e1e46794a6
+provider_type          aws
+CI.discovery_provider  aws
+
+consulta del endpoint (por id) ->  0 CIs
+consulta por provider_type     ->  1 CI
+```
+
+Cero filas **siempre**, así que la respuesta era invariablemente
+`{"ok": false, "error": "No CIs found..."}`. Es la misma clase de defecto que el
+nodo «crear ticket» de los flujos de trabajo (§3.c): escrito, expuesto, con
+respuesta de éxito prevista, y sin un solo camino que llegue a ella.
+
+**Y el ámbito tampoco estaba.** No había ninguna comprobación de a quién
+pertenece el proveedor, mientras su vecino `list_discovery_jobs` **sí** la hacía
+y lo decía en un comentario. Con la consulta arreglada eso pasa de inocuo a una
+**escritura cruzada entre clientes**: aprobar la línea base de los CIs de otro
+cliente le limpia `drift_detected_at`, es decir **le apaga una alerta de
+configuración**. Por eso el arreglo lleva las dos cosas juntas y no sólo la
+consulta.
+
+Los CIs se acotan además por organización, y hacía falta: los dos proveedores
+del test son de tipo `aws`, así que filtrar sólo por `provider_type` habría
+alcanzado los CIs de las dos organizaciones.
+
+> **Una limitación que hay que saber, y no es un defecto del arreglo.** El CI
+> sólo guarda el **tipo** de proveedor, no cuál de ellos lo descubrió. Si una
+> organización tiene dos proveedores AWS, aprobar la línea base de uno aprueba
+> también los CIs del otro. Distinguirlos exige una columna nueva en
+> `cmdb_items` y volver a poblarla desde el descubrimiento: es un cambio de
+> esquema con migración, no algo que se cuele en esta tanda. Está escrito en el
+> docstring de `aprobar_linea_base`.
+
+La comprobación del proveedor en el listado de jobs también se mueve **dentro**
+del servicio. Es un movimiento y no un arreglo —el filtro ya estaba y era
+correcto—, pero dentro no se puede olvidar al escribir el siguiente endpoint, y
+olvidarla es exactamente lo que le pasó a `approve-baseline`.
+
 ## 3.sexies El Service Desk entero: la columna de tenant, la migración que erró el nombre de la tabla, y dos endpoints de IA sin ámbito
 
 Salió al mover a servicio los cuatro puntos de acceso de
@@ -2720,7 +2825,7 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    puntos a 0 en ocho ficheros, con diez defectos destapados por el camino
    (§#22) y, al verificarlo, un **apagón de datos para toda organización que no
    fuera la primera del proceso** en el filtro de aislamiento (§3.bis).
-   **Estado remedido hoy: 91 puntos en 31 ficheros** (204 al cerrar la tanda 1).
+   **Estado remedido hoy: 82 puntos en 29 ficheros** (204 al cerrar la tanda 1).
    De esos 95, **45 son consultas o escrituras** y **50 son fronteras de
    transaccion** (`commit`/`rollback`), que no son acceso a datos y se tratan
    aparte. Cerradas las tandas de `collaboration` (127 -> 0), `performance`,
@@ -2735,10 +2840,8 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    service_desk/workflow_designer.py     8   (todos commit)
    service_desk/assets.py                7
    templates.py                          5
-   service_desk/connectors_marketplace.py 5
    performance.py                        5   (todos commit)
    client_portal.py                      5
-   service_desk/cmdb.py                  4
    esign.py                              4
    ...y 21 ficheros mas con 3 o menos
    ```

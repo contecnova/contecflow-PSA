@@ -172,6 +172,92 @@ def reconcile_cis(
 # ANALYTICS & REPORTING
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def aprobar_linea_base(
+    db: Session,
+    current_user,
+    provider_id: str,
+    ci_id: str | None = None,
+) -> dict:
+    """Congela `attributes` como linea base aprobada y limpia la deriva.
+
+    Auditoria 2026-08 (hallazgo 22). **Este endpoint no podia aprobar nada.**
+    La consulta era:
+
+        db.query(CMDBItem).filter(CMDBItem.discovery_provider == provider_id)
+
+    ...y `CMDBItem.discovery_provider` guarda el **tipo** de proveedor —`aws`,
+    `kubernetes`, `vsphere`; asi lo escribe la reconciliacion, con las
+    constantes de `services/cmdb/utils.py`—, mientras `provider_id` es el UUID
+    de una fila de `cmdb_discovery_providers`. Un UUID nunca es igual a `aws`,
+    asi que la consulta devolvia cero filas **siempre** y la respuesta era
+    invariablemente `{"ok": false, "error": "No CIs found..."}`. Medido:
+
+        id del proveedor      1add5ac0-82a0-4d6c-812c-e2e1e46794a6
+        provider_type         aws
+        CI.discovery_provider aws
+
+        consulta del endpoint (por id) ->  0 CIs
+        consulta por provider_type     ->  1 CI
+
+    Un endpoint que no puede funcionar nunca es la misma clase de defecto que
+    el nodo «crear ticket» de los flujos de trabajo: escrito, expuesto, con
+    respuesta de exito prevista, y sin un solo camino que llegue a ella.
+
+    ## El ambito, que tampoco estaba
+
+    No habia ninguna comprobacion de a quien pertenece el proveedor, mientras su
+    vecino `list_discovery_jobs` **si** la hace y lo dice en un comentario. Con
+    la consulta arreglada eso pasaria de inocuo a una **escritura cruzada entre
+    clientes**: aprobar la linea base de los CIs de otro cliente le quita la
+    marca de deriva, es decir le apaga una alerta de configuracion.
+
+    Se resuelve el proveedor con `org_scoped_or_404`, y los CIs se acotan
+    ademas por organizacion siguiendo la politica ya establecida en
+    `app/core/tenancy.py`: una fila con `organization_id` a NULL es dato
+    legacy/global y se considera accesible.
+
+    ## Una limitacion que hay que saber, y no es un defecto de este arreglo
+
+    El CI solo guarda el **tipo** de proveedor, no cual de ellos lo descubrio.
+    Asi que si una organizacion tiene dos proveedores AWS, aprobar la linea base
+    de uno aprueba tambien los CIs del otro. Distinguirlos exige una columna
+    nueva en `cmdb_items` y volver a poblarla desde el descubrimiento: es un
+    cambio de esquema con migracion, no algo que se cuele en esta tanda.
+    """
+    from app.core.tenancy import org_scoped_or_404
+    from app.models.cmdb import CMDBDiscoveryProvider
+
+    proveedor = org_scoped_or_404(
+        db, CMDBDiscoveryProvider, provider_id, current_user,
+        detail="Provider not found")
+
+    q = db.query(CMDBItem).filter(
+        CMDBItem.discovery_provider == proveedor.provider_type)
+
+    if not getattr(current_user, "is_superadmin", False):
+        org_id = getattr(current_user, "organization_id", None)
+        if org_id is None:
+            # Sin organizacion, sin acceso: la misma politica que `_can_access`.
+            return {"ok": False, "error": "No CIs found for provider/ci_id combination"}
+        q = q.filter(
+            (CMDBItem.organization_id == org_id)
+            | (CMDBItem.organization_id.is_(None))
+        )
+
+    if ci_id:
+        q = q.filter(CMDBItem.id == ci_id)
+
+    cis = q.all()
+    if not cis:
+        return {"ok": False, "error": "No CIs found for provider/ci_id combination"}
+
+    for ci in cis:
+        ci.baseline_attributes = ci.attributes
+        ci.drift_detected_at = None
+
+    return {"ok": True, "approved": len(cis)}
+
+
 def get_drift_report(db: Session, hours: int = 24) -> dict:
     """Return CIs where config drift was detected in the last `hours` hours.
 

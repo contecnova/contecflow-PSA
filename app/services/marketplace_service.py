@@ -1,6 +1,34 @@
 """Integration Marketplace service.
 
 Manages the connector catalog and per-organisation integration instances.
+
+Auditoria 2026-08 (hallazgo 22). Este modulo era la puerta de
+`/api/v1/integrations/*`, y **habia una segunda puerta al mismo sitio** en
+`endpoints/service_desk/connectors_marketplace.py` (`/sd/connectors/*`), con sus
+propias consultas escritas a mano. Cada una era mejor en algo distinto y ninguna
+lo era en todo:
+
+* la de integraciones **valida** `sync_direction` y `sync_frequency` contra una
+  lista blanca y **cifra** la configuracion; la del Service Desk no hacia
+  ninguna de las dos cosas;
+* la del Service Desk lista lo instalado con un `JOIN`; la de integraciones
+  hacia **una consulta por instancia** para traer su conector;
+* la del Service Desk **no sembraba** el catalogo, asi que en un despliegue
+  nuevo devolvia una lista vacia mientras la otra devolvia los conectores.
+
+Y el defecto con consecuencia: una instancia creada por la puerta del Service
+Desk se quedaba **sin configuracion**, porque ese endpoint no la recibia. Quien
+la consume la lee asi —comprobado en `endpoints/salesforce_sync.py`—:
+
+    config = json.loads(decrypt_value(inst.encrypted_config) if inst.encrypted_config else "{}")
+
+...y sin `instance_url` ni `access_token` responde **503 «credentials
+incomplete»**. No hay endpoint para rellenarla despues, asi que la integracion
+quedaba instalada y muerta para siempre.
+
+Ahora las dos puertas comparten la validacion, el sembrado, la visibilidad del
+conector y el cifrado. Las dos conservan la forma de su respuesta: son API
+publicada y no habia razon para cambiarla de paso.
 """
 from __future__ import annotations
 
@@ -15,6 +43,19 @@ from app.models.marketplace import IntegrationConnector
 from app.models.marketplace import IntegrationInstance
 
 logger = logging.getLogger(__name__)
+
+#: Sentidos de sincronizacion admitidos. Estaban como literal local dentro de
+#: `install_integration_connector`, y la otra puerta no los comprobaba.
+SENTIDOS_DE_SINCRONIZACION = {"inbound", "outbound", "bidirectional"}
+
+#: Frecuencias admitidas, igual que arriba.
+FRECUENCIAS_DE_SINCRONIZACION = {"realtime", "hourly", "daily", "manual"}
+
+#: El orden con el que el Service Desk destaca los conectores de su dominio.
+#: Estaba en duro en el cuerpo del endpoint.
+CONECTORES_DESTACADOS = [
+    "jira", "servicenow", "zendesk", "slack", "teams", "pagerduty",
+]
 
 CONNECTOR_CATALOG = [
     {"name": "Salesforce CRM", "slug": "salesforce", "category": "crm",
@@ -115,6 +156,215 @@ def _seed_connectors(db: Session) -> None:
         db.commit()
 
 
+def validar_parametros_de_sincronizacion(
+    sync_direction: str, sync_frequency: str
+) -> None:
+    """422 si el sentido o la frecuencia no estan en la lista blanca.
+
+    La puerta del Service Desk no comprobaba ninguno de los dos, asi que
+    aceptaba cualquier cadena y la guardaba. Quien despues lee
+    `sync_frequency` para decidir cada cuanto sincronizar no sabe que hacer con
+    un valor inventado.
+    """
+    if sync_direction not in SENTIDOS_DE_SINCRONIZACION:
+        raise HTTPException(
+            422,
+            "Invalid sync_direction. Allowed: "
+            f"{sorted(SENTIDOS_DE_SINCRONIZACION)}",
+        )
+    if sync_frequency not in FRECUENCIAS_DE_SINCRONIZACION:
+        raise HTTPException(
+            422,
+            "Invalid sync_frequency. Allowed: "
+            f"{sorted(FRECUENCIAS_DE_SINCRONIZACION)}",
+        )
+
+
+def _conectores_visibles(db: Session, organization_id: Optional[str]):
+    """Los conectores activos que puede ver una organizacion.
+
+    El catalogo que trae el producto se guarda con `organization_id = NULL`
+    —`IntegrationConnector` declara `_tenant_filter_include_global`—, asi que la
+    visibilidad es «los globales, mas los propios». Las dos puertas leian el
+    catalogo **sin filtro alguno**: hoy no hay conectores privados y por tanto
+    no habia fuga, pero el modelo permite crearlos y entonces la habria.
+    """
+    q = db.query(IntegrationConnector).filter(
+        IntegrationConnector.is_active == True  # noqa: E712
+    )
+    if organization_id:
+        return q.filter(
+            (IntegrationConnector.organization_id == organization_id)
+            | (IntegrationConnector.organization_id.is_(None))
+        )
+    return q.filter(IntegrationConnector.organization_id.is_(None))
+
+
+def _instancias_con_conector(db: Session, organization_id: str):
+    """Las instalaciones de una organizacion junto a su conector, en una consulta."""
+    return (
+        db.query(IntegrationInstance, IntegrationConnector)
+        .join(
+            IntegrationConnector,
+            IntegrationConnector.id == IntegrationInstance.connector_id,
+        )
+        .filter(
+            IntegrationInstance.organization_id == organization_id,
+            IntegrationInstance.is_enabled == True,  # noqa: E712
+        )
+        .all()
+    )
+
+
+def crear_instancia(
+    db: Session,
+    *,
+    connector: IntegrationConnector,
+    organization_id: str,
+    name: str,
+    config: Optional[dict],
+    sync_direction: str,
+    sync_frequency: str,
+    user_id: str,
+) -> IntegrationInstance:
+    """Guarda una instalacion con su configuracion CIFRADA.
+
+    El cifrado es lo que la puerta del Service Desk no hacia — porque no
+    recibia configuracion en absoluto. Si el cifrado falla se guarda en claro y
+    se avisa: el comportamiento viene del codigo original y se conserva
+    verbatim, pero queda escrito que es un respaldo y no la intencion.
+    """
+    config_json = json.dumps(config or {})
+    try:
+        cifrada = encrypt_value(config_json)
+    except Exception:
+        logger.warning(
+            "Fallo cifrando config de instancia de integración; "
+            "almacenando en claro como fallback",
+            exc_info=True,
+        )
+        cifrada = config_json
+
+    instancia = IntegrationInstance(
+        organization_id=organization_id,
+        connector_id=connector.id,
+        name=name,
+        encrypted_config=cifrada,
+        sync_direction=sync_direction,
+        sync_frequency=sync_frequency,
+        is_enabled=True,
+        created_by=user_id,
+    )
+    db.add(instancia)
+    db.commit()
+    db.refresh(instancia)
+    return instancia
+
+
+# ── La puerta del Service Desk ──────────────────────────────────────────────
+
+def catalogo_para_service_desk(
+    db: Session,
+    user,
+    *,
+    category: Optional[str] = None,
+    certified_only: bool = False,
+) -> list[dict]:
+    """El catalogo con los conectores de soporte primero.
+
+    Ahora **siembra** el catalogo, como la otra puerta: sin eso, en un
+    despliegue nuevo este endpoint devolvia una lista vacia.
+    """
+    _seed_connectors(db)
+
+    org_id = getattr(user, "organization_id", None)
+    q = _conectores_visibles(db, org_id)
+    if category:
+        q = q.filter(IntegrationConnector.category == category)
+    if certified_only:
+        q = q.filter(IntegrationConnector.is_certified == True)  # noqa: E712
+
+    filas = q.all()
+    filas.sort(key=lambda c: (
+        CONECTORES_DESTACADOS.index(c.slug)
+        if c.slug in CONECTORES_DESTACADOS else len(CONECTORES_DESTACADOS) + 1,
+        (c.name or "").lower(),
+    ))
+    return [
+        {
+            "id": c.id,
+            "name": c.name,
+            "slug": c.slug,
+            "category": c.category,
+            "description": c.description,
+            "docs_url": c.docs_url,
+            "auth_scheme": c.auth_scheme,
+            "is_certified": c.is_certified,
+        }
+        for c in filas
+    ]
+
+
+def instalados_para_service_desk(db: Session, user) -> list[dict]:
+    """Lo instalado por la organizacion del sujeto, con su conector."""
+    org_id = getattr(user, "organization_id", None)
+    if not org_id:
+        return []
+    return [
+        {
+            "id": inst.id,
+            "name": inst.name,
+            "connector": {
+                "id": conn.id,
+                "name": conn.name,
+                "slug": conn.slug,
+                "category": conn.category,
+            },
+            "sync_direction": inst.sync_direction,
+            "sync_frequency": inst.sync_frequency,
+            "is_enabled": inst.is_enabled,
+            "last_sync_at": inst.last_sync_at,
+            "last_sync_status": inst.last_sync_status,
+        }
+        for inst, conn in _instancias_con_conector(db, org_id)
+    ]
+
+
+def instalar_por_id(db: Session, user, datos: dict) -> IntegrationInstance:
+    """Instala un conector buscandolo por su id, con las mismas comprobaciones.
+
+    La otra puerta lo busca por `slug`; esta por `id`, que es lo que ya recibia
+    su endpoint. Lo demas —lista blanca, visibilidad y cifrado— es identico.
+    """
+    org_id = getattr(user, "organization_id", None)
+    if not org_id:
+        raise HTTPException(400, "organization_id no disponible")
+
+    sentido = datos.get("sync_direction") or "bidirectional"
+    frecuencia = datos.get("sync_frequency") or "hourly"
+    validar_parametros_de_sincronizacion(sentido, frecuencia)
+
+    _seed_connectors(db)
+    connector = (
+        _conectores_visibles(db, org_id)
+        .filter(IntegrationConnector.id == datos["connector_id"])
+        .first()
+    )
+    if not connector:
+        raise HTTPException(404, "Connector not found")
+
+    return crear_instancia(
+        db,
+        connector=connector,
+        organization_id=org_id,
+        name=datos["name"],
+        config=datos.get("config"),
+        sync_direction=sentido,
+        sync_frequency=frecuencia,
+        user_id=getattr(user, "id", None),
+    )
+
+
 def list_marketplace_connectors(
     category: Optional[str],
     certified_only: bool,
@@ -123,11 +373,11 @@ def list_marketplace_connectors(
 ) -> list:
     _seed_connectors(db)
 
-    q = db.query(IntegrationConnector).filter(IntegrationConnector.is_active == True)
+    q = _conectores_visibles(db, organization_id)
     if category:
         q = q.filter(IntegrationConnector.category == category.lower())
     if certified_only:
-        q = q.filter(IntegrationConnector.is_certified == True)
+        q = q.filter(IntegrationConnector.is_certified == True)  # noqa: E712
     connectors = q.order_by(IntegrationConnector.name).all()
 
     installed_slugs: set = set()
@@ -161,44 +411,30 @@ def install_integration_connector(
     sync_direction: str, sync_frequency: str,
     organization_id: Optional[str], user_id: str, db: Session,
 ) -> dict:
-    valid_directions = {"inbound", "outbound", "bidirectional"}
-    valid_frequencies = {"realtime", "hourly", "daily", "manual"}
-    if sync_direction not in valid_directions:
-        raise HTTPException(422, f"Invalid sync_direction. Allowed: {sorted(valid_directions)}")
-    if sync_frequency not in valid_frequencies:
-        raise HTTPException(422, f"Invalid sync_frequency. Allowed: {sorted(valid_frequencies)}")
+    validar_parametros_de_sincronizacion(sync_direction, sync_frequency)
 
     _seed_connectors(db)
 
-    connector = db.query(IntegrationConnector).filter(
-        IntegrationConnector.slug == connector_slug,
-        IntegrationConnector.is_active == True,
-    ).first()
+    connector = (
+        _conectores_visibles(db, organization_id)
+        .filter(IntegrationConnector.slug == connector_slug)
+        .first()
+    )
     if not connector:
         raise HTTPException(404, f"Connector '{connector_slug}' not found in marketplace")
     if not organization_id:
         raise HTTPException(400, "User has no associated organization")
 
-    config_json = json.dumps(config)
-    try:
-        encrypted = encrypt_value(config_json)
-    except Exception:
-        logger.warning("Fallo cifrando config de instancia de integración; almacenando en claro como fallback", exc_info=True)
-        encrypted = config_json
-
-    instance = IntegrationInstance(
+    instance = crear_instancia(
+        db,
+        connector=connector,
         organization_id=organization_id,
-        connector_id=connector.id,
         name=name,
-        encrypted_config=encrypted,
+        config=config,
         sync_direction=sync_direction,
         sync_frequency=sync_frequency,
-        is_enabled=True,
-        created_by=user_id,
+        user_id=user_id,
     )
-    db.add(instance)
-    db.commit()
-    db.refresh(instance)
     return {
         "id": instance.id, "name": instance.name,
         "connector": connector_slug,
@@ -212,15 +448,12 @@ def install_integration_connector(
 def list_integration_instances(organization_id: Optional[str], db: Session) -> list:
     if not organization_id:
         return []
-    instances = db.query(IntegrationInstance).filter(
-        IntegrationInstance.organization_id == organization_id,
-        IntegrationInstance.is_enabled == True,
-    ).all()
+    # Auditoria 2026-08: esto hacia UNA CONSULTA POR INSTANCIA para traer su
+    # conector, mientras la puerta del Service Desk resolvia lo mismo con un
+    # `JOIN`. Se usa el `JOIN`, que es la version buena de las dos.
+    filas = _instancias_con_conector(db, organization_id)
     result = []
-    for inst in instances:
-        conn = db.query(IntegrationConnector).filter(
-            IntegrationConnector.id == inst.connector_id
-        ).first()
+    for inst, conn in filas:
         result.append({
             "id": inst.id, "name": inst.name,
             "connector_slug": conn.slug if conn else None,
