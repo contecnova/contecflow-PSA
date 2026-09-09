@@ -613,12 +613,22 @@ def create_refresh_ticket(
 
     from uuid import uuid4
     ticket_id = str(uuid4())
+    # Auditoria 2026-08: este `Ticket` se construia **sin `number`**, y la
+    # columna es NOT NULL, asi que despues del `AttributeError` de
+    # `TicketStatus.open` venia un `IntegrityError`. Dos defectos encadenados en
+    # la misma funcion, y ninguno de los dos se veia porque no habia un solo
+    # test que llamara aqui.
+    #
+    # El numero se genera con el mismo prefijo-mas-hexadecimal que usan las
+    # otras vias que no pasan por el contador de tickets (`EML-`, `SMS-`).
     ticket = Ticket(
         id=ticket_id,
+        number=f"REF-{uuid4().hex[:8].upper()}",
         title=title,
         description=description,
         ticket_type="service_request",
-        status=TicketStatus.open,
+        # Ver la nota de `inbound_email_service`: `open` no existe.
+        status=TicketStatus.new,
         priority=TicketPriority.p3_medium,
         requester_user_id=acting_user_id,
         ci_id=asset.ci_id,

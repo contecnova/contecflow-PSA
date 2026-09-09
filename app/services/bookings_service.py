@@ -653,8 +653,13 @@ def generate_recurring_now_record(rec_id: str, db, current_user) -> dict:
 def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, current_user, db) -> dict:
     opp = db.query(Opportunity).filter(Opportunity.id == opportunity_id).first()
     if not opp: raise HTTPException(404, "Oportunidad no encontrada")
-    if opp.stage not in [OpportunityStage.closed_won, "closed_won"]:
-        opp.stage = OpportunityStage.closed_won
+    # `OpportunityStage` no tiene `closed_won`: el valor es `won`. Auditoria
+    # 2026-08: la referencia se evaluaba SIEMPRE, asi que convertir una
+    # oportunidad en proyecto reventaba con `AttributeError` en la primera
+    # linea util de la funcion. La cadena `"closed_won"` de la lista tampoco
+    # coincidia nunca con ningun valor de la columna.
+    if opp.stage not in [OpportunityStage.won, OpportunityStage.won.value]:
+        opp.stage = OpportunityStage.won
     last = db.query(Project).order_by(Project.created_at.desc()).first()
     next_num = 1
     if last and last.code and last.code.startswith("PRJ-"):

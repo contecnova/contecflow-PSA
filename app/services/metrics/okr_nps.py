@@ -24,8 +24,15 @@ def metric_okr_progress_by_objective(
     try:
         from app.models.okrs import Objective, OKRStatus
 
+        # `OKRStatus` no tiene `at_risk` —sus valores son draft, active,
+        # completed y cancelled— y `Objective` no tiene ninguna columna de
+        # riesgo, asi que «en riesgo» no es un estado que se pueda consultar.
+        # Auditoria 2026-08: esto reventaba con `AttributeError`, lo atrapaba
+        # el `except Exception` de abajo y la metrica devolvia una lista
+        # VACIA en silencio. El objetivo declarado en el docstring es «por
+        # objetivo OKR activo», que es lo que se consulta ahora.
         q = db.query(Objective).filter(
-            Objective.status.in_([OKRStatus.active, OKRStatus.at_risk])
+            Objective.status == OKRStatus.active
         ).order_by(Objective.progress.desc()).limit(top_n)
 
         rows = []

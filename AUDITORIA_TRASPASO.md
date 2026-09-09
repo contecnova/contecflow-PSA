@@ -393,6 +393,122 @@ en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
 
 ---
 
+## 3.undecies La pregunta general, y las nueve vías que no podían funcionar
+
+El hallazgo de §3.decies dejó una pregunta: **«¿cuántos más hay?»** La respuesta
+son nueve, y son la mejor cosecha por unidad de esfuerzo de toda la auditoría:
+un detector de treinta líneas.
+
+### El detector
+
+`scripts/audit_enum_members.py`. Recorre `app/` por AST y, para cada
+`Enumerado.miembro`, comprueba que el miembro exista. Dos reglas:
+
+* **la de la unión** — el miembro tiene que existir en **alguna** definición de
+  ese nombre. Sin falsos positivos, así que puede ser de tolerancia cero;
+* **la del import** — tiene que existir en la definición que **ese fichero
+  importa de verdad**, siguiendo reexportaciones, incluidas las de
+  `from ... import *`.
+
+Las dos están como test en `tests/test_miembros_de_enum_existen.py`.
+
+### Lo que encontró, y lo que pasaba en cada sitio
+
+| dónde | qué usaba | qué pasaba |
+|---|---|---|
+| `inbound_email_service` | `TicketStatus.open` | **la pasarela de correo a ticket, entera**: cada correo entrante reventaba |
+| `multichannel_service` | `TicketStatus.open` | lo mismo con **cada SMS entrante** |
+| `asset_service` | `TicketStatus.open` | el ticket que agenda la renovación de un equipo |
+| `bookings_service` ×2 | `OpportunityStage.closed_won` | **convertir una oportunidad ganada en proyecto**, roto en su primera línea útil |
+| `metrics/okr_nps` | `OKRStatus.at_risk` | atrapado por un `except`: la métrica de progreso de OKR devolvía **lista vacía** en silencio |
+| `change_impact.py` ×2 y `worker.py` | `ChangeStatus.in_approval` | los tres de §3.decies |
+
+Los valores correctos eran `new` —que además es el `default` de la columna y lo
+que usan las **otras tres** vías de creación de tickets—, `won`, y, para el de
+OKR, sólo `active`: «en riesgo» no es un estado que exista ni una columna que se
+pueda consultar, y el docstring de la función ya decía «por objetivo OKR
+activo».
+
+### Y detrás del primero había tres más
+
+Al escribir el test de la pasarela de correo —**que no tenía ninguno**—
+aparecieron, encadenados uno detrás de otro:
+
+1. **`SLAPolicy.response_hours` no existe.** Las columnas son
+   `p1_response_hours` … `p4_response_hours`, una por prioridad. Reventaban el
+   `order_by` de la consulta y los dos cálculos de vencimiento. Está en la vía
+   de correo **y** en la de SMS.
+2. **El vencimiento se calculaba a mano**, `now + timedelta(...)`, ignorando el
+   horario laboral y los festivos que `SLAPolicy` declara — y en la de SMS con
+   un `datetime(...).__class__.fromtimestamp(...)`, que es la misma suma de
+   segundos escrita de forma más rara. Las dos cosas ya estaban resueltas en el
+   repositorio y sin usar aquí: `resolve_sla_policy_for_ticket` elige la
+   política por contrato, cliente y defecto, y `calculate_sla_due` calcula los
+   dos vencimientos con aritmética de horas laborables. Ahora se usan.
+3. **`Ticket.requester_phone` no existe**, y estaba escrito así:
+
+   ```python
+   requester_phone=from_phone if hasattr(Ticket, "requester_phone") else None,
+   ```
+
+   Es la forma **más dañina** del `hasattr` defensivo: protege el *valor* y no
+   la *palabra clave*, así que SQLAlchemy recibe igual `requester_phone=None` y
+   responde `TypeError: 'requester_phone' is an invalid keyword argument for
+   Ticket`. Parece que hace el campo opcional y lo que hace es reventar siempre.
+   El teléfono queda en `requester_name` y en la descripción, que es donde
+   estaba de verdad; añadir la columna es decisión de producto.
+
+Y en el ticket de renovación de activo, un cuarto: se construía **sin
+`number`**, y la columna es NOT NULL, así que detrás del `AttributeError` venía
+un `IntegrityError`.
+
+### Por qué sobrevivieron, que es la parte que importa
+
+**Ninguna de las tres vías tenía un solo test.** Los defectos no son sutiles
+—son un `AttributeError` en la primera línea útil— pero viven en caminos que
+nadie ejercitaba: no los ve `ruff`, que no resuelve el enumerado; no los ve el
+tipado; y no los ve una suite que no llama a la función. Los tests nuevos son la
+cobertura que faltaba, no sólo la comprobación del arreglo.
+
+### El detector estuvo mal dos veces antes de servir, otra vez
+
+La misma lección que con el detector de rutas del frontend, y conviene que quede
+por escrito porque volvió a pasar:
+
+1. Escribí que el fichero de tests cazaba los nueve. **Falso**: la regla de la
+   unión coge seis, porque el enumerado muerto **sí** tenía `in_approval` y para
+   esa regla aquellos tres sitios eran correctos.
+2. Escribí entonces que la regla del import cazaba los tres de `ChangeStatus`.
+   **También falso**: su primera versión no seguía las reexportaciones, así que
+   se callaba justo en los casos que motivaron el test — y sólo cogía tres, los
+   de oportunidades y el de OKR.
+3. Y la segunda versión seguía las reexportaciones **con nombre**, pero los
+   enumerados del Service Desk llegan por `from ... import *`. Con las estrellas
+   resueltas coge los nueve, comprobado ejecutándola contra el código anterior
+   en un `git worktree`.
+
+**Una afirmación sobre qué caza un detector no vale hasta ejecutarla contra el
+código defectuoso.** Tres intentos, tres mediciones, y sólo la tercera era
+cierta.
+
+### El frente que esto abre, medido y NO cerrado
+
+La misma pregunta aplicada a las **columnas de modelo** —que es lo que eran
+`SLAPolicy.response_hours` y `Ticket.requester_phone`— tiene su propio detector
+en `scripts/audit_model_attrs.py`, que resuelve el lado de la clase con
+`hasattr` sobre la clase mapeada de verdad. Da **35 accesos a atributos que no
+existen y 8 constructores con una palabra clave que no es atributo**, sobre 391
+clases mapeadas.
+
+**Son candidatos, no defectos, y no se han tocado.** La diferencia importa: un
+acceso puede estar en una rama muerta, y entonces no hace daño hoy aunque esté
+mal escrito. Hay repeticiones que huelen a error sistemático —`Ticket.assignee_id`
+aparece nueve veces en cuatro ficheros, y la columna se llama
+`assigned_to_user_id`— y otros que podrían ser columnas que faltan de verdad
+(`Task.sprint_id`). Verificar los 43 uno a uno es una tanda propia con su suite,
+y meterla de propina aquí sería exactamente la chapuza que este trabajo evita.
+El detector queda en el repositorio y la lista, medida.
+
 ## 3.decies El estado `in_approval` no existe, y por eso el scoring del CAB no corría
 
 Salió de mover a servicio los dos puntos de acceso de

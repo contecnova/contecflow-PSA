@@ -1,6 +1,6 @@
 import hmac
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional, Tuple
 
 from fastapi import HTTPException
@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.service_desk import (
-    SLAPolicy,
     SupportLevel,
     Ticket,
     TicketImpact,
@@ -69,17 +68,40 @@ def build_inbound_ticket(db: Session, payload: dict, configured_secret: str, pro
     ).order_by(User.created_at).all()
     assigned_to = agents[0].id if agents else None
 
-    sla = db.query(SLAPolicy).filter(SLAPolicy.is_active.is_(True)).order_by(SLAPolicy.response_hours).first()
+    # Auditoria 2026-08. Aqui habia dos defectos mas, encadenados detras del
+    # `TicketStatus.open` de abajo:
+    #
+    #   · `SLAPolicy.response_hours` **no existe**. Las columnas son
+    #     `p1_response_hours` ... `p4_response_hours`, una por prioridad. Asi
+    #     que tanto el `order_by` como los dos calculos de vencimiento
+    #     reventaban con `AttributeError`.
+    #   · Y el vencimiento se calculaba a mano, `now + timedelta(hours=...)`,
+    #     ignorando el horario laboral y los festivos que `SLAPolicy` declara.
+    #
+    # Las dos cosas ya estaban resueltas en el repositorio y sin usar aqui:
+    # `resolve_sla_policy_for_ticket` elige la politica por contrato, cliente y
+    # defecto, y `calculate_sla_due` calcula los dos vencimientos con aritmetica
+    # de horas laborables. Se usan las dos.
+    from app.services.service_desk.scoping import resolve_sla_policy_for_ticket
+    from app.services.sla_service import calculate_sla_due
 
+    sla = resolve_sla_policy_for_ticket(db)
     now = datetime.now(timezone.utc)
+    prioridad = TicketPriority.p3_medium
+    respuesta_due, resolucion_due = calculate_sla_due(
+        prioridad.value, policy=sla, db=db)
     ticket = Ticket(
         id=str(uuid.uuid4()),
         number=f"EML-{uuid.uuid4().hex[:8].upper()}",
         ticket_type=TicketType.service_request,
         title=subject,
         description=description,
-        status=TicketStatus.open,
-        priority=TicketPriority.p3_medium,
+        # `TicketStatus` no tiene `open`: el estado inicial es `new`, que es
+        # ademas el `default` de la columna y lo que usan las otras tres
+        # vias de creacion de tickets. Auditoria 2026-08: esto reventaba con
+        # `AttributeError` en cada correo entrante.
+        status=TicketStatus.new,
+        priority=prioridad,
         urgency=TicketUrgency.medium,
         impact=TicketImpact.user,
         support_level=SupportLevel.l1,
@@ -88,8 +110,8 @@ def build_inbound_ticket(db: Session, payload: dict, configured_secret: str, pro
         requester_email=req_email or None,
         assigned_to_user_id=assigned_to,
         sla_policy_id=sla.id if sla else None,
-        sla_response_due=now + timedelta(hours=sla.response_hours) if sla else None,
-        sla_resolution_due=now + timedelta(hours=sla.resolution_hours) if sla else None,
+        sla_response_due=respuesta_due,
+        sla_resolution_due=resolucion_due,
         created_at=now,
     )
 
