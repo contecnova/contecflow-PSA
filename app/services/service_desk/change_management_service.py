@@ -68,16 +68,22 @@ class ChangeType(str, Enum):
     pilot = "pilot"             # Pilot/test change
 
 
-class ChangeStatus(str, Enum):
-    draft = "draft"
-    submitted = "submitted"
-    in_approval = "in_approval"
-    approved = "approved"
-    scheduled = "scheduled"
-    in_progress = "in_progress"
-    completed = "completed"
-    rolled_back = "rolled_back"
-    cancelled = "cancelled"
+# Auditoria 2026-08 (hallazgo 22): aqui habia un segundo enum `ChangeStatus`,
+# con nueve valores entre ellos `in_approval`, y **no lo usaba nadie** — ni este
+# modulo, cuyas funciones importan el del modelo (`ITSMChangeRequest.status`), ni
+# ningun otro fichero de `app/` o de `tests/`, comprobado.
+#
+# Lo que si hacia era esconder un defecto: era el **unico sitio del repositorio
+# donde `in_approval` existia**, y tres consumidores del enum del MODELO
+# escribian `ChangeStatus.in_approval` creyendo que estaba. El del modelo no lo
+# tiene —su estado de espera del CAB es `cab_review`—, asi que la pasada de
+# scoring del CAB respondia 500 siempre y su tarea programada fallaba en cada
+# tic. El detalle esta en el comentario de `ESTADOS_PENDIENTES_DE_CAB` en
+# `change_impact_service.py`.
+#
+# Dos enums con el mismo nombre y valores distintos, uno de ellos muerto, es una
+# trampa: se importa el que no toca y el interprete no se queja hasta que se
+# accede al miembro que falta.
 
 
 class RiskLevel(str, Enum):

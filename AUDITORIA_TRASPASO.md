@@ -393,6 +393,103 @@ en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
 
 ---
 
+## 3.decies El estado `in_approval` no existe, y por eso el scoring del CAB no corría
+
+Salió de mover a servicio los dos puntos de acceso de
+`endpoints/service_desk/change_impact.py`. Lo que había detrás es más grande que
+el movimiento, y es la clase de defecto más difícil de ver: **dos enumerados con
+el mismo nombre y valores distintos**.
+
+### Los dos `ChangeStatus`
+
+| dónde | valores |
+|---|---|
+| `app/models/service_desk/_enums.py` | draft, submitted, **cab_review**, approved, scheduled, in_progress, implemented, post_review, closed_success, closed_failed, cancelled |
+| `app/services/service_desk/change_management_service.py` | draft, submitted, **in_approval**, approved, scheduled, in_progress, completed, rolled_back, cancelled |
+
+El primero es el que usa la **columna** `sd_change_requests.status`. El segundo
+era un enumerado local del servicio, y **no lo usaba nadie**: las funciones de
+su propio módulo importan el del modelo, y ni `app/` ni `tests/` lo importan —
+comprobado. Era el único sitio del repositorio donde `in_approval` existía.
+
+### Tres consumidores lo daban por bueno
+
+Los tres importan el enumerado del **modelo** y escriben
+`ChangeStatus.in_approval`. Medido, cada uno con su consecuencia:
+
+1. **`POST /sd/changes/batch-score`.** La referencia era **incondicional**, así
+   que el endpoint respondía **500 siempre**:
+   `AttributeError: type object 'ChangeStatus' has no attribute 'in_approval'`.
+   **Nunca puntuó un solo cambio.**
+2. **`GET /sd/changes/cab-dashboard`.** El valor por defecto del parámetro era
+   `"submitted,in_approval"`, y `in_approval` se caía del filtro por no estar en
+   el enumerado. El panel del CAB listaba **sólo `submitted`** y **no mostraba
+   ninguno** de los cambios que están de verdad esperando decisión del CAB, que
+   es `cab_review`. Y si el cliente mandaba un estado inexistente se llegaba a
+   la rama de respaldo y también devolvía 500.
+3. **La tarea de Celery `change_impact_batch_score`**, programada **cada 10
+   minutos**. Mismo `AttributeError`, atrapado por su `except` exterior, que
+   dejaba una línea de log y devolvía. **La pasada programada llevaba fallando
+   en cada tic**, así que `auto_risk_score` sólo se rellenaba en la transición a
+   `submitted` (`change_service.py`) y **la auto-aprobación de cambios estándar
+   de bajo riesgo no se ejecutaba nunca**.
+
+Y un cuarto sitio, con el mismo error en forma de cadena:
+`change_service.py` re-puntuaba en `new_status in ("submitted", "in_approval")`,
+así que esa mitad de la condición nunca se cumplía.
+
+### Corrección de mi primer diagnóstico
+
+Al ver la consulta de `/batch-score` escribí que **auto-aprobaba las solicitudes
+de cambio de todos los clientes**: no filtra por organización y el bucle
+escribe, firmando la aprobación con el id de quien lanza la pasada.
+
+**El filtro faltaba de verdad, pero esa escritura cruzada nunca fue
+alcanzable**: el endpoint reventaba con el `AttributeError` antes de llegar a la
+consulta. Era un defecto **latente**, no un incidente. La guarda hace falta
+igual —ahora que el endpoint funciona, sin ella sí lo sería— pero decirlo de la
+otra manera sería exagerar lo que pasaba. Es la misma corrección que hubo que
+hacer con el «apagón» de §3.bis, y por la misma razón: describir el defecto por
+la forma del código en vez de por lo que hace al ejecutarse.
+
+### Lo que se hace
+
+* `ESTADOS_PENDIENTES_DE_CAB` se construye **desde el enumerado del modelo**
+  (`submitted`, `cab_review`), así que un renombrado revienta ahí y no en un
+  `AttributeError` a mitad de una petición.
+* Los cuatro sitios usan esa constante: el panel, su rama de respaldo, la tarea
+  de Celery y el re-scoring en la transición.
+* **El enumerado local muerto, fuera.** Dos enumerados con el mismo nombre y
+  valores distintos, uno de ellos sin usar, es una trampa: se importa el que no
+  toca y el intérprete no se queja hasta que se accede al miembro que falta.
+* Y el filtro explícito por organización en las dos consultas, más un tope
+  configurable (`CHANGE_BATCH_SCORE_MAX`, en `.env.example`) para la pasada del
+  endpoint — la tarea de Celery sí tenía `limit(50)`; el endpoint, ninguno.
+
+### El guardián, y que sirve
+
+Un test recorre `app/` **por AST** buscando `ChangeStatus.<algo>` y comprueba
+que `<algo>` es un miembro real del enumerado del modelo. Comprobado contra el
+código de antes con un `git worktree`: **encuentra exactamente los tres
+sitios**.
+
+```
+app/worker.py:1263 -> ChangeStatus.in_approval
+app/api/v1/endpoints/service_desk/change_impact.py:207 -> ChangeStatus.in_approval
+app/api/v1/endpoints/service_desk/change_impact.py:258 -> ChangeStatus.in_approval
+```
+
+Eso es lo que hace que sea un guardián y no un test de acompañamiento: se
+verificó que **falla contra el código defectuoso** antes de darlo por bueno.
+
+> **Y la pregunta que este hallazgo deja abierta**, porque el patrón puede
+> repetirse: ¿cuántos más hay? El guardián sólo mira `ChangeStatus`. La
+> pregunta general —«¿hay dos clases con el mismo nombre y contenido distinto en
+> el repositorio, y alguien importa la que no toca?»— tiene respuesta por AST y
+> **no se ha hecho**. Queda anotada como candidata para la próxima pasada,
+> porque el modo de fallo es exactamente el de aquí: un `AttributeError` en un
+> camino que nadie ejercita.
+
 ## 3.novies Las credenciales de e-firma de un cliente eran el valor global del despliegue
 
 Salió de mover a servicio los tres puntos de acceso de `endpoints/esign.py`.
@@ -3085,8 +3182,8 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    puntos a 0 en ocho ficheros, con diez defectos destapados por el camino
    (§#22) y, al verificarlo, un **apagón de datos para toda organización que no
    fuera la primera del proceso** en el filtro de aislamiento (§3.bis).
-   **Estado medido con `scripts/audit_db_access_in_api.py`: 16 puntos de acceso
-   en 14 ficheros**, mas 111 fronteras de transaccion, que no son acceso a datos
+   **Estado medido con `scripts/audit_db_access_in_api.py`: 14 puntos de acceso
+   en 13 ficheros**, mas 111 fronteras de transaccion, que no son acceso a datos
    y se tratan aparte. Con la misma regla, medido sobre el historico:
    **257 en 41 ficheros** antes de la tanda 1, **46 en 23** al empezar hoy.
 
@@ -3100,7 +3197,6 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    Lo que queda, con el contador nuevo (`--detalle` da la linea exacta):
 
    ```
-    2 acceso    2 tx   app/api/v1/endpoints/service_desk/change_impact.py
     2 acceso    2 tx   app/api/v1/endpoints/bi_intelligence.py
     1 acceso    2 tx   app/api/v1/endpoints/scim.py
     1 acceso    1 tx   app/api/v1/routers/auth_core.py

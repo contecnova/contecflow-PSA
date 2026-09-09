@@ -291,9 +291,18 @@ def update_change_record(db: Session, current_user: User, change_id: str, payloa
     apply_change_update(change, payload, current_user.id)
     enforce_change_org_constraints(db, current_user, change)
 
-    # Re-score when change moves to submitted or in_approval (ITSM-P05)
+    # Re-score when the change enters a state pending CAB decision (ITSM-P05).
+    #
+    # Auditoria 2026-08: la comparacion era contra `("submitted", "in_approval")`
+    # y `in_approval` no es un valor del enum de la columna, asi que esa mitad
+    # de la condicion nunca se cumplia. El estado de espera del CAB es
+    # `cab_review`. Ver `ESTADOS_PENDIENTES_DE_CAB`.
     new_status = payload.get("status", "")
-    if new_status in ("submitted", "in_approval") and prev_status != new_status:
+    from app.services.service_desk.change_impact_service import (
+        ESTADOS_PENDIENTES_DE_CAB,
+    )
+
+    if new_status in ESTADOS_PENDIENTES_DE_CAB and prev_status != new_status:
         db.flush()
         _auto_score_change(db, change)
         _maybe_auto_approve(db, change, system_user_id=current_user.id)

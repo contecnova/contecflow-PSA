@@ -23,7 +23,10 @@ from app.api.deps import get_current_user, get_db
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services.service_desk.change_impact_service import (
+    ESTADOS_PENDIENTES_DE_CAB,
     analyze_change_impact_full,
+    panel_del_cab,
+    puntuar_cambios_pendientes,
     get_cached_impact_analysis,
     generate_rollback_plan,
     get_risk_matrix_for_change,
@@ -183,7 +186,11 @@ def whatif_simulation(
 
 @router.get("/cab-dashboard", summary="CAB dashboard — cambios pendientes con risk score (ITSM-P05)")
 def cab_dashboard(
-    status: str = Query("submitted,in_approval", description="Comma-separated statuses"),
+    # `in_approval` no existe en el enum del modelo: el estado de espera del CAB
+    # es `cab_review`. Ver el comentario de `ESTADOS_PENDIENTES_DE_CAB`.
+    status: str = Query(
+        ",".join(ESTADOS_PENDIENTES_DE_CAB),
+        description="Comma-separated statuses"),
     min_risk_score: float = Query(0, ge=0, le=100),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
@@ -195,8 +202,7 @@ def cab_dashboard(
     Includes `auto_risk_score`, `auto_risk_label`, `impact_analyzed`, and
     `suggested_window` in every item so the CAB can triage without opening each CR.
     """
-    from app.models.service_desk import ITSMChangeRequest, ChangeStatus
-    from app.services.service_desk.change_service import serialize_change
+    from app.models.service_desk import ChangeStatus
 
     requested_statuses = [s.strip() for s in status.split(",") if s.strip()]
     valid_statuses = [
@@ -204,34 +210,14 @@ def cab_dashboard(
         if s in (st.value for st in ChangeStatus)
     ]
     if not valid_statuses:
-        valid_statuses = [ChangeStatus.submitted.value, ChangeStatus.in_approval.value]
-
-    q = (
-        db.query(ITSMChangeRequest)
-        .filter(ITSMChangeRequest.status.in_(valid_statuses))
-    )
-    if min_risk_score > 0:
-        q = q.filter(
-            (ITSMChangeRequest.auto_risk_score >= min_risk_score)
-            | ITSMChangeRequest.auto_risk_score.is_(None)
-        )
-
-    total = q.count()
-    changes = (
-        q.order_by(ITSMChangeRequest.auto_risk_score.desc().nullslast())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+        # Antes esta rama hacia `ChangeStatus.in_approval.value`, que no existe:
+        # un estado inexistente en la peticion devolvia 500 en vez del panel.
+        valid_statuses = list(ESTADOS_PENDIENTES_DE_CAB)
 
     # Objeto (no APIListResponse) para preservar el escalar 'unscored' además de la lista.
-    return APIResponse.ok(data={
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "unscored": sum(1 for c in changes if c.auto_risk_score is None),
-        "items": [serialize_change(c) for c in changes],
-    })
+    return APIResponse.ok(data=panel_del_cab(
+        db, current_user, estados=valid_statuses,
+        min_risk_score=min_risk_score, page=page, page_size=page_size))
 
 
 @router.post(
@@ -242,42 +228,10 @@ def batch_score_changes(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Scores all submitted/in_approval changes that have no auto_risk_score yet.
+    """Scores all pending changes that have no auto_risk_score yet.
 
     Also auto-approves standard changes with risk score ≤ 30.
     Returns counts of scored and auto-approved changes.
     """
-    from app.models.service_desk import ITSMChangeRequest, ChangeStatus
-    from app.services.service_desk.change_impact_service import score_and_persist
-    from app.services.service_desk.change_service import _maybe_auto_approve
-
-    pending = (
-        db.query(ITSMChangeRequest)
-        .filter(
-            ITSMChangeRequest.status.in_(
-                [ChangeStatus.submitted, ChangeStatus.in_approval]
-            ),
-            ITSMChangeRequest.auto_risk_score.is_(None),
-        )
-        .all()
-    )
-
-    scored = auto_approved = errors = 0
-    for change in pending:
-        try:
-            score_and_persist(db, change.id)
-            if _maybe_auto_approve(db, change, system_user_id=str(current_user.id)):
-                auto_approved += 1
-            db.commit()
-            scored += 1
-        except Exception:
-            db.rollback()
-            errors += 1
-
-    return APIResponse.ok(data={
-        "ok": True,
-        "total_pending": len(pending),
-        "scored": scored,
-        "auto_approved": auto_approved,
-        "errors": errors,
-    })
+    return APIResponse.ok(
+        data=puntuar_cambios_pendientes(db, current_user))
