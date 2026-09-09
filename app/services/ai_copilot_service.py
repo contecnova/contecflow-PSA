@@ -183,11 +183,23 @@ def get_ai_ticket_kb_suggestions(ticket_id: str, db: Session) -> dict:
 
     text = f"{ticket.title or ''} {ticket.description or ''}".lower()
     words = set(w for w in text.split() if len(w) > 3)
-    articles = db.query(KBArticle).filter(KBArticle.is_published == True).limit(200).all()
+    # Auditoria 2026-08: `KBArticle.is_published` no existe —la columna es
+    # `is_public`, y hay ademas `published_at`—, asi que esto reventaba con
+    # `AttributeError` y la sugerencia de articulos del copiloto no funcionaba.
+    #
+    # Y `art.content` tampoco existe: el cuerpo del articulo es `art.body`. Ese
+    # no lo encuentra el detector, porque `art` es una instancia y el acceso a
+    # un atributo de instancia no se puede comprobar estaticamente — salio al
+    # leer el arreglo del de al lado. Con `content` inexistente, el texto del
+    # articulo entraba vacio en la puntuacion: la sugerencia se decidia **solo
+    # por el titulo**.
+    articles = db.query(KBArticle).filter(
+        KBArticle.is_public == True  # noqa: E712
+    ).limit(200).all()
 
     scored = []
     for art in articles:
-        art_text = f"{art.title or ''} {art.content or ''}".lower()
+        art_text = f"{art.title or ''} {art.body or ''}".lower()
         matches = sum(1 for w in words if w in art_text)
         if matches > 0:
             scored.append({

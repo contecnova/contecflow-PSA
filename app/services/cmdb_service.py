@@ -203,18 +203,17 @@ def list_cmdb_items(
 ) -> list:
     query = db.query(CMDBItem).options(joinedload(CMDBItem.category))
     if organization_id:
-        # Some environments/models do not expose project_id on CMDBItem yet.
-        # Avoid hard-failing list endpoints due to partial schema/domain rollout.
-        if hasattr(CMDBItem, "project_id"):
-            org_project_ids = [r.id for r in db.query(Project.id).filter(
-                Project.organization_id == organization_id
-            ).all()]
-            query = query.filter(CMDBItem.project_id.in_(org_project_ids))
-        else:
-            logger.warning(
-                "CMDBItem has no project_id; skipping organization filter for org_id=%s",
-                organization_id,
-            )
+        # Auditoria 2026-08 (hallazgo 22). Esto era un `hasattr` **correcto**
+        # sobre una columna que **no existe**: `CMDBItem` no tiene `project_id`.
+        # Asi que se tomaba siempre la rama `else`, que registra un aviso y
+        # **se salta el filtro de organizacion por completo**. Un agujero de
+        # aislamiento escondido detras de una defensa bien escrita — la peor
+        # combinacion, porque el aviso en el log parece que informa de una
+        # limitacion temporal y lo que describe es la ausencia del filtro.
+        #
+        # `CMDBItem` **si** tiene `organization_id`, que es el filtro directo y
+        # no necesita pasar por los proyectos de la organizacion.
+        query = query.filter(CMDBItem.organization_id == organization_id)
     if ci_type:     query = query.filter(CMDBItem.ci_type == ci_type)
     if status:      query = query.filter(CMDBItem.status == status)
     if category_id: query = query.filter(CMDBItem.category_id == category_id)
@@ -404,7 +403,7 @@ def create_agent_snapshot(agent_id: str, db: Session) -> dict:
     try:
         from app.models.service_desk import Ticket
         open_tickets = db.query(Ticket).filter(
-            Ticket.assigned_agent_id == agent_id,
+            Ticket.assigned_to_user_id == agent_id,
             Ticket.status.notin_(["resolved", "closed"])
         ).count()
     # intentional: best-effort fallback, log noise outweighs diagnostic value

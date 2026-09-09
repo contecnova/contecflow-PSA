@@ -770,10 +770,15 @@ def _post_resolution_comment(db: Session, ticket: Ticket, suggestion: str, *, is
         from app.models.service_desk import TicketComment
         prefix = "🤖 **Resolución automática por IA:**" if is_auto else "🤖 **Sugerencia de resolución por IA (revisión manual recomendada):**"
         body = f"{prefix}\n\n{suggestion}"
+        # Auditoria 2026-08: `TicketComment` no tiene `is_internal`; lo que
+        # tiene es `is_public`, que es lo mismo al reves. SQLAlchemy responde
+        # `TypeError` a una palabra clave que no es columna, y el `except` de
+        # esta funcion lo registraba y seguia: **la resolucion de la IA nunca
+        # llegaba al ticket**, asi que el solicitante no la veia.
         comment = TicketComment(
             ticket_id=ticket.id,
             body=body,
-            is_internal=False,
+            is_public=True,
             author_name="AI Auto-Resolution",
         )
         db.add(comment)

@@ -79,7 +79,7 @@ def _get_deliverables(tool_input, db, user, now, is_financial_role):
     status = tool_input.get("status", "")
     if status and status != "all": q = q.filter(Deliverable.status == status)
     else: q = q.filter(Deliverable.status.notin_(["done"]))
-    deliverables = q.order_by(Deliverable.due_date.asc().nullslast()).limit(30).all()
+    deliverables = q.order_by(Deliverable.planned_date.asc().nullslast()).limit(30).all()
     proj_ids = {d.project_id for d in deliverables if d.project_id}
     proj_map = {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
     return {"deliverables": [{

@@ -393,6 +393,107 @@ en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
 
 ---
 
+## 3.duodecies El mismo detector sobre las columnas: diez funciones más que no funcionaban
+
+El frente que §3.undecies dejó **medido y abierto**, cerrado. `Ticket.category`,
+`SLAPolicy.response_hours` y `Ticket.requester_phone` eran columnas de modelo, no
+valores de enumerado, así que el detector de enumerados no las veía. El hermano
+está en `scripts/audit_model_attrs.py` y resuelve el lado de la clase con
+`hasattr` sobre la clase **mapeada de verdad**, no por AST: así cubre columnas,
+relaciones, propiedades híbridas, métodos y todo lo heredado.
+
+**43 candidatos en 27 pares (clase, atributo)** sobre 391 clases mapeadas.
+Verificados uno a uno, **ninguno era un falso positivo**: los 43 son nombres
+equivocados o columnas que faltan.
+
+### Lo que rompía cada uno
+
+Diez funciones completas. Y tres de ellas estaban escondidas detrás de un
+`hasattr` **correcto** sobre una columna ausente, que es el peor caso: parece
+una defensa y es un interruptor de apagado.
+
+| qué | consecuencia |
+|---|---|
+| `cmdb_service` con `CMDBItem.project_id` | el `else` del `hasattr` **se saltaba el filtro de organización entero** en el listado de CMDB, dejando un aviso en el log que parecía informar de una limitación temporal del despliegue |
+| `salesforce_service.find_opportunity_by_external_id` | devolvía **siempre None**, así que la sincronización **duplicaba todas las oportunidades en cada pasada** |
+| la comprobación «P1 sin incidencia mayor» | reportaba **todos** los P1, siempre: un hallazgo de cumplimiento que salta siempre no informa de nada |
+| aplicar una plantilla de proyecto | `Deliverable(billing_pct=...)` → `TypeError`: fallaba en cuanto la plantilla traía un entregable |
+| importar imputaciones desde CSV | `Imputation(work_type=...)` → `TypeError`, fila por fila |
+| la detección automática de problemas | `Ticket.category` no existe: **no funcionó nunca** |
+| el cálculo automático de reconocimiento de ingresos | `RevenueRecognitionRule.is_active` no existía |
+| la estimación de horas por tareas similares | `Task.actual_hours` no existe, así que **caía siempre** en la heurística por palabras del título |
+| las tareas de un sprint | `Task.sprint_id` no existe: el enlace es la tabla `sprint_tasks` |
+| la correlación de alertas por CI raíz | las tres columnas de `CMDBRelation` con otro nombre; el `except` lo tragaba y devolvía **siempre cero** |
+| el comentario de la IA en el ticket | `TicketComment(is_internal=...)` → `TypeError` tragado por un `except`: **la resolución nunca llegaba al ticket** |
+| el enlace de tickets duplicados | igual: el ticket se marcaba duplicado **sin quedar enlazado** a su original |
+| la carga por agente (tres informes distintos) | `Ticket.assignee_id` ×11, cuando la columna es `assigned_to_user_id` — `assignee_id` es la de `Task`, y de ahí viene la confusión |
+
+### Los tres grupos, y qué se hizo con cada uno
+
+**Nombres equivocados —34 sitios—: renombrados.** Mecánico y verificable.
+Además de los de arriba: `ClientHealthSnapshot.created_at` (es `snapshot_at`),
+`Contract.amount` (`total_amount`), `Deliverable.due_date` (`planned_date`),
+`Expense.date` (`expense_date`), `KBArticle.is_published` (`is_public`),
+`Task.created_by_user_id` (`created_by`), `Alert.message` (tiene `title` y
+`description`).
+
+> **Y uno que el detector no podía ver.** Al arreglar `KBArticle.is_published`
+> apareció, dos líneas más abajo, `art.content` — y el cuerpo del artículo es
+> `art.body`. `art` es una **instancia**, y el acceso a un atributo de instancia
+> no se puede comprobar estáticamente. Consecuencia: el texto del artículo
+> entraba vacío en la puntuación, así que la sugerencia de artículos del
+> copiloto se decidía **sólo por el título**. Queda dicho como límite del
+> detector: cubre el lado de la clase, no el de la instancia.
+
+**Conceptos que el esquema modela de otra forma —4 sitios—: reimplementados.**
+Las tareas de un sprint pasan por la tabla de unión; las horas reales de una
+tarea se calculan con una subconsulta de imputaciones; la clasificación de un
+ticket es su elemento del catálogo de servicios —y eso queda escrito como
+**lectura de la intención, no renombrado**, para que se revise—; y
+`Imputation.work_type` **no se inventa**: si la columna del CSV llega, hoy se
+descarta, que es preferible a no poder importar nada.
+
+**Columnas que hacían falta de verdad —3—: añadidas**, con la revisión
+`094_columnas_que_el_codigo_leia_sin_existir`. `deliverables.billing_pct`,
+`opportunities.external_id` (indexada) y
+`revenue_recognition_rules.is_active` (NOT NULL, rellenada a `true`). La
+migración se verificó **ejecutándola de verdad**: upgrade, relleno, el
+`NOT NULL` de verdad, el índice, que la segunda pasada no revienta, y el
+downgrade completo.
+
+**Y uno que no se toca.** `MajorIncident.tickets`: entre esas dos entidades no
+hay ni columna ni tabla de unión, comprobado sobre `Base.metadata`. Inventar el
+enlace es una decisión de diseño —¿un ticket pertenece a una sola incidencia
+mayor, o varias comparten tickets?— y no se cuela en una tanda de otra cosa. Lo
+que sí se hace es **decir la verdad**: la comprobación se declara no evaluable
+mientras el enlace no exista, en vez de dar un falso positivo por cada P1.
+
+### El guardián
+
+`tests/test_atributos_de_modelo_existen.py`, de tolerancia cero, con una lista
+`CONOCIDOS` de una sola entrada y su razón escrita. Y un segundo test que
+**comprueba que esa excepción sigue siendo necesaria**: si alguien añade la
+relación que falta, la entrada sobra y el test lo dice, así la excepción no se
+queda ahí para siempre por inercia.
+
+**Comprobado que discrimina, y con la cifra exacta:** ejecutado contra la
+versión anterior del repositorio en un `git worktree`, encuentra **42** sitios
+—los 43 candidatos menos el declarado en `CONOCIDOS`—. Escribí primero 43 y hubo
+que corregirlo: la diferencia es de uno, y aun así se mide.
+
+### Lo que este par de detectores dice sobre el conjunto
+
+Entre los dos —enumerados y columnas— son **52 sitios** y **diecinueve
+funciones completas** que no podían hacer su trabajo, encontrados por dos
+scripts de treinta líneas cada uno. Ninguno lo veía `ruff`, ni el tipado, ni la
+suite. La pregunta que los generó no era sobre seguridad ni sobre rendimiento;
+era la más simple posible: **«¿existe lo que este código está nombrando?»**
+
+Y hay una tercera versión de la misma pregunta, **sin hacer**, que el caso de
+`art.content` deja señalada: los atributos de **instancia**. Ahí el AST no llega
+solo —hay que inferir el tipo de la variable— y por eso no se ha hecho; pero es
+donde viven los que quedan.
+
 ## 3.undecies La pregunta general, y las nueve vías que no podían funcionar
 
 El hallazgo de §3.decies dejó una pregunta: **«¿cuántos más hay?»** La respuesta
@@ -500,14 +601,10 @@ en `scripts/audit_model_attrs.py`, que resuelve el lado de la clase con
 existen y 8 constructores con una palabra clave que no es atributo**, sobre 391
 clases mapeadas.
 
-**Son candidatos, no defectos, y no se han tocado.** La diferencia importa: un
-acceso puede estar en una rama muerta, y entonces no hace daño hoy aunque esté
-mal escrito. Hay repeticiones que huelen a error sistemático —`Ticket.assignee_id`
-aparece nueve veces en cuatro ficheros, y la columna se llama
-`assigned_to_user_id`— y otros que podrían ser columnas que faltan de verdad
-(`Task.sprint_id`). Verificar los 43 uno a uno es una tanda propia con su suite,
-y meterla de propina aquí sería exactamente la chapuza que este trabajo evita.
-El detector queda en el repositorio y la lista, medida.
+**Cerrado en §3.duodecies**, que es la sección de arriba: los 43 verificados uno
+a uno, **ninguno era un falso positivo**, y entre ellos diez funciones completas
+que no podían hacer su trabajo. Cuando escribí esto eran candidatos y así había
+que decirlo; ahora están medidos.
 
 ## 3.decies El estado `in_approval` no existe, y por eso el scoring del CAB no corría
 

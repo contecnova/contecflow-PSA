@@ -19,7 +19,7 @@ from app.core.config import settings
 from app.core.outbound_url import validate_outbound_url
 from app.models.user import User
 from app.models.task import Task
-from app.models.service_desk import Ticket
+from app.models.service_desk import Ticket, TicketStatus
 from app.models.mfa import (
     AITaskEstimate, AITicketTriage,
 )
@@ -41,13 +41,37 @@ def estimate_task_hours(task_id: str, db: Session) -> dict:
         filters = sql_or(*[
             func.lower(Task.title).contains(kw) for kw in keywords[:5]
         ])
-        similar_tasks = db.query(Task).filter(
-            Task.status == "done",
-            Task.estimated_hours != None,
-            Task.actual_hours != None,
-            Task.id != task_id,
-            filters,
-        ).limit(10).all()
+        # Auditoria 2026-08: `Task.actual_hours` **no existe**. Las horas
+        # reales de una tarea son la suma de sus imputaciones, asi que se
+        # calculan con una subconsulta y se piden solo las que tienen alguna.
+        # Antes esto reventaba con `AttributeError` y la estimacion caia
+        # SIEMPRE en la heuristica por palabras del titulo, que es el `else`
+        # de mas abajo: la parte de «basado en tareas similares completadas»
+        # no se ejecuto nunca.
+        from app.models.imputation import Imputation
+
+        horas_reales = (
+            db.query(
+                Imputation.task_id.label("task_id"),
+                func.sum(Imputation.hours).label("reales"),
+            )
+            .filter(Imputation.task_id.isnot(None))
+            .group_by(Imputation.task_id)
+            .subquery()
+        )
+        similar_tasks = (
+            db.query(Task, horas_reales.c.reales)
+            .join(horas_reales, horas_reales.c.task_id == Task.id)
+            .filter(
+                Task.status == "done",
+                Task.estimated_hours.isnot(None),
+                horas_reales.c.reales > 0,
+                Task.id != task_id,
+                filters,
+            )
+            .limit(10)
+            .all()
+        )
 
     estimated_hours = None
     confidence = 0
@@ -56,9 +80,12 @@ def estimate_task_hours(task_id: str, db: Session) -> dict:
 
     if similar_tasks:
         estimates = []
-        for st in similar_tasks:
-            accuracy = 1 - abs(st.actual_hours - st.estimated_hours) / max(st.estimated_hours, 1)
-            estimates.append((st.actual_hours, max(accuracy, 0.1)))
+        # `similar_tasks` son pares (tarea, horas reales): las reales vienen de
+        # la subconsulta de imputaciones, no de una columna de la tarea.
+        for st, reales in similar_tasks:
+            reales = float(reales or 0)
+            accuracy = 1 - abs(reales - st.estimated_hours) / max(st.estimated_hours, 1)
+            estimates.append((reales, max(accuracy, 0.1)))
             similar_ids.append(st.id)
 
         total_weight = sum(w for _, w in estimates)
@@ -194,14 +221,26 @@ def triage_ticket(ticket_id: str, db: Session) -> dict:
     elif any(kw in full_text for kw in ["lento", "rendimiento", "cuelga", "memoria"]):
         suggested_category = "Rendimiento"
 
+    # Auditoria 2026-08. Dos defectos en esta consulta:
+    #
+    #   · `Ticket.assignee_id` **no existe**: la columna se llama
+    #     `assigned_to_user_id`. `assignee_id` es el nombre que usa `Task`, y de
+    #     ahi viene la confusion. Reventaba con `AttributeError`.
+    #   · `Ticket.status.in_(["open", "in_progress"])`: **`open` no es un valor
+    #     de `TicketStatus`**. Los abiertos son todos los que no estan en
+    #     `resolved`, `closed` ni `cancelled`, que es como lo expresa el resto
+    #     del modulo.
     agent_loads = db.query(
-        Ticket.assignee_id, func.count(Ticket.id).label("open_count")
+        Ticket.assigned_to_user_id, func.count(Ticket.id).label("open_count")
     ).filter(
-        Ticket.status.in_(["open", "in_progress"]),
-        Ticket.assignee_id != None,
-    ).group_by(Ticket.assignee_id).order_by("open_count").limit(5).all()
+        Ticket.status.notin_([
+            TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled,
+        ]),
+        Ticket.assigned_to_user_id.isnot(None),
+    ).group_by(Ticket.assigned_to_user_id).order_by("open_count").limit(5).all()
 
-    suggested_agent_id = agent_loads[0].assignee_id if agent_loads else None
+    suggested_agent_id = (
+        agent_loads[0].assigned_to_user_id if agent_loads else None)
     confidence = 60
 
     api_key = settings.ANTHROPIC_API_KEY or None

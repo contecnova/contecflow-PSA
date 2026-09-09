@@ -228,15 +228,18 @@ def metric_client_health_score(
         from app.models.clients import Client
 
         # Latest snapshot per client
+        # Auditoria 2026-08: `created_at` no existe en esta tabla; la marca de
+        # tiempo se llama `snapshot_at`. Reventaba con `AttributeError`, lo
+        # atrapaba el `except` de la metrica y la grafica salia vacia.
         subq = db.query(
             ClientHealthSnapshot.client_id,
-            func.max(ClientHealthSnapshot.created_at).label("latest"),
+            func.max(ClientHealthSnapshot.snapshot_at).label("latest"),
         ).group_by(ClientHealthSnapshot.client_id).subquery()
 
         q = db.query(ClientHealthSnapshot).join(
             subq,
             (ClientHealthSnapshot.client_id == subq.c.client_id) &
-            (ClientHealthSnapshot.created_at == subq.c.latest)
+            (ClientHealthSnapshot.snapshot_at == subq.c.latest)
         ).order_by(ClientHealthSnapshot.health_score.desc()).limit(top_n)
 
         client_ids = [r.client_id for r in q.all()]

@@ -119,7 +119,17 @@ def build_task_list_query(
     if phase_id:
         q = q.filter(Task.phase_id == phase_id)
     if sprint_id:
-        q = q.filter(Task.sprint_id == sprint_id)
+        # Auditoria 2026-08: `Task.sprint_id` no existe; el enlace es la tabla
+        # `sprint_tasks`. Ver `task_service.get_tasks_for_sprint`.
+        from app.models.sprints import SprintTask
+
+        q = q.filter(
+            Task.id.in_(
+                db.query(SprintTask.task_id)
+                .filter(SprintTask.sprint_id == sprint_id)
+                .scalar_subquery()
+            )
+        )
     if parent_task_id:
         q = q.filter(Task.parent_task_id == parent_task_id)
 

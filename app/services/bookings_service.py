@@ -727,7 +727,7 @@ def get_pipeline_revenue_forecast(db) -> dict:
 
 def get_ticket_aging_report(db) -> dict:
     open_statuses = ["new", "assigned", "in_progress", "pending_client"]
-    tickets = db.query(Ticket).options(joinedload(Ticket.assignee)).filter(Ticket.status.in_(open_statuses)).all()
+    tickets = db.query(Ticket).options(joinedload(Ticket.assigned_to)).filter(Ticket.status.in_(open_statuses)).all()
     now = datetime.now(timezone.utc)
     aging_buckets = {
         "0-4h":  {"label": "0-4 horas",  "color": "#00e5a0", "tickets": []},
@@ -1251,7 +1251,12 @@ def _execute_step_action(config: dict, context: dict, db) -> dict:
         db.add(
             Alert(
                 alert_type="workflow",
-                message=config.get("message", "Workflow ejecutado"),
+                # Auditoria 2026-08: `Alert` no tiene `message`. Tiene `title` y
+                # `description`, y SQLAlchemy responde `TypeError` a una palabra
+                # clave que no es columna: la accion «crear alerta» de los
+                # flujos de trabajo no creaba ninguna.
+                title=config.get("message", "Workflow ejecutado"),
+                description=config.get("message", "Workflow ejecutado"),
                 severity=config.get("severity", "info"),
                 # Sin esto, un workflow sin project_id en contexto crea una alerta
                 # con los tres campos de ámbito a NULL, que _scope_alert_to_org

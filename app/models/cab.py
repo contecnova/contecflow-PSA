@@ -329,6 +329,16 @@ class RevenueRecognitionRule(Base):
     start_date      = Column(Date, nullable=True)
     end_date        = Column(Date, nullable=True)
     notes           = Column(Text, nullable=True)
+    # Borrado logico, la misma convencion que el resto del repositorio.
+    #
+    # Auditoria 2026-08 (hallazgo 22): `auto_compute_revenue` filtra por
+    # `RevenueRecognitionRule.is_active == True` y la columna **no existia**,
+    # asi que el calculo automatico de reconocimiento de ingresos reventaba con
+    # `AttributeError`. Se anade la columna —con `True` por defecto y relleno a
+    # `True` en la migracion— en vez de quitar el filtro: una regla de
+    # reconocimiento es exactamente la clase de fila que hay que poder
+    # desactivar sin borrar su historial.
+    is_active       = Column(Boolean, default=True, nullable=False, index=True)
     created_by      = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
     updated_at      = Column(DateTime(timezone=True), onupdate=func.now())

@@ -73,13 +73,18 @@ def _get_agent_ticket_counts(db: Session, days: int = 30) -> dict[str, int]:
     from app.models.service_desk import Ticket
 
     cutoff = datetime.now(tz=timezone.utc) - timedelta(days=days)
+    # Auditoria 2026-08: `Ticket.assignee_id` no existe; la columna es
+    # `assigned_to_user_id` (`assignee_id` es la de `Task`).
     rows = (
-        db.query(Ticket.assignee_id, func.count(Ticket.id).label("cnt"))
-        .filter(Ticket.created_at >= cutoff, Ticket.assignee_id.isnot(None))
-        .group_by(Ticket.assignee_id)
+        db.query(Ticket.assigned_to_user_id, func.count(Ticket.id).label("cnt"))
+        .filter(
+            Ticket.created_at >= cutoff,
+            Ticket.assigned_to_user_id.isnot(None),
+        )
+        .group_by(Ticket.assigned_to_user_id)
         .all()
     )
-    return {str(r.assignee_id): int(r.cnt) for r in rows}
+    return {str(r.assigned_to_user_id): int(r.cnt) for r in rows}
 
 
 # ── Linear regression helper (sklearn or fallback) ───────────────────────────
@@ -242,7 +247,7 @@ def calculate_burnout_risk(db: Session, user_id: str, org_id: str) -> dict:
         count = (
             db.query(func.count(Ticket.id))
             .filter(
-                Ticket.assignee_id == user_id,
+                Ticket.assigned_to_user_id == user_id,
                 Ticket.created_at >= w_start,
                 Ticket.created_at < w_end,
             )

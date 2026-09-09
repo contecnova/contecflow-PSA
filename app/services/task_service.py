@@ -811,8 +811,21 @@ def get_tasks_for_project(
 
 
 def get_tasks_for_sprint(sprint_id: str, db: Session) -> list[Task]:
-    """Return all tasks assigned to a sprint."""
-    return db.query(Task).filter(Task.sprint_id == sprint_id).all()
+    """Return all tasks assigned to a sprint.
+
+    Auditoria 2026-08: esto filtraba por `Task.sprint_id`, y **esa columna no
+    existe**. Una tarea se enlaza a un sprint por la tabla `sprint_tasks`
+    (`SprintTask`), asi que la consulta reventaba con `AttributeError` y
+    «las tareas de un sprint» no se podian listar.
+    """
+    from app.models.sprints import SprintTask
+
+    return (
+        db.query(Task)
+        .join(SprintTask, SprintTask.task_id == Task.id)
+        .filter(SprintTask.sprint_id == sprint_id)
+        .all()
+    )
 
 
 def get_threaded_comments_for_task(

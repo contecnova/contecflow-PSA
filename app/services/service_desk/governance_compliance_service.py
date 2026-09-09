@@ -105,13 +105,29 @@ def audit_incident_management(db: Session, days: int = 30) -> dict:
 
     # ── Finding 1: P1 without MajorIncident ───────────────────────────────────
     p1_tickets = [t for t in incidents if t.priority == TicketPriority.p1_critical]
-    p1_without_mi = []
-    for t in p1_tickets:
-        mi = db.query(MajorIncident).filter(
-            MajorIncident.tickets.any(id=t.id)  # type: ignore[attr-defined]
-        ).first() if hasattr(MajorIncident, "tickets") else None
-        if not mi:
-            p1_without_mi.append(t.number)
+    # Auditoria 2026-08 (hallazgo 22). Esto preguntaba por
+    # `MajorIncident.tickets` detras de un `hasattr`, y esa relacion **no
+    # existe**: entre `MajorIncident` y `Ticket` no hay ni columna ni tabla de
+    # union, comprobado sobre `Base.metadata`. El `hasattr` es correcto, asi
+    # que `mi` era **siempre** `None` y **todo** ticket P1 se reportaba como
+    # «P1 sin incidencia mayor declarada»: un hallazgo de cumplimiento que
+    # siempre salta no informa de nada.
+    #
+    # **No se inventa el enlace.** Relacionar las dos entidades es un cambio de
+    # esquema con decision de diseno detras —¿un ticket pertenece a una sola
+    # incidencia mayor, o varias comparten tickets?— y no se cuela en una tanda
+    # de otra cosa. Lo que se hace es **decir la verdad**: mientras no exista
+    # el enlace, esta comprobacion no se puede hacer, y se declara como no
+    # evaluable en vez de dar un falso positivo por cada P1.
+    p1_without_mi: list[str] = []
+    enlace_disponible = hasattr(MajorIncident, "tickets")
+    if enlace_disponible:
+        for t in p1_tickets:
+            mi = db.query(MajorIncident).filter(
+                MajorIncident.tickets.any(id=t.id)  # type: ignore[attr-defined]
+            ).first()
+            if not mi:
+                p1_without_mi.append(t.number)
 
     if p1_without_mi:
         pct = round(len(p1_without_mi) / max(len(p1_tickets), 1) * 100)

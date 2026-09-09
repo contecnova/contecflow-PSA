@@ -48,6 +48,21 @@ class Opportunity(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
 
+    # Identificador de esta oportunidad en el sistema de origen (Salesforce).
+    #
+    # Auditoria 2026-08 (hallazgo 22): `salesforce_service` tiene
+    # `find_opportunity_by_external_id`, y empezaba asi:
+    #
+    #     if not hasattr(Opportunity, "external_id"):
+    #         return None
+    #
+    # Un `hasattr` **correcto** sobre una columna que no existia, asi que la
+    # funcion **devolvia siempre None** y la sincronizacion con Salesforce no
+    # reconocia nunca una oportunidad ya importada: **duplicaba todas en cada
+    # pasada**. Se anade la columna, que es lo que la funcion necesita para
+    # hacer su trabajo.
+    external_id = Column(String(255), nullable=True, index=True)
+
     # Client
     client_name = Column(String(255), nullable=False)
     client_id   = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)

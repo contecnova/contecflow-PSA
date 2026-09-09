@@ -106,7 +106,7 @@ def compute_billing_amount(milestone, db: Session) -> Optional[float]:
         proj = db.query(Project).filter(Project.id == milestone.project_id).first()
         if proj:
             total = (
-                db.query(func.sum(Contract.amount)).filter(
+                db.query(func.sum(Contract.total_amount)).filter(
                     Contract.project_id == proj.id
                 ).scalar()
                 or getattr(proj, "budget_amount", None)

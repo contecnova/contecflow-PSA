@@ -80,7 +80,10 @@ def _build_ticket_query(
     if filters.get("status"):
         q = q.filter(Ticket.status == filters["status"])
     if filters.get("assignee_id"):
-        q = q.filter(Ticket.assignee_id == filters["assignee_id"])
+        # Auditoria 2026-08: la columna es `assigned_to_user_id`
+        # (`assignee_id` es la de `Task`). El nombre del filtro de entrada se
+        # conserva: es API publicada.
+        q = q.filter(Ticket.assigned_to_user_id == filters["assignee_id"])
 
     return q
 
@@ -149,12 +152,12 @@ def _agent_performance_report(db: Session, filters: dict, date_from: str, date_t
     q = _build_ticket_query(db, filters, date_from, date_to)
     rows = (
         q.with_entities(
-            Ticket.assignee_id,
+            Ticket.assigned_to_user_id,
             func.count(Ticket.id).label("tickets_handled"),
             func.avg(Ticket.resolution_minutes).label("avg_resolution_minutes"),
         )
-        .filter(Ticket.assignee_id.isnot(None))
-        .group_by(Ticket.assignee_id)
+        .filter(Ticket.assigned_to_user_id.isnot(None))
+        .group_by(Ticket.assigned_to_user_id)
         .order_by(func.count(Ticket.id).desc())
         .all()
     )

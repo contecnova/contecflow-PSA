@@ -205,12 +205,16 @@ def _expand_ci_dependencies(db: Session, ci_ids: list[str]) -> list[str]:
     if not ci_ids:
         return []
     try:
+        # Auditoria 2026-08: ninguna de las tres columnas existe con ese
+        # nombre. Son `from_item_id`, `to_item_id` y `rel_type`. Reventaba con
+        # `AttributeError`, lo atrapaba el `except` de abajo, y la correlacion
+        # de alertas devolvia SIEMPRE cero CIs raiz.
         from app.models.cmdb import CMDBRelation
         rows = (
-            db.query(CMDBRelation.target_ci_id)
+            db.query(CMDBRelation.to_item_id)
             .filter(
-                CMDBRelation.source_ci_id.in_(ci_ids),
-                CMDBRelation.relation_type.in_(["depends_on", "runs_on"]),
+                CMDBRelation.from_item_id.in_(ci_ids),
+                CMDBRelation.rel_type.in_(["depends_on", "runs_on"]),
             )
             .all()
         )
