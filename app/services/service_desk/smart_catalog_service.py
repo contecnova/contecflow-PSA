@@ -103,23 +103,50 @@ def update_service_popularity(db: Session) -> dict:
     Does NOT commit — caller must commit.
 
     Returns:
-        {"updated": N, "top_service": str}
+        {"updated": 0, "persisted": False, "top_service": str, "scores": [...]}
+
+    `updated` es siempre cero y `persisted` siempre falso: la puntuacion no se
+    guarda porque no hay columna donde hacerlo. Ver el comentario de abajo.
     """
     popular = get_popular_services(db, weeks=_POPULARITY_WEEKS, limit=999)
 
     max_count = popular[0]["ticket_count"] if popular else 1
-    updated = 0
     top_service = popular[0]["service_name"] if popular else ""
 
-    for entry in popular:
-        svc = db.query(ServiceItem).filter(ServiceItem.id == entry["service_id"]).first()
-        if svc and hasattr(svc, "popularity_score"):
-            # Normalize 0-100
-            svc.popularity_score = round(entry["ticket_count"] / max_count * 100, 1)
-            updated += 1
+    # Auditoria 2026-08 (hallazgo 22). Este bucle recorria los servicios mas
+    # pedidos para guardarles una puntuacion de popularidad en
+    # `svc.popularity_score`, y esa columna **no existe** en `sd_service_items`.
+    #
+    # El `hasattr` es **correcto**, y por eso el defecto era invisible: la
+    # condicion daba `False` siempre, el cuerpo no se ejecutaba nunca, y la
+    # funcion devolvia `{"updated": 0}` sin un solo error. Es el mismo patron
+    # que apago el filtro de organizacion del listado de CMDB y que dejaba la
+    # sincronizacion de Salesforce duplicando oportunidades: una defensa bien
+    # escrita sobre una columna ausente es un interruptor de apagado.
+    #
+    # **No se inventa la columna.** La popularidad se calcula aqui mismo a
+    # partir del recuento de tickets, asi que guardarla seria un cache que hay
+    # que invalidar. Lo que se hace es **devolverla**, que es lo que el
+    # consumidor puede usar hoy, y decir que no se persiste.
+    puntuaciones = [
+        {
+            "service_id": entry["service_id"],
+            "service_name": entry.get("service_name"),
+            "ticket_count": entry["ticket_count"],
+            "popularity_score": round(
+                entry["ticket_count"] / max_count * 100, 1),
+        }
+        for entry in popular
+    ]
 
-    db.flush()
-    return {"updated": updated, "top_service": top_service}
+    return {
+        # Se conserva la clave: era API publicada. Y ahora dice la verdad —
+        # cero filas actualizadas, porque no hay donde guardarlo.
+        "updated": 0,
+        "persisted": False,
+        "top_service": top_service,
+        "scores": puntuaciones,
+    }
 
 
 # ── User-specific recommendations ────────────────────────────────────────────

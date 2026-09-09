@@ -38,7 +38,16 @@ def _notify_change_stakeholders(
         if not change:
             return
 
-        recipient_ids = {uid for uid in [change.requester_id, change.approver_id, change.assigned_to_id] if uid}
+        # Auditoria 2026-08: aqui habia `change.assigned_to_id`, y esa columna
+        # **no existe** en `sd_change_requests` — quien lleva el cambio es
+        # `owner_id`. Reventaba con `AttributeError`, asi que **ningun aviso a
+        # los interesados de un cambio llegaba nunca**: ni al solicitante, ni al
+        # aprobador, ni al responsable.
+        recipient_ids = {
+            uid for uid in
+            [change.requester_id, change.approver_id, change.owner_id]
+            if uid
+        }
         for uid in recipient_ids:
             user = db.query(User).filter(User.id == uid).first()
             if user and user.email:

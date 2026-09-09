@@ -322,6 +322,14 @@ def accept_ticket_triage(ticket_id: str, accepted: bool, current_user_id: str, d
         if ticket:
             if triage.suggested_priority: ticket.priority = triage.suggested_priority
             if triage.suggested_category: ticket.ticket_type = triage.suggested_category
-            if triage.suggested_agent_id: ticket.assignee_id = triage.suggested_agent_id
+            # Auditoria 2026-08: aqui habia `ticket.assignee_id = ...`, y esa
+            # columna **no existe** en `sd_tickets` —`assignee_id` es la de
+            # `Task`—. Y esto es una **asignacion**, no una lectura: SQLAlchemy
+            # no se queja, se queda un atributo de Python que no persiste. Asi
+            # que aceptar un triaje de IA cambiaba la prioridad y el tipo del
+            # ticket y **no lo asignaba a nadie**, sin un solo error. Un fallo
+            # silencioso es peor que un 500.
+            if triage.suggested_agent_id:
+                ticket.assigned_to_user_id = triage.suggested_agent_id
     db.commit()
     return {"ok": True, "accepted": accepted}

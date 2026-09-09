@@ -393,6 +393,86 @@ en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
 
 ---
 
+## 3.quaterdecies El tercer detector: siete funciones más, y dos que fallaban en silencio
+
+El frente que quedaba señalado, cerrado. `audit_enum_members.py` mira
+`Enumerado.valor`; `audit_model_attrs.py` mira `Modelo.columna`; ninguno de los
+dos puede ver `fila.columna`. `scripts/audit_instance_attrs.py` sí.
+
+### Cómo se infiere el tipo sin inferir tipos
+
+Cuatro formas cubren el código real de este repositorio: el bucle sobre una
+consulta, la comprehensión sobre una consulta, la asignación desde una consulta
+que devuelve una fila (`.first()`, `.one()`…) y el parámetro anotado. **Y un
+nombre religado más de una vez se descarta**, por cualquier vía.
+
+Lo que **no** cubre, y queda dicho: variables que vienen de una llamada a un
+servicio, donde haría falta seguir el tipo de retorno.
+
+### Lo que encontró: diez accesos, siete funciones roídas
+
+| dónde | qué | qué pasaba |
+|---|---|---|
+| `agent_execution_service` | `execution.updated_at` | **reventaba siempre**: el estado de una ejecución de agente de IA no se podía consultar |
+| `ai_planning_service` | `ticket.assignee_id = …` | **asignación silenciosa**: aceptar un triaje de IA cambiaba prioridad y tipo y **no asignaba el ticket a nadie** |
+| `bookings_service` ×3 | `opp.amount` | convertir una oportunidad ganada en proyecto reventaba |
+| `epics_service` | `t.assigned_to_user_id` | el detalle de un epic **no se podía leer** en cuanto tenía una tarea |
+| `security_observability` | `det.mttd_seconds = …` | **asignación silenciosa**: el tiempo hasta la detección se calculaba y se tiraba |
+| `change_management_service` | `change.assigned_to_id` | **ningún aviso a los interesados de un cambio llegaba nunca** — ni al solicitante, ni al aprobador, ni al responsable |
+| `smart_catalog_service` | `svc.popularity_score` | tras un `hasattr` correcto: la actualización de popularidad **no actualizaba nada** y devolvía `updated: 0` sin error |
+
+Los nombres correctos eran `completed_at`, `assigned_to_user_id`,
+`expected_revenue`, `assignee_id` y `owner_id`. Los otros dos no existen y **no
+se inventan**: ver abajo.
+
+### Lo que este detector enseña y los otros dos no
+
+**La asignación es peor que la lectura.** `fila.columna_que_no_existe` al leer
+lanza `AttributeError` y alguien ve un 500. Al **escribir**, SQLAlchemy no se
+queja: se queda un atributo de Python que no persiste. Dos de los diez eran así,
+y los dos tiraban un cálculo a la basura sin un solo error en los registros. Un
+fallo silencioso es peor que un 500 — el 500 se investiga.
+
+**Y un segundo defecto detrás del primero.** En `bookings_service`, el
+`OpportunityStage.closed_won` inexistente abortaba la función **antes** de llegar
+al `opp.amount`. El segundo sólo se vio al arreglar el primero, y sólo porque se
+volvió a pasar el detector después. Es la misma lección que ya dio la pasarela
+de correo, donde había tres apilados: **arreglar el primer defecto de una
+función no la arregla; hay que volver a medir**.
+
+### Dos que no se inventan
+
+**`det.mttd_seconds`.** El tiempo hasta la detección es derivable de
+`detected_at - first_seen_at`, y las dos columnas ya se guardan, así que añadir
+una tercera sería duplicar información. Lo que hacía falta era **dejar de
+fingir que se guarda**: el bloque entero se quita, con la normalización de zona
+horaria que sólo servía para eso.
+
+**`svc.popularity_score`.** La popularidad se calcula en la misma función a
+partir del recuento de tickets, así que guardarla sería un caché que hay que
+invalidar. Se **devuelve** en la respuesta, con `persisted: False`, y la clave
+`updated` se conserva —era API publicada— pero ahora dice la verdad: cero, y por
+qué.
+
+### El guardián, y su honestidad sobre sí mismo
+
+`tests/test_atributos_de_instancia_existen.py`, tolerancia cero, con
+`CONOCIDOS` **vacía**. Importa el propio script de medición en vez de
+reimplementar la regla, y tiene un test que comprueba que la inferencia sigue
+funcionando —si dejara de reconocer las formas del repositorio, no encontraría
+variables que vigilar y el guardián pasaría por vacío—.
+
+Comprobado contra el código anterior con `git worktree`: **encuentra los diez**.
+
+> **Y el detector se equivocó dos veces antes de servir, otra vez.** La primera
+> versión daba **veinte** accesos, y **diez eran un único falso positivo**: en
+> `_get_capacity_plans`, la variable `p` es primero el `Project` de una
+> comprehensión y después el `CapacityPlan` de un `for p in plans`. Descartar
+> los nombres ligados a dos *modelos* distintos tampoco bastaba —la segunda
+> ligadura no es una consulta, así que el detector no le asignaba tipo y no veía
+> el conflicto—: hay que contar **todas** las ligaduras, no sólo las que se
+> saben tipar. Tercer detector, tercera vez que hay que ajustarlo midiendo.
+
 ## 3.terdecies El hallazgo 22, cerrado: 257 → 0
 
 `scripts/audit_db_access_in_api.py` da **cero puntos de acceso a datos en toda
@@ -569,10 +649,11 @@ scripts de treinta líneas cada uno. Ninguno lo veía `ruff`, ni el tipado, ni l
 suite. La pregunta que los generó no era sobre seguridad ni sobre rendimiento;
 era la más simple posible: **«¿existe lo que este código está nombrando?»**
 
-Y hay una tercera versión de la misma pregunta, **sin hacer**, que el caso de
-`art.content` deja señalada: los atributos de **instancia**. Ahí el AST no llega
-solo —hay que inferir el tipo de la variable— y por eso no se ha hecho; pero es
-donde viven los que quedan.
+Y la tercera versión de la misma pregunta —los atributos de **instancia**, que
+el caso de `art.content` dejó señalada— está **hecha** en §3.quaterdecies: diez
+accesos más, siete funciones roídas, y dos de ellas fallando en silencio. No
+hizo falta inferir tipos de verdad: cuatro formas sintácticas cubren el código
+real de este repositorio.
 
 ## 3.undecies La pregunta general, y las nueve vías que no podían funcionar
 

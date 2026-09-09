@@ -536,12 +536,20 @@ class SecurityEventService:
         if reason:
             det.false_positive_reason = reason
 
-        # Update MTTR on detection
-        if det.detected_at:
-            det_time = det.detected_at
-            if det_time.tzinfo is None:
-                det_time = det_time.replace(tzinfo=_UTC)
-            det.mttd_seconds = (det.detected_at - det.first_seen_at).total_seconds() if det.first_seen_at else None
+        # Auditoria 2026-08: aqui se calculaba el tiempo hasta la deteccion y
+        # se asignaba a `det.mttd_seconds`, una columna que **no existe** en
+        # `security_detections`. Es una **asignacion**, asi que SQLAlchemy no se
+        # queja: se quedaba un atributo de Python que no persiste, y el calculo
+        # se tiraba a la basura en cada resolucion.
+        #
+        # **No se inventa la columna.** El dato es derivable en cualquier
+        # momento de `detected_at - first_seen_at`, que ya se guardan las dos,
+        # asi que anadir una columna seria duplicar informacion. Lo que si hacia
+        # falta era dejar de fingir que se guarda: el bloque entero, y con el la
+        # normalizacion de zona horaria que solo servia para esto, se quitan.
+        #
+        # Si el tiempo hasta la deteccion hace falta en una consulta, se calcula
+        # en la lectura; anadir la columna es una decision de producto.
 
         self.db.commit()
         return det

@@ -715,11 +715,16 @@ def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, cu
         status=ProjectStatus.planning,
         start_date=date.fromisoformat(payload["start_date"]) if payload.get("start_date") else timeutil.today(),
         end_date_planned=date.fromisoformat(payload["end_date"]) if payload.get("end_date") else None,
-        budget_amount=opp.amount,
+        # Auditoria 2026-08: `Opportunity` no tiene `amount`; el importe es
+        # `expected_revenue`. Reventaba con `AttributeError` en las tres lineas
+        # de abajo. Era el **segundo** defecto de esta funcion: el primero
+        # —`OpportunityStage.closed_won`, que tampoco existe— la abortaba antes
+        # de llegar aqui, asi que este solo se veia al arreglar aquel.
+        budget_amount=opp.expected_revenue,
         billing_type=payload.get("billing_type", _bill_type),
         is_billable=True,
         pm_id=payload.get("pm_id"),
-        contract_amount=opp.amount,
+        contract_amount=opp.expected_revenue,
         currency=payload.get("currency", _curr),
         description=opp.description,
         created_by=current_user.id,
@@ -727,7 +732,8 @@ def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, cu
     db.add(project)
     opp.project_id = project.id
     _audit(db, current_user, "CONVERT_OPPORTUNITY", "projects", project.id, project.name,
-           new_values={"opportunity_id": opportunity_id, "amount": opp.amount})
+           new_values={"opportunity_id": opportunity_id,
+                       "amount": opp.expected_revenue})
     db.commit()
     return {"ok": True, "project_id": project.id, "project_code": project.code, "project_name": project.name}
 
