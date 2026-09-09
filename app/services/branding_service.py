@@ -12,6 +12,7 @@ consultas, no arreglar una guarda.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Optional
 
 from fastapi import HTTPException
@@ -53,6 +54,66 @@ def marca_de_la_organizacion(db: Session, user, org_id: str):
     assert_org_id_is_own(user, org_id, detail="Organization not found")
     _organizacion(db, org_id)
     return _marca(db, org_id)
+
+
+def traducciones_del_portal(db: Session, org_id: str) -> dict:
+    """Las traducciones personalizadas del portal de esa organizacion.
+
+    Auditoria 2026-08 (hallazgo 22): las dos consultas estaban en
+    `endpoints/client_portal.py`. El filtro **si** estaba y era correcto, asi
+    que esto es un movimiento y no un arreglo — pero viven junto al resto de
+    `OrgBranding`, que es donde se guardan.
+
+    Un JSON ilegible se trata como «no hay traducciones» y no como un error: es
+    el comportamiento que ya tenia, y es el correcto para una personalizacion
+    que no debe tumbar el portal.
+    """
+    return _traducciones_de(_marca(db, org_id), org_id)
+
+
+def _traducciones_de(marca, org_id: str) -> dict:
+    """El JSON de traducciones de una fila de marca ya cargada."""
+    if not marca or not marca.portal_translations:
+        return {}
+    try:
+        return json.loads(marca.portal_translations)
+    except (ValueError, TypeError):
+        logging.getLogger(__name__).warning(
+            "portal_translations de %s no es JSON valido; se devuelve vacio",
+            org_id)
+        return {}
+
+
+def guardar_traducciones_del_portal(
+    db: Session, user, org_id: str, cambios: dict
+) -> dict:
+    """Fusiona `cambios` sobre las traducciones que ya haya. No confirma.
+
+    La fusion —y no el reemplazo— es el comportamiento del endpoint original,
+    heredado a su vez de un `bucket.update` en memoria. Se conserva: guardar una
+    sola clave no debe borrar las demas.
+
+    Devuelve el diccionario resultante, que es lo que hace falta para poder
+    comprobarlo sin volver a leer.
+    """
+    from app.models.white_label import OrgBranding
+
+    marca = _marca(db, org_id)
+    if not marca:
+        marca = OrgBranding(
+            organization_id=org_id,
+            created_by=getattr(user, "id", None),
+        )
+        db.add(marca)
+
+    # Se lee de la fila que ya se tiene, no con otra consulta: llamar aqui a
+    # `traducciones_del_portal` dispararia el autoflush de la fila recien
+    # anadida para volver a leerla, que es una consulta de mas y una sutileza
+    # que no hace falta.
+    actuales = _traducciones_de(marca, org_id)
+    actuales.update(cambios or {})
+    marca.portal_translations = json.dumps(actuales, ensure_ascii=False)
+    return actuales
 
 
 def _variables_css_seguras(valores: dict) -> dict:

@@ -393,6 +393,146 @@ en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
 
 ---
 
+## 3.novies Las credenciales de e-firma de un cliente eran el valor global del despliegue
+
+Salió de mover a servicio los tres puntos de acceso de `endpoints/esign.py`.
+`dynamic_forms`, `client_portal` y `esign` quedan en **0**.
+
+### Lo que había
+
+Dos ayudantes locales que buscaban `AppSetting` por clave, y nada más:
+
+```python
+def _get_esign_setting(db: Session, key: str) -> Optional[str]:
+    row = db.query(AppSetting).filter(AppSetting.key == key).first()
+    return row.value if row and row.value else None
+```
+
+**Sin organización.** Y lo que guardan son las credenciales de DocuSign y de
+Adobe Sign de cada cliente: su `integration_key`, su `secret_key`, su
+`account_id` y —lo más grave— los **tokens de acceso y de refresco** que
+devuelve el OAuth. Tres consecuencias, en orden:
+
+1. **La escritura creaba la fila con `organization_id` a NULL**, que en
+   `AppSetting` significa «valor global del despliegue». El primer cliente que
+   configurara su DocuSign lo dejaba como valor de **todos**.
+2. **La lectura devolvía la primera fila con esa clave**, sin mirar de quién es.
+   Un cliente firmaba con la cuenta de DocuSign de otro.
+3. **Al completar el OAuth**, el token de acceso de un cliente quedaba guardado
+   como global: cualquier otro enviaba sobres con su token.
+
+No es un descuido aislado: son **26 sitios de llamada** en el fichero, incluidos
+los cuatro pasos de los dos flujos de OAuth y los dos endpoints que guardan un
+token recibido a mano.
+
+### La señal que explica por qué la comprobación nunca se escribió
+
+Las **nueve** funciones que usaban esos ayudantes recibían el sujeto y lo
+descartaban:
+
+```python
+def get_esign_config(
+    db: Session = Depends(get_db),
+    _:  User    = Depends(require_admin),
+):
+```
+
+**Nueve de nueve.** No había a quién preguntarle la organización porque el
+parámetro no tenía nombre. Es el mismo descarte que dejó sin comprobar el coste
+activo de un usuario (§3 de `baselines_y_costes`), y aquí aparece nueve veces
+seguidas en el mismo fichero.
+
+Hay un test que lo comprueba **por AST**: si alguien escribe una décima función
+que lea o escriba ajustes de e-firma sin recibir el sujeto con nombre, se pone
+en rojo. No comprueba el arreglo; comprueba que la forma que causó el defecto no
+vuelve.
+
+### La regla que se aplica
+
+La que ya usa el resto del repositorio para `AppSetting` —ver
+`governance_compliance_service`—: **lo propio si existe, y si no el global**, que
+es el valor que trae el despliegue. La escritura, siempre en lo propio.
+
+Eso importa para no romper nada: las filas que ya existen en un despliegue en
+marcha son globales, así que **siguen sirviendo de respaldo** y el
+comportamiento de hoy se conserva hasta que cada cliente guarde lo suyo.
+
+### Y una transacción de siete en una
+
+`PATCH /esign/config` guarda siete claves, y el ayudante hacía `commit()` en cada
+una: **siete transacciones para una petición**. Un fallo a mitad dejaba unas
+credenciales guardadas y otras no —con la mitad de un DocuSign nuevo y la mitad
+del viejo, que es peor que no haber guardado nada—. Ahora el servicio no
+confirma y el endpoint hace un solo `commit` al final.
+
+### Y `/predictive/stats`: 12 consultas por ticket abierto, medidas
+
+Estaba en la lista de «defectos localizados y no arreglados» desde la tanda 1.
+Cargaba **todos** los tickets abiertos como objetos del ORM y, para cada uno,
+llamaba a `predict_ticket` y a `predict_sla_breach`. Medido con la sesión real:
+
+```
+ 1 ticket abierto  ->    12 consultas
+ 5 tickets         ->    60 consultas
+20 tickets         ->   240 consultas
+```
+
+Exactamente **12 consultas por ticket**, y lineal. Con 500 tickets abiertos son
+**6.000 consultas en una sola petición**, más 500 objetos del ORM en memoria.
+
+El tope —`PREDICTIVE_STATS_MAX_TICKETS`, declarado en `.env.example`— **no
+arregla el N+1: lo acota**, que es lo que se puede hacer sin rediseñar los dos
+predictores. Y la respuesta añade `analyzed_tickets` y `truncated`, para que un
+número acotado no se lea como completo. Los campos de antes siguen: no se cambia
+el contrato.
+
+Hay un test que **mide la pendiente** de consultas por ticket y falla si baja de
+5: si alguien rediseña los predictores para que hagan una sola consulta, se pone
+en rojo, y entonces hay que subir el tope — que es exactamente la conversación
+que hay que tener en ese momento.
+
+**Y el `except Exception` que se tragaba la mitad.** El bucle tenía
+`except Exception: logger.debug(...)`, así que si los predictores fallaban para
+la mitad de los tickets la respuesta salía igual, con la mitad de los datos y
+sin decirlo. Sigue siendo *best-effort* —es lo correcto para una predicción—
+pero ahora se cuenta en `failed_tickets`.
+
+> **Un detalle del esquema que salió al escribir el experimento.** El filtro es
+> `Ticket.status.notin_(["resolved", "closed"])`, con cadenas contra una columna
+> `Enum(TicketStatus)`. Funciona porque `resolved` y `closed` **sí** son valores
+> del enum, comprobado; pero es una comparación por texto contra un enum y no
+> falla hasta que alguien escribe un valor que no existe — mi primer experimento
+> creó tickets con `status="open"` y SQLAlchemy lo rechazó con
+> `LookupError: 'open' is not among the defined enum values`. Los estados
+> cerrados están ahora en una constante con nombre, `ESTADOS_CERRADOS`.
+
+### Las traducciones del portal y los formularios dinámicos
+
+Los otros dos ficheros de esta tanda **no traían defecto**, y conviene decirlo
+tal cual: el filtro por organización ya estaba y era correcto en los dos, así
+que ahí el trabajo fue mover y nada más.
+
+* `client_portal.py`: las dos consultas de `OrgBranding.portal_translations` van
+  a `branding_service.py`, junto al resto de la marca. Al moverlas se quitó una
+  consulta redundante —la versión que escribí primero volvía a leer la fila que
+  ya tenía en la mano, disparando el autoflush de la que acababa de añadir— y se
+  añadió un aviso al registro cuando el JSON guardado es ilegible, que antes se
+  tragaba en silencio.
+* `service_desk/dynamic_forms.py`: **287 líneas** de ayudantes —las claves de
+  `AppSetting`, el historial de configuración, el selector de opciones de
+  contexto— a `dynamic_forms_service.py`. Los modelos Pydantic se quedan en el
+  endpoint, que es donde tienen sentido: son el contrato de entrada de las
+  rutas. El fichero pasa de 608 a 324 líneas y mantiene sus **10** rutas.
+
+> **Y un aviso sobre el método, porque me pasó aquí.** El primer intento del
+> movimiento de `dynamic_forms` cortó el bloque desde la primera clave hasta el
+> primer `@router`, y **se llevó por delante los cinco modelos Pydantic** que
+> estaban en medio. Lo cazó `ruff` al momento con catorce `F821`, no un test.
+> La lección: al mover por rangos de líneas hay que comprobar qué hay *dentro*
+> del rango, no sólo dónde empieza y dónde acaba — y las aserciones del script de
+> movimiento tienen que decir tanto lo que el bloque **tiene** como lo que
+> **no** debe tener.
+
 ## 3.octies El contador del #22 estaba mal, y tres defectos más de plantillas y activos
 
 ### Primero, la medición: el número que venía dando no era el que decía
@@ -2945,8 +3085,8 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    puntos a 0 en ocho ficheros, con diez defectos destapados por el camino
    (§#22) y, al verificarlo, un **apagón de datos para toda organización que no
    fuera la primera del proceso** en el filtro de aislamiento (§3.bis).
-   **Estado medido con `scripts/audit_db_access_in_api.py`: 29 puntos de acceso
-   en 18 ficheros**, mas 111 fronteras de transaccion, que no son acceso a datos
+   **Estado medido con `scripts/audit_db_access_in_api.py`: 16 puntos de acceso
+   en 14 ficheros**, mas 111 fronteras de transaccion, que no son acceso a datos
    y se tratan aparte. Con la misma regla, medido sobre el historico:
    **257 en 41 ficheros** antes de la tanda 1, **46 en 23** al empezar hoy.
 
@@ -2957,24 +3097,36 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    `jira_integration`, `user_costs`, `baselines`, `branding`,
    `workflow_designer`, `governance_ops` y `smart_catalog`.
 
-   Lo que queda, por tamano:
+   Lo que queda, con el contador nuevo (`--detalle` da la linea exacta):
 
    ```
-   service_desk/dynamic_forms.py         9   (5 son commit)
-   service_desk/ai_auto_resolution.py    9   orquestacion del trabajo, ver abajo
-   service_desk/workflow_designer.py     8   (todos commit)
-   performance.py                        5   (todos commit)
-   client_portal.py                      5
-   esign.py                              4
-   ...y 21 ficheros mas con 3 o menos
+    2 acceso    2 tx   app/api/v1/endpoints/service_desk/change_impact.py
+    2 acceso    2 tx   app/api/v1/endpoints/bi_intelligence.py
+    1 acceso    2 tx   app/api/v1/endpoints/scim.py
+    1 acceso    1 tx   app/api/v1/routers/auth_core.py
+    1 acceso    1 tx   app/api/v1/endpoints/invoices.py
+    1 acceso    1 tx   app/api/v1/endpoints/billing_reports.py
+    1 acceso    1 tx   app/api/v1/endpoints/bi_collaboration.py
+    1 acceso    0 tx   app/api/v1/routers/auth_mfa.py
+    1 acceso    0 tx   app/api/v1/endpoints/service_desk/alert_correlation.py
+    1 acceso    0 tx   app/api/v1/endpoints/semantic_engine.py
+    1 acceso    0 tx   app/api/v1/endpoints/predictive_observability.py
+    1 acceso    0 tx   app/api/v1/endpoints/bpmn_processes.py
+    1 acceso    0 tx   app/api/v1/endpoints/bi_etl.py
+    1 acceso    0 tx   app/api/v1/endpoints/backlog.py
    ```
 
-   `service_desk/tickets.py` queda en **0** (ver §3.sexies).
+   Cerrados a 0: `collaboration` (8 ficheros), `tickets`,
+   `connectors_marketplace`, `cmdb`, `templates`, `assets`, `esign`,
+   `client_portal`, `dynamic_forms`, `performance`, `workflow_designer`,
+   `user_costs`, `baselines`, `branding`, `jira_integration`,
+   `governance_ops`, `smart_catalog` y `ai_auto_resolution`.
 
-   **Un defecto ya localizado y no arreglado** en lo que queda:
-   `service_desk/predictive.py` carga **todos** los tickets abiertos sin tope
-   ni acotar. La orquestacion del trabajo de auto-resolucion
-   (cerrojo, estado, tarea de fondo, registro del fallo) sigue en el endpoint.
+   `service_desk/predictive.py` **ya esta** (ver 3.novies): era el unico
+   defecto localizado y sin arreglar de la lista. La orquestacion del trabajo de auto-resolucion (cerrojo,
+   estado, tarea de fondo, registro del fallo) sigue en el endpoint: son
+   fronteras de transaccion, no acceso a datos, asi que el contador nuevo ya
+   no las suma con lo demas.
 3. **Registrar el escuchador `do_orm_execute` en la factoría de sesiones de los
    tests.** Hoy no se ejecuta en ninguna prueba (§3.bis), que es por lo que el
    apagón vivió sin que nadie lo viera. No se hizo de paso porque activarlo

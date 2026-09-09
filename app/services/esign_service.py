@@ -501,3 +501,110 @@ def _envelope_signers_from_envelope(envelope, db: Optional[Session]) -> list:
                 "routing_order": s.routing_order,
             })
     return signers_list
+
+
+# ── Los ajustes de e-firma, por organizacion ────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 22). Estos dos ayudantes vivian en
+# `endpoints/esign.py` y buscaban asi:
+#
+#     db.query(AppSetting).filter(AppSetting.key == key).first()
+#
+# **Sin organizacion.** Y lo que guardan son las credenciales de DocuSign y de
+# Adobe Sign de cada cliente, incluidos su `secret_key` y —lo mas grave— los
+# **tokens de acceso y de refresco** que devuelve el OAuth.
+#
+# Las consecuencias, en orden:
+#
+#   · La escritura creaba la fila con `organization_id` a NULL, que en
+#     `AppSetting` significa «valor global del despliegue». Asi que el primer
+#     cliente que configurara su DocuSign lo dejaba como valor de TODOS.
+#   · La lectura devolvia la primera fila con esa clave, sin mirar de quien es.
+#     Un cliente firmaba con la cuenta de DocuSign de otro.
+#   · Y al completar el OAuth, el token de acceso de un cliente quedaba
+#     guardado como global: cualquier otro enviaba sobres con su token.
+#
+# La regla que se aplica es la que ya usa el resto del repositorio para
+# `AppSetting` (ver `governance_compliance_service`): **lo propio si existe, y
+# si no el global**, que es el valor que trae el despliegue. La escritura
+# siempre en lo propio. Asi las filas globales que ya existen siguen sirviendo
+# de respaldo y no se rompe ningun despliegue en marcha.
+
+#: Las claves de configuracion de e-firma que expone `/esign/config`.
+CLAVES_DE_FIRMA = [
+    "esign.docusign_integration_key",
+    "esign.docusign_secret_key",
+    "esign.docusign_account_id",
+    "esign.docusign_base_url",
+    "esign.adobe_sign_client_id",
+    "esign.adobe_sign_client_secret",
+    "esign.adobe_sign_base_url",
+]
+
+#: De esas, las que nunca se devuelven en claro.
+CLAVES_SECRETAS = {
+    "esign.docusign_secret_key",
+    "esign.adobe_sign_client_secret",
+}
+
+
+def ajuste_de_firma(db: Session, sujeto, clave: str):
+    """El valor de un ajuste de e-firma: el propio, y si no el global.
+
+    Un sujeto sin organizacion solo ve el global, que es lo correcto: no hay
+    «lo propio» que devolver.
+    """
+    from app.models.settings import AppSetting
+
+    org_id = getattr(sujeto, "organization_id", None)
+    if org_id:
+        fila = (
+            db.query(AppSetting)
+            .filter(
+                AppSetting.key == clave,
+                AppSetting.organization_id == org_id,
+            )
+            .first()
+        )
+        if fila and fila.value:
+            return fila.value
+
+    fila = (
+        db.query(AppSetting)
+        .filter(
+            AppSetting.key == clave,
+            AppSetting.organization_id.is_(None),
+        )
+        .first()
+    )
+    return fila.value if fila and fila.value else None
+
+
+def guardar_ajuste_de_firma(db: Session, sujeto, clave: str, valor: str) -> None:
+    """Guarda un ajuste de e-firma en la organizacion del sujeto.
+
+    No confirma: la frontera de transaccion se queda en el endpoint.
+
+    Si el sujeto no tiene organizacion escribe el global, que es el unico sitio
+    donde puede escribir y coincide con lo que hacia antes para todos.
+    """
+    from app.models.settings import AppSetting
+
+    org_id = getattr(sujeto, "organization_id", None)
+    consulta = db.query(AppSetting).filter(AppSetting.key == clave)
+    if org_id:
+        consulta = consulta.filter(AppSetting.organization_id == org_id)
+    else:
+        consulta = consulta.filter(AppSetting.organization_id.is_(None))
+
+    fila = consulta.first()
+    if fila:
+        fila.value = valor
+        return
+
+    db.add(AppSetting(
+        key=clave,
+        value=valor,
+        organization_id=org_id,
+        description=f"E-firma config: {clave}",
+    ))

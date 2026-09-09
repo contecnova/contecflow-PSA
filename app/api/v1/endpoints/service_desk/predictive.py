@@ -12,6 +12,7 @@ from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk.predictive_analytics_service import (
+    estadisticas_predictivas,
     get_at_risk_tickets,
     predict_sla_breach,
     predict_ticket,
@@ -77,33 +78,13 @@ def predictive_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Aggregate stats on escalation risk and SLA breach across open tickets."""
-    from app.models.service_desk import Ticket
+    """Aggregate stats on escalation risk and SLA breach across open tickets.
 
-    open_tickets = (
-        db.query(Ticket)
-        .filter(Ticket.status.notin_(["resolved", "closed"]))
-        .all()
-    )
-
-    risk_buckets = {"critical": 0, "high": 0, "medium": 0, "low": 0}
-    sla_at_risk = 0
-
-    for ticket in open_tickets:
-        try:
-            pred = predict_ticket(db, ticket)
-            severity = pred.get("predicted_severity", "low")
-            risk_buckets[severity] = risk_buckets.get(severity, 0) + 1
-
-            sla = predict_sla_breach(db, ticket)
-            if sla.get("breach_probability", 0) >= 0.55:
-                sla_at_risk += 1
-        except Exception:
-            logger.debug("predictive_stats: fallo best-effort ignorado", exc_info=True)
-
-    return APIResponse.ok(data={
-        "open_tickets": len(open_tickets),
-        "severity_distribution": risk_buckets,
-        "sla_at_risk_count": sla_at_risk,
-        "sla_at_risk_pct": round(sla_at_risk / len(open_tickets) * 100, 1) if open_tickets else 0,
-    })
+    Auditoria 2026-08 (hallazgo 22): esto cargaba **todos** los tickets
+    abiertos, sin tope ni filtro explicito de organizacion, y gastaba **12
+    consultas por ticket** —medido— entre los dos predictores. Con 500 tickets
+    abiertos, 6.000 consultas en una peticion. El detalle esta en el comentario
+    de `TOPE_DE_TICKETS_ANALIZADOS`.
+    """
+    return APIResponse.ok(
+        data=estadisticas_predictivas(db, current_user))

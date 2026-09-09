@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import json
+import os as _os
 import statistics
 from datetime import datetime, timezone
 from typing import Optional
@@ -356,6 +357,100 @@ def _count_matching_kb_articles(db: Session, ticket: Ticket) -> int:
 
 
 # ── Master prediction function ────────────────────────────────────────────────
+
+#: Cuantos tickets abiertos analiza como maximo `/predictive/stats`.
+#:
+#: Auditoria 2026-08 (hallazgo 22). El endpoint cargaba **todos** los tickets
+#: abiertos como objetos del ORM, sin tope, y para cada uno llamaba a
+#: `predict_ticket` y a `predict_sla_breach`. Medido con la sesion real, no
+#: estimado:
+#:
+#:      1 ticket abierto  ->    12 consultas
+#:      5 tickets         ->    60 consultas
+#:     20 tickets         ->   240 consultas
+#:
+#: Exactamente **12 consultas por ticket**, y lineal. Con 500 tickets abiertos
+#: —una cifra normal en un service desk con trafico— son **6.000 consultas en
+#: una sola peticion**.
+#:
+#: El tope no arregla el N+1; lo acota, que es lo que se puede hacer sin
+#: rediseñar los dos predictores. Y la respuesta dice cuantos analizo de cuantos
+#: hay, para que un numero truncado no se lea como completo.
+TOPE_DE_TICKETS_ANALIZADOS = int(
+    _os.getenv("PREDICTIVE_STATS_MAX_TICKETS", "200"))
+
+#: A partir de que probabilidad se cuenta un ticket como «SLA en riesgo».
+#: Estaba en duro en el cuerpo del endpoint.
+UMBRAL_DE_RIESGO_DE_SLA = 0.55
+
+#: Los estados que **no** son un ticket abierto.
+ESTADOS_CERRADOS = ["resolved", "closed"]
+
+
+def estadisticas_predictivas(db: Session, current_user) -> dict:
+    """Reparto de severidad y SLA en riesgo sobre los tickets abiertos.
+
+    Tres cosas cambian respecto al cuerpo que estaba en el endpoint, y ninguna
+    altera la forma de la respuesta —solo se anaden campos—:
+
+    1. **Filtro explicito por organizacion.** En produccion `TenantSession` ya
+       lo ponia, pero era la unica capa.
+    2. **Tope de tickets analizados**, configurable por
+       `PREDICTIVE_STATS_MAX_TICKETS`. Ver el comentario de la constante.
+    3. **Los fallos se cuentan.** El bucle original tenia un
+       `except Exception: logger.debug(...)`, asi que si los predictores
+       fallaban para la mitad de los tickets la respuesta salia igual, con la
+       mitad de los datos y sin decirlo. Sigue siendo *best-effort* —es lo
+       correcto para una prediccion—, pero ahora se ve.
+    """
+    consulta = db.query(Ticket).filter(Ticket.status.notin_(ESTADOS_CERRADOS))
+    if not getattr(current_user, "is_superadmin", False):
+        consulta = consulta.filter(
+            Ticket.organization_id
+            == getattr(current_user, "organization_id", None))
+
+    # `count()` va antes del tope: `open_tickets` sigue siendo el total, que es
+    # lo que ese campo ha significado siempre.
+    total_abiertos = consulta.count()
+    abiertos = (
+        consulta.order_by(Ticket.created_at.desc())
+        .limit(TOPE_DE_TICKETS_ANALIZADOS)
+        .all()
+    )
+
+    severidades = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    en_riesgo = 0
+    fallidos = 0
+
+    for ticket in abiertos:
+        try:
+            prediccion = predict_ticket(db, ticket)
+            severidad = prediccion.get("predicted_severity", "low")
+            severidades[severidad] = severidades.get(severidad, 0) + 1
+
+            sla = predict_sla_breach(db, ticket)
+            if sla.get("breach_probability", 0) >= UMBRAL_DE_RIESGO_DE_SLA:
+                en_riesgo += 1
+        except Exception:
+            fallidos += 1
+            logger.debug(
+                "estadisticas_predictivas: fallo best-effort en el ticket %s",
+                getattr(ticket, "id", "?"), exc_info=True)
+
+    analizados = len(abiertos)
+    return {
+        "open_tickets": total_abiertos,
+        "severity_distribution": severidades,
+        "sla_at_risk_count": en_riesgo,
+        # El porcentaje va sobre lo analizado, que es de donde salen los datos.
+        # Sin truncamiento coincide con el de antes.
+        "sla_at_risk_pct": (
+            round(en_riesgo / analizados * 100, 1) if analizados else 0),
+        "analyzed_tickets": analizados,
+        "truncated": total_abiertos > analizados,
+        "failed_tickets": fallidos,
+    }
+
 
 def predict_ticket(db: Session, ticket: Ticket) -> dict:
     """Run all predictive models for a single ticket.

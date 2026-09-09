@@ -29,7 +29,6 @@ from app.core.deps import get_current_user, get_db, require_admin
 from app.core.responses import APIListResponse, APIResponse
 from app.models.esign import ESignEnvelope, ESignProvider, ESignStatus
 from app.models.user import User
-from app.models.settings import AppSetting
 from app.core.abac_enforce import enforce_abac
 from app.services import esign_service
 
@@ -37,29 +36,28 @@ router = APIRouter()
 _logger = logging.getLogger(__name__)
 
 # ── E-sign config keys stored in AppSetting KV store ──────────────────────────
-_ESIGN_KEYS = [
-    "esign.docusign_integration_key",
-    "esign.docusign_secret_key",
-    "esign.docusign_account_id",
-    "esign.docusign_base_url",
-    "esign.adobe_sign_client_id",
-    "esign.adobe_sign_client_secret",
-    "esign.adobe_sign_base_url",
-]
-_SECRET_KEYS = {"esign.docusign_secret_key", "esign.adobe_sign_client_secret"}
+# Auditoria 2026-08 (hallazgo 22): las listas de claves y los dos ayudantes de
+# lectura y escritura estaban aqui, y buscaban `AppSetting` por clave **sin
+# organizacion**, con lo que las credenciales de DocuSign y de Adobe Sign de un
+# cliente —incluidos los tokens de OAuth— quedaban como valor global del
+# despliegue. Ahora viven en el servicio, acotados. Ver
+# `services/esign_service.py`.
+#
+# Las **nueve** funciones que los usaban recibian el sujeto y lo descartaban con
+# `_: User = Depends(...)`. Nueve de nueve. Es el mismo descarte que dejo sin
+# comprobar el coste activo de un usuario, y aqui explica por que la
+# comprobacion nunca se escribio: no habia a quien preguntarle la organizacion
+# porque el parametro no tenia nombre.
+_ESIGN_KEYS = esign_service.CLAVES_DE_FIRMA
+_SECRET_KEYS = esign_service.CLAVES_SECRETAS
 
 
-def _get_esign_setting(db: Session, key: str) -> Optional[str]:
-    row = db.query(AppSetting).filter(AppSetting.key == key).first()
-    return row.value if row and row.value else None
+def _get_esign_setting(db: Session, sujeto, key: str) -> Optional[str]:
+    return esign_service.ajuste_de_firma(db, sujeto, key)
 
 
-def _set_esign_setting(db: Session, key: str, value: str) -> None:
-    row = db.query(AppSetting).filter(AppSetting.key == key).first()
-    if row:
-        row.value = value
-    else:
-        db.add(AppSetting(key=key, value=value, description=f"E-firma config: {key}"))
+def _set_esign_setting(db: Session, sujeto, key: str, value: str) -> None:
+    esign_service.guardar_ajuste_de_firma(db, sujeto, key, value)
     db.commit()
 
 
@@ -196,13 +194,13 @@ def create_envelope(
 @router.get("/summary/stats", summary="Resumen de firma electrónica")
 def esign_stats(
     db: Session = Depends(get_db),
-    _:  User    = Depends(get_current_user),
+    current_user:  User    = Depends(get_current_user),
 ):
     stats = esign_service.get_stats(db)
     # Check DB config override first, then fall back to env vars
-    ds_key = _get_esign_setting(db, "esign.docusign_integration_key")
-    ds_acc = _get_esign_setting(db, "esign.docusign_account_id")
-    ab_key = _get_esign_setting(db, "esign.adobe_sign_client_id")
+    ds_key = _get_esign_setting(db, current_user, "esign.docusign_integration_key")
+    ds_acc = _get_esign_setting(db, current_user, "esign.docusign_account_id")
+    ab_key = _get_esign_setting(db, current_user, "esign.adobe_sign_client_id")
     docusign_ok = bool(ds_key and ds_acc) or _docusign_configured()
     adobe_ok    = bool(ab_key) or _adobe_configured()
     return APIResponse.ok(data={
@@ -229,19 +227,19 @@ class ESignConfigIn(BaseModel):
 @router.get("/config", summary="Leer configuración de proveedores de firma")
 def get_esign_config(
     db: Session = Depends(get_db),
-    _:  User    = Depends(require_admin),
+    current_user:  User    = Depends(require_admin),
 ):
     result = {}
     for key in _ESIGN_KEYS:
         short = key.replace("esign.", "")
-        val = _get_esign_setting(db, key)
+        val = _get_esign_setting(db, current_user, key)
         if key in _SECRET_KEYS:
             result[short] = "***" if val else ""
         else:
             result[short] = val or ""
-    ds_key = _get_esign_setting(db, "esign.docusign_integration_key")
-    ds_acc = _get_esign_setting(db, "esign.docusign_account_id")
-    ab_key = _get_esign_setting(db, "esign.adobe_sign_client_id")
+    ds_key = _get_esign_setting(db, current_user, "esign.docusign_integration_key")
+    ds_acc = _get_esign_setting(db, current_user, "esign.docusign_account_id")
+    ab_key = _get_esign_setting(db, current_user, "esign.adobe_sign_client_id")
     result["docusign_configured"] = bool(ds_key and ds_acc) or _docusign_configured()
     result["adobe_configured"]    = bool(ab_key) or _adobe_configured()
     return APIResponse.ok(data=result)
@@ -251,7 +249,7 @@ def get_esign_config(
 def update_esign_config(
     payload: ESignConfigIn,
     db:  Session = Depends(get_db),
-    _:   User    = Depends(require_admin),
+    current_user:   User    = Depends(require_admin),
 ):
     field_key_map = {
         "docusign_integration_key": "esign.docusign_integration_key",
@@ -263,10 +261,16 @@ def update_esign_config(
         "adobe_sign_base_url":      "esign.adobe_sign_base_url",
     }
     data = payload.model_dump(exclude_none=True)
+    # Un solo `commit` al final, no uno por clave. Antes eran siete
+    # transacciones para una peticion, asi que un fallo a mitad dejaba unas
+    # credenciales guardadas y otras no — con la mitad de un DocuSign nuevo y la
+    # mitad del viejo, que es peor que no haber guardado nada.
     for field, db_key in field_key_map.items():
         val = data.get(field)
         if val is not None and val != "***":
-            _set_esign_setting(db, db_key, val)
+            esign_service.guardar_ajuste_de_firma(
+                db, current_user, db_key, val)
+    db.commit()
     return APIResponse.ok(data={"ok": True})
 
 
@@ -488,7 +492,7 @@ async def adobe_webhook(
 @router.get("/auth/docusign/authorize", summary="Iniciar OAuth con DocuSign")
 def docusign_oauth_authorize(
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
     """
     Return the DocuSign OAuth authorization URL. Admin opens this URL to grant access.
@@ -497,11 +501,11 @@ def docusign_oauth_authorize(
     from app.services.esign_providers import docusign_auth_url
     from app.core.config import settings as _s
 
-    integration_key = _get_esign_setting(db, "esign.docusign_integration_key") or _s.DOCUSIGN_INTEGRATION_KEY
+    integration_key = _get_esign_setting(db, current_user, "esign.docusign_integration_key") or _s.DOCUSIGN_INTEGRATION_KEY
     if not integration_key:
         raise HTTPException(400, "DocuSign integration_key no configurado. Guárdalo en /esign/config primero.")
 
-    is_demo = (_get_esign_setting(db, "esign.docusign_is_demo") or "true").lower() == "true"
+    is_demo = (_get_esign_setting(db, current_user, "esign.docusign_is_demo") or "true").lower() == "true"
     if not _s.FRONTEND_URL:
         raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
     redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/docusign/callback"
@@ -514,15 +518,15 @@ def docusign_oauth_authorize(
 def docusign_oauth_callback(
     code: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
     """Exchange authorization code for DocuSign access + refresh tokens and store them."""
     from app.services.esign_providers import docusign_exchange_code
     from app.core.config import settings as _s
 
-    integration_key = _get_esign_setting(db, "esign.docusign_integration_key") or _s.DOCUSIGN_INTEGRATION_KEY
-    secret_key = _get_esign_setting(db, "esign.docusign_secret_key") or _s.DOCUSIGN_SECRET_KEY
-    is_demo = (_get_esign_setting(db, "esign.docusign_is_demo") or "true").lower() == "true"
+    integration_key = _get_esign_setting(db, current_user, "esign.docusign_integration_key") or _s.DOCUSIGN_INTEGRATION_KEY
+    secret_key = _get_esign_setting(db, current_user, "esign.docusign_secret_key") or _s.DOCUSIGN_SECRET_KEY
+    is_demo = (_get_esign_setting(db, current_user, "esign.docusign_is_demo") or "true").lower() == "true"
     if not _s.FRONTEND_URL:
         raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
     redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/docusign/callback"
@@ -534,9 +538,9 @@ def docusign_oauth_callback(
     if not result["ok"]:
         raise HTTPException(400, f"Error en intercambio de código DocuSign: {result.get('error')}")
 
-    _set_esign_setting(db, "esign.docusign_access_token", result["access_token"])
+    _set_esign_setting(db, current_user, "esign.docusign_access_token", result["access_token"])
     if result.get("refresh_token"):
-        _set_esign_setting(db, "esign.docusign_refresh_token", result["refresh_token"])
+        _set_esign_setting(db, current_user, "esign.docusign_refresh_token", result["refresh_token"])
 
     _logger.info("[eSign] DocuSign OAuth completed; tokens stored")
     return APIResponse.ok(data={"ok": True, "message": "DocuSign autorizado correctamente. Tokens almacenados."})
@@ -545,17 +549,17 @@ def docusign_oauth_callback(
 @router.get("/auth/adobe/authorize", summary="Iniciar OAuth con Adobe Sign")
 def adobe_oauth_authorize(
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
     """Return the Adobe Sign OAuth authorization URL."""
     from app.services.esign_providers import adobe_sign_auth_url
     from app.core.config import settings as _s
 
-    client_id = _get_esign_setting(db, "esign.adobe_sign_client_id") or _s.ADOBE_SIGN_CLIENT_ID
+    client_id = _get_esign_setting(db, current_user, "esign.adobe_sign_client_id") or _s.ADOBE_SIGN_CLIENT_ID
     if not client_id:
         raise HTTPException(400, "Adobe Sign client_id no configurado. Guárdalo en /esign/config primero.")
 
-    base_url = _get_esign_setting(db, "esign.adobe_sign_base_url") or _s.ADOBE_SIGN_BASE_URL
+    base_url = _get_esign_setting(db, current_user, "esign.adobe_sign_base_url") or _s.ADOBE_SIGN_BASE_URL
     if not _s.FRONTEND_URL:
         raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
     redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/adobe/callback"
@@ -568,15 +572,15 @@ def adobe_oauth_authorize(
 def adobe_oauth_callback(
     code: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
     """Exchange authorization code for Adobe Sign access + refresh tokens and store them."""
     from app.services.esign_providers import adobe_sign_exchange_code
     from app.core.config import settings as _s
 
-    client_id = _get_esign_setting(db, "esign.adobe_sign_client_id") or _s.ADOBE_SIGN_CLIENT_ID
-    client_secret = _get_esign_setting(db, "esign.adobe_sign_client_secret") or _s.ADOBE_SIGN_CLIENT_SECRET
-    base_url = _get_esign_setting(db, "esign.adobe_sign_base_url") or _s.ADOBE_SIGN_BASE_URL
+    client_id = _get_esign_setting(db, current_user, "esign.adobe_sign_client_id") or _s.ADOBE_SIGN_CLIENT_ID
+    client_secret = _get_esign_setting(db, current_user, "esign.adobe_sign_client_secret") or _s.ADOBE_SIGN_CLIENT_SECRET
+    base_url = _get_esign_setting(db, current_user, "esign.adobe_sign_base_url") or _s.ADOBE_SIGN_BASE_URL
     if not _s.FRONTEND_URL:
         raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
     redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/adobe/callback"
@@ -588,11 +592,11 @@ def adobe_oauth_callback(
     if not result["ok"]:
         raise HTTPException(400, f"Error en intercambio de código Adobe Sign: {result.get('error')}")
 
-    _set_esign_setting(db, "esign.adobe_sign_access_token", result["access_token"])
+    _set_esign_setting(db, current_user, "esign.adobe_sign_access_token", result["access_token"])
     if result.get("refresh_token"):
-        _set_esign_setting(db, "esign.adobe_sign_refresh_token", result["refresh_token"])
+        _set_esign_setting(db, current_user, "esign.adobe_sign_refresh_token", result["refresh_token"])
     if result.get("api_access_point"):
-        _set_esign_setting(db, "esign.adobe_sign_base_url", result["api_access_point"])
+        _set_esign_setting(db, current_user, "esign.adobe_sign_base_url", result["api_access_point"])
 
     _logger.info("[eSign] Adobe Sign OAuth completed; tokens stored")
     return APIResponse.ok(data={"ok": True, "message": "Adobe Sign autorizado correctamente. Tokens almacenados."})
@@ -602,16 +606,16 @@ def adobe_oauth_callback(
 def store_docusign_token(
     payload: dict,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
     """Allow admin to paste an access_token (and optionally refresh_token) obtained externally."""
     access_token = payload.get("access_token", "").strip()
     refresh_token = payload.get("refresh_token", "").strip()
     if not access_token:
         raise HTTPException(400, "access_token requerido")
-    _set_esign_setting(db, "esign.docusign_access_token", access_token)
+    _set_esign_setting(db, current_user, "esign.docusign_access_token", access_token)
     if refresh_token:
-        _set_esign_setting(db, "esign.docusign_refresh_token", refresh_token)
+        _set_esign_setting(db, current_user, "esign.docusign_refresh_token", refresh_token)
     return APIResponse.ok(data={"ok": True, "message": "Token DocuSign almacenado."})
 
 
@@ -619,14 +623,14 @@ def store_docusign_token(
 def store_adobe_token(
     payload: dict,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
     """Allow admin to paste an access_token (and optionally refresh_token) obtained externally."""
     access_token = payload.get("access_token", "").strip()
     refresh_token = payload.get("refresh_token", "").strip()
     if not access_token:
         raise HTTPException(400, "access_token requerido")
-    _set_esign_setting(db, "esign.adobe_sign_access_token", access_token)
+    _set_esign_setting(db, current_user, "esign.adobe_sign_access_token", access_token)
     if refresh_token:
-        _set_esign_setting(db, "esign.adobe_sign_refresh_token", refresh_token)
+        _set_esign_setting(db, current_user, "esign.adobe_sign_refresh_token", refresh_token)
     return APIResponse.ok(data={"ok": True, "message": "Token Adobe Sign almacenado."})

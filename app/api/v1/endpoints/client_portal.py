@@ -823,7 +823,15 @@ def get_portal_stats(
 # OrgBranding.portal_translations (JSON). Antes vivían en un dict en memoria
 # per-proceso: se perdían al reiniciar y no se compartían entre workers.
 # Shape: { <lang>: { <module>: { <key>: <value> } } }.
-import json
+#
+# Auditoría 2026-08 (hallazgo 22): las dos consultas y el manejo del JSON
+# estaban aquí; viven en `services/branding_service.py`, junto al resto de
+# `OrgBranding`. El filtro por organización ya estaba bien puesto, así que esto
+# es un movimiento y no un arreglo.
+from app.services.branding_service import (  # noqa: E402
+    guardar_traducciones_del_portal,
+    traducciones_del_portal,
+)
 
 
 def _org_key(current_user: User) -> str:
@@ -836,16 +844,8 @@ def get_portal_translations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.white_label import OrgBranding
-
-    org_id = _org_key(current_user)
-    branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
-    if not branding or not branding.portal_translations:
-        return APIResponse.ok(data={})
-    try:
-        return APIResponse.ok(data=json.loads(branding.portal_translations))
-    except (ValueError, TypeError):
-        return APIResponse.ok(data={})
+    return APIResponse.ok(data=traducciones_del_portal(
+        db, _org_key(current_user)))
 
 
 @router.post("/translations", summary="Guardar traducciones personalizadas del portal")
@@ -854,22 +854,8 @@ def save_portal_translations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.white_label import OrgBranding
-
-    org_id = _org_key(current_user)
-    branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
-    if not branding:
-        branding = OrgBranding(organization_id=org_id, created_by=getattr(current_user, "id", None))
-        db.add(branding)
-    # Merge sobre lo existente (mismo comportamiento que el antiguo bucket.update).
-    current = {}
-    if branding.portal_translations:
-        try:
-            current = json.loads(branding.portal_translations)
-        except (ValueError, TypeError):
-            current = {}
-    current.update(data)
-    branding.portal_translations = json.dumps(current, ensure_ascii=False)
+    guardar_traducciones_del_portal(
+        db, current_user, _org_key(current_user), data)
     db.commit()
     return APIResponse.ok(data={"ok": True})
 
