@@ -20,7 +20,7 @@ from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.responses import APIListResponse, APIResponse
 from app.core.security import create_access_token, decode_token
-from app.db.session import get_db, SessionLocal
+from app.db.session import get_db, SessionLocal, publicar_contexto_de_tenant
 from app.models.user import User
 from app.services import bi_intelligence_service as svc
 
@@ -460,6 +460,12 @@ async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Qu
         user = await run_db(lambda: db.query(User).filter(User.id == user_id).first())
         if user:
             org_id = getattr(user, "organization_id", None)
+            # Auditoria 2026-08 (hallazgo 22): esta sesion es un
+            # `SessionLocal()` creado a mano, y sin esto `TenantSession` la
+            # trata como «no inicializada» y **no filtra nada**. Va despues de
+            # resolver al usuario: la busqueda por id no sabe todavia de que
+            # organizacion es.
+            publicar_contexto_de_tenant(db, user)
     finally:
         db.close()
 
@@ -501,6 +507,10 @@ async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Qu
                 await websocket.send_text(json.dumps({"type": "error", "detail": "user_not_found"}))
                 break
             _org_id = getattr(user, "organization_id", None)
+            # Ver la nota del otro WebSocket de este fichero. Aqui importa mas:
+            # el bucle llama en cada tic a tres servicios que leen datos de
+            # negocio.
+            publicar_contexto_de_tenant(db, user)
 
             # Offload the per-tick ORM/ML work to the threadpool.
             forecast = await run_db(svc.ml_forecast_revenue, db, organization_id=_org_id, months_ahead=3)

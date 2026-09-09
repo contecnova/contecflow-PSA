@@ -20,7 +20,7 @@ import logging
 
 logger = logging.getLogger("contecflow.client_portal")
 
-from app.db.session import get_db
+from app.db.session import get_db, publicar_contexto_de_tenant
 from app.core.config import settings
 from app.core.deps import require_any_manager
 from app.core.ratelimit import limiter
@@ -96,9 +96,7 @@ def get_current_client(
     # Va DESPUES de resolver al cliente, y no antes: `get_active_client_by_id`
     # busca por id sin saber todavia de que organizacion es, asi que esa
     # consulta tiene que correr sin filtrar.
-    db.info["organization_id"] = getattr(client, "organization_id", None)
-    db.info["is_superadmin"] = False
-    db.info["current_client"] = client
+    publicar_contexto_de_tenant(db, client, es_cliente=True)
     return client
 
 

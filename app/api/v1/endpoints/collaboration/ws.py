@@ -23,7 +23,7 @@ from typing import Optional
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
-from app.db.session import SessionLocal
+from app.db.session import SessionLocal, publicar_contexto_de_tenant
 from app.services.ws_service import get_active_user_by_id
 from app.api.v1.endpoints.ws import _consume_ws_ticket
 from app.services.collaboration._bus import (
@@ -395,9 +395,7 @@ async def _abrir_conexion(websocket: WebSocket, ticket: Optional[str], db: Sessi
     # Se pone DESPUÉS de resolver el usuario a propósito: `get_active_user_by_id`
     # busca por id sin saber todavía de qué organización es, así que tiene que
     # correr sin filtrar. A partir de aquí ya se conoce, y se acota.
-    db.info["organization_id"] = user.organization_id
-    db.info["is_superadmin"] = bool(getattr(user, "is_superadmin", False))
-    db.info["current_user"] = user
+    publicar_contexto_de_tenant(db, user)
 
     try:
         ws_obj = get_or_create_workspace(db, user)

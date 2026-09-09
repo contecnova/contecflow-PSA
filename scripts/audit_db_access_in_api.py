@@ -45,8 +45,22 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 DIRECTORIO = RAIZ / "app" / "api"
 
-#: Los nombres de variable que son una sesion de SQLAlchemy en este repositorio.
-NOMBRES_DE_SESION = {"db", "session", "_db"}
+#: Los nombres que son una sesion de SQLAlchemy por convencion en este
+#: repositorio. `session` **no** esta aqui: se resuelve por fichero.
+NOMBRES_POR_CONVENCION = {"db", "_db"}
+
+#: Auditoria 2026-08. La primera version de este script daba por sesion
+#: cualquier variable llamada `session`, y eso metia un falso positivo:
+#:
+#:     session = stripe_service.create_checkout_session(...)
+#:     if session.get("payment_intent"):        # <- contado como acceso a BD
+#:
+#: Una sesion de pago de Stripe tambien se llama `session`. Pero el nombre si es
+#: una sesion de base en `endpoints/service_desk/ai_auto_resolution.py`, donde
+#: hay un `session = SessionLocal()` dentro de la tarea de fondo, asi que
+#: tampoco se puede descartar el nombre sin mas. Se resuelve **por fichero**:
+#: `session` cuenta solo si en ese fichero esta ligado a una sesion de verdad.
+_FABRICAS_DE_SESION = {"SessionLocal", "TestSession", "sessionmaker"}
 
 #: Metodos que son acceso a datos: lo que el hallazgo 22 pide mover.
 ACCESO = {
@@ -61,6 +75,40 @@ TRANSACCION = {
 }
 
 
+def _nombres_de_sesion(arbol: ast.Module) -> set[str]:
+    """Que nombres son una sesion de base **en este fichero**.
+
+    Los de convencion, mas los que se asignan desde una factoria de sesiones y
+    los parametros anotados como `Session`. Ver el comentario de
+    `_FABRICAS_DE_SESION`.
+    """
+    nombres = set(NOMBRES_POR_CONVENCION)
+    for nodo in ast.walk(arbol):
+        # `x = SessionLocal()`
+        if isinstance(nodo, ast.Assign) and isinstance(nodo.value, ast.Call):
+            f = nodo.value.func
+            llamada = f.id if isinstance(f, ast.Name) else getattr(f, "attr", "")
+            if llamada in _FABRICAS_DE_SESION:
+                for destino in nodo.targets:
+                    if isinstance(destino, ast.Name):
+                        nombres.add(destino.id)
+        # `def f(x: Session = Depends(get_db))`
+        elif isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for arg in list(nodo.args.args) + list(nodo.args.kwonlyargs):
+                anotacion = arg.annotation
+                texto = ""
+                if isinstance(anotacion, ast.Name):
+                    texto = anotacion.id
+                elif isinstance(anotacion, ast.Attribute):
+                    texto = anotacion.attr
+                elif isinstance(anotacion, ast.Constant) and isinstance(
+                        anotacion.value, str):
+                    texto = anotacion.value
+                if texto == "Session":
+                    nombres.add(arg.arg)
+    return nombres
+
+
 def _puntos_de_un_fichero(ruta: Path) -> list[tuple[int, str, str]]:
     """(linea, metodo, clase) de cada llamada a la sesion en el fichero."""
     try:
@@ -69,6 +117,7 @@ def _puntos_de_un_fichero(ruta: Path) -> list[tuple[int, str, str]]:
         print(f"AVISO: {ruta} no se puede analizar: {exc}", file=sys.stderr)
         return []
 
+    sesiones = _nombres_de_sesion(arbol)
     puntos = []
     for nodo in ast.walk(arbol):
         if not isinstance(nodo, ast.Call):
@@ -77,7 +126,7 @@ def _puntos_de_un_fichero(ruta: Path) -> list[tuple[int, str, str]]:
         if not isinstance(funcion, ast.Attribute):
             continue
         objeto = funcion.value
-        if not isinstance(objeto, ast.Name) or objeto.id not in NOMBRES_DE_SESION:
+        if not isinstance(objeto, ast.Name) or objeto.id not in sesiones:
             continue
         metodo = funcion.attr
         if metodo in ACCESO:

@@ -257,6 +257,16 @@ def run_auto_resolution_job(
 
         def _run_job_in_background(limit_to_use: int, queued_job_id: str) -> None:
             session = SessionLocal()
+            # Auditoria 2026-08 (hallazgo 22). Este es un trabajo de fondo, asi
+            # que la rama de «sesion no inicializada» de `TenantSession` esta
+            # pensada para el — pero **la organizacion se conoce** (`org`, del
+            # sujeto que lanzo la pasada), y el trabajo la pasa explicita a
+            # cada servicio. Publicarla en la sesion no cambia el
+            # comportamiento y anade la capa implicita detras de la explicita,
+            # que es justo lo que faltaba en los otros ocho sitios.
+            if org:
+                session.info["organization_id"] = org
+                session.info["is_superadmin"] = False
             run_started = datetime.now(timezone.utc)
             try:
                 stats = run_daily_auto_resolution_job(session, limit=limit_to_use, organization_id=org)

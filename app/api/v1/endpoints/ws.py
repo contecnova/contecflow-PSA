@@ -26,6 +26,7 @@ from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.security import verify_client_token
 import app.services.ws_service as _ws_svc
+from app.db.session import publicar_contexto_de_tenant
 
 router = APIRouter(prefix="/ws", tags=["WebSocket"])
 log    = logging.getLogger(__name__)
@@ -317,6 +318,11 @@ async def get_portal_ws_ticket(
         client = verify_client_token(token, db)
         if not client or not getattr(client, "is_active", False):
             raise HTTPException(401, "Token de cliente inválido")
+        # Auditoria 2026-08 (hallazgo 22): sesion creada a mano. Aqui solo se
+        # emite un ticket y no hay mas consultas, pero el contexto se publica
+        # igual: una sesion autenticada sin contexto es la forma exacta en la
+        # que aparecio este defecto tres veces.
+        publicar_contexto_de_tenant(db, client, es_cliente=True)
         try:
             ticket = await _issue_portal_ws_ticket(str(client.id))
         except Exception as exc:
@@ -368,6 +374,21 @@ async def ws_notifications(
             else:
                 await websocket.close(code=4001, reason="Se requiere ?ticket= (obtener via GET /ws/ticket)")
                 return
+
+            # Auditoria 2026-08 (hallazgo 22). Esta sesion vive lo que dure la
+            # conexion y sobre ella corren `_poll_and_send` —en bucle— y
+            # `mark_notification_read`, que **leen y escriben** datos del
+            # usuario. Sin contexto, `TenantSession` la trata como «no
+            # inicializada» y no filtra nada.
+            #
+            # Hasta aqui solo se tiene el `user_id` que venia del ticket, asi
+            # que hay que cargar al usuario. Es una consulta por conexion, no
+            # por mensaje.
+            usuario = _ws_svc.get_active_user_by_id(db, user_id)
+            if not usuario:
+                await websocket.close(code=4001, reason="Usuario no encontrado")
+                return
+            publicar_contexto_de_tenant(db, usuario)
 
             await manager.connect(websocket, user_id)
 
@@ -433,6 +454,18 @@ async def ws_portal_notifications(
             else:
                 await websocket.close(code=4001, reason="Se requiere ?ticket= (obtener via GET /ws/portal-ticket)")
                 return
+
+            # Ver la nota del WebSocket de notificaciones de arriba:
+            # `_poll_and_send_client` corre en bucle sobre esta sesion.
+            from app.services.client_portal_service import (
+                get_active_client_by_id as _cliente_activo,
+            )
+
+            cliente = _cliente_activo(db, client_id)
+            if not cliente:
+                await websocket.close(code=4001, reason="Cliente no encontrado")
+                return
+            publicar_contexto_de_tenant(db, cliente, es_cliente=True)
 
             manager_key = f"client:{client_id}"
             await manager.connect(websocket, manager_key)
@@ -596,6 +629,12 @@ async def ws_doc_collab(
 
             # Obtener usuario y documento
             user = _ws_svc.get_active_user_by_id(db, user_id)
+            # Auditoria 2026-08 (hallazgo 22): el contexto va **entre** las dos
+            # llamadas, y no es casualidad. `get_active_user_by_id` busca por id
+            # sin saber todavia de que organizacion es, asi que tiene que correr
+            # sin filtrar; `get_document_or_404` si tiene que estar acotada.
+            if user:
+                publicar_contexto_de_tenant(db, user)
             doc = get_document_or_404(db, doc_id, user)
             try:
                 check_document_access(doc, user, required_level=None)  # viewer mínimo

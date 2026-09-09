@@ -563,6 +563,42 @@ def get_db_type() -> str:
 _TENANT_AUTO_STAMP = _os.getenv("TENANT_AUTO_STAMP_ON_INSERT", "1") == "1"
 
 
+def publicar_contexto_de_tenant(session, sujeto, *, es_cliente=False) -> None:
+    """Pone en `session.info` la organizacion del sujeto de esta peticion.
+
+    Las tres capas de aislamiento de `TenantSession` —`query()`, `execute()` y
+    el escuchador `do_orm_execute`— salen por la puerta de atras cuando `info`
+    no trae `is_superadmin`. Esa rama existe para los trabajos de fondo y los
+    tests («sesion no inicializada»), **no** para una peticion autenticada.
+
+    Auditoria 2026-08 (hallazgo 22). El mismo defecto aparecio tres veces, y
+    siempre en el mismo sitio: una sesion creada a mano con `SessionLocal()`
+    que nadie inicializaba.
+
+      · el WebSocket del chat de colaboracion;
+      · `get_current_client`, de la que cuelgan **41 dependencias** del portal;
+      · y las de este arreglo: los dos WebSocket de BI, los dos generadores de
+        SSE del chat de IA y los tres WebSocket de notificaciones.
+
+    Tres veces el mismo arreglo escrito a mano es una senal: existe este
+    ayudante para que sea **una linea** y para que un test pueda buscarla.
+
+    **Se llama DESPUES de resolver al sujeto**, y eso no es un detalle: la
+    consulta que lo busca por id todavia no sabe de que organizacion es, asi
+    que tiene que correr sin filtrar. Publicar el contexto antes la dejaria sin
+    resultados.
+    """
+    session.info["organization_id"] = getattr(sujeto, "organization_id", None)
+    # Un usuario del portal nunca es superadmin de la plataforma, y su modelo no
+    # tiene ese atributo: por eso el parametro, en vez de un `getattr` que
+    # devolveria `False` por casualidad y no por decision.
+    session.info["is_superadmin"] = (
+        False if es_cliente
+        else bool(getattr(sujeto, "is_superadmin", False))
+    )
+    session.info["current_client" if es_cliente else "current_user"] = sujeto
+
+
 def _sellar_organizacion(session) -> None:
     """Pone la organizacion de la sesion en las filas nuevas que no la traigan."""
     info = getattr(session, "info", {}) or {}
