@@ -1,5 +1,5 @@
 """Service Desk — Tickets subdomain router."""
-from fastapi import APIRouter, Depends, Query, Header, Body, BackgroundTasks, Response, HTTPException
+from fastapi import APIRouter, Depends, Query, Header, Body, BackgroundTasks, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -8,7 +8,6 @@ from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
-from app.models.service_desk import Ticket, AgentGroupMember
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.services.sla_service import ticket_out as _ticket_out
 from app.schemas.service_desk import (
@@ -17,6 +16,7 @@ from app.schemas.service_desk import (
 from app.services.service_desk.ticket_read_service import (
     list_tickets_payload, my_queue_payload, my_queue_prioritized_payload, client_my_tickets_payload,
     client_ticket_detail_payload, ticket_detail_payload,
+    candidatos_de_asignacion, explicacion_de_decision_de_ia,
 )
 from app.services.service_desk.ticket_update_service import get_scoped_ticket_or_404, apply_ticket_update
 from app.services.service_desk.ticket_creation_service import build_internal_ticket, build_client_portal_ticket
@@ -45,8 +45,7 @@ from app.services.service_desk.merge_split_service import (
     merge_ticket_command, split_ticket_command, list_ticket_merges_payload,
 )
 from app.services.service_desk.ai_suggest_service import build_ai_ticket_suggestion
-from app.services.service_desk.workload_service import score_agent_for_ticket, auto_assign_ticket_ml_command
-from app.services.service_desk.incident_intelligence_service import score_auto_resolution
+from app.services.service_desk.workload_service import auto_assign_ticket_ml_command
 from app.services.service_desk.kb_service import create_kb_from_ticket
 from app.services.service_desk.portal_auth_service import get_current_portal_client
 from app.services.service_desk.semantic_feedback_service import (
@@ -353,32 +352,8 @@ def routing_candidates(
 
     Requires the ticket to have an assigned_group_id.
     """
-    from app.models.service_desk import AgentGroupMember
-    from app.services.service_desk.ml_routing_service import get_routing_candidates
-
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket no encontrado")
-    if not ticket.assigned_group_id:
-        raise HTTPException(status_code=400, detail="El ticket no tiene grupo asignado")
-
-    members = (
-        db.query(AgentGroupMember)
-        .filter(AgentGroupMember.group_id == ticket.assigned_group_id)
-        .all()
-    )
-    candidates = get_routing_candidates(db, ticket, members)
-    return APIResponse.ok(data={
-        "ticket_id": ticket_id,
-        "ticket_number": ticket.number,
-        "candidates": candidates,
-        "score_weights": {
-            "availability": "30%",
-            "historical_speed": "35%",
-            "historical_csat": "20%",
-            "skill_match": "15%",
-        },
-    })
+    return APIResponse.ok(
+        data=candidatos_de_asignacion(db, current_user, ticket_id))
 
 
 @router.post("/tickets/{ticket_id}/smart-assign", summary="Asignación ML inteligente con explicación")
@@ -395,33 +370,8 @@ def smart_assign_ticket(
 
 @router.get("/tickets/{ticket_id}/ai-explain", summary="Explicación de confianza IA para asignación y auto-resolución")
 def explain_ai_decision(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        return APIResponse.ok(data={"ok": False, "error": "Ticket no encontrado"})
-
-    auto_resolution = score_auto_resolution(db, ticket)
-    candidates = []
-    if ticket.assigned_group_id:
-        members = db.query(AgentGroupMember).filter(AgentGroupMember.group_id == ticket.assigned_group_id).all()
-        for member in members:
-            candidates.append(
-                {
-                    "user_id": member.user_id,
-                    "assignment_score": score_agent_for_ticket(db, member.user_id, ticket),
-                }
-            )
-        candidates.sort(key=lambda c: c["assignment_score"], reverse=True)
-
-    return APIResponse.ok(data={
-        "ticket_id": ticket.id,
-        "ticket_number": ticket.number,
-        "auto_resolution": auto_resolution,
-        "assignment_candidates": candidates[:5],
-        "confidence_trace": {
-            "auto_resolution_threshold": 85,
-            "routing_method": "ml_score_v1",
-        },
-    })
+    return APIResponse.ok(
+        data=explicacion_de_decision_de_ia(db, current_user, ticket_id))
 
 
 @router.get("/tickets/{ticket_id}/merges", summary="Ver merges de un ticket")

@@ -1,5 +1,6 @@
 from typing import Optional
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -84,6 +85,32 @@ def scope_ticket_query(q, db: Session, current_user: User):
             )
         )
     return q
+
+
+def get_scoped_ticket_or_404(
+    db: Session, current_user: Optional[User], ticket_id: str
+) -> Ticket:
+    """El ticket por id, si el sujeto puede verlo. 404 si no.
+
+    Auditoria 2026-08 (hallazgo 22). Esta funcion estaba **copiada literalmente
+    tres veces** —en `ticket_update_service`, `comment_service` y
+    `ticket_ops_service`—, con la unica diferencia de que dos de las copias
+    lanzaban el 404 sin texto. Vive aqui porque aqui vive
+    `scope_ticket_query`, que es de lo que depende.
+
+    El ambito no es solo la organizacion: `scope_ticket_query` restringe ademas
+    a un empleado o subcontratado a los tickets que pidio o tiene asignados, asi
+    que filtrar por `organization_id` a secas seria MAS PERMISIVO que esto y
+    dejaria la lectura de uno suelto por detras del listado.
+    """
+    ticket = (
+        scope_ticket_query(db.query(Ticket), db, current_user)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+    if not ticket:
+        raise HTTPException(404, "Ticket no encontrado")
+    return ticket
 
 
 def scope_problem_query(q, db: Session, current_user: User):

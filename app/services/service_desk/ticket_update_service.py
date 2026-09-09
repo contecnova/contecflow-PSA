@@ -1,12 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import SLAPolicy, Ticket
-from app.models.user import User
 from app.schemas.service_desk import TicketUpdateIn
-from app.services.service_desk.scoping import scope_ticket_query as _scope_ticket_query
 from app.services.service_desk.status_compat import normalize_ticket_status
 from app.services.service_desk.dynamic_ticket_fields_service import save_ticket_dynamic_fields
 from app.services.service_desk.ticket_ops_service import save_pending_snapshot
@@ -21,11 +18,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def get_scoped_ticket_or_404(db: Session, current_user: User, ticket_id: str) -> Ticket:
-    ticket = _scope_ticket_query(db.query(Ticket), db, current_user).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(404, "Ticket no encontrado")
-    return ticket
+# La guarda vive en `scoping.py`, junto a `scope_ticket_query`, de la que
+# depende. Se reexporta con el mismo nombre para que ningun sitio de llamada
+# cambie: estaba copiada literalmente en este modulo y en dos mas.
+from app.services.service_desk.scoping import (  # noqa: E402,F401
+    get_scoped_ticket_or_404,
+)
 
 
 # ── Actualizacion de un ticket ───────────────────────────────────────────────

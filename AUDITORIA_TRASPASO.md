@@ -393,6 +393,112 @@ en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
 
 ---
 
+## 3.sexies El Service Desk entero: la columna de tenant, la migración que erró el nombre de la tabla, y dos endpoints de IA sin ámbito
+
+Salió al mover a servicio los cuatro puntos de acceso de
+`endpoints/service_desk/tickets.py`. Son tres cosas distintas y conviene no
+mezclarlas.
+
+### 1. `sd_tickets.organization_id` no la rellenaba nadie
+
+Es §3.quater otra vez, y con el alcance más grande de todos. Medido con la clase
+de sesión real de la aplicación, no razonado:
+
+```
+usuario de ORG-A  ->  ['t-org']              (el ticket con organización)
+usuario de ORG-B  ->  []
+superadmin        ->  ['t-nulo', 't-org']
+```
+
+Y **ninguno de los seis sitios que crean tickets pone la columna**:
+`ai_modules/voice`, `collaboration/bots`, `integrations`,
+`public_forms_service`, `service_desk/asset_service` y
+`service_desk/inbound_email_service`. Uno de ellos lleva además este comentario:
+
+```python
+# NOTA: Ticket no tiene columna organization_id; el scope multi-tenant
+# viene vía project_id → Project.organization_id.
+```
+
+**Y sí la tiene.** Es el mismo comentario rancio que ya me hizo empeorar el
+filtro de un trabajo de fondo, y aquí ha servido de justificación para no
+rellenarla en el resto del módulo. Un comentario que afirma algo sobre el
+esquema caduca cuando el esquema cambia, y nadie lo revisa.
+
+### 2. Por qué las filas viejas sí tienen organización y las nuevas no
+
+La **076** hizo el relleno original con una lista de nombres de tabla
+adivinados por un script. Decía `tickets`, y la tabla real se llama
+`sd_tickets`, así que **se la saltó** — la 076 salta en silencio las tablas que
+no existen. La **080** lo arregló por introspección y rellenó `sd_tickets` con
+la organización por defecto.
+
+Es decir: **todo lo creado después de la 080 quedó en NULL**, y eso es el tráfico
+normal de la aplicación desde entonces. El defecto no estaba en el diseño del
+aislamiento; estaba en que el relleno fue puntual y la escritura nunca se
+arregló.
+
+### 3. La migración 093, y por qué no usa la organización por defecto
+
+`093_tickets_backfill_organization` rellena `sd_tickets` heredando, en este
+orden: quien lo creó, quien lo pidió, a quién está asignado, su proyecto, su
+cliente, y el usuario de portal que lo pidió. Después rellena las **17 tablas
+que cuelgan de un ticket** por `ticket_id` —la lista se comprobó contra
+`Base.metadata`, son todas las que tienen a la vez `organization_id` y
+`ticket_id`—.
+
+**No usa la organización por defecto como respaldo, y eso es deliberado.** Es lo
+que hicieron la 076 y la 080, y en un despliegue con varios clientes eso le
+entrega al primero las filas de los demás. Un ticket sin ninguna de las seis
+referencias se queda en NULL: no hay de dónde deducirlo, e inventarlo sería
+peor que dejarlo.
+
+Verificada ejecutando el `upgrade()` de verdad contra un escenario sembrado a
+mano, once casos: las cinco herencias, la precedencia (el creador manda sobre el
+proyecto), la fila que ya tenía organización y **no** se toca, la hija que
+hereda del ticket, y la hija sin ticket que se queda como estaba. El mismo
+escenario está en `tests/test_tickets_ia_por_tenant.py`, así que no depende de
+que yo lo ejecutara una vez.
+
+### 4. Los dos endpoints de IA que buscaban el ticket por id, sin más
+
+`/tickets/{id}/routing-candidates` y `/tickets/{id}/ai-explain` hacían
+`db.query(Ticket).filter(Ticket.id == ticket_id).first()`, mientras su vecino
+`ticket_detail_payload` —en el mismo módulo de servicio— usa
+`scope_ticket_query`. La asimetría de siempre: dos lecturas del mismo ticket por
+id, una comprobada y la otra no.
+
+**Y lo que se filtraba no era sólo el ticket.** `/ai-explain` devuelve la lista
+de agentes candidatos con su puntuación, es decir **los nombres y el rendimiento
+del equipo de soporte de otro cliente**, y cuelga de `get_current_user` a secas,
+no de un rol de gestión.
+
+Se usa `scope_ticket_query` y no un filtro por `organization_id`, y la razón hay
+que retenerla: **`scope_ticket_query` restringe además a un empleado o
+subcontratado a los tickets que pidió o tiene asignados**, así que filtrar por
+`organization_id` a secas habría sido *más permisivo* que el listado y habría
+dejado la lectura de uno suelto por detrás de la lectura de muchos.
+
+La respuesta de `/ai-explain` mantiene su forma (`{"ok": false, ...}` en vez de
+un 404). Es incoherente con todos sus vecinos y no lo consume nadie del
+frontend, pero cambiarla de paso sería un cambio de contrato que este trabajo no
+necesita. Queda anotado, no cambiado.
+
+### 5. La guarda que estaba copiada tres veces
+
+`get_scoped_ticket_or_404` existía **literalmente por triplicado** en
+`ticket_update_service`, `comment_service` y `ticket_ops_service`, con una única
+diferencia: dos de las copias lanzaban el 404 **sin texto**. Ahora vive en
+`scoping.py`, junto a `scope_ticket_query`, que es de lo que depende, y las tres
+la reexportan con el mismo nombre — así ningún sitio de llamada cambia. Al
+separarla cayeron **seis imports muertos** que las tres copias mantenían vivos.
+
+Hay un test que comprueba la **identidad del objeto**, no que el código sea
+parecido: si alguien vuelve a escribir una copia local, se pone en rojo.
+
+`tickets.py` queda en **0 puntos de acceso a base**, y las 2.029 rutas de la
+aplicación siguen siendo idénticas.
+
 ## 3.quinquies El portal de cliente corría con el aislamiento por organización **apagado**
 
 Salió al mover a servicio las tres consultas del selector de contexto de
@@ -2614,7 +2720,7 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    puntos a 0 en ocho ficheros, con diez defectos destapados por el camino
    (§#22) y, al verificarlo, un **apagón de datos para toda organización que no
    fuera la primera del proceso** en el filtro de aislamiento (§3.bis).
-   **Estado remedido hoy: 95 puntos en 32 ficheros** (204 al cerrar la tanda 1).
+   **Estado remedido hoy: 91 puntos en 31 ficheros** (204 al cerrar la tanda 1).
    De esos 95, **45 son consultas o escrituras** y **50 son fronteras de
    transaccion** (`commit`/`rollback`), que no son acceso a datos y se tratan
    aparte. Cerradas las tandas de `collaboration` (127 -> 0), `performance`,
@@ -2632,16 +2738,16 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    service_desk/connectors_marketplace.py 5
    performance.py                        5   (todos commit)
    client_portal.py                      5
-   service_desk/tickets.py               4   dos `db.query(Ticket)` sin acotar
    service_desk/cmdb.py                  4
    esign.py                              4
    ...y 21 ficheros mas con 3 o menos
    ```
 
-   **Dos defectos ya localizados y no arreglados** en lo que queda:
-   `service_desk/tickets.py` tiene dos `db.query(Ticket)` sin filtro de
-   organizacion, y `service_desk/predictive.py` carga **todos** los tickets
-   abiertos sin tope ni acotar. La orquestacion del trabajo de auto-resolucion
+   `service_desk/tickets.py` queda en **0** (ver §3.sexies).
+
+   **Un defecto ya localizado y no arreglado** en lo que queda:
+   `service_desk/predictive.py` carga **todos** los tickets abiertos sin tope
+   ni acotar. La orquestacion del trabajo de auto-resolucion
    (cerrojo, estado, tarea de fondo, registro del fallo) sigue en el endpoint.
 3. **Registrar el escuchador `do_orm_execute` en la factoría de sesiones de los
    tests.** Hoy no se ejecuta en ninguna prueba (§3.bis), que es por lo que el
